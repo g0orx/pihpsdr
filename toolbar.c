@@ -1017,6 +1017,11 @@ GtkWidget *toolbar_init(int my_width, int my_height, GtkWidget* parent) {
     g_signal_connect(G_OBJECT(filter),"clicked",G_CALLBACK(filter_cb),NULL);
     gtk_grid_attach(GTK_GRID(toolbar),filter,8,0,4,1);
 
+    GtkWidget *audio=gtk_button_new_with_label("Audio");
+    //gtk_widget_override_font(audio, pango_font_description_from_string("Arial 16"));
+    g_signal_connect(G_OBJECT(audio),"clicked",G_CALLBACK(audio_cb),NULL);
+    gtk_grid_attach(GTK_GRID(toolbar),audio,12,0,4,1);
+
     GtkWidget *lock=gtk_button_new_with_label("Lock");
     //gtk_widget_override_font(lock, pango_font_description_from_string("Arial 16"));
     g_signal_connect(G_OBJECT(lock),"clicked",G_CALLBACK(lock_cb),NULL);
