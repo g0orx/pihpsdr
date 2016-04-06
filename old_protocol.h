@@ -17,8 +17,7 @@
 *
 */
 
-
-GtkWidget* vfo_init(int width,int height,GtkWidget *parent);
-void vfo_step(int steps);
-void vfo_move(int hz);
-int vfo_update(void*);
+#define BUFFER_SIZE 1024
+void old_protocol_stop();
+void old_protocol_init(int rx,int pixels);
+void schedule_frequency_changed();

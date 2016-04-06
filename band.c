@@ -1,3 +1,22 @@
+/* Copyright (C)
+* 2015 - John Melton, G0ORX/N6LYT
+*
+* This program is free software; you can redistribute it and/or
+* modify it under the terms of the GNU General Public License
+* as published by the Free Software Foundation; either version 2
+* of the License, or (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software
+* Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+*
+*/
+
 #include <stdio.h>
 
 #include "bandstack.h"
@@ -100,19 +119,19 @@ BANDSTACK bandstackGEN={3,1,bandstack_entriesGEN};
 BANDSTACK bandstackWWV={5,1,bandstack_entriesWWV};
 
 BAND bands[BANDS] = 
-    {{"160",&bandstack160,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB},
-     {"80",&bandstack80,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB},
-     {"60",&bandstack60,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB},
-     {"40",&bandstack40,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB},
-     {"30",&bandstack30,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB},
-     {"20",&bandstack20,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB},
-     {"18",&bandstack18,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB},
-     {"15",&bandstack15,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB},
-     {"12",&bandstack12,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB},
-     {"10",&bandstack10,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB},
-     {"50",&bandstack50,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB},
-     {"GEN",&bandstackGEN,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB},
-     {"WWV",&bandstackWWV,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB}};
+    {{"160",&bandstack160,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
+     {"80",&bandstack80,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
+     {"60",&bandstack60,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
+     {"40",&bandstack40,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
+     {"30",&bandstack30,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
+     {"20",&bandstack20,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
+     {"18",&bandstack18,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
+     {"15",&bandstack15,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
+     {"12",&bandstack12,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
+     {"10",&bandstack10,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
+     {"50",&bandstack50,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
+     {"GEN",&bandstackGEN,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,0},
+     {"WWV",&bandstackWWV,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,0}};
 
 #define NUM_BAND_LIMITS 22
 
@@ -170,12 +189,23 @@ BANDSTACK_ENTRY *bandstack_entry_get_current() {
 BANDSTACK_ENTRY *bandstack_entry_next() {
     BANDSTACK *bandstack=bands[band].bandstack;
     bandstack->current_entry++;
-    if(bandstack->current_entry==bandstack->entries) {
+    if(bandstack->current_entry>=bandstack->entries) {
         bandstack->current_entry=0;
     }
     BANDSTACK_ENTRY *entry=&bandstack->entry[bandstack->current_entry];
     return entry;
 }
+
+BANDSTACK_ENTRY *bandstack_entry_previous() {
+    BANDSTACK *bandstack=bands[band].bandstack;
+    bandstack->current_entry--;
+    if(bandstack->current_entry<0) {
+        bandstack->current_entry=bandstack->entries-1;
+    }
+    BANDSTACK_ENTRY *entry=&bandstack->entry[bandstack->current_entry];
+    return entry;
+}
+
 
 int band_get_current() {
     return band;
@@ -228,6 +258,10 @@ void bandSaveState() {
 
         sprintf(value,"%ld",bands[b].alexAttenuation);
         sprintf(name,"band.%d.alexAttenuation",b);
+        setProperty(name,value);
+
+        sprintf(value,"%d",bands[b].pa_calibration);
+        sprintf(name,"band.%d.pa_calibration",b);
         setProperty(name,value);
 
         for(stack=0;stack<bands[b].bandstack->entries;stack++) {
@@ -303,6 +337,11 @@ void bandRestoreState() {
         sprintf(name,"band.%d.alexAttenuation",b);
         value=getProperty(name);
         if(value) bands[b].alexAttenuation=atoi(value);
+
+        sprintf(name,"band.%d.pa_calibration",b);
+        value=getProperty(name);
+        if(value) bands[b].pa_calibration=atoi(value);
+
         for(stack=0;stack<bands[b].bandstack->entries;stack++) {
             entry=bands[b].bandstack->entry;
             entry+=stack;
@@ -341,4 +380,18 @@ void bandRestoreState() {
     if(value) band=atoi(value);
 }
 
+BAND_LIMITS* getBandLimits(long long minDisplay,long long maxDisplay) {
+    BAND_LIMITS* limits;
+    int i;
+
+    for(i=0;i<NUM_BAND_LIMITS;i++) {
+        limits=&bandLimits[i];
+        if((minDisplay<=limits->minFrequency&&maxDisplay>=limits->minFrequency) ||
+           (minDisplay<=limits->maxFrequency&&maxDisplay>=limits->maxFrequency)) {
+            return limits;
+        }
+    }
+
+    return NULL;
+}
 

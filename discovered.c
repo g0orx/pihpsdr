@@ -17,8 +17,9 @@
 *
 */
 
+#include "discovered.h"
 
-GtkWidget* vfo_init(int width,int height,GtkWidget *parent);
-void vfo_step(int steps);
-void vfo_move(int hz);
-int vfo_update(void*);
+int selected_device=0;
+int devices=0;
+DISCOVERED discovered[MAX_DEVICES];
+

@@ -1,3 +1,22 @@
+/* Copyright (C)
+* 2015 - John Melton, G0ORX/N6LYT
+*
+* This program is free software; you can redistribute it and/or
+* modify it under the terms of the GNU General Public License
+* as published by the Free Software Foundation; either version 2
+* of the License, or (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software
+* Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+*
+*/
+
 
 // port definitions from host
 #define GENERAL_REGISTERS_FROM_HOST_PORT 1024
@@ -17,19 +36,6 @@
 
 #define BUFFER_SIZE 1024
 
-#define modeLSB 0
-#define modeUSB 1
-#define modeDSB 2
-#define modeCWL 3
-#define modeCWU 4
-#define modeFMN 5
-#define modeAM 6
-#define modeDIGU 7
-#define modeSPEC 8
-#define modeDIGL 9
-#define modeSAM 10
-#define modeDRM 11
-
 extern int data_socket;
 extern sem_t response_sem;
 
@@ -40,6 +46,12 @@ extern unsigned int exciter_power;
 extern unsigned int alex_forward_power;
 extern unsigned int alex_reverse_power;
 
+extern int send_high_priority;
+extern int send_general;
+
+void schedule_high_priority(int source);
+void schedule_general();
+
 void new_protocol_init(int rx,int pixels);
 void new_protocol_stop();
 
@@ -48,31 +60,9 @@ void pa_changed();
 void tuner_changed();
 void cw_changed();
 
-void set_attenuation(int value);
-int get_attenuation();
-
-void set_alex_rx_antenna(unsigned long v);
-void set_alex_tx_antenna(unsigned long v);
-void set_alex_attenuation(unsigned long v);
-
 void setMox(int state);
 int getMox();
 void setTune(int state);
 int getTune();
 int isTransmitting();
-
-double getDrive();
-void setDrive(double d);
-double getTuneDrive();
-void setTuneDrive(double d);
-
-void setSampleRate(int rate);
-int getSampleRate();
-void setFrequency(long long f);
-long long getFrequency();
-void setMode(int m);
-int getMode();
-void setFilter(int low,int high);
-int getFilterLow();
-int getFilterHigh();
 

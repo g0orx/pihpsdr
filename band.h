@@ -1,14 +1,6 @@
-/**
-* @file band.h
-* @brief Header files for the Amateur Radio band stack.
-* @author John Melton, G0ORX/N6LYT, Doxygen Comments Dave Larsen, KV0S
-* @version 0.1
-* @date 2009-04-11
-*/
-// band.h
-
 /* Copyright (C)
-* 2009 - John Melton, G0ORX/N6LYT, Doxygen Comments Dave Larsen, KV0S
+* 2015 - John Melton, G0ORX/N6LYT
+*
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License
 * as published by the Free Software Foundation; either version 2
@@ -43,6 +35,7 @@
 #define bandWWV 12
 
 #define BANDS 13
+#define HAM_BANDS 11
 
 /* --------------------------------------------------------------------------*/
 /**
@@ -68,6 +61,7 @@ struct _BAND {
     unsigned long alexRxAntenna;
     unsigned long alexTxAntenna;
     unsigned long alexAttenuation;
+    int pa_calibration;
 };
 
 typedef struct _BAND BAND;
@@ -82,19 +76,12 @@ BAND *band_get_band(int b);
 BAND *band_set_current(int b);
 
 BANDSTACK_ENTRY *bandstack_entry_next();
+BANDSTACK_ENTRY *bandstack_entry_previous();
 BANDSTACK_ENTRY *bandstack_entry_get_current();
 
-/*
-void bandSaveState();
-void bandRestoreState();
-void forceBand(int band,int setup);
-void configureXVTRButton(int setup);
-GtkWidget* buildBandUI();
-
-int remoteSetBand(gpointer *data);
-
 BAND_LIMITS* getBandLimits(long long minDisplay,long long maxDisplay);
-XVTR_ENTRY* getXvtrEntry(int i);
 
+/*
+XVTR_ENTRY* getXvtrEntry(int i);
 */
 

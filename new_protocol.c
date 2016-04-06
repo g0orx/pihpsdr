@@ -1,3 +1,22 @@
+/* Copyright (C)
+* 2015 - John Melton, G0ORX/N6LYT
+*
+* This program is free software; you can redistribute it and/or
+* modify it under the terms of the GNU General Public License
+* as published by the Free Software Foundation; either version 2
+* of the License, or (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software
+* Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+*
+*/
+
 
 //#define ECHO_MIC
 
@@ -25,16 +44,19 @@
 #include "channel.h"
 #include "discovered.h"
 #include "wdsp.h"
+#include "mode.h"
+#include "filter.h"
 #include "radio.h"
 #include "vfo.h"
 #include "toolbar.h"
+#include "wdsp_init.h"
 
 #define PI 3.1415926535897932F
 
-static int receiver;
-static int running=0;
-
 int data_socket;
+
+static int receiver;
+static int running;
 
 static struct sockaddr_in base_addr;
 static int base_addr_length;
@@ -69,21 +91,8 @@ static long general_sequence = 0;
 static long rx_specific_sequence = 0;
 static long tx_specific_sequence = 0;
 
-static int lt2208Dither = 0;
-static int lt2208Random = 0;
-static int attenuation = 20; // 20dB
-
-static long long ddsAFrequency = 14250000;
-static int filterLow=150;
-static int filterHigh=2550;
-static int mode=modeUSB;
-static unsigned long alex_rx_antenna=0;
-static unsigned long alex_tx_antenna=0;
-static unsigned long alex_attenuation=0;
-
 static int buffer_size=BUFFER_SIZE;
 static int fft_size=4096;
-static int sampleRate=48000;
 static int dspRate=48000;
 static int outputRate=48000;
 
@@ -94,165 +103,46 @@ static int micOutputRate=192000;
 static int spectrumWIDTH=800;
 static int SPECTRUM_UPDATES_PER_SECOND=10;
 
-static int mox=0;
-static int tune=0;
 static float phase = 0.0F;
-
-static int ptt;
-static int dot;
-static int dash;
-static int pll_locked;
-static int adc_overload;
-unsigned int exciter_power;
-unsigned int alex_forward_power;
-unsigned int alex_reverse_power;
-static int supply_volts;
 
 long response_sequence;
 int response;
 
+sem_t send_high_priority_sem;
 int send_high_priority=0;
+sem_t send_general_sem;
 int send_general=0;
 
-static void initAnalyzer(int channel,int buffer_size);
 static void* new_protocol_thread(void* arg);
 static void* new_protocol_timer_thread(void* arg);
 
-void filter_board_changed() {
+void schedule_high_priority(int source) {
+fprintf(stderr,"new_protocol: schedule_high_priority: source=%d\n",source);
+    sem_wait(&send_high_priority_sem);
+    send_high_priority=1;
+    sem_post(&send_high_priority_sem);
+}
+
+void schedule_general() {
+fprintf(stderr,"new_protocol: schedule_general\n");
+    sem_wait(&send_general_sem);
     send_general=1;
+    sem_post(&send_general_sem);
+}
+
+void filter_board_changed() {
+    schedule_general();
 }
 
 void pa_changed() {
-    send_general=1;
+    schedule_general();
 }
 
 void tuner_changed() {
-    send_general=1;
+    schedule_general();
 }
 
 void cw_changed() {
-}
-
-void set_attenuation(int value) {
-    attenuation=value;
-}
-
-int get_attenuation() {
-    return attenuation;
-}
-
-void set_alex_rx_antenna(unsigned long v) {
-    alex_rx_antenna=v;
-    send_high_priority=1;
-}
-
-void set_alex_tx_antenna(unsigned long v) {
-    alex_tx_antenna=v;
-    send_high_priority=1;
-}
-
-void set_alex_attenuation(unsigned long v) {
-    alex_attenuation=v;
-    send_high_priority=1;
-}
-
-void setSampleRate(int rate) {
-    sampleRate=rate;
-}
-
-int getSampleRate() {
-    return sampleRate;
-}
-
-void setFrequency(long long f) {
-    ddsAFrequency=f;
-    send_high_priority=1;
-}
-
-long long getFrequency() {
-    return ddsAFrequency;
-}
-
-void setMode(int m) {
-    mode=m;
-    SetRXAMode(receiver, mode);
-    SetTXAMode(CHANNEL_TX, mode);
-}
-
-int getMode() {
-    return mode;
-}
-
-void setFilter(int low,int high) {
-    if(mode==modeCWL) {
-        filterLow=-cwPitch-low;
-        filterHigh=-cwPitch+high;
-    } else if(mode==modeCWU) {
-        filterLow=cwPitch-low;
-        filterHigh=cwPitch+high;
-    } else {
-        filterLow=low;
-        filterHigh=high;
-    }
-
-    RXANBPSetFreqs(receiver,(double)filterLow,(double)filterHigh);
-    SetRXABandpassFreqs(receiver, (double)filterLow, (double)filterHigh);
-    SetRXASNBAOutputBandwidth(receiver, (double)filterLow, (double)filterHigh);
-
-    SetTXABandpassFreqs(CHANNEL_TX, (double)filterLow, (double)filterHigh);
-}
-
-int getFilterLow() {
-    return filterLow;
-}
-
-int getFilterHigh() {
-    return filterHigh;
-}
-
-void setMox(int state) {
-    if(mox!=state) {
-        mox=state;
-        send_high_priority=1;
-    }
-}
-
-int getMox() {
-    return mox;
-}
-
-void setTune(int state) {
-    if(tune!=state) {
-        tune=state;
-        send_high_priority=1;
-        send_general=1;
-    }
-}
-
-int getTune() {
-    return tune;
-}
-
-int isTransmitting() {
-    return ptt!=0 || mox!=0 || tune!=0;
-}
-
-double getDrive() {
-    return (double)drive/255.0;
-}
-
-void setDrive(double value) {
-    drive=(int)(value*255.0);
-    send_high_priority=1;
-}
-
-double getTuneDrive() {
-    return (double)tune_drive/255.0;
-}
-
-void setTuneDrive(double value) {
-    tune_drive=(int)(value*255.0);
-    send_high_priority=1;
 }
 
 void new_protocol_init(int rx,int pixels) {
@@ -263,56 +153,8 @@ void new_protocol_init(int rx,int pixels) {
     fprintf(stderr,"new_protocol_init: %d\n",rx);
 
     rc=sem_init(&response_sem, 0, 0);
-
-    fprintf(stderr,"OpenChannel %d buffer_size=%d fft_size=%d sampleRate=%d dspRate=%d outputRate=%d\n",
-                rx,
-                buffer_size,
-                fft_size,
-                sampleRate,
-                dspRate,
-                outputRate);
-
-    OpenChannel(rx,
-                buffer_size,
-                fft_size,
-                sampleRate,
-                dspRate,
-                outputRate,
-                0, // receive
-                1, // run
-                0.010, 0.025, 0.0, 0.010, 0);
-
-    fprintf(stderr,"OpenChannel %d buffer_size=%d fft_size=%d sampleRate=%d dspRate=%d outputRate=%d\n",
-                CHANNEL_TX,
-                buffer_size,
-                fft_size,
-                micSampleRate,
-                micDspRate,
-                micOutputRate);
-
-    OpenChannel(CHANNEL_TX,
-                buffer_size,
-                fft_size,
-                micSampleRate,
-                micDspRate,
-                micOutputRate,
-                1, // transmit
-                1, // run
-                0.010, 0.025, 0.0, 0.010, 0);
-
-    fprintf(stderr,"XCreateAnalyzer %d\n",rx);
-    int success;
-    XCreateAnalyzer(rx, &success, 262144, 1, 1, "");
-        if (success != 0) {
-            fprintf(stderr, "XCreateAnalyzer %d failed: %d\n" ,rx,success);
-        }
-    initAnalyzer(rx,buffer_size);
-
-    XCreateAnalyzer(CHANNEL_TX, &success, 262144, 1, 1, "");
-        if (success != 0) {
-            fprintf(stderr, "XCreateAnalyzer CHANNEL_TX failed: %d\n" ,success);
-        }
-    initAnalyzer(CHANNEL_TX,BUFFER_SIZE);
+    rc=sem_init(&send_high_priority_sem, 0, 1);
+    rc=sem_init(&send_general_sem, 0, 1);
 
     rc=pthread_create(&new_protocol_thread_id,NULL,new_protocol_thread,NULL);
     if(rc != 0) {
@@ -320,87 +162,7 @@ void new_protocol_init(int rx,int pixels) {
         exit(-1);
     }
 
-    SetRXAMode(rx, mode);
-    SetRXABandpassFreqs(rx, (double)filterLow, (double)filterHigh);
-    SetRXAAGCMode(rx, agc);
-    SetRXAAGCTop(rx,agc_gain);
-
-    SetRXAAMDSBMode(CHANNEL_RX0, 0);
-    SetRXAShiftRun(CHANNEL_RX0, 0);
-    SetRXAEMNRgainMethod(CHANNEL_RX0, 1);
-    SetRXAEMNRnpeMethod(CHANNEL_RX0, 0);
-    SetRXAEMNRaeRun(CHANNEL_RX0, 1);
-    SetRXAEMNRPosition(CHANNEL_RX0, 0);
-    SetRXAEMNRRun(CHANNEL_RX0, 0);
-    SetRXAANRRun(CHANNEL_RX0, 0);
-    SetRXAANFRun(CHANNEL_RX0, 0);
-
-    SetTXAMode(CHANNEL_TX, mode);
-    SetTXABandpassFreqs(CHANNEL_TX, (double)filterLow, (double)filterHigh);
-    SetTXABandpassWindow(CHANNEL_TX, 1);
-    SetTXABandpassRun(CHANNEL_TX, 1);
-
-    SetTXACFIRRun(CHANNEL_TX, 1);
-    SetTXAEQRun(CHANNEL_TX, 0);
-    SetTXACTCSSRun(CHANNEL_TX, 0);
-    SetTXAAMSQRun(CHANNEL_TX, 0);
-    SetTXACompressorRun(CHANNEL_TX, 0);
-    SetTXAosctrlRun(CHANNEL_TX, 0);
-    SetTXAPreGenRun(CHANNEL_TX, 0);
-    SetTXAPostGenRun(CHANNEL_TX, 0);
-
 }
-
-static void initAnalyzer(int channel,int buffer_size) {
-    int flp[] = {0};
-    double KEEP_TIME = 0.1;
-    int spur_elimination_ffts = 1;
-    int data_type = 1;
-    int fft_size = 8192;
-    int window_type = 4;
-    double kaiser_pi = 14.0;
-    int overlap = 2048;
-    int clip = 0;
-    int span_clip_l = 0;
-    int span_clip_h = 0;
-    int pixels=spectrumWIDTH;
-    int stitches = 1;
-    int avm = 0;
-    double tau = 0.001 * 120.0;
-    int MAX_AV_FRAMES = 60;
-    int display_average = MAX(2, (int) MIN((double) MAX_AV_FRAMES, (double) SPECTRUM_UPDATES_PER_SECOND * tau));
-    double avb = exp(-1.0 / (SPECTRUM_UPDATES_PER_SECOND * tau));
-    int calibration_data_set = 0;
-    double span_min_freq = 0.0;
-    double span_max_freq = 0.0;
-
-    int max_w = fft_size + (int) MIN(KEEP_TIME * (double) SPECTRUM_UPDATES_PER_SECOND, KEEP_TIME * (double) fft_size * (double) SPECTRUM_UPDATES_PER_SECOND);
-
-    fprintf(stderr,"SetAnalyzer channel=%d\n",channel);
-    SetAnalyzer(channel,
-            spur_elimination_ffts, //number of LO frequencies = number of ffts used in elimination
-            data_type, //0 for real input data (I only); 1 for complex input data (I & Q)
-            flp, //vector with one elt for each LO frequency, 1 if high-side LO, 0 otherwise
-            fft_size, //size of the fft, i.e., number of input samples
-            buffer_size, //number of samples transferred for each OpenBuffer()/CloseBuffer()
-            window_type, //integer specifying which window function to use
-            kaiser_pi, //PiAlpha parameter for Kaiser window
-            overlap, //number of samples each fft (other than the first) is to re-use from the previous
-            clip, //number of fft output bins to be clipped from EACH side of each sub-span
-            span_clip_l, //number of bins to clip from low end of entire span
-            span_clip_h, //number of bins to clip from high end of entire span
-            pixels, //number of pixel values to return.  may be either <= or > number of bins
-            stitches, //number of sub-spans to concatenate to form a complete span
-            avm, //averaging mode
-            display_average, //number of spans to (moving) average for pixel result
-            avb, //back multiplier for weighted averaging
-            calibration_data_set, //identifier of which set of calibration data to use
-            span_min_freq, //frequency at first pixel value8192
-            span_max_freq, //frequency at last pixel value
-            max_w //max samples to hold in input ring buffers
-    );
-}
-
 
 static void new_protocol_general() {
     unsigned char buffer[60];
@@ -446,9 +208,7 @@ static void new_protocol_high_priority(int run,int tx,int drive) {
 
     buffer[4]=run|(tx<<1);
 
-    extern long long ddsAFrequency;
-
-    long phase=(long)((4294967296.0*(double)ddsAFrequency)/122880000.0);
+    long phase=(long)((4294967296.0*(double)ddsFrequency)/122880000.0);
 
 // rx
     buffer[9]=phase>>24;
@@ -456,7 +216,7 @@ static void new_protocol_high_priority(int run,int tx,int drive) {
     buffer[11]=phase>>8;
     buffer[12]=phase;
 
-// tx
+// tx (no split yet)
     buffer[329]=phase>>24;
     buffer[330]=phase>>16;
     buffer[331]=phase>>8;
@@ -477,15 +237,15 @@ else                                               HPF <= 6'b000010;    // 20MHz
 
     long filters=0x00000000;
 // set HPF
-    if(ddsAFrequency<1800000L) {
+    if(ddsFrequency<1800000L) {
         filters|=ALEX_BYPASS_HPF;
-    } else if(ddsAFrequency<6500000L) {
+    } else if(ddsFrequency<6500000L) {
         filters|=ALEX_1_5MHZ_HPF;
-    } else if(ddsAFrequency<9500000L) {
+    } else if(ddsFrequency<9500000L) {
         filters|=ALEX_6_5MHZ_HPF;
-    } else if(ddsAFrequency<13000000L) {
+    } else if(ddsFrequency<13000000L) {
         filters|=ALEX_9_5MHZ_HPF;
-    } else if(ddsAFrequency<20000000L) {
+    } else if(ddsFrequency<20000000L) {
         filters|=ALEX_13MHZ_HPF;
     } else {
         filters|=ALEX_20MHZ_HPF;
@@ -501,17 +261,17 @@ else if (frequency > 2400000)  LPF <= 7'b0000100;       // > 160m so use 80m LPF
 else LPF <= 7'b0001000;             // < 2.4MHz so use 160m LPF^M
 */
 
-    if(ddsAFrequency>32000000) {
+    if(ddsFrequency>32000000) {
         filters|=ALEX_6_BYPASS_LPF;
-    } else if(ddsAFrequency>22000000) {
+    } else if(ddsFrequency>22000000) {
         filters|=ALEX_12_10_LPF;
-    } else if(ddsAFrequency>15000000) {
+    } else if(ddsFrequency>15000000) {
         filters|=ALEX_17_15_LPF;
-    } else if(ddsAFrequency>8000000) {
+    } else if(ddsFrequency>8000000) {
         filters|=ALEX_30_20_LPF;
-    } else if(ddsAFrequency>4500000) {
+    } else if(ddsFrequency>4500000) {
         filters|=ALEX_60_40_LPF;
-    } else if(ddsAFrequency>2400000) {
+    } else if(ddsFrequency>2400000) {
         filters|=ALEX_80_LPF;
     } else {
         filters|=ALEX_160_LPF;
@@ -588,7 +348,22 @@ static void new_protocol_transmit_specific() {
     buffer[10]=cw_keyer_weight; // cw weight
     buffer[11]=cw_keyer_hang_time>>8; buffer[12]=cw_keyer_hang_time; // cw hang delay
     buffer[13]=0; // rf delay
-    buffer[50]=orion_mic;
+    buffer[50]=0;
+    if(mic_linein) {
+      buffer[50]|=0x01;
+    }
+    if(mic_boost) {
+      buffer[50]|=0x02;
+    }
+    if(mic_ptt_enabled==0) {
+      buffer[50]|=0x04;
+    }
+    if(mic_bias_enabled) {
+      buffer[50]|=0x10;
+    }
+    if(mic_ptt_tip_bias_ring) {
+      buffer[50]|=0x08;
+    }
     buffer[51]=0x7F; // Line in gain
 
     if(sendto(data_socket,buffer,sizeof(buffer),0,(struct sockaddr*)&transmitter_addr,transmitter_addr_length)<0) {
@@ -629,12 +404,12 @@ static void new_protocol_receive_specific() {
       buffer[17+(i*6)]=adc[i];
     }
 
-    buffer[18]=((sampleRate/1000)>>8)&0xFF;
-    buffer[19]=(sampleRate/1000)&0xFF;
+    buffer[18]=((sample_rate/1000)>>8)&0xFF;
+    buffer[19]=(sample_rate/1000)&0xFF;
     buffer[22]=24;
 
-    buffer[24]=((sampleRate/1000)>>8)&0xFF;
-    buffer[25]=(sampleRate/1000)&0xFF;
+    buffer[24]=((sample_rate/1000)>>8)&0xFF;
+    buffer[25]=(sample_rate/1000)&0xFF;
     buffer[28]=24;
 
     if(sendto(data_socket,buffer,sizeof(buffer),0,(struct sockaddr*)&receiver_addr,receiver_addr_length)<0) {
@@ -761,7 +536,7 @@ fprintf(stderr,"new_protocol_thread: receiver=%d\n", receiver);
     micsamples=0;
     iqindex=4;
 
-    switch(sampleRate) {
+    switch(sample_rate) {
         case 48000:
             outputsamples=BUFFER_SIZE;
             break;
@@ -851,7 +626,7 @@ fprintf(stderr,"outputsamples=%d\n", outputsamples);
 
 //fprintf(stderr,"samples per frame %d\n",samplesperframe);
 
-          //if(!isTransmitting()) {
+          if(!isTransmitting()) {
               b=16;
               for(i=0;i<samplesperframe;i++) {
                   leftsample   = (int)((signed char) buffer[b++]) << 16;
@@ -906,7 +681,7 @@ fprintf(stderr,"outputsamples=%d\n", outputsamples);
                       samples=0;
                   }
               }
-          //}
+          }
 
        } else if(sourceport==COMMAND_RESPONCE_TO_HOST_PORT) {
           // command/response
@@ -1033,14 +808,19 @@ fprintf(stderr,"outputsamples=%d\n", outputsamples);
        }
 
        if(running) {
+           sem_wait(&send_general_sem);
            if(send_general==1) {
                new_protocol_general();
                send_general=0;
            }
+           sem_post(&send_general_sem);
+
+           sem_wait(&send_high_priority_sem);
            if(send_high_priority==1) {
                new_protocol_high_priority(1,isTransmitting(),tune==0?drive:tune_drive);
                send_high_priority=0;
            }
+           sem_post(&send_high_priority_sem);
        }
         
     }

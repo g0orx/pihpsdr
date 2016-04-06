@@ -17,8 +17,9 @@
 *
 */
 
-
-GtkWidget* vfo_init(int width,int height,GtkWidget *parent);
-void vfo_step(int steps);
-void vfo_move(int hz);
-int vfo_update(void*);
+extern void setMode(int m);
+extern int getMode();
+extern void setFilter(int low,int high);
+extern int getFilterLow();
+extern int getFilterHigh();
+extern void wdsp_init(int rx,int pixels,int protocol);

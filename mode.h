@@ -1,14 +1,6 @@
-/**
-* @file mode.h
-* @brief Header files for the mode functions
-* @author John Melton, G0ORX/N6LYT, Doxygen Comments Dave Larsen, KV0S
-* @version 0.1
-* @date 2009-04-12
-*/
-// mode.h
-
 /* Copyright (C)
-* 2009 - John Melton, G0ORX/N6LYT, Doxygen Comments Dave Larsen, KV0S
+* 2015 - John Melton, G0ORX/N6LYT
+*
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License
 * as published by the Free Software Foundation; either version 2

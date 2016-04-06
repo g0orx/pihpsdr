@@ -1,14 +1,7 @@
-/**
-* @file xvtr.h
-* @brief XVTR definition files
-* @author John Melton, G0ORX/N6LYT, Doxygen Comments Dave Larsen, KV0S
-* @version 0.1
-* @date 2009-04-11
-*/
-// xvtr.h
-
 /* Copyright (C)
-* This program is free software; you can redistribute it and/or2009 - John Melton, G0ORX/N6LYT, Doxygen Comments Dave Larsen, KV0S
+* 2015 - John Melton, G0ORX/N6LYT
+*
+* This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License
 * as published by the Free Software Foundation; either version 2
 * of the License, or (at your option) any later version.

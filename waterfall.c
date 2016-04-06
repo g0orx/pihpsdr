@@ -1,3 +1,22 @@
+/* Copyright (C)
+* 2015 - John Melton, G0ORX/N6LYT
+*
+* This program is free software; you can redistribute it and/or
+* modify it under the terms of the GNU General Public License
+* as published by the Free Software Foundation; either version 2
+* of the License, or (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software
+* Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+*
+*/
+
 
 #include <gtk/gtk.h>
 #include <gdk/gdk.h>
@@ -5,15 +24,12 @@
 #include <unistd.h>
 #include <semaphore.h>
 #include <string.h>
+#include "radio.h"
 #include "vfo.h"
-#include "new_protocol.h"
 #include "waterfall.h"
 
 static GtkWidget *waterfall;
 static GdkPixbuf *pixbuf = NULL;
-
-static float highThreshold = -100.0f;
-static float lowThreshold = -150.0f;
 
 static int colorLowR=0; // black
 static int colorLowG=0;
@@ -144,17 +160,17 @@ void waterfall_update(float *data) {
     for(i=0;i<width;i++) {
             sample=data[i]+get_attenuation();
             average+=(int)sample;
-            if(sample<lowThreshold) {
+            if(sample<(float)waterfall_low) {
                 *p++=colorLowR;
                 *p++=colorLowG;
                 *p++=colorLowB;
-            } else if(sample>highThreshold) {
+            } else if(sample>(float)waterfall_high) {
                 *p++=colorHighR;
                 *p++=colorHighG;
                 *p++=colorHighB;
             } else {
-                float range=highThreshold-lowThreshold;
-                float offset=sample-lowThreshold;
+                float range=(float)waterfall_high-(float)waterfall_low;
+                float offset=sample-(float)waterfall_low;
                 float percent=offset/range;
                 if(percent<(2.0f/9.0f)) {
                     float local_percent = percent / (2.0f/9.0f);
@@ -197,8 +213,10 @@ void waterfall_update(float *data) {
     }
 
     
-    lowThreshold=(float)((average/display_width));
-    highThreshold=lowThreshold+50.0;
+    if(waterfall_automatic) {
+      waterfall_low=average/display_width;
+      waterfall_high=waterfall_low+50;
+    }
 
     gtk_widget_queue_draw (waterfall);
 

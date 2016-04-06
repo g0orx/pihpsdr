@@ -1,3 +1,22 @@
+/* Copyright (C)
+* 2015 - John Melton, G0ORX/N6LYT
+*
+* This program is free software; you can redistribute it and/or
+* modify it under the terms of the GNU General Public License
+* as published by the Free Software Foundation; either version 2
+* of the License, or (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software
+* Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+*
+*/
+
 #include <gtk/gtk.h>
 #include <gdk/gdk.h>
 #include <math.h>
@@ -5,7 +24,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <semaphore.h>
-#include "new_protocol.h"
+#include "band.h"
+#include "discovered.h"
+#include "radio.h"
 #include "panadapter.h"
 #include "vfo.h"
 
@@ -18,8 +39,8 @@ static gint last_x;
 static gboolean has_moved=FALSE;
 static gboolean pressed=FALSE;
 
-static float panadapter_max=-60.0;
-static float panadapter_min=-160.0;
+//static float panadapter_max=-60.0;
+//static float panadapter_min=-160.0;
 
 static gfloat hz_per_pixel;
 static gfloat filter_left;
@@ -155,13 +176,17 @@ void panadapter_update(float *data,int tx) {
         if(panadapter_surface) {
 
             if(tx) {
-                saved_max=panadapter_max;
-                saved_min=panadapter_min;
+                saved_max=panadapter_high;
+                saved_min=panadapter_low;
                 saved_hz_per_pixel=hz_per_pixel;
 
-                panadapter_max=30;
-                panadapter_min=-100;
-                hz_per_pixel=192000.0/(double)display_width;
+                panadapter_high=20;
+                panadapter_low=-100;
+                if(protocol==ORIGINAL_PROTOCOL) {
+                    hz_per_pixel=48000.0/(double)display_width;
+                } else {
+                    hz_per_pixel=192000.0/(double)display_width;
+                }
             }
 
             //clear_panadater_surface();
@@ -178,11 +203,11 @@ void panadapter_update(float *data,int tx) {
             cairo_fill(cr);
 
             // plot the levels
-            int V = (int)(panadapter_max - panadapter_min);
+            int V = (int)(panadapter_high - panadapter_low);
             int numSteps = V / 20;
             for (i = 1; i < numSteps; i++) {
-                int num = panadapter_max - i * 20;
-                int y = (int)floor((panadapter_max - num) * panadapter_height / V);
+                int num = panadapter_high - i * 20;
+                int y = (int)floor((panadapter_high - num) * panadapter_height / V);
 
                 cairo_set_source_rgb (cr, 0, 1, 1);
                 cairo_set_line_width(cr, 1.0);
@@ -203,8 +228,9 @@ void panadapter_update(float *data,int tx) {
 
             // plot frequency markers
             long f;
+            long half=(long)getSampleRate()/2L;
             for(i=0;i<display_width;i++) {
-                f = getFrequency() - ((long) getSampleRate() / 2) + (long) (hz_per_pixel * i);
+                f = getFrequency() - half + (long) (hz_per_pixel * i);
                 if (f > 0) {
                     if ((f % 20000) < (long) hz_per_pixel) {
                         cairo_set_source_rgb (cr, 0, 1, 1);
@@ -226,6 +252,25 @@ void panadapter_update(float *data,int tx) {
             }
             cairo_stroke(cr);
 
+            // band edges
+            long min_display=getFrequency()-half;
+            long max_display=getFrequency()+half;
+            BAND_LIMITS* bandLimits=getBandLimits(min_display,max_display);
+            if(bandLimits!=NULL) {
+                cairo_set_source_rgb (cr, 1, 0, 0);
+                cairo_set_line_width(cr, 2.0);
+                if((min_display<bandLimits->minFrequency)&&(max_display>bandLimits->minFrequency)) {
+                    i=(bandLimits->minFrequency-min_display)/(long long)hz_per_pixel;
+                    cairo_move_to(cr,(double)i,0.0);
+                    cairo_line_to(cr,(double)i,(double)panadapter_height);
+                }
+                if((min_display<bandLimits->maxFrequency)&&(max_display>bandLimits->maxFrequency)) {
+                    i=(bandLimits->maxFrequency-min_display)/(long long)hz_per_pixel;
+                    cairo_move_to(cr,(double)i,0.0);
+                    cairo_line_to(cr,(double)i,(double)panadapter_height);
+                }
+            }
+            
             // cursor
             cairo_set_source_rgb (cr, 1, 0, 0);
             cairo_set_line_width(cr, 1.0);
@@ -238,17 +283,17 @@ void panadapter_update(float *data,int tx) {
             cairo_set_line_width(cr, 1.0);
 
             double s1,s2;
-            samples[0]=panadapter_min-20;
-            samples[display_width-1]=panadapter_min-20;
+            samples[0]=panadapter_low-20;
+            samples[display_width-1]=panadapter_low-20;
             for(i=1;i<display_width;i++) {
                 s1=samples[i-1]+get_attenuation();
-                s1 = floor((panadapter_max - s1)
+                s1 = floor((panadapter_high - s1)
                             * (double) panadapter_height
-                            / (panadapter_max - panadapter_min));
+                            / (panadapter_high - panadapter_low));
                 s2=samples[i]+get_attenuation();
-                s2 = floor((panadapter_max - s2)
+                s2 = floor((panadapter_high - s2)
                             * (double) panadapter_height
-                            / (panadapter_max - panadapter_min));
+                            / (panadapter_high - panadapter_low));
                 cairo_move_to(cr, (double)i-1, s1);
                 cairo_line_to(cr, (double)i, s2);
             }
@@ -260,8 +305,8 @@ void panadapter_update(float *data,int tx) {
             gtk_widget_queue_draw (panadapter);
 
             if(tx) {
-                panadapter_max=saved_max;
-                panadapter_min=saved_min;
+                panadapter_high=saved_max;
+                panadapter_low=saved_min;
                 hz_per_pixel=saved_hz_per_pixel;
             }
 
