@@ -71,9 +71,7 @@ extern int panadapter_low;
 extern int display_filled;
 extern int display_detector_mode;
 extern int display_average_mode;
-extern int display_average_time;
-extern double display_avb;
-extern double display_average;
+extern double display_average_time;
 
 
 extern int display_waterfall;

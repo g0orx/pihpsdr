@@ -191,8 +191,8 @@ void wdsp_init(int rx,int pixels,int protocol) {
     SetDisplayAverageMode(rx, 0,  display_average_mode);
     
     calculate_display_average();
-    SetDisplayAvBackmult(rx, 0, display_avb);
-    SetDisplayNumAverage(rx, 0, display_average);
+    //SetDisplayAvBackmult(rx, 0, display_avb);
+    //SetDisplayNumAverage(rx, 0, display_average);
 
     while (gtk_events_pending ())
       gtk_main_iteration ();

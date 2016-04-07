@@ -24,6 +24,7 @@
 #include <math.h>
 
 #include "radio.h"
+#include "channel.h"
 #include "agc.h"
 #include "band.h"
 #include "discovered.h"
@@ -55,9 +56,7 @@ int panadapter_low=-140;
 int display_filled=1;
 int display_detector_mode=DETECTOR_MODE_AVERAGE;
 int display_average_mode=AVERAGE_MODE_LOG_RECURSIVE;
-int display_average_time=120;
-double display_avb;
-double display_average;
+double display_average_time=120.0;
 
 
 int display_waterfall=1;
@@ -291,6 +290,8 @@ void radioRestoreState() {
     if(value) display_detector_mode=atoi(value);
     value=getProperty("display_average_mode");
     if(value) display_average_mode=atoi(value);
+    value=getProperty("display_average_time");
+    if(value) display_average_time=atof(value);
     value=getProperty("panadapter_high");
     if(value) panadapter_high=atoi(value);
     value=getProperty("panadapter_low");
@@ -390,6 +391,8 @@ void radioSaveState() {
     setProperty("display_detector_mode",value);
     sprintf(value,"%d",display_average_mode);
     setProperty("display_average_mode",value);
+    sprintf(value,"%f",display_average_time);
+    setProperty("display_average_time",value);
     sprintf(value,"%d",panadapter_high);
     setProperty("panadapter_high",value);
     sprintf(value,"%d",panadapter_low);
@@ -472,6 +475,12 @@ void radioSaveState() {
 }
 
 void calculate_display_average() {
-  double display_avb = exp(-1.0 / (updates_per_second * display_average_time));
-  int display_average = max(2, (int)min(60, updates_per_second * display_average_time));
+  double display_avb;
+  int display_average;
+
+  double t=0.001*display_average_time;
+  display_avb = exp(-1.0 / ((double)updates_per_second * t));
+  display_average = max(2, (int)min(60, (double)updates_per_second * t));
+  SetDisplayAvBackmult(CHANNEL_RX0, 0, display_avb);
+  SetDisplayNumAverage(CHANNEL_RX0, 0, display_average);
 }
