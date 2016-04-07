@@ -628,11 +628,18 @@ void ozy_send_buffer() {
 #endif
 
     case 0:
+      {
+      BAND *band=band_get_current_band();
       output_buffer[3]=control_out[0];
       output_buffer[4]=control_out[1];
-      output_buffer[5]=control_out[2];
+      if(isTransmitting()) {
+        output_buffer[5]=control_out[2]|band->OCtx;
+      } else {
+        output_buffer[5]=control_out[2]|band->OCrx;
+      }
       output_buffer[6]=control_out[3];
       output_buffer[7]=control_out[4];
+      }
       break;
     case 1:
       output_buffer[3]=control_out[0]|0x04;

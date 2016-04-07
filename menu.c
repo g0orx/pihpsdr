@@ -22,10 +22,12 @@
 #include <stdio.h>
 
 #include "band.h"
+#include "channel.h"
 #include "discovered.h"
 #include "new_protocol.h"
 #include "radio.h"
 #include "version.h"
+#include "wdsp.h"
 
 static GtkWidget *parent_window;
 
@@ -180,12 +182,58 @@ static gboolean exit_pressed_event_cb (GtkWidget *widget,
   _exit(0);
 }
 
+static void oc_rx_cb(GtkWidget *widget, gpointer data) {
+  int b=((int)data)>>4;
+  int oc=((int)data)&0xF;
+  BAND *band=band_get_band(b);
+  int mask=0x01<<oc;
+  if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
+    band->OCrx|=mask;
+  } else {
+    band->OCrx&=~mask;
+  }
+}
+
+static void oc_tx_cb(GtkWidget *widget, gpointer data) {
+  int b=((int)data)>>4;
+  int oc=((int)data)&0xF;
+  BAND *band=band_get_band(b);
+  int mask=0x01<<oc;
+  if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
+    band->OCtx|=mask;
+  } else {
+    band->OCtx&=~mask;
+  }
+}
+
+static void detector_mode_cb(GtkWidget *widget, gpointer data) {
+  display_detector_mode=(int)data;
+  SetDisplayDetectorMode(CHANNEL_RX0, 0, display_detector_mode);
+}
+
+static void average_mode_cb(GtkWidget *widget, gpointer data) {
+  display_average_mode=(int)data;
+  SetDisplayAverageMode(CHANNEL_RX0, 0, display_average_mode);
+}
+
+static void time_value_changed_cb(GtkWidget *widget, gpointer data) {
+  display_average_time=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+  calculate_display_average();
+  SetDisplayAvBackmult(CHANNEL_RX0, 0, display_avb);
+  SetDisplayNumAverage(CHANNEL_RX0, 0, display_average);
+
+}
+
+static void filled_cb(GtkWidget *widget, gpointer data) {
+  display_filled=display_filled==1?0:1;
+}
+
+
 static gboolean menu_pressed_event_cb (GtkWidget *widget,
                GdkEventButton *event,
                gpointer        data)
 {
-  int i;
-  int id;
+  int i, j, id;
 
   GtkWidget *dialog=gtk_dialog_new_with_buttons("Menu",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
 
@@ -199,6 +247,13 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
   GtkWidget *display_label=gtk_label_new("Display");
   GtkWidget *display_grid=gtk_grid_new();
   gtk_grid_set_row_homogeneous(GTK_GRID(display_grid),TRUE);
+
+  GtkWidget *filled_b=gtk_check_button_new_with_label("Filled");
+  //gtk_widget_override_font(filled_b, pango_font_description_from_string("Arial 18"));
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (filled_b), display_filled);
+  gtk_widget_show(filled_b);
+  gtk_grid_attach(GTK_GRID(display_grid),filled_b,0,0,1,1);
+  g_signal_connect(filled_b,"toggled",G_CALLBACK(filled_cb),NULL);
 
   GtkWidget *panadapter_high_label=gtk_label_new("Panadapter High: ");
   //gtk_widget_override_font(panadapter_high_label, pango_font_description_from_string("Arial 18"));
@@ -260,6 +315,77 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
   gtk_grid_attach(GTK_GRID(display_grid),waterfall_low_r,1,5,1,1);
   g_signal_connect(waterfall_low_r,"value_changed",G_CALLBACK(waterfall_low_value_changed_cb),NULL);
 
+  GtkWidget *detector_mode_label=gtk_label_new("Detector: ");
+  //gtk_widget_override_font(detector_mode_label, pango_font_description_from_string("Arial 18"));
+  gtk_widget_show(detector_mode_label);
+  gtk_grid_attach(GTK_GRID(display_grid),detector_mode_label,3,0,1,1);
+
+  GtkWidget *detector_mode_peak=gtk_radio_button_new_with_label(NULL,"Peak");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (detector_mode_peak), display_detector_mode==DETECTOR_MODE_PEAK);
+  gtk_widget_show(detector_mode_peak);
+  gtk_grid_attach(GTK_GRID(display_grid),detector_mode_peak,4,0,1,1);
+  g_signal_connect(detector_mode_peak,"pressed",G_CALLBACK(detector_mode_cb),(gpointer *)DETECTOR_MODE_PEAK);
+
+  GtkWidget *detector_mode_rosenfell=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(detector_mode_peak),"Rosenfell");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (detector_mode_rosenfell), display_detector_mode==DETECTOR_MODE_ROSENFELL);
+  gtk_widget_show(detector_mode_rosenfell);
+  gtk_grid_attach(GTK_GRID(display_grid),detector_mode_rosenfell,4,1,1,1);
+  g_signal_connect(detector_mode_rosenfell,"pressed",G_CALLBACK(detector_mode_cb),(gpointer *)DETECTOR_MODE_ROSENFELL);
+
+  GtkWidget *detector_mode_average=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(detector_mode_rosenfell),"Average");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (detector_mode_average), display_detector_mode==DETECTOR_MODE_AVERAGE);
+  gtk_widget_show(detector_mode_average);
+  gtk_grid_attach(GTK_GRID(display_grid),detector_mode_average,4,2,1,1);
+  g_signal_connect(detector_mode_average,"pressed",G_CALLBACK(detector_mode_cb),(gpointer *)DETECTOR_MODE_AVERAGE);
+
+  GtkWidget *detector_mode_sample=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(detector_mode_average),"Sample");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (detector_mode_sample), display_detector_mode==DETECTOR_MODE_SAMPLE);
+  gtk_widget_show(detector_mode_sample);
+  gtk_grid_attach(GTK_GRID(display_grid),detector_mode_sample,4,3,1,1);
+  g_signal_connect(detector_mode_sample,"pressed",G_CALLBACK(detector_mode_cb),(gpointer *)DETECTOR_MODE_SAMPLE);
+
+
+  GtkWidget *average_mode_label=gtk_label_new("Averaging: ");
+  //gtk_widget_override_font(average_mode_label, pango_font_description_from_string("Arial 18"));
+  gtk_widget_show(average_mode_label);
+  gtk_grid_attach(GTK_GRID(display_grid),average_mode_label,3,4,1,1);
+
+  GtkWidget *average_mode_none=gtk_radio_button_new_with_label(NULL,"None");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (average_mode_none), display_detector_mode==AVERAGE_MODE_NONE);
+  gtk_widget_show(average_mode_none);
+  gtk_grid_attach(GTK_GRID(display_grid),average_mode_none,4,4,1,1);
+  g_signal_connect(average_mode_none,"pressed",G_CALLBACK(average_mode_cb),(gpointer *)AVERAGE_MODE_NONE);
+
+  GtkWidget *average_mode_recursive=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(average_mode_none),"Recursive");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (average_mode_recursive), display_average_mode==AVERAGE_MODE_RECURSIVE);
+  gtk_widget_show(average_mode_recursive);
+  gtk_grid_attach(GTK_GRID(display_grid),average_mode_recursive,4,5,1,1);
+  g_signal_connect(average_mode_recursive,"pressed",G_CALLBACK(average_mode_cb),(gpointer *)AVERAGE_MODE_RECURSIVE);
+
+  GtkWidget *average_mode_time_window=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(average_mode_recursive),"Time Window");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (average_mode_time_window), display_average_mode==AVERAGE_MODE_TIME_WINDOW);
+  gtk_widget_show(average_mode_time_window);
+  gtk_grid_attach(GTK_GRID(display_grid),average_mode_time_window,4,6,1,1);
+  g_signal_connect(average_mode_time_window,"pressed",G_CALLBACK(average_mode_cb),(gpointer *)AVERAGE_MODE_TIME_WINDOW);
+
+  GtkWidget *average_mode_log_recursive=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(average_mode_time_window),"Log Recursive");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (average_mode_log_recursive), display_average_mode==AVERAGE_MODE_LOG_RECURSIVE);
+  gtk_widget_show(average_mode_log_recursive);
+  gtk_grid_attach(GTK_GRID(display_grid),average_mode_log_recursive,4,7,1,1);
+  g_signal_connect(average_mode_log_recursive,"pressed",G_CALLBACK(average_mode_cb),(gpointer *)AVERAGE_MODE_LOG_RECURSIVE);
+
+
+  GtkWidget *time_label=gtk_label_new("Time (ms): ");
+  //gtk_widget_override_font(average_mode_label, pango_font_description_from_string("Arial 18"));
+  gtk_widget_show(time_label);
+  gtk_grid_attach(GTK_GRID(display_grid),time_label,3,8,1,1);
+
+  GtkWidget *time_r=gtk_spin_button_new_with_range(1.0,9999.0,1.0);
+  gtk_spin_button_set_value(GTK_SPIN_BUTTON(time_r),(double)display_average_time);
+  gtk_widget_show(time_r);
+  gtk_grid_attach(GTK_GRID(display_grid),time_r,4,8,1,1);
+  g_signal_connect(time_r,"value_changed",G_CALLBACK(time_value_changed_cb),NULL);
+
   id=gtk_notebook_append_page(GTK_NOTEBOOK(notebook),display_grid,display_label);
 
 
@@ -299,49 +425,49 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
   gtk_grid_set_row_homogeneous(GTK_GRID(cw_grid),TRUE);
 
   GtkWidget *cw_keyer_internal_b=gtk_check_button_new_with_label("CW Internal - Speed (WPM)");
-  gtk_widget_override_font(cw_keyer_internal_b, pango_font_description_from_string("Arial 18"));
+  //gtk_widget_override_font(cw_keyer_internal_b, pango_font_description_from_string("Arial 18"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (cw_keyer_internal_b), cw_keyer_internal);
   gtk_widget_show(cw_keyer_internal_b);
   gtk_grid_attach(GTK_GRID(cw_grid),cw_keyer_internal_b,0,0,1,1);
   g_signal_connect(cw_keyer_internal_b,"toggled",G_CALLBACK(cw_keyer_internal_cb),NULL);
 
   GtkWidget *cw_keyer_speed_b=gtk_spin_button_new_with_range(1.0,60.0,1.0);
-  gtk_widget_override_font(cw_keyer_speed_b, pango_font_description_from_string("Arial 18"));
+  //gtk_widget_override_font(cw_keyer_speed_b, pango_font_description_from_string("Arial 18"));
   gtk_spin_button_set_value(GTK_SPIN_BUTTON(cw_keyer_speed_b),(double)cw_keyer_speed);
   gtk_widget_show(cw_keyer_speed_b);
   gtk_grid_attach(GTK_GRID(cw_grid),cw_keyer_speed_b,1,0,1,1);
   g_signal_connect(cw_keyer_speed_b,"value_changed",G_CALLBACK(cw_keyer_speed_value_changed_cb),NULL);
 
   GtkWidget *cw_breakin_b=gtk_check_button_new_with_label("CW Break In - Delay (ms)");
-  gtk_widget_override_font(cw_breakin_b, pango_font_description_from_string("Arial 18"));
+  //gtk_widget_override_font(cw_breakin_b, pango_font_description_from_string("Arial 18"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (cw_breakin_b), cw_breakin);
   gtk_widget_show(cw_breakin_b);
   gtk_grid_attach(GTK_GRID(cw_grid),cw_breakin_b,0,1,1,1);
   g_signal_connect(cw_breakin_b,"toggled",G_CALLBACK(cw_breakin_cb),NULL);
 
   GtkWidget *cw_keyer_hang_time_b=gtk_spin_button_new_with_range(0.0,1000.0,1.0);
-  gtk_widget_override_font(cw_keyer_hang_time_b, pango_font_description_from_string("Arial 18"));
+  //gtk_widget_override_font(cw_keyer_hang_time_b, pango_font_description_from_string("Arial 18"));
   gtk_spin_button_set_value(GTK_SPIN_BUTTON(cw_keyer_hang_time_b),(double)cw_keyer_hang_time);
   gtk_widget_show(cw_keyer_hang_time_b);
   gtk_grid_attach(GTK_GRID(cw_grid),cw_keyer_hang_time_b,1,1,1,1);
   g_signal_connect(cw_keyer_hang_time_b,"value_changed",G_CALLBACK(cw_keyer_hang_time_value_changed_cb),NULL);
  
   GtkWidget *cw_keyer_straight=gtk_radio_button_new_with_label(NULL,"CW KEYER STRAIGHT");
-  gtk_widget_override_font(cw_keyer_straight, pango_font_description_from_string("Arial 18"));
+  //gtk_widget_override_font(cw_keyer_straight, pango_font_description_from_string("Arial 18"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (cw_keyer_straight), cw_keyer_mode==KEYER_STRAIGHT);
   gtk_widget_show(cw_keyer_straight);
   gtk_grid_attach(GTK_GRID(cw_grid),cw_keyer_straight,0,2,1,1);
   g_signal_connect(cw_keyer_straight,"pressed",G_CALLBACK(cw_keyer_mode_cb),(gpointer *)KEYER_STRAIGHT);
 
   GtkWidget *cw_keyer_mode_a=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(cw_keyer_straight),"CW KEYER MODE A");
-  gtk_widget_override_font(cw_keyer_mode_a, pango_font_description_from_string("Arial 18"));
+  //gtk_widget_override_font(cw_keyer_mode_a, pango_font_description_from_string("Arial 18"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (cw_keyer_mode_a), cw_keyer_mode==KEYER_MODE_A);
   gtk_widget_show(cw_keyer_mode_a);
   gtk_grid_attach(GTK_GRID(cw_grid),cw_keyer_mode_a,0,3,1,1);
   g_signal_connect(cw_keyer_mode_a,"pressed",G_CALLBACK(cw_keyer_mode_cb),(gpointer *)KEYER_MODE_A);
 
   GtkWidget *cw_keyer_mode_b=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(cw_keyer_mode_a),"CW KEYER MODE B");
-  gtk_widget_override_font(cw_keyer_mode_b, pango_font_description_from_string("Arial 18"));
+  //gtk_widget_override_font(cw_keyer_mode_b, pango_font_description_from_string("Arial 18"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (cw_keyer_mode_b), cw_keyer_mode==KEYER_MODE_B);
   gtk_widget_show(cw_keyer_mode_b);
   gtk_grid_attach(GTK_GRID(cw_grid),cw_keyer_mode_b,0,4,1,1);
@@ -355,12 +481,12 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
   gtk_grid_set_row_homogeneous(GTK_GRID(encoder_grid),TRUE);
 
   GtkWidget *vfo_divisor_label=gtk_label_new("Divisor: ");
-  gtk_widget_override_font(vfo_divisor_label, pango_font_description_from_string("Arial 18"));
+  //gtk_widget_override_font(vfo_divisor_label, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(vfo_divisor_label);
   gtk_grid_attach(GTK_GRID(encoder_grid),vfo_divisor_label,0,0,1,1);
 
   GtkWidget *vfo_divisor=gtk_spin_button_new_with_range(1.0,60.0,1.0);
-  gtk_widget_override_font(vfo_divisor, pango_font_description_from_string("Arial 18"));
+  //gtk_widget_override_font(vfo_divisor, pango_font_description_from_string("Arial 18"));
   gtk_spin_button_set_value(GTK_SPIN_BUTTON(vfo_divisor),(double)vfo_encoder_divisor);
   gtk_widget_show(vfo_divisor);
   gtk_grid_attach(GTK_GRID(encoder_grid),vfo_divisor,1,0,1,1);
@@ -454,6 +580,69 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
   g_signal_connect(pa_b,"toggled",G_CALLBACK(pa_cb),NULL);
 
   id=gtk_notebook_append_page(GTK_NOTEBOOK(notebook),filters_grid,filters_label);
+
+  GtkWidget *oc_label=gtk_label_new("OC");
+  GtkWidget *oc_grid=gtk_grid_new();
+  gtk_grid_set_row_homogeneous(GTK_GRID(oc_grid),TRUE);
+  gtk_grid_set_column_spacing (GTK_GRID(oc_grid),15);
+
+  GtkWidget *band_title=gtk_label_new("Band");
+  //gtk_widget_override_font(band_title, pango_font_description_from_string("Arial 18"));
+  gtk_widget_show(band_title);
+  gtk_grid_attach(GTK_GRID(oc_grid),band_title,0,0,1,1);
+
+  GtkWidget *rx_title=gtk_label_new("Rx");
+  //gtk_widget_override_font(rx_title, pango_font_description_from_string("Arial 18"));
+  gtk_widget_show(rx_title);
+  gtk_grid_attach(GTK_GRID(oc_grid),rx_title,4,0,1,1);
+
+  GtkWidget *tx_title=gtk_label_new("Tx");
+  //gtk_widget_override_font(tx_title, pango_font_description_from_string("Arial 18"));
+  gtk_widget_show(tx_title);
+  gtk_grid_attach(GTK_GRID(oc_grid),tx_title,11,0,1,1);
+
+  for(i=1;i<8;i++) {
+    char oc_id[8];
+    sprintf(oc_id,"%d",i);
+    GtkWidget *oc_rx_title=gtk_label_new(oc_id);
+    //gtk_widget_override_font(oc_rx_title, pango_font_description_from_string("Arial 18"));
+    gtk_widget_show(oc_rx_title);
+    gtk_grid_attach(GTK_GRID(oc_grid),oc_rx_title,i,1,1,1);
+    GtkWidget *oc_tx_title=gtk_label_new(oc_id);
+    //gtk_widget_override_font(oc_tx_title, pango_font_description_from_string("Arial 18"));
+    gtk_widget_show(oc_tx_title);
+    gtk_grid_attach(GTK_GRID(oc_grid),oc_tx_title,i+7,1,1,1);
+  }
+
+  for(i=0;i<HAM_BANDS;i++) {
+    BAND *band=band_get_band(i);
+
+    GtkWidget *band_label=gtk_label_new(band->title);
+    //gtk_widget_override_font(band_label, pango_font_description_from_string("Arial 18"));
+    gtk_widget_show(band_label);
+    gtk_grid_attach(GTK_GRID(oc_grid),band_label,0,i+2,1,1);
+
+    int mask;
+    for(j=1;j<8;j++) {
+      mask=0x01<<j;
+      GtkWidget *oc_rx_b=gtk_check_button_new();
+      //gtk_widget_override_font(oc_rx_b, pango_font_description_from_string("Arial 18"));
+      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (oc_rx_b), (band->OCrx&mask)==mask);
+      gtk_widget_show(oc_rx_b);
+      gtk_grid_attach(GTK_GRID(oc_grid),oc_rx_b,j,i+2,1,1);
+      g_signal_connect(oc_rx_b,"toggled",G_CALLBACK(oc_rx_cb),(gpointer)(j+(i<<4)));
+
+      GtkWidget *oc_tx_b=gtk_check_button_new();
+      //gtk_widget_override_font(oc_tx_b, pango_font_description_from_string("Arial 18"));
+      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (oc_tx_b), (band->OCtx&mask)==mask);
+      gtk_widget_show(oc_tx_b);
+      gtk_grid_attach(GTK_GRID(oc_grid),oc_tx_b,j+7,i+2,1,1);
+      g_signal_connect(oc_tx_b,"toggled",G_CALLBACK(oc_tx_cb),(gpointer)(j+(i<<4)));
+    }
+  }
+
+
+  id=gtk_notebook_append_page(GTK_NOTEBOOK(notebook),oc_grid,oc_label);
 
 
   GtkWidget *exit_label=gtk_label_new("Exit");

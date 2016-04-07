@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <semaphore.h>
+#include <math.h>
 
 #include "radio.h"
 #include "agc.h"
@@ -28,6 +29,10 @@
 #include "discovered.h"
 #include "property.h"
 #include "new_protocol.h"
+#include "wdsp.h"
+
+#define min(x,y) (x<y?x:y)
+#define max(x,y) (x<y?y:x)
 
 char property_path[128];
 sem_t property_sem;
@@ -41,9 +46,19 @@ int filter_board=ALEX;
 int pa=PA_ENABLED;
 int apollo_tuner=0;
 
+int updates_per_second=10;
+
 int display_panadapter=1;
 int panadapter_high=-60;
 int panadapter_low=-140;
+
+int display_filled=1;
+int display_detector_mode=DETECTOR_MODE_AVERAGE;
+int display_average_mode=AVERAGE_MODE_LOG_RECURSIVE;
+int display_average_time=120;
+double display_avb;
+double display_average;
+
 
 int display_waterfall=1;
 int waterfall_high=-100;
@@ -66,7 +81,9 @@ int agc=AGC_MEDIUM;
 double agc_gain=60.0;
 
 int nr=0;
+int nr2=0;
 int nb=0;
+int nb2=0;
 int anf=0;
 int snb=0;
 
@@ -266,8 +283,14 @@ void radioRestoreState() {
     if(value) apollo_tuner=atoi(value);
     value=getProperty("pa");
     if(value) pa=atoi(value);
+    value=getProperty("updates_per_second");
+    if(value) updates_per_second=atoi(value);
     value=getProperty("display_panadapter");
     if(value) display_panadapter=atoi(value);
+    value=getProperty("display_detector_mode");
+    if(value) display_detector_mode=atoi(value);
+    value=getProperty("display_average_mode");
+    if(value) display_average_mode=atoi(value);
     value=getProperty("panadapter_high");
     if(value) panadapter_high=atoi(value);
     value=getProperty("panadapter_low");
@@ -359,8 +382,14 @@ void radioSaveState() {
     setProperty("apollo_tuner",value);
     sprintf(value,"%d",pa);
     setProperty("pa",value);
+    sprintf(value,"%d",updates_per_second);
+    setProperty("updates_per_second",value);
     sprintf(value,"%d",display_panadapter);
     setProperty("display_panadapter",value);
+    sprintf(value,"%d",display_detector_mode);
+    setProperty("display_detector_mode",value);
+    sprintf(value,"%d",display_average_mode);
+    setProperty("display_average_mode",value);
     sprintf(value,"%d",panadapter_high);
     setProperty("panadapter_high",value);
     sprintf(value,"%d",panadapter_low);
@@ -440,4 +469,9 @@ void radioSaveState() {
 
     saveProperties(property_path);
     sem_post(&property_sem);
+}
+
+void calculate_display_average() {
+  double display_avb = exp(-1.0 / (updates_per_second * display_average_time));
+  int display_average = max(2, (int)min(60, updates_per_second * display_average_time));
 }

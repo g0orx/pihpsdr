@@ -376,9 +376,19 @@ static void nr_cb(GtkWidget *widget, gpointer data) {
   SetRXAANRRun(CHANNEL_RX0, nr);
 }
 
+static void nr2_cb(GtkWidget *widget, gpointer data) {
+  nr2=nr2==0?1:0;
+  //SetRXAANRaeRun(CHANNEL_RX0, nr2);
+}
+
 static void nb_cb(GtkWidget *widget, gpointer data) {
   nb=nb==0?1:0;
   SetRXAEMNRRun(CHANNEL_RX0, nb);
+}
+
+static void nb2_cb(GtkWidget *widget, gpointer data) {
+  nb2=nb2==0?1:0;
+  SetRXAEMNRaeRun(CHANNEL_RX0, nb2);
 }
 
 static void anf_cb(GtkWidget *widget, gpointer data) {
@@ -443,25 +453,39 @@ static void audio_cb(GtkWidget *widget, gpointer data) {
   gtk_grid_attach(GTK_GRID(grid),b_nr,2,0,2,1);
   g_signal_connect(b_nr,"toggled",G_CALLBACK(nr_cb),NULL);
 
+  GtkWidget *b_nr2=gtk_check_button_new_with_label("NR2");
+  //gtk_widget_override_font(b_nr2, pango_font_description_from_string("Arial 16"));
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_nr2), nr2==1);
+  gtk_widget_show(b_nr2);
+  gtk_grid_attach(GTK_GRID(grid),b_nr2,2,1,2,1);
+  g_signal_connect(b_nr2,"toggled",G_CALLBACK(nr2_cb),NULL);
+
   GtkWidget *b_nb=gtk_check_button_new_with_label("NB");
   //gtk_widget_override_font(b_nb, pango_font_description_from_string("Arial 16"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_nb), nb==1);
   gtk_widget_show(b_nb);
-  gtk_grid_attach(GTK_GRID(grid),b_nb,2,1,2,1);
+  gtk_grid_attach(GTK_GRID(grid),b_nb,2,2,2,1);
   g_signal_connect(b_nb,"toggled",G_CALLBACK(nb_cb),NULL);
+
+  GtkWidget *b_nb2=gtk_check_button_new_with_label("NB2");
+  //gtk_widget_override_font(b_nb2, pango_font_description_from_string("Arial 16"));
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_nb2), nb2==1);
+  gtk_widget_show(b_nb2);
+  gtk_grid_attach(GTK_GRID(grid),b_nb2,2,3,2,1);
+  g_signal_connect(b_nb2,"toggled",G_CALLBACK(nb2_cb),NULL);
 
   GtkWidget *b_anf=gtk_check_button_new_with_label("ANF");
   //gtk_widget_override_font(b_anf, pango_font_description_from_string("Arial 16"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_anf), anf==1);
   gtk_widget_show(b_anf);
-  gtk_grid_attach(GTK_GRID(grid),b_anf,2,2,2,1);
+  gtk_grid_attach(GTK_GRID(grid),b_anf,2,4,2,1);
   g_signal_connect(b_anf,"toggled",G_CALLBACK(anf_cb),NULL);
 
-  GtkWidget *b_snb=gtk_check_button_new_with_label("NR2");
+  GtkWidget *b_snb=gtk_check_button_new_with_label("SNB");
   //gtk_widget_override_font(b_snb, pango_font_description_from_string("Arial 16"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_snb), snb==1);
   gtk_widget_show(b_snb);
-  gtk_grid_attach(GTK_GRID(grid),b_snb,2,3,2,1);
+  gtk_grid_attach(GTK_GRID(grid),b_snb,2,5,2,1);
   g_signal_connect(b_snb,"toggled",G_CALLBACK(snb_cb),NULL);
 
   gtk_container_add(GTK_CONTAINER(content),grid);

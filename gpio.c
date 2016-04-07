@@ -24,6 +24,7 @@
 #include "toolbar.h"
 #include "main.h"
 #include "property.h"
+#include "wdsp.h"
 
 #define SYSFS_GPIO_DIR  "/sys/class/gpio"
 
@@ -963,12 +964,18 @@ fprintf(stderr,"noise_pressed\n");
   if(function) {
     if(nr) {
       nr=0;
-    } else if(nb) {
+    } else if(nr2) {
+      nr2=0;
       nr=1;
+    } else if(nb) {
       nb=0;
-    } else if(anf) {
+      nr2=1;
+    } else if(nb2) {
+      nb2=0;
       nb=1;
+    } else if(anf) {
       anf=0;
+      nb2=1;
     } else if(snb) {
       snb=0;
       anf=1;
@@ -978,9 +985,15 @@ fprintf(stderr,"noise_pressed\n");
   } else {
     if(nr) {
       nr=0;
+      nr2=1;
+    } else if(nr2) {
+      nr2=0;
       nb=1;
     } else if(nb) {
       nb=0;
+      nb2=1;
+    } else if(nb2) {
+      nb2=0;
       anf=1;
     } else if(anf) {
       anf=0;
@@ -992,6 +1005,7 @@ fprintf(stderr,"noise_pressed\n");
     }
   }
   SetRXAANRRun(CHANNEL_RX0, nr);
+  SetRXAEMNRaeRun(CHANNEL_RX0, nb2);
   SetRXAEMNRRun(CHANNEL_RX0, nb);
   SetRXAANFRun(CHANNEL_RX0, anf);
   SetRXASNBARun(CHANNEL_RX0, snb);

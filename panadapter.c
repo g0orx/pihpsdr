@@ -229,13 +229,15 @@ void panadapter_update(float *data,int tx) {
             // plot frequency markers
             long f;
             long half=(long)getSampleRate()/2L;
+            cairo_text_extents_t extents;
             for(i=0;i<display_width;i++) {
                 f = getFrequency() - half + (long) (hz_per_pixel * i);
                 if (f > 0) {
                     if ((f % 20000) < (long) hz_per_pixel) {
                         cairo_set_source_rgb (cr, 0, 1, 1);
                         cairo_set_line_width(cr, 1.0);
-                        cairo_move_to(cr,(double)i,0.0);
+                        //cairo_move_to(cr,(double)i,0.0);
+                        cairo_move_to(cr,(double)i,10.0);
                         cairo_line_to(cr,(double)i,(double)panadapter_height);
 
                         cairo_set_source_rgb (cr, 0, 1, 1);
@@ -245,7 +247,9 @@ void panadapter_update(float *data,int tx) {
                         cairo_set_font_size(cr, 12);
                         char v[32];
                         sprintf(v,"%0ld.%03ld",f/1000000,(f%1000000)/1000);
-                        cairo_move_to(cr, (double)i, (double)(panadapter_height-10));  
+                        //cairo_move_to(cr, (double)i, (double)(panadapter_height-10));  
+                        cairo_text_extents(cr, v, &extents);
+                        cairo_move_to(cr, (double)i-(extents.width/2.0), 10.0);  
                         cairo_show_text(cr, v);
                     }
                 }
@@ -279,27 +283,29 @@ void panadapter_update(float *data,int tx) {
             cairo_stroke(cr);
 
             // signal
-            cairo_set_source_rgb(cr, 1, 1, 1);
-            cairo_set_line_width(cr, 1.0);
-
             double s1,s2;
             samples[0]=panadapter_low-20;
             samples[display_width-1]=panadapter_low-20;
+            s1=samples[0]-(get_attenuation()-20.0);
+            s1 = floor((panadapter_high - s1)
+                        * (double) panadapter_height
+                        / (panadapter_high - panadapter_low));
+            cairo_move_to(cr, 0.0, s1);
             for(i=1;i<display_width;i++) {
-                s1=samples[i-1]+get_attenuation();
-                s1 = floor((panadapter_high - s1)
-                            * (double) panadapter_height
-                            / (panadapter_high - panadapter_low));
-                s2=samples[i]+get_attenuation();
+                s2=samples[i]-(get_attenuation()-20.0);
                 s2 = floor((panadapter_high - s2)
                             * (double) panadapter_height
                             / (panadapter_high - panadapter_low));
-                cairo_move_to(cr, (double)i-1, s1);
                 cairo_line_to(cr, (double)i, s2);
             }
+            if(display_filled) {
+              cairo_close_path (cr);
+              cairo_set_source_rgba(cr, 1, 1, 1,0.5);
+              cairo_fill_preserve (cr);
+            }
+            cairo_set_source_rgb(cr, 1, 1, 1);
+            cairo_set_line_width(cr, 1.0);
             cairo_stroke(cr);
-            //cairo_close_path(cr);
-            //cairo_fill(cr);
 
             cairo_destroy (cr);
             gtk_widget_queue_draw (panadapter);

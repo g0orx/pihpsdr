@@ -63,9 +63,18 @@ extern int filter_board;
 extern int pa;
 extern int apollo_tuner;
 
+extern int updates_per_second;
 extern int display_panadapter;
 extern int panadapter_high;
 extern int panadapter_low;
+
+extern int display_filled;
+extern int display_detector_mode;
+extern int display_average_mode;
+extern int display_average_time;
+extern double display_avb;
+extern double display_average;
+
 
 extern int display_waterfall;
 extern int waterfall_high;
@@ -81,7 +90,9 @@ extern int agc;
 extern double agc_gain;
 
 extern int nr;
+extern int nr2;
 extern int nb;
+extern int nb2;
 extern int anf;
 extern int snb;
 
@@ -177,3 +188,4 @@ extern long long getFrequency();
 extern void radioRestoreState();
 extern void radioSaveState();
 
+extern void calculate_display_average();

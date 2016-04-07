@@ -264,6 +264,14 @@ void bandSaveState() {
         sprintf(name,"band.%d.pa_calibration",b);
         setProperty(name,value);
 
+        sprintf(value,"%d",bands[b].OCrx);
+        sprintf(name,"band.%d.OCrx",b);
+        setProperty(name,value);
+
+        sprintf(value,"%d",bands[b].OCtx);
+        sprintf(name,"band.%d.OCtx",b);
+        setProperty(name,value);
+
         for(stack=0;stack<bands[b].bandstack->entries;stack++) {
             entry=bands[b].bandstack->entry;
             entry+=stack;
@@ -341,6 +349,14 @@ void bandRestoreState() {
         sprintf(name,"band.%d.pa_calibration",b);
         value=getProperty(name);
         if(value) bands[b].pa_calibration=atoi(value);
+
+        sprintf(name,"band.%d.OCrx",b);
+        value=getProperty(name);
+        if(value) bands[b].OCrx=atoi(value);
+
+        sprintf(name,"band.%d.OCtx",b);
+        value=getProperty(name);
+        if(value) bands[b].OCtx=atoi(value);
 
         for(stack=0;stack<bands[b].bandstack->entries;stack++) {
             entry=bands[b].bandstack->entry;

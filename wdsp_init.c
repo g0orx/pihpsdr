@@ -49,6 +49,8 @@
 #include "wdsp_init.h"
 
 #define PI 3.1415926535897932F
+#define min(x,y) (x<y?x:y)
+#define max(x,y) (x<y?y:x)
 
 static int receiver;
 static int running=0;
@@ -185,6 +187,13 @@ void wdsp_init(int rx,int pixels,int protocol) {
         }
     initAnalyzer(rx,buffer_size);
 
+    SetDisplayDetectorMode(rx, 0, display_detector_mode);
+    SetDisplayAverageMode(rx, 0,  display_average_mode);
+    
+    calculate_display_average();
+    SetDisplayAvBackmult(rx, 0, display_avb);
+    SetDisplayNumAverage(rx, 0, display_average);
+
     while (gtk_events_pending ())
       gtk_main_iteration ();
 
@@ -206,8 +215,10 @@ void wdsp_init(int rx,int pixels,int protocol) {
     SetRXAEMNRaeRun(CHANNEL_RX0, 1);
     SetRXAEMNRPosition(CHANNEL_RX0, 0);
     SetRXAEMNRRun(CHANNEL_RX0, 0);
+    SetRXAEMNRaeRun(CHANNEL_RX0, 0);
     SetRXAANRRun(CHANNEL_RX0, 0);
     SetRXAANFRun(CHANNEL_RX0, 0);
+    SetRXASNBARun(CHANNEL_RX0, 0);
 
     SetTXAMode(CHANNEL_TX, mode);
     SetTXABandpassFreqs(CHANNEL_TX, (double)filterLow, (double)filterHigh);

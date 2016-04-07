@@ -165,14 +165,20 @@ int vfo_update(void *data) {
         if(nr) {
           cairo_show_text(cr, "NR");
         }
+        if(nr2) {
+          cairo_show_text(cr, "NR2");
+        }
         if(nb) {
           cairo_show_text(cr, "NB");
+        }
+        if(nb2) {
+          cairo_show_text(cr, "NB2");
         }
         if(anf) {
           cairo_show_text(cr, "ANF");
         }
         if(snb) {
-          cairo_show_text(cr, "NR2");
+          cairo_show_text(cr, "SNB");
         }
 
         cairo_move_to(cr, 310, 50);  

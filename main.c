@@ -63,7 +63,6 @@ gint display_width;
 gint display_height;
 
 static gint update_timer_id;
-static gint updates_per_second=10;
 
 static gint save_timer_id;
 
