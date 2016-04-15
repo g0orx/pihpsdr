@@ -113,3 +113,5 @@ clean:
 
 install:
 	cp pihpsdr ../pihpsdr
+	cp pihpsdr ./release/pihpsdr
+

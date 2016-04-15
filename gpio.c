@@ -978,15 +978,9 @@ fprintf(stderr,"noise_pressed\n");
     } else if(nr2) {
       nr2=0;
       nr=1;
-    } else if(nb) {
-      nb=0;
-      nr2=1;
-    } else if(nb2) {
-      nb2=0;
-      nb=1;
     } else if(anf) {
       anf=0;
-      nb2=1;
+      nr2=1;
     } else if(snb) {
       snb=0;
       anf=1;
@@ -999,12 +993,6 @@ fprintf(stderr,"noise_pressed\n");
       nr2=1;
     } else if(nr2) {
       nr2=0;
-      nb=1;
-    } else if(nb) {
-      nb=0;
-      nb2=1;
-    } else if(nb2) {
-      nb2=0;
       anf=1;
     } else if(anf) {
       anf=0;
@@ -1016,8 +1004,7 @@ fprintf(stderr,"noise_pressed\n");
     }
   }
   SetRXAANRRun(CHANNEL_RX0, nr);
-  SetRXAEMNRaeRun(CHANNEL_RX0, nb2);
-  SetRXAEMNRRun(CHANNEL_RX0, nb);
+  SetRXAEMNRRun(CHANNEL_RX0, nr2);
   SetRXAANFRun(CHANNEL_RX0, anf);
   SetRXASNBARun(CHANNEL_RX0, snb);
   vfo_update(NULL);

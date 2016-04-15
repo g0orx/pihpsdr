@@ -210,12 +210,15 @@ void wdsp_init(int rx,int pixels,int protocol) {
 
     SetRXAAMDSBMode(CHANNEL_RX0, 0);
     SetRXAShiftRun(CHANNEL_RX0, 0);
-    SetRXAEMNRgainMethod(CHANNEL_RX0, 1);
+
+    SetRXAEMNRgainMethod(CHANNEL_RX0, 2); // defaults
     SetRXAEMNRnpeMethod(CHANNEL_RX0, 0);
     SetRXAEMNRaeRun(CHANNEL_RX0, 1);
-    SetRXAEMNRPosition(CHANNEL_RX0, 0);
+    SetRXAEMNRPosition(CHANNEL_RX0, 1);
     SetRXAEMNRRun(CHANNEL_RX0, 0);
+
     SetRXAEMNRaeRun(CHANNEL_RX0, 0);
+    SetRXAANRVals(CHANNEL_RX0, 64, 16, 16e-4, 10e-7); // defaults
     SetRXAANRRun(CHANNEL_RX0, 0);
     SetRXAANFRun(CHANNEL_RX0, 0);
     SetRXASNBARun(CHANNEL_RX0, 0);
