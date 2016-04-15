@@ -239,7 +239,7 @@ static void configure_gpio() {
   GtkWidget *dialog=gtk_dialog_new_with_buttons("Configure GPIO",GTK_WINDOW(splash_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
   GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
   GtkWidget *grid=gtk_grid_new();
-  gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
+  //gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
   gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
 
 
@@ -477,27 +477,24 @@ static void configure_gpio() {
   //gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 20"));
   gtk_widget_show_all(dialog);
 
-/*
-  g_signal_connect_swapped (dialog,
-                           "response",
-                           G_CALLBACK (gtk_widget_destroy),
-                           dialog);
-*/
-
   int result=gtk_dialog_run(GTK_DIALOG(dialog));
 
   ENABLE_VFO_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_vfo_encoder))?1:0;
   VFO_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(vfo_a));
   VFO_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(vfo_b));
+  ENABLE_VFO_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_vfo_pullup))?1:0;
   ENABLE_AF_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_af_encoder))?1:0;
   AF_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(af_a));
   AF_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(af_b));
+  ENABLE_AF_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_af_pullup))?1:0;
   ENABLE_RF_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_rf_encoder))?1:0;
   RF_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(rf_a));
   RF_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(rf_b));
+  ENABLE_RF_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_rf_pullup))?1:0;
   ENABLE_AGC_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_agc_encoder))?1:0;
   AGC_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(agc_a));
   AGC_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(agc_b));
+  ENABLE_AGC_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_agc_pullup))?1:0;
   ENABLE_BAND_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_band))?1:0;
   BAND_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(band));
   ENABLE_MODE_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_mode))?1:0;
@@ -860,6 +857,10 @@ fprintf(stderr,"meter_height=%d\n",METER_HEIGHT);
       if(!display_toolbar) {
         height+=TOOLBAR_HEIGHT;
       }
+    } else {
+      if(!display_sliders) {
+        height+=SLIDERS_HEIGHT/2;
+      }
     }
 fprintf(stderr,"panadapter_height=%d\n",height);
     panadapter = panadapter_init(display_width,height);
@@ -877,7 +878,11 @@ fprintf(stderr,"panadapter_height=%d\n",height);
       height+=PANADAPTER_HEIGHT;
     }
     if(!display_sliders) {
-      height+=SLIDERS_HEIGHT;
+      if(display_panadapter) {
+        height+=SLIDERS_HEIGHT/2;
+      } else {
+        height+=SLIDERS_HEIGHT;
+      }
     }
     if(!display_toolbar) {
       height+=TOOLBAR_HEIGHT;

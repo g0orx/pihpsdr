@@ -138,9 +138,9 @@ int vfo_update(void *data) {
         cairo_move_to(cr, (my_width/2)+20, 30);  
         cairo_show_text(cr, getFrequencyInfo(entry->frequencyA));
 
-//        sprintf(sf,"Step %dHz",step);
-//        cairo_move_to(cr, 10, 25);  
-//        cairo_show_text(cr, sf);
+        sprintf(sf,"Step %dHz",step);
+        cairo_move_to(cr, (my_width/2)+20, 15);  
+        cairo_show_text(cr, sf);
 
         if(locked) {
             cairo_set_source_rgb(cr, 1, 0, 0);

@@ -41,7 +41,7 @@ int VFO_ENCODER_A_PIN=0;
 int VFO_ENCODER_B_PIN=1;
 #endif
 int ENABLE_AF_ENCODER=88;
-int ENABLE_AF_PULLUP=87;
+int ENABLE_AF_PULLUP=0;
 int AF_ENCODER_A=20;
 int AF_ENCODER_B=26;
 int AF_FUNCTION=25;
@@ -815,14 +815,25 @@ static int rf_encoder_changed(void *data) {
 static int agc_encoder_changed(void *data) {
   int pos=*(int*)data;
   if(pos!=0) {
-    double gain=agc_gain;
-    gain+=(double)pos;
-    if(gain<0.0) {
-      gain=0.0;
-    } else if(gain>120.0) {
-      gain=120.0;
+    if(function) {
+      int att=attenuation;
+      att+=pos;
+      if(att<0) {
+        att=0;
+      } else if (att>31) {
+        att=31;
+      }
+      set_attenuation_value((double)att);
+    } else {
+      double gain=agc_gain;
+      gain+=(double)pos;
+      if(gain<0.0) {
+        gain=0.0;
+      } else if(gain>120.0) {
+        gain=120.0;
+      }
+      set_agc_gain(gain);
     }
-    set_agc_gain(gain);
   }
   return 0;
 }

@@ -39,7 +39,14 @@ char property_path[128];
 sem_t property_sem;
 
 
-int penelope=0;
+int atlas_penelope=0;
+int atlas_clock_source_10mhz=0;
+int atlas_clock_source_128mhz=0;
+int atlas_config=0;
+int atlas_mic_source=0;
+
+int classE=0;
+
 int tx_out_of_band=0;
 
 int sample_rate=48000;
@@ -69,6 +76,10 @@ int display_toolbar=1;
 
 double volume=0.2;
 double mic_gain=1.5;
+
+int rx_dither=0;
+int rx_random=0;
+int rx_preamp=0;
 
 int mic_linein=0;
 int mic_boost=0;
@@ -102,7 +113,7 @@ int byte_swap=0;
 
 int lt2208Dither = 0;
 int lt2208Random = 0;
-int attenuation = 20; // 20dB
+int attenuation = 0; // 0dB
 unsigned long alex_rx_antenna=0;
 unsigned long alex_tx_antenna=0;
 unsigned long alex_attenuation=0;
@@ -145,6 +156,8 @@ int mox;
 int tune;
 
 long long ddsFrequency=14250000;
+
+unsigned char OCtune=0;
 
 void init_radio() {
   int rc;
@@ -270,8 +283,8 @@ void radioRestoreState() {
     sem_wait(&property_sem);
     loadProperties(property_path);
 
-    value=getProperty("penelope");
-    if(value) penelope=atoi(value);
+    value=getProperty("atlas_penelope");
+    if(value) atlas_penelope=atoi(value);
     value=getProperty("tx_out_of_band");
     if(value) tx_out_of_band=atoi(value);
     value=getProperty("sample_rate");
@@ -366,6 +379,8 @@ void radioRestoreState() {
     if(value) cw_breakin=atoi(value);
     value=getProperty("vfo_encoder_divisor");
     if(value) vfo_encoder_divisor=atoi(value);
+    value=getProperty("OCtune");
+    if(value) OCtune=atoi(value);
 
     bandRestoreState();
     sem_post(&property_sem);
@@ -375,6 +390,8 @@ void radioSaveState() {
     char value[80];
 
     sem_wait(&property_sem);
+    sprintf(value,"%d",atlas_penelope);
+    setProperty("atlas_penelope",value);
     sprintf(value,"%d",sample_rate);
     setProperty("sample_rate",value);
     sprintf(value,"%d",filter_board);
@@ -467,6 +484,8 @@ void radioSaveState() {
     setProperty("cw_breakin",value);
     sprintf(value,"%d",vfo_encoder_divisor);
     setProperty("vfo_encoder_divisor",value);
+    sprintf(value,"%d",OCtune);
+    setProperty("OCtune",value);
 
     bandSaveState();
 

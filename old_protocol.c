@@ -44,6 +44,15 @@
 #include "radio.h"
 #include "toolbar.h"
 
+#define SYNC0 0
+#define SYNC1 1
+#define SYNC2 2
+#define C0 3
+#define C1 4
+#define C2 5
+#define C3 6
+#define C4 7
+
 #define PI 3.1415926535897932F
 
 #define DATA_PORT 1024
@@ -84,6 +93,8 @@
 #define LT2208_RANDOM_OFF         0x00
 #define LT2208_RANDOM_ON          0x10
 
+static DISCOVERED *d;
+
 static int buffer_size=BUFFER_SIZE;
 
 static int receiver;
@@ -101,7 +112,6 @@ static int data_addr_length;
 static int output_buffer_size;
 
 static unsigned char control_in[5]={0x00,0x00,0x00,0x00,0x00};
-static unsigned char control_out[5]={0x00,0x00,0x00,0x00,0x00};
 
 static double tuning_phase;
 static float phase=0.0f;
@@ -175,39 +185,6 @@ static float sineWave(double* buf, int samples, float phase, float freq) {
     return phase;
 }
 
-static void setSpeed(int s) {
-  int speed=SPEED_48K;
-  output_buffer_size=OUTPUT_BUFFER_SIZE;
-  switch(s) {
-    case 48000:
-        speed=SPEED_48K;
-        output_buffer_size=OUTPUT_BUFFER_SIZE;
-        break;
-    case 96000:
-        speed=SPEED_96K;
-        output_buffer_size=OUTPUT_BUFFER_SIZE/2;
-        break;
-    case 192000:
-        speed=SPEED_192K;
-        output_buffer_size=OUTPUT_BUFFER_SIZE/4;
-        break;
-    case 384000:
-        speed=SPEED_384K;
-        output_buffer_size=OUTPUT_BUFFER_SIZE/8;
-        break;
-    default:
-        fprintf(stderr,"Invalid sample rate: %d. Defaulting to 48K.\n",s);
-        break;
-  }
-
-  //fprintf(stderr,"setSpeed sample_rate=%d speed=%d\n",s,speed);
-
-  control_out[1]=control_out[1]&0xFC;
-  control_out[1]=control_out[1]|speed;
-
-}
-
-
 void old_protocol_stop() {
   metis_start_stop(0);
   running=FALSE;
@@ -218,26 +195,30 @@ void old_protocol_init(int rx,int pixels) {
 
   fprintf(stderr,"old_protocol_init\n");
 
+  d=&discovered[selected_device];
+
   //int result=sem_init(&frequency_changed_sem, 0, 1);
 
   receiver=rx;
   display_width=pixels;
-
-   // setup defaults
-  control_out[0] = MOX_DISABLED;
-  control_out[1] = CONFIG_BOTH
-            | MERCURY_122_88MHZ_SOURCE
-            | MERCURY_10MHZ_SOURCE
-            | speed
-            | MIC_SOURCE_PENELOPE;
-  control_out[2] = MODE_OTHERS;
-  control_out[3] = ALEX_ATTENUATION_0DB
-            | LT2208_GAIN_OFF
-            | LT2208_DITHER_ON
-            | LT2208_RANDOM_ON;
-  control_out[4] = 0;
-
-  setSpeed(sample_rate);
+ 
+  switch(sample_rate) {
+    case 48000:
+      output_buffer_size=OUTPUT_BUFFER_SIZE;
+      break;
+    case 96000:
+      output_buffer_size=OUTPUT_BUFFER_SIZE/2;
+      break;
+    case 192000:
+      output_buffer_size=OUTPUT_BUFFER_SIZE/4;
+      break;
+    case 384000:
+      output_buffer_size=OUTPUT_BUFFER_SIZE/8;
+      break;
+    default:
+      fprintf(stderr,"Invalid sample rate: %d. Defaulting to 48K.\n",sample_rate);
+      break;
+  }
 
   start_receive_thread();
 
@@ -245,10 +226,18 @@ void old_protocol_init(int rx,int pixels) {
   for(i=8;i<OZY_BUFFER_SIZE;i++) {
     output_buffer[i]=0;
   }
+
+
+  // send commands twice
   do {
     ozy_send_buffer();
   } while (command!=0);
 
+  do {
+    ozy_send_buffer();
+  } while (command!=0);
+
+  // start the data flowing
   metis_start_stop(1);
 
 }
@@ -259,8 +248,6 @@ static void start_receive_thread() {
   struct hostent *h;
 
   fprintf(stderr,"old_protocol starting receive thread\n");
-
-  DISCOVERED* d=&discovered[selected_device];
 
   data_socket=socket(PF_INET,SOCK_DGRAM,IPPROTO_UDP);
   if(data_socket<0) {
@@ -476,7 +463,7 @@ static void process_ozy_input_buffer(char  *buffer) {
             fprintf(stderr,"fexchange0 (CHANNEL_TX) returned error: %d\n", error);
           }
           Spectrum0(1, CHANNEL_TX, 0, 0, micoutputbuffer);
-          if(penelope) {
+          if(d->device!=DEVICE_METIS || atlas_penelope) {
             if(tune) {
               gain=65535.0*255.0/(double)tune_drive;
             } else {
@@ -551,109 +538,80 @@ static void process_bandscope_buffer(char  *buffer) {
 
 
 void ozy_send_buffer() {
-  output_buffer[0]=SYNC;
-  output_buffer[1]=SYNC;
-  output_buffer[2]=SYNC;
+
+  output_buffer[SYNC0]=SYNC;
+  output_buffer[SYNC1]=SYNC;
+  output_buffer[SYNC2]=SYNC;
 
   switch(command) {
-#ifdef EXCLUDE
-    case 0:
-      //sem_wait(&frequency_changed_sem);
-      if(frequencyChanged) {
-        // send rx frequency
-        output_buffer[3]=control_out[0]|0x04;
-        output_buffer[4]=ddsFrequency>>24;
-        output_buffer[5]=ddsFrequency>>16;
-        output_buffer[6]=ddsFrequency>>8;
-        output_buffer[7]=ddsFrequency;
-        //freqcommand++;
-      } else {
-        output_buffer[3]=control_out[0];
-        output_buffer[4]=control_out[1];
-        output_buffer[5]=control_out[2];
-        output_buffer[6]=control_out[3];
-        output_buffer[7]=control_out[4];
-      }
-      //sem_post(&frequency_changed_sem);
-      break;
-    case 1:
-      // send tx frequency
-      output_buffer[3]=control_out[0]|0x02;
-/*
-      if(bSplit) {
-        if(frequencyBChanged) {
-          output_buffer[3]=control_out[0]|0x02; // Penelope
-          output_buffer[4]=ddsBFrequency>>24;
-          output_buffer[5]=ddsBFrequency>>16;
-          output_buffer[6]=ddsBFrequency>>8;
-          output_buffer[7]=ddsBFrequency;
-        } else {
-          output_buffer[3]=control_out[0];
-          output_buffer[4]=control_out[1];
-          output_buffer[5]=control_out[2];
-          output_buffer[6]=control_out[3];
-          output_buffer[7]=control_out[4];
-        }
-      } else {
-*/
-        //sem_wait(&frequency_changed_sem);
-        if(frequencyChanged) {
-          output_buffer[4]=ddsFrequency>>24;
-          output_buffer[5]=ddsFrequency>>16;
-          output_buffer[6]=ddsFrequency>>8;
-          output_buffer[7]=ddsFrequency;
-        } else {
-          output_buffer[3]=control_out[0];
-          output_buffer[4]=control_out[1];
-          output_buffer[5]=control_out[2];
-          output_buffer[6]=control_out[3];
-          output_buffer[7]=control_out[4];
-        }
-        frequencyChanged=0;
-        //sem_post(&frequency_changed_sem);
-/*
-      }
-*/
-/*
-      frequencyBChanged=0;
-*/
-      break;
-    case 2:
-      output_buffer[3]=control_out[0];
-      output_buffer[4]=control_out[1];
-      output_buffer[5]=control_out[2];
-      output_buffer[6]=control_out[3];
-      output_buffer[7]=control_out[4];
-      break;
-#endif
-
     case 0:
       {
       BAND *band=band_get_current_band();
-      output_buffer[3]=control_out[0];
-      output_buffer[4]=control_out[1];
-      if(isTransmitting()) {
-        output_buffer[5]=control_out[2]|band->OCtx;
-      } else {
-        output_buffer[5]=control_out[2]|band->OCrx;
+   
+      output_buffer[C0]=0x00;
+
+      output_buffer[C1]=0x00;
+      switch(sample_rate) {
+        case 48000:
+          output_buffer[C1]|=SPEED_48K;
+          break;
+        case 96000:
+          output_buffer[C1]|=SPEED_96K;
+          break;
+        case 192000:
+          output_buffer[C1]|=SPEED_192K;
+          break;
+        case 384000:
+          output_buffer[C1]|=SPEED_384K;
+          break;
       }
-      output_buffer[6]=control_out[3];
-      output_buffer[7]=control_out[4];
+      if(d->device==DEVICE_METIS) {
+      }
+
+      output_buffer[C2]=0x00;
+      if(classE) {
+        output_buffer[C2]|=0x01;
+      }
+      if(isTransmitting()) {
+        output_buffer[C2]|=band->OCtx;
+        if(tune) {
+          output_buffer[C2]|=OCtune;
+        }
+      } else {
+        output_buffer[C2]|=band->OCrx;
+      }
+
+// TODO - add Alex Attenuation and Alex Antenna
+      output_buffer[C3]=0x00;
+      if(rx_random) {
+        output_buffer[C3]|=LT2208_RANDOM_ON;
+      }
+      if(rx_dither) {
+        output_buffer[C3]|=LT2208_DITHER_ON;
+      }
+/*
+      if(rx_preamp) {
+        output_buffer[C3]|=LT2208_GAIN_ON;
+      }
+*/
+
+// TODO - add Alex TX relay, duplex, receivers Mercury board frequency
+      output_buffer[C4]=0x00;
       }
       break;
     case 1:
-      output_buffer[3]=control_out[0]|0x04;
-      output_buffer[4]=ddsFrequency>>24;
-      output_buffer[5]=ddsFrequency>>16;
-      output_buffer[6]=ddsFrequency>>8;
-      output_buffer[7]=ddsFrequency;
+      output_buffer[C0]=0x04;
+      output_buffer[C1]=ddsFrequency>>24;
+      output_buffer[C2]=ddsFrequency>>16;
+      output_buffer[C3]=ddsFrequency>>8;
+      output_buffer[C4]=ddsFrequency;
       break;
     case 2:
-      output_buffer[3]=control_out[0]|0x02;
-      output_buffer[4]=ddsFrequency>>24;
-      output_buffer[5]=ddsFrequency>>16;
-      output_buffer[6]=ddsFrequency>>8;
-      output_buffer[7]=ddsFrequency;
+      output_buffer[C0]=0x02;
+      output_buffer[C1]=ddsFrequency>>24;
+      output_buffer[C2]=ddsFrequency>>16;
+      output_buffer[C3]=ddsFrequency>>8;
+      output_buffer[C4]=ddsFrequency;
       break;
     case 3:
       {
@@ -664,95 +622,105 @@ void ozy_send_buffer() {
       BAND *band=band_get_current_band();
       d=(d/100.0F)*(float)band->pa_calibration;
 
-      output_buffer[3]=0x12;
-      output_buffer[4]=(int)d;
-      output_buffer[5]=control_out[2];
+      output_buffer[C0]=0x12;
+      output_buffer[C1]=(int)d;
+      output_buffer[C2]=0x00;
       if(mic_boost) {
-        output_buffer[5]|=0x01;
+        output_buffer[C2]|=0x01;
       }
       if(mic_linein) {
-        output_buffer[5]|=0x02;
+        output_buffer[C2]|=0x02;
       }
       if(filter_board==APOLLO) {
-        output_buffer[5]|=0x2C; // board, filter ,tuner
+        output_buffer[C2]|=0x2C; // board, filter ,tuner
       }
       if((filter_board==APOLLO) && tune && apollo_tuner) {
-        output_buffer[5]|=0x10;
+        output_buffer[C2]|=0x10;
       }
-      output_buffer[6]=control_out[3];
-      output_buffer[7]=control_out[4];
+      output_buffer[C3]=0x00;
+      if(band_get_current()==band6) {
+        output_buffer[C3]=output_buffer[6]|0x40; // Alex 6M low noise amplifier
+      }
+      output_buffer[C4]=0x00;
       }
       break;
     case 4:
-      // need to add orion tip/ring and bias configuration
-      output_buffer[3]=0x14;
-      output_buffer[4]=0x00;
+      output_buffer[C0]=0x14;
+      output_buffer[C1]=0x00;
       if(mic_ptt_enabled==0) {
-        output_buffer[4]|=0x40;
+        output_buffer[C1]|=0x40;
       }
       if(mic_bias_enabled) {
-        output_buffer[4]|=0x20;
+        output_buffer[C1]|=0x20;
       }
       if(mic_ptt_tip_bias_ring) {
-        output_buffer[4]|=0x10;
+        output_buffer[C1]|=0x10;
       }
-      output_buffer[5]=0x00;
-      output_buffer[6]=0x00;
-      output_buffer[7]=0x00;
+      output_buffer[C2]=0x00;
+      output_buffer[C3]=0x00;
+
+      if(d->device==DEVICE_HERMES || d->device==DEVICE_ANGELIA || d->device==DEVICE_ORION) {
+        output_buffer[C4]=0x20|attenuation;
+      } else {
+        output_buffer[C4]=0x00;
+      }
       break;
     case 5:
-      // need to add rx attenuation and cw configuration
-      output_buffer[3]=0x16;
-      output_buffer[4]=0x00;
-      output_buffer[5]=0x00;
+      // need to add adc 2 and 3 attenuation
+      output_buffer[C0]=0x16;
+      output_buffer[C1]=0x00;
+      output_buffer[C2]=0x00;
       if(cw_keys_reversed!=0) {
-        output_buffer[5]|=0x40;
+        output_buffer[C2]|=0x40;
       }
-      output_buffer[6]=cw_keyer_speed | (cw_keyer_mode<<6);
-      output_buffer[7]=cw_keyer_weight | (cw_keyer_spacing<<7);
+      output_buffer[C3]=cw_keyer_speed | (cw_keyer_mode<<6);
+      output_buffer[C4]=cw_keyer_weight | (cw_keyer_spacing<<7);
       break;
     case 6:
       // need to add tx attenuation and rx ADC selection
-      output_buffer[3]=0x1C;
-      output_buffer[4]=0x00;
-      output_buffer[5]=0x00;
-      output_buffer[6]=0x00;
-      output_buffer[7]=0x00;
+      output_buffer[C0]=0x1C;
+      output_buffer[C1]=0x00;
+      output_buffer[C2]=0x00;
+      output_buffer[C3]=0x00;
+      output_buffer[C4]=0x00;
       break;
     case 7:
       // need to add cw configuration
-      output_buffer[3]=0x1E;
+      output_buffer[C0]=0x1E;
       if(cw_keyer_internal==1) {
         if(isTransmitting() || (mode!=modeCWU && mode!=modeCWL)) {
-          output_buffer[4]=0x00;
+          output_buffer[C1]=0x00;
         } else {
-          output_buffer[4]=0x01;
+          output_buffer[C1]=0x01;
         }
       } else {
-        output_buffer[4]=0x00;
+        output_buffer[C1]=0x00;
       }
-      output_buffer[5]=cw_keyer_sidetone_volume;
-      output_buffer[6]=cw_keyer_ptt_delay;
-      output_buffer[7]=0x00;
+      output_buffer[C2]=cw_keyer_sidetone_volume;
+      output_buffer[C3]=cw_keyer_ptt_delay;
+      output_buffer[C4]=0x00;
       break;
     case 8:
       // need to add cw configuration
-      output_buffer[3]=0x20;
-      output_buffer[4]=cw_keyer_hang_time;
-      output_buffer[5]=cw_keyer_hang_time>>8;
-      output_buffer[6]=cw_keyer_sidetone_frequency;
-      output_buffer[7]=cw_keyer_sidetone_frequency>>8;
+      output_buffer[C0]=0x20;
+      output_buffer[C1]=cw_keyer_hang_time;
+      output_buffer[C2]=cw_keyer_hang_time>>8;
+      output_buffer[C3]=cw_keyer_sidetone_frequency;
+      output_buffer[C4]=cw_keyer_sidetone_frequency>>8;
       break;
   }
   command++;
-  //if(command>=14) {
-    if(command>=8) {
-      command=0;
-    }
+  if(command>8) {
+    command=0;
+  }
+
   // set mox
-  output_buffer[3]|=isTransmitting();
+  output_buffer[C0]|=isTransmitting();
 
   metis_write(0x02,output_buffer,OZY_BUFFER_SIZE);
+
+  //fprintf(stderr,"C0=%02X C1=%02X C2=%02X C3=%02X C4=%02X\n",
+  //                output_buffer[C0],output_buffer[C1],output_buffer[C2],output_buffer[C3],output_buffer[C4]);
 }
 
 static int metis_write(unsigned char ep,char* buffer,int length) {

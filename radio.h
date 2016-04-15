@@ -55,7 +55,18 @@ extern char property_path[];
 #define KEYER_MODE_A 1
 #define KEYER_MODE_B 2
 
-extern int penelope;
+extern int rx_dither;
+extern int rx_random;
+extern int rx_preamp;
+
+extern int atlas_penelope;
+extern int atlas_clock_source_10mhz;
+extern int atlas_clock_source_128mhz;
+extern int atlas_config;
+extern int atlas_mic_source;
+
+extern int classE;
+
 extern int tx_out_of_band;
 
 extern int sample_rate;
@@ -159,6 +170,8 @@ extern unsigned int AIN6;
 extern int supply_volts;
 
 extern long long ddsFrequency;
+
+extern unsigned char OCtune;
 
 extern void init_radio();
 extern void setSampleRate(int rate);

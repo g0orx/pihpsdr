@@ -284,15 +284,15 @@ void panadapter_update(float *data,int tx) {
 
             // signal
             double s1,s2;
-            samples[0]=panadapter_low-20;
-            samples[display_width-1]=panadapter_low-20;
-            s1=samples[0]-(get_attenuation()-20.0);
+            samples[0]=-200.0;
+            samples[display_width-1]=-200.0;
+            s1=(double)samples[0]+(double)get_attenuation()-20.0;
             s1 = floor((panadapter_high - s1)
                         * (double) panadapter_height
                         / (panadapter_high - panadapter_low));
             cairo_move_to(cr, 0.0, s1);
             for(i=1;i<display_width;i++) {
-                s2=samples[i]-(get_attenuation()-20.0);
+                s2=(double)samples[i]+(double)get_attenuation()-20.0;
                 s2 = floor((panadapter_high - s2)
                             * (double) panadapter_height
                             / (panadapter_high - panadapter_low));
