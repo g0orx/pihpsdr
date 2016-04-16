@@ -73,6 +73,7 @@ int waterfall_automatic=1;
 
 int display_sliders=1;
 int display_toolbar=1;
+int toolbar_simulate_buttons=1;
 
 double volume=0.2;
 double mic_gain=1.5;
@@ -90,6 +91,7 @@ int mic_ptt_tip_bias_ring=0;
 int agc=AGC_MEDIUM;
 double agc_gain=60.0;
 
+int nr_none=1;
 int nr=0;
 int nr2=0;
 int nb=0;
@@ -158,6 +160,8 @@ int tune;
 long long ddsFrequency=14250000;
 
 unsigned char OCtune=0;
+int OCtune_time=2800; // ms
+long long tune_timeout;
 
 void init_radio() {
   int rc;
@@ -195,6 +199,13 @@ void setTune(int state) {
 fprintf(stderr,"setTune: protocol=%d\n", protocol);
   if(tune!=state) {
     tune=state;
+    if(tune) {
+      if(OCtune_time!=0) {
+        struct timeval te;
+        gettimeofday(&te,NULL);
+        tune_timeout=(te.tv_sec*1000LL+te.tv_usec/1000)+(long long)OCtune_time;
+      }
+    }
     if(protocol==NEW_PROTOCOL) {
       schedule_high_priority(4);
       schedule_general();
@@ -315,6 +326,8 @@ void radioRestoreState() {
     if(value) display_sliders=atoi(value);
     value=getProperty("display_toolbar");
     if(value) display_toolbar=atoi(value);
+    value=getProperty("toolbar_simulate_buttons");
+    if(value) toolbar_simulate_buttons=atoi(value);
     value=getProperty("waterfall_high");
     if(value) waterfall_high=atoi(value);
     value=getProperty("waterfall_low");
@@ -339,10 +352,16 @@ void radioRestoreState() {
     if(value) mic_bias_enabled=atof(value);
     value=getProperty("mic_ptt_tip_bias_ring");
     if(value) mic_ptt_tip_bias_ring=atof(value);
+    value=getProperty("nr_none");
+    if(value) nr_none=atoi(value);
     value=getProperty("nr");
     if(value) nr=atoi(value);
+    value=getProperty("nr2");
+    if(value) nr2=atoi(value);
     value=getProperty("nb");
     if(value) nb=atoi(value);
+    value=getProperty("nb2");
+    if(value) nb2=atoi(value);
     value=getProperty("anf");
     if(value) anf=atoi(value);
     value=getProperty("snb");
@@ -381,6 +400,8 @@ void radioRestoreState() {
     if(value) vfo_encoder_divisor=atoi(value);
     value=getProperty("OCtune");
     if(value) OCtune=atoi(value);
+    value=getProperty("OCtune_time");
+    if(value) OCtune_time=atoi(value);
 
     bandRestoreState();
     sem_post(&property_sem);
@@ -420,6 +441,8 @@ void radioSaveState() {
     setProperty("display_sliders",value);
     sprintf(value,"%d",display_toolbar);
     setProperty("display_toolbar",value);
+    sprintf(value,"%d",toolbar_simulate_buttons);
+    setProperty("toolbar_simulate_buttons",value);
     sprintf(value,"%d",waterfall_high);
     setProperty("waterfall_high",value);
     sprintf(value,"%d",waterfall_low);
@@ -444,10 +467,16 @@ void radioSaveState() {
     setProperty("mic_bias_enabled",value);
     sprintf(value,"%d",mic_ptt_tip_bias_ring);
     setProperty("mic_ptt_tip_bias_ring",value);
+    sprintf(value,"%d",nr_none);
+    setProperty("nr_none",value);
     sprintf(value,"%d",nr);
     setProperty("nr",value);
+    sprintf(value,"%d",nr2);
+    setProperty("nr2",value);
     sprintf(value,"%d",nb);
     setProperty("nb",value);
+    sprintf(value,"%d",nb2);
+    setProperty("nb2",value);
     sprintf(value,"%d",anf);
     setProperty("anf",value);
     sprintf(value,"%d",snb);
@@ -486,6 +515,8 @@ void radioSaveState() {
     setProperty("vfo_encoder_divisor",value);
     sprintf(value,"%d",OCtune);
     setProperty("OCtune",value);
+    sprintf(value,"%d",OCtune_time);
+    setProperty("OCtune_time",value);
 
     bandSaveState();
 

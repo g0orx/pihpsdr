@@ -37,6 +37,7 @@ radio.c \
 gpio.c \
 splash.c \
 toolbar.c \
+sliders.c \
 version.c \
 vfo.c \
 waterfall.c \
@@ -64,6 +65,7 @@ radio.h \
 gpio.h \
 splash.h \
 toolbar.h \
+sliders.h \
 version.h \
 vfo.h \
 waterfall.h \
@@ -91,6 +93,7 @@ radio.o \
 gpio.o \
 splash.o \
 toolbar.o \
+sliders.o \
 vfo.o \
 waterfall.o \
 wdsp_init.o

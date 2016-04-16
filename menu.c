@@ -260,6 +260,9 @@ static void frames_per_second_value_changed_cb(GtkWidget *widget, gpointer data)
   calculate_display_average();
 }
 
+static void oc_tune_time_cb(GtkWidget *widget, gpointer data) {
+  OCtune_time=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+}
 
 static gboolean menu_pressed_event_cb (GtkWidget *widget,
                GdkEventButton *event,
@@ -643,8 +646,8 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
 
   GtkWidget *oc_label=gtk_label_new("OC");
   GtkWidget *oc_grid=gtk_grid_new();
-  gtk_grid_set_row_homogeneous(GTK_GRID(oc_grid),TRUE);
-  gtk_grid_set_column_spacing (GTK_GRID(oc_grid),15);
+  //gtk_grid_set_row_homogeneous(GTK_GRID(oc_grid),TRUE);
+  gtk_grid_set_column_spacing (GTK_GRID(oc_grid),10);
 
   GtkWidget *band_title=gtk_label_new("Band");
   //gtk_widget_override_font(band_title, pango_font_description_from_string("Arial 18"));
@@ -740,6 +743,17 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
     g_signal_connect(oc_tune_b,"toggled",G_CALLBACK(oc_tune_cb),(gpointer)j);
   }
 
+  GtkWidget *oc_tune_time_title=gtk_label_new("Tune Duration(ms):");
+  //gtk_widget_override_font(oc_tune_time_title, pango_font_description_from_string("Arial 18"));
+  gtk_widget_show(oc_tune_time_title);
+  gtk_grid_attach(GTK_GRID(oc_grid),oc_tune_time_title,18,j+2,2,1);
+
+  GtkWidget *oc_tune_time_b=gtk_spin_button_new_with_range(0.0,9999.0,1.0);
+  //gtk_widget_override_font(oc_tune_time_b, pango_font_description_from_string("Arial 18"));
+  gtk_spin_button_set_value(GTK_SPIN_BUTTON(oc_tune_time_b),(double)OCtune_time);
+  gtk_widget_show(oc_tune_time_b);
+  gtk_grid_attach(GTK_GRID(oc_grid),oc_tune_time_b,18,j+3,2,1);
+  g_signal_connect(oc_tune_time_b,"value_changed",G_CALLBACK(oc_tune_time_cb),NULL);
 
   id=gtk_notebook_append_page(GTK_NOTEBOOK(notebook),oc_grid,oc_label);
 

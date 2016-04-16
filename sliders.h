@@ -17,8 +17,10 @@
 *
 */
 
-int ptt_update(void *data);
-void lock_cb(GtkWidget *widget, gpointer data);
-void mox_cb(GtkWidget *widget, gpointer data);
-void tune_cb(GtkWidget *widget, gpointer data);
-GtkWidget *toolbar_init(int my_width, int my_height, GtkWidget* parent);
+void set_agc_gain(double value);
+void set_af_gain(double value);
+void set_mic_gain(double value);
+void set_drive(double drive);
+void set_tune(double tune);
+void set_attenuation_value(double attenuation);
+GtkWidget *sliders_init(int my_width, int my_height, GtkWidget* parent);

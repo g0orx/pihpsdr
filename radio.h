@@ -92,12 +92,14 @@ extern int waterfall_automatic;
 
 extern int display_sliders;
 extern int display_toolbar;
+extern int toolbar_simulate_buttons;
 
 extern double volume;
 extern double mic_gain;
 extern int agc;
 extern double agc_gain;
 
+extern int nr_none;
 extern int nr;
 extern int nr2;
 extern int nb;
@@ -172,6 +174,8 @@ extern int supply_volts;
 extern long long ddsFrequency;
 
 extern unsigned char OCtune;
+extern int OCtune_time;
+extern long long tune_timeout;
 
 extern void init_radio();
 extern void setSampleRate(int rate);
