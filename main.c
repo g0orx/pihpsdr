@@ -776,8 +776,8 @@ gint init(void* arg) {
               _exit(0);
           }
          
+          gtk_widget_destroy(discovery_dialog);
           if(result==GTK_RESPONSE_YES) {
-              gtk_widget_destroy(discovery_dialog);
               configure_gpio();
           }
       }

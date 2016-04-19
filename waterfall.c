@@ -139,6 +139,18 @@ waterfall_motion_notify_event_cb (GtkWidget      *widget,
   return TRUE;
 }
 
+static gboolean
+waterfall_scroll_event_cb (GtkWidget      *widget,
+               GdkEventScroll *event,
+               gpointer        data)
+{
+  if(event->direction==GDK_SCROLL_UP) {
+    vfo_move(step);
+  } else {
+    vfo_move(-step);
+  }
+}
+
 void waterfall_update(float *data) {
 
 
@@ -247,6 +259,8 @@ GtkWidget* waterfall_init(int width,int height) {
             G_CALLBACK (waterfall_button_press_event_cb), NULL);
   g_signal_connect (waterfall, "button-release-event",
             G_CALLBACK (waterfall_button_release_event_cb), NULL);
+  g_signal_connect(waterfall,"scroll_event",
+            G_CALLBACK(waterfall_scroll_event_cb),NULL);
 
   /* Ask to receive events the drawing area doesn't normally
    * subscribe to. In particular, we need to ask for the
@@ -256,6 +270,7 @@ GtkWidget* waterfall_init(int width,int height) {
                      | GDK_BUTTON_PRESS_MASK
                      | GDK_BUTTON_RELEASE_MASK
                      | GDK_BUTTON1_MOTION_MASK
+                     | GDK_SCROLL_MASK
                      | GDK_POINTER_MOTION_MASK
                      | GDK_POINTER_MOTION_HINT_MASK);
 
