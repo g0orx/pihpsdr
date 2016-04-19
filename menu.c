@@ -17,6 +17,13 @@
 *
 */
 
+#ifdef raspberrypi
+#define INCLUDE_GPIO
+#endif
+#ifdef odroid
+#define INCLUDE_GPIO
+#endif
+
 #include <gtk/gtk.h>
 #include <semaphore.h>
 #include <stdio.h>
@@ -191,7 +198,9 @@ static gboolean exit_pressed_event_cb (GtkWidget *widget,
                GdkEventButton *event,
                gpointer        data)
 {
+#ifdef INCLUDE_GPIO
   gpio_close();
+#endif
   if(protocol==ORIGINAL_PROTOCOL) {
     old_protocol_stop();
   } else {

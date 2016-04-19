@@ -37,7 +37,7 @@
 #include "radio.h"
 #include "vfo.h"
 #include "channel.h"
-#include "gpio.h"
+#include "toolbar.h"
 #include "wdsp.h"
 
 static GtkWidget *parent_window;

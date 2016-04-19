@@ -1,3 +1,11 @@
+#ifdef raspberrypi
+#define INCLUDE_GPIO
+#endif
+#ifdef odroid
+#define INCLUDE_GPIO
+#endif
+
+#ifdef INCLUDE_GPIO
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -127,7 +135,6 @@ static volatile int lock_state;
 
 static void* rotary_encoder_thread(void *arg);
 static pthread_t rotary_encoder_thread_id;
-int function=0;
 static int previous_function_button=0;
 static int af_function=0;
 static int previous_af_function=0;
@@ -1157,3 +1164,4 @@ static void* rotary_encoder_thread(void *arg) {
 //        }
     }
 }
+#endif

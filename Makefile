@@ -6,10 +6,12 @@ OPTIONS=-g -D $(UNAME_N) -O3
 GTKINCLUDES=`pkg-config --cflags gtk+-3.0`
 GTKLIBS=`pkg-config --libs gtk+-3.0`
 ifeq ($(UNAME_N),raspberrypi)
-LIBS=-lwiringPi -lpigpio -lrt -lm -lwdsp -lpthread $(GTKLIBS)
-else
-LIBS=-lwiringPi -lrt -lm -lwdsp -lpthread $(GTKLIBS)
+GPIO_LIBS=-lwiringPi -lpigpio
 endif
+ifeq ($(UNAME_N),odroid)
+GPIO_LIBS=-lwiringPi
+endif
+LIBS=-lrt -lm -lwdsp -lpthread $(GTKLIBS)
 INCLUDES=$(GTKINCLUDES)
 
 COMPILE=$(CC) $(OPTIONS) $(INCLUDES)
@@ -104,7 +106,7 @@ prebuild:
 	rm -f version.o
 
 $(PROGRAM): $(OBJS)
-	$(LINK) -o $(PROGRAM) $(OBJS) $(LIBS)
+	$(LINK) -o $(PROGRAM) $(OBJS) $(GPIO_LIBS) $(LIBS)
 
 .c.o:
 	$(COMPILE) -c -o $@ $<

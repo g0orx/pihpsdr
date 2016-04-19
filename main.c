@@ -47,6 +47,13 @@
 #include "wdsp_init.h"
 #include "version.h"
 
+#ifdef raspberrypi
+#define INCLUDE_GPIO
+#endif
+#ifdef odroid
+#define INCLUDE_GPIO
+#endif
+
 #define VFO_HEIGHT ((display_height/32)*4)
 #define VFO_WIDTH ((display_width/32)*16)
 #define MENU_HEIGHT VFO_HEIGHT
@@ -62,6 +69,7 @@ struct utsname unameData;
 
 gint display_width;
 gint display_height;
+gint full_screen=1;
 
 static gint update_timer_id;
 
@@ -238,6 +246,7 @@ static void toolbar_simulate_buttons_cb(GtkWidget *widget, gpointer data) {
   toolbar_simulate_buttons=toolbar_simulate_buttons==1?0:1;
 }
 
+#ifdef INCLUDE_GPIO
 static void configure_gpio() {
   gpio_restore_state();
 
@@ -519,6 +528,7 @@ static void configure_gpio() {
 
   gpio_save_state();
 }
+#endif
 
 static void configure_cb(GtkWidget *widget, gpointer data) {
   DISCOVERED* d;
@@ -715,8 +725,10 @@ gint init(void* arg) {
           discovery_dialog = gtk_dialog_new_with_buttons ("Discovered",
                                       GTK_WINDOW(splash_window),
                                       flags,
+#ifdef INCLUDE_GPIO
                                       "Configure GPIO",
                                       GTK_RESPONSE_YES,
+#endif
                                       "Discover",
                                       GTK_RESPONSE_REJECT,
                                       "Exit",
@@ -776,10 +788,12 @@ gint init(void* arg) {
               _exit(0);
           }
          
+#ifdef INCLUDE_GPIO
           gtk_widget_destroy(discovery_dialog);
           if(result==GTK_RESPONSE_YES) {
               configure_gpio();
           }
+#endif
       }
   }
 
@@ -815,7 +829,9 @@ gint init(void* arg) {
   }
 
   splash_status("Initializing GPIO ...");
+#ifdef INCLUDE_GPIO
   gpio_init();
+#endif
 
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   gtk_window_set_title (GTK_WINDOW (window), "pihpsdr");
@@ -935,7 +951,9 @@ fprintf(stderr,"toolbar_height=%d\n",TOOLBAR_HEIGHT);
 
   gtk_widget_show_all (window);
 
-  gtk_window_fullscreen(GTK_WINDOW(window));
+  if(full_screen) {
+    gtk_window_fullscreen(GTK_WINDOW(window));
+  }
 
   GdkWindow *gdk_window = gtk_widget_get_window(window);
   gdk_window_set_cursor(gdk_window,cursor_arrow);
@@ -980,9 +998,15 @@ main (int   argc,
   display_width=gdk_screen_get_width(screen);
   display_height=gdk_screen_get_height(screen);
 
+  if(display_width>800 || display_height>480) {
+    display_width=800;
+    display_height=400;
+    full_screen=0;
+  }
+
   fprintf(stderr,"display_width=%d display_height=%d\n", display_width, display_height);
 
-  splash_show("hpsdr.png", 0, display_width, display_height);
+  splash_show("hpsdr.png", display_width, display_height, full_screen);
 
   g_idle_add(init,(void *)argv[0]);
 

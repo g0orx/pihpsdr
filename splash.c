@@ -46,11 +46,13 @@ static gboolean splash_configure_event_cb (GtkWidget         *widget,
 }
 
 
-void splash_show(char* image_name,int time,int width,int height)
+void splash_show(char* image_name,int width,int height,int full_screen)
 {
   GtkWidget  *image;
   splash_window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
-  gtk_window_fullscreen(GTK_WINDOW(splash_window));
+  if(full_screen) {
+    gtk_window_fullscreen(GTK_WINDOW(splash_window));
+  }
   gtk_widget_set_size_request(splash_window, width, height);
   gtk_window_set_decorated(GTK_WINDOW(splash_window), FALSE);
   gtk_window_set_position(GTK_WINDOW(splash_window),GTK_WIN_POS_CENTER_ALWAYS);

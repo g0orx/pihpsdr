@@ -38,6 +38,8 @@
 #include "radio.h"
 #include "property.h"
 
+int function=0;
+
 static int width;
 static int height;
 

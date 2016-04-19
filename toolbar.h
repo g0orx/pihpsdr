@@ -17,6 +17,8 @@
 *
 */
 
+extern int function;
+
 int ptt_update(void *data);
 void lock_cb(GtkWidget *widget, gpointer data);
 void mox_cb(GtkWidget *widget, gpointer data);
