@@ -144,7 +144,7 @@ void set_agc_gain(double value) {
       scale_status=AGC_GAIN;
       scale_dialog=gtk_dialog_new_with_buttons("AGC Gain",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
       GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
-      agc_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 120.0, 1.00);
+      agc_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-20.0, 120.0, 1.00);
       gtk_widget_set_size_request (agc_scale, 400, 30);
       gtk_range_set_value (GTK_RANGE(agc_scale),agc_gain);
       gtk_widget_show(agc_scale);
@@ -335,7 +335,7 @@ GtkWidget *sliders_init(int my_width, int my_height, GtkWidget* parent) {
   gtk_widget_show(agc_gain_label);
   gtk_grid_attach(GTK_GRID(sliders),agc_gain_label,3,0,1,1);
 
-  agc_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 120.0, 1.0);
+  agc_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-20.0, 120.0, 1.0);
   gtk_range_set_value (GTK_RANGE(agc_scale),agc_gain);
   gtk_widget_show(agc_scale);
   gtk_grid_attach(GTK_GRID(sliders),agc_scale,4,0,2,1);

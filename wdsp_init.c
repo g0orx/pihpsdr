@@ -211,17 +211,17 @@ void wdsp_init(int rx,int pixels,int protocol) {
     SetRXAAMDSBMode(CHANNEL_RX0, 0);
     SetRXAShiftRun(CHANNEL_RX0, 0);
 
-    SetRXAEMNRgainMethod(CHANNEL_RX0, 2); // defaults
-    SetRXAEMNRnpeMethod(CHANNEL_RX0, 0);
-    SetRXAEMNRaeRun(CHANNEL_RX0, 1);
-    SetRXAEMNRPosition(CHANNEL_RX0, 1);
-    SetRXAEMNRRun(CHANNEL_RX0, 0);
+    SetRXAEMNRgainMethod(CHANNEL_RX0, 2); // 0=Linear 1=Log 2=Gamma
+    SetRXAEMNRnpeMethod(CHANNEL_RX0, 0); // 0=OSMS 1=MMSE
+    SetRXAEMNRPosition(CHANNEL_RX0, 0); // 0=Pre AGC, 1=Post AGC
+    SetRXAEMNRaeRun(CHANNEL_RX0, 1); // 1=run
+    SetRXAEMNRRun(CHANNEL_RX0, nr2);
 
     SetRXAEMNRaeRun(CHANNEL_RX0, 0);
     SetRXAANRVals(CHANNEL_RX0, 64, 16, 16e-4, 10e-7); // defaults
-    SetRXAANRRun(CHANNEL_RX0, 0);
-    SetRXAANFRun(CHANNEL_RX0, 0);
-    SetRXASNBARun(CHANNEL_RX0, 0);
+    SetRXAANRRun(CHANNEL_RX0, nr);
+    SetRXAANFRun(CHANNEL_RX0, anf);
+    SetRXASNBARun(CHANNEL_RX0, snb);
 
     SetTXAMode(CHANNEL_TX, mode);
     SetTXABandpassFreqs(CHANNEL_TX, (double)filterLow, (double)filterHigh);

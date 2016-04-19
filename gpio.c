@@ -827,8 +827,8 @@ static int agc_encoder_changed(void *data) {
     } else {
       double gain=agc_gain;
       gain+=(double)pos;
-      if(gain<0.0) {
-        gain=0.0;
+      if(gain<-20.0) {
+        gain=-20.0;
       } else if(gain>120.0) {
         gain=120.0;
       }
