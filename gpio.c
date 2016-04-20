@@ -899,6 +899,9 @@ static int bandstack_pressed(void *data) {
 static int function_pressed(void *data) {
 fprintf(stderr,"function_pressed\n");
   function=function==1?0:1;
+  if(display_toolbar && toolbar_simulate_buttons) {
+    update_toolbar();
+  }
   vfo_update(NULL);
   return 0;
 }

@@ -107,6 +107,11 @@ extern int nb2;
 extern int anf;
 extern int snb;
 
+extern int nr_agc;
+extern int nr2_gain_method;
+extern int nr2_npe_method;
+extern int nr2_ae;
+
 extern int cwPitch;
 
 extern int mic_linein;
@@ -174,7 +179,8 @@ extern int supply_volts;
 extern long long ddsFrequency;
 
 extern unsigned char OCtune;
-extern int OCtune_time;
+extern int OCfull_tune_time;
+extern int OCmemory_tune_time;
 extern long long tune_timeout;
 
 extern void init_radio();

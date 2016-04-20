@@ -209,6 +209,38 @@ static gboolean exit_pressed_event_cb (GtkWidget *widget,
   _exit(0);
 }
 
+static gboolean reboot_pressed_event_cb (GtkWidget *widget,
+               GdkEventButton *event,
+               gpointer        data)
+{
+#ifdef INCLUDE_GPIO
+  gpio_close();
+#endif
+  if(protocol==ORIGINAL_PROTOCOL) {
+    old_protocol_stop();
+  } else {
+    new_protocol_stop();
+  }
+  system("reboot");
+  _exit(0);
+}
+
+static gboolean shutdown_pressed_event_cb (GtkWidget *widget,
+               GdkEventButton *event,
+               gpointer        data)
+{
+#ifdef INCLUDE_GPIO
+  gpio_close();
+#endif
+  if(protocol==ORIGINAL_PROTOCOL) {
+    old_protocol_stop();
+  } else {
+    new_protocol_stop();
+  }
+  system("shutdown -h -P now");
+  _exit(0);
+}
+
 static void oc_rx_cb(GtkWidget *widget, gpointer data) {
   int b=((int)data)>>4;
   int oc=((int)data)&0xF;
@@ -269,8 +301,37 @@ static void frames_per_second_value_changed_cb(GtkWidget *widget, gpointer data)
   calculate_display_average();
 }
 
-static void oc_tune_time_cb(GtkWidget *widget, gpointer data) {
-  OCtune_time=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+static void oc_full_tune_time_cb(GtkWidget *widget, gpointer data) {
+  OCfull_tune_time=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+}
+
+static void oc_memory_tune_time_cb(GtkWidget *widget, gpointer data) {
+  OCmemory_tune_time=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+}
+
+static void pre_post_agc_cb(GtkWidget *widget, gpointer data) {
+  nr_agc=(int)data;
+  SetRXAEMNRPosition(CHANNEL_RX0, nr_agc);
+
+}
+
+static void nr2_gain_cb(GtkWidget *widget, gpointer data) {
+  nr2_gain_method==(int)data;
+  SetRXAEMNRgainMethod(CHANNEL_RX0, nr2_gain_method);
+}
+
+static void nr2_npe_method_cb(GtkWidget *widget, gpointer data) {
+  nr2_npe_method=(int)data;
+  SetRXAEMNRnpeMethod(CHANNEL_RX0, nr2_npe_method);
+}
+
+static void ae_cb(GtkWidget *widget, gpointer data) {
+  if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
+    nr2_ae=1;
+  } else {
+    nr2_ae=0;
+  }
+  SetRXAEMNRaeRun(CHANNEL_RX0, nr2_ae);
 }
 
 static gboolean menu_pressed_event_cb (GtkWidget *widget,
@@ -568,6 +629,78 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
 
 
 
+
+  GtkWidget *dsp_label=gtk_label_new("DSP");
+  GtkWidget *dsp_grid=gtk_grid_new();
+  gtk_grid_set_row_homogeneous(GTK_GRID(dsp_grid),TRUE);
+  gtk_grid_set_column_spacing (GTK_GRID(dsp_grid),10);
+
+  GtkWidget *pre_post_agc_label=gtk_label_new("NR/NR2/ANF");
+  //gtk_widget_override_font(pre_post_agc_label, pango_font_description_from_string("Arial 18"));
+  gtk_widget_show(pre_post_agc_label);
+  gtk_grid_attach(GTK_GRID(dsp_grid),pre_post_agc_label,0,0,1,1);
+
+  GtkWidget *pre_agc_b=gtk_radio_button_new_with_label(NULL,"Pre AGC");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (pre_agc_b),nr_agc==0);
+  gtk_widget_show(pre_agc_b);
+  gtk_grid_attach(GTK_GRID(dsp_grid),pre_agc_b,1,0,1,1);
+  g_signal_connect(pre_agc_b,"pressed",G_CALLBACK(pre_post_agc_cb),(gpointer *)0);
+
+  GtkWidget *post_agc_b=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(pre_agc_b),"Post AGC");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (post_agc_b), nr_agc==1);
+  gtk_widget_show(post_agc_b);
+  gtk_grid_attach(GTK_GRID(dsp_grid),post_agc_b,2,0,1,1);
+  g_signal_connect(post_agc_b,"pressed",G_CALLBACK(pre_post_agc_cb),(gpointer *)1);
+
+  GtkWidget *nr2_gain_label=gtk_label_new("NR2 Gain Method");
+  //gtk_widget_override_font(nr2_gain_label, pango_font_description_from_string("Arial 18"));
+  gtk_widget_show(nr2_gain_label);
+  gtk_grid_attach(GTK_GRID(dsp_grid),nr2_gain_label,0,1,1,1);
+
+  GtkWidget *linear_b=gtk_radio_button_new_with_label(NULL,"Linear");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (linear_b),nr2_gain_method==0);
+  gtk_widget_show(linear_b);
+  gtk_grid_attach(GTK_GRID(dsp_grid),linear_b,1,1,1,1);
+  g_signal_connect(linear_b,"pressed",G_CALLBACK(nr2_gain_cb),(gpointer *)0);
+
+  GtkWidget *log_b=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(linear_b),"Log");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (log_b), nr2_gain_method==1);
+  gtk_widget_show(log_b);
+  gtk_grid_attach(GTK_GRID(dsp_grid),log_b,2,1,1,1);
+  g_signal_connect(log_b,"pressed",G_CALLBACK(nr2_gain_cb),(gpointer *)1);
+
+  GtkWidget *gamma_b=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(log_b),"Gamma");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (gamma_b), nr2_gain_method==2);
+  gtk_widget_show(gamma_b);
+  gtk_grid_attach(GTK_GRID(dsp_grid),gamma_b,3,1,1,1);
+  g_signal_connect(gamma_b,"pressed",G_CALLBACK(nr2_gain_cb),(gpointer *)2);
+
+  GtkWidget *nr2_npe_method_label=gtk_label_new("NR2 NPE Method");
+  //gtk_widget_override_font(nr2_npe_method_label, pango_font_description_from_string("Arial 18"));
+  gtk_widget_show(nr2_npe_method_label);
+  gtk_grid_attach(GTK_GRID(dsp_grid),nr2_npe_method_label,0,2,1,1);
+
+  GtkWidget *osms_b=gtk_radio_button_new_with_label(NULL,"OSMS");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (osms_b),nr2_npe_method==0);
+  gtk_widget_show(osms_b);
+  gtk_grid_attach(GTK_GRID(dsp_grid),osms_b,1,2,1,1);
+  g_signal_connect(osms_b,"pressed",G_CALLBACK(nr2_npe_method_cb),(gpointer *)0);
+
+  GtkWidget *mmse_b=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(osms_b),"MMSE");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (mmse_b), nr2_npe_method==1);
+  gtk_widget_show(mmse_b);
+  gtk_grid_attach(GTK_GRID(dsp_grid),mmse_b,2,2,1,1);
+  g_signal_connect(mmse_b,"pressed",G_CALLBACK(nr2_npe_method_cb),(gpointer *)1);
+
+  GtkWidget *ae_b=gtk_check_button_new_with_label("NR2 AE Filter");
+  //gtk_widget_override_font(ae_b, pango_font_description_from_string("Arial 18"));
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ae_b), nr2_ae);
+  gtk_widget_show(ae_b);
+  gtk_grid_attach(GTK_GRID(dsp_grid),ae_b,0,3,1,1);
+  g_signal_connect(ae_b,"toggled",G_CALLBACK(ae_cb),NULL);
+
+  id=gtk_notebook_append_page(GTK_NOTEBOOK(notebook),dsp_grid,dsp_label);
+
   GtkWidget *tx_label=gtk_label_new("PA Gain");
   GtkWidget *tx_grid=gtk_grid_new();
   gtk_grid_set_row_homogeneous(GTK_GRID(tx_grid),TRUE);
@@ -741,28 +874,44 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
     GtkWidget *oc_tune_title=gtk_label_new(oc_id);
     //gtk_widget_override_font(oc_tune_title, pango_font_description_from_string("Arial 18"));
     gtk_widget_show(oc_tune_title);
-    gtk_grid_attach(GTK_GRID(oc_grid),oc_tune_title,18,j+2,1,1);
+    gtk_grid_attach(GTK_GRID(oc_grid),oc_tune_title,18,j,1,1);
 
     mask=0x01<<j;
     GtkWidget *oc_tune_b=gtk_check_button_new();
     //gtk_widget_override_font(oc_tune_b, pango_font_description_from_string("Arial 18"));
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (oc_tune_b), (OCtune&mask)==mask);
     gtk_widget_show(oc_tune_b);
-    gtk_grid_attach(GTK_GRID(oc_grid),oc_tune_b,19,j+2,1,1);
+    gtk_grid_attach(GTK_GRID(oc_grid),oc_tune_b,19,j,1,1);
     g_signal_connect(oc_tune_b,"toggled",G_CALLBACK(oc_tune_cb),(gpointer)j);
   }
 
-  GtkWidget *oc_tune_time_title=gtk_label_new("Tune Duration(ms):");
-  //gtk_widget_override_font(oc_tune_time_title, pango_font_description_from_string("Arial 18"));
-  gtk_widget_show(oc_tune_time_title);
-  gtk_grid_attach(GTK_GRID(oc_grid),oc_tune_time_title,18,j+2,2,1);
+  GtkWidget *oc_full_tune_time_title=gtk_label_new("Full Tune(ms):");
+  //gtk_widget_override_font(oc_full_tune_time_title, pango_font_description_from_string("Arial 18"));
+  gtk_widget_show(oc_full_tune_time_title);
+  gtk_grid_attach(GTK_GRID(oc_grid),oc_full_tune_time_title,18,j,2,1);
+  j++;
 
-  GtkWidget *oc_tune_time_b=gtk_spin_button_new_with_range(0.0,9999.0,1.0);
-  //gtk_widget_override_font(oc_tune_time_b, pango_font_description_from_string("Arial 18"));
-  gtk_spin_button_set_value(GTK_SPIN_BUTTON(oc_tune_time_b),(double)OCtune_time);
-  gtk_widget_show(oc_tune_time_b);
-  gtk_grid_attach(GTK_GRID(oc_grid),oc_tune_time_b,18,j+3,2,1);
-  g_signal_connect(oc_tune_time_b,"value_changed",G_CALLBACK(oc_tune_time_cb),NULL);
+  GtkWidget *oc_full_tune_time_b=gtk_spin_button_new_with_range(0.0,9999.0,1.0);
+  //gtk_widget_override_font(oc_full_tune_time_b, pango_font_description_from_string("Arial 18"));
+  gtk_spin_button_set_value(GTK_SPIN_BUTTON(oc_full_tune_time_b),(double)OCfull_tune_time);
+  gtk_widget_show(oc_full_tune_time_b);
+  gtk_grid_attach(GTK_GRID(oc_grid),oc_full_tune_time_b,18,j,2,1);
+  g_signal_connect(oc_full_tune_time_b,"value_changed",G_CALLBACK(oc_full_tune_time_cb),NULL);
+  j++;
+
+  GtkWidget *oc_memory_tune_time_title=gtk_label_new("Memory Tune(ms):");
+  //gtk_widget_override_font(oc_memory_tune_time_title, pango_font_description_from_string("Arial 18"));
+  gtk_widget_show(oc_memory_tune_time_title);
+  gtk_grid_attach(GTK_GRID(oc_grid),oc_memory_tune_time_title,18,j,2,1);
+  j++;
+
+  GtkWidget *oc_memory_tune_time_b=gtk_spin_button_new_with_range(0.0,9999.0,1.0);
+  //gtk_widget_override_font(oc_memory_tune_time_b, pango_font_description_from_string("Arial 18"));
+  gtk_spin_button_set_value(GTK_SPIN_BUTTON(oc_memory_tune_time_b),(double)OCmemory_tune_time);
+  gtk_widget_show(oc_memory_tune_time_b);
+  gtk_grid_attach(GTK_GRID(oc_grid),oc_memory_tune_time_b,18,j,2,1);
+  g_signal_connect(oc_memory_tune_time_b,"value_changed",G_CALLBACK(oc_memory_tune_time_cb),NULL);
+  j++;
 
   id=gtk_notebook_append_page(GTK_NOTEBOOK(notebook),oc_grid,oc_label);
 
@@ -770,10 +919,19 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
   GtkWidget *exit_label=gtk_label_new("Exit");
   GtkWidget *exit_grid=gtk_grid_new();
   //gtk_grid_set_row_homogeneous(GTK_GRID(exit_grid),TRUE);
+  gtk_grid_set_row_spacing (GTK_GRID(exit_grid),20);
 
   GtkWidget *exit_button=gtk_button_new_with_label("Exit PiHPSDR");
   g_signal_connect (exit_button, "pressed", G_CALLBACK(exit_pressed_event_cb), NULL);
   gtk_grid_attach(GTK_GRID(exit_grid),exit_button,0,0,1,1);
+
+  GtkWidget *reboot_button=gtk_button_new_with_label("Reboot");
+  g_signal_connect (reboot_button, "pressed", G_CALLBACK(reboot_pressed_event_cb), NULL);
+  gtk_grid_attach(GTK_GRID(exit_grid),reboot_button,0,1,1,1);
+
+  GtkWidget *shutdown_button=gtk_button_new_with_label("Shutdown");
+  g_signal_connect (shutdown_button, "pressed", G_CALLBACK(shutdown_pressed_event_cb), NULL);
+  gtk_grid_attach(GTK_GRID(exit_grid),shutdown_button,0,2,1,1);
 
   id=gtk_notebook_append_page(GTK_NOTEBOOK(notebook),exit_grid,exit_label);
 

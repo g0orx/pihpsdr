@@ -575,7 +575,7 @@ void ozy_send_buffer() {
       if(isTransmitting()) {
         output_buffer[C2]|=band->OCtx;
         if(tune) {
-          if(OCtune_time!=0) {
+          if(OCmemory_tune_time!=0) {
             struct timeval te;
             gettimeofday(&te,NULL);
             long long now=te.tv_sec*1000LL+te.tv_usec/1000;

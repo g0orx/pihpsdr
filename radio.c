@@ -99,6 +99,11 @@ int nb2=0;
 int anf=0;
 int snb=0;
 
+int nr_agc=0; // 0=pre AGC 1=post AGC
+int nr2_gain_method=2; // 0=Linear 1=Log 2=gamma
+int nr2_npe_method=0; // 0=OSMS 1=MMSE
+int nr2_ae=1; // 0=disable 1=enable
+
 int cwPitch=600;
 
 int tune_drive=6;
@@ -160,7 +165,8 @@ int tune;
 long long ddsFrequency=14250000;
 
 unsigned char OCtune=0;
-int OCtune_time=2800; // ms
+int OCfull_tune_time=2800; // ms
+int OCmemory_tune_time=550; // ms
 long long tune_timeout;
 
 void init_radio() {
@@ -200,10 +206,10 @@ fprintf(stderr,"setTune: protocol=%d\n", protocol);
   if(tune!=state) {
     tune=state;
     if(tune) {
-      if(OCtune_time!=0) {
+      if(OCmemory_tune_time!=0) {
         struct timeval te;
         gettimeofday(&te,NULL);
-        tune_timeout=(te.tv_sec*1000LL+te.tv_usec/1000)+(long long)OCtune_time;
+        tune_timeout=(te.tv_sec*1000LL+te.tv_usec/1000)+(long long)OCmemory_tune_time;
       }
     }
     if(protocol==NEW_PROTOCOL) {
@@ -366,6 +372,14 @@ void radioRestoreState() {
     if(value) anf=atoi(value);
     value=getProperty("snb");
     if(value) snb=atoi(value);
+    value=getProperty("nr_agc");
+    if(value) nr_agc=atoi(value);
+    value=getProperty("nr2_gain_method");
+    if(value) nr2_gain_method=atoi(value);
+    value=getProperty("nr2_npe_method");
+    if(value) nr2_npe_method=atoi(value);
+    value=getProperty("nr2_ae");
+    if(value) nr2_ae=atoi(value);
     value=getProperty("agc");
     if(value) agc=atoi(value);
     value=getProperty("agc_gain");
@@ -400,8 +414,10 @@ void radioRestoreState() {
     if(value) vfo_encoder_divisor=atoi(value);
     value=getProperty("OCtune");
     if(value) OCtune=atoi(value);
-    value=getProperty("OCtune_time");
-    if(value) OCtune_time=atoi(value);
+    value=getProperty("OCfull_tune_time");
+    if(value) OCfull_tune_time=atoi(value);
+    value=getProperty("OCmemory_tune_time");
+    if(value) OCmemory_tune_time=atoi(value);
 
     bandRestoreState();
     sem_post(&property_sem);
@@ -481,6 +497,14 @@ void radioSaveState() {
     setProperty("anf",value);
     sprintf(value,"%d",snb);
     setProperty("snb",value);
+    sprintf(value,"%d",nr_agc);
+    setProperty("nr_agc",value);
+    sprintf(value,"%d",nr2_gain_method);
+    setProperty("nr2_gain_method",value);
+    sprintf(value,"%d",nr2_npe_method);
+    setProperty("nr2_npe_method",value);
+    sprintf(value,"%d",nr2_ae);
+    setProperty("nr2_ae",value);
     sprintf(value,"%d",agc);
     setProperty("agc",value);
     sprintf(value,"%f",agc_gain);
@@ -515,8 +539,10 @@ void radioSaveState() {
     setProperty("vfo_encoder_divisor",value);
     sprintf(value,"%d",OCtune);
     setProperty("OCtune",value);
-    sprintf(value,"%d",OCtune_time);
-    setProperty("OCtune_time",value);
+    sprintf(value,"%d",OCfull_tune_time);
+    setProperty("OCfull_tune_time",value);
+    sprintf(value,"%d",OCmemory_tune_time);
+    setProperty("OCmemory_tune_time",value);
 
     bandSaveState();
 
