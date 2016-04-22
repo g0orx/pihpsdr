@@ -342,6 +342,7 @@ static void rx_ant_cb(GtkWidget *widget, gpointer data) {
   int ant=((int)data)&0xF;
   BAND *band=band_get_band(b);
   band->alexRxAntenna=ant;
+  set_alex_rx_antenna(ant);
 }
 
 static void tx_ant_cb(GtkWidget *widget, gpointer data) {
@@ -349,6 +350,7 @@ static void tx_ant_cb(GtkWidget *widget, gpointer data) {
   int ant=((int)data)&0xF;
   BAND *band=band_get_band(b);
   band->alexTxAntenna=ant;
+  set_alex_tx_antenna(ant);
 }
 
 static void switch_page_cb(GtkNotebook *notebook,

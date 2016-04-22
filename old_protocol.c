@@ -612,10 +612,12 @@ void ozy_send_buffer() {
          case 2:  // ANT 3
            break;
          case 3:  // EXT 1
-           output_buffer[C3]|=0xA0;
+           //output_buffer[C3]|=0xA0;
+           output_buffer[C3]|=0xC0;
            break;
          case 4:  // EXT 2
-           output_buffer[C3]|=0xC0;
+           //output_buffer[C3]|=0xC0;
+           output_buffer[C3]|=0xA0;
            break;
          case 5:  // XVTR
            output_buffer[C3]|=0xE0;

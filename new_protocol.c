@@ -40,6 +40,7 @@
 #include <math.h>
 
 #include "alex.h"
+#include "band.h"
 #include "new_protocol.h"
 #include "channel.h"
 #include "discovered.h"
@@ -197,6 +198,7 @@ fprintf(stderr,"new_protocol_general: receiver=%d\n", receiver);
 
 static void new_protocol_high_priority(int run,int tx,int drive) {
     unsigned char buffer[1444];
+    BAND *band=band_get_current_band();
 
 //fprintf(stderr,"new_protocol_high_priority: run=%d tx=%d drive=%d tx_ant=0x%08x rx_ant=0x%08x\n", run, tx, drive, alex_tx_antenna, alex_rx_antenna);
     memset(buffer, 0, sizeof(buffer));
@@ -225,6 +227,24 @@ static void new_protocol_high_priority(int run,int tx,int drive) {
 
     buffer[345]=drive;
 
+
+    if(isTransmitting()) {
+      buffer[1401]=band->OCtx;
+      if(tune) {
+        if(OCmemory_tune_time!=0) {
+          struct timeval te;
+          gettimeofday(&te,NULL);
+          long long now=te.tv_sec*1000LL+te.tv_usec/1000;
+          if(tune_timeout>now) {
+            buffer[1401]|=OCtune;
+          }
+        } else {
+          buffer[1401]|=OCtune;
+        }
+      }
+    } else {
+      buffer[1401]=band->OCrx;
+    }
 // alex HPF filters
 /*
 if              (frequency <  1800000) HPF <= 6'b100000;        // bypass
@@ -234,6 +254,8 @@ else if (frequency < 13000000) HPF <= 6'b000100;        // 9.5MHz HPF
 else if (frequency < 20000000) HPF <= 6'b000001;        // 13MHz HPF
 else                                               HPF <= 6'b000010;    // 20MHz HPF
 */
+
+
 
     long filters=0x00000000;
 // set HPF
@@ -277,9 +299,69 @@ else LPF <= 7'b0001000;             // < 2.4MHz so use 160m LPF^M
         filters|=ALEX_160_LPF;
     }
 
-    filters|=alex_rx_antenna;
-    filters|=alex_tx_antenna;
-    filters|=alex_attenuation;
+
+    switch(band->alexRxAntenna) {
+        case 0:  // ANT 1
+          break;
+        case 1:  // ANT 2
+          break;
+        case 2:  // ANT 3
+          break;
+        case 3:  // EXT 1
+          //filters|=ALEX_RX_ANTENNA_EXT1;
+          filters|=ALEX_RX_ANTENNA_EXT2;
+          break;
+        case 4:  // EXT 2
+          //filters|=ALEX_RX_ANTENNA_EXT2;
+          filters|=ALEX_RX_ANTENNA_EXT1;
+          break;
+        case 5:  // XVTR
+          filters|=ALEX_RX_ANTENNA_XVTR;
+          break;
+    }
+
+    if(isTransmitting()) {
+      switch(band->alexTxAntenna) {
+        case 0:  // ANT 1
+          filters|=ALEX_TX_ANTENNA_1;
+          break;
+        case 1:  // ANT 2
+          filters|=ALEX_TX_ANTENNA_2;
+          break;
+        case 2:  // ANT 3
+          filters|=ALEX_TX_ANTENNA_3;
+          break;
+      }
+    } else {
+      switch(band->alexRxAntenna) {
+        case 0:  // ANT 1
+          filters|=ALEX_TX_ANTENNA_1;
+          break;
+        case 1:  // ANT 2
+          filters|=ALEX_TX_ANTENNA_2;
+          break;
+        case 2:  // ANT 3
+          filters|=ALEX_TX_ANTENNA_3;
+          break;
+        case 3:  // EXT 1
+        case 4:  // EXT 2
+        case 5:  // XVTR
+          switch(band->alexTxAntenna) {
+            case 0:  // ANT 1
+              filters|=ALEX_TX_ANTENNA_1;
+              break;
+            case 1:  // ANT 2
+              filters|=ALEX_TX_ANTENNA_2;
+              break;
+            case 2:  // ANT 3
+              filters|=ALEX_TX_ANTENNA_3;
+              break;
+          }
+          break;
+      }
+    }
+
+    //filters|=alex_attenuation;
 
     if(tx) {
         filters|=0x08000000;
@@ -524,6 +606,8 @@ void* new_protocol_thread(void* arg) {
 */
     double micoutputbuffer[BUFFER_SIZE*4*2];
 
+    double gain;
+
     int isample;
     int qsample;
     long tx_iq_sequence;
@@ -721,17 +805,12 @@ fprintf(stderr,"outputsamples=%d\n", outputsamples);
               b=4;
 
               for(i=0;i<720;i++) {
-                  if(byte_swap) {
-                      micsample  = (int)((unsigned char)buffer[b++] & 0xFF);
-                      micsample  |= (int)((signed char) buffer[b++]) << 8;
-                  } else {
-                      micsample  = (int)((signed char) buffer[b++]) << 8;
-                      micsample  |= (int)((unsigned char)buffer[b++] & 0xFF);
-                  }
+                  micsample  = (int)((signed char) buffer[b++]) << 8;
+                  micsample  |= (int)((unsigned char)buffer[b++] & 0xFF);
                   micsamplefloat = (float)micsample/32767.0F; // 16 bit sample
 
                   micinputbuffer[micsamples*2]=(double)(micsamplefloat*mic_gain);
-                  micinputbuffer[(micsamples*2)+1]=0.0;
+                  micinputbuffer[(micsamples*2)+1]=(double)(micsamplefloat*mic_gain);
 
                   micsamples++;
 
@@ -739,7 +818,6 @@ fprintf(stderr,"outputsamples=%d\n", outputsamples);
                       int error;
 
                       if(tune==1) {
-                          //float tunefrequency = (float)((filterLow + filterHigh - filterLow) / 2);
                           float tunefrequency = (float)((filterHigh - filterLow) / 2);
                           phase=sineWave(micinputbuffer, BUFFER_SIZE, phase, tunefrequency);
                       }
@@ -749,9 +827,20 @@ fprintf(stderr,"outputsamples=%d\n", outputsamples);
                           fprintf(stderr,"fexchange0 returned error: %d for transmitter\n", error);
                       }
 
+                      if(d->device!=DEVICE_METIS || atlas_penelope) {
+                          if(tune) {
+                              gain=8388607.0*255.0/(double)tune_drive;
+                          } else {
+                              gain=8388607.0*255.0/(double)drive;
+                          }
+                      } else {
+                          gain=65535.0;
+                      }
+
+
                       for(j=0;j<micoutputsamples;j++) {
-                        isample=(int)(micoutputbuffer[j*2]*8388607.0); // 24 bit
-                        qsample=(int)(micoutputbuffer[(j*2)+1]*8388607.0); // 24 bit
+                        isample=(int)(micoutputbuffer[j*2]*gain*2); // 24 bit
+                        qsample=(int)(micoutputbuffer[(j*2)+1]*gain*2); // 24 bit
 
                         iqbuffer[iqindex++]=isample>>16;
                         iqbuffer[iqindex++]=isample>>8;

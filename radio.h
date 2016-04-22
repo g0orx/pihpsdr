@@ -130,8 +130,6 @@ int locked;
 
 extern int step;
 
-extern int byte_swap;
-
 extern int lt2208Dither;
 extern int lt2208Random;
 extern int attenuation;
@@ -197,9 +195,9 @@ void setTuneDrive(double d);
 
 void set_attenuation(int value);
 int get_attenuation();
-void set_alex_rx_antenna(unsigned long v);
-void set_alex_tx_antenna(unsigned long v);
-void set_alex_attenuation(unsigned long v);
+void set_alex_rx_antenna(int v);
+void set_alex_tx_antenna(int v);
+void set_alex_attenuation(int v);
 
 extern int isTransmitting();
 

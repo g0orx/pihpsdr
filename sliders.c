@@ -82,9 +82,7 @@ fprintf(stderr,"scale_timeout_cb\n");
 
 static void attenuation_value_changed_cb(GtkWidget *widget, gpointer data) {
   attenuation=gtk_range_get_value(GTK_RANGE(attenuation_scale));
-  if(protocol==NEW_PROTOCOL) {
-    // need to schedule something
-  }
+  set_attenuation(attenuation);
 }
 
 void set_attenuation_value(double value) {
@@ -117,9 +115,7 @@ void set_attenuation_value(double value) {
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
     }
   }
-  if(protocol==NEW_PROTOCOL) {
-    // need to schedule something
-  }
+  set_attenuation(attenuation);
 }
 
 static void agcgain_value_changed_cb(GtkWidget *widget, gpointer data) {

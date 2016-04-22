@@ -116,14 +116,12 @@ int locked=0;
 
 int step=100;
 
-int byte_swap=0;
-
 int lt2208Dither = 0;
 int lt2208Random = 0;
 int attenuation = 0; // 0dB
-unsigned long alex_rx_antenna=0;
-unsigned long alex_tx_antenna=0;
-unsigned long alex_attenuation=0;
+//unsigned long alex_rx_antenna=0;
+//unsigned long alex_tx_antenna=0;
+//unsigned long alex_attenuation=0;
 
 int cw_keys_reversed=0; // 0=disabled 1=enabled
 int cw_keyer_speed=12; // 1-60 WPM
@@ -266,29 +264,32 @@ fprintf(stderr,"setTuneDrive: protocol=%d\n", protocol);
 }
 
 void set_attenuation(int value) {
-    attenuation=value;
+    //attenuation=value;
+    if(protocol==NEW_PROTOCOL) {
+        schedule_high_priority(8);
+    }
 }
 
 int get_attenuation() {
     return attenuation;
 }
 
-void set_alex_rx_antenna(unsigned long v) {
-    alex_rx_antenna=v;
+void set_alex_rx_antenna(int v) {
+    //alex_rx_antenna=v;
     if(protocol==NEW_PROTOCOL) {
         schedule_high_priority(1);
     }
 }
 
-void set_alex_tx_antenna(unsigned long v) {
-    alex_tx_antenna=v;
+void set_alex_tx_antenna(int v) {
+    //alex_tx_antenna=v;
     if(protocol==NEW_PROTOCOL) {
         schedule_high_priority(2);
     }
 }
 
-void set_alex_attenuation(unsigned long v) {
-    alex_attenuation=v;
+void set_alex_attenuation(int v) {
+    //alex_attenuation=v;
     if(protocol==NEW_PROTOCOL) {
         schedule_high_priority(0);
     }
@@ -386,8 +387,6 @@ void radioRestoreState() {
     if(value) agc_gain=atof(value);
     value=getProperty("step");
     if(value) step=atoi(value);
-    value=getProperty("byte_swap");
-    if(value) byte_swap=atoi(value);
     value=getProperty("cw_keys_reversed");
     if(value) cw_keys_reversed=atoi(value);
     value=getProperty("cw_keyer_speed");
@@ -511,8 +510,6 @@ void radioSaveState() {
     setProperty("agc_gain",value);
     sprintf(value,"%d",step);
     setProperty("step",value);
-    sprintf(value,"%d",byte_swap);
-    setProperty("byte_swap",value);
     sprintf(value,"%d",cw_keys_reversed);
     setProperty("cw_keys_reversed",value);
     sprintf(value,"%d",cw_keyer_speed);
