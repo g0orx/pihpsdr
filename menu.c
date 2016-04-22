@@ -41,6 +41,9 @@ static GtkWidget *parent_window;
 static GtkWidget *box;
 static GtkWidget *menu;
 
+static GtkWidget *ant_grid;
+static gint ant_id;
+
 static void cw_keyer_internal_cb(GtkWidget *widget, gpointer data) {
   cw_keyer_internal=cw_keyer_internal==1?0:1;
   cw_changed();
@@ -334,6 +337,46 @@ static void ae_cb(GtkWidget *widget, gpointer data) {
   SetRXAEMNRaeRun(CHANNEL_RX0, nr2_ae);
 }
 
+static void rx_ant_cb(GtkWidget *widget, gpointer data) {
+  int b=((int)data)>>4;
+  int ant=((int)data)&0xF;
+  BAND *band=band_get_band(b);
+  band->alexRxAntenna=ant;
+}
+
+static void tx_ant_cb(GtkWidget *widget, gpointer data) {
+  int b=((int)data)>>4;
+  int ant=((int)data)&0xF;
+  BAND *band=band_get_band(b);
+  band->alexTxAntenna=ant;
+}
+
+static void switch_page_cb(GtkNotebook *notebook,
+               GtkWidget   *page,
+               guint        page_num,
+               gpointer     user_data)
+{
+  int i, j;
+  GtkWidget *child;
+  if(page_num==ant_id) {
+    if(filter_board==ALEX) {
+      for(i=0;i<HAM_BANDS;i++) {
+        for(j=0;j<11;j++) {
+          child=gtk_grid_get_child_at(GTK_GRID(ant_grid),j,i+1);
+          gtk_widget_set_sensitive(child,TRUE);
+        }
+      }
+    } else {
+      for(i=0;i<HAM_BANDS;i++) {
+        for(j=0;j<11;j++) {
+          child=gtk_grid_get_child_at(GTK_GRID(ant_grid),j,i+1);
+          gtk_widget_set_sensitive(child,FALSE);
+        }
+      }
+    }
+  }
+}
+
 static gboolean menu_pressed_event_cb (GtkWidget *widget,
                GdkEventButton *event,
                gpointer        data)
@@ -347,6 +390,7 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
 
 
   GtkWidget *notebook=gtk_notebook_new();
+  g_signal_connect(notebook,"switch_page",G_CALLBACK(switch_page_cb),NULL);
 
   GtkWidget *general_label=gtk_label_new("General");
   GtkWidget *general_grid=gtk_grid_new();
@@ -467,6 +511,139 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
   g_signal_connect(pa_b,"toggled",G_CALLBACK(pa_cb),NULL);
 
   id=gtk_notebook_append_page(GTK_NOTEBOOK(notebook),general_grid,general_label);
+
+  GtkWidget *ant_label=gtk_label_new("Ant");
+  ant_grid=gtk_grid_new();
+  gtk_grid_set_row_homogeneous(GTK_GRID(ant_grid),TRUE);
+  gtk_grid_set_column_spacing (GTK_GRID(ant_grid),10);
+
+  GtkWidget *rx_ant_label=gtk_label_new("Receive");
+  //gtk_widget_override_font(rx_ant_label, pango_font_description_from_string("Arial 18"));
+  gtk_widget_show(rx_ant_label);
+  gtk_grid_attach(GTK_GRID(ant_grid),rx_ant_label,0,0,1,1);
+
+  GtkWidget *rx1_label=gtk_label_new("1");
+  //gtk_widget_override_font(rx1_label, pango_font_description_from_string("Arial 18"));
+  gtk_widget_show(rx1_label);
+  gtk_grid_attach(GTK_GRID(ant_grid),rx1_label,1,0,1,1);
+
+  GtkWidget *rx2_label=gtk_label_new("2");
+  //gtk_widget_override_font(rx2_label, pango_font_description_from_string("Arial 18"));
+  gtk_widget_show(rx2_label);
+  gtk_grid_attach(GTK_GRID(ant_grid),rx2_label,2,0,1,1);
+
+  GtkWidget *rx3_label=gtk_label_new("3");
+  //gtk_widget_override_font(rx3_label, pango_font_description_from_string("Arial 18"));
+  gtk_widget_show(rx3_label);
+  gtk_grid_attach(GTK_GRID(ant_grid),rx3_label,3,0,1,1);
+
+  GtkWidget *ext1_label=gtk_label_new("EXT1");
+  //gtk_widget_override_font(ext1_label, pango_font_description_from_string("Arial 18"));
+  gtk_widget_show(ext1_label);
+  gtk_grid_attach(GTK_GRID(ant_grid),ext1_label,4,0,1,1);
+
+  GtkWidget *ext2_label=gtk_label_new("EXT2");
+  //gtk_widget_override_font(ext2_label, pango_font_description_from_string("Arial 18"));
+  gtk_widget_show(ext2_label);
+  gtk_grid_attach(GTK_GRID(ant_grid),ext2_label,5,0,1,1);
+
+  GtkWidget *xvtr_label=gtk_label_new("XVTR");
+  //gtk_widget_override_font(xvtr_label, pango_font_description_from_string("Arial 18"));
+  gtk_widget_show(xvtr_label);
+  gtk_grid_attach(GTK_GRID(ant_grid),xvtr_label,6,0,1,1);
+
+  GtkWidget *tx_ant_label=gtk_label_new("Transmit");
+  //gtk_widget_override_font(tx_ant_label, pango_font_description_from_string("Arial 18"));
+  gtk_widget_show(tx_ant_label);
+  gtk_grid_attach(GTK_GRID(ant_grid),tx_ant_label,7,0,1,1);
+
+  GtkWidget *tx1_label=gtk_label_new("1");
+  //gtk_widget_override_font(tx1_label, pango_font_description_from_string("Arial 18"));
+  gtk_widget_show(tx1_label);
+  gtk_grid_attach(GTK_GRID(ant_grid),tx1_label,8,0,1,1);
+
+  GtkWidget *tx2_label=gtk_label_new("2");
+  //gtk_widget_override_font(tx2_label, pango_font_description_from_string("Arial 18"));
+  gtk_widget_show(tx2_label);
+  gtk_grid_attach(GTK_GRID(ant_grid),tx2_label,9,0,1,1);
+
+  GtkWidget *tx3_label=gtk_label_new("3");
+  //gtk_widget_override_font(tx3_label, pango_font_description_from_string("Arial 18"));
+  gtk_widget_show(tx3_label);
+  gtk_grid_attach(GTK_GRID(ant_grid),tx3_label,10,0,1,1);
+
+
+  
+  for(i=0;i<HAM_BANDS;i++) {
+    BAND *band=band_get_band(i);
+
+    GtkWidget *band_label=gtk_label_new(band->title);
+    //gtk_widget_override_font(band_label, pango_font_description_from_string("Arial 18"));
+    gtk_widget_show(band_label);
+    gtk_grid_attach(GTK_GRID(ant_grid),band_label,0,i+1,1,1);
+
+    GtkWidget *rx1_b=gtk_radio_button_new(NULL);
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rx1_b), band->alexRxAntenna==0);
+    gtk_widget_show(rx1_b);
+    gtk_grid_attach(GTK_GRID(ant_grid),rx1_b,1,i+1,1,1);
+    g_signal_connect(rx1_b,"pressed",G_CALLBACK(rx_ant_cb),(gpointer)((i<<4)+0));
+
+    GtkWidget *rx2_b=gtk_radio_button_new_from_widget(GTK_RADIO_BUTTON(rx1_b));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rx2_b), band->alexRxAntenna==1);
+    gtk_widget_show(rx2_b);
+    gtk_grid_attach(GTK_GRID(ant_grid),rx2_b,2,i+1,1,1);
+    g_signal_connect(rx2_b,"pressed",G_CALLBACK(rx_ant_cb),(gpointer)((i<<4)+1));
+
+    GtkWidget *rx3_b=gtk_radio_button_new_from_widget(GTK_RADIO_BUTTON(rx2_b));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rx3_b), band->alexRxAntenna==2);
+    gtk_widget_show(rx3_b);
+    gtk_grid_attach(GTK_GRID(ant_grid),rx3_b,3,i+1,1,1);
+    g_signal_connect(rx3_b,"pressed",G_CALLBACK(rx_ant_cb),(gpointer)((i<<4)+2));
+
+    GtkWidget *ext1_b=gtk_radio_button_new_from_widget(GTK_RADIO_BUTTON(rx3_b));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ext1_b), band->alexRxAntenna==3);
+    gtk_widget_show(ext1_b);
+    gtk_grid_attach(GTK_GRID(ant_grid),ext1_b,4,i+1,1,1);
+    g_signal_connect(ext1_b,"pressed",G_CALLBACK(rx_ant_cb),(gpointer)((i<<4)+3));
+
+    GtkWidget *ext2_b=gtk_radio_button_new_from_widget(GTK_RADIO_BUTTON(ext1_b));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ext2_b), band->alexRxAntenna==4);
+    gtk_widget_show(ext2_b);
+    gtk_grid_attach(GTK_GRID(ant_grid),ext2_b,5,i+1,1,1);
+    g_signal_connect(ext2_b,"pressed",G_CALLBACK(rx_ant_cb),(gpointer)((i<<4)+4));
+
+    GtkWidget *xvtr_b=gtk_radio_button_new_from_widget(GTK_RADIO_BUTTON(ext2_b));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (xvtr_b), band->alexRxAntenna==5);
+    gtk_widget_show(xvtr_b);
+    gtk_grid_attach(GTK_GRID(ant_grid),xvtr_b,6,i+1,1,1);
+    g_signal_connect(xvtr_b,"pressed",G_CALLBACK(rx_ant_cb),(gpointer)((i<<4)+5));
+
+    GtkWidget *ant_band_label=gtk_label_new(band->title);
+    //gtk_widget_override_font(ant_band_label, pango_font_description_from_string("Arial 18"));
+    gtk_widget_show(ant_band_label);
+    gtk_grid_attach(GTK_GRID(ant_grid),ant_band_label,7,i+1,1,1);
+
+    GtkWidget *tx1_b=gtk_radio_button_new(NULL);
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (tx1_b), band->alexTxAntenna==0);
+    gtk_widget_show(tx1_b);
+    gtk_grid_attach(GTK_GRID(ant_grid),tx1_b,8,i+1,1,1);
+    g_signal_connect(tx1_b,"pressed",G_CALLBACK(tx_ant_cb),(gpointer)((i<<4)+0));
+
+    GtkWidget *tx2_b=gtk_radio_button_new_from_widget(GTK_RADIO_BUTTON(tx1_b));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (tx2_b), band->alexTxAntenna==1);
+    gtk_widget_show(tx2_b);
+    gtk_grid_attach(GTK_GRID(ant_grid),tx2_b,9,i+1,1,1);
+    g_signal_connect(tx2_b,"pressed",G_CALLBACK(tx_ant_cb),(gpointer)((i<<4)+1));
+
+    GtkWidget *tx3_b=gtk_radio_button_new_from_widget(GTK_RADIO_BUTTON(tx2_b));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (tx3_b), band->alexTxAntenna==2);
+    gtk_widget_show(tx3_b);
+    gtk_grid_attach(GTK_GRID(ant_grid),tx3_b,10,i+1,1,1);
+    g_signal_connect(tx3_b,"pressed",G_CALLBACK(tx_ant_cb),(gpointer)((i<<4)+2));
+
+  }
+
+  ant_id=gtk_notebook_append_page(GTK_NOTEBOOK(notebook),ant_grid,ant_label);
 
 
   GtkWidget *display_label=gtk_label_new("Display");

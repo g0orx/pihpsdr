@@ -239,13 +239,28 @@ void panadapter_update(float *data,int tx) {
             cairo_stroke(cr);
 
             // plot frequency markers
+            long divisor=20000;
             long f;
             long half=(long)getSampleRate()/2L;
             cairo_text_extents_t extents;
+            switch(sample_rate) {
+              case 48000:
+                divisor=5000L;
+                break;
+              case 96000:
+                divisor=10000L;
+                break;
+              case 192000:
+                divisor=20000L;
+                break;
+              case 384000:
+                divisor=25000L;
+                break;
+            }
             for(i=0;i<display_width;i++) {
                 f = getFrequency() - half + (long) (hz_per_pixel * i);
                 if (f > 0) {
-                    if ((f % 20000) < (long) hz_per_pixel) {
+                    if ((f % divisor) < (long) hz_per_pixel) {
                         cairo_set_source_rgb (cr, 0, 1, 1);
                         cairo_set_line_width(cr, 1.0);
                         //cairo_move_to(cr,(double)i,0.0);

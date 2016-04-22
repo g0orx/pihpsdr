@@ -604,8 +604,67 @@ void ozy_send_buffer() {
       }
 */
 
+       switch(band->alexRxAntenna) {
+         case 0:  // ANT 1
+           break;
+         case 1:  // ANT 2
+           break;
+         case 2:  // ANT 3
+           break;
+         case 3:  // EXT 1
+           output_buffer[C3]|=0xA0;
+           break;
+         case 4:  // EXT 2
+           output_buffer[C3]|=0xC0;
+           break;
+         case 5:  // XVTR
+           output_buffer[C3]|=0xE0;
+           break;
+      }
+
+
 // TODO - add Alex TX relay, duplex, receivers Mercury board frequency
       output_buffer[C4]=0x00;
+      if(isTransmitting()) {
+        switch(band->alexTxAntenna) {
+          case 0:  // ANT 1
+            output_buffer[C4]|=0x00;
+            break;
+          case 1:  // ANT 2
+            output_buffer[C4]|=0x01;
+            break;
+          case 2:  // ANT 3
+            output_buffer[C4]|=0x02;
+            break;
+        }
+      } else {
+        switch(band->alexRxAntenna) {
+          case 0:  // ANT 1
+            output_buffer[C4]|=0x00;
+            break;
+          case 1:  // ANT 2
+            output_buffer[C4]|=0x01;
+            break;
+          case 2:  // ANT 3
+            output_buffer[C4]|=0x02;
+            break;
+          case 3:  // EXT 1
+          case 4:  // EXT 2
+          case 5:  // XVTR
+            switch(band->alexTxAntenna) {
+              case 0:  // ANT 1
+                output_buffer[C4]|=0x00;
+                break;
+              case 1:  // ANT 2
+                output_buffer[C4]|=0x01;
+                break;
+              case 2:  // ANT 3
+                output_buffer[C4]|=0x02;
+                break;
+            }
+            break;
+        }
+      }
       }
       break;
     case 1:

@@ -248,15 +248,15 @@ void bandSaveState() {
         sprintf(name,"band.%d.preamp",b);
         setProperty(name,value);
 
-        sprintf(value,"%ld",bands[b].alexRxAntenna);
+        sprintf(value,"%d",bands[b].alexRxAntenna);
         sprintf(name,"band.%d.alexRxAntenna",b);
         setProperty(name,value);
 
-        sprintf(value,"%ld",bands[b].alexTxAntenna);
+        sprintf(value,"%d",bands[b].alexTxAntenna);
         sprintf(name,"band.%d.alexTxAntenna",b);
         setProperty(name,value);
 
-        sprintf(value,"%ld",bands[b].alexAttenuation);
+        sprintf(value,"%d",bands[b].alexAttenuation);
         sprintf(name,"band.%d.alexAttenuation",b);
         setProperty(name,value);
 

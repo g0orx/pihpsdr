@@ -58,9 +58,9 @@ struct _BAND {
     unsigned char OCrx;
     unsigned char OCtx;
     int preamp;
-    unsigned long alexRxAntenna;
-    unsigned long alexTxAntenna;
-    unsigned long alexAttenuation;
+    int alexRxAntenna;
+    int alexTxAntenna;
+    int alexAttenuation;
     int pa_calibration;
 };
 
