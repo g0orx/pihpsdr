@@ -633,6 +633,12 @@ fprintf(stderr,"new_protocol_thread: receiver=%d\n", receiver);
         case 384000:
             outputsamples=BUFFER_SIZE/8;
             break;
+        case 768000:
+            outputsamples=BUFFER_SIZE/16;
+            break;
+        case 1536000:
+            outputsamples=BUFFER_SIZE/32;
+            break;
     }
 
     micoutputsamples=BUFFER_SIZE*4;  // 48000 in, 192000 out

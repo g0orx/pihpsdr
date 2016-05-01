@@ -581,45 +581,61 @@ static void configure_cb(GtkWidget *widget, gpointer data) {
   gtk_grid_attach(GTK_GRID(grid),sample_rate_384,0,4,1,1);
   g_signal_connect(sample_rate_384,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)384000);
 
+  if(d->protocol==NEW_PROTOCOL) {
+    GtkWidget *sample_rate_768=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(sample_rate_384),"768000");
+    //gtk_widget_override_font(sample_rate_768, pango_font_description_from_string("Arial 18"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sample_rate_768), sample_rate==768000);
+    gtk_widget_show(sample_rate_768);
+    gtk_grid_attach(GTK_GRID(grid),sample_rate_768,0,5,1,1);
+    g_signal_connect(sample_rate_768,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)768000);
+
+    GtkWidget *sample_rate_1536=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(sample_rate_768),"1536000");
+    //gtk_widget_override_font(sample_rate_1536, pango_font_description_from_string("Arial 18"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sample_rate_1536), sample_rate==1536000);
+    gtk_widget_show(sample_rate_1536);
+    gtk_grid_attach(GTK_GRID(grid),sample_rate_1536,0,6,1,1);
+    g_signal_connect(sample_rate_1536,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)1536000);
+  }
+
 
   GtkWidget *display_label=gtk_label_new("Display:");
   //gtk_widget_override_font(display_label, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(display_label);
-  gtk_grid_attach(GTK_GRID(grid),display_label,0,5,1,1);
+  gtk_grid_attach(GTK_GRID(grid),display_label,0,7,1,1);
 
   GtkWidget *b_display_panadapter=gtk_check_button_new_with_label("Display Panadapter");
   //gtk_widget_override_font(b_display_panadapter, pango_font_description_from_string("Arial 18"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_panadapter), display_panadapter);
   gtk_widget_show(b_display_panadapter);
-  gtk_grid_attach(GTK_GRID(grid),b_display_panadapter,0,6,1,1);
+  gtk_grid_attach(GTK_GRID(grid),b_display_panadapter,0,8,1,1);
   g_signal_connect(b_display_panadapter,"toggled",G_CALLBACK(display_panadapter_cb),(gpointer *)NULL);
 
   GtkWidget *b_display_waterfall=gtk_check_button_new_with_label("Display Waterfall");
   //gtk_widget_override_font(b_display_waterfall, pango_font_description_from_string("Arial 18"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_waterfall), display_waterfall);
   gtk_widget_show(b_display_waterfall);
-  gtk_grid_attach(GTK_GRID(grid),b_display_waterfall,0,7,1,1);
+  gtk_grid_attach(GTK_GRID(grid),b_display_waterfall,0,9,1,1);
   g_signal_connect(b_display_waterfall,"toggled",G_CALLBACK(display_waterfall_cb),(gpointer *)NULL);
 
   GtkWidget *b_display_sliders=gtk_check_button_new_with_label("Display Sliders");
   //gtk_widget_override_font(b_display_sliders, pango_font_description_from_string("Arial 18"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_sliders), display_sliders);
   gtk_widget_show(b_display_sliders);
-  gtk_grid_attach(GTK_GRID(grid),b_display_sliders,0,8,1,1);
+  gtk_grid_attach(GTK_GRID(grid),b_display_sliders,0,10,1,1);
   g_signal_connect(b_display_sliders,"toggled",G_CALLBACK(display_sliders_cb),(gpointer *)NULL);
 
   GtkWidget *b_display_toolbar=gtk_check_button_new_with_label("Display Toolbar");
   //gtk_widget_override_font(b_display_toolbar, pango_font_description_from_string("Arial 18"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_toolbar), display_toolbar);
   gtk_widget_show(b_display_toolbar);
-  gtk_grid_attach(GTK_GRID(grid),b_display_toolbar,0,9,1,1);
+  gtk_grid_attach(GTK_GRID(grid),b_display_toolbar,0,11,1,1);
   g_signal_connect(b_display_toolbar,"toggled",G_CALLBACK(display_toolbar_cb),(gpointer *)NULL);
 
   GtkWidget *b_toolbar_simulate_buttons=gtk_check_button_new_with_label("Toolbar Simulate Buttons");
   //gtk_widget_override_font(b_toolbar_simulate_buttons, pango_font_description_from_string("Arial 18"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_toolbar_simulate_buttons), toolbar_simulate_buttons);
   gtk_widget_show(b_toolbar_simulate_buttons);
-  gtk_grid_attach(GTK_GRID(grid),b_toolbar_simulate_buttons,0,10,1,1);
+  gtk_grid_attach(GTK_GRID(grid),b_toolbar_simulate_buttons,0,12,1,1);
   g_signal_connect(b_toolbar_simulate_buttons,"toggled",G_CALLBACK(toolbar_simulate_buttons_cb),(gpointer *)NULL);
   gtk_container_add(GTK_CONTAINER(content),grid);
 
