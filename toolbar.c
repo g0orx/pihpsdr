@@ -760,9 +760,9 @@ int ptt_update(void *data) {
   entry=bandstack_entry_get_current();
   int ptt=(int)data;
   if((entry->mode==modeCWL || entry->mode==modeCWU) && cw_keyer_internal==1) {
-    if(ptt!= getMox()) {
-      mox_cb(NULL,NULL);
-    }
+    //if(ptt!=getMox()) {
+    //  mox_cb(NULL,NULL);
+    //}
   } else {
     mox_cb(NULL,NULL);
   }

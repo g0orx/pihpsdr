@@ -74,6 +74,16 @@ static void cw_keyer_mode_cb(GtkWidget *widget, gpointer data) {
   cw_changed();
 }
 
+static void cw_keyer_sidetone_level_value_changed_cb(GtkWidget *widget, gpointer data) {
+  cw_keyer_sidetone_volume=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+  cw_changed();
+}
+
+static void cw_keyer_sidetone_frequency_value_changed_cb(GtkWidget *widget, gpointer data) {
+  cw_keyer_sidetone_frequency=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+  cw_changed();
+}
+
 static void vfo_divisor_value_changed_cb(GtkWidget *widget, gpointer data) {
   vfo_encoder_divisor=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
 }
@@ -964,6 +974,37 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
   gtk_widget_show(cw_keyer_mode_b);
   gtk_grid_attach(GTK_GRID(cw_grid),cw_keyer_mode_b,0,4,1,1);
   g_signal_connect(cw_keyer_mode_b,"pressed",G_CALLBACK(cw_keyer_mode_cb),(gpointer *)KEYER_MODE_B);
+
+  GtkWidget *cw_keys_reversed_b=gtk_check_button_new_with_label("Keys reversed");
+  //gtk_widget_override_font(cw_keys_reversed_b, pango_font_description_from_string("Arial 18"));
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (cw_keys_reversed_b), cw_keys_reversed);
+  gtk_widget_show(cw_keys_reversed_b);
+  gtk_grid_attach(GTK_GRID(cw_grid),cw_keys_reversed_b,0,5,1,1);
+  g_signal_connect(cw_keys_reversed_b,"toggled",G_CALLBACK(cw_keys_reversed_cb),NULL);
+
+  GtkWidget *cw_keyer_sidetone_level_label=gtk_label_new("Sidetone Level:");
+  //gtk_widget_override_font(cw_keyer_sidetone_level_label, pango_font_description_from_string("Arial 18"));
+  gtk_widget_show(cw_keyer_sidetone_level_label);
+  gtk_grid_attach(GTK_GRID(cw_grid),cw_keyer_sidetone_level_label,0,6,1,1);
+
+  GtkWidget *cw_keyer_sidetone_level_b=gtk_spin_button_new_with_range(1.0,255.0,1.0);
+  //gtk_widget_override_font(cw_keyer_sidetone_level_b, pango_font_description_from_string("Arial 18"));
+  gtk_spin_button_set_value(GTK_SPIN_BUTTON(cw_keyer_sidetone_level_b),(double)cw_keyer_sidetone_volume);
+  gtk_widget_show(cw_keyer_sidetone_level_b);
+  gtk_grid_attach(GTK_GRID(cw_grid),cw_keyer_sidetone_level_b,1,6,1,1);
+  g_signal_connect(cw_keyer_sidetone_level_b,"value_changed",G_CALLBACK(cw_keyer_sidetone_level_value_changed_cb),NULL);
+
+  GtkWidget *cw_keyer_sidetone_frequency_label=gtk_label_new("Sidetone Freq:");
+  //gtk_widget_override_font(cw_keyer_sidetone_frequency_label, pango_font_description_from_string("Arial 18"));
+  gtk_widget_show(cw_keyer_sidetone_frequency_label);
+  gtk_grid_attach(GTK_GRID(cw_grid),cw_keyer_sidetone_frequency_label,0,7,1,1);
+
+  GtkWidget *cw_keyer_sidetone_frequency_b=gtk_spin_button_new_with_range(100.0,1000.0,1.0);
+  //gtk_widget_override_font(cw_keyer_sidetone_frequency_b, pango_font_description_from_string("Arial 18"));
+  gtk_spin_button_set_value(GTK_SPIN_BUTTON(cw_keyer_sidetone_frequency_b),(double)cw_keyer_sidetone_frequency);
+  gtk_widget_show(cw_keyer_sidetone_frequency_b);
+  gtk_grid_attach(GTK_GRID(cw_grid),cw_keyer_sidetone_frequency_b,1,7,1,1);
+  g_signal_connect(cw_keyer_sidetone_frequency_b,"value_changed",G_CALLBACK(cw_keyer_sidetone_frequency_value_changed_cb),NULL);
 
   id=gtk_notebook_append_page(GTK_NOTEBOOK(notebook),cw_grid,cw_label);
 

@@ -23,6 +23,7 @@
 #include <semaphore.h>
 #include <math.h>
 
+#include "mode.h"
 #include "radio.h"
 #include "channel.h"
 #include "agc.h"
@@ -222,6 +223,11 @@ int getTune() {
 }
 
 int isTransmitting() {
+  BANDSTACK_ENTRY *entry;
+  entry=bandstack_entry_get_current();
+  if((entry->mode==modeCWL || entry->mode==modeCWU) && cw_keyer_internal==1) {
+    return 0;
+  }
   return ptt!=0 || mox!=0 || tune!=0;
 }
 
@@ -419,6 +425,12 @@ void radioRestoreState() {
     if(value) OCmemory_tune_time=atoi(value);
     value=getProperty("attenuation");
     if(value) attenuation=atoi(value);
+    value=getProperty("rx_dither");
+    if(value) rx_dither=atoi(value);
+    value=getProperty("rx_random");
+    if(value) rx_random=atoi(value);
+    value=getProperty("rx_preamp");
+    if(value) rx_preamp=atoi(value);
 
     bandRestoreState();
     sem_post(&property_sem);
@@ -544,6 +556,12 @@ void radioSaveState() {
     setProperty("OCmemory_tune_time",value);
     sprintf(value,"%d",attenuation);
     setProperty("attenuation",value);
+    sprintf(value,"%d",rx_dither);
+    setProperty("rx_dither",value);
+    sprintf(value,"%d",rx_random);
+    setProperty("rx_random",value);
+    sprintf(value,"%d",rx_preamp);
+    setProperty("rx_preamp",value);
 
     bandSaveState();
 

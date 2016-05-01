@@ -404,7 +404,7 @@ static void new_protocol_transmit_specific() {
     buffer[3]=tx_specific_sequence;
 
     buffer[4]=1; // 1 DAC
-    buffer[5]=0; // no CW
+    buffer[5]=0; //  default no CW
     if(cw_keyer_internal) {
         buffer[5]|=0x02;
     }
@@ -416,6 +416,9 @@ static void new_protocol_transmit_specific() {
     }
     if(cw_keyer_mode==KEYER_MODE_B) {
         buffer[5]|=0x28;
+    }
+    if(cw_keyer_sidetone_volume!=0) {
+        buffer[5]|=0x10;
     }
     if(cw_keyer_spacing) {
         buffer[5]|=0x40;
@@ -447,6 +450,7 @@ static void new_protocol_transmit_specific() {
       buffer[50]|=0x08;
     }
     buffer[51]=0x7F; // Line in gain
+
 
     if(sendto(data_socket,buffer,sizeof(buffer),0,(struct sockaddr*)&transmitter_addr,transmitter_addr_length)<0) {
         fprintf(stderr,"sendto socket failed for tx specific\n");

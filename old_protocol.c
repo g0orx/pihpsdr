@@ -755,7 +755,6 @@ void ozy_send_buffer() {
       output_buffer[C4]=0x00;
       break;
     case 7:
-      // need to add cw configuration
       output_buffer[C0]=0x1E;
       if(cw_keyer_internal==1) {
         if(isTransmitting() || (mode!=modeCWU && mode!=modeCWL)) {
@@ -771,7 +770,6 @@ void ozy_send_buffer() {
       output_buffer[C4]=0x00;
       break;
     case 8:
-      // need to add cw configuration
       output_buffer[C0]=0x20;
       output_buffer[C1]=cw_keyer_hang_time;
       output_buffer[C2]=cw_keyer_hang_time>>8;
