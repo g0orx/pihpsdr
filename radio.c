@@ -417,6 +417,8 @@ void radioRestoreState() {
     if(value) OCfull_tune_time=atoi(value);
     value=getProperty("OCmemory_tune_time");
     if(value) OCmemory_tune_time=atoi(value);
+    value=getProperty("attenuation");
+    if(value) attenuation=atoi(value);
 
     bandRestoreState();
     sem_post(&property_sem);
@@ -540,6 +542,8 @@ void radioSaveState() {
     setProperty("OCfull_tune_time",value);
     sprintf(value,"%d",OCmemory_tune_time);
     setProperty("OCmemory_tune_time",value);
+    sprintf(value,"%d",attenuation);
+    setProperty("attenuation",value);
 
     bandSaveState();
 

@@ -172,9 +172,9 @@ gint update(gpointer data) {
                     constant1=5.0;
                     constant2=0.108;
                     break;
-                case NEW_DEVICE_ANAN_10E:
-                    constant1=3.3;
-                    constant2=0.09;
+                case NEW_DEVICE_ORION2:
+                    constant1=5.0;
+                    constant2=0.108;
                     break;
                 case NEW_DEVICE_HERMES_LITE:
                     constant1=3.3;

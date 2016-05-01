@@ -221,8 +221,8 @@ void* new_discover_receive_thread(void* arg) {
 			case NEW_DEVICE_ORION:
                             strcpy(discovered[devices].name,"Orion");
                             break;
-			case NEW_DEVICE_ANAN_10E:
-                            strcpy(discovered[devices].name,"Anan-10E");
+			case NEW_DEVICE_ORION2:
+                            strcpy(discovered[devices].name,"Orion2");
                             break;
 			case NEW_DEVICE_HERMES_LITE:
                             strcpy(discovered[devices].name,"Hermes Lite");

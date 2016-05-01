@@ -451,7 +451,9 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
   g_signal_connect(micboost_b,"toggled",G_CALLBACK(micboost_cb),NULL);
 
 
-  if((protocol==NEW_PROTOCOL && device==NEW_DEVICE_ORION) || (protocol==ORIGINAL_PROTOCOL && device==DEVICE_ORION)) {
+  if((protocol==NEW_PROTOCOL && device==NEW_DEVICE_ORION) ||
+     (protocol==NEW_PROTOCOL && device==NEW_DEVICE_ORION2) ||
+     (protocol==ORIGINAL_PROTOCOL && device==DEVICE_ORION)) {
 
     GtkWidget *ptt_ring_b=gtk_radio_button_new_with_label(NULL,"PTT On Ring, Mic and Bias on Tip");
     //gtk_widget_override_font(ptt_ring_b, pango_font_description_from_string("Arial 18"));
