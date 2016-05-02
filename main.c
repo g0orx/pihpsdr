@@ -802,6 +802,14 @@ gint init(void* arg) {
               gtk_grid_attach(GTK_GRID(grid),start_button,4,i,1,1);
               g_signal_connect(start_button,"pressed",G_CALLBACK(start_cb),(gpointer *)i);
 
+              // if not available then cannot start it
+              if(d->status!=STATE_AVAILABLE) {
+                gtk_button_set_label(GTK_BUTTON(start_button),"In Use");
+                gtk_widget_set_sensitive(start_button, FALSE);
+              }
+
+              // check subnet to see if can access
+
               GtkWidget *configure_button=gtk_button_new_with_label("Configure");
               gtk_widget_override_font(configure_button, pango_font_description_from_string("Arial 18"));
               gtk_widget_show(configure_button);
