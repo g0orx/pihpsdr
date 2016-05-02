@@ -662,6 +662,18 @@ static void* wisdom_thread(void *arg) {
   sem_post(&wisdom_sem);
 }
 
+gboolean main_delete (GtkWidget *widget) {
+#ifdef INCLUDE_GPIO
+  gpio_close();
+#endif
+  if(protocol==ORIGINAL_PROTOCOL) {
+    old_protocol_stop();
+  } else {
+    new_protocol_stop();
+  }
+  _exit(0);
+}
+
 gint init(void* arg) {
 
   GtkWidget *window;
@@ -852,6 +864,7 @@ gint init(void* arg) {
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   gtk_window_set_title (GTK_WINDOW (window), "pihpsdr");
   gtk_container_set_border_width (GTK_CONTAINER (window), 0);
+  g_signal_connect (window, "delete-event", G_CALLBACK (main_delete), NULL);
 
 #ifdef GRID_LAYOUT
   grid = gtk_grid_new();
