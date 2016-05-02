@@ -1016,7 +1016,7 @@ main (int   argc,
 
   if(display_width>800 || display_height>480) {
     display_width=800;
-    display_height=400;
+    display_height=480;
     full_screen=0;
   }
 
