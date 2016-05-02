@@ -256,6 +256,12 @@ void panadapter_update(float *data,int tx) {
               case 384000:
                 divisor=25000L;
                 break;
+              case 768000:
+                divisor=50000L;
+                break;
+              case 1536000:
+                divisor=100000L;
+                break;
             }
             for(i=0;i<display_width;i++) {
                 f = getFrequency() - half + (long) (hz_per_pixel * i);

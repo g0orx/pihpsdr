@@ -93,9 +93,9 @@ void splash_show(char* image_name,int width,int height,int full_screen)
 }
 
 void splash_status(char *text) {
-  fprintf(stderr,"splash_status: %s\n",text);
+  //fprintf(stderr,"splash_status: %s\n",text);
   gtk_label_set_text(GTK_LABEL(status),text);
-  usleep(50000);
+  usleep(10000);
   while (gtk_events_pending ())
     gtk_main_iteration ();
 }
