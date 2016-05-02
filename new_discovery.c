@@ -39,6 +39,7 @@
 
 static char interface_name[64];
 static struct sockaddr_in interface_addr={0};
+static struct sockaddr_in interface_netmask={0};
 static int interface_length;
 
 #define DISCOVERY_PORT 1024
@@ -95,7 +96,9 @@ void new_discovery() {
 void new_discover(struct ifaddrs* iface) {
     int rc;
     struct sockaddr_in *sa;
-    //char *addr;
+    struct sockaddr_in *mask;
+    char addr[16];
+    char net_mask[16];
 
     strcpy(interface_name,iface->ifa_name);
     fprintf(stderr,"new_discover: looking for HPSDR devices on %s\n",interface_name);
@@ -111,7 +114,9 @@ void new_discover(struct ifaddrs* iface) {
     setsockopt(discovery_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
 
     sa = (struct sockaddr_in *) iface->ifa_addr;
-    //addr = inet_ntoa(sa->sin_addr);
+    mask = (struct sockaddr_in *) iface->ifa_netmask;
+
+    interface_netmask.sin_addr.s_addr = mask->sin_addr.s_addr;
 
     // bind to this interface and the discovery port
     interface_addr.sin_family = AF_INET;
@@ -122,7 +127,10 @@ void new_discover(struct ifaddrs* iface) {
         exit(-1);
     }
 
-    fprintf(stderr,"new_discover: bound to %s\n",interface_name);
+    strcpy(addr,inet_ntoa(sa->sin_addr));
+    strcpy(net_mask,inet_ntoa(mask->sin_addr));
+
+    fprintf(stderr,"new_discover: bound to %s %s %s\n",interface_name,addr,net_mask);
 
     // allow broadcast on the socket
     int on=1;
@@ -144,7 +152,6 @@ void new_discover(struct ifaddrs* iface) {
         fprintf(stderr,"pthread_create failed on new_discover_receive_thread: rc=%d\n", rc);
         exit(-1);
     }
-
 
     // send discovery packet
     unsigned char buffer[60];
@@ -239,6 +246,7 @@ void* new_discover_receive_thread(void* arg) {
                     memcpy((void*)&discovered[devices].address,(void*)&addr,sizeof(addr));
                     discovered[devices].address_length=sizeof(addr);
                     memcpy((void*)&discovered[devices].interface_address,(void*)&interface_addr,sizeof(interface_addr));
+                    memcpy((void*)&discovered[devices].interface_netmask,(void*)&interface_netmask,sizeof(interface_netmask));
                     discovered[devices].interface_length=sizeof(interface_addr);
                     strcpy(discovered[devices].interface_name,interface_name);
                     fprintf(stderr,"new_discover: found protocol=%d device=%d software_version=%d status=%d address=%s (%02X:%02X:%02X:%02X:%02X:%02X) on %s\n", 

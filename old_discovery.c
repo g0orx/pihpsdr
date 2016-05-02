@@ -37,6 +37,7 @@
 
 static char interface_name[64];
 static struct sockaddr_in interface_addr={0};
+static struct sockaddr_in interface_netmask={0};
 static int interface_length;
 
 #define DISCOVERY_PORT 1024
@@ -49,10 +50,10 @@ static void* discover_receive_thread(void* arg);
 static void discover(struct ifaddrs* iface) {
     int rc;
     struct sockaddr_in *sa;
-    //char *addr;
+    struct sockaddr_in *mask;
 
     strcpy(interface_name,iface->ifa_name);
-    fprintf(stderr,"discover: looking for HPSDR devices on %s\n",interface_name);
+    fprintf(stderr,"discover: looking for HPSDR devices on %s\n", interface_name);
 
     // send a broadcast to locate hpsdr boards on the network
     discovery_socket=socket(PF_INET,SOCK_DGRAM,IPPROTO_UDP);
@@ -65,7 +66,8 @@ static void discover(struct ifaddrs* iface) {
     setsockopt(discovery_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
 
     sa = (struct sockaddr_in *) iface->ifa_addr;
-    //addr = inet_ntoa(sa->sin_addr);
+    mask = (struct sockaddr_in *) iface->ifa_netmask;
+    interface_netmask.sin_addr.s_addr = mask->sin_addr.s_addr;
 
     // bind to this interface and the discovery port
     interface_addr.sin_family = AF_INET;
@@ -186,6 +188,7 @@ fprintf(stderr,"discover_receive_thread\n");
                     memcpy((void*)&discovered[devices].address,(void*)&addr,sizeof(addr));
                     discovered[devices].address_length=sizeof(addr);
                     memcpy((void*)&discovered[devices].interface_address,(void*)&interface_addr,sizeof(interface_addr));
+                    memcpy((void*)&discovered[devices].interface_netmask,(void*)&interface_netmask,sizeof(interface_netmask));
                     discovered[devices].interface_length=sizeof(interface_addr);
                     strcpy(discovered[devices].interface_name,interface_name);
                     fprintf(stderr,"discovery: found device=%d software_version=%d status=%d address=%s (%02X:%02X:%02X:%02X:%02X:%02X) on %s\n",

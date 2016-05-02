@@ -53,6 +53,7 @@ struct _DISCOVERED {
     struct sockaddr_in address;
     int interface_length;
     struct sockaddr_in interface_address;
+    struct sockaddr_in interface_netmask;
     char interface_name[64];
 };
 

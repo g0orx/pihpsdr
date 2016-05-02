@@ -810,7 +810,11 @@ gint init(void* arg) {
                 gtk_widget_set_sensitive(start_button, FALSE);
               }
 
-              // check subnet to see if can access
+              // if not on the same subnet then cannot start it
+              if((d->interface_address.sin_addr.s_addr&d->interface_netmask.sin_addr.s_addr) != (d->address.sin_addr.s_addr&d->interface_netmask.sin_addr.s_addr)) {
+                gtk_button_set_label(GTK_BUTTON(start_button),"Subnet!");
+                gtk_widget_set_sensitive(start_button, FALSE);
+              }
 
               GtkWidget *configure_button=gtk_button_new_with_label("Configure");
               gtk_widget_override_font(configure_button, pango_font_description_from_string("Arial 18"));
@@ -827,8 +831,8 @@ gint init(void* arg) {
               _exit(0);
           }
          
-#ifdef INCLUDE_GPIO
           gtk_widget_destroy(discovery_dialog);
+#ifdef INCLUDE_GPIO
           if(result==GTK_RESPONSE_YES) {
               configure_gpio();
           }
