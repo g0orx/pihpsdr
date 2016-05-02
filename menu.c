@@ -219,6 +219,7 @@ static gboolean exit_pressed_event_cb (GtkWidget *widget,
   } else {
     new_protocol_stop();
   }
+  radioSaveState();
   _exit(0);
 }
 
@@ -234,6 +235,7 @@ static gboolean reboot_pressed_event_cb (GtkWidget *widget,
   } else {
     new_protocol_stop();
   }
+  radioSaveState();
   system("reboot");
   _exit(0);
 }
@@ -250,6 +252,7 @@ static gboolean shutdown_pressed_event_cb (GtkWidget *widget,
   } else {
     new_protocol_stop();
   }
+  radioSaveState();
   system("shutdown -h -P now");
   _exit(0);
 }

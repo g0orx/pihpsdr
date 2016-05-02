@@ -671,6 +671,7 @@ gboolean main_delete (GtkWidget *widget) {
   } else {
     new_protocol_stop();
   }
+  radioSaveState();
   _exit(0);
 }
 

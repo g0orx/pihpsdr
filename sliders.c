@@ -81,7 +81,7 @@ fprintf(stderr,"scale_timeout_cb\n");
 }
 
 static void attenuation_value_changed_cb(GtkWidget *widget, gpointer data) {
-  attenuation=gtk_range_get_value(GTK_RANGE(attenuation_scale));
+  attenuation=(int)gtk_range_get_value(GTK_RANGE(attenuation_scale));
   set_attenuation(attenuation);
 }
 
