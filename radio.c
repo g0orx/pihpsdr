@@ -193,6 +193,13 @@ fprintf(stderr,"setMox: protocol=%d\n", protocol);
     if(protocol==NEW_PROTOCOL) {
       schedule_high_priority(3);
     }
+    if(mox) {
+      SetChannelState(CHANNEL_RX0,0,1);
+      SetChannelState(CHANNEL_TX,1,0);
+    } else {
+      SetChannelState(CHANNEL_TX,0,1);
+      SetChannelState(CHANNEL_RX0,1,0);
+    }
   }
 }
 
