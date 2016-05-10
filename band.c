@@ -27,6 +27,8 @@
 #include "alex.h"
 #include "property.h"
 
+#define LINESDR
+
 int band=band20;
 int xvtr_band=band160;
 
@@ -92,6 +94,48 @@ BANDSTACK_ENTRY bandstack_entries50[] =
      {50125000LL,modeUSB,filterF5,200,2800,200,2800},
      {50200000LL,modeUSB,filterF5,200,2800,200,2800}};
 
+#ifdef LIMESDR
+BANDSTACK_ENTRY bandstack_entries70[] =
+    {{70010000LL,modeCWU,filterF0,200,2800,200,2800},
+     {70200000LL,modeUSB,filterF5,200,2800,200,2800},
+     {70250000LL,modeUSB,filterF5,200,2800,200,2800}};
+
+BANDSTACK_ENTRY bandstack_entries144[] =
+    {{144010000LL,modeCWU,filterF0,200,2800,200,2800},
+     {144200000LL,modeUSB,filterF5,200,2800,200,2800},
+     {144250000LL,modeUSB,filterF5,200,2800,200,2800}};
+
+BANDSTACK_ENTRY bandstack_entries220[] =
+    {{220010000LL,modeCWU,filterF0,200,2800,200,2800},
+     {220200000LL,modeUSB,filterF5,200,2800,200,2800},
+     {220250000LL,modeUSB,filterF5,200,2800,200,2800}};
+
+BANDSTACK_ENTRY bandstack_entries430[] =
+    {{430010000LL,modeCWU,filterF0,200,2800,200,2800},
+     {432100000LL,modeUSB,filterF5,200,2800,200,2800},
+     {432300000LL,modeUSB,filterF5,200,2800,200,2800}};
+
+BANDSTACK_ENTRY bandstack_entries902[] =
+    {{902010000LL,modeCWU,filterF0,200,2800,200,2800},
+     {902100000LL,modeUSB,filterF5,200,2800,200,2800},
+     {902300000LL,modeUSB,filterF5,200,2800,200,2800}};
+
+BANDSTACK_ENTRY bandstack_entries1240[] =
+    {{1240010000LL,modeCWU,filterF0,200,2800,200,2800},
+     {1240100000LL,modeUSB,filterF5,200,2800,200,2800},
+     {1240300000LL,modeUSB,filterF5,200,2800,200,2800}};
+
+BANDSTACK_ENTRY bandstack_entries2300[] =
+    {{2300010000LL,modeCWU,filterF0,200,2800,200,2800},
+     {2300100000LL,modeUSB,filterF5,200,2800,200,2800},
+     {2300300000LL,modeUSB,filterF5,200,2800,200,2800}};
+
+BANDSTACK_ENTRY bandstack_entries3400[] =
+    {{3400010000LL,modeCWU,filterF0,200,2800,200,2800},
+     {3400100000LL,modeUSB,filterF5,200,2800,200,2800},
+     {3400300000LL,modeUSB,filterF5,200,2800,200,2800}};
+#endif
+
 BANDSTACK_ENTRY bandstack_entriesGEN[] =
     {{909000LL,modeAM,filterF6,-6000,6000,-6000,60000},
      {5975000LL,modeAM,filterF6,-6000,6000,-6000,60000},
@@ -115,6 +159,16 @@ BANDSTACK bandstack15={3,1,bandstack_entries15};
 BANDSTACK bandstack12={3,1,bandstack_entries12};
 BANDSTACK bandstack10={3,1,bandstack_entries10};
 BANDSTACK bandstack50={3,1,bandstack_entries50};
+#ifdef LIMESDR
+BANDSTACK bandstack70={3,1,bandstack_entries70};
+BANDSTACK bandstack144={3,1,bandstack_entries144};
+BANDSTACK bandstack220={3,1,bandstack_entries220};
+BANDSTACK bandstack430={3,1,bandstack_entries430};
+BANDSTACK bandstack902={3,1,bandstack_entries902};
+BANDSTACK bandstack1240={3,1,bandstack_entries1240};
+BANDSTACK bandstack2300={3,1,bandstack_entries2300};
+BANDSTACK bandstack3400={3,1,bandstack_entries3400};
+#endif
 BANDSTACK bandstackGEN={3,1,bandstack_entriesGEN};
 BANDSTACK bandstackWWV={5,1,bandstack_entriesWWV};
 
@@ -130,6 +184,16 @@ BAND bands[BANDS] =
      {"12",&bandstack12,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
      {"10",&bandstack10,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
      {"50",&bandstack50,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
+#ifdef LIMESDR
+     {"70",&bandstack70,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
+     {"144",&bandstack144,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
+     {"220",&bandstack144,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
+     {"430",&bandstack430,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
+     {"902",&bandstack430,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
+     {"1240",&bandstack1240,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
+     {"2300",&bandstack2300,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
+     {"3400",&bandstack3400,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
+#endif
      {"GEN",&bandstackGEN,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,0},
      {"WWV",&bandstackWWV,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,0}};
 
@@ -153,7 +217,7 @@ BAND_LIMITS bandLimits[NUM_BAND_LIMITS] = {
     {902000000LL,928000000LL},
     {1240000000LL,1300000000LL},
     {2300000000LL,2450000000LL},
-    {3456000000LL,3456400000LL},
+    {3400000000LL,3410000000LL},
     {5760000000LL,5760400000LL},
     {10368000000LL,10368400000LL},
     {24192000000LL,24192400000LL},

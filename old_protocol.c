@@ -455,7 +455,6 @@ static void process_ozy_input_buffer(char  *buffer) {
           if(tune) {
             double tunefrequency = (double)((filterHigh - filterLow) / 2);
             phase=sineWave(micinputbuffer, BUFFER_SIZE, phase, (float)tunefrequency);
-          } else if(mode==modeCWU || mode==modeCWL) {
           }
           // process the output
           fexchange0(CHANNEL_TX, micinputbuffer, micoutputbuffer, &error);
@@ -756,14 +755,14 @@ void ozy_send_buffer() {
       break;
     case 7:
       output_buffer[C0]=0x1E;
-      if(cw_keyer_internal==1) {
-        if(isTransmitting() || (mode!=modeCWU && mode!=modeCWL)) {
-          output_buffer[C1]=0x00;
-        } else {
-          output_buffer[C1]=0x01;
-        }
+      if(mode!=modeCWU && mode!=modeCWL) {
+        // output_buffer[C1]|=0x00;
       } else {
-        output_buffer[C1]=0x00;
+        if((tune==1) || (cw_keyer_internal==0)) {
+          // output_buffer[C1]|=0x00;
+        } else {
+          output_buffer[C1]|=0x01;
+        }
       }
       output_buffer[C2]=cw_keyer_sidetone_volume;
       output_buffer[C3]=cw_keyer_ptt_delay;
@@ -777,15 +776,28 @@ void ozy_send_buffer() {
       output_buffer[C4]=cw_keyer_sidetone_frequency>>8;
       break;
   }
+
+  // set mox
+  if((mode!=modeCWU && mode!=modeCWL)) {
+    if(isTransmitting()) {
+      output_buffer[C0]|=0x01;
+    }
+  } else {
+    if(tune==1) {
+      output_buffer[C0]|=0x01;
+    } else {
+      if(cw_keyer_internal==0) {
+        output_buffer[C0]|=0x01;
+      }
+    }
+  }
+
+  metis_write(0x02,output_buffer,OZY_BUFFER_SIZE);
+
   command++;
   if(command>8) {
     command=0;
   }
-
-  // set mox
-  output_buffer[C0]|=isTransmitting();
-
-  metis_write(0x02,output_buffer,OZY_BUFFER_SIZE);
 
   //fprintf(stderr,"C0=%02X C1=%02X C2=%02X C3=%02X C4=%02X\n",
   //                output_buffer[C0],output_buffer[C1],output_buffer[C2],output_buffer[C3],output_buffer[C4]);

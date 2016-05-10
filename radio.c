@@ -222,6 +222,13 @@ fprintf(stderr,"setTune: protocol=%d\n", protocol);
       schedule_high_priority(4);
       schedule_general();
     }
+    if(tune) {
+      SetChannelState(CHANNEL_RX0,0,1);
+      SetChannelState(CHANNEL_TX,1,0);
+    } else {
+      SetChannelState(CHANNEL_TX,0,1);
+      SetChannelState(CHANNEL_RX0,1,0);
+    }
   }
 }
 
@@ -230,11 +237,13 @@ int getTune() {
 }
 
 int isTransmitting() {
+/*
   BANDSTACK_ENTRY *entry;
   entry=bandstack_entry_get_current();
-  if((entry->mode==modeCWL || entry->mode==modeCWU) && cw_keyer_internal==1) {
+  if((entry->mode==modeCWL || entry->mode==modeCWU) && cw_keyer_internal==1 && ptt==1) {
     return 0;
   }
+*/
   return ptt!=0 || mox!=0 || tune!=0;
 }
 

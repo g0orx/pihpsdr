@@ -1,23 +1,34 @@
 UNAME_N := $(shell uname -n)
-
 CC=gcc
 LINK=gcc
-OPTIONS=-g -D $(UNAME_N) -O3
+
+#required for LimeSDR (uncomment lines below)
+#LIMESDR_OPTIONS=-D LIMESDR
+#SOAPYSDRLIBS=-lSoapySDR
+#LIMESDR_SOURCES= \
+#lime_discovery.c
+#LIMESDR_HEADERS= \
+#lime_discovery.h
+#LIMESDR_OBJS= \
+#lime_discovery.o
+
+OPTIONS=-g -D $(UNAME_N) $(LIMESDR_OPTIONS) -O3
 GTKINCLUDES=`pkg-config --cflags gtk+-3.0`
 GTKLIBS=`pkg-config --libs gtk+-3.0`
+
+
 ifeq ($(UNAME_N),raspberrypi)
-GPIO_LIBS=-lwiringPi -lpigpio
+GPIOLIBS=-lwiringPi -lpigpio
 endif
 ifeq ($(UNAME_N),odroid)
-GPIO_LIBS=-lwiringPi
+GPIOLIBS=-lwiringPi
 endif
-LIBS=-lrt -lm -lwdsp -lpthread $(GTKLIBS)
+LIBS=-lrt -lm -lwdsp -lpthread $(GTKLIBS) $(GPIOLIBS) $(SOAPYSDRLIBS)
 INCLUDES=$(GTKINCLUDES)
 
 COMPILE=$(CC) $(OPTIONS) $(INCLUDES)
 
 PROGRAM=pihpsdr
-
 
 SOURCES= \
 band.c \
@@ -44,6 +55,7 @@ version.c \
 vfo.c \
 waterfall.c \
 wdsp_init.c
+
 
 HEADERS= \
 agc.h \
@@ -74,6 +86,7 @@ waterfall.h \
 wdsp_init.h \
 xvtr.h
 
+
 OBJS= \
 band.o \
 frequency.o \
@@ -100,13 +113,13 @@ vfo.o \
 waterfall.o \
 wdsp_init.o
 
-all: prebuild $(PROGRAM) $(HEADERS) $(SOURCES)
+all: prebuild $(PROGRAM) $(HEADERS) $(LIMESDR_HEADERS) $(SOURCES) $(LIMESDR_SOURCES)
 
 prebuild:
 	rm -f version.o
 
-$(PROGRAM): $(OBJS)
-	$(LINK) -o $(PROGRAM) $(OBJS) $(GPIO_LIBS) $(LIBS)
+$(PROGRAM): $(OBJS) $(LIMESDR_OBJS)
+	$(LINK) -o $(PROGRAM) $(OBJS) $(LIMESDR_OBJS) $(LIBS)
 
 .c.o:
 	$(COMPILE) -c -o $@ $<

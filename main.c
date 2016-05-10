@@ -33,6 +33,7 @@
 #include "gpio.h"
 #include "old_discovery.h"
 #include "new_discovery.h"
+#include "lime_discovery.h"
 #include "new_protocol.h"
 #include "wdsp.h"
 #include "vfo.h"
@@ -731,6 +732,10 @@ gint init(void* arg) {
       old_discovery();
       splash_status("New Protocol ... Discovering Devices");
       new_discovery();
+#ifdef LIMESDR
+      splash_status("LimeSDR ... Discovering Devices");
+      lime_discovery();
+#endif
       splash_status("Discovery");
       if(devices==0) {
           gdk_window_set_cursor(gdk_splash_window,cursor_arrow);
@@ -796,12 +801,12 @@ gint init(void* arg) {
               GtkWidget *label=gtk_label_new(text);
               gtk_widget_override_font(label, pango_font_description_from_string("Arial 12"));
               gtk_widget_show(label);
-              gtk_grid_attach(GTK_GRID(grid),label,0,i,4,1);
+              gtk_grid_attach(GTK_GRID(grid),label,0,i,3,1);
 
               GtkWidget *start_button=gtk_button_new_with_label("Start");
               gtk_widget_override_font(start_button, pango_font_description_from_string("Arial 18"));
               gtk_widget_show(start_button);
-              gtk_grid_attach(GTK_GRID(grid),start_button,4,i,1,1);
+              gtk_grid_attach(GTK_GRID(grid),start_button,3,i,1,1);
               g_signal_connect(start_button,"pressed",G_CALLBACK(start_cb),(gpointer *)i);
 
               // if not available then cannot start it
@@ -819,7 +824,7 @@ gint init(void* arg) {
               GtkWidget *configure_button=gtk_button_new_with_label("Configure");
               gtk_widget_override_font(configure_button, pango_font_description_from_string("Arial 18"));
               gtk_widget_show(configure_button);
-              gtk_grid_attach(GTK_GRID(grid),configure_button,5,i,1,1);
+              gtk_grid_attach(GTK_GRID(grid),configure_button,4,i,1,1);
               g_signal_connect(configure_button,"pressed",G_CALLBACK(configure_cb),(gpointer *)i);
           }
 

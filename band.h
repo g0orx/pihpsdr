@@ -31,11 +31,25 @@
 #define band12 8
 #define band10 9
 #define band6 10
+#ifdef LIMESDR
+#define band70 11
+#define band144 12
+#define band220 13
+#define band430 14
+#define band902 15
+#define band1240 16
+#define band2300 17
+#define band3400 18
+#define bandGen 19
+#define bandWWV 20
+#define BANDS 21
+#define HAM_BANDS 19
+#else
 #define bandGen 11
 #define bandWWV 12
-
 #define BANDS 13
 #define HAM_BANDS 11
+#endif
 
 /* --------------------------------------------------------------------------*/
 /**

@@ -41,6 +41,7 @@
 
 #define ORIGINAL_PROTOCOL 0
 #define NEW_PROTOCOL 1
+#define LIME_SDR 2
 
 struct _DISCOVERED {
     int protocol;

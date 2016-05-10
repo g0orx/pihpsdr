@@ -236,6 +236,9 @@ void wdsp_init(int rx,int pixels,int protocol) {
     SetTXAPreGenRun(CHANNEL_TX, 0);
     SetTXAPostGenRun(CHANNEL_TX, 0);
 
+    SetChannelState(CHANNEL_TX,0,0);
+    SetChannelState(CHANNEL_RX0,1,0);
+
 }
 
 static void initAnalyzer(int channel,int buffer_size) {
