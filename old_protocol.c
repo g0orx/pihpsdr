@@ -43,6 +43,7 @@
 #include "old_protocol.h"
 #include "radio.h"
 #include "toolbar.h"
+#include "freedv.h"
 
 #define SYNC0 0
 #define SYNC1 1
@@ -176,7 +177,7 @@ void schedule_frequency_changed() {
 }
 
 static float sineWave(double* buf, int samples, float phase, float freq) {
-    float phase_step = 2 * PI * freq / 192000.0F;
+    float phase_step = 2 * PI * freq / 48000.0F;
     int i;
     for (i = 0; i < samples; i++) {
         buf[i*2] = (double) sin(phase);
@@ -439,10 +440,25 @@ static void process_ozy_input_buffer(char  *buffer) {
 
       // add to buffer
       if(isTransmitting()) {
-        micinputbuffer[samples*2]=(double)mic_sample_float*mic_gain;
-        micinputbuffer[(samples*2)+1]=(double)mic_sample_float*mic_gain;
-        samples++;
+#ifdef FREEDV
+        if(mode==modeFREEDV) {
+          int modem_samples=mod_sample_freedv(mic_sample);
+          if(modem_samples!=0) {
+            
+          }
+        } else {
+#endif
+          micinputbuffer[samples*2]=(double)mic_sample_float*mic_gain;
+          micinputbuffer[(samples*2)+1]=(double)mic_sample_float*mic_gain;
+          iqinputbuffer[samples*2]=0.0;
+          iqinputbuffer[(samples*2)+1]=0.0;
+          samples++;
+#ifdef FREEDV
+        }
+#endif
       } else {
+        micinputbuffer[samples*2]=0.0;
+        micinputbuffer[(samples*2)+1]=0.0;
         iqinputbuffer[samples*2]=(double)left_sample_float;
         iqinputbuffer[(samples*2)+1]=(double)right_sample_float;
         samples++;
@@ -496,24 +512,62 @@ static void process_ozy_input_buffer(char  *buffer) {
             fprintf(stderr,"fexchange2 (CHANNEL_RX0) returned error: %d\n", error);
           }
           Spectrum0(1, CHANNEL_RX0, 0, 0, iqinputbuffer);
-          for(j=0;j<output_buffer_size;j++) {
-            left_rx_sample=(short)(audiooutputbuffer[j*2]*32767.0*volume);
-            right_rx_sample=(short)(audiooutputbuffer[(j*2)+1]*32767.0*volume);
-            left_tx_sample=0;
-            right_tx_sample=0;
-            output_buffer[output_buffer_index++]=left_rx_sample>>8;
-            output_buffer[output_buffer_index++]=left_rx_sample;
-            output_buffer[output_buffer_index++]=right_rx_sample>>8;
-            output_buffer[output_buffer_index++]=right_rx_sample;
-            output_buffer[output_buffer_index++]=left_tx_sample>>8;
-            output_buffer[output_buffer_index++]=left_tx_sample;
-            output_buffer[output_buffer_index++]=right_tx_sample>>8;
-            output_buffer[output_buffer_index++]=right_tx_sample;
-            if(output_buffer_index>=OZY_BUFFER_SIZE) {
-              ozy_send_buffer();
-              output_buffer_index=8;
+
+#ifdef FREEDV
+          if(mode==modeFREEDV) {
+            int demod_samples;
+            int increment=6; // 48000 to 8000
+            for(j=0;j<output_buffer_size;j+=increment) {
+              left_rx_sample=(short)(audiooutputbuffer[j*2]*32767.0*volume);
+              demod_samples=demod_sample_freedv(left_rx_sample);
+              if(demod_samples!=0) {
+                int s;
+                int t;
+                for(s=0;s<demod_samples;s++) {
+                  for(t=0;t<6;t++) { // 8k to 48k
+                    left_rx_sample=speech_out[s];
+                    right_rx_sample=speech_out[s];
+                    left_tx_sample=0;
+                    right_tx_sample=0;
+  		    output_buffer[output_buffer_index++]=left_rx_sample>>8;
+  		    output_buffer[output_buffer_index++]=left_rx_sample;
+  		    output_buffer[output_buffer_index++]=right_rx_sample>>8;
+  		    output_buffer[output_buffer_index++]=right_rx_sample;
+  		    output_buffer[output_buffer_index++]=left_tx_sample>>8;
+  		    output_buffer[output_buffer_index++]=left_tx_sample;
+  		    output_buffer[output_buffer_index++]=right_tx_sample>>8;
+  		    output_buffer[output_buffer_index++]=right_tx_sample;
+  		    if(output_buffer_index>=OZY_BUFFER_SIZE) {
+  		      ozy_send_buffer();
+  		      output_buffer_index=8;
+		    }
+                  }
+                }
+              }
             }
+          } else {
+#endif
+            for(j=0;j<output_buffer_size;j++) {
+              left_rx_sample=(short)(audiooutputbuffer[j*2]*32767.0*volume);
+              right_rx_sample=(short)(audiooutputbuffer[(j*2)+1]*32767.0*volume);
+              left_tx_sample=0;
+              right_tx_sample=0;
+              output_buffer[output_buffer_index++]=left_rx_sample>>8;
+              output_buffer[output_buffer_index++]=left_rx_sample;
+              output_buffer[output_buffer_index++]=right_rx_sample>>8;
+              output_buffer[output_buffer_index++]=right_rx_sample;
+              output_buffer[output_buffer_index++]=left_tx_sample>>8;
+              output_buffer[output_buffer_index++]=left_tx_sample;
+              output_buffer[output_buffer_index++]=right_tx_sample>>8;
+              output_buffer[output_buffer_index++]=right_tx_sample;
+              if(output_buffer_index>=OZY_BUFFER_SIZE) {
+                ozy_send_buffer();
+                output_buffer_index=8;
+              }
+            }
+#ifdef FREEDV
           }
+#endif
         }
         samples=0;
       }
@@ -758,7 +812,7 @@ void ozy_send_buffer() {
       if(mode!=modeCWU && mode!=modeCWL) {
         // output_buffer[C1]|=0x00;
       } else {
-        if((tune==1) || (cw_keyer_internal==0)) {
+        if((tune==1) || (mox==1) || (cw_keyer_internal==0)) {
           // output_buffer[C1]|=0x00;
         } else {
           output_buffer[C1]|=0x01;
@@ -783,9 +837,7 @@ void ozy_send_buffer() {
       output_buffer[C0]|=0x01;
     }
   } else {
-    if(tune==1) {
-      output_buffer[C0]|=0x01;
-    } else {
+    if(tune==0) {
       if(cw_keyer_internal==0) {
         output_buffer[C0]|=0x01;
       }

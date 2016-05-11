@@ -237,13 +237,6 @@ int getTune() {
 }
 
 int isTransmitting() {
-/*
-  BANDSTACK_ENTRY *entry;
-  entry=bandstack_entry_get_current();
-  if((entry->mode==modeCWL || entry->mode==modeCWU) && cw_keyer_internal==1 && ptt==1) {
-    return 0;
-  }
-*/
   return ptt!=0 || mox!=0 || tune!=0;
 }
 
@@ -266,7 +259,6 @@ double getDrive() {
 }
 
 void setDrive(double value) {
-//fprintf(stderr,"setDrive: protocol=%d\n", protocol);
     drive=(int)(value*255.0);
     if(protocol==NEW_PROTOCOL) {
       schedule_high_priority(6);

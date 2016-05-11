@@ -36,12 +36,14 @@
 #define NEW_DEVICE_ORION2 5
 #define NEW_DEVICE_HERMES_LITE 6
 
+#define LIMESDR_DEVICE 0
+
 #define STATE_AVAILABLE 2
 #define STATE_SENDING 3
 
 #define ORIGINAL_PROTOCOL 0
 #define NEW_PROTOCOL 1
-#define LIME_SDR 2
+#define LIMESDR_PROTOCOL 2
 
 struct _DISCOVERED {
     int protocol;

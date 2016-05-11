@@ -47,6 +47,7 @@
 #include "vfo.h"
 #include "toolbar.h"
 #include "wdsp_init.h"
+#include "freedv.h"
 
 #define PI 3.1415926535897932F
 #define min(x,y) (x<y?x:y)
@@ -70,10 +71,25 @@ static int SPECTRUM_UPDATES_PER_SECOND=10;
 
 static void initAnalyzer(int channel,int buffer_size);
 
+void setRXMode(int m) {
+    SetRXAMode(receiver, mode==modeFREEDV?modeUSB:mode);
+}
+
+void setTXMode(int m) {
+    SetTXAMode(CHANNEL_TX, mode==modeFREEDV?modeUSB:mode);
+}
+
 void setMode(int m) {
+#ifdef FREEDV
+    if(mode!=modeFREEDV && m==modeFREEDV) {
+      init_freedv();
+    } if(mode==modeFREEDV && m!=modeFREEDV) {
+      close_freedv();
+    }
+#endif
     mode=m;
-    SetRXAMode(receiver, mode);
-    SetTXAMode(CHANNEL_TX, mode);
+    setRXMode(m);
+    setTXMode(m);
 }
 
 int getMode() {
@@ -203,7 +219,7 @@ void wdsp_init(int rx,int pixels,int protocol) {
         }
     initAnalyzer(CHANNEL_TX,tx_buffer_size);
 
-    SetRXAMode(rx, mode);
+    setRXMode(mode);
     SetRXABandpassFreqs(rx, (double)filterLow, (double)filterHigh);
     SetRXAAGCMode(rx, agc);
     SetRXAAGCTop(rx,agc_gain);
@@ -222,7 +238,7 @@ void wdsp_init(int rx,int pixels,int protocol) {
     SetRXAANFRun(CHANNEL_RX0, anf);
     SetRXASNBARun(CHANNEL_RX0, snb);
 
-    SetTXAMode(CHANNEL_TX, mode);
+    setTXMode(mode);
     SetTXABandpassFreqs(CHANNEL_TX, (double)filterLow, (double)filterHigh);
     SetTXABandpassWindow(CHANNEL_TX, 1);
     SetTXABandpassRun(CHANNEL_TX, 1);
@@ -236,7 +252,7 @@ void wdsp_init(int rx,int pixels,int protocol) {
     SetTXAPreGenRun(CHANNEL_TX, 0);
     SetTXAPostGenRun(CHANNEL_TX, 0);
 
-    SetChannelState(CHANNEL_TX,0,0);
+    SetChannelState(CHANNEL_TX,1,0);
     SetChannelState(CHANNEL_RX0,1,0);
 
 }

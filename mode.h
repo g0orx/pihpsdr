@@ -29,19 +29,11 @@
 #define modeDIGL 9
 #define modeSAM 10
 #define modeDRM 11
+#define modeFREEDV 12
 
-#define MODES 12
+#define MODES 13
 
 int mode;
 
 char *mode_string[MODES];
 
-/*
-int updateMode(void * data);
-
-void setMode(int mode);
-void modeSaveState();
-void modeRestoreState();
-GtkWidget* buildModeUI();
-char* modeToString();
-*/

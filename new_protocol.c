@@ -523,17 +523,6 @@ void new_protocol_stop() {
     sleep(1);
 }
 
-/*
-float sineWave(float* buf, int samples, float phase, float freq) {
-    float phase_step = 2 * PI * freq / 192000.0F;
-    int i;
-    for (i = 0; i < samples; i++) {
-        buf[i] = (float) sin(phase);
-        phase += phase_step;
-    }
-    return phase;
-}
-*/
 float sineWave(double* buf, int samples, float phase, float freq) {
     float phase_step = 2 * PI * freq / 192000.0F;
     int i;

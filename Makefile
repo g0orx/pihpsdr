@@ -12,7 +12,18 @@ LINK=gcc
 #LIMESDR_OBJS= \
 #lime_discovery.o
 
-OPTIONS=-g -D $(UNAME_N) $(LIMESDR_OPTIONS) -O3
+
+#required for FREEDV (uncomment lines below)
+#FREEDV_OPTIONS=-D FREEDV
+#FREEDVLIBS=-lcodec2
+#FREEDV_SOURCES= \
+#freedv.c
+#FREEDV_HEADERS= \
+#freedv.h
+#FREEDV_OBJS= \
+#freedv.o
+
+OPTIONS=-g -D $(UNAME_N) $(LIMESDR_OPTIONS) $(FREEDV_OPTIONS) -O3
 GTKINCLUDES=`pkg-config --cflags gtk+-3.0`
 GTKLIBS=`pkg-config --libs gtk+-3.0`
 
@@ -23,7 +34,7 @@ endif
 ifeq ($(UNAME_N),odroid)
 GPIOLIBS=-lwiringPi
 endif
-LIBS=-lrt -lm -lwdsp -lpthread $(GTKLIBS) $(GPIOLIBS) $(SOAPYSDRLIBS)
+LIBS=-lcodec2 -lrt -lm -lwdsp -lpthread $(GTKLIBS) $(GPIOLIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS)
 INCLUDES=$(GTKINCLUDES)
 
 COMPILE=$(CC) $(OPTIONS) $(INCLUDES)
@@ -113,13 +124,13 @@ vfo.o \
 waterfall.o \
 wdsp_init.o
 
-all: prebuild $(PROGRAM) $(HEADERS) $(LIMESDR_HEADERS) $(SOURCES) $(LIMESDR_SOURCES)
+all: prebuild $(PROGRAM) $(HEADERS) $(LIMESDR_HEADERS) $(SOURCES) $(LIMESDR_SOURCES) $(FREEDV_SOURCES)
 
 prebuild:
 	rm -f version.o
 
-$(PROGRAM): $(OBJS) $(LIMESDR_OBJS)
-	$(LINK) -o $(PROGRAM) $(OBJS) $(LIMESDR_OBJS) $(LIBS)
+$(PROGRAM): $(OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS)
+	$(LINK) -o $(PROGRAM) $(OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) $(LIBS)
 
 .c.o:
 	$(COMPILE) -c -o $@ $<
@@ -132,4 +143,5 @@ clean:
 install:
 	cp pihpsdr ../pihpsdr
 	cp pihpsdr ./release/pihpsdr
+	cd release; tar cvf pihpsdr.tar pihpsdr
 

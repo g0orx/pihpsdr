@@ -33,7 +33,6 @@
 #define band6 10
 #ifdef LIMESDR
 #define band70 11
-#define band144 12
 #define band220 13
 #define band430 14
 #define band902 15

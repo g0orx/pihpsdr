@@ -61,12 +61,3 @@ int filterVar2High;
 
 FILTER *filters[MODES];
 
-/*
-int updateFilter(void * data);
-GtkWidget* buildFilterUI();
-void filterSaveState();
-void filterRestoreState();
-void setFilterValues(int mode);
-void setFilter(int filter);
-void setTxFilters();
-*/

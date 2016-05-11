@@ -101,6 +101,13 @@ static void band_cb(GtkWidget *widget, gpointer data) {
   GtkWidget *b;
   int i;
   for(i=0;i<BANDS;i++) {
+#ifdef LIMESDR
+    if(protocol!=LIMESDR_PROTOCOL) {
+      if(i>=band70 && i<=band3400) {
+        continue;
+      }
+    }
+#endif
     BAND* band=band_get_band(i);
     GtkWidget *b=gtk_button_new_with_label(band->title);
     gtk_widget_override_background_color(b, GTK_STATE_NORMAL, &white);
@@ -789,11 +796,25 @@ fprintf(stderr,"sim_band_cb\n");
     if(b<0) {
       b=BANDS-1;
     }
+#ifdef LIMESDR
+    if(protocol!=LIMESDR_PROTOCOL) {
+      if(b==band3400) {
+        b=band6;
+      }
+    }
+#endif
   } else {
     b++;
     if(b>=BANDS) {
       b=0;
     }
+#ifdef LIMESDR
+    if(protocol!=LIMESDR_PROTOCOL) {
+      if(b==band70) { 
+        b=bandGen;
+      }
+    }
+#endif
   }
   band=band_set_current(b);
   entry=bandstack_entry_get_current();

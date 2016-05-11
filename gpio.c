@@ -23,6 +23,7 @@
 
 #include "band.h"
 #include "channel.h"
+#include "discovered.h"
 #include "mode.h"
 #include "filter.h"
 #include "bandstack.h"
@@ -855,11 +856,25 @@ fprintf(stderr,"band_pressed\n");
     if(b<0) {
       b=BANDS-1;
     }
+#ifdef LIMESDR
+    if(protocol!=LIMESDR_PROTOCOL) {
+      if(b==band3400) {
+        b=band6;
+      }
+    }
+#endif
   } else {
     b++;
     if(b>=BANDS) {
       b=0;
     }
+#ifdef LIMESDR
+    if(protocol!=LIMESDR_PROTOCOL) {
+      if(b==band70) {
+        b=bandGen;
+      }
+    }
+#endif
   }
   band=band_set_current(b);
   entry=bandstack_entry_get_current();
