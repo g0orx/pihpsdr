@@ -14,14 +14,14 @@ LINK=gcc
 
 
 #required for FREEDV (uncomment lines below)
-#FREEDV_OPTIONS=-D FREEDV
-#FREEDVLIBS=-lcodec2
-#FREEDV_SOURCES= \
-#freedv.c
-#FREEDV_HEADERS= \
-#freedv.h
-#FREEDV_OBJS= \
-#freedv.o
+FREEDV_OPTIONS=-D FREEDV
+FREEDVLIBS=-lcodec2
+FREEDV_SOURCES= \
+freedv.c
+FREEDV_HEADERS= \
+freedv.h
+FREEDV_OBJS= \
+freedv.o
 
 OPTIONS=-g -D $(UNAME_N) $(LIMESDR_OPTIONS) $(FREEDV_OPTIONS) -O3
 GTKINCLUDES=`pkg-config --cflags gtk+-3.0`
@@ -34,7 +34,7 @@ endif
 ifeq ($(UNAME_N),odroid)
 GPIOLIBS=-lwiringPi
 endif
-LIBS=-lcodec2 -lrt -lm -lwdsp -lpthread $(GTKLIBS) $(GPIOLIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS)
+LIBS=-lrt -lm -lwdsp -lpthread $(GTKLIBS) $(GPIOLIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS)
 INCLUDES=$(GTKINCLUDES)
 
 COMPILE=$(CC) $(OPTIONS) $(INCLUDES)
