@@ -43,7 +43,9 @@
 #include "old_protocol.h"
 #include "radio.h"
 #include "toolbar.h"
+#ifdef FREEDV
 #include "freedv.h"
+#endif
 
 #define SYNC0 0
 #define SYNC1 1

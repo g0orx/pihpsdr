@@ -47,7 +47,9 @@
 #include "vfo.h"
 #include "toolbar.h"
 #include "wdsp_init.h"
+#ifdef FREEDV
 #include "freedv.h"
+#endif
 
 #define PI 3.1415926535897932F
 #define min(x,y) (x<y?x:y)
