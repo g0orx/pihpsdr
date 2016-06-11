@@ -57,14 +57,14 @@ void print_device(int i) {
         discovered[i].device,
         discovered[i].software_version,
         discovered[i].status,
-        inet_ntoa(discovered[i].address.sin_addr),
-        discovered[i].mac_address[0],
-        discovered[i].mac_address[1],
-        discovered[i].mac_address[2],
-        discovered[i].mac_address[3],
-        discovered[i].mac_address[4],
-        discovered[i].mac_address[5],
-        discovered[i].interface_name);
+        inet_ntoa(discovered[i].info.network.address.sin_addr),
+        discovered[i].info.network.mac_address[0],
+        discovered[i].info.network.mac_address[1],
+        discovered[i].info.network.mac_address[2],
+        discovered[i].info.network.mac_address[3],
+        discovered[i].info.network.mac_address[4],
+        discovered[i].info.network.mac_address[5],
+        discovered[i].info.network.interface_name);
 }
 
 void new_discovery() {
@@ -240,28 +240,28 @@ void* new_discover_receive_thread(void* arg) {
                     }
                     discovered[devices].software_version=buffer[13]&0xFF;
                     for(i=0;i<6;i++) {
-                        discovered[devices].mac_address[i]=buffer[i+5];
+                        discovered[devices].info.network.mac_address[i]=buffer[i+5];
                     }
                     discovered[devices].status=status;
-                    memcpy((void*)&discovered[devices].address,(void*)&addr,sizeof(addr));
-                    discovered[devices].address_length=sizeof(addr);
-                    memcpy((void*)&discovered[devices].interface_address,(void*)&interface_addr,sizeof(interface_addr));
-                    memcpy((void*)&discovered[devices].interface_netmask,(void*)&interface_netmask,sizeof(interface_netmask));
-                    discovered[devices].interface_length=sizeof(interface_addr);
-                    strcpy(discovered[devices].interface_name,interface_name);
+                    memcpy((void*)&discovered[devices].info.network.address,(void*)&addr,sizeof(addr));
+                    discovered[devices].info.network.address_length=sizeof(addr);
+                    memcpy((void*)&discovered[devices].info.network.interface_address,(void*)&interface_addr,sizeof(interface_addr));
+                    memcpy((void*)&discovered[devices].info.network.interface_netmask,(void*)&interface_netmask,sizeof(interface_netmask));
+                    discovered[devices].info.network.interface_length=sizeof(interface_addr);
+                    strcpy(discovered[devices].info.network.interface_name,interface_name);
                     fprintf(stderr,"new_discover: found protocol=%d device=%d software_version=%d status=%d address=%s (%02X:%02X:%02X:%02X:%02X:%02X) on %s\n", 
                             discovered[devices].protocol,
                             discovered[devices].device,
                             discovered[devices].software_version,
                             discovered[devices].status,
-                            inet_ntoa(discovered[devices].address.sin_addr),
-                            discovered[devices].mac_address[0],
-                            discovered[devices].mac_address[1],
-                            discovered[devices].mac_address[2],
-                            discovered[devices].mac_address[3],
-                            discovered[devices].mac_address[4],
-                            discovered[devices].mac_address[5],
-                            discovered[devices].interface_name);
+                            inet_ntoa(discovered[devices].info.network.address.sin_addr),
+                            discovered[devices].info.network.mac_address[0],
+                            discovered[devices].info.network.mac_address[1],
+                            discovered[devices].info.network.mac_address[2],
+                            discovered[devices].info.network.mac_address[3],
+                            discovered[devices].info.network.mac_address[4],
+                            discovered[devices].info.network.mac_address[5],
+                            discovered[devices].info.network.interface_name);
                     devices++;
                 }
             }

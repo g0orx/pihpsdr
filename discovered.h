@@ -18,6 +18,7 @@
 */
 
 #include <netinet/in.h>
+#include <SoapySDR/Device.h>
 
 #define MAX_DEVICES 16
 
@@ -36,7 +37,7 @@
 #define NEW_DEVICE_ORION2 5
 #define NEW_DEVICE_HERMES_LITE 6
 
-#define LIMESDR_DEVICE 0
+#define LIMESDR_USB_DEVICE 0
 
 #define STATE_AVAILABLE 2
 #define STATE_SENDING 3
@@ -48,16 +49,23 @@
 struct _DISCOVERED {
     int protocol;
     int device;
-    char name[16];
+    char name[64];
     int software_version;
-    unsigned char mac_address[6];
     int status;
-    int address_length;
-    struct sockaddr_in address;
-    int interface_length;
-    struct sockaddr_in interface_address;
-    struct sockaddr_in interface_netmask;
-    char interface_name[64];
+    union {
+      struct network {
+        unsigned char mac_address[6];
+        int address_length;
+        struct sockaddr_in address;
+        int interface_length;
+        struct sockaddr_in interface_address;
+        struct sockaddr_in interface_netmask;
+        char interface_name[64];
+      } network;
+      struct soapy {
+        SoapySDRKwargs *args;
+      } soapy;
+    } info;
 };
 
 typedef struct _DISCOVERED DISCOVERED;

@@ -175,11 +175,16 @@ extern unsigned int AIN6;
 extern int supply_volts;
 
 extern long long ddsFrequency;
+extern long long ddsOffset;
 
 extern unsigned char OCtune;
 extern int OCfull_tune_time;
 extern int OCmemory_tune_time;
 extern long long tune_timeout;
+
+#ifdef FREEDV
+extern char freedv_tx_text_data[64];
+#endif
 
 extern void init_radio();
 extern void setSampleRate(int rate);

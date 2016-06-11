@@ -24,6 +24,11 @@
 #include <unistd.h>
 
 #include "meter.h"
+#ifdef FREEDV
+#include "radio.h"
+#include "mode.h"
+#include "freedv.h"
+#endif
 
 static GtkWidget *meter;
 static cairo_surface_t *meter_surface = NULL;
@@ -201,6 +206,21 @@ void meter_update(int meter_type,double value,double reverse,double exciter) {
       sprintf(sf,"%d dBm",(int)level);
       cairo_move_to(cr, text_location, 45);
       cairo_show_text(cr, sf);
+
+#ifdef FREEDV
+      if(mode==modeFREEDV) {
+        if(freedv_sync) {
+          cairo_set_source_rgb(cr, 0, 1, 0);
+        } else {
+          cairo_set_source_rgb(cr, 1, 0, 0);
+        }
+        cairo_set_font_size(cr, 16);
+        sprintf(sf,"SNR: %3.2f",freedv_snr);
+        cairo_move_to(cr, text_location, 20);
+        cairo_show_text(cr, sf);
+      }
+#endif
+
       break;
     case POWER:
       // value is Watts

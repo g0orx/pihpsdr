@@ -17,6 +17,8 @@
 *
 */
 
+extern void wdsp_set_input_rate(double rate);
+extern void wdsp_set_offset(long long offset);
 extern void setMode(int m);
 extern int getMode();
 extern void setFilter(int low,int high);

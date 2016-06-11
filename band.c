@@ -103,7 +103,10 @@ BANDSTACK_ENTRY bandstack_entries70[] =
 BANDSTACK_ENTRY bandstack_entries144[] =
     {{144010000LL,modeCWU,filterF0,200,2800,200,2800},
      {144200000LL,modeUSB,filterF5,200,2800,200,2800},
-     {144250000LL,modeUSB,filterF5,200,2800,200,2800}};
+     {144250000LL,modeUSB,filterF5,200,2800,200,2800},
+     {145600000LL,modeFMN,filterF1,200,2800,200,2800},
+     {145725000LL,modeFMN,filterF1,200,2800,200,2800},
+     {145900000LL,modeFMN,filterF1,200,2800,200,2800}};
 
 BANDSTACK_ENTRY bandstack_entries220[] =
     {{220010000LL,modeCWU,filterF0,200,2800,200,2800},
@@ -134,6 +137,14 @@ BANDSTACK_ENTRY bandstack_entries3400[] =
     {{3400010000LL,modeCWU,filterF0,200,2800,200,2800},
      {3400100000LL,modeUSB,filterF5,200,2800,200,2800},
      {3400300000LL,modeUSB,filterF5,200,2800,200,2800}};
+
+BANDSTACK_ENTRY bandstack_entriesAIR[] =
+    {{118800000LL,modeAM,filterF1,200,2800,200,2800},
+     {120000000LL,modeAM,filterF1,200,2800,200,2800},
+     {121700000LL,modeAM,filterF1,200,2800,200,2800},
+     {124100000LL,modeAM,filterF1,200,2800,200,2800},
+     {126600000LL,modeAM,filterF1,200,2800,200,2800},
+     {136500000LL,modeAM,filterF1,200,2800,200,2800}};
 #endif
 
 BANDSTACK_ENTRY bandstack_entriesGEN[] =
@@ -161,13 +172,14 @@ BANDSTACK bandstack10={3,1,bandstack_entries10};
 BANDSTACK bandstack50={3,1,bandstack_entries50};
 #ifdef LIMESDR
 BANDSTACK bandstack70={3,1,bandstack_entries70};
-BANDSTACK bandstack144={3,1,bandstack_entries144};
+BANDSTACK bandstack144={6,1,bandstack_entries144};
 BANDSTACK bandstack220={3,1,bandstack_entries220};
 BANDSTACK bandstack430={3,1,bandstack_entries430};
 BANDSTACK bandstack902={3,1,bandstack_entries902};
 BANDSTACK bandstack1240={3,1,bandstack_entries1240};
 BANDSTACK bandstack2300={3,1,bandstack_entries2300};
 BANDSTACK bandstack3400={3,1,bandstack_entries3400};
+BANDSTACK bandstackAIR={6,1,bandstack_entriesAIR};
 #endif
 BANDSTACK bandstackGEN={3,1,bandstack_entriesGEN};
 BANDSTACK bandstackWWV={5,1,bandstack_entriesWWV};
@@ -193,6 +205,7 @@ BAND bands[BANDS] =
      {"1240",&bandstack1240,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
      {"2300",&bandstack2300,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
      {"3400",&bandstack3400,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
+     {"AIR",&bandstackAIR,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
 #endif
      {"GEN",&bandstackGEN,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,0},
      {"WWV",&bandstackWWV,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,0}};

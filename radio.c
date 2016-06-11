@@ -31,7 +31,13 @@
 #include "discovered.h"
 #include "property.h"
 #include "new_protocol.h"
+#ifdef LIMESDR
+#include "lime_protocol.h"
+#endif
 #include "wdsp.h"
+#ifdef FREEDV
+#include "freedv.h"
+#endif
 
 #define min(x,y) (x<y?x:y)
 #define max(x,y) (x<y?y:x)
@@ -162,11 +168,16 @@ int mox;
 int tune;
 
 long long ddsFrequency=14250000;
+long long ddsOffset=0;
 
 unsigned char OCtune=0;
 int OCfull_tune_time=2800; // ms
 int OCmemory_tune_time=550; // ms
 long long tune_timeout;
+
+#ifdef FREEDV
+char freedv_tx_text_data[64];
+#endif
 
 void init_radio() {
   int rc;
@@ -194,6 +205,11 @@ fprintf(stderr,"setMox: protocol=%d\n", protocol);
       schedule_high_priority(3);
     }
     if(mox) {
+#ifdef FREEDV
+      if(mode==modeFREEDV) {
+        freedv_reset_tx_text_index();
+      }
+#endif
       SetChannelState(CHANNEL_RX0,0,1);
       SetChannelState(CHANNEL_TX,1,0);
     } else {
@@ -241,12 +257,47 @@ int isTransmitting() {
 }
 
 void setFrequency(long long f) {
+  BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
+
+  if(entry->frequencyA!=f) {
+    switch(protocol) {
+      case NEW_PROTOCOL:
+      case ORIGINAL_PROTOCOL:
+        entry->frequencyA=f;
+        break;
+#ifdef LIMESDR
+      case LIMESDR_PROTOCOL:
+        {
+        long long minf=entry->frequencyA-(long long)(sample_rate/2);
+        long long maxf=entry->frequencyA+(long long)(sample_rate/2);
+        if(f<minf) f=minf;
+        if(f>maxf) f=maxf;
+        ddsOffset=f-entry->frequencyA;
+fprintf(stderr,"radio.c: setFrequency: ddsOffset=%lld\n",ddsOffset);
+        wdsp_set_offset(ddsOffset);
+        return;
+        }
+        break;
+#endif
+    }
+  }
+
 //fprintf(stderr,"setFrequency: protocol=%d f=%lld\n", protocol, f);
   ddsFrequency=f;
-  if(protocol==NEW_PROTOCOL) {
-    schedule_high_priority(5);
-  } else {
-    schedule_frequency_changed();
+  switch(protocol) {
+    case NEW_PROTOCOL:
+      schedule_high_priority(5);
+      break;
+    case ORIGINAL_PROTOCOL:
+      schedule_frequency_changed();
+      break;
+#ifdef LIMESDR
+    case LIMESDR_PROTOCOL:
+      lime_protocol_set_frequency(f);
+      ddsOffset=0;
+      wdsp_set_offset(ddsOffset);
+      break;
+#endif
   }
 }
 
@@ -279,8 +330,15 @@ fprintf(stderr,"setTuneDrive: protocol=%d\n", protocol);
 
 void set_attenuation(int value) {
     //attenuation=value;
-    if(protocol==NEW_PROTOCOL) {
+    switch(protocol) {
+      case NEW_PROTOCOL:
         schedule_high_priority(8);
+        break;
+#ifdef LIMESDR
+      case LIMESDR_PROTOCOL:
+        lime_protocol_set_attenuation(value);
+        break;
+#endif
     }
 }
 
@@ -293,6 +351,11 @@ void set_alex_rx_antenna(int v) {
     if(protocol==NEW_PROTOCOL) {
         schedule_high_priority(1);
     }
+#ifdef LIMESDR
+    if(protocol==LIMESDR_PROTOCOL) {
+        lime_protocol_set_antenna(v);;
+    }
+#endif
 }
 
 void set_alex_tx_antenna(int v) {
@@ -439,7 +502,10 @@ void radioRestoreState() {
     if(value) rx_random=atoi(value);
     value=getProperty("rx_preamp");
     if(value) rx_preamp=atoi(value);
-
+#ifdef FREEDV
+    value=getProperty("freedv_tx_text_data");
+    if(value) strcpy(freedv_tx_text_data,value);
+#endif
     bandRestoreState();
     sem_post(&property_sem);
 }
@@ -570,7 +636,11 @@ void radioSaveState() {
     setProperty("rx_random",value);
     sprintf(value,"%d",rx_preamp);
     setProperty("rx_preamp",value);
-
+#ifdef FREEDV
+    if(strlen(freedv_tx_text_data)>0) {
+      setProperty("freedv_tx_text_data",freedv_tx_text_data);
+    }
+#endif
     bandSaveState();
 
     saveProperties(property_path);

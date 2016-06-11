@@ -33,8 +33,14 @@
 #include "gpio.h"
 #include "old_discovery.h"
 #include "new_discovery.h"
+#ifdef LIMESDR
 #include "lime_discovery.h"
+#endif
+#include "old_protocol.h"
 #include "new_protocol.h"
+#ifdef LIMESDR
+#include "lime_protocol.h"
+#endif
 #include "wdsp.h"
 #include "vfo.h"
 #include "menu.h"
@@ -47,6 +53,9 @@
 #include "radio.h"
 #include "wdsp_init.h"
 #include "version.h"
+#ifdef FREEDV
+#include "mode.h"
+#endif
 
 #ifdef raspberrypi
 #define INCLUDE_GPIO
@@ -92,8 +101,11 @@ gint update(gpointer data) {
     double fwd;
     double rev;
     double exciter;
-
-    GetPixels(isTransmitting()==0?CHANNEL_RX0:CHANNEL_TX,0,samples,&result);
+    int channel=CHANNEL_RX0;
+    if(isTransmitting()) {
+      channel=CHANNEL_TX;
+    }
+    GetPixels(channel,0,samples,&result);
     if(result==1) {
         if(display_panadapter) {
           panadapter_update(samples,isTransmitting());
@@ -534,13 +546,23 @@ static void configure_gpio() {
 static void configure_cb(GtkWidget *widget, gpointer data) {
   DISCOVERED* d;
   d=&discovered[(int)data];
-  sprintf(property_path,"%02X-%02X-%02X-%02X-%02X-%02X.props",
-                        d->mac_address[0],
-                        d->mac_address[1],
-                        d->mac_address[2],
-                        d->mac_address[3],
-                        d->mac_address[4],
-                        d->mac_address[5]);
+  switch(d->protocol) {
+    case ORIGINAL_PROTOCOL:
+    case NEW_PROTOCOL:
+      sprintf(property_path,"%02X-%02X-%02X-%02X-%02X-%02X.props",
+                        d->info.network.mac_address[0],
+                        d->info.network.mac_address[1],
+                        d->info.network.mac_address[2],
+                        d->info.network.mac_address[3],
+                        d->info.network.mac_address[4],
+                        d->info.network.mac_address[5]);
+      break;
+#ifdef LIMESDR
+    case LIMESDR_PROTOCOL:
+      sprintf(property_path,"limesdr.props");
+      break;
+#endif
+  }
   radioRestoreState();
   
   GtkWidget *dialog=gtk_dialog_new_with_buttons("Configure",GTK_WINDOW(splash_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
@@ -582,7 +604,7 @@ static void configure_cb(GtkWidget *widget, gpointer data) {
   gtk_grid_attach(GTK_GRID(grid),sample_rate_384,0,4,1,1);
   g_signal_connect(sample_rate_384,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)384000);
 
-  if(d->protocol==NEW_PROTOCOL) {
+  if(d->protocol==NEW_PROTOCOL || d->protocol==LIMESDR_PROTOCOL) {
     GtkWidget *sample_rate_768=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(sample_rate_384),"768000");
     //gtk_widget_override_font(sample_rate_768, pango_font_description_from_string("Arial 18"));
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sample_rate_768), sample_rate==768000);
@@ -590,53 +612,78 @@ static void configure_cb(GtkWidget *widget, gpointer data) {
     gtk_grid_attach(GTK_GRID(grid),sample_rate_768,0,5,1,1);
     g_signal_connect(sample_rate_768,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)768000);
 
-    GtkWidget *sample_rate_1536=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(sample_rate_768),"1536000");
+    GtkWidget *sample_rate_921=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(sample_rate_768),"921180");
+    //gtk_widget_override_font(sample_rate_921, pango_font_description_from_string("Arial 18"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sample_rate_921), sample_rate==921180);
+    gtk_widget_show(sample_rate_921);
+    gtk_grid_attach(GTK_GRID(grid),sample_rate_921,0,6,1,1);
+    g_signal_connect(sample_rate_921,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)921180);
+
+    GtkWidget *sample_rate_1536=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(sample_rate_921),"1536000");
     //gtk_widget_override_font(sample_rate_1536, pango_font_description_from_string("Arial 18"));
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sample_rate_1536), sample_rate==1536000);
     gtk_widget_show(sample_rate_1536);
-    gtk_grid_attach(GTK_GRID(grid),sample_rate_1536,0,6,1,1);
+    gtk_grid_attach(GTK_GRID(grid),sample_rate_1536,0,7,1,1);
     g_signal_connect(sample_rate_1536,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)1536000);
+
+#ifdef LIMESDR
+    if(d->protocol==LIMESDR_PROTOCOL) {
+      GtkWidget *sample_rate_1M=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(sample_rate_1536),"1048576");
+      //gtk_widget_override_font(sample_rate_1M, pango_font_description_from_string("Arial 18"));
+      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sample_rate_1M), sample_rate==1048576);
+      gtk_widget_show(sample_rate_1M);
+      gtk_grid_attach(GTK_GRID(grid),sample_rate_1M,0,8,1,1);
+      g_signal_connect(sample_rate_1M,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)1048576);
+  
+      GtkWidget *sample_rate_2M=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(sample_rate_1M),"2097152");
+      //gtk_widget_override_font(sample_rate_2M, pango_font_description_from_string("Arial 18"));
+      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sample_rate_2M), sample_rate==2097152);
+      gtk_widget_show(sample_rate_2M);
+      gtk_grid_attach(GTK_GRID(grid),sample_rate_2M,0,9,1,1);
+      g_signal_connect(sample_rate_2M,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)2097152);
+    }
+#endif
   }
 
 
   GtkWidget *display_label=gtk_label_new("Display:");
   //gtk_widget_override_font(display_label, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(display_label);
-  gtk_grid_attach(GTK_GRID(grid),display_label,0,7,1,1);
+  gtk_grid_attach(GTK_GRID(grid),display_label,0,9,1,1);
 
   GtkWidget *b_display_panadapter=gtk_check_button_new_with_label("Display Panadapter");
   //gtk_widget_override_font(b_display_panadapter, pango_font_description_from_string("Arial 18"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_panadapter), display_panadapter);
   gtk_widget_show(b_display_panadapter);
-  gtk_grid_attach(GTK_GRID(grid),b_display_panadapter,0,8,1,1);
+  gtk_grid_attach(GTK_GRID(grid),b_display_panadapter,0,10,1,1);
   g_signal_connect(b_display_panadapter,"toggled",G_CALLBACK(display_panadapter_cb),(gpointer *)NULL);
 
   GtkWidget *b_display_waterfall=gtk_check_button_new_with_label("Display Waterfall");
   //gtk_widget_override_font(b_display_waterfall, pango_font_description_from_string("Arial 18"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_waterfall), display_waterfall);
   gtk_widget_show(b_display_waterfall);
-  gtk_grid_attach(GTK_GRID(grid),b_display_waterfall,0,9,1,1);
+  gtk_grid_attach(GTK_GRID(grid),b_display_waterfall,0,11,1,1);
   g_signal_connect(b_display_waterfall,"toggled",G_CALLBACK(display_waterfall_cb),(gpointer *)NULL);
 
   GtkWidget *b_display_sliders=gtk_check_button_new_with_label("Display Sliders");
   //gtk_widget_override_font(b_display_sliders, pango_font_description_from_string("Arial 18"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_sliders), display_sliders);
   gtk_widget_show(b_display_sliders);
-  gtk_grid_attach(GTK_GRID(grid),b_display_sliders,0,10,1,1);
+  gtk_grid_attach(GTK_GRID(grid),b_display_sliders,0,12,1,1);
   g_signal_connect(b_display_sliders,"toggled",G_CALLBACK(display_sliders_cb),(gpointer *)NULL);
 
   GtkWidget *b_display_toolbar=gtk_check_button_new_with_label("Display Toolbar");
   //gtk_widget_override_font(b_display_toolbar, pango_font_description_from_string("Arial 18"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_toolbar), display_toolbar);
   gtk_widget_show(b_display_toolbar);
-  gtk_grid_attach(GTK_GRID(grid),b_display_toolbar,0,11,1,1);
+  gtk_grid_attach(GTK_GRID(grid),b_display_toolbar,0,13,1,1);
   g_signal_connect(b_display_toolbar,"toggled",G_CALLBACK(display_toolbar_cb),(gpointer *)NULL);
 
   GtkWidget *b_toolbar_simulate_buttons=gtk_check_button_new_with_label("Toolbar Simulate Buttons");
   //gtk_widget_override_font(b_toolbar_simulate_buttons, pango_font_description_from_string("Arial 18"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_toolbar_simulate_buttons), toolbar_simulate_buttons);
   gtk_widget_show(b_toolbar_simulate_buttons);
-  gtk_grid_attach(GTK_GRID(grid),b_toolbar_simulate_buttons,0,12,1,1);
+  gtk_grid_attach(GTK_GRID(grid),b_toolbar_simulate_buttons,0,14,1,1);
   g_signal_connect(b_toolbar_simulate_buttons,"toggled",G_CALLBACK(toolbar_simulate_buttons_cb),(gpointer *)NULL);
   gtk_container_add(GTK_CONTAINER(content),grid);
 
@@ -667,10 +714,18 @@ gboolean main_delete (GtkWidget *widget) {
 #ifdef INCLUDE_GPIO
   gpio_close();
 #endif
-  if(protocol==ORIGINAL_PROTOCOL) {
-    old_protocol_stop();
-  } else {
-    new_protocol_stop();
+  switch(protocol) {
+    case ORIGINAL_PROTOCOL:
+      old_protocol_stop();
+      break;
+    case NEW_PROTOCOL:
+      new_protocol_stop();
+      break;
+#ifdef LIMESDR
+    case LIMESDR_PROTOCOL:
+      lime_protocol_stop();
+      break;
+#endif
   }
   radioSaveState();
   _exit(0);
@@ -782,21 +837,41 @@ gint init(void* arg) {
           char text[128];
           for(i=0;i<devices;i++) {
               d=&discovered[i];
-              sprintf(text,"%s (%s %d.%d) %s (%02X:%02X:%02X:%02X:%02X:%02X) on %s\n",
+fprintf(stderr,"protocol=%d name=%s\n",d->protocol,d->name);
+              switch(d->protocol) {
+                case ORIGINAL_PROTOCOL:
+                case NEW_PROTOCOL:
+                  sprintf(text,"%s (%s %d.%d) %s (%02X:%02X:%02X:%02X:%02X:%02X) on %s\n",
                         d->name,
                         d->protocol==ORIGINAL_PROTOCOL?"old":"new",
                         //d->protocol==ORIGINAL_PROTOCOL?d->software_version/10:d->software_version/100,
                         //d->protocol==ORIGINAL_PROTOCOL?d->software_version%10:d->software_version%100,
                         d->software_version/10,
                         d->software_version%10,
-                        inet_ntoa(d->address.sin_addr),
-                        d->mac_address[0],
-                        d->mac_address[1],
-                        d->mac_address[2],
-                        d->mac_address[3],
-                        d->mac_address[4],
-                        d->mac_address[5],
-                        d->interface_name);
+                        inet_ntoa(d->info.network.address.sin_addr),
+                        d->info.network.mac_address[0],
+                        d->info.network.mac_address[1],
+                        d->info.network.mac_address[2],
+                        d->info.network.mac_address[3],
+                        d->info.network.mac_address[4],
+                        d->info.network.mac_address[5],
+                        d->info.network.interface_name);
+                  break;
+#ifdef LIMESDR
+                case LIMESDR_PROTOCOL:
+/*
+                  sprintf(text,"%s (%s %d.%d.%d)\n",
+                        d->name,
+                        "lime",
+                        d->software_version/100,
+                        (d->software_version%100)/10,
+                        d->software_version%10);
+*/
+                  sprintf(text,"%s\n",
+                        d->name);
+                  break;
+#endif
+              }
 
               GtkWidget *label=gtk_label_new(text);
               gtk_widget_override_font(label, pango_font_description_from_string("Arial 12"));
@@ -816,7 +891,7 @@ gint init(void* arg) {
               }
 
               // if not on the same subnet then cannot start it
-              if((d->interface_address.sin_addr.s_addr&d->interface_netmask.sin_addr.s_addr) != (d->address.sin_addr.s_addr&d->interface_netmask.sin_addr.s_addr)) {
+              if((d->info.network.interface_address.sin_addr.s_addr&d->info.network.interface_netmask.sin_addr.s_addr) != (d->info.network.address.sin_addr.s_addr&d->info.network.interface_netmask.sin_addr.s_addr)) {
                 gtk_button_set_label(GTK_BUTTON(start_button),"Subnet!");
                 gtk_widget_set_sensitive(start_button, FALSE);
               }
@@ -853,13 +928,23 @@ gint init(void* arg) {
   protocol=d->protocol;
   device=d->device;
 
-  sprintf(property_path,"%02X-%02X-%02X-%02X-%02X-%02X.props",
-                        d->mac_address[0],
-                        d->mac_address[1],
-                        d->mac_address[2],
-                        d->mac_address[3],
-                        d->mac_address[4],
-                        d->mac_address[5]);
+  switch(d->protocol) {
+    case ORIGINAL_PROTOCOL:
+    case NEW_PROTOCOL:
+      sprintf(property_path,"%02X-%02X-%02X-%02X-%02X-%02X.props",
+                        d->info.network.mac_address[0],
+                        d->info.network.mac_address[1],
+                        d->info.network.mac_address[2],
+                        d->info.network.mac_address[3],
+                        d->info.network.mac_address[4],
+                        d->info.network.mac_address[5]);
+      break;
+#ifdef LIMESDR
+    case LIMESDR_PROTOCOL:
+      sprintf(property_path,"limesdr.props");
+      break;
+#endif
+  }
 
   radioRestoreState();
 
@@ -868,12 +953,21 @@ gint init(void* arg) {
   //splash_status("Initializing wdsp ...");
   wdsp_init(0,display_width,d->protocol);
 
-  if(d->protocol==ORIGINAL_PROTOCOL) {
+  switch(d->protocol) {
+    case ORIGINAL_PROTOCOL:
       splash_status("Initializing old protocol ...");
       old_protocol_init(0,display_width);
-  } else {
+      break;
+    case NEW_PROTOCOL:
       splash_status("Initializing new protocol ...");
       new_protocol_init(0,display_width);
+      break;
+#ifdef LIMESDR
+    case LIMESDR_PROTOCOL:
+      splash_status("Initializing lime protocol ...");
+      lime_protocol_init(0,display_width);
+      break;
+#endif
   }
 
   splash_status("Initializing GPIO ...");
@@ -1012,11 +1106,12 @@ fprintf(stderr,"toolbar_height=%d\n",TOOLBAR_HEIGHT);
   // save every 30 seconds
   save_timer_id=gdk_threads_add_timeout(30000, save_cb, NULL);
 
-  vfo_update(NULL);
 
-  if(protocol==ORIGINAL_PROTOCOL) {
+  if(protocol!=NEW_PROTOCOL) {
     setFrequency(getFrequency());
   }
+
+  g_idle_add(vfo_update,(gpointer)NULL);
 
   return 0;
 }
@@ -1047,6 +1142,7 @@ main (int   argc,
   display_width=gdk_screen_get_width(screen);
   display_height=gdk_screen_get_height(screen);
 
+fprintf(stderr,"width=%d height=%d\n", display_width, display_height);
   if(display_width>800 || display_height>480) {
     display_width=800;
     display_height=480;

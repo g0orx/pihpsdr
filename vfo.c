@@ -39,6 +39,7 @@
 #include "channel.h"
 #include "toolbar.h"
 #include "wdsp.h"
+#include "wdsp_init.h"
 
 static GtkWidget *parent_window;
 static int my_width;
@@ -56,8 +57,9 @@ static GtkWidget* band_menu=NULL;
 void vfo_step(int steps) {
   if(!locked) {
     BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
-    entry->frequencyA=entry->frequencyA+(steps*step);
-    setFrequency(entry->frequencyA);
+    //entry->frequencyA=entry->frequencyA+(steps*step);
+    //setFrequency(entry->frequencyA);
+    setFrequency(entry->frequencyA+(steps*step));
     vfo_update(NULL);
   }
 }
@@ -65,11 +67,23 @@ void vfo_step(int steps) {
 void vfo_move(int hz) {
   if(!locked) {
     BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
-    entry->frequencyA=(entry->frequencyA+hz)/step*step;
-    setFrequency(entry->frequencyA);
+    //entry->frequencyA=(entry->frequencyA+hz)/step*step;
+    //setFrequency(entry->frequencyA);
+    //setFrequency((entry->frequencyA+ddsOffset+hz)/step*step);
+    setFrequency((entry->frequencyA+ddsOffset-hz)/step*step);
     vfo_update(NULL);
   }
 }
+void vfo_move_to(int hz) {
+  if(!locked) {
+    BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
+    //entry->frequencyA=(entry->frequencyA+hz)/step*step;
+    //setFrequency(entry->frequencyA);
+    setFrequency((entry->frequencyA+hz)/step*step);
+    vfo_update(NULL);
+  }
+}
+
 
 static gboolean vfo_configure_event_cb (GtkWidget         *widget,
             GdkEventConfigure *event,
@@ -91,6 +105,8 @@ fprintf(stderr,"vfo_configure_event_cb: width=%d height=%d\n",
   cr = cairo_create (vfo_surface);
   cairo_set_source_rgb (cr, 0, 0, 0);
   cairo_paint (cr);
+
+  g_idle_add(vfo_update,NULL);
 
   /* We've handled the configure event, no need for further processing. */
   return TRUE;
@@ -128,18 +144,22 @@ int vfo_update(void *data) {
             cairo_set_source_rgb(cr, 0, 1, 0);
         }
 
+        long long f=entry->frequencyA+ddsOffset;
+
         char sf[32];
-        sprintf(sf,"%0lld.%06lld MHz",entry->frequencyA/(long long)1000000,entry->frequencyA%(long long)1000000);
+        //sprintf(sf,"%0lld.%06lld MHz",entry->frequencyA/(long long)1000000,entry->frequencyA%(long long)1000000);
+        sprintf(sf,"%0lld.%06lld MHz",f/(long long)1000000,f%(long long)1000000);
         cairo_move_to(cr, 5, 30);  
         cairo_show_text(cr, sf);
 
         cairo_set_font_size(cr, 12);
 
-        cairo_move_to(cr, (my_width/2)+20, 30);  
-        cairo_show_text(cr, getFrequencyInfo(entry->frequencyA));
+        cairo_move_to(cr, (my_width/2)+40, 30);  
+        //cairo_show_text(cr, getFrequencyInfo(entry->frequencyA));
+        cairo_show_text(cr, getFrequencyInfo(f));
 
         sprintf(sf,"Step %dHz",step);
-        cairo_move_to(cr, (my_width/2)+20, 15);  
+        cairo_move_to(cr, (my_width/2)+40, 15);  
         cairo_show_text(cr, sf);
 
         if(locked) {
@@ -202,6 +222,8 @@ int vfo_update(void *data) {
 
         cairo_destroy (cr);
         gtk_widget_queue_draw (vfo);
+    } else {
+fprintf(stderr,"vfo_update: no surface!\n");
     }
     return 0;
 }
@@ -281,6 +303,7 @@ fprintf(stderr,"vfo_init: width=%d height=%d\n", width, height);
   gtk_widget_set_events (vfo, gtk_widget_get_events (vfo)
                      | GDK_BUTTON_PRESS_MASK);
 
+fprintf(stderr,"vfo_init: set Frequency,Mode,Filter\n");
   BAND *band=band_get_current_band();
   BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
   setFrequency(entry->frequencyA);

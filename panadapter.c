@@ -29,6 +29,10 @@
 #include "radio.h"
 #include "panadapter.h"
 #include "vfo.h"
+#ifdef FREEDV
+#include "mode.h"
+#include "freedv.h"
+#endif
 
 static GtkWidget *panadapter;
 static cairo_surface_t *panadapter_surface = NULL;
@@ -124,7 +128,7 @@ panadapter_button_release_event_cb (GtkWidget      *widget,
       vfo_move((int)((float)(x-last_x)*hz_per_pixel));
     } else {
       // move to this frequency
-      vfo_move((int)((float)(x-(display_width/2))*hz_per_pixel));
+      vfo_move_to((int)((float)(x-(display_width/2))*hz_per_pixel));
     }
     last_x=x;
     pressed=FALSE;
@@ -199,7 +203,14 @@ void panadapter_update(float *data,int tx) {
                 } else {
                     hz_per_pixel=192000.0/(double)display_width;
                 }
-            }
+            } /* else if(mode==modeFREEDV) {
+                saved_max=panadapter_high;
+                saved_min=panadapter_low;
+                saved_hz_per_pixel=hz_per_pixel;
+                panadapter_high=20;
+                panadapter_low=-100;
+                hz_per_pixel=48000.0/(double)display_width;
+            } */
 
             //clear_panadater_surface();
             cairo_t *cr;
@@ -209,8 +220,8 @@ void panadapter_update(float *data,int tx) {
 
             // filter
             cairo_set_source_rgb (cr, 0.25, 0.25, 0.25);
-            filter_left=(double)display_width/2.0+((double)getFilterLow()/hz_per_pixel);
-            filter_right=(double)display_width/2.0+((double)getFilterHigh()/hz_per_pixel);
+            filter_left=(double)display_width/2.0+(((double)getFilterLow()+ddsOffset)/hz_per_pixel);
+            filter_right=(double)display_width/2.0+(((double)getFilterHigh()+ddsOffset)/hz_per_pixel);
             cairo_rectangle(cr, filter_left, 0.0, filter_right-filter_left, (double)panadapter_height);
             cairo_fill(cr);
 
@@ -248,6 +259,7 @@ void panadapter_update(float *data,int tx) {
                 divisor=5000L;
                 break;
               case 96000:
+              case 100000:
                 divisor=10000L;
                 break;
               case 192000:
@@ -259,7 +271,9 @@ void panadapter_update(float *data,int tx) {
               case 768000:
                 divisor=50000L;
                 break;
+              case 1048576:
               case 1536000:
+              case 2097152:
                 divisor=100000L;
                 break;
             }
@@ -340,15 +354,30 @@ void panadapter_update(float *data,int tx) {
             cairo_set_line_width(cr, 1.0);
             cairo_stroke(cr);
 
+#ifdef FREEDV
+            if(mode==modeFREEDV) {
+              cairo_set_source_rgb(cr, 0, 0, 0);
+              cairo_rectangle(cr, (double)display_width/2.0+2.0, (double)panadapter_height-20.0, (double)display_width, (double)panadapter_height);
+              cairo_fill(cr);
+              cairo_set_source_rgb(cr, 0, 1, 0);
+              cairo_set_font_size(cr, 16);
+              cairo_move_to(cr,(double)display_width/2.0+5.0,(double)panadapter_height-2.0);
+              cairo_show_text(cr, freedv_rx_text_data);
+            }
+#endif
+
             cairo_destroy (cr);
             gtk_widget_queue_draw (panadapter);
 
             if(tx) {
-                panadapter_high=saved_max;
-                panadapter_low=saved_min;
-                hz_per_pixel=saved_hz_per_pixel;
-            }
-
+              panadapter_high=saved_max;
+              panadapter_low=saved_min;
+              hz_per_pixel=saved_hz_per_pixel;
+            } /* else if(mode==modeFREEDV) {
+              panadapter_high=saved_max;
+              panadapter_low=saved_min;
+              hz_per_pixel=saved_hz_per_pixel;
+            } */
         }
     //}
 }

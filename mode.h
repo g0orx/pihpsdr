@@ -29,9 +29,12 @@
 #define modeDIGL 9
 #define modeSAM 10
 #define modeDRM 11
+#ifdef FREEDV
 #define modeFREEDV 12
-
 #define MODES 13
+#else
+#define MODES 12
+#endif
 
 int mode;
 

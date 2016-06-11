@@ -63,6 +63,7 @@ static int tx_buffer_size=BUFFER_SIZE;
 static int fft_size=4096;
 static int dspRate=48000;
 static int outputRate=48000;
+static int dvOutputRate=8000;
 
 static int micSampleRate=48000;
 static int micDspRate=48000;
@@ -73,25 +74,32 @@ static int SPECTRUM_UPDATES_PER_SECOND=10;
 
 static void initAnalyzer(int channel,int buffer_size);
 
-void setRXMode(int m) {
-    SetRXAMode(receiver, mode==modeFREEDV?modeUSB:mode);
+void setRXMode(int rx,int m) {
+fprintf(stderr,"SetRXAMode: rx=%d mode=%d\n",rx,m);
+  SetRXAMode(rx, m);
 }
 
-void setTXMode(int m) {
-    SetTXAMode(CHANNEL_TX, mode==modeFREEDV?modeUSB:mode);
+void setTXMode(int tx,int m) {
+fprintf(stderr,"SetTXAMode: tx=%d mode=%d\n",tx,m);
+  SetTXAMode(tx, m);
 }
 
 void setMode(int m) {
+fprintf(stderr,"setMode: mode=%d m=%d\n",mode,m);
+int local_mode=m;
 #ifdef FREEDV
     if(mode!=modeFREEDV && m==modeFREEDV) {
+      local_mode=modeUSB;
       init_freedv();
-    } if(mode==modeFREEDV && m!=modeFREEDV) {
+    } else if(mode==modeFREEDV && m!=modeFREEDV) {
       close_freedv();
     }
 #endif
+fprintf(stderr,"setMode: %d mode=%d\n",receiver,mode);
+    setRXMode(receiver,local_mode);
+fprintf(stderr,"setMode: %d mode=%d\n",CHANNEL_TX,mode);
+    setTXMode(CHANNEL_TX,local_mode);
     mode=m;
-    setRXMode(m);
-    setTXMode(m);
 }
 
 int getMode() {
@@ -99,6 +107,7 @@ int getMode() {
 }
 
 void setFilter(int low,int high) {
+fprintf(stderr,"setFilter: %d %d\n",low,high);
     if(mode==modeCWL) {
         filterLow=-cwPitch-low;
         filterHigh=-cwPitch+high;
@@ -110,11 +119,15 @@ void setFilter(int low,int high) {
         filterHigh=high;
     }
 
+    double fl=filterLow+ddsOffset;
+    double fh=filterHigh+ddsOffset;
+
+fprintf(stderr,"setFilter: fl=%f fh=%f\n",fl,fh);
     RXANBPSetFreqs(receiver,(double)filterLow,(double)filterHigh);
-    SetRXABandpassFreqs(receiver, (double)filterLow, (double)filterHigh);
+    SetRXABandpassFreqs(receiver, fl,fh);
     SetRXASNBAOutputBandwidth(receiver, (double)filterLow, (double)filterHigh);
 
-    SetTXABandpassFreqs(CHANNEL_TX, (double)filterLow, (double)filterHigh);
+    SetTXABandpassFreqs(CHANNEL_TX, fl,fh);
 }
 
 int getFilterLow() {
@@ -123,6 +136,62 @@ int getFilterLow() {
 
 int getFilterHigh() {
     return filterHigh;
+}
+
+void wdsp_set_offset(long long offset) {
+    if(offset==0) {
+      SetRXAShiftFreq(receiver, (double)offset);
+      SetRXAShiftRun(receiver, 0);
+    } else {
+      SetRXAShiftFreq(receiver, (double)offset);
+      SetRXAShiftRun(receiver, 1);
+    }
+
+    setFilter(filterLow,filterHigh);
+}
+
+void wdsp_set_input_rate(double rate) {
+    SetInputSamplerate(receiver, (int)rate);
+}
+
+static void setupRX(int rx) {
+    setRXMode(rx,mode);
+    SetRXABandpassFreqs(rx, (double)filterLow, (double)filterHigh);
+    SetRXAAGCMode(rx, agc);
+    SetRXAAGCTop(rx,agc_gain);
+
+    SetRXAAMDSBMode(rx, 0);
+    SetRXAShiftRun(rx, 0);
+
+    SetRXAEMNRPosition(rx, nr_agc);
+    SetRXAEMNRgainMethod(rx, nr2_gain_method);
+    SetRXAEMNRnpeMethod(rx, nr2_npe_method);
+    SetRXAEMNRRun(rx, nr2);
+    SetRXAEMNRaeRun(rx, nr2_ae);
+
+    SetRXAANRVals(rx, 64, 16, 16e-4, 10e-7); // defaults
+    SetRXAANRRun(rx, nr);
+    SetRXAANFRun(rx, anf);
+    SetRXASNBARun(rx, snb);
+}
+
+static void setupTX(int tx) {
+    setTXMode(tx,mode);
+    SetTXABandpassFreqs(tx, (double)filterLow, (double)filterHigh);
+    SetTXABandpassWindow(tx, 1);
+    SetTXABandpassRun(tx, 1);
+
+    SetTXACFIRRun(tx, 1);
+    SetTXAEQRun(tx, 0);
+    SetTXACTCSSRun(tx, 0);
+    SetTXAAMSQRun(tx, 0);
+    SetTXACompressorRun(tx, 0);
+    SetTXAosctrlRun(tx, 0);
+    SetTXAPreGenRun(tx, 0);
+    SetTXAPostGenRun(tx, 0);
+
+    SetChannelState(tx,1,0);
+    SetChannelState(tx,1,0);
 }
 
 void wdsp_init(int rx,int pixels,int protocol) {
@@ -158,6 +227,7 @@ void wdsp_init(int rx,int pixels,int protocol) {
                 0, // receive
                 1, // run
                 0.010, 0.025, 0.0, 0.010, 0);
+
 
     while (gtk_events_pending ())
       gtk_main_iteration ();
@@ -221,41 +291,8 @@ void wdsp_init(int rx,int pixels,int protocol) {
         }
     initAnalyzer(CHANNEL_TX,tx_buffer_size);
 
-    setRXMode(mode);
-    SetRXABandpassFreqs(rx, (double)filterLow, (double)filterHigh);
-    SetRXAAGCMode(rx, agc);
-    SetRXAAGCTop(rx,agc_gain);
-
-    SetRXAAMDSBMode(CHANNEL_RX0, 0);
-    SetRXAShiftRun(CHANNEL_RX0, 0);
-
-    SetRXAEMNRPosition(CHANNEL_RX0, nr_agc);
-    SetRXAEMNRgainMethod(CHANNEL_RX0, nr2_gain_method);
-    SetRXAEMNRnpeMethod(CHANNEL_RX0, nr2_npe_method);
-    SetRXAEMNRRun(CHANNEL_RX0, nr2);
-    SetRXAEMNRaeRun(CHANNEL_RX0, nr2_ae);
-
-    SetRXAANRVals(CHANNEL_RX0, 64, 16, 16e-4, 10e-7); // defaults
-    SetRXAANRRun(CHANNEL_RX0, nr);
-    SetRXAANFRun(CHANNEL_RX0, anf);
-    SetRXASNBARun(CHANNEL_RX0, snb);
-
-    setTXMode(mode);
-    SetTXABandpassFreqs(CHANNEL_TX, (double)filterLow, (double)filterHigh);
-    SetTXABandpassWindow(CHANNEL_TX, 1);
-    SetTXABandpassRun(CHANNEL_TX, 1);
-
-    SetTXACFIRRun(CHANNEL_TX, 1);
-    SetTXAEQRun(CHANNEL_TX, 0);
-    SetTXACTCSSRun(CHANNEL_TX, 0);
-    SetTXAAMSQRun(CHANNEL_TX, 0);
-    SetTXACompressorRun(CHANNEL_TX, 0);
-    SetTXAosctrlRun(CHANNEL_TX, 0);
-    SetTXAPreGenRun(CHANNEL_TX, 0);
-    SetTXAPostGenRun(CHANNEL_TX, 0);
-
-    SetChannelState(CHANNEL_TX,1,0);
-    SetChannelState(CHANNEL_RX0,1,0);
+    setupRX(rx);
+    setupTX(CHANNEL_TX);
 
 }
 

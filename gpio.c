@@ -754,8 +754,9 @@ static int vfo_encoder_changed(void *data) {
   if(!locked) {
     int pos=*(int*)data;
     BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
-    entry->frequencyA=entry->frequencyA+(pos*step);
-    setFrequency(entry->frequencyA);
+    //entry->frequencyA=entry->frequencyA+(pos*step);
+    //setFrequency(entry->frequencyA);
+    setFrequency(entry->frequencyA+ddsOffset+(pos*step));
     vfo_update(NULL);
   }
   free(data);

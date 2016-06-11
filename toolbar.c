@@ -20,8 +20,9 @@
 #include <gtk/gtk.h>
 #include <semaphore.h>
 #include <stdio.h>
-
+#ifdef INCLUDE_GPIO
 #include "gpio.h"
+#endif
 #include "toolbar.h"
 #include "mode.h"
 #include "filter.h"
@@ -440,7 +441,9 @@ static void stop() {
   } else {
     new_protocol_stop();
   }
+#ifdef INCLUDE_GPIO
   gpio_close();
+#endif
 }
 
 static void yes_cb(GtkWidget *widget, gpointer data) {
@@ -868,6 +871,7 @@ fprintf(stderr,"sim_mode_cb\n");
   }
   setMode(entry->mode);
 
+fprintf(stderr,"sim_mode_cb: entry->mode=%d entry->filter=%d\n",entry->mode,entry->filter);
   FILTER* band_filters=filters[entry->mode];
   FILTER* band_filter=&band_filters[entry->filter];
   setFilter(band_filter->low,band_filter->high);
@@ -895,6 +899,7 @@ fprintf(stderr,"sim_filter_cb\n");
     }
   }
 
+fprintf(stderr,"sim_filter_cb: entry->mode=%d entry->filter=%d\n",entry->mode,entry->filter);
   FILTER* band_filters=filters[entry->mode];
   FILTER* band_filter=&band_filters[entry->filter];
   setFilter(band_filter->low,band_filter->high);

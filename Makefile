@@ -2,26 +2,40 @@ UNAME_N := $(shell uname -n)
 CC=gcc
 LINK=gcc
 
-#required for LimeSDR (uncomment lines below)
+#required for LimeSDR (uncomment line below)
+#LIMESDR_INCLUDE=LIMESDR
+
+ifeq ($(LIMESDR_INCLUDE),LIMESDR)
 #LIMESDR_OPTIONS=-D LIMESDR
-#SOAPYSDRLIBS=-lSoapySDR
-#LIMESDR_SOURCES= \
-#lime_discovery.c
-#LIMESDR_HEADERS= \
-#lime_discovery.h
-#LIMESDR_OBJS= \
-#lime_discovery.o
+SOAPYSDRLIBS=-lSoapySDR -lpulse-simple -lpulse
+LIMESDR_SOURCES= \
+audio.c \
+lime_discovery.c \
+lime_protocol.c
+LIMESDR_HEADERS= \
+audio.h \
+lime_discovery.h \
+lime_protocol.h
+LIMESDR_OBJS= \
+audio.o \
+lime_discovery.o \
+lime_protocol.o
+endif
 
 
 #required for FREEDV (uncomment lines below)
-#FREEDV_OPTIONS=-D FREEDV
-#FREEDVLIBS=-lcodec2
-#FREEDV_SOURCES= \
-#freedv.c
-#FREEDV_HEADERS= \
-#freedv.h
-#FREEDV_OBJS= \
-#freedv.o
+FREEDV_INCLUDE=FREEDV
+
+ifeq ($(FREEDV_INCLUDE),FREEDV)
+FREEDV_OPTIONS=-D FREEDV
+FREEDVLIBS=-lcodec2
+FREEDV_SOURCES= \
+freedv.c
+FREEDV_HEADERS= \
+freedv.h
+FREEDV_OBJS= \
+freedv.o
+endif
 
 OPTIONS=-g -D $(UNAME_N) $(LIMESDR_OPTIONS) $(FREEDV_OPTIONS) -O3
 GTKINCLUDES=`pkg-config --cflags gtk+-3.0`

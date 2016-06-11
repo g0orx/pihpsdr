@@ -39,9 +39,10 @@
 #define band1240 16
 #define band2300 17
 #define band3400 18
-#define bandGen 19
-#define bandWWV 20
-#define BANDS 21
+#define bandAIR 19
+#define bandGen 20
+#define bandWWV 21
+#define BANDS 22
 #define HAM_BANDS 19
 #else
 #define bandGen 11

@@ -69,8 +69,8 @@ void new_protocol_programmer(char *filename ) {
 
     DISCOVERED* d=&discovered[selected_device];
 
-    memcpy(&program_addr,&d->address,d->address_length);
-    program_addr_length=d->address_length;
+    memcpy(&program_addr,&d->info.network.address,d->info.network.address_length);
+    program_addr_length=d->info.network.address_length;
     program_addr.sin_port=htons(PROGRAMMING_FROM_HOST_PORT);
 
     FILE *fp;

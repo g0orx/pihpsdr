@@ -1,5 +1,5 @@
 /* Copyright (C)
-* 2015 - John Melton, G0ORX/N6LYT
+* 2016 - John Melton, G0ORX/N6LYT
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License
@@ -17,21 +17,8 @@
 *
 */
 
-char *mode_string[]={
-  "LSB"
-  ,"USB"
-  ,"DSB"
-  ,"CWL"
-  ,"CWU"
-  ,"FMN"
-  ,"AM"
-  ,"DIGU"
-  ,"SPEC"
-  ,"DIGL"
-  ,"SAM"
-  ,"DRM"
-#ifdef FREEDV
-  ,"FREEDV"
-#endif
-};
+extern int audio;
+extern int audio_buffer_size;
 
+void audio_init();
+void audio_write(double *buffer,int samples);

@@ -647,37 +647,37 @@ fprintf(stderr,"outputsamples=%d\n", outputsamples);
     setsockopt(data_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
 
     // bind to the interface
-    if(bind(data_socket,(struct sockaddr*)&d->interface_address,d->interface_length)<0) {
+    if(bind(data_socket,(struct sockaddr*)&d->info.network.interface_address,d->info.network.interface_length)<0) {
         fprintf(stderr,"metis: bind socket failed for data_socket: receiver=%d\n",receiver);
         exit(-1);
     }
 
-    memcpy(&base_addr,&d->address,d->address_length);
-    base_addr_length=d->address_length;
+    memcpy(&base_addr,&d->info.network.address,d->info.network.address_length);
+    base_addr_length=d->info.network.address_length;
     base_addr.sin_port=htons(GENERAL_REGISTERS_FROM_HOST_PORT);
 
-    memcpy(&receiver_addr,&d->address,d->address_length);
-    receiver_addr_length=d->address_length;
+    memcpy(&receiver_addr,&d->info.network.address,d->info.network.address_length);
+    receiver_addr_length=d->info.network.address_length;
     receiver_addr.sin_port=htons(RECEIVER_SPECIFIC_REGISTERS_FROM_HOST_PORT);
 
-    memcpy(&transmitter_addr,&d->address,d->address_length);
-    transmitter_addr_length=d->address_length;
+    memcpy(&transmitter_addr,&d->info.network.address,d->info.network.address_length);
+    transmitter_addr_length=d->info.network.address_length;
     transmitter_addr.sin_port=htons(TRANSMITTER_SPECIFIC_REGISTERS_FROM_HOST_PORT);
 
-    memcpy(&high_priority_addr,&d->address,d->address_length);
-    high_priority_addr_length=d->address_length;
+    memcpy(&high_priority_addr,&d->info.network.address,d->info.network.address_length);
+    high_priority_addr_length=d->info.network.address_length;
     high_priority_addr.sin_port=htons(HIGH_PRIORITY_FROM_HOST_PORT);
 
-    memcpy(&audio_addr,&d->address,d->address_length);
-    audio_addr_length=d->address_length;
+    memcpy(&audio_addr,&d->info.network.address,d->info.network.address_length);
+    audio_addr_length=d->info.network.address_length;
     audio_addr.sin_port=htons(AUDIO_FROM_HOST_PORT);
 
-    memcpy(&iq_addr,&d->address,d->address_length);
-    iq_addr_length=d->address_length;
+    memcpy(&iq_addr,&d->info.network.address,d->info.network.address_length);
+    iq_addr_length=d->info.network.address_length;
     iq_addr.sin_port=htons(TX_IQ_FROM_HOST_PORT);
 
-    memcpy(&data_addr,&d->address,d->address_length);
-    data_addr_length=d->address_length;
+    memcpy(&data_addr,&d->info.network.address,d->info.network.address_length);
+    data_addr_length=d->info.network.address_length;
     data_addr.sin_port=htons(RX_IQ_TO_HOST_PORT+receiver);
 
     samples=0;

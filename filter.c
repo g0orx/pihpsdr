@@ -199,6 +199,7 @@ FILTER filterDRM[FILTERS]={
     {-3300,3300,"Var2"}*/
     };
 
+#ifdef FREEDV
 FILTER filterFREEDV[FILTERS]={
     {150,5150,"5.0k"},
     {150,4550,"4.4k"},
@@ -213,7 +214,24 @@ FILTER filterFREEDV[FILTERS]={
     {150,2850,"Var1"},
     {150,2850,"Var2"}*/
     };
+#endif
 
 
-FILTER *filters[]={filterLSB,filterUSB,filterDSB,filterCWL,filterCWU,filterFMN,filterAM,filterDIGU,filterSPEC,filterDIGL,filterSAM,filterDRM,filterFREEDV};
+FILTER *filters[]={
+    filterLSB
+    ,filterUSB
+    ,filterDSB
+    ,filterCWL
+    ,filterCWU
+    ,filterFMN
+    ,filterAM
+    ,filterDIGU
+    ,filterSPEC
+    ,filterDIGL
+    ,filterSAM
+    ,filterDRM
+#ifdef FREEDV
+    ,filterFREEDV
+#endif
+};
 
