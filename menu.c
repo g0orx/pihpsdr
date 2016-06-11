@@ -450,7 +450,7 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
 
   GtkWidget *general_label=gtk_label_new("General");
   GtkWidget *general_grid=gtk_grid_new();
-  gtk_grid_set_row_homogeneous(GTK_GRID(general_grid),TRUE);
+  //gtk_grid_set_row_homogeneous(GTK_GRID(general_grid),TRUE);
   gtk_grid_set_column_homogeneous(GTK_GRID(general_grid),TRUE);
 
 
@@ -481,6 +481,16 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
     gtk_widget_show(rx_random_b);
     gtk_grid_attach(GTK_GRID(general_grid),rx_random_b,0,2,1,1);
     g_signal_connect(rx_random_b,"toggled",G_CALLBACK(rx_random_cb),NULL);
+
+#ifdef FREEDV
+  GtkWidget *freedv_text_label=gtk_label_new("FreeDV Text Message: ");
+  gtk_grid_attach(GTK_GRID(general_grid),freedv_text_label,0,3,1,1);
+
+  GtkWidget *freedv_text=gtk_entry_new();
+  gtk_entry_set_text(GTK_ENTRY(freedv_text),freedv_tx_text_data);
+  gtk_grid_attach(GTK_GRID(general_grid),freedv_text,0,4,1,1);
+  g_signal_connect(freedv_text,"changed",G_CALLBACK(freedv_text_changed_cb),NULL);
+#endif
 
 /*
     GtkWidget *rx_preamp_b=gtk_check_button_new_with_label("Preamp");
@@ -1223,21 +1233,6 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
   }
 
 
-
-#ifdef FREEDV
-  GtkWidget *freedv_label=gtk_label_new("FREEDV");
-  GtkWidget *freedv_grid=gtk_grid_new();
-
-  GtkWidget *freedv_text_label=gtk_label_new("Text Message: ");
-  gtk_grid_attach(GTK_GRID(freedv_grid),freedv_text_label,0,0,1,1);
-
-  GtkWidget *freedv_text=gtk_entry_new();
-  gtk_entry_set_text(GTK_ENTRY(freedv_text),freedv_tx_text_data);
-  gtk_grid_attach(GTK_GRID(freedv_grid),freedv_text,0,1,4,1);
-  g_signal_connect(freedv_text,"changed",G_CALLBACK(freedv_text_changed_cb),NULL);
-
-  id=gtk_notebook_append_page(GTK_NOTEBOOK(notebook),freedv_grid,freedv_label);
-#endif
 
 
 
