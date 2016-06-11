@@ -69,8 +69,13 @@ void vfo_move(int hz) {
     BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
     //entry->frequencyA=(entry->frequencyA+hz)/step*step;
     //setFrequency(entry->frequencyA);
-    //setFrequency((entry->frequencyA+ddsOffset+hz)/step*step);
-    setFrequency((entry->frequencyA+ddsOffset-hz)/step*step);
+    
+#ifdef LIMESDR
+    if(protocol==LIMESDR_PROTOCOL)
+      setFrequency((entry->frequencyA+ddsOffset-hz)/step*step);
+    else 
+#endif
+      setFrequency((entry->frequencyA+ddsOffset+hz)/step*step);
     vfo_update(NULL);
   }
 }
@@ -79,7 +84,12 @@ void vfo_move_to(int hz) {
     BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
     //entry->frequencyA=(entry->frequencyA+hz)/step*step;
     //setFrequency(entry->frequencyA);
-    setFrequency((entry->frequencyA+hz)/step*step);
+#ifdef LIMESDR
+    if(protocol==LIMESDR_PROTOCOL)
+      setFrequency((entry->frequencyA+ddsOffset-hz)/step*step);
+    else
+#endif
+      setFrequency((entry->frequencyA+ddsOffset+hz)/step*step);
     vfo_update(NULL);
   }
 }

@@ -766,7 +766,7 @@ static int vfo_encoder_changed(void *data) {
 static int af_encoder_changed(void *data) {
   int pos=*(int*)data;
   if(pos!=0) {
-    if(function) {
+    if(function || isTransmitting()) {
       // mic gain
       double gain=mic_gain;
       gain+=(double)pos/100.0;
