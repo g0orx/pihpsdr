@@ -18,7 +18,9 @@
 */
 
 #include <netinet/in.h>
+#ifdef LIMESDR
 #include <SoapySDR/Device.h>
+#endif
 
 #define MAX_DEVICES 16
 
@@ -37,14 +39,18 @@
 #define NEW_DEVICE_ORION2 5
 #define NEW_DEVICE_HERMES_LITE 6
 
+#ifdef LIMESDR
 #define LIMESDR_USB_DEVICE 0
+#endif
 
 #define STATE_AVAILABLE 2
 #define STATE_SENDING 3
 
 #define ORIGINAL_PROTOCOL 0
 #define NEW_PROTOCOL 1
+#ifdef LIMESDR
 #define LIMESDR_PROTOCOL 2
+#endif
 
 struct _DISCOVERED {
     int protocol;
@@ -62,9 +68,11 @@ struct _DISCOVERED {
         struct sockaddr_in interface_netmask;
         char interface_name[64];
       } network;
+#ifdef LIMESDR
       struct soapy {
         SoapySDRKwargs *args;
       } soapy;
+#endif
     } info;
 };
 

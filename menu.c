@@ -401,9 +401,11 @@ static void tx_ant_cb(GtkWidget *widget, gpointer data) {
   set_alex_tx_antenna(ant);
 }
 
+#ifdef FREEDV
 static void freedv_text_changed_cb(GtkWidget *widget, gpointer data) {
   strcpy(freedv_tx_text_data,gtk_entry_get_text(GTK_ENTRY(widget)));
 }
+#endif
 
 static void switch_page_cb(GtkNotebook *notebook,
                GtkWidget   *page,

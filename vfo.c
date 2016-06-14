@@ -40,6 +40,9 @@
 #include "toolbar.h"
 #include "wdsp.h"
 #include "wdsp_init.h"
+#ifdef LIMESDR
+#include "discovered.h"
+#endif
 
 static GtkWidget *parent_window;
 static int my_width;
