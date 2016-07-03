@@ -48,7 +48,7 @@ endif
 ifeq ($(UNAME_N),odroid)
 GPIOLIBS=-lwiringPi
 endif
-LIBS=-lrt -lm -lwdsp -lpthread $(GTKLIBS) $(GPIOLIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS)
+LIBS=-lrt -lm -lwdsp -lpthread -lpulse-simple -lpulse $(GTKLIBS) $(GPIOLIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS)
 INCLUDES=$(GTKINCLUDES)
 
 COMPILE=$(CC) $(OPTIONS) $(INCLUDES)
@@ -56,6 +56,7 @@ COMPILE=$(CC) $(OPTIONS) $(INCLUDES)
 PROGRAM=pihpsdr
 
 SOURCES= \
+audio.c\
 band.c \
 frequency.c \
 discovered.c \
@@ -85,6 +86,7 @@ wdsp_init.c
 HEADERS= \
 agc.h \
 alex.h \
+audio.h \
 band.h \
 frequency.h \
 bandstack.h \
@@ -113,6 +115,7 @@ xvtr.h
 
 
 OBJS= \
+audio.o \
 band.o \
 frequency.o \
 discovered.o \

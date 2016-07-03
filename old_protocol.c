@@ -49,6 +49,12 @@
 #include "freedv.h"
 #endif
 
+#define AUDIO_OUT
+
+#ifdef AUDIO_OUT
+#include "audio.h"
+#endif
+
 #define SYNC0 0
 #define SYNC1 1
 #define SYNC2 2
@@ -207,7 +213,10 @@ void old_protocol_init(int rx,int pixels) {
   d=&discovered[selected_device];
 
   //int result=sem_init(&frequency_changed_sem, 0, 1);
-
+#ifdef AUDIO_OUT
+  printf("audio_init() called.\n");
+  audio_init();
+#endif
   receiver=rx;
   display_width=pixels;
  
@@ -289,7 +298,7 @@ static void start_receive_thread() {
 
 }
 
-static void *receive_thread(void* arg) {
+static void *   receive_thread(void* arg) {
   struct sockaddr_in addr;
   int length;
   unsigned char buffer[2048];
@@ -509,14 +518,17 @@ static void process_ozy_input_buffer(char  *buffer) {
 }
 
 static void full_rx_buffer() {
-  int j;
+  int j,k;
   int error;
+#ifdef AUDIO_OUT
+    double audiosoundbuffer[2*BUFFER_SIZE];
+#endif
 #ifdef FREEDV
   if(mode==modeFREEDV) {
     // process the input
     fexchange0(CHANNEL_RX0, iqinputbuffer, audiooutputbuffer, &error);
     if(error!=0) {
-      fprintf(stderr,"fexchange2 (CHANNEL_RX0) returned error: %d\n", error);
+      fprintf(stderr,"fexchange0 (CHANNEL_RX0) returned error: %d\n", error);
     }
     Spectrum0(1, CHANNEL_RX0, 0, 0, iqinputbuffer);
 
@@ -542,7 +554,7 @@ static void full_rx_buffer() {
               output_buffer[output_buffer_index++]=right_rx_sample;
               left_tx_sample=right_tx_sample=0;
               output_buffer[output_buffer_index++]=left_tx_sample>>8;
-  	      output_buffer[output_buffer_index++]=left_tx_sample;
+              output_buffer[output_buffer_index++]=left_tx_sample;
     	      output_buffer[output_buffer_index++]=right_tx_sample>>8;
     	      output_buffer[output_buffer_index++]=right_tx_sample;
     	      if(output_buffer_index>=OZY_BUFFER_SIZE) {
@@ -563,12 +575,16 @@ static void full_rx_buffer() {
     // process the input
     fexchange0(CHANNEL_RX0, iqinputbuffer, audiooutputbuffer, &error);
     if(error!=0) {
-      fprintf(stderr,"fexchange2 (CHANNEL_RX0) returned error: %d\n", error);
+      fprintf(stderr,"fexchange0 (CHANNEL_RX0) returned error: %d\n", error);
     }
     Spectrum0(1, CHANNEL_RX0, 0, 0, iqinputbuffer);
     for(j=0;j<output_buffer_size;j++) {
       left_rx_sample=(short)(audiooutputbuffer[j*2]*32767.0*volume);
       right_rx_sample=(short)(audiooutputbuffer[(j*2)+1]*32767.0*volume);
+#ifdef AUDIO_OUT
+      audiosoundbuffer[j*2] = audiooutputbuffer[j*2]*volume;
+      audiosoundbuffer[(j*2)+1] = audiooutputbuffer[(j*2)+1]*volume;
+#endif
       left_tx_sample=0;
       right_tx_sample=0;
       output_buffer[output_buffer_index++]=left_rx_sample>>8;
@@ -584,6 +600,9 @@ static void full_rx_buffer() {
         output_buffer_index=8;
       }
     }
+#ifdef AUDIO_OUT
+    audio_write(audiosoundbuffer, output_buffer_size );
+#endif
 #ifdef FREEDV
   }
 #endif
