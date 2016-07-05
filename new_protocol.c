@@ -784,6 +784,16 @@ fprintf(stderr,"outputsamples=%d\n", outputsamples);
           ptt=buffer[4]&0x01;
           dot=(buffer[4]>>1)&0x01;
           dash=(buffer[4]>>2)&0x01;
+
+if(ptt!=previous_ptt) {
+  fprintf(stderr,"ptt=%d\n",ptt);
+}
+if(dot!=previous_dot) {
+  fprintf(stderr,"dot=%d\n",dot);
+}
+if(dash!=previous_dash) {
+  fprintf(stderr,"dash=%d\n",dash);
+}
           pll_locked=(buffer[4]>>3)&0x01;
           adc_overload=buffer[5]&0x01;
           exciter_power=((buffer[6]&0xFF)<<8)|(buffer[7]&0xFF);

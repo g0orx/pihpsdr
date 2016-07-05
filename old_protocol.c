@@ -594,9 +594,10 @@ static void full_tx_buffer() {
   int error;
   double gain;
   if(tune) {
-    double tunefrequency = (double)((filterHigh - filterLow) / 2);
+    double tunefrequency = (double)(filterLow+((filterHigh - filterLow) / 2));
     phase=sineWave(micinputbuffer, BUFFER_SIZE, phase, (float)tunefrequency);
   }
+
   // process the output
   fexchange0(CHANNEL_TX, micinputbuffer, micoutputbuffer, &error);
   if(error!=0) {
@@ -860,7 +861,7 @@ void ozy_send_buffer() {
         // output_buffer[C1]|=0x00;
       } else {
         if((tune==1) || (mox==1) || (cw_keyer_internal==0)) {
-          // output_buffer[C1]|=0x00;
+          output_buffer[C1]|=0x00;
         } else {
           output_buffer[C1]|=0x01;
         }
@@ -871,10 +872,10 @@ void ozy_send_buffer() {
       break;
     case 8:
       output_buffer[C0]=0x20;
-      output_buffer[C1]=cw_keyer_hang_time;
-      output_buffer[C2]=cw_keyer_hang_time>>8;
-      output_buffer[C3]=cw_keyer_sidetone_frequency;
-      output_buffer[C4]=cw_keyer_sidetone_frequency>>8;
+      output_buffer[C1]=(cw_keyer_hang_time>>2) & 0xFF;
+      output_buffer[C2]=cw_keyer_hang_time & 0x03;
+      output_buffer[C3]=(cw_keyer_sidetone_frequency>>4) & 0xFF;
+      output_buffer[C4]=cw_keyer_sidetone_frequency & 0x0F;
       break;
   }
 
@@ -888,6 +889,8 @@ void ozy_send_buffer() {
       if(cw_keyer_internal==0) {
         output_buffer[C0]|=0x01;
       }
+    } else {
+      output_buffer[C0]|=0x01;
     }
   }
 

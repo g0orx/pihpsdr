@@ -1020,12 +1020,18 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
     GtkWidget *cw_grid=gtk_grid_new();
     gtk_grid_set_row_homogeneous(GTK_GRID(cw_grid),TRUE);
 
+/*
     GtkWidget *cw_keyer_internal_b=gtk_check_button_new_with_label("CW Internal - Speed (WPM)");
     //gtk_widget_override_font(cw_keyer_internal_b, pango_font_description_from_string("Arial 18"));
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (cw_keyer_internal_b), cw_keyer_internal);
     gtk_widget_show(cw_keyer_internal_b);
     gtk_grid_attach(GTK_GRID(cw_grid),cw_keyer_internal_b,0,0,1,1);
     g_signal_connect(cw_keyer_internal_b,"toggled",G_CALLBACK(cw_keyer_internal_cb),NULL);
+*/
+    GtkWidget *cw_speed_label=gtk_label_new("CW Speed (WPM)");
+    //gtk_widget_override_font(cw_speed_label, pango_font_description_from_string("Arial 18"));
+    gtk_widget_show(cw_speed_label);
+    gtk_grid_attach(GTK_GRID(cw_grid),cw_speed_label,0,0,1,1);
 
     GtkWidget *cw_keyer_speed_b=gtk_spin_button_new_with_range(1.0,60.0,1.0);
     //gtk_widget_override_font(cw_keyer_speed_b, pango_font_description_from_string("Arial 18"));

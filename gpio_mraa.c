@@ -1,11 +1,3 @@
-#ifdef raspberrypi
-#define INCLUDE_GPIO
-#endif
-#ifdef odroid
-#define INCLUDE_GPIO
-#endif
-
-#ifdef INCLUDE_GPIO
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,10 +8,7 @@
 #include <poll.h>
 #include <sched.h>
 #include <pthread.h>
-#include <wiringPi.h>
-#ifdef raspberrypi
-#include <pigpio.h>
-#endif
+#include <mraa.h>
 
 #include "band.h"
 #include "channel.h"
@@ -35,55 +24,67 @@
 #include "property.h"
 #include "wdsp.h"
 
-#define SYSFS_GPIO_DIR  "/sys/class/gpio"
 
 int ENABLE_VFO_ENCODER=1;
 int ENABLE_VFO_PULLUP=1;
-int VFO_ENCODER_A=17;
-int VFO_ENCODER_B=18;
-#ifdef odroid
-int VFO_ENCODER_A_PIN=0;
-int VFO_ENCODER_B_PIN=1;
-#endif
+int VFO_ENCODER_A=11;
+int VFO_ENCODER_B=12;
 int ENABLE_AF_ENCODER=1;
 int ENABLE_AF_PULLUP=0;
-int AF_ENCODER_A=20;
-int AF_ENCODER_B=26;
-int AF_FUNCTION=25;
+int AF_ENCODER_A=38;
+int AF_ENCODER_B=37;
 int ENABLE_RF_ENCODER=1;
 int ENABLE_RF_PULLUP=0;
-int RF_ENCODER_A=16;
-int RF_ENCODER_B=19;
-int RF_FUNCTION=8;
+int RF_ENCODER_A=36;
+int RF_ENCODER_B=35;
 int ENABLE_AGC_ENCODER=1;
 int ENABLE_AGC_PULLUP=0;
-int AGC_ENCODER_A=4;
-int AGC_ENCODER_B=21;
-int AGC_FUNCTION=7;
+int AGC_ENCODER_A=7;
+int AGC_ENCODER_B=40;
 int ENABLE_BAND_BUTTON=1;
-int BAND_BUTTON=13;
+int BAND_BUTTON=33;
 int ENABLE_BANDSTACK_BUTTON=1;
-int BANDSTACK_BUTTON=12;
+int BANDSTACK_BUTTON=32;
 int ENABLE_MODE_BUTTON=1;
-int MODE_BUTTON=6;
+int MODE_BUTTON=31;
 int ENABLE_FILTER_BUTTON=1;
-int FILTER_BUTTON=5;
+int FILTER_BUTTON=29;
 int ENABLE_NOISE_BUTTON=1;
-int NOISE_BUTTON=24;
+int NOISE_BUTTON=18;
 int ENABLE_AGC_BUTTON=1;
-int AGC_BUTTON=23;
+int AGC_BUTTON=16;
 int ENABLE_MOX_BUTTON=1;
-int MOX_BUTTON=27;
+int MOX_BUTTON=13;
 int ENABLE_FUNCTION_BUTTON=1;
-int FUNCTION_BUTTON=22;
+int FUNCTION_BUTTON=15;
 int ENABLE_LOCK_BUTTON=1;
-int LOCK_BUTTON=25;
+int LOCK_BUTTON=22;
+int SPARE_RF_BUTTON=24;
+int SPARE_AGC_BUTTON=26;
+
+static mraa_gpio_context vfo_a_context;
+static mraa_gpio_context vfo_b_context;
+static mraa_gpio_context af_a_context;
+static mraa_gpio_context af_b_context;
+static mraa_gpio_context rf_a_context;
+static mraa_gpio_context rf_b_context;
+static mraa_gpio_context agc_a_context;
+static mraa_gpio_context agc_b_context;
+static mraa_gpio_context band_context;
+static mraa_gpio_context bandstack_context;
+static mraa_gpio_context mode_context;
+static mraa_gpio_context filter_context;
+static mraa_gpio_context noise_context;
+static mraa_gpio_context agc_context;
+static mraa_gpio_context mox_context;
+static mraa_gpio_context function_context;
+static mraa_gpio_context lock_context;
+static mraa_gpio_context rf_sw_context;
+static mraa_gpio_context agc_sw_context;
 
 static volatile int vfoEncoderPos;
 static volatile int afEncoderPos;
-static volatile int afFunction;
 static volatile int rfEncoderPos;
-static volatile int rfFunction;
 static volatile int agcEncoderPos;
 static volatile int function_state;
 static volatile int band_state;
@@ -98,10 +99,6 @@ static volatile int lock_state;
 static void* rotary_encoder_thread(void *arg);
 static pthread_t rotary_encoder_thread_id;
 static int previous_function_button=0;
-static int af_function=0;
-static int previous_af_function=0;
-static int rf_function=0;
-static int previous_rf_function=0;
 static int band_button=0;
 static int previous_band_button=0;
 static int bandstack_button=0;
@@ -119,142 +116,91 @@ static int previous_mox_button=0;
 static int lock_button=0;
 static int previous_lock_button=0;
 
-static void afFunctionAlert(int gpio, int level, uint32_t tick) {
-    afFunction=(level==0);
+
+static void function_interrupt(void *args) {
+    function_state=(mraa_gpio_read(function_context)==0);
 }
 
-static void rfFunctionAlert(int gpio, int level, uint32_t tick) {
-    rfFunction=(level==0);
+static void band_interrupt(void *args) {
+    band_state=(mraa_gpio_read(band_context)==0);
 }
 
-static void functionAlert(int gpio, int level, uint32_t tick) {
-    function_state=(level==0);
+static void bandstack_interrupt(void *args) {
+    bandstack_state=(mraa_gpio_read(bandstack_context)==0);
 }
 
-static void bandAlert(int gpio, int level, uint32_t tick) {
-    band_state=(level==0);
+static void mode_interrupt(void *args) {
+    mode_state=(mraa_gpio_read(mode_context)==0);
 }
 
-static void bandstackAlert(int gpio, int level, uint32_t tick) {
-    bandstack_state=(level==0);
+static void filter_interrupt(void *args) {
+    filter_state=(mraa_gpio_read(filter_context)==0);
 }
 
-static void modeAlert(int gpio, int level, uint32_t tick) {
-    mode_state=(level==0);
+static void noise_interrupt(void *args) {
+    noise_state=(mraa_gpio_read(noise_context)==0);
 }
 
-static void filterAlert(int gpio, int level, uint32_t tick) {
-    filter_state=(level==0);
+static void agc_interrupt(void *args) {
+    agc_state=(mraa_gpio_read(agc_context)==0);
 }
 
-static void noiseAlert(int gpio, int level, uint32_t tick) {
-    noise_state=(level==0);
+static void mox_interrupt(void *args) {
+    mox_state=(mraa_gpio_read(mox_context)==0);
 }
 
-static void agcAlert(int gpio, int level, uint32_t tick) {
-    agc_state=(level==0);
+static void lock_interrupt(void *args) {
+    lock_state=(mraa_gpio_read(lock_context)==0);
 }
 
-static void moxAlert(int gpio, int level, uint32_t tick) {
-    mox_state=(level==0);
+static void vfo_interrupt(void *args) {
+fprintf(stderr,"vfo_interrupt\n");
+  if(mraa_gpio_read(vfo_a_context)) {
+    if(mraa_gpio_read(vfo_b_context)) {
+      ++vfoEncoderPos;
+    } else {
+      --vfoEncoderPos;
+    }
+    fprintf(stderr,"vfo pos=%d\n",vfoEncoderPos);
+  }
 }
 
-static void lockAlert(int gpio, int level, uint32_t tick) {
-    lock_state=(level==0);
+static void af_interrupt(void *args) {
+fprintf(stderr,"af_interrupt\n");
+  if(mraa_gpio_read(af_a_context)) {
+    if(mraa_gpio_read(af_b_context)) {
+      ++afEncoderPos;
+    } else {
+      --afEncoderPos;
+    }
+    fprintf(stderr,"af pos=%d\n",afEncoderPos);
+  }
 }
 
-static void vfoEncoderPulse(int gpio, int level, unsigned int tick) {
-   static int levA=0, levB=0, lastGpio = -1;
-
-   if (gpio == VFO_ENCODER_A) levA = level; else levB = level;
-
-   if (gpio != lastGpio) /* debounce */
-   {
-      lastGpio = gpio;
-
-      if ((gpio == VFO_ENCODER_A) && (level == 0))
-      {
-         if (!levB) ++vfoEncoderPos;
-      }
-      else if ((gpio == VFO_ENCODER_B) && (level == 1))
-      {
-         if (levA) --vfoEncoderPos;
-      }
-   }
+static void rf_interrupt(void *args) {
+fprintf(stderr,"rf_interrupt\n");
+  if(mraa_gpio_read(rf_a_context)) {
+    if(mraa_gpio_read(rf_b_context)) {
+      ++rfEncoderPos;
+    } else {
+      --rfEncoderPos;
+    }
+    fprintf(stderr,"rf pos=%d\n",rfEncoderPos);
+  }
 }
 
-static void afEncoderPulse(int gpio, int level, uint32_t tick)
-{
-   static int levA=0, levB=0, lastGpio = -1;
-
-   if (gpio == AF_ENCODER_A) levA = level; else levB = level;
-
-   if (gpio != lastGpio) /* debounce */
-   {
-      lastGpio = gpio;
-
-      if ((gpio == AF_ENCODER_A) && (level == 0))
-      {
-         if (!levB) ++afEncoderPos;
-      }
-      else if ((gpio == AF_ENCODER_B) && (level == 1))
-      {
-         if (levA) --afEncoderPos;
-      }
-   }
+static void agc_encoder_interrupt(void *args) {
+fprintf(stderr,"agc_interrupt\n");
+  if(mraa_gpio_read(agc_a_context)) {
+    if(mraa_gpio_read(agc_b_context)) {
+      ++agcEncoderPos;
+    } else {
+      --agcEncoderPos;
+    }
+    fprintf(stderr,"agc pos=%d\n",agcEncoderPos);
+  }
 }
 
-static void rfEncoderPulse(int gpio, int level, uint32_t tick)
-{
-   static int levA=0, levB=0, lastGpio = -1;
-
-   if (gpio == RF_ENCODER_A) levA = level; else levB = level;
-
-   if (gpio != lastGpio) /* debounce */
-   {
-      lastGpio = gpio;
-
-      if ((gpio == RF_ENCODER_A) && (level == 0))
-      {
-         if (!levB) ++rfEncoderPos;
-      }
-      else if ((gpio == RF_ENCODER_B) && (level == 1))
-      {
-         if (levA) --rfEncoderPos;
-      }
-   }
-}
-
-static void agcEncoderPulse(int gpio, int level, uint32_t tick)
-{
-   static int levA=0, levB=0, lastGpio = -1;
-
-   if (gpio == AGC_ENCODER_A) levA = level; else levB = level;
-
-   if (gpio != lastGpio) /* debounce */
-   {
-      lastGpio = gpio;
-
-      if ((gpio == AGC_ENCODER_A) && (level == 0))
-      {
-         if (!levB) ++agcEncoderPos;
-      }
-      else if ((gpio == AGC_ENCODER_B) && (level == 1))
-      {
-         if (levA) --agcEncoderPos;
-      }
-   }
-}
-
-#ifdef odroid
-void interruptB(void) {
-   vfoEncoderPulse(VFO_ENCODER_B,digitalRead(VFO_ENCODER_B_PIN),0);
-}
-
-void interruptA(void) {
-   vfoEncoderPulse(VFO_ENCODER_A,digitalRead(VFO_ENCODER_A_PIN),0);
-}
-#endif
 
 void gpio_restore_state() {
   char* value;
@@ -267,12 +213,6 @@ void gpio_restore_state() {
   if(value) VFO_ENCODER_A=atoi(value);
   value=getProperty("VFO_ENCODER_B");
   if(value) VFO_ENCODER_B=atoi(value);
-#ifdef odroid
-  value=getProperty("VFO_ENCODER_A_PIN");
-  if(value) VFO_ENCODER_A_PIN=atoi(value);
-  value=getProperty("VFO_ENCODER_B_PIN");
-  if(value) VFO_ENCODER_B_PIN=atoi(value);
-#endif
   value=getProperty("ENABLE_AF_ENCODER");
   if(value) ENABLE_AF_ENCODER=atoi(value);
   value=getProperty("ENABLE_AF_PULLUP");
@@ -346,12 +286,6 @@ void gpio_save_state() {
   setProperty("VFO_ENCODER_A",value);
   sprintf(value,"%d",VFO_ENCODER_B);
   setProperty("VFO_ENCODER_B",value);
-#ifdef odroid
-  sprintf(value,"%d",VFO_ENCODER_A_PIN);
-  setProperty("VFO_ENCODER_A_PIN",value);
-  sprintf(value,"%d",VFO_ENCODER_B_PIN);
-  setProperty("VFO_ENCODER_B_PIN",value);
-#endif
   sprintf(value,"%d",ENABLE_AF_ENCODER);
   setProperty("ENABLE_AF_ENCODER",value);
   sprintf(value,"%d",ENABLE_AF_PULLUP);
@@ -418,218 +352,312 @@ void gpio_save_state() {
 
 
 int gpio_init() {
-fprintf(stderr,"encoder_init\n");
-
-#ifdef odroid
-  VFO_ENCODER_A=88;
-  VFO_ENCODER_B=87;
-#endif
+  mraa_result_t res;
+fprintf(stderr,"MRAA: gpio_init\n");
 
   gpio_restore_state();
-#ifdef raspberrypi
 
-    fprintf(stderr,"encoder_init: VFO_ENCODER_A=%d VFO_ENCODER_B=%d\n",VFO_ENCODER_A,VFO_ENCODER_B);
+  mraa_init();
 
-    fprintf(stderr,"gpioInitialize\n");
-    if(gpioInitialise()<0) {
-        fprintf(stderr,"Cannot initialize GPIO\n");
-        return -1;
+  vfo_a_context=mraa_gpio_init(VFO_ENCODER_A);
+  if(vfo_a_context!=NULL) {
+    res=mraa_gpio_dir(vfo_a_context,MRAA_GPIO_IN);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_dir(VFO_ENCODER_A,MRAA_GPIO_IN) returned %d\n",res);
     }
-
-  if(ENABLE_FUNCTION_BUTTON) {
-    gpioSetMode(FUNCTION_BUTTON, PI_INPUT);
-    gpioSetPullUpDown(FUNCTION_BUTTON,PI_PUD_UP);
-    gpioSetAlertFunc(FUNCTION_BUTTON, functionAlert);
-  }
-
-  if(ENABLE_VFO_ENCODER) {
-    gpioSetMode(VFO_ENCODER_A, PI_INPUT);
-    gpioSetMode(VFO_ENCODER_B, PI_INPUT);
     if(ENABLE_VFO_PULLUP) {
-      gpioSetPullUpDown(VFO_ENCODER_A, PI_PUD_UP);
-      gpioSetPullUpDown(VFO_ENCODER_B, PI_PUD_UP);
-    } else {
-      gpioSetPullUpDown(VFO_ENCODER_A, PI_PUD_OFF);
-      gpioSetPullUpDown(VFO_ENCODER_B, PI_PUD_OFF);
+      res=mraa_gpio_mode(vfo_a_context,MRAA_GPIO_PULLUP);
+      if(res!=MRAA_SUCCESS) {
+        fprintf(stderr,"mra_gpio_mode(VFO_ENCODER_A,MRAA_GPIO_PULLUP) returned %d\n",res);
+      }
     }
-    gpioSetAlertFunc(VFO_ENCODER_A, vfoEncoderPulse);
-    gpioSetAlertFunc(VFO_ENCODER_B, vfoEncoderPulse);
-    vfoEncoderPos=0;
+    res=mraa_gpio_isr(vfo_a_context,MRAA_GPIO_EDGE_RISING,vfo_interrupt,NULL);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_isr(VFO_ENCODER_A,MRAA_GPIO_EDGE_BOTH) returned %d\n", res);
+    }
+  } else {
+    fprintf(stderr,"mraa_gpio_init(%d) returned NULL\n",VFO_ENCODER_A);
   }
 
+  vfo_b_context=mraa_gpio_init(VFO_ENCODER_B);
+  if(vfo_b_context!=NULL) {
+    res=mraa_gpio_dir(vfo_b_context,MRAA_GPIO_IN);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_dir(VFO_ENCODER_B,MRAA_GPIO_IN) returned %d\n",res);
+    }
+    if(ENABLE_VFO_PULLUP) {
+      res=mraa_gpio_mode(vfo_b_context,MRAA_GPIO_PULLUP);
+      if(res!=MRAA_SUCCESS) {
+        fprintf(stderr,"mra_gpio_mode(VFO_ENCODER_B,MRAA_GPIO_PULLUP) returned %d\n",res);
+      }
+    }
+    res=mraa_gpio_isr(vfo_b_context,MRAA_GPIO_EDGE_RISING,vfo_interrupt,NULL);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_isr(VFO_ENCODER_B,MRAA_GPIO_EDGE_BOTH) returned %d\n", res);
+    }
+  } else {
+    fprintf(stderr,"mraa_gpio_init(%d) returned NULL\n",VFO_ENCODER_B);
+  }
 
-    gpioSetMode(AF_FUNCTION, PI_INPUT);
-    gpioSetPullUpDown(AF_FUNCTION,PI_PUD_UP);
-    gpioSetAlertFunc(AF_FUNCTION, afFunctionAlert);
-    afFunction=0;
-
-  if(ENABLE_AF_ENCODER) {
-    gpioSetMode(AF_ENCODER_A, PI_INPUT);
-    gpioSetMode(AF_ENCODER_B, PI_INPUT);
+  af_a_context=mraa_gpio_init(AF_ENCODER_A);
+  if(af_a_context!=NULL) {
+    res=mraa_gpio_dir(af_a_context,MRAA_GPIO_IN);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_dir(AF_ENCODER_A,MRAA_GPIO_IN) returned %d\n",res);
+    }
     if(ENABLE_AF_PULLUP) {
-      gpioSetPullUpDown(AF_ENCODER_A, PI_PUD_UP);
-      gpioSetPullUpDown(AF_ENCODER_B, PI_PUD_UP);
-    } else {
-      gpioSetPullUpDown(AF_ENCODER_A, PI_PUD_OFF);
-      gpioSetPullUpDown(AF_ENCODER_B, PI_PUD_OFF);
+      res=mraa_gpio_mode(af_a_context,MRAA_GPIO_PULLUP);
+      if(res!=MRAA_SUCCESS) {
+        fprintf(stderr,"mra_gpio_mode(AF_ENCODER_A,MRAA_GPIO_PULLUP) returned %d\n",res);
+      }
     }
-    gpioSetAlertFunc(AF_ENCODER_A, afEncoderPulse);
-    gpioSetAlertFunc(AF_ENCODER_B, afEncoderPulse);
-    afEncoderPos=0;
+    res=mraa_gpio_isr(af_a_context,MRAA_GPIO_EDGE_RISING,af_interrupt,NULL);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_isr(AF_ENCODER_A,MRAA_GPIO_EDGE_BOTH) returned %d\n", res);
+    }
+  } else {
+    fprintf(stderr,"mraa_gpio_init(%d) returned NULL\n",AF_ENCODER_A);
   }
 
-    gpioSetMode(RF_FUNCTION, PI_INPUT);
-    gpioSetPullUpDown(RF_FUNCTION,PI_PUD_UP);
-    gpioSetAlertFunc(RF_FUNCTION, rfFunctionAlert);
-    rfFunction=0;
-
-  if(ENABLE_RF_ENCODER) {
-    gpioSetMode(RF_ENCODER_A, PI_INPUT);
-    gpioSetMode(RF_ENCODER_B, PI_INPUT);
+  af_b_context=mraa_gpio_init(AF_ENCODER_B);
+  if(af_b_context!=NULL) {
+    res=mraa_gpio_dir(af_b_context,MRAA_GPIO_IN);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_dir(AF_ENCODER_B,MRAA_GPIO_IN) returned %d\n",res);
+    }
     if(ENABLE_AF_PULLUP) {
-      gpioSetPullUpDown(RF_ENCODER_A, PI_PUD_UP);
-      gpioSetPullUpDown(RF_ENCODER_B, PI_PUD_UP);
-    } else {
-      gpioSetPullUpDown(RF_ENCODER_A, PI_PUD_OFF);
-      gpioSetPullUpDown(RF_ENCODER_B, PI_PUD_OFF);
+      res=mraa_gpio_mode(af_b_context,MRAA_GPIO_PULLUP);
+      if(res!=MRAA_SUCCESS) {
+        fprintf(stderr,"mra_gpio_mode(AF_ENCODER_B,MRAA_GPIO_PULLUP) returned %d\n",res);
+      }
     }
-    gpioSetAlertFunc(RF_ENCODER_A, rfEncoderPulse);
-    gpioSetAlertFunc(RF_ENCODER_B, rfEncoderPulse);
-    rfEncoderPos=0;
-  }
-
-  if(ENABLE_AGC_ENCODER) {
-    gpioSetMode(AGC_ENCODER_A, PI_INPUT);
-    gpioSetMode(AGC_ENCODER_B, PI_INPUT);
-    if(ENABLE_AF_PULLUP) {
-      gpioSetPullUpDown(AGC_ENCODER_A, PI_PUD_UP);
-      gpioSetPullUpDown(AGC_ENCODER_B, PI_PUD_UP);
-    } else {
-      gpioSetPullUpDown(AGC_ENCODER_A, PI_PUD_OFF);
-      gpioSetPullUpDown(AGC_ENCODER_B, PI_PUD_OFF);
+    res=mraa_gpio_isr(af_b_context,MRAA_GPIO_EDGE_RISING,af_interrupt,NULL);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_isr(AF_ENCODER_B,MRAA_GPIO_EDGE_BOTH) returned %d\n", res);
     }
-    gpioSetAlertFunc(AGC_ENCODER_A, agcEncoderPulse);
-    gpioSetAlertFunc(AGC_ENCODER_B, agcEncoderPulse);
-    rfEncoderPos=0;
+  } else {
+    fprintf(stderr,"mraa_gpio_init(%d) returned NULL\n",AF_ENCODER_B);
   }
 
-
-  if(ENABLE_BAND_BUTTON) {
-    gpioSetMode(BAND_BUTTON, PI_INPUT);
-    gpioSetPullUpDown(BAND_BUTTON,PI_PUD_UP);
-    gpioSetAlertFunc(BAND_BUTTON, bandAlert);
-  }
- 
-  if(ENABLE_BANDSTACK_BUTTON) {
-    gpioSetMode(BANDSTACK_BUTTON, PI_INPUT);
-    gpioSetPullUpDown(BANDSTACK_BUTTON,PI_PUD_UP);
-    gpioSetAlertFunc(BANDSTACK_BUTTON, bandstackAlert);
-  }
- 
-  if(ENABLE_MODE_BUTTON) {
-    gpioSetMode(MODE_BUTTON, PI_INPUT);
-    gpioSetPullUpDown(MODE_BUTTON,PI_PUD_UP);
-    gpioSetAlertFunc(MODE_BUTTON, modeAlert);
-  }
- 
-  if(ENABLE_FILTER_BUTTON) {
-    gpioSetMode(FILTER_BUTTON, PI_INPUT);
-    gpioSetPullUpDown(FILTER_BUTTON,PI_PUD_UP);
-    gpioSetAlertFunc(FILTER_BUTTON, filterAlert);
-  }
- 
-  if(ENABLE_NOISE_BUTTON) {
-    gpioSetMode(NOISE_BUTTON, PI_INPUT);
-    gpioSetPullUpDown(NOISE_BUTTON,PI_PUD_UP);
-    gpioSetAlertFunc(NOISE_BUTTON, noiseAlert);
-  }
- 
-  if(ENABLE_AGC_BUTTON) {
-    gpioSetMode(AGC_BUTTON, PI_INPUT);
-    gpioSetPullUpDown(AGC_BUTTON,PI_PUD_UP);
-    gpioSetAlertFunc(AGC_BUTTON, agcAlert);
-  }
- 
-  if(ENABLE_MOX_BUTTON) {
-    gpioSetMode(MOX_BUTTON, PI_INPUT);
-    gpioSetPullUpDown(MOX_BUTTON,PI_PUD_UP);
-    gpioSetAlertFunc(MOX_BUTTON, moxAlert);
-  }
-
-  if(ENABLE_LOCK_BUTTON) {
-    gpioSetMode(LOCK_BUTTON, PI_INPUT);
-    gpioSetPullUpDown(LOCK_BUTTON,PI_PUD_UP);
-    gpioSetAlertFunc(LOCK_BUTTON, lockAlert);
-  }
- 
-#endif
-
-#ifdef odroid
-
-    //VFO_ENCODER_A=ODROID_VFO_ENCODER_A;
-    //VFO_ENCODER_B=ODROID_VFO_ENCODER_B;
-    //VFO_ENCODER_A_PIN=ODROID_VFO_ENCODER_A_PIN;
-    //VFO_ENCODER_B_PIN=ODROID_VFO_ENCODER_B_PIN;
- 
-    fprintf(stderr,"encoder_init: VFO_ENCODER_A=%d VFO_ENCODER_B=%d\n",VFO_ENCODER_A,VFO_ENCODER_B);
-
-    fprintf(stderr,"wiringPiSetup\n");
-    if (wiringPiSetup () < 0) {
-      printf ("Unable to setup wiringPi: %s\n", strerror (errno));
-      return 1;
+  rf_a_context=mraa_gpio_init(RF_ENCODER_A);
+  if(rf_a_context!=NULL) {
+    res=mraa_gpio_dir(rf_a_context,MRAA_GPIO_IN);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_dir(RF_ENCODER_A,MRAA_GPIO_IN) returned %d\n",res);
     }
-
-    FILE *fp;
-
-    fp = popen("echo 88 > /sys/class/gpio/export\n", "r");
-    pclose(fp);
-    fp = popen("echo \"in\" > /sys/class/gpio/gpio88/direction\n", "r");
-    pclose(fp);
-    fp = popen("chmod 0666 /sys/class/gpio/gpio88/value\n", "r");
-    pclose(fp);
-
-    fp = popen("echo 87 > /sys/class/gpio/export\n", "r");
-    pclose(fp);
-    fp = popen("echo \"in\" > /sys/class/gpio/gpio87/direction\n", "r");
-    pclose(fp);
-    fp = popen("chmod 0666 /sys/class/gpio/gpio87/value\n", "r");
-    pclose(fp);
-
-    if ( wiringPiISR (0, INT_EDGE_BOTH, &interruptB) < 0 ) {
-      printf ("Unable to setup ISR: %s\n", strerror (errno));
-      return 1;
+    if(ENABLE_RF_PULLUP) {
+      res=mraa_gpio_mode(rf_a_context,MRAA_GPIO_PULLUP);
+      if(res!=MRAA_SUCCESS) {
+        fprintf(stderr,"mra_gpio_mode(RF_ENCODER_A,MRAA_GPIO_PULLUP) returned %d\n",res);
+      }
     }
-
-    if ( wiringPiISR (1, INT_EDGE_BOTH, &interruptA) < 0 ) {
-      printf ("Unable to setup ISR: %s\n", strerror (errno));
-      return 1;
+    res=mraa_gpio_isr(rf_a_context,MRAA_GPIO_EDGE_RISING,rf_interrupt,NULL);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_isr(RF_ENCODER_A,MRAA_GPIO_EDGE_BOTH) returned %d\n", res);
     }
-#endif
+  } else {
+    fprintf(stderr,"mraa_gpio_init(%d) returned NULL\n",RF_ENCODER_A);
+  }
+
+  rf_b_context=mraa_gpio_init(RF_ENCODER_B);
+  if(rf_b_context!=NULL) {
+    res=mraa_gpio_dir(rf_b_context,MRAA_GPIO_IN);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_dir(RF_ENCODER_B,MRAA_GPIO_IN) returned %d\n",res);
+    }
+    if(ENABLE_RF_PULLUP) {
+      res=mraa_gpio_mode(rf_b_context,MRAA_GPIO_PULLUP);
+      if(res!=MRAA_SUCCESS) {
+        fprintf(stderr,"mra_gpio_mode(RF_ENCODER_B,MRAA_GPIO_PULLUP) returned %d\n",res);
+      }
+    }
+    res=mraa_gpio_isr(rf_b_context,MRAA_GPIO_EDGE_RISING,rf_interrupt,NULL);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_isr(RF_ENCODER_B,MRAA_GPIO_EDGE_BOTH) returned %d\n", res);
+    }
+  } else {
+    fprintf(stderr,"mraa_gpio_init(%d) returned NULL\n",RF_ENCODER_B);
+  }
+
+  agc_a_context=mraa_gpio_init(AGC_ENCODER_A);
+  if(agc_a_context!=NULL) {
+    res=mraa_gpio_dir(agc_a_context,MRAA_GPIO_IN);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_dir(AGC_ENCODER_A,MRAA_GPIO_IN) returned %d\n",res);
+    }
+    if(ENABLE_AGC_PULLUP) {
+      res=mraa_gpio_mode(agc_a_context,MRAA_GPIO_PULLUP);
+      if(res!=MRAA_SUCCESS) {
+        fprintf(stderr,"mra_gpio_mode(AGC_ENCODER_A,MRAA_GPIO_PULLUP) returned %d\n",res);
+      }
+    }
+    res=mraa_gpio_isr(agc_a_context,MRAA_GPIO_EDGE_RISING,agc_encoder_interrupt,NULL);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_isr(AGC_ENCODER_A,MRAA_GPIO_EDGE_BOTH) returned %d\n", res);
+    }
+  } else {
+    fprintf(stderr,"mraa_gpio_init(%d) returned NULL\n",AGC_ENCODER_A);
+  }
+
+  agc_b_context=mraa_gpio_init(AGC_ENCODER_B);
+  if(agc_b_context!=NULL) {
+    res=mraa_gpio_dir(agc_b_context,MRAA_GPIO_IN);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_dir(AGC_ENCODER_B,MRAA_GPIO_IN) returned %d\n",res);
+    }
+    if(ENABLE_AGC_PULLUP) {
+      res=mraa_gpio_mode(agc_b_context,MRAA_GPIO_PULLUP);
+      if(res!=MRAA_SUCCESS) {
+        fprintf(stderr,"mra_gpio_mode(AGC_ENCODER_B,MRAA_GPIO_PULLUP) returned %d\n",res);
+      }
+    }
+    res=mraa_gpio_isr(agc_b_context,MRAA_GPIO_EDGE_RISING,agc_interrupt,NULL);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_isr(AGC_ENCODER_B,MRAA_GPIO_EDGE_BOTH) returned %d\n", res);
+    }
+  } else {
+    fprintf(stderr,"mraa_gpio_init(%d) returned NULL\n",AGC_ENCODER_B);
+  }
+
+  function_context=mraa_gpio_init(FUNCTION_BUTTON);
+  if(function_context!=NULL) {
+    res=mraa_gpio_dir(function_context,MRAA_GPIO_IN);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_dir(FUNCTION_BUTTON,MRAA_GPIO_IN) returned %d\n",res);
+    }
+    res=mraa_gpio_isr(function_context,MRAA_GPIO_EDGE_RISING,function_interrupt,NULL);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_isr(FUNCTION_BUTTON,MRAA_GPIO_EDGE_BOTH) returned %d\n", res);
+    }
+  } else {
+    fprintf(stderr,"mraa_gpio_init(%d) returned NULL\n",FUNCTION_BUTTON);
+  }
+
+  band_context=mraa_gpio_init(BAND_BUTTON);
+  if(band_context!=NULL) {
+    res=mraa_gpio_dir(band_context,MRAA_GPIO_IN);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_dir(BAND_BUTTON,MRAA_GPIO_IN) returned %d\n",res);
+    }
+    res=mraa_gpio_isr(band_context,MRAA_GPIO_EDGE_RISING,function_interrupt,NULL);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_isr(BAND_BUTTON,MRAA_GPIO_EDGE_BOTH) returned %d\n", res);
+    }
+  } else {
+    fprintf(stderr,"mraa_gpio_init(%d) returned NULL\n",BAND_BUTTON);
+  }
+
+  bandstack_context=mraa_gpio_init(BANDSTACK_BUTTON);
+  if(bandstack_context!=NULL) {
+    res=mraa_gpio_dir(bandstack_context,MRAA_GPIO_IN);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_dir(BANDSTACK_BUTTON,MRAA_GPIO_IN) returned %d\n",res);
+    }
+    res=mraa_gpio_isr(bandstack_context,MRAA_GPIO_EDGE_RISING,function_interrupt,NULL);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_isr(BANDSTACK_BUTTON,MRAA_GPIO_EDGE_BOTH) returned %d\n", res);
+    }
+  } else {
+    fprintf(stderr,"mraa_gpio_init(%d) returned NULL\n",BANDSTACK_BUTTON);
+  }
+
+  mode_context=mraa_gpio_init(MODE_BUTTON);
+  if(mode_context!=NULL) {
+    res=mraa_gpio_dir(mode_context,MRAA_GPIO_IN);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_dir(MODE_BUTTON,MRAA_GPIO_IN) returned %d\n",res);
+    }
+    res=mraa_gpio_isr(mode_context,MRAA_GPIO_EDGE_RISING,function_interrupt,NULL);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_isr(MODE_BUTTON,MRAA_GPIO_EDGE_BOTH) returned %d\n", res);
+    }
+  } else {
+    fprintf(stderr,"mraa_gpio_init(%d) returned NULL\n",MODE_BUTTON);
+  }
 
   int rc=pthread_create(&rotary_encoder_thread_id, NULL, rotary_encoder_thread, NULL);
   if(rc<0) {
     fprintf(stderr,"pthread_create for rotary_encoder_thread failed %d\n",rc);
   }
 
+  filter_context=mraa_gpio_init(FILTER_BUTTON);
+  if(filter_context!=NULL) {
+    res=mraa_gpio_dir(filter_context,MRAA_GPIO_IN);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_dir(FILTER_BUTTON,MRAA_GPIO_IN) returned %d\n",res);
+    }
+    res=mraa_gpio_isr(filter_context,MRAA_GPIO_EDGE_RISING,function_interrupt,NULL);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_isr(FILTER_BUTTON,MRAA_GPIO_EDGE_BOTH) returned %d\n", res);
+    }
+  } else {
+    fprintf(stderr,"mraa_gpio_init(%d) returned NULL\n",FILTER_BUTTON);
+  }
+
+  noise_context=mraa_gpio_init(NOISE_BUTTON);
+  if(noise_context!=NULL) {
+    res=mraa_gpio_dir(noise_context,MRAA_GPIO_IN);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_dir(NOISE_BUTTON,MRAA_GPIO_IN) returned %d\n",res);
+    }
+    res=mraa_gpio_isr(noise_context,MRAA_GPIO_EDGE_RISING,function_interrupt,NULL);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_isr(NOISE_BUTTON,MRAA_GPIO_EDGE_BOTH) returned %d\n", res);
+    }
+  } else {
+    fprintf(stderr,"mraa_gpio_init(%d) returned NULL\n",NOISE_BUTTON);
+  }
+
+  agc_context=mraa_gpio_init(AGC_BUTTON);
+  if(agc_context!=NULL) {
+    res=mraa_gpio_dir(agc_context,MRAA_GPIO_IN);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_dir(AGC_BUTTON,MRAA_GPIO_IN) returned %d\n",res);
+    }
+    res=mraa_gpio_isr(agc_context,MRAA_GPIO_EDGE_RISING,function_interrupt,NULL);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_isr(AGC_BUTTON,MRAA_GPIO_EDGE_BOTH) returned %d\n", res);
+    }
+  } else {
+    fprintf(stderr,"mraa_gpio_init(%d) returned NULL\n",AGC_BUTTON);
+  }
+
+  mox_context=mraa_gpio_init(MOX_BUTTON);
+  if(mox_context!=NULL) {
+    res=mraa_gpio_dir(mox_context,MRAA_GPIO_IN);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_dir(MOX_BUTTON,MRAA_GPIO_IN) returned %d\n",res);
+    }
+    res=mraa_gpio_isr(mox_context,MRAA_GPIO_EDGE_RISING,function_interrupt,NULL);
+    if(res!=MRAA_SUCCESS) {
+      fprintf(stderr,"mra_gpio_isr(MOX_BUTTON,MRAA_GPIO_EDGE_BOTH) returned %d\n", res);
+    }
+  } else {
+    fprintf(stderr,"mraa_gpio_init(%d) returned NULL\n",MOX_BUTTON);
+  }
 
   return 0;
 }
 
 void gpio_close() {
-//  if(strcmp(unameData.nodename,"raspberrypi")==0) {
-#ifdef raspberrypi
-    gpioTerminate();
-#endif
-//  }
-//  if(strcmp(unameData.nodename,"odroid")==0) {
-#ifdef odroid
-    FILE *fp;
-    fp = popen("echo 97 > /sys/class/gpio/unexport\n", "r");
-    pclose(fp);
-    fp = popen("echo 108 > /sys/class/gpio/unexport\n", "r");
-    pclose(fp);
-#endif
-//  }
+  mraa_result_t res;
+
+  res=mraa_gpio_close(function_context);
+  res=mraa_gpio_close(band_context);
+  res=mraa_gpio_close(bandstack_context);
+  res=mraa_gpio_close(mode_context);
+  res=mraa_gpio_close(filter_context);
+  res=mraa_gpio_close(noise_context);
+  res=mraa_gpio_close(agc_context);
+  res=mraa_gpio_close(mox_context);
+  res=mraa_gpio_close(agc_b_context);
+  res=mraa_gpio_close(agc_a_context);
+  res=mraa_gpio_close(rf_b_context);
+  res=mraa_gpio_close(rf_a_context);
+  res=mraa_gpio_close(af_b_context);
+  res=mraa_gpio_close(af_a_context);
+  res=mraa_gpio_close(vfo_b_context);
+  res=mraa_gpio_close(vfo_a_context);
 }
 
 int vfo_encoder_get_pos() {
@@ -655,9 +683,9 @@ int af_encoder_get_pos() {
     return pos;
 }
 
-int af_function_get_state() {
-    return afFunction;
-}
+//int af_function_get_state() {
+//    return afFunction;
+//}
 
 int rf_encoder_get_pos() {
     int pos=rfEncoderPos;
@@ -671,9 +699,9 @@ int agc_encoder_get_pos() {
     return pos;
 }
 
-int rf_function_get_state() {
-    return rfFunction;
-}
+//int rf_function_get_state() {
+//    return rfFunction;
+//}
 
 int function_get_state() {
     return function_state;
@@ -1134,15 +1162,6 @@ static void* rotary_encoder_thread(void *arg) {
             }
         }
 
-//        if(strcmp(unameData.nodename,"raspberrypi")==0) {
-#ifdef raspberrypi
-          gpioDelay(100000); // 10 per second
-#endif
-//        } else if(strcmp(unameData.nodename,"odroid")==0) {
-#ifdef odroid
-          usleep(100000);
-#endif
-//        }
+        usleep(100000);
     }
 }
-#endif

@@ -253,6 +253,11 @@ int getTune() {
 }
 
 int isTransmitting() {
+  BANDSTACK_ENTRY *entry;
+  entry=bandstack_entry_get_current();
+  if((entry->mode==modeCWL || entry->mode==modeCWU) && cw_keyer_internal==1 && !tune) {
+    return 0;
+  }
   return ptt!=0 || mox!=0 || tune!=0;
 }
 

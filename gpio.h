@@ -17,14 +17,6 @@
 *
 */
 
-#ifdef raspberrypi
-#define INCLUDE_GPIO
-#endif
-#ifdef odroid
-#define INCLUDE_GPIO
-#endif
-
-#ifdef INCLUDE_GPIO
 extern int ENABLE_VFO_ENCODER;
 extern int ENABLE_VFO_PULLUP;
 extern int VFO_ENCODER_A;
@@ -75,5 +67,3 @@ int mode_get_state();
 int filter_get_state();
 int noise_get_state();
 int mox_get_state();
-
-#endif

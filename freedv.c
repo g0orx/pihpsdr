@@ -28,17 +28,16 @@ char freedv_rx_text_data[64];
 int freedv_rx_text_data_index=0;
 
 static void my_put_next_rx_char(void *callback_state, char c) {
+  int i;
   fprintf(stderr, "freedv: my_put_next_rx_char: %c sync=%d\n", c, freedv_sync);
   if(freedv_sync) {
     if(c==0x0D) {
-      freedv_rx_text_data_index=0;
-    } else {
-      freedv_rx_text_data[freedv_rx_text_data_index++]=c;
-      freedv_rx_text_data[freedv_rx_text_data_index]=0;
-      if(freedv_rx_text_data_index>=62) {
-        freedv_rx_text_data_index=0;
-      }
+      c='|';
     }
+    for(i=0;i<62;i++) {
+      freedv_rx_text_data[i]=freedv_rx_text_data[i+1];
+    }
+    freedv_rx_text_data[62]=c;
   }
 }
 
@@ -54,7 +53,9 @@ fprintf(stderr,"freedv: my_get_next_tx_char=%c\n",c);
 }
 
 void init_freedv() {
+  int i;
 fprintf(stderr,"init_freedv\n");
+
   modem=freedv_open(FREEDV_MODE_1600);
   if(modem==NULL) {
     fprintf(stderr,"freedv_open: modem is null\n");
@@ -83,7 +84,10 @@ fprintf(stderr,"n_speech_samples=%d n_max_modem_samples=%d\n",n_speech_samples, 
   int rate=freedv_get_modem_sample_rate(modem);
 fprintf(stderr,"freedv modem sample rate=%d\n",rate);
 
-  strcpy(freedv_rx_text_data,"");
+  for(i=0;i<63;i++) {
+    freedv_rx_text_data[i]=' ';
+  }
+  freedv_rx_text_data[63]=0;
 }
 
 void close_freedv() {

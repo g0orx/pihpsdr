@@ -186,6 +186,7 @@ void panadapter_update(float *data,int tx) {
     float saved_max;
     float saved_min;
     gfloat saved_hz_per_pixel;
+    cairo_text_extents_t extents;
 
     samples=data;
     //if(result==1) {
@@ -253,7 +254,6 @@ void panadapter_update(float *data,int tx) {
             long divisor=20000;
             long f;
             long half=(long)getSampleRate()/2L;
-            cairo_text_extents_t extents;
             switch(sample_rate) {
               case 48000:
                 divisor=5000L;
@@ -356,12 +356,13 @@ void panadapter_update(float *data,int tx) {
 
 #ifdef FREEDV
             if(mode==modeFREEDV) {
-              cairo_set_source_rgb(cr, 0, 0, 0);
-              cairo_rectangle(cr, (double)display_width/2.0+2.0, (double)panadapter_height-20.0, (double)display_width, (double)panadapter_height);
-              cairo_fill(cr);
+//              cairo_set_source_rgb(cr, 0, 0, 0);
+//              cairo_rectangle(cr, (double)display_width/2.0+2.0, (double)panadapter_height-20.0, (double)display_width, (double)panadapter_height);
+//              cairo_fill(cr);
               cairo_set_source_rgb(cr, 0, 1, 0);
               cairo_set_font_size(cr, 16);
-              cairo_move_to(cr,(double)display_width/2.0+5.0,(double)panadapter_height-2.0);
+              cairo_text_extents(cr, freedv_rx_text_data, &extents);
+              cairo_move_to(cr, (double)display_width/2.0-(extents.width/2.0),(double)panadapter_height-2.0);
               cairo_show_text(cr, freedv_rx_text_data);
             }
 #endif
