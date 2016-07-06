@@ -185,7 +185,7 @@ void schedule_frequency_changed() {
 }
 
 static float sineWave(double* buf, int samples, float phase, float freq) {
-    float phase_step = 2 * PI * freq / 48000.0F;
+    float phase_step = 2 * PI * freq / sample_rate;
     int i;
     for (i = 0; i < samples; i++) {
         buf[i*2] = (double) sin(phase);
