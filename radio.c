@@ -175,6 +175,9 @@ int OCfull_tune_time=2800; // ms
 int OCmemory_tune_time=550; // ms
 long long tune_timeout;
 
+int smeter=RXA_S_AV;
+int alc=TXA_ALC_PK;
+
 #ifdef FREEDV
 char freedv_tx_text_data[64];
 #endif
@@ -511,6 +514,10 @@ void radioRestoreState() {
     value=getProperty("freedv_tx_text_data");
     if(value) strcpy(freedv_tx_text_data,value);
 #endif
+    value=getProperty("smeter");
+    if(value) smeter=atoi(value);
+    value=getProperty("alc");
+    if(value) alc=atoi(value);
     bandRestoreState();
     sem_post(&property_sem);
 }
@@ -646,6 +653,10 @@ void radioSaveState() {
       setProperty("freedv_tx_text_data",freedv_tx_text_data);
     }
 #endif
+    sprintf(value,"%d",smeter);
+    setProperty("smeter",value);
+    sprintf(value,"%d",alc);
+    setProperty("alc",value);
     bandSaveState();
 
     saveProperties(property_path);

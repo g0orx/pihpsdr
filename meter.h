@@ -21,5 +21,5 @@
 #define POWER 1
 
 
-GtkWidget* meter_init(int width,int height);
-void meter_update(int meter_type,double value,double reverse,double exciter);
+GtkWidget* meter_init(int width,int height,GtkWidget *parent);
+void meter_update(int meter_type,double value,double reverse,double exciter,double alc);

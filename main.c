@@ -122,9 +122,11 @@ gint update(gpointer data) {
     }
 
     if(!isTransmitting()) {
-        float m=GetRXAMeter(CHANNEL_RX0, 1/*WDSP.S_AV*/);
-        meter_update(SMETER,(double)m,0.0,0.0);
+        double m=GetRXAMeter(CHANNEL_RX0, smeter);
+        meter_update(SMETER,m,0.0,0.0,0.0);
     } else {
+
+        double alc=GetTXAMeter(CHANNEL_TX, alc);
 
         DISCOVERED *d=&discovered[selected_device];
 
@@ -221,7 +223,7 @@ gint update(gpointer data) {
 
 //fprintf(stderr,"drive=%d tune_drive=%d alex_forward_power=%d alex_reverse_power=%d exciter_power=%d fwd=%f rev=%f exciter=%f\n",
 //               drive, tune_drive, alex_forward_power, alex_reverse_power, exciter_power, fwd, rev, exciter);
-        meter_update(POWER,fwd,rev,exciter);
+        meter_update(POWER,fwd,rev,exciter,alc);
     }
 
     return TRUE;
@@ -572,7 +574,7 @@ fprintf(stderr,"menu_height=%d\n",MENU_HEIGHT);
 #endif
 
 fprintf(stderr,"meter_height=%d\n",METER_HEIGHT);
-  meter = meter_init(METER_WIDTH,METER_HEIGHT);
+  meter = meter_init(METER_WIDTH,METER_HEIGHT,window);
 #ifdef GRID_LAYOUT
   gtk_grid_attach(GTK_GRID(grid), meter, 17, 0, 15, 1);
 #else

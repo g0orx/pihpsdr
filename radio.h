@@ -186,6 +186,9 @@ extern long long tune_timeout;
 extern char freedv_tx_text_data[64];
 #endif
 
+extern int smeter;
+extern int alc;
+
 extern void init_radio();
 extern void setSampleRate(int rate);
 extern int getSampleRate();

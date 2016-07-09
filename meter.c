@@ -24,11 +24,14 @@
 #include <unistd.h>
 
 #include "meter.h"
+#include "wdsp.h"
 #ifdef FREEDV
 #include "radio.h"
 #include "mode.h"
 #include "freedv.h"
 #endif
+
+static GtkWidget *parent_window;
 
 static GtkWidget *meter;
 static cairo_surface_t *meter_surface = NULL;
@@ -84,11 +87,86 @@ meter_draw_cb (GtkWidget *widget, cairo_t   *cr, gpointer   data) {
   return FALSE;
 }
 
-GtkWidget* meter_init(int width,int height) {
+smeter_select_cb (GtkWidget *widget,
+               gpointer        data)
+{
+  smeter=(int)data;
+}
+
+alc_meter_select_cb (GtkWidget *widget,
+               gpointer        data)
+{
+  alc=(int)data;
+}
+
+static gboolean
+meter_press_event_cb (GtkWidget *widget,
+               GdkEventButton *event,
+               gpointer        data)
+{
+  GtkWidget *dialog=gtk_dialog_new_with_buttons("Meter",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
+
+  GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+  GtkWidget *grid=gtk_grid_new();
+
+  gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
+  gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
+
+   
+  GtkWidget *smeter_peak=gtk_radio_button_new_with_label(NULL,"S Meter Peak");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (smeter_peak), alc==RXA_S_PK);
+  gtk_widget_show(smeter_peak);
+  gtk_grid_attach(GTK_GRID(grid),smeter_peak,0,1,1,1);
+  g_signal_connect(smeter_peak,"pressed",G_CALLBACK(smeter_select_cb),(gpointer *)RXA_S_PK);
+
+  GtkWidget *smeter_average=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(smeter_peak),"S Meter Average");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (smeter_average), alc==RXA_S_AV);
+  gtk_widget_show(smeter_average);
+  gtk_grid_attach(GTK_GRID(grid),smeter_average,0,2,1,1);
+  g_signal_connect(smeter_average,"pressed",G_CALLBACK(smeter_select_cb),(gpointer *)RXA_S_AV);
+
+  GtkWidget *alc_peak=gtk_radio_button_new_with_label(NULL,"ALC Peak");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (alc_peak), alc==TXA_ALC_PK);
+  gtk_widget_show(alc_peak);
+  gtk_grid_attach(GTK_GRID(grid),alc_peak,1,1,1,1);
+  g_signal_connect(alc_peak,"pressed",G_CALLBACK(alc_meter_select_cb),(gpointer *)TXA_ALC_PK);
+
+  GtkWidget *alc_average=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(alc_peak),"ALC Average");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (alc_average), alc==TXA_ALC_AV);
+  gtk_widget_show(alc_average);
+  gtk_grid_attach(GTK_GRID(grid),alc_average,1,2,1,1);
+  g_signal_connect(alc_average,"pressed",G_CALLBACK(alc_meter_select_cb),(gpointer *)TXA_ALC_AV);
+
+  GtkWidget *alc_gain=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(alc_average),"ALC Gain");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (alc_gain), alc==TXA_ALC_GAIN);
+  gtk_widget_show(alc_gain);
+  gtk_grid_attach(GTK_GRID(grid),alc_gain,1,3,1,1);
+  g_signal_connect(alc_gain,"pressed",G_CALLBACK(alc_meter_select_cb),(gpointer *)TXA_ALC_GAIN);
+
+
+  gtk_container_add(GTK_CONTAINER(content),grid);
+
+  GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close",GTK_RESPONSE_OK);
+  gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 18"));
+  gtk_widget_show_all(dialog);
+
+  g_signal_connect_swapped (dialog,
+                           "response",
+                           G_CALLBACK (gtk_widget_destroy),
+                           dialog);
+
+  int result=gtk_dialog_run(GTK_DIALOG(dialog));
+
+  return TRUE;
+}
+
+
+GtkWidget* meter_init(int width,int height,GtkWidget *parent) {
 
 fprintf(stderr,"meter_init: width=%d height=%d\n",width,height);
   meter_width=width;
   meter_height=height;
+  parent_window=parent;
 
   meter = gtk_drawing_area_new ();
   gtk_widget_set_size_request (meter, width, height);
@@ -99,12 +177,17 @@ fprintf(stderr,"meter_init: width=%d height=%d\n",width,height);
   g_signal_connect (meter,"configure-event",
             G_CALLBACK (meter_configure_event_cb), NULL);
 
+  /* Event signals */
+  g_signal_connect (meter, "button-press-event",
+            G_CALLBACK (meter_press_event_cb), NULL);
+  gtk_widget_set_events (meter, gtk_widget_get_events (meter)
+                     | GDK_BUTTON_PRESS_MASK);
 
   return meter;
 }
 
 
-void meter_update(int meter_type,double value,double reverse,double exciter) {
+void meter_update(int meter_type,double value,double reverse,double exciter,double alc) {
   
   char sf[32];
   int text_location;
@@ -247,6 +330,10 @@ void meter_update(int meter_type,double value,double reverse,double exciter) {
 
       sprintf(sf,"SWR: %1.1f:1",swr);
       cairo_move_to(cr, 10, 45);
+      cairo_show_text(cr, sf);
+
+      sprintf(sf,"ALC: %2.1f dB",alc);
+      cairo_move_to(cr, meter_width/2, 45);
       cairo_show_text(cr, sf);
       
 /*
