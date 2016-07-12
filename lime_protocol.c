@@ -190,7 +190,10 @@ fprintf(stderr,"lime_protocol: setting save_frequency: %lld\n",saved_frequency);
   }
 
 fprintf(stderr,"lime_protocol_init: audio_init\n");
-  audio_init();
+  if(audio_init()!=0) {
+    local_audio=false;
+    fprintf(stderr,"audio_init failed\n");
+  }
 
 fprintf(stderr,"lime_protocol_init: create receive_thread\n");
   rc=pthread_create(&receive_thread_id,NULL,receive_thread,NULL);
@@ -251,7 +254,9 @@ fprintf(stderr,"lime_protocol: receive_thread\n");
             fprintf(stderr,"fexchange0 (CHANNEL_RX0) returned error: %d\n", error);
           }
 
-          audio_write(audiooutputbuffer,outputsamples);
+          if(local_audio) {
+            audio_write(audiooutputbuffer,outputsamples);
+          }
           Spectrum0(1, CHANNEL_RX0, 0, 0, iqinputbuffer);
           samples=0;
         }

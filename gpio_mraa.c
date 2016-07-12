@@ -838,87 +838,22 @@ static int agc_encoder_changed(void *data) {
 }
 
 static int band_pressed(void *data) {
-  BAND* band;
-  BANDSTACK_ENTRY *entry;
-fprintf(stderr,"band_pressed\n");
-  int b=band_get_current();
-  if(function) {
-    b--;
-    if(b<0) {
-      b=BANDS-1;
-    }
-#ifdef LIMESDR
-    if(protocol!=LIMESDR_PROTOCOL) {
-      if(b==band3400) {
-        b=band6;
-      }
-    }
-#endif
-  } else {
-    b++;
-    if(b>=BANDS) {
-      b=0;
-    }
-#ifdef LIMESDR
-    if(protocol!=LIMESDR_PROTOCOL) {
-      if(b==band70) {
-        b=bandGen;
-      }
-    }
-#endif
-  }
-  band=band_set_current(b);
-  entry=bandstack_entry_get_current();
-
-  setFrequency(entry->frequencyA);
-  setMode(entry->mode);
-  FILTER* band_filters=filters[entry->mode];
-  FILTER* band_filter=&band_filters[entry->filter];
-  setFilter(band_filter->low,band_filter->high);
-
-  band=band_get_current_band();
-  set_alex_rx_antenna(band->alexRxAntenna);
-  set_alex_tx_antenna(band->alexTxAntenna);
-  set_alex_attenuation(band->alexAttenuation);
-  vfo_update(NULL);
-
+  sim_band_cb(NULL,NULL);
   return 0;
 }
 
 static int bandstack_pressed(void *data) {
-  BANDSTACK_ENTRY *entry;
-  fprintf(stderr,"bandstack_pressed\n");
-  if(function) {
-    entry=bandstack_entry_previous();
-  } else {
-    entry=bandstack_entry_next();
-  }
-  setFrequency(entry->frequencyA);
-  setMode(entry->mode);
-  FILTER* band_filters=filters[entry->mode];
-  FILTER* band_filter=&band_filters[entry->filter];
-  setFilter(band_filter->low,band_filter->high);
-  vfo_update(NULL);
+  sim_bandstack_cb(NULL,NULL);
   return 0;
 }
 
 static int function_pressed(void *data) {
-fprintf(stderr,"function_pressed\n");
-  function=function==1?0:1;
-  if(display_toolbar && toolbar_simulate_buttons) {
-    update_toolbar();
-  }
-  vfo_update(NULL);
+  sim_function_cb(NULL,NULL);
   return 0;
 }
 
 static int mox_pressed(void *data) {
-fprintf(stderr,"mox_pressed\n");
-  if(function) {
-    tune_cb((GtkWidget *)NULL, (gpointer)NULL);
-  } else {
-    mox_cb((GtkWidget *)NULL, (gpointer)NULL);
-  }
+  sim_mox_cb(NULL,NULL);
   return 0;
 }
 
@@ -929,119 +864,22 @@ fprintf(stderr,"lock_pressed\n");
 }
 
 static int mode_pressed(void *data) {
-  BAND* band;
-  BANDSTACK_ENTRY *entry;
-
-fprintf(stderr,"mode_pressed\n");
-  band=band_get_current_band();
-  entry=bandstack_entry_get_current();
-  if(function) {
-    entry->mode--;
-    if(entry->mode<0) {
-      entry->mode=MODES-1;
-    }
-  } else {
-    entry->mode++;
-    if(entry->mode>=MODES) {
-      entry->mode=0;
-    }
-  }
-  setMode(entry->mode);
-
-  FILTER* band_filters=filters[entry->mode];
-  FILTER* band_filter=&band_filters[entry->filter];
-  setFilter(band_filter->low,band_filter->high);
-  
-  vfo_update(NULL);
-
+  sim_mode_cb(NULL,NULL);
   return 0;
 }
 
 static int filter_pressed(void *data) {
-  BAND* band;
-  BANDSTACK_ENTRY *entry;
-
-fprintf(stderr,"filter_pressed\n");
-  band=band_get_current_band();
-  entry=bandstack_entry_get_current();
-  // note order of filter reversed (largest first)
-  if(function) {
-    entry->filter++;
-    if(entry->filter>=FILTERS) {
-      entry->filter=0;
-    }
-  } else {
-    entry->filter--;
-    if(entry->filter<0) {
-      entry->filter=FILTERS-1;
-    }
-  }
-
-  FILTER* band_filters=filters[entry->mode];
-  FILTER* band_filter=&band_filters[entry->filter];
-  setFilter(band_filter->low,band_filter->high);
- 
-  vfo_update(NULL);
-
+  sim_filter_cb(NULL,NULL);
   return 0;
 }
 
 static int noise_pressed(void *data) {
-fprintf(stderr,"noise_pressed\n");
-  if(function) {
-    if(nr) {
-      nr=0;
-    } else if(nr2) {
-      nr2=0;
-      nr=1;
-    } else if(anf) {
-      anf=0;
-      nr2=1;
-    } else if(snb) {
-      snb=0;
-      anf=1;
-    } else {
-      snb=1;
-    }
-  } else {
-    if(nr) {
-      nr=0;
-      nr2=1;
-    } else if(nr2) {
-      nr2=0;
-      anf=1;
-    } else if(anf) {
-      anf=0;
-      snb=1;
-    } else if(snb) {
-      snb=0;
-    } else {
-      nr=1;
-    }
-  }
-  SetRXAANRRun(CHANNEL_RX0, nr);
-  SetRXAEMNRRun(CHANNEL_RX0, nr2);
-  SetRXAANFRun(CHANNEL_RX0, anf);
-  SetRXASNBARun(CHANNEL_RX0, snb);
-  vfo_update(NULL);
+  sim_noise_cb(NULL,NULL);
   return 0;
 }
 
 static int agc_pressed(void *data) {
-fprintf(stderr,"agc_pressed\n");
-  if(function) {
-    agc--;
-    if(agc<0) {
-      agc=3;
-    }
-  } else {
-    agc++;
-    if(agc>=4) {
-      agc=0;
-    }
-  }
-  SetRXAAGCMode(CHANNEL_RX0, agc);
-  vfo_update(NULL);
+  sim_agc_cb(NULL,NULL);
   return 0;
 }
 

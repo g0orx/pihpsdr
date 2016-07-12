@@ -208,6 +208,13 @@ void old_protocol_init(int rx,int pixels) {
 
   //int result=sem_init(&frequency_changed_sem, 0, 1);
 
+  if(local_audio) {
+    if(audio_init()!=0) {
+      fprintf(stderr,"audio_init failed\n");
+      local_audio=0;
+    }
+  }
+
   receiver=rx;
   display_width=pixels;
  
@@ -518,6 +525,10 @@ static void full_rx_buffer() {
     if(error!=0) {
       fprintf(stderr,"fexchange2 (CHANNEL_RX0) returned error: %d\n", error);
     }
+    if(local_audio) {
+      audio_write(audiooutputbuffer,output_buffer_size);
+    }
+
     Spectrum0(1, CHANNEL_RX0, 0, 0, iqinputbuffer);
 
     int demod_samples;

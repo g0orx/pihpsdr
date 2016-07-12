@@ -20,5 +20,6 @@
 extern int audio;
 extern int audio_buffer_size;
 
-void audio_init();
+int audio_init();
+void audio_close();
 void audio_write(double *buffer,int samples);

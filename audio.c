@@ -51,10 +51,11 @@ static pthread_t audioThreadId;
 
 static unsigned char *audio_buffer;
 static int audio_offset=0;
+static int running;
 
 void* audioThread(void* arg);
 
-void audio_init() {
+int audio_init() {
 
     static const pa_sample_spec spec= {
         .format = PA_SAMPLE_S16RE,
@@ -70,30 +71,34 @@ fprintf(stderr,"audio_init audio_buffer_size=%d\n",audio_buffer_size);
 
     if (!(stream = pa_simple_new(NULL, "pihpsdr", PA_STREAM_PLAYBACK, NULL, "playback", &spec, NULL, NULL, &error))) {
         fprintf(stderr, __FILE__": pa_simple_new() failed: %s\n", pa_strerror(error));
-        _exit(1);
+        return -1;
     }
 
     int res=sem_init(&audioBufferFull, 0, 0);
     if(res!=0) {
         fprintf(stderr,"audio_init: sem_init failed for audioBufferFull%d\n", res);
-        _exit(1);
+        return -1;
     }
 
     res=sem_init(&audioBufferEmpty, 0, 0);
     if(res!=0) {
         fprintf(stderr,"audio_init: sem_init failed for audioBufferEmpty%d\n", res);
-        _exit(1);
+        return -1;
     }
 
     res=pthread_create(&audioThreadId, NULL, audioThread, NULL);
     if(res<0) {
         fprintf(stderr, "Error creating DFC thread: %d\n", res);
-        _exit(1);
+        return -1;
     }
 
 fprintf(stderr,"... audio_init\n");
+    return 0;
 }
 
+void audio_close() {
+  running=0;
+}
 
 void audio_write(double* buffer,int samples) {
     int i;
@@ -122,8 +127,9 @@ void audio_write(double* buffer,int samples) {
 void* audioThread(void* arg) {
     int error;
     fprintf(stderr,"audioThread running on cpu%d\n", sched_getcpu());
+    running=1;
 
-    while(1) {
+    while(running) {
 
 /*
         error=sem_post(&audioBufferEmpty);
@@ -143,4 +149,8 @@ void* audioThread(void* arg) {
             _exit(1);
         }
     }
+
+    fprintf(stderr,"audioThread: ending\n");
+    pa_simple_free(stream);
+
 }

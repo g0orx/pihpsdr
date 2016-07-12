@@ -29,11 +29,13 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "audio.h"
 #include "band.h"
 #include "channel.h"
 #include "discovered.h"
 #include "new_protocol.h"
 #include "radio.h"
+#include "toolbar.h"
 #include "version.h"
 #include "wdsp.h"
 #ifdef FREEDV
@@ -118,6 +120,23 @@ static void linein_cb(GtkWidget *widget, gpointer data) {
 
 static void micboost_cb(GtkWidget *widget, gpointer data) {
   mic_boost=mic_boost==1?0:1;
+}
+
+static void local_audio_cb(GtkWidget *widget, gpointer data) {
+  local_audio=local_audio==1?0:1;
+  if(local_audio) {
+    if(audio_init()!=0) {
+      fprintf(stderr,"audio_init failed\n");
+      local_audio=0;
+    }
+  } else {
+    audio_close();
+  }
+}
+
+static void toolbar_dialog_buttons_cb(GtkWidget *widget, gpointer data) {
+  toolbar_dialog_buttons=toolbar_dialog_buttons==1?0:1;
+  update_toolbar_labels();
 }
 
 static void ptt_cb(GtkWidget *widget, gpointer data) {
@@ -517,6 +536,19 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
     gtk_grid_attach(GTK_GRID(general_grid),micboost_b,1,2,1,1);
     g_signal_connect(micboost_b,"toggled",G_CALLBACK(micboost_cb),NULL);
 
+    GtkWidget *local_audio_b=gtk_check_button_new_with_label("Local Audio");
+    //gtk_widget_override_font(local_audio_b, pango_font_description_from_string("Arial 18"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (local_audio_b), local_audio);
+    gtk_widget_show(local_audio_b);
+    gtk_grid_attach(GTK_GRID(general_grid),local_audio_b,1,3,1,1);
+    g_signal_connect(local_audio_b,"toggled",G_CALLBACK(local_audio_cb),NULL);
+
+    GtkWidget *b_toolbar_dialog_buttons=gtk_check_button_new_with_label("Buttons Display Dialog");
+    //gtk_widget_override_font(b_toolbar_dialog_buttons, pango_font_description_from_string("Arial 18"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_toolbar_dialog_buttons), toolbar_dialog_buttons);
+    gtk_widget_show(b_toolbar_dialog_buttons);
+    gtk_grid_attach(GTK_GRID(general_grid),b_toolbar_dialog_buttons,1,4,1,1);
+    g_signal_connect(b_toolbar_dialog_buttons,"toggled",G_CALLBACK(toolbar_dialog_buttons_cb),(gpointer *)NULL);
 
     if((protocol==NEW_PROTOCOL && device==NEW_DEVICE_ORION) ||
        (protocol==NEW_PROTOCOL && device==NEW_DEVICE_ORION2) ||
@@ -526,28 +558,28 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
       //gtk_widget_override_font(ptt_ring_b, pango_font_description_from_string("Arial 18"));
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ptt_ring_b), mic_ptt_tip_bias_ring==0);
       gtk_widget_show(ptt_ring_b);
-      gtk_grid_attach(GTK_GRID(general_grid),ptt_ring_b,1,3,1,1);
+      gtk_grid_attach(GTK_GRID(general_grid),ptt_ring_b,1,5,1,1);
       g_signal_connect(ptt_ring_b,"pressed",G_CALLBACK(ptt_ring_cb),NULL);
 
       GtkWidget *ptt_tip_b=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(ptt_ring_b),"PTT On Tip, Mic and Bias on Ring");
       //gtk_widget_override_font(ptt_tip_b, pango_font_description_from_string("Arial 18"));
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ptt_tip_b), mic_ptt_tip_bias_ring==1);
       gtk_widget_show(ptt_tip_b);
-      gtk_grid_attach(GTK_GRID(general_grid),ptt_tip_b,1,4,1,1);
+      gtk_grid_attach(GTK_GRID(general_grid),ptt_tip_b,1,6,1,1);
       g_signal_connect(ptt_tip_b,"pressed",G_CALLBACK(ptt_tip_cb),NULL);
 
       GtkWidget *ptt_b=gtk_check_button_new_with_label("PTT Enabled");
       //gtk_widget_override_font(ptt_b, pango_font_description_from_string("Arial 18"));
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ptt_b), mic_ptt_enabled);
       gtk_widget_show(ptt_b);
-      gtk_grid_attach(GTK_GRID(general_grid),ptt_b,1,5,1,1);
+      gtk_grid_attach(GTK_GRID(general_grid),ptt_b,1,7,1,1);
       g_signal_connect(ptt_b,"toggled",G_CALLBACK(ptt_cb),NULL);
 
       GtkWidget *bias_b=gtk_check_button_new_with_label("BIAS Enabled");
       //gtk_widget_override_font(bias_b, pango_font_description_from_string("Arial 18"));
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (bias_b), mic_bias_enabled);
       gtk_widget_show(bias_b);
-      gtk_grid_attach(GTK_GRID(general_grid),bias_b,1,6,1,1);
+      gtk_grid_attach(GTK_GRID(general_grid),bias_b,1,8,1,1);
       g_signal_connect(bias_b,"toggled",G_CALLBACK(bias_cb),NULL);
     }
 
@@ -582,6 +614,7 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
     g_signal_connect(pa_b,"toggled",G_CALLBACK(pa_cb),NULL);
   
   }
+
 
   id=gtk_notebook_append_page(GTK_NOTEBOOK(notebook),general_grid,general_label);
 

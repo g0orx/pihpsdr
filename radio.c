@@ -80,7 +80,7 @@ int waterfall_automatic=1;
 
 int display_sliders=1;
 int display_toolbar=1;
-int toolbar_simulate_buttons=1;
+int toolbar_dialog_buttons=1;
 
 double volume=0.2;
 double mic_gain=1.5;
@@ -177,6 +177,8 @@ long long tune_timeout;
 
 int smeter=RXA_S_AV;
 int alc=TXA_ALC_PK;
+
+int local_audio=0;
 
 #ifdef FREEDV
 char freedv_tx_text_data[64];
@@ -418,8 +420,8 @@ void radioRestoreState() {
     if(value) display_sliders=atoi(value);
     value=getProperty("display_toolbar");
     if(value) display_toolbar=atoi(value);
-    value=getProperty("toolbar_simulate_buttons");
-    if(value) toolbar_simulate_buttons=atoi(value);
+    value=getProperty("toolbar_dialog_buttons");
+    if(value) toolbar_dialog_buttons=atoi(value);
     value=getProperty("waterfall_high");
     if(value) waterfall_high=atoi(value);
     value=getProperty("waterfall_low");
@@ -518,6 +520,8 @@ void radioRestoreState() {
     if(value) smeter=atoi(value);
     value=getProperty("alc");
     if(value) alc=atoi(value);
+    value=getProperty("local_audio");
+    if(value) local_audio=atoi(value);
     bandRestoreState();
     sem_post(&property_sem);
 }
@@ -556,8 +560,8 @@ void radioSaveState() {
     setProperty("display_sliders",value);
     sprintf(value,"%d",display_toolbar);
     setProperty("display_toolbar",value);
-    sprintf(value,"%d",toolbar_simulate_buttons);
-    setProperty("toolbar_simulate_buttons",value);
+    sprintf(value,"%d",toolbar_dialog_buttons);
+    setProperty("toolbar_dialog_buttons",value);
     sprintf(value,"%d",waterfall_high);
     setProperty("waterfall_high",value);
     sprintf(value,"%d",waterfall_low);
@@ -657,6 +661,8 @@ void radioSaveState() {
     setProperty("smeter",value);
     sprintf(value,"%d",alc);
     setProperty("alc",value);
+    sprintf(value,"%d",local_audio);
+    setProperty("local_audio",value);
     bandSaveState();
 
     saveProperties(property_path);

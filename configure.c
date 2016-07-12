@@ -63,9 +63,11 @@ static void display_toolbar_cb(GtkWidget *widget, gpointer data) {
   display_toolbar=display_toolbar==1?0:1;
 }
 
-static void toolbar_simulate_buttons_cb(GtkWidget *widget, gpointer data) {
-  toolbar_simulate_buttons=toolbar_simulate_buttons==1?0:1;
+/*
+static void toolbar_dialog_buttons_cb(GtkWidget *widget, gpointer data) {
+  toolbar_dialog_buttons=toolbar_dialog_buttons==1?0:1;
 }
+*/
 
 #ifdef INCLUDE_GPIO
 void configure_gpio(GtkWidget *parent) {
@@ -471,12 +473,6 @@ void configure(DISCOVERED* d,GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),b_display_toolbar,0,13,1,1);
   g_signal_connect(b_display_toolbar,"toggled",G_CALLBACK(display_toolbar_cb),(gpointer *)NULL);
 
-  GtkWidget *b_toolbar_simulate_buttons=gtk_check_button_new_with_label("Toolbar Simulate Buttons");
-  //gtk_widget_override_font(b_toolbar_simulate_buttons, pango_font_description_from_string("Arial 18"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_toolbar_simulate_buttons), toolbar_simulate_buttons);
-  gtk_widget_show(b_toolbar_simulate_buttons);
-  gtk_grid_attach(GTK_GRID(grid),b_toolbar_simulate_buttons,0,14,1,1);
-  g_signal_connect(b_toolbar_simulate_buttons,"toggled",G_CALLBACK(toolbar_simulate_buttons_cb),(gpointer *)NULL);
   gtk_container_add(GTK_CONTAINER(content),grid);
 
   GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close",GTK_RESPONSE_OK);

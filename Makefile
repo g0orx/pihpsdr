@@ -7,17 +7,14 @@ LINK=gcc
 
 ifeq ($(LIMESDR_INCLUDE),LIMESDR)
 LIMESDR_OPTIONS=-D LIMESDR
-SOAPYSDRLIBS=-lSoapySDR -lpulse-simple -lpulse
+SOAPYSDRLIBS=-lSoapySDR
 LIMESDR_SOURCES= \
-audio.c \
 lime_discovery.c \
 lime_protocol.c
 LIMESDR_HEADERS= \
-audio.h \
 lime_discovery.h \
 lime_protocol.h
 LIMESDR_OBJS= \
-audio.o \
 lime_discovery.o \
 lime_protocol.o
 endif
@@ -67,7 +64,7 @@ OPTIONS=-g -D $(UNAME_N) $(LIMESDR_OPTIONS) $(FREEDV_OPTIONS) -O3
 GTKINCLUDES=`pkg-config --cflags gtk+-3.0`
 GTKLIBS=`pkg-config --libs gtk+-3.0`
 
-LIBS=-lrt -lm -lwdsp -lpthread $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS)
+LIBS=-lrt -lm -lwdsp -lpthread -lpulse-simple -lpulse $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS)
 INCLUDES=$(GTKINCLUDES)
 
 COMPILE=$(CC) $(OPTIONS) $(INCLUDES)
@@ -75,6 +72,7 @@ COMPILE=$(CC) $(OPTIONS) $(INCLUDES)
 PROGRAM=pihpsdr
 
 SOURCES= \
+audio.c \
 band.c \
 configure.c \
 frequency.c \
@@ -102,6 +100,7 @@ wdsp_init.c
 
 
 HEADERS= \
+audio.h \
 agc.h \
 alex.h \
 band.h \
@@ -132,6 +131,7 @@ xvtr.h
 
 
 OBJS= \
+audio.o \
 band.o \
 configure.o \
 frequency.o \

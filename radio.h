@@ -92,7 +92,7 @@ extern int waterfall_automatic;
 
 extern int display_sliders;
 extern int display_toolbar;
-extern int toolbar_simulate_buttons;
+extern int toolbar_dialog_buttons;
 
 extern double volume;
 extern double mic_gain;
@@ -188,6 +188,8 @@ extern char freedv_tx_text_data[64];
 
 extern int smeter;
 extern int alc;
+
+extern int local_audio;
 
 extern void init_radio();
 extern void setSampleRate(int rate);

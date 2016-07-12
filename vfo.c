@@ -254,43 +254,47 @@ vfo_press_event_cb (GtkWidget *widget,
                GdkEventButton *event,
                gpointer        data)
 {
-  GtkWidget *dialog=gtk_dialog_new_with_buttons("Step",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
 
-  GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-  GtkWidget *grid=gtk_grid_new();
+  if((int)event->x < (my_width/2)) {
+    lock_cb(NULL,NULL);
+  } else {
+    GtkWidget *dialog=gtk_dialog_new_with_buttons("Step",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
 
-  gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
-  gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
+    GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    GtkWidget *grid=gtk_grid_new();
 
-  GtkWidget *step_rb=NULL;
-  int i=0;
-  while(steps[i]!=0) {
-    if(i==0) {
-        step_rb=gtk_radio_button_new_with_label(NULL,step_labels[i]);
-    } else {
-        step_rb=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(step_rb),step_labels[i]);
+    gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
+    gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
+
+    GtkWidget *step_rb=NULL;
+    int i=0;
+    while(steps[i]!=0) {
+      if(i==0) {
+          step_rb=gtk_radio_button_new_with_label(NULL,step_labels[i]);
+      } else {
+          step_rb=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(step_rb),step_labels[i]);
+      }
+      gtk_widget_override_font(step_rb, pango_font_description_from_string("Arial 18"));
+      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (step_rb), steps[i]==step);
+      gtk_widget_show(step_rb);
+      gtk_grid_attach(GTK_GRID(grid),step_rb,i%5,i/5,1,1);
+      g_signal_connect(step_rb,"pressed",G_CALLBACK(vfo_step_select_cb),(gpointer *)i);
+      i++;
     }
-    gtk_widget_override_font(step_rb, pango_font_description_from_string("Arial 18"));
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (step_rb), steps[i]==step);
-    gtk_widget_show(step_rb);
-    gtk_grid_attach(GTK_GRID(grid),step_rb,i%5,i/5,1,1);
-    g_signal_connect(step_rb,"pressed",G_CALLBACK(vfo_step_select_cb),(gpointer *)i);
-    i++;
-  }
-
-  gtk_container_add(GTK_CONTAINER(content),grid);
-
-  GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close",GTK_RESPONSE_OK);
-  gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 18"));
-  gtk_widget_show_all(dialog);
-
-  g_signal_connect_swapped (dialog,
-                           "response",
-                           G_CALLBACK (gtk_widget_destroy),
-                           dialog);
-
-  int result=gtk_dialog_run(GTK_DIALOG(dialog));
   
+    gtk_container_add(GTK_CONTAINER(content),grid);
+  
+    GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close",GTK_RESPONSE_OK);
+    gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 18"));
+    gtk_widget_show_all(dialog);
+
+    g_signal_connect_swapped (dialog,
+                             "response",
+                             G_CALLBACK (gtk_widget_destroy),
+                             dialog);
+  
+    int result=gtk_dialog_run(GTK_DIALOG(dialog));
+  }
   return TRUE;
 }
 
