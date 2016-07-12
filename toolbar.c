@@ -47,6 +47,8 @@ static int height;
 static GtkWidget *parent_window;
 static GtkWidget *toolbar;
 
+static GtkWidget *last_dialog;
+
 static GtkWidget *sim_mox;
 static GtkWidget *sim_band;
 static GtkWidget *sim_bandstack;
@@ -129,47 +131,57 @@ static void band_select_cb(GtkWidget *widget, gpointer data) {
 }
 
  void band_cb(GtkWidget *widget, gpointer data) {
-  GtkWidget *dialog=gtk_dialog_new_with_buttons("Band",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
-  GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-  GtkWidget *grid=gtk_grid_new();
-  gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
-  gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
-  GtkWidget *b;
-  int i;
-  for(i=0;i<BANDS;i++) {
-#ifdef LIMESDR
-    if(protocol!=LIMESDR_PROTOCOL) {
-      if(i>=band70 && i<=band3400) {
-        continue;
-      }
+  int show=1;
+  if(last_dialog!=NULL) {
+    if(strcmp(gtk_window_get_title(GTK_WINDOW(last_dialog)),"Band")==0) {
+      show=0;
     }
-#endif
-    BAND* band=band_get_band(i);
-    GtkWidget *b=gtk_button_new_with_label(band->title);
-    gtk_widget_override_background_color(b, GTK_STATE_NORMAL, &white);
-    //gtk_widget_override_font(b, pango_font_description_from_string("Arial 20"));
-    if(i==band_get_current()) {
-      gtk_widget_override_background_color(b, GTK_STATE_NORMAL, &gray);
-      last_band=b;
-    }
-    gtk_widget_show(b);
-    gtk_grid_attach(GTK_GRID(grid),b,i%5,i/5,1,1);
-    g_signal_connect(b,"clicked",G_CALLBACK(band_select_cb),(gpointer *)i);
+    gtk_widget_destroy(last_dialog);
+    last_dialog=NULL;
   }
+  if(show) {
+    GtkWidget *dialog=gtk_dialog_new_with_buttons("Band",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
+    GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    GtkWidget *grid=gtk_grid_new();
+    gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
+    gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
+    GtkWidget *b;
+    int i;
+    for(i=0;i<BANDS;i++) {
+#ifdef LIMESDR
+      if(protocol!=LIMESDR_PROTOCOL) {
+        if(i>=band70 && i<=band3400) {
+          continue;
+        }
+      }
+#endif
+      BAND* band=band_get_band(i);
+      GtkWidget *b=gtk_button_new_with_label(band->title);
+      gtk_widget_override_background_color(b, GTK_STATE_NORMAL, &white);
+      //gtk_widget_override_font(b, pango_font_description_from_string("Arial 20"));
+      if(i==band_get_current()) {
+        gtk_widget_override_background_color(b, GTK_STATE_NORMAL, &gray);
+        last_band=b;
+      }
+      gtk_widget_show(b);
+      gtk_grid_attach(GTK_GRID(grid),b,i%5,i/5,1,1);
+      g_signal_connect(b,"clicked",G_CALLBACK(band_select_cb),(gpointer *)i);
+    }
   
-  gtk_container_add(GTK_CONTAINER(content),grid);
+    gtk_container_add(GTK_CONTAINER(content),grid);
 
-  GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close",GTK_RESPONSE_OK);
-  //gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 20"));
-  gtk_widget_show_all(dialog);
+    GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close",GTK_RESPONSE_OK);
+    //gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 20"));
+    gtk_widget_show_all(dialog);
 
-  g_signal_connect_swapped (dialog,
-                           "response",
-                           G_CALLBACK (gtk_widget_destroy),
-                           dialog);
+    g_signal_connect_swapped (dialog,
+                             "response",
+                             G_CALLBACK (gtk_widget_destroy),
+                             dialog);
 
-  int result=gtk_dialog_run(GTK_DIALOG(dialog));
-  
+    last_dialog=dialog;
+    int result=gtk_dialog_run(GTK_DIALOG(dialog));
+  }
 }
 
 static void bandstack_select_cb(GtkWidget *widget, gpointer data) {
@@ -202,46 +214,58 @@ static void bandstack_select_cb(GtkWidget *widget, gpointer data) {
 }
 
 void bandstack_cb(GtkWidget *widget, gpointer data) {
-  GtkWidget *dialog=gtk_dialog_new_with_buttons("Band",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
-  GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-  GtkWidget *grid=gtk_grid_new();
-  gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
-  gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
-  GtkWidget *b;
-  int i;
-
-  char label[16];
-
-  BAND *band=band_get_current_band();
-  BANDSTACK *bandstack=band->bandstack;
-
-  for(i=0;i<bandstack->entries;i++) {
-    BANDSTACK_ENTRY *entry=&bandstack->entry[i];
-    sprintf(label,"%lld",entry->frequencyA);
-    GtkWidget *b=gtk_button_new_with_label(label);
-    gtk_widget_override_background_color(b, GTK_STATE_NORMAL, &white);
-    //gtk_widget_override_font(b, pango_font_description_from_string("Arial 20"));
-    if(i==bandstack->current_entry) {
-      gtk_widget_override_background_color(b, GTK_STATE_NORMAL, &gray);
-      last_bandstack=b;
+  int show=1;
+  if(last_dialog!=NULL) {
+    if(strcmp(gtk_window_get_title(GTK_WINDOW(last_dialog)),"Band Stack")==0) {
+      show=0;
     }
-    gtk_widget_show(b);
-    gtk_grid_attach(GTK_GRID(grid),b,i%5,i/5,1,1);
-    g_signal_connect(b,"clicked",G_CALLBACK(bandstack_select_cb),(gpointer *)i);
+    gtk_widget_destroy(last_dialog);
+    last_dialog=NULL;
   }
+  if(show) {
+    GtkWidget *dialog=gtk_dialog_new_with_buttons("Band Stack",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
+    GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    GtkWidget *grid=gtk_grid_new();
+    gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
+    gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
+    GtkWidget *b;
+    int i;
 
-  gtk_container_add(GTK_CONTAINER(content),grid);
+    char label[16];
 
-  GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close",GTK_RESPONSE_OK);
-  //gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 20"));
-  gtk_widget_show_all(dialog);
+    BAND *band=band_get_current_band();
+    BANDSTACK *bandstack=band->bandstack;
 
-  g_signal_connect_swapped (dialog,
-                           "response",
-                           G_CALLBACK (gtk_widget_destroy),
-                           dialog);
+    for(i=0;i<bandstack->entries;i++) {
+      BANDSTACK_ENTRY *entry=&bandstack->entry[i];
+      sprintf(label,"%lld",entry->frequencyA);
+      GtkWidget *b=gtk_button_new_with_label(label);
+      gtk_widget_override_background_color(b, GTK_STATE_NORMAL, &white);
+      //gtk_widget_override_font(b, pango_font_description_from_string("Arial 20"));
+      if(i==bandstack->current_entry) {
+        gtk_widget_override_background_color(b, GTK_STATE_NORMAL, &gray);
+        last_bandstack=b;
+      }
+      gtk_widget_show(b);
+      gtk_grid_attach(GTK_GRID(grid),b,i%5,i/5,1,1);
+      g_signal_connect(b,"clicked",G_CALLBACK(bandstack_select_cb),(gpointer *)i);
+    }
 
-  int result=gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_container_add(GTK_CONTAINER(content),grid);
+
+    GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close",GTK_RESPONSE_OK);
+    //gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 20"));
+    gtk_widget_show_all(dialog);
+
+    g_signal_connect_swapped (dialog,
+                             "response",
+                             G_CALLBACK (gtk_widget_destroy),
+                             dialog);
+
+    last_dialog=dialog;
+
+    int result=gtk_dialog_run(GTK_DIALOG(dialog));
+  }
 }
 
 void function_cb(GtkWidget *widget, gpointer data) {
@@ -267,40 +291,51 @@ static void mode_select_cb(GtkWidget *widget, gpointer data) {
 }
 
 void mode_cb(GtkWidget *widget, gpointer data) {
-  BANDSTACK_ENTRY *entry=bandstack_entry_get_current();
-  GtkWidget *dialog=gtk_dialog_new_with_buttons("Mode",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
-  GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-  GtkWidget *grid=gtk_grid_new();
-  gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
-  gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
-
-  GtkWidget *b;
-  int i;
-  for(i=0;i<MODES;i++) {
-    GtkWidget *b=gtk_button_new_with_label(mode_string[i]);
-    if(i==entry->mode) {
-      gtk_widget_override_background_color(b, GTK_STATE_NORMAL, &gray);
-      last_mode=b;
-    } else {
-      gtk_widget_override_background_color(b, GTK_STATE_NORMAL, &white);
+  int show=1;
+  if(last_dialog!=NULL) {
+    if(strcmp(gtk_window_get_title(GTK_WINDOW(last_dialog)),"Mode")==0) {
+      show=0;
     }
-    //gtk_widget_override_font(b, pango_font_description_from_string("Arial 20"));
-    gtk_widget_show(b);
-    gtk_grid_attach(GTK_GRID(grid),b,i%5,i/5,1,1);
-    g_signal_connect(b,"pressed",G_CALLBACK(mode_select_cb),(gpointer *)i);
+    gtk_widget_destroy(last_dialog);
+    last_dialog=NULL;
   }
-  gtk_container_add(GTK_CONTAINER(content),grid);
-  GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close",GTK_RESPONSE_OK);
-  //gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 20"));
-  gtk_widget_show_all(dialog);
+  if(show) {
+    BANDSTACK_ENTRY *entry=bandstack_entry_get_current();
+    GtkWidget *dialog=gtk_dialog_new_with_buttons("Mode",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
+    GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    GtkWidget *grid=gtk_grid_new();
+    gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
+    gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
 
-  g_signal_connect_swapped (dialog,
-                           "response",
-                           G_CALLBACK (gtk_widget_destroy),
-                           dialog);
+    GtkWidget *b;
+    int i;
+    for(i=0;i<MODES;i++) {
+      GtkWidget *b=gtk_button_new_with_label(mode_string[i]);
+      if(i==entry->mode) {
+        gtk_widget_override_background_color(b, GTK_STATE_NORMAL, &gray);
+        last_mode=b;
+      } else {
+        gtk_widget_override_background_color(b, GTK_STATE_NORMAL, &white);
+      }
+      //gtk_widget_override_font(b, pango_font_description_from_string("Arial 20"));
+      gtk_widget_show(b);
+      gtk_grid_attach(GTK_GRID(grid),b,i%5,i/5,1,1);
+      g_signal_connect(b,"pressed",G_CALLBACK(mode_select_cb),(gpointer *)i);
+    }
+    gtk_container_add(GTK_CONTAINER(content),grid);
+    GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close",GTK_RESPONSE_OK);
+    //gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 20"));
+    gtk_widget_show_all(dialog);
 
-  int result=gtk_dialog_run(GTK_DIALOG(dialog));
+    g_signal_connect_swapped (dialog,
+                             "response",
+                             G_CALLBACK (gtk_widget_destroy),
+                             dialog);
 
+    last_dialog=dialog;
+    int result=gtk_dialog_run(GTK_DIALOG(dialog));
+
+  }
 }
 
 static void filter_select_cb(GtkWidget *widget, gpointer data) {
@@ -318,42 +353,53 @@ static void filter_select_cb(GtkWidget *widget, gpointer data) {
 }
 
 void filter_cb(GtkWidget *widget, gpointer data) {
-  BANDSTACK_ENTRY *entry=bandstack_entry_get_current();
-  FILTER* band_filters=filters[entry->mode];
-  GtkWidget *dialog=gtk_dialog_new_with_buttons("Mode",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
-  GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-  GtkWidget *grid=gtk_grid_new();
-  gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
-  gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
-
-  GtkWidget *b;
-  int i;
-  for(i=0;i<FILTERS;i++) {
-    FILTER* band_filter=&band_filters[i];
-    GtkWidget *b=gtk_button_new_with_label(band_filters[i].title);
-    //gtk_widget_override_font(b, pango_font_description_from_string("Arial 20"));
-    if(i==entry->filter) {
-      gtk_widget_override_background_color(b, GTK_STATE_NORMAL, &gray);
-      last_filter=b;
-    } else {
-      gtk_widget_override_background_color(b, GTK_STATE_NORMAL, &white);
+  int show=1;
+  if(last_dialog!=NULL) {
+    if(strcmp(gtk_window_get_title(GTK_WINDOW(last_dialog)),"Filter")==0) {
+      show=0;
     }
-    gtk_widget_show(b);
-    gtk_grid_attach(GTK_GRID(grid),b,i%5,i/5,1,1);
-    g_signal_connect(b,"pressed",G_CALLBACK(filter_select_cb),(gpointer *)i);
+    gtk_widget_destroy(last_dialog);
+    last_dialog=NULL;
   }
-  gtk_container_add(GTK_CONTAINER(content),grid);
-  GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close",GTK_RESPONSE_OK);
-  //gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 20"));
-  gtk_widget_show_all(dialog);
+  if(show) {
+    BANDSTACK_ENTRY *entry=bandstack_entry_get_current();
+    FILTER* band_filters=filters[entry->mode];
+    GtkWidget *dialog=gtk_dialog_new_with_buttons("Filter",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
+    GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    GtkWidget *grid=gtk_grid_new();
+    gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
+    gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
 
-  g_signal_connect_swapped (dialog,
-                           "response",
-                           G_CALLBACK (gtk_widget_destroy),
-                           dialog);
+    GtkWidget *b;
+    int i;
+    for(i=0;i<FILTERS;i++) {
+      FILTER* band_filter=&band_filters[i];
+      GtkWidget *b=gtk_button_new_with_label(band_filters[i].title);
+      //gtk_widget_override_font(b, pango_font_description_from_string("Arial 20"));
+      if(i==entry->filter) {
+        gtk_widget_override_background_color(b, GTK_STATE_NORMAL, &gray);
+        last_filter=b;
+      } else {
+        gtk_widget_override_background_color(b, GTK_STATE_NORMAL, &white);
+      }
+      gtk_widget_show(b);
+      gtk_grid_attach(GTK_GRID(grid),b,i%5,i/5,1,1);
+      g_signal_connect(b,"pressed",G_CALLBACK(filter_select_cb),(gpointer *)i);
+    }
+    gtk_container_add(GTK_CONTAINER(content),grid);
+    GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close",GTK_RESPONSE_OK);
+    //gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 20"));
+    gtk_widget_show_all(dialog);
 
-  int result=gtk_dialog_run(GTK_DIALOG(dialog));
+    g_signal_connect_swapped (dialog,
+                             "response",
+                             G_CALLBACK (gtk_widget_destroy),
+                             dialog);
 
+    last_dialog=dialog;
+    int result=gtk_dialog_run(GTK_DIALOG(dialog));
+
+  }
 }
 
 static void agc_select_cb(GtkWidget *widget, gpointer data) {
@@ -441,137 +487,159 @@ static void snb_cb(GtkWidget *widget, gpointer data) {
 
 
 void agc_cb(GtkWidget *widget, gpointer data) {
-  GtkWidget *dialog=gtk_dialog_new_with_buttons("AGC",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
+  int show=1;
+  if(last_dialog!=NULL) {
+    if(strcmp(gtk_window_get_title(GTK_WINDOW(last_dialog)),"AGC")==0) {
+      show=0;
+    }
+    gtk_widget_destroy(last_dialog);
+    last_dialog=NULL;
+  }
+  if(show) {
+    GtkWidget *dialog=gtk_dialog_new_with_buttons("AGC",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
 
-  GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-  GtkWidget *grid=gtk_grid_new();
+    GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    GtkWidget *grid=gtk_grid_new();
 
-  gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
-  gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
+    gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
+    gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
 
-  GtkWidget *b_off=gtk_radio_button_new_with_label(NULL,"Off"); 
-  //gtk_widget_override_font(b_off, pango_font_description_from_string("Arial 16"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_off), agc==AGC_OFF);
-  gtk_widget_show(b_off);
-  gtk_grid_attach(GTK_GRID(grid),b_off,0,0,2,1);
-  g_signal_connect(b_off,"pressed",G_CALLBACK(agc_select_cb),(gpointer *)AGC_OFF);
+    GtkWidget *b_off=gtk_radio_button_new_with_label(NULL,"Off"); 
+    //gtk_widget_override_font(b_off, pango_font_description_from_string("Arial 16"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_off), agc==AGC_OFF);
+    gtk_widget_show(b_off);
+    gtk_grid_attach(GTK_GRID(grid),b_off,0,0,2,1);
+    g_signal_connect(b_off,"pressed",G_CALLBACK(agc_select_cb),(gpointer *)AGC_OFF);
 
-  GtkWidget *b_long=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_off),"Long"); 
-  //gtk_widget_override_font(b_long, pango_font_description_from_string("Arial 16"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_long), agc==AGC_LONG);
-  gtk_widget_show(b_long);
-  gtk_grid_attach(GTK_GRID(grid),b_long,0,1,2,1);
-  g_signal_connect(b_long,"pressed",G_CALLBACK(agc_select_cb),(gpointer *)AGC_LONG);
+    GtkWidget *b_long=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_off),"Long"); 
+    //gtk_widget_override_font(b_long, pango_font_description_from_string("Arial 16"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_long), agc==AGC_LONG);
+    gtk_widget_show(b_long);
+    gtk_grid_attach(GTK_GRID(grid),b_long,0,1,2,1);
+    g_signal_connect(b_long,"pressed",G_CALLBACK(agc_select_cb),(gpointer *)AGC_LONG);
 
-  GtkWidget *b_slow=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_long),"Slow"); 
-  //gtk_widget_override_font(b_slow, pango_font_description_from_string("Arial 16"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_slow), agc==AGC_SLOW);
-  gtk_widget_show(b_slow);
-  gtk_grid_attach(GTK_GRID(grid),b_slow,0,2,2,1);
-  g_signal_connect(b_slow,"pressed",G_CALLBACK(agc_select_cb),(gpointer *)AGC_SLOW);
+    GtkWidget *b_slow=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_long),"Slow"); 
+    //gtk_widget_override_font(b_slow, pango_font_description_from_string("Arial 16"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_slow), agc==AGC_SLOW);
+    gtk_widget_show(b_slow);
+    gtk_grid_attach(GTK_GRID(grid),b_slow,0,2,2,1);
+    g_signal_connect(b_slow,"pressed",G_CALLBACK(agc_select_cb),(gpointer *)AGC_SLOW);
 
-  GtkWidget *b_medium=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_slow),"Medium"); 
-  //gtk_widget_override_font(b_medium, pango_font_description_from_string("Arial 16"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_medium), agc==AGC_MEDIUM);
-  gtk_widget_show(b_medium);
-  gtk_grid_attach(GTK_GRID(grid),b_medium,0,3,2,1);
-  g_signal_connect(b_medium,"pressed",G_CALLBACK(agc_select_cb),(gpointer *)AGC_MEDIUM);
+    GtkWidget *b_medium=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_slow),"Medium"); 
+    //gtk_widget_override_font(b_medium, pango_font_description_from_string("Arial 16"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_medium), agc==AGC_MEDIUM);
+    gtk_widget_show(b_medium);
+    gtk_grid_attach(GTK_GRID(grid),b_medium,0,3,2,1);
+    g_signal_connect(b_medium,"pressed",G_CALLBACK(agc_select_cb),(gpointer *)AGC_MEDIUM);
 
-  GtkWidget *b_fast=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_medium),"Fast"); 
-  //gtk_widget_override_font(b_fast, pango_font_description_from_string("Arial 16"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_fast), agc==AGC_FAST);
-  gtk_widget_show(b_fast);
-  gtk_grid_attach(GTK_GRID(grid),b_fast,0,4,2,1);
-  g_signal_connect(b_fast,"pressed",G_CALLBACK(agc_select_cb),(gpointer *)AGC_FAST);
+    GtkWidget *b_fast=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_medium),"Fast"); 
+    //gtk_widget_override_font(b_fast, pango_font_description_from_string("Arial 16"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_fast), agc==AGC_FAST);
+    gtk_widget_show(b_fast);
+    gtk_grid_attach(GTK_GRID(grid),b_fast,0,4,2,1);
+    g_signal_connect(b_fast,"pressed",G_CALLBACK(agc_select_cb),(gpointer *)AGC_FAST);
+  
+    gtk_container_add(GTK_CONTAINER(content),grid);
 
-  gtk_container_add(GTK_CONTAINER(content),grid);
+    GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close",GTK_RESPONSE_OK);
+    //gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 16"));
+    gtk_widget_show_all(dialog);
 
-  GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close",GTK_RESPONSE_OK);
-  //gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 16"));
-  gtk_widget_show_all(dialog);
+    g_signal_connect_swapped (dialog,
+                             "response",
+                             G_CALLBACK (gtk_widget_destroy),
+                             dialog);
 
-  g_signal_connect_swapped (dialog,
-                           "response",
-                           G_CALLBACK (gtk_widget_destroy),
-                           dialog);
-
-  int result=gtk_dialog_run(GTK_DIALOG(dialog));
-
+    last_dialog=dialog;
+    int result=gtk_dialog_run(GTK_DIALOG(dialog));
+  }
 }
 
 void noise_cb(GtkWidget *widget, gpointer data) {
-  GtkWidget *dialog=gtk_dialog_new_with_buttons("Noise",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
+  int show=1;
+  if(last_dialog!=NULL) {
+    if(strcmp(gtk_window_get_title(GTK_WINDOW(last_dialog)),"Noise")==0) {
+      show=0;
+    }
+    gtk_widget_destroy(last_dialog);
+    last_dialog=NULL;
+  }
+  if(show) {
+    GtkWidget *dialog=gtk_dialog_new_with_buttons("Noise",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
 
-  GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-  GtkWidget *grid=gtk_grid_new();
+    GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    GtkWidget *grid=gtk_grid_new();
 
-  gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
-  gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
+    gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
+    gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
 
-  GtkWidget *b_nr_none=gtk_radio_button_new_with_label(NULL,"None");
-  //gtk_widget_override_font(b_none, pango_font_description_from_string("Arial 16"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_nr_none), nr_none==1);
-  gtk_widget_show(b_nr_none);
-  gtk_grid_attach(GTK_GRID(grid),b_nr_none,0,0,2,1);
-  g_signal_connect(b_nr_none,"pressed",G_CALLBACK(nr_none_cb),NULL);
+    GtkWidget *b_nr_none=gtk_radio_button_new_with_label(NULL,"None");
+    //gtk_widget_override_font(b_none, pango_font_description_from_string("Arial 16"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_nr_none), nr_none==1);
+    gtk_widget_show(b_nr_none);
+    gtk_grid_attach(GTK_GRID(grid),b_nr_none,0,0,2,1);
+    g_signal_connect(b_nr_none,"pressed",G_CALLBACK(nr_none_cb),NULL);
 
-  GtkWidget *b_nr=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_nr_none),"NR");
-  //gtk_widget_override_font(b_nr, pango_font_description_from_string("Arial 16"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_nr), nr==1);
-  gtk_widget_show(b_nr);
-  gtk_grid_attach(GTK_GRID(grid),b_nr,0,1,2,1);
-  g_signal_connect(b_nr,"pressed",G_CALLBACK(nr_cb),NULL);
+    GtkWidget *b_nr=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_nr_none),"NR");
+    //gtk_widget_override_font(b_nr, pango_font_description_from_string("Arial 16"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_nr), nr==1);
+    gtk_widget_show(b_nr);
+    gtk_grid_attach(GTK_GRID(grid),b_nr,0,1,2,1);
+    g_signal_connect(b_nr,"pressed",G_CALLBACK(nr_cb),NULL);
 
-  GtkWidget *b_nr2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_nr),"NR2");
-  //gtk_widget_override_font(b_nr2, pango_font_description_from_string("Arial 16"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_nr2), nr2==1);
-  gtk_widget_show(b_nr2);
-  gtk_grid_attach(GTK_GRID(grid),b_nr2,0,2,2,1);
-  g_signal_connect(b_nr2,"pressed",G_CALLBACK(nr2_cb),NULL);
+    GtkWidget *b_nr2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_nr),"NR2");
+    //gtk_widget_override_font(b_nr2, pango_font_description_from_string("Arial 16"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_nr2), nr2==1);
+    gtk_widget_show(b_nr2);
+    gtk_grid_attach(GTK_GRID(grid),b_nr2,0,2,2,1);
+    g_signal_connect(b_nr2,"pressed",G_CALLBACK(nr2_cb),NULL);
 
 /*
-  GtkWidget *b_nb=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_nr2),"NB");
-  //gtk_widget_override_font(b_nb, pango_font_description_from_string("Arial 16"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_nb), nb==1);
-  gtk_widget_show(b_nb);
-  gtk_grid_attach(GTK_GRID(grid),b_nb,0,3,2,1);
-  g_signal_connect(b_nb,"pressed",G_CALLBACK(nb_cb),NULL);
-
-  GtkWidget *b_nb2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_nb),"NB2");
-  //gtk_widget_override_font(b_nb2, pango_font_description_from_string("Arial 16"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_nb2), nb2==1);
-  gtk_widget_show(b_nb2);
-  gtk_grid_attach(GTK_GRID(grid),b_nb2,0,4,2,1);
-  g_signal_connect(b_nb2,"pressed",G_CALLBACK(nb2_cb),NULL);
+    GtkWidget *b_nb=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_nr2),"NB");
+    //gtk_widget_override_font(b_nb, pango_font_description_from_string("Arial 16"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_nb), nb==1);
+    gtk_widget_show(b_nb);
+    gtk_grid_attach(GTK_GRID(grid),b_nb,0,3,2,1);
+    g_signal_connect(b_nb,"pressed",G_CALLBACK(nb_cb),NULL);
+  
+    GtkWidget *b_nb2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_nb),"NB2");
+    //gtk_widget_override_font(b_nb2, pango_font_description_from_string("Arial 16"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_nb2), nb2==1);
+    gtk_widget_show(b_nb2);
+    gtk_grid_attach(GTK_GRID(grid),b_nb2,0,4,2,1);
+    g_signal_connect(b_nb2,"pressed",G_CALLBACK(nb2_cb),NULL);
 */
 
-  GtkWidget *b_anf=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_nr2),"ANF");
-  //gtk_widget_override_font(b_anf, pango_font_description_from_string("Arial 16"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_anf), anf==1);
-  gtk_widget_show(b_anf);
-  gtk_grid_attach(GTK_GRID(grid),b_anf,0,3,2,1);
-  g_signal_connect(b_anf,"pressed",G_CALLBACK(anf_cb),NULL);
+    GtkWidget *b_anf=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_nr2),"ANF");
+    //gtk_widget_override_font(b_anf, pango_font_description_from_string("Arial 16"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_anf), anf==1);
+    gtk_widget_show(b_anf);
+    gtk_grid_attach(GTK_GRID(grid),b_anf,0,3,2,1);
+    g_signal_connect(b_anf,"pressed",G_CALLBACK(anf_cb),NULL);
+  
+    GtkWidget *b_snb=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_anf),"SNB");
+    //gtk_widget_override_font(b_snb, pango_font_description_from_string("Arial 16"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_snb), snb==1);
+    gtk_widget_show(b_snb);
+    gtk_grid_attach(GTK_GRID(grid),b_snb,0,4,2,1);
+    g_signal_connect(b_snb,"pressed",G_CALLBACK(snb_cb),NULL);
 
-  GtkWidget *b_snb=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_anf),"SNB");
-  //gtk_widget_override_font(b_snb, pango_font_description_from_string("Arial 16"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_snb), snb==1);
-  gtk_widget_show(b_snb);
-  gtk_grid_attach(GTK_GRID(grid),b_snb,0,4,2,1);
-  g_signal_connect(b_snb,"pressed",G_CALLBACK(snb_cb),NULL);
+    gtk_container_add(GTK_CONTAINER(content),grid);
 
-  gtk_container_add(GTK_CONTAINER(content),grid);
+    GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close",GTK_RESPONSE_OK);
+    //gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 16"));
+    gtk_widget_show_all(dialog);
 
-  GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close",GTK_RESPONSE_OK);
-  //gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 16"));
-  gtk_widget_show_all(dialog);
+    g_signal_connect_swapped (dialog,
+                             "response",
+                             G_CALLBACK (gtk_widget_destroy),
+                             dialog);
 
-  g_signal_connect_swapped (dialog,
-                           "response",
-                           G_CALLBACK (gtk_widget_destroy),
-                           dialog);
+    last_dialog=dialog;
 
-  int result=gtk_dialog_run(GTK_DIALOG(dialog));
+    int result=gtk_dialog_run(GTK_DIALOG(dialog));
 
+    }
 }
 
 static void stop() {
@@ -1213,6 +1281,8 @@ GtkWidget *toolbar_init(int my_width, int my_height, GtkWidget* parent) {
     gtk_grid_attach(GTK_GRID(toolbar),sim_function,28,0,4,1);
 
     update_toolbar_labels();
+
+    last_dialog=NULL;
 
     gtk_widget_show_all(toolbar);
 
