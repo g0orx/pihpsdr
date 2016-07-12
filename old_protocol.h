@@ -20,4 +20,5 @@
 #define BUFFER_SIZE 1024
 void old_protocol_stop();
 void old_protocol_init(int rx,int pixels);
+void old_protocol_new_sample_rate(int rate);
 void schedule_frequency_changed();

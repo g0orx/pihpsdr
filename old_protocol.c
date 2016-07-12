@@ -172,6 +172,7 @@ static int frequencyChanged=0;
 static sem_t frequency_changed_sem;
 
 static int metis_write(unsigned char ep,char* buffer,int length);
+static void metis_restart();
 static void metis_start_stop(int command);
 static void metis_send_buffer(char* buffer,int length);
 static void full_rx_buffer();
@@ -199,25 +200,7 @@ void old_protocol_stop() {
   running=FALSE;
 }
 
-void old_protocol_init(int rx,int pixels) {
-  int i;
-
-  fprintf(stderr,"old_protocol_init\n");
-
-  d=&discovered[selected_device];
-
-  //int result=sem_init(&frequency_changed_sem, 0, 1);
-
-  if(local_audio) {
-    if(audio_init()!=0) {
-      fprintf(stderr,"audio_init failed\n");
-      local_audio=0;
-    }
-  }
-
-  receiver=rx;
-  display_width=pixels;
- 
+void old_protocol_calc_buffers() {
   switch(sample_rate) {
     case 48000:
       output_buffer_size=OUTPUT_BUFFER_SIZE;
@@ -239,6 +222,35 @@ void old_protocol_init(int rx,int pixels) {
       fprintf(stderr,"Invalid sample rate: %d. Defaulting to 48K.\n",sample_rate);
       break;
   }
+}
+
+void old_protocol_new_sample_rate(int rate) {
+  metis_start_stop(0);
+  sample_rate=rate;
+  old_protocol_calc_buffers();
+  metis_restart();
+}
+
+void old_protocol_init(int rx,int pixels) {
+  int i;
+
+  fprintf(stderr,"old_protocol_init\n");
+
+  d=&discovered[selected_device];
+
+  //int result=sem_init(&frequency_changed_sem, 0, 1);
+
+  if(local_audio) {
+    if(audio_init()!=0) {
+      fprintf(stderr,"audio_init failed\n");
+      local_audio=0;
+    }
+  }
+
+  receiver=rx;
+  display_width=pixels;
+ 
+  old_protocol_calc_buffers();
 
   start_receive_thread();
 
@@ -247,18 +259,7 @@ void old_protocol_init(int rx,int pixels) {
     output_buffer[i]=0;
   }
 
-
-  // send commands twice
-  do {
-    ozy_send_buffer();
-  } while (command!=0);
-
-  do {
-    ozy_send_buffer();
-  } while (command!=0);
-
-  // start the data flowing
-  metis_start_stop(1);
+  metis_restart();
 
 }
 
@@ -509,9 +510,12 @@ static void process_ozy_input_buffer(char  *buffer) {
     time(&t);
     gmt=gmtime(&t);
 
-    fprintf(stderr,"%s: process_ozy_input_buffer: did not find sync\n",
+    fprintf(stderr,"%s: process_ozy_input_buffer: did not find sync: restarting\n",
             asctime(gmt));
-    exit(1);
+
+
+    metis_start_stop(0);
+    metis_restart();
   }
 }
 
@@ -944,6 +948,21 @@ static int metis_write(unsigned char ep,char* buffer,int length) {
   }
 
   return length;
+}
+
+static void metis_restart() {
+  // send commands twice
+  command=0;
+  do {
+    ozy_send_buffer();
+  } while (command!=0);
+
+  do {
+    ozy_send_buffer();
+  } while (command!=0);
+
+  // start the data flowing
+  metis_start_stop(1);
 }
 
 static void metis_start_stop(int command) {
