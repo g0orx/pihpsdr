@@ -101,6 +101,11 @@ void update_toolbar_labels() {
   }
 }
 
+static void close_cb(GtkWidget *widget, gpointer data) {
+  gtk_widget_destroy(last_dialog);
+  last_dialog=NULL;
+}
+
 static void band_select_cb(GtkWidget *widget, gpointer data) {
   GtkWidget *label;
   int b=(int)data;
@@ -130,7 +135,7 @@ static void band_select_cb(GtkWidget *widget, gpointer data) {
   setFrequency(entry->frequencyA);
 }
 
- void band_cb(GtkWidget *widget, gpointer data) {
+void band_cb(GtkWidget *widget, gpointer data) {
   int show=1;
   if(last_dialog!=NULL) {
     if(strcmp(gtk_window_get_title(GTK_WINDOW(last_dialog)),"Band")==0) {
@@ -172,13 +177,15 @@ static void band_select_cb(GtkWidget *widget, gpointer data) {
 
     GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close",GTK_RESPONSE_OK);
     //gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 20"));
-    gtk_widget_show_all(dialog);
+    g_signal_connect(close_button,"clicked",G_CALLBACK(close_cb),(gpointer *)NULL);
 
+    gtk_widget_show_all(dialog);
+/*
     g_signal_connect_swapped (dialog,
                              "response",
                              G_CALLBACK (gtk_widget_destroy),
                              dialog);
-
+*/
     last_dialog=dialog;
     int result=gtk_dialog_run(GTK_DIALOG(dialog));
   }
@@ -255,13 +262,15 @@ void bandstack_cb(GtkWidget *widget, gpointer data) {
 
     GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close",GTK_RESPONSE_OK);
     //gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 20"));
+    g_signal_connect(close_button,"clicked",G_CALLBACK(close_cb),(gpointer *)NULL);
     gtk_widget_show_all(dialog);
 
+/*
     g_signal_connect_swapped (dialog,
                              "response",
                              G_CALLBACK (gtk_widget_destroy),
                              dialog);
-
+*/
     last_dialog=dialog;
 
     int result=gtk_dialog_run(GTK_DIALOG(dialog));
@@ -325,13 +334,15 @@ void mode_cb(GtkWidget *widget, gpointer data) {
     gtk_container_add(GTK_CONTAINER(content),grid);
     GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close",GTK_RESPONSE_OK);
     //gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 20"));
+    g_signal_connect(close_button,"clicked",G_CALLBACK(close_cb),(gpointer *)NULL);
     gtk_widget_show_all(dialog);
 
+/*
     g_signal_connect_swapped (dialog,
                              "response",
                              G_CALLBACK (gtk_widget_destroy),
                              dialog);
-
+*/
     last_dialog=dialog;
     int result=gtk_dialog_run(GTK_DIALOG(dialog));
 
@@ -389,13 +400,15 @@ void filter_cb(GtkWidget *widget, gpointer data) {
     gtk_container_add(GTK_CONTAINER(content),grid);
     GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close",GTK_RESPONSE_OK);
     //gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 20"));
+    g_signal_connect(close_button,"clicked",G_CALLBACK(close_cb),(gpointer *)NULL);
     gtk_widget_show_all(dialog);
 
+/*
     g_signal_connect_swapped (dialog,
                              "response",
                              G_CALLBACK (gtk_widget_destroy),
                              dialog);
-
+*/
     last_dialog=dialog;
     int result=gtk_dialog_run(GTK_DIALOG(dialog));
 
@@ -543,13 +556,14 @@ void agc_cb(GtkWidget *widget, gpointer data) {
 
     GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close",GTK_RESPONSE_OK);
     //gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 16"));
+    g_signal_connect(close_button,"clicked",G_CALLBACK(close_cb),(gpointer *)NULL);
     gtk_widget_show_all(dialog);
-
+/*
     g_signal_connect_swapped (dialog,
                              "response",
                              G_CALLBACK (gtk_widget_destroy),
                              dialog);
-
+*/
     last_dialog=dialog;
     int result=gtk_dialog_run(GTK_DIALOG(dialog));
   }
@@ -628,13 +642,14 @@ void noise_cb(GtkWidget *widget, gpointer data) {
 
     GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close",GTK_RESPONSE_OK);
     //gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 16"));
+    g_signal_connect(close_button,"clicked",G_CALLBACK(close_cb),(gpointer *)NULL);
     gtk_widget_show_all(dialog);
-
+/*
     g_signal_connect_swapped (dialog,
                              "response",
                              G_CALLBACK (gtk_widget_destroy),
                              dialog);
-
+*/
     last_dialog=dialog;
 
     int result=gtk_dialog_run(GTK_DIALOG(dialog));
