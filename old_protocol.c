@@ -539,9 +539,6 @@ static void full_rx_buffer() {
     if(error!=0) {
       fprintf(stderr,"fexchange2 (CHANNEL_RX0) returned error: %d\n", error);
     }
-    if(local_audio) {
-      audio_write(audiooutputbuffer,output_buffer_size);
-    }
 
     Spectrum0(1, CHANNEL_RX0, 0, 0, iqinputbuffer);
 
@@ -554,6 +551,9 @@ static void full_rx_buffer() {
         if(demod_samples!=0) {
           int s;
           int t;
+          if(local_audio) {
+            audio_write(audiooutputbuffer,demod_samples);
+          }
           for(s=0;s<demod_samples;s++) {
             for(t=0;t<6;t++) { // 8k to 48k
               if(freedv_sync) {
@@ -591,6 +591,9 @@ static void full_rx_buffer() {
       fprintf(stderr,"fexchange2 (CHANNEL_RX0) returned error: %d\n", error);
     }
     Spectrum0(1, CHANNEL_RX0, 0, 0, iqinputbuffer);
+    if(local_audio) {
+      audio_write(audiooutputbuffer,output_buffer_size);
+    }
     for(j=0;j<output_buffer_size;j++) {
       left_rx_sample=(short)(audiooutputbuffer[j*2]*32767.0*volume);
       right_rx_sample=(short)(audiooutputbuffer[(j*2)+1]*32767.0*volume);

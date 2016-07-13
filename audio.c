@@ -32,6 +32,7 @@
 #include <pulse/error.h>
 
 #include "audio.h"
+#include "radio.h"
 
 int audio = 0;
 int audio_buffer_size = 2016; // samples (both left and right)
@@ -106,8 +107,8 @@ void audio_write(double* buffer,int samples) {
 
     for(i=0;i<samples;i++) {
         int source_index=i*2;
-        short left_sample=(short)(buffer[source_index]*32768.0);
-        short right_sample=(short)(buffer[source_index+1]*32768.0);
+        short left_sample=(short)(buffer[source_index]*32767.0*volume);
+        short right_sample=(short)(buffer[source_index+1]*32767.0*volume);
         audio_buffer[audio_offset++]=left_sample>>8;
         audio_buffer[audio_offset++]=left_sample;
         audio_buffer[audio_offset++]=right_sample>>8;
