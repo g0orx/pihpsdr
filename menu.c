@@ -48,7 +48,7 @@ static GtkWidget *box;
 static GtkWidget *menu;
 
 static GtkWidget *ant_grid;
-static gint ant_id;
+static gint ant_id=-1;
 
 static void sample_rate_cb(GtkWidget *widget, gpointer data) {
   if(protocol==ORIGINAL_PROTOCOL) {
@@ -441,20 +441,22 @@ static void switch_page_cb(GtkNotebook *notebook,
 {
   int i, j;
   GtkWidget *child;
-  if(protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL) {
-    if(page_num==ant_id) {
-      if(filter_board==ALEX) {
-        for(i=0;i<HAM_BANDS;i++) {
-          for(j=0;j<11;j++) {
-            child=gtk_grid_get_child_at(GTK_GRID(ant_grid),j,i+1);
-            gtk_widget_set_sensitive(child,TRUE);
+  if(ant_id!=-1) {
+    if(protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL) {
+      if(page_num==ant_id) {
+        if(filter_board==ALEX) {
+          for(i=0;i<HAM_BANDS;i++) {
+            for(j=0;j<11;j++) {
+              child=gtk_grid_get_child_at(GTK_GRID(ant_grid),j,i+1);
+              gtk_widget_set_sensitive(child,TRUE);
+            }
           }
-        }
-      } else {
-        for(i=0;i<HAM_BANDS;i++) {
-          for(j=0;j<11;j++) {
-            child=gtk_grid_get_child_at(GTK_GRID(ant_grid),j,i+1);
-            gtk_widget_set_sensitive(child,FALSE);
+        } else {
+          for(i=0;i<HAM_BANDS;i++) {
+            for(j=0;j<11;j++) {
+              child=gtk_grid_get_child_at(GTK_GRID(ant_grid),j,i+1);
+              gtk_widget_set_sensitive(child,FALSE);
+            }
           }
         }
       }
