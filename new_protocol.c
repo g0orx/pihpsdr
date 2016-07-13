@@ -51,13 +51,20 @@
 #include "vfo.h"
 #include "toolbar.h"
 #include "wdsp_init.h"
+#ifdef FREEDV
+#include "freedv.h"
+#endif
 
 #define PI 3.1415926535897932F
 
 int data_socket;
 
+static DISCOVERED *d;
+
 static int receiver;
 static int running;
+
+sem_t response_sem;
 
 static struct sockaddr_in base_addr;
 static int base_addr_length;
@@ -83,8 +90,6 @@ static int data_addr_length;
 static pthread_t new_protocol_thread_id;
 static pthread_t new_protocol_timer_thread_id;
 
-sem_t response_sem;
-
 static long rx_sequence = 0;
 
 static long high_priority_sequence = 0;
@@ -97,25 +102,42 @@ static int fft_size=4096;
 static int dspRate=48000;
 static int outputRate=48000;
 
+static double micinputbuffer[BUFFER_SIZE*2];
+static double micoutputbuffer[BUFFER_SIZE*4*2];
+
+static long tx_iq_sequence;
+static unsigned char iqbuffer[1444];
+static int iqindex;
+
 static int micSampleRate=48000;
 static int micDspRate=48000;
 static int micOutputRate=192000;
+static int micoutputsamples;
 
 static int spectrumWIDTH=800;
 static int SPECTRUM_UPDATES_PER_SECOND=10;
 
 static float phase = 0.0F;
 
-long response_sequence;
-int response;
+static long response_sequence;
+static int response;
 
-sem_t send_high_priority_sem;
-int send_high_priority=0;
-sem_t send_general_sem;
-int send_general=0;
+static sem_t send_high_priority_sem;
+static int send_high_priority=0;
+static sem_t send_general_sem;
+static int send_general=0;
+
+static int samples=0;
+static int outputsamples;
+
+#ifdef FREEDV
+static int freedv_samples=0;
+static int freedv_divisor=6;
+#endif
 
 static void* new_protocol_thread(void* arg);
 static void* new_protocol_timer_thread(void* arg);
+static void full_tx_buffer();
 
 void schedule_high_priority(int source) {
 fprintf(stderr,"new_protocol: schedule_high_priority: source=%d\n",source);
@@ -541,9 +563,51 @@ double calibrate(int v) {
     return (v1*v1)/0.095;
 }
 
+void new_protocol_calc_buffers() {
+    switch(sample_rate) {
+        case 48000:
+            outputsamples=BUFFER_SIZE;
+#ifdef FREEDV
+            freedv_divisor=6;
+#endif
+            break;
+        case 96000:
+            outputsamples=BUFFER_SIZE/2;
+#ifdef FREEDV
+            freedv_divisor=12;
+#endif
+            break;
+        case 192000:
+            outputsamples=BUFFER_SIZE/4;
+#ifdef FREEDV
+            freedv_divisor=24;
+#endif
+            break;
+        case 384000:
+            outputsamples=BUFFER_SIZE/8;
+#ifdef FREEDV
+            freedv_divisor=48;
+#endif
+            break;
+        case 768000:
+            outputsamples=BUFFER_SIZE/16;
+#ifdef FREEDV
+            freedv_divisor=96;
+#endif
+            break;
+        case 1536000:
+            outputsamples=BUFFER_SIZE/32;
+#ifdef FREEDV
+            freedv_divisor=128;
+#endif
+            break;
+    }
+
+}
+
 void* new_protocol_thread(void* arg) {
 
-    DISCOVERED* d=&discovered[selected_device];
+    d=&discovered[selected_device];
 
     struct sockaddr_in addr;
     int length;
@@ -571,7 +635,6 @@ void* new_protocol_thread(void* arg) {
     //float rightinputbuffer[BUFFER_SIZE];
     double iqinputbuffer[BUFFER_SIZE*2];
 
-    int outputsamples;
     //float leftoutputbuffer[BUFFER_SIZE];
     //float rightoutputbuffer[BUFFER_SIZE];
     double audiooutputbuffer[BUFFER_SIZE*2];
@@ -589,23 +652,13 @@ void* new_protocol_thread(void* arg) {
 /*
     float micleftinputbuffer[BUFFER_SIZE];  // 48000
     float micrightinputbuffer[BUFFER_SIZE];
-*/
-    double micinputbuffer[BUFFER_SIZE*2];
-
     int micoutputsamples;
-/*
     float micleftoutputbuffer[BUFFER_SIZE*4]; // 192000
     float micrightoutputbuffer[BUFFER_SIZE*4];
-*/
-    double micoutputbuffer[BUFFER_SIZE*4*2];
-
-    double gain;
-
-    int isample;
-    int qsample;
     long tx_iq_sequence;
     unsigned char iqbuffer[1444];
     int iqindex;
+*/
 
     int i, j;
 fprintf(stderr,"new_protocol_thread: receiver=%d\n", receiver);
@@ -613,26 +666,7 @@ fprintf(stderr,"new_protocol_thread: receiver=%d\n", receiver);
     micsamples=0;
     iqindex=4;
 
-    switch(sample_rate) {
-        case 48000:
-            outputsamples=BUFFER_SIZE;
-            break;
-        case 96000:
-            outputsamples=BUFFER_SIZE/2;
-            break;
-        case 192000:
-            outputsamples=BUFFER_SIZE/4;
-            break;
-        case 384000:
-            outputsamples=BUFFER_SIZE/8;
-            break;
-        case 768000:
-            outputsamples=BUFFER_SIZE/16;
-            break;
-        case 1536000:
-            outputsamples=BUFFER_SIZE/32;
-            break;
-    }
+    new_protocol_calc_buffers();
 
     micoutputsamples=BUFFER_SIZE*4;  // 48000 in, 192000 out
 
@@ -818,88 +852,49 @@ if(dash!=previous_dash) {
                   micsample  |= (int)((unsigned char)buffer[b++] & 0xFF);
                   micsamplefloat = (float)micsample/32767.0F; // 16 bit sample
 
-                  micinputbuffer[micsamples*2]=(double)(micsamplefloat*mic_gain);
-                  micinputbuffer[(micsamples*2)+1]=(double)(micsamplefloat*mic_gain);
-
-                  micsamples++;
-
-                  if(micsamples==BUFFER_SIZE) {
-                      int error;
-
-                      if(tune==1) {
-                          float tunefrequency = (float)((filterHigh - filterLow) / 2);
-                          phase=sineWave(micinputbuffer, BUFFER_SIZE, phase, tunefrequency);
-                      }
-
-                      fexchange0(CHANNEL_TX, micinputbuffer, micoutputbuffer, &error);
-                      if(error!=0) {
-                          fprintf(stderr,"fexchange0 returned error: %d for transmitter\n", error);
-                      }
-
-                      if(d->device!=DEVICE_METIS || atlas_penelope) {
-                          if(tune) {
-                              gain=8388607.0*255.0/(double)tune_drive;
-                          } else {
-                              gain=8388607.0*255.0/(double)drive;
-                          }
-                      } else {
-                          gain=65535.0;
-                      }
-
-
-                      for(j=0;j<micoutputsamples;j++) {
-                        isample=(int)(micoutputbuffer[j*2]*gain*2); // 24 bit
-                        qsample=(int)(micoutputbuffer[(j*2)+1]*gain*2); // 24 bit
-
-                        iqbuffer[iqindex++]=isample>>16;
-                        iqbuffer[iqindex++]=isample>>8;
-                        iqbuffer[iqindex++]=isample;
-                        iqbuffer[iqindex++]=qsample>>16;
-                        iqbuffer[iqindex++]=qsample>>8;
-                        iqbuffer[iqindex++]=qsample;
-
-                        if(iqindex>=sizeof(iqbuffer)) {
-                            // insert the sequence
-                            iqbuffer[0]=tx_iq_sequence>>24;
-                            iqbuffer[1]=tx_iq_sequence>>16;
-                            iqbuffer[2]=tx_iq_sequence>>8;
-                            iqbuffer[3]=tx_iq_sequence;
-
-                            // send the buffer
-                            if(sendto(data_socket,iqbuffer,sizeof(iqbuffer),0,(struct sockaddr*)&iq_addr,iq_addr_length)<0) {
-                                fprintf(stderr,"sendto socket failed for iq\n");
-                                exit(1);
+#ifdef FREEDV
+                  if(mode==modeFREEDV) {
+                    if(freedv_samples==0) {
+                      int modem_samples=mod_sample_freedv(micsample);
+                      if(modem_samples!=0) {
+                        int s;
+                        for(s=0;s<modem_samples;s++) {
+                          for(j=0;j<freedv_divisor;j++) {
+                            micsample=mod_out[s];
+                            micsamplefloat=(float)micsample/32767.0f; // 16 bit sample 2^16-1
+                            micinputbuffer[samples*2]=(double)micsamplefloat*mic_gain;
+                            micinputbuffer[(samples*2)+1]=(double)micsamplefloat*mic_gain;
+                            iqinputbuffer[samples*2]=0.0;
+                            iqinputbuffer[(samples*2)+1]=0.0;
+                            micsamples++;
+                            if(micsamples==buffer_size) {
+                              full_tx_buffer();
+                              micsamples=0;
                             }
-                            iqindex=4;
-                            tx_iq_sequence++;
+                          }
                         }
-
                       }
-                      //Spectrum(CHANNEL_TX, 0, 0, micrightoutputbuffer, micleftoutputbuffer);
-                      Spectrum0(1, CHANNEL_TX, 0, 0, micoutputbuffer);
-                      micsamples=0;
-                  }
-#ifdef ECHO_MIC
-                  audiobuffer[audioindex++]=micsample>>8;
-                  audiobuffer[audioindex++]=micsample;
-                  audiobuffer[audioindex++]=micsample>>8;
-                  audiobuffer[audioindex++]=micsample;
-
-                  if(audioindex>=sizeof(audiobuffer)) {
-                      // insert the sequence
-                      audiobuffer[0]=audiosequence>>24;
-                      audiobuffer[1]=audiosequence>>16;
-                      audiobuffer[2]=audiosequence>>8;
-                      audiobuffer[3]=audiosequence;
-                      // send the buffer
-                      if(sendto(data_socket,audiobuffer,sizeof(audiobuffer),0,(struct sockaddr*)&audio_addr,audio_addr_length)<0) {
-                          fprintf(stderr,"sendto socket failed for audio\n");
-                          exit(1);
-                      }
-                      audioindex=4;
-                      audiosequence++;
-                  }
+                    }
+                    freedv_samples++;
+                    if(freedv_samples==freedv_divisor) {
+                      freedv_samples=0;
+                    }
+                  } else {
+                  
 #endif
+                    micinputbuffer[micsamples*2]=(double)(micsamplefloat*mic_gain);
+                    micinputbuffer[(micsamples*2)+1]=(double)(micsamplefloat*mic_gain);
+
+                    micsamples++;
+
+                    if(micsamples==BUFFER_SIZE) {
+                      full_tx_buffer();
+                      micsamples=0;
+                    }
+#ifdef FREEDV
+                 }
+#endif
+
               }
           }
        } else {
@@ -924,6 +919,64 @@ if(dash!=previous_dash) {
     }
 
     close(data_socket);
+}
+
+static void full_tx_buffer() {
+  int isample;
+  int qsample;
+  double gain;
+  int j;
+  int error;
+
+  if(tune==1) {
+    double tunefrequency = (double)(filterLow+((filterHigh - filterLow) / 2));
+    phase=sineWave(micinputbuffer, BUFFER_SIZE, phase, (float)tunefrequency);
+  }
+
+  fexchange0(CHANNEL_TX, micinputbuffer, micoutputbuffer, &error);
+  if(error!=0) {
+    fprintf(stderr,"fexchange0 returned error: %d for transmitter\n", error);
+  }
+
+  if(d->device!=DEVICE_METIS || atlas_penelope) {
+    if(tune) {
+      gain=8388607.0*255.0/(double)tune_drive;
+    } else {
+      gain=8388607.0*255.0/(double)drive;
+    }
+  } else {
+    gain=65535.0;
+  }
+
+  for(j=0;j<micoutputsamples;j++) {
+    isample=(int)(micoutputbuffer[j*2]*gain*2); // 24 bit
+    qsample=(int)(micoutputbuffer[(j*2)+1]*gain*2); // 24 bit
+
+    iqbuffer[iqindex++]=isample>>16;
+    iqbuffer[iqindex++]=isample>>8;
+    iqbuffer[iqindex++]=isample;
+    iqbuffer[iqindex++]=qsample>>16;
+    iqbuffer[iqindex++]=qsample>>8;
+    iqbuffer[iqindex++]=qsample;
+
+    if(iqindex>=sizeof(iqbuffer)) {
+      // insert the sequence
+      iqbuffer[0]=tx_iq_sequence>>24;
+      iqbuffer[1]=tx_iq_sequence>>16;
+      iqbuffer[2]=tx_iq_sequence>>8;
+      iqbuffer[3]=tx_iq_sequence;
+
+      // send the buffer
+      if(sendto(data_socket,iqbuffer,sizeof(iqbuffer),0,(struct sockaddr*)&iq_addr,iq_addr_length)<0) {
+        fprintf(stderr,"sendto socket failed for iq\n");
+        exit(1);
+      }
+      iqindex=4;
+      tx_iq_sequence++;
+    }
+
+  }
+  Spectrum0(1, CHANNEL_TX, 0, 0, micoutputbuffer);
 }
 
 void* new_protocol_timer_thread(void* arg) {

@@ -39,15 +39,19 @@
 extern int data_socket;
 extern sem_t response_sem;
 
+/*
 extern long response_sequence;
 extern int response;
+*/
 
 extern unsigned int exciter_power;
 extern unsigned int alex_forward_power;
 extern unsigned int alex_reverse_power;
 
+/*
 extern int send_high_priority;
 extern int send_general;
+*/
 
 void schedule_high_priority(int source);
 void schedule_general();

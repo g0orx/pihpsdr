@@ -40,7 +40,6 @@
 
 #include "discovered.h"
 #include "new_protocol.h"
-#include "new_protocol.h"
 
 static long sequence;
 static long block_sequence;
@@ -163,7 +162,7 @@ void programmer_send_block(long block) {
 }
 
 void *programmer_thread(void *arg) {
-
+    int response;
     int result;
     struct timespec ts;
 

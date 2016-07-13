@@ -125,8 +125,10 @@ static int running;
 static long ep4_sequence;
 
 static int samples=0;
+#ifdef FREEDV
 static int freedv_samples=0;
 static int freedv_divisor=6;
+#endif
 
 //static float left_input_buffer[BUFFER_SIZE];
 //static float right_input_buffer[BUFFER_SIZE];
@@ -204,19 +206,27 @@ void old_protocol_calc_buffers() {
   switch(sample_rate) {
     case 48000:
       output_buffer_size=OUTPUT_BUFFER_SIZE;
+#ifdef FREEDV
       freedv_divisor=6;
+#endif
       break;
     case 96000:
       output_buffer_size=OUTPUT_BUFFER_SIZE/2;
+#ifdef FREEDV
       freedv_divisor=12;
+#endif
       break;
     case 192000:
       output_buffer_size=OUTPUT_BUFFER_SIZE/4;
+#ifdef FREEDV
       freedv_divisor=24;
+#endif
       break;
     case 384000:
       output_buffer_size=OUTPUT_BUFFER_SIZE/8;
+#ifdef FREEDV
       freedv_divisor=48;
+#endif
       break;
     default:
       fprintf(stderr,"Invalid sample rate: %d. Defaulting to 48K.\n",sample_rate);
