@@ -39,10 +39,6 @@ int audio_buffer_size = 2016; // samples (both left and right)
 
 static pa_simple *stream;
 
-static sem_t audioBufferFull;
-static sem_t audioBufferEmpty;
-static pthread_t audioThreadId;
-
 // each buffer contains 63 samples of left and right audio at 16 bits
 #define AUDIO_SAMPLES 63
 #define AUDIO_SAMPLE_SIZE 2
@@ -52,9 +48,6 @@ static pthread_t audioThreadId;
 
 static unsigned char *audio_buffer;
 static int audio_offset=0;
-static int running;
-
-void* audioThread(void* arg);
 
 int audio_init() {
 
@@ -75,34 +68,16 @@ fprintf(stderr,"audio_init audio_buffer_size=%d\n",audio_buffer_size);
         return -1;
     }
 
-    int res=sem_init(&audioBufferFull, 0, 0);
-    if(res!=0) {
-        fprintf(stderr,"audio_init: sem_init failed for audioBufferFull%d\n", res);
-        return -1;
-    }
-
-    res=sem_init(&audioBufferEmpty, 0, 0);
-    if(res!=0) {
-        fprintf(stderr,"audio_init: sem_init failed for audioBufferEmpty%d\n", res);
-        return -1;
-    }
-
-    res=pthread_create(&audioThreadId, NULL, audioThread, NULL);
-    if(res<0) {
-        fprintf(stderr, "Error creating DFC thread: %d\n", res);
-        return -1;
-    }
-
-fprintf(stderr,"... audio_init\n");
     return 0;
 }
 
 void audio_close() {
-  running=0;
+  pa_simple_free(stream);
 }
 
 void audio_write(double* buffer,int samples) {
     int i;
+    int result;
     int error;
 
     for(i=0;i<samples;i++) {
@@ -115,43 +90,13 @@ void audio_write(double* buffer,int samples) {
         audio_buffer[audio_offset++]=right_sample;
 
         if(audio_offset==AUDIO_BUFFER_SIZE) {
-            if (pa_simple_write(stream, audio_buffer, (size_t)AUDIO_BUFFER_SIZE, &error) < 0) {
+            result=pa_simple_write(stream, audio_buffer, (size_t)AUDIO_BUFFER_SIZE, &error);
+            if(result< 0) {
                 fprintf(stderr, __FILE__": pa_simple_write() failed: %s\n", pa_strerror(error));
-                _exit(1);
+                //_exit(1);
             }
             audio_offset=0;
         }
     }
-
-}
-
-void* audioThread(void* arg) {
-    int error;
-    fprintf(stderr,"audioThread running on cpu%d\n", sched_getcpu());
-    running=1;
-
-    while(running) {
-
-/*
-        error=sem_post(&audioBufferEmpty);
-        if(error!=0) {
-            fprintf(stderr, "audioThread: sem_post failed for audioBufferEmpty: %d\n", error);
-            _exit(1);
-        }
-*/
-        error=sem_wait(&audioBufferFull);
-        if(error!=0) {
-            fprintf(stderr, "audioThread: sem_wait failed for audioBufferFull: %d\n", error);
-            _exit(1);
-        }
-
-        if (pa_simple_write(stream, audio_buffer, (size_t)AUDIO_BUFFER_SIZE, &error) < 0) {
-            fprintf(stderr, __FILE__": pa_simple_write() failed: %s\n", pa_strerror(error));
-            _exit(1);
-        }
-    }
-
-    fprintf(stderr,"audioThread: ending\n");
-    pa_simple_free(stream);
 
 }
