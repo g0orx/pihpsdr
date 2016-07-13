@@ -131,14 +131,13 @@ static void micboost_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void local_audio_cb(GtkWidget *widget, gpointer data) {
-  local_audio=local_audio==1?0:1;
   if(local_audio) {
-    if(audio_init()!=0) {
-      fprintf(stderr,"audio_init failed\n");
-      local_audio=0;
-    }
-  } else {
+    local_audio=0;
     audio_close();
+  } else {
+    if(audio_init()==0) {
+      local_audio=1;
+    }
   }
 }
 
