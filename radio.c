@@ -316,23 +316,26 @@ long long getFrequency() {
 }
 
 double getDrive() {
-    return (double)drive/255.0;
+    //return (double)drive/255.0;
+    return (double)drive;
 }
 
 void setDrive(double value) {
-    drive=(int)(value*255.0);
+    //drive=(int)(value*255.0);
+    drive=(int)(value);
     if(protocol==NEW_PROTOCOL) {
       schedule_high_priority(6);
     }
 }
 
 double getTuneDrive() {
-    return (double)tune_drive/255.0;
+    //return (double)tune_drive/255.0;
+    return (double)tune_drive;
 }
 
 void setTuneDrive(double value) {
-fprintf(stderr,"setTuneDrive: protocol=%d\n", protocol);
-    tune_drive=(int)(value*255.0);
+    //tune_drive=(int)(value*255.0);
+    tune_drive=(int)(value);
     if(protocol==NEW_PROTOCOL) {
       schedule_high_priority(7);
     }

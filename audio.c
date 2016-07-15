@@ -35,7 +35,8 @@
 #include "radio.h"
 
 int audio = 0;
-int audio_buffer_size = 2016; // samples (both left and right)
+//int audio_buffer_size = 2016; // samples (both left and right)
+int audio_buffer_size = 256; // samples (both left and right)
 
 static pa_simple *stream;
 

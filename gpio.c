@@ -760,21 +760,27 @@ static int rf_encoder_changed(void *data) {
     if(function || tune) {
       // tune drive
       double d=getTuneDrive();
-      d+=(double)pos/100.0;
+      //d+=(double)pos/100.0;
+      d+=(double)pos;
       if(d<0.0) {
         d=0.0;
-      } else if(d>1.0) {
-        d=1.0;
+      //} else if(d>1.0) {
+      //  d=1.0;
+      } else if(d>255.0) {
+        d=255.0;
       }
       set_tune(d);
     } else {
       // drive
       double d=getDrive();
-      d+=(double)pos/100.0;
+      //d+=(double)pos/100.0;
+      d+=(double)pos;
       if(d<0.0) {
         d=0.0;
-      } else if(d>1.0) {
-        d=1.0;
+      //} else if(d>1.0) {
+      //  d=1.0;
+      } else if(d>255.0) {
+        d=255.0;
       }
       set_drive(d);
     }

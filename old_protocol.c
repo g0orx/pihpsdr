@@ -465,6 +465,8 @@ static void process_ozy_input_buffer(char  *buffer) {
         if(mode==modeFREEDV) {
           if(freedv_samples==0) {
             int modem_samples=mod_sample_freedv(mic_sample);
+            //short micinput=(short)(((double)mic_sample_float*mic_gain)*32767.0);
+            //int modem_samples=mod_sample_freedv(micinput);
             if(modem_samples!=0) {
               int s;
               for(s=0;s<modem_samples;s++) {
@@ -473,6 +475,8 @@ static void process_ozy_input_buffer(char  *buffer) {
                   mic_sample_float=(float)mic_sample/32767.0f; // 16 bit sample 2^16-1
                   micinputbuffer[samples*2]=(double)mic_sample_float*mic_gain;
                   micinputbuffer[(samples*2)+1]=(double)mic_sample_float*mic_gain;
+                  //micinputbuffer[samples*2]=(double)mic_sample_float;
+                  //micinputbuffer[(samples*2)+1]=(double)mic_sample_float;
                   iqinputbuffer[samples*2]=0.0;
                   iqinputbuffer[(samples*2)+1]=0.0;
                   samples++;
@@ -819,7 +823,7 @@ void ozy_send_buffer() {
         d=(float)tune_drive;
       }
       BAND *band=band_get_current_band();
-      d=(d/100.0F)*(float)band->pa_calibration;
+      d=(d*(float)band->pa_calibration)/100.0F;
 
       output_buffer[C0]=0x12;
       output_buffer[C1]=(int)d;

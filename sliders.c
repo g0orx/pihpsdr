@@ -234,7 +234,8 @@ fprintf(stderr,"set_mic_gain: %f\n",mic_gain);
 void set_drive(double value) {
   setDrive(value);
   if(display_sliders) {
-    gtk_range_set_value (GTK_RANGE(drive_scale),value*100.0);
+    //gtk_range_set_value (GTK_RANGE(drive_scale),value*100.0);
+    gtk_range_set_value (GTK_RANGE(drive_scale),value);
   } else {
     if(scale_status!=DRIVE) {
       if(scale_status!=NONE) {
@@ -247,9 +248,11 @@ void set_drive(double value) {
       scale_status=DRIVE;
       scale_dialog=gtk_dialog_new_with_buttons("Drive",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
       GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
-      drive_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.00);
+      //drive_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.00);
+      drive_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 255.0, 1.00);
       gtk_widget_set_size_request (drive_scale, 400, 30);
-      gtk_range_set_value (GTK_RANGE(drive_scale),value*100.0);
+      //gtk_range_set_value (GTK_RANGE(drive_scale),value*100.0);
+      gtk_range_set_value (GTK_RANGE(drive_scale),value);
       gtk_widget_show(drive_scale);
       gtk_container_add(GTK_CONTAINER(content),drive_scale);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
@@ -257,20 +260,23 @@ void set_drive(double value) {
       int result=gtk_dialog_run(GTK_DIALOG(scale_dialog));
     } else {
       g_source_remove(scale_timer);
-      gtk_range_set_value (GTK_RANGE(drive_scale),value*100.0);
+      //gtk_range_set_value (GTK_RANGE(drive_scale),value*100.0);
+      gtk_range_set_value (GTK_RANGE(drive_scale),value);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
     }
   }
 }
 
 static void drive_value_changed_cb(GtkWidget *widget, gpointer data) {
-  setDrive(gtk_range_get_value(GTK_RANGE(drive_scale))/100.0);
+  //setDrive(gtk_range_get_value(GTK_RANGE(drive_scale))/100.0);
+  setDrive(gtk_range_get_value(GTK_RANGE(drive_scale)));
 }
 
 void set_tune(double value) {
   setTuneDrive(value);
   if(display_sliders) {
-    gtk_range_set_value (GTK_RANGE(tune_scale),value*100.0);
+    //gtk_range_set_value (GTK_RANGE(tune_scale),value*100.0);
+    gtk_range_set_value (GTK_RANGE(tune_scale),value);
   } else {
     if(scale_status!=TUNE_DRIVE) {
       if(scale_status!=NONE) {
@@ -283,9 +289,11 @@ void set_tune(double value) {
       scale_status=TUNE_DRIVE;
       scale_dialog=gtk_dialog_new_with_buttons("Tune Drive",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
       GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
-      tune_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.00);
+      //tune_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.00);
+      tune_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 255.0, 1.00);
       gtk_widget_set_size_request (tune_scale, 400, 30);
-      gtk_range_set_value (GTK_RANGE(tune_scale),value*100.0);
+      //gtk_range_set_value (GTK_RANGE(tune_scale),value*100.0);
+      gtk_range_set_value (GTK_RANGE(tune_scale),value);
       gtk_widget_show(tune_scale);
       gtk_container_add(GTK_CONTAINER(content),tune_scale);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
@@ -293,14 +301,16 @@ void set_tune(double value) {
       int result=gtk_dialog_run(GTK_DIALOG(scale_dialog));
     } else {
       g_source_remove(scale_timer);
-      gtk_range_set_value (GTK_RANGE(tune_scale),value*100.0);
+      //gtk_range_set_value (GTK_RANGE(tune_scale),value*100.0);
+      gtk_range_set_value (GTK_RANGE(tune_scale),value);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
     }
   }
 }
 
 static void tune_value_changed_cb(GtkWidget *widget, gpointer data) {
-  setTuneDrive(gtk_range_get_value(GTK_RANGE(tune_scale))/100.0);
+  //setTuneDrive(gtk_range_get_value(GTK_RANGE(tune_scale))/100.0);
+  setTuneDrive(gtk_range_get_value(GTK_RANGE(tune_scale)));
 }
 
 GtkWidget *sliders_init(int my_width, int my_height, GtkWidget* parent) {
@@ -366,8 +376,10 @@ GtkWidget *sliders_init(int my_width, int my_height, GtkWidget* parent) {
   gtk_widget_show(drive_label);
   gtk_grid_attach(GTK_GRID(sliders),drive_label,3,1,1,1);
 
-  drive_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.0);
-  gtk_range_set_value (GTK_RANGE(drive_scale),getDrive()*100.0);
+  //drive_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.0);
+  drive_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 255.0, 1.0);
+  //gtk_range_set_value (GTK_RANGE(drive_scale),getDrive()*100.0);
+  gtk_range_set_value (GTK_RANGE(drive_scale),getDrive());
   gtk_widget_show(drive_scale);
   gtk_grid_attach(GTK_GRID(sliders),drive_scale,4,1,2,1);
   g_signal_connect(G_OBJECT(drive_scale),"value_changed",G_CALLBACK(drive_value_changed_cb),NULL);
@@ -377,8 +389,10 @@ GtkWidget *sliders_init(int my_width, int my_height, GtkWidget* parent) {
   gtk_widget_show(tune_label);
   gtk_grid_attach(GTK_GRID(sliders),tune_label,6,1,1,1);
 
-  tune_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.0);
-  gtk_range_set_value (GTK_RANGE(tune_scale),getTuneDrive()*100.0);
+  //tune_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.0);
+  tune_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 255.0, 1.0);
+  //gtk_range_set_value (GTK_RANGE(tune_scale),getTuneDrive()*100.0);
+  gtk_range_set_value (GTK_RANGE(tune_scale),getTuneDrive());
   gtk_widget_show(tune_scale);
   gtk_grid_attach(GTK_GRID(sliders),tune_scale,7,1,2,1);
   g_signal_connect(G_OBJECT(tune_scale),"value_changed",G_CALLBACK(tune_value_changed_cb),NULL);
