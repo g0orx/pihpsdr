@@ -564,45 +564,8 @@ double calibrate(int v) {
 }
 
 void new_protocol_calc_buffers() {
-    switch(sample_rate) {
-        case 48000:
-            outputsamples=BUFFER_SIZE;
-#ifdef FREEDV
-            freedv_divisor=6;
-#endif
-            break;
-        case 96000:
-            outputsamples=BUFFER_SIZE/2;
-#ifdef FREEDV
-            freedv_divisor=12;
-#endif
-            break;
-        case 192000:
-            outputsamples=BUFFER_SIZE/4;
-#ifdef FREEDV
-            freedv_divisor=24;
-#endif
-            break;
-        case 384000:
-            outputsamples=BUFFER_SIZE/8;
-#ifdef FREEDV
-            freedv_divisor=48;
-#endif
-            break;
-        case 768000:
-            outputsamples=BUFFER_SIZE/16;
-#ifdef FREEDV
-            freedv_divisor=96;
-#endif
-            break;
-        case 1536000:
-            outputsamples=BUFFER_SIZE/32;
-#ifdef FREEDV
-            freedv_divisor=128;
-#endif
-            break;
-    }
-
+    // always 48000 input
+    freedv_divisor=6;
 }
 
 void* new_protocol_thread(void* arg) {
