@@ -76,6 +76,26 @@ void audio_close() {
   pa_simple_free(stream);
 }
 
+void audio_write(short left_sample,short right_sample) {
+  int result;
+  int error;
+
+  audio_buffer[audio_offset++]=left_sample>>8;
+  audio_buffer[audio_offset++]=left_sample;
+  audio_buffer[audio_offset++]=right_sample>>8;
+  audio_buffer[audio_offset++]=right_sample;
+
+  if(audio_offset==AUDIO_BUFFER_SIZE) {
+    result=pa_simple_write(stream, audio_buffer, (size_t)AUDIO_BUFFER_SIZE, &error);
+    if(result< 0) {
+      fprintf(stderr, __FILE__": pa_simple_write() failed: %s\n", pa_strerror(error));
+      //_exit(1);
+    }
+    audio_offset=0;
+  }
+}
+
+/*
 void audio_write(double* buffer,int samples) {
     int i;
     int result;
@@ -101,3 +121,4 @@ void audio_write(double* buffer,int samples) {
     }
 
 }
+*/
