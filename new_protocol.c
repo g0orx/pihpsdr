@@ -103,17 +103,17 @@ static int fft_size=4096;
 static int dspRate=48000;
 static int outputRate=48000;
 
-static double micinputbuffer[BUFFER_SIZE*2];
-static double micoutputbuffer[BUFFER_SIZE*4*2];
+static int micSampleRate=48000;
+static int micDspRate=48000;
+static int micOutputRate=192000;
+static int micoutputsamples=BUFFER_SIZE*4;  // 48000 in, 192000 out
+
+static double micinputbuffer[BUFFER_SIZE*2]; // 48000
+static double micoutputbuffer[BUFFER_SIZE*4*2]; //192000
 
 static long tx_iq_sequence;
 static unsigned char iqbuffer[1444];
 static int iqindex;
-
-static int micSampleRate=48000;
-static int micDspRate=48000;
-static int micOutputRate=192000;
-static int micoutputsamples;
 
 static int spectrumWIDTH=800;
 static int SPECTRUM_UPDATES_PER_SECOND=10;
@@ -142,7 +142,7 @@ static int audioindex;
 
 #ifdef FREEDV
 static int freedv_samples=0;
-static int freedv_divisor=6;  // convert from 48000 to 8000
+static int freedv_resample=6;  // convert from 48000 to 8000
 #endif
 
 static void* new_protocol_thread(void* arg);
@@ -563,16 +563,17 @@ void new_protocol_stop() {
     sleep(1);
 }
 
-float sineWave(double* buf, int samples, float phase, float freq) {
-    //float phase_step = 2 * PI * freq / 192000.0F;
+static float sineWave(double* buf, int samples, float phase, float freq) {
     float phase_step = 2 * PI * freq / 48000.0F;
     int i;
     for (i = 0; i < samples; i++) {
         buf[i*2] = (double) sin(phase);
+        buf[(i*2)+1] = (double) sin(phase);
         phase += phase_step;
     }
     return phase;
 }
+
 
 double calibrate(int v) {
     // Angelia
@@ -612,16 +613,6 @@ void* new_protocol_thread(void* arg) {
     float micsamplefloat;
 
     int micsamples;
-/*
-    float micleftinputbuffer[BUFFER_SIZE];  // 48000
-    float micrightinputbuffer[BUFFER_SIZE];
-    int micoutputsamples;
-    float micleftoutputbuffer[BUFFER_SIZE*4]; // 192000
-    float micrightoutputbuffer[BUFFER_SIZE*4];
-    long tx_iq_sequence;
-    unsigned char iqbuffer[1444];
-    int iqindex;
-*/
 
     int i, j;
 fprintf(stderr,"new_protocol_thread: receiver=%d\n", receiver);
@@ -629,7 +620,6 @@ fprintf(stderr,"new_protocol_thread: receiver=%d\n", receiver);
     micsamples=0;
     iqindex=4;
 
-    micoutputsamples=BUFFER_SIZE*4;  // 48000 in, 192000 out
 
 fprintf(stderr,"outputsamples=%d\n", outputsamples);
     data_socket=socket(PF_INET,SOCK_DGRAM,IPPROTO_UDP);
@@ -780,22 +770,19 @@ if(dash!=previous_dash) {
               for(i=0;i<720;i++) {
                   micsample  = (int)((signed char) buffer[b++]) << 8;
                   micsample  |= (int)((unsigned char)buffer[b++] & 0xFF);
-                  micsamplefloat = (float)micsample/32767.0F; // 16 bit sample
 
 #ifdef FREEDV
                   if(mode==modeFREEDV) {
-                    if(freedv_samples==0) {
+                    if(freedv_samples==0) { // 48K to 8K
                       int modem_samples=mod_sample_freedv(micsample);
                       if(modem_samples!=0) {
                         int s;
                         for(s=0;s<modem_samples;s++) {
-                          for(j=0;j<freedv_divisor;j++) {
+                          for(j=0;j<freedv_resample;j++) {  // 8K to 48K
                             micsample=mod_out[s];
                             micsamplefloat=(float)micsample/32767.0f; // 16 bit sample 2^16-1
-                            micinputbuffer[samples*2]=(double)micsamplefloat*mic_gain;
-                            micinputbuffer[(samples*2)+1]=(double)micsamplefloat*mic_gain;
-                            iqinputbuffer[samples*2]=0.0;
-                            iqinputbuffer[(samples*2)+1]=0.0;
+                            micinputbuffer[micsamples*2]=(double)micsamplefloat*mic_gain;
+                            micinputbuffer[(micsamples*2)+1]=(double)micsamplefloat*mic_gain;
                             micsamples++;
                             if(micsamples==buffer_size) {
                               full_tx_buffer();
@@ -806,12 +793,12 @@ if(dash!=previous_dash) {
                       }
                     }
                     freedv_samples++;
-                    if(freedv_samples==freedv_divisor) {
+                    if(freedv_samples==freedv_resample) {
                       freedv_samples=0;
                     }
                   } else {
-                  
 #endif
+                    micsamplefloat = (float)micsample/32767.0F; // 16 bit sample
                     micinputbuffer[micsamples*2]=(double)(micsamplefloat*mic_gain);
                     micinputbuffer[(micsamples*2)+1]=(double)(micsamplefloat*mic_gain);
 
@@ -872,12 +859,12 @@ static void full_rx_buffer() {
         int s;
         int t;
         for(s=0;s<demod_samples;s++) {
+          if(freedv_sync) {
+            leftaudiosample=rightaudiosample=(short)((double)speech_out[s]*volume);
+          } else {
+            leftaudiosample=rightaudiosample=0;
+          }
           for(t=0;t<6;t++) { // 8k to 48k
-            if(freedv_sync) {
-              leftaudiosample=rightaudiosample=(short)((double)speech_out[s]*volume);
-            } else {
-              leftaudiosample=rightaudiosample=0;
-            }
             if(local_audio) {
               audio_write(leftaudiosample,rightaudiosample);
             }

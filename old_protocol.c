@@ -193,6 +193,7 @@ static float sineWave(double* buf, int samples, float phase, float freq) {
     int i;
     for (i = 0; i < samples; i++) {
         buf[i*2] = (double) sin(phase);
+        buf[(i*2)+1] = (double) sin(phase);
         phase += phase_step;
     }
     return phase;

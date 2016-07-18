@@ -87,12 +87,14 @@ meter_draw_cb (GtkWidget *widget, cairo_t   *cr, gpointer   data) {
   return FALSE;
 }
 
+static void
 smeter_select_cb (GtkWidget *widget,
                gpointer        data)
 {
   smeter=(int)data;
 }
 
+static void
 alc_meter_select_cb (GtkWidget *widget,
                gpointer        data)
 {
