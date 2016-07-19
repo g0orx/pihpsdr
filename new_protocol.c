@@ -259,6 +259,14 @@ fprintf(stderr,"new_protocol_high_priority: run=%d tx=%d drive=%d\n", run, tx, d
     buffer[12]=phase;
 
 // tx (no split yet)
+    long txFrequency=ddsFrequency;
+    if(mode==modeCWU) {
+      txFrequency+=cw_keyer_sidetone_frequency;
+    } else if(mode==modeCWL) {
+      txFrequency-=cw_keyer_sidetone_frequency;
+    }
+    phase=(long)((4294967296.0*(double)txFrequency)/122880000.0);
+
     buffer[329]=phase>>24;
     buffer[330]=phase>>16;
     buffer[331]=phase>>8;

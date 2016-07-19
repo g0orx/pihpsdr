@@ -87,12 +87,22 @@ void vfo_move_to(int hz) {
     BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
     //entry->frequencyA=(entry->frequencyA+hz)/step*step;
     //setFrequency(entry->frequencyA);
+
 #ifdef LIMESDR
-    if(protocol==LIMESDR_PROTOCOL)
+    if(protocol==LIMESDR_PROTOCOL) {
       setFrequency((entry->frequencyA+ddsOffset-hz)/step*step);
-    else
+    } else {
 #endif
-      setFrequency((entry->frequencyA+ddsOffset+hz)/step*step);
+      long f=(entry->frequencyA+ddsOffset+hz)/step*step;
+      if(mode==modeCWL) {
+        f+=cw_keyer_sidetone_frequency;
+      } else if(mode==modeCWU) {
+        f-=cw_keyer_sidetone_frequency;
+      }
+      setFrequency(f);
+#ifdef LIMESDR
+    }
+#endif
     vfo_update(NULL);
   }
 }
