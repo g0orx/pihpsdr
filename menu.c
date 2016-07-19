@@ -78,6 +78,11 @@ static void cw_keyer_hang_time_value_changed_cb(GtkWidget *widget, gpointer data
   cw_changed();
 }
 
+static void cw_keyer_weight_value_changed_cb(GtkWidget *widget, gpointer data) {
+  cw_keyer_weight=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+  cw_changed();
+}
+
 static void cw_keys_reversed_cb(GtkWidget *widget, gpointer data) {
   cw_keys_reversed=cw_keys_reversed==1?0:1;
   cw_changed();
@@ -1217,6 +1222,18 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
     gtk_grid_attach(GTK_GRID(cw_grid),cw_keyer_sidetone_frequency_b,1,7,1,1);
     g_signal_connect(cw_keyer_sidetone_frequency_b,"value_changed",G_CALLBACK(cw_keyer_sidetone_frequency_value_changed_cb),NULL);
   
+    GtkWidget *cw_keyer_weight_label=gtk_label_new("Weight:");
+    //gtk_widget_override_font(cw_keyer_weight_label, pango_font_description_from_string("Arial 18"));
+    gtk_widget_show(cw_keyer_weight_label);
+    gtk_grid_attach(GTK_GRID(cw_grid),cw_keyer_weight_label,0,8,1,1);
+
+    GtkWidget *cw_keyer_weight_b=gtk_spin_button_new_with_range(0.0,100.0,1.0);
+    //gtk_widget_override_font(cw_keyer_weight_b, pango_font_description_from_string("Arial 18"));
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(cw_keyer_weight_b),(double)cw_keyer_weight);
+    gtk_widget_show(cw_keyer_weight_b);
+    gtk_grid_attach(GTK_GRID(cw_grid),cw_keyer_weight_b,1,8,1,1);
+    g_signal_connect(cw_keyer_weight_b,"value_changed",G_CALLBACK(cw_keyer_weight_value_changed_cb),NULL);
+ 
     id=gtk_notebook_append_page(GTK_NOTEBOOK(notebook),cw_grid,cw_label);
   }
 

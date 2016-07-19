@@ -109,11 +109,11 @@ int getMode() {
 void setFilter(int low,int high) {
 fprintf(stderr,"setFilter: %d %d\n",low,high);
     if(mode==modeCWL) {
-        filterLow=-cwPitch-low;
-        filterHigh=-cwPitch+high;
+        filterLow=-cw_keyer_sidetone_frequency-low;
+        filterHigh=-cw_keyer_sidetone_frequency+high;
     } else if(mode==modeCWU) {
-        filterLow=cwPitch-low;
-        filterHigh=cwPitch+high;
+        filterLow=cw_keyer_sidetone_frequency-low;
+        filterHigh=cw_keyer_sidetone_frequency+high;
     } else {
         filterLow=low;
         filterHigh=high;

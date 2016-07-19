@@ -64,9 +64,6 @@
 #ifdef odroid
 #define INCLUDE_GPIO
 #endif
-#ifdef up
-#define INCLUDE_GPIO
-#endif
 
 #define VFO_HEIGHT ((display_height/32)*4)
 #define VFO_WIDTH ((display_width/32)*16)

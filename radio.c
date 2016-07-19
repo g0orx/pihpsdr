@@ -111,8 +111,6 @@ int nr2_gain_method=2; // 0=Linear 1=Log 2=gamma
 int nr2_npe_method=0; // 0=OSMS 1=MMSE
 int nr2_ae=1; // 0=disable 1=enable
 
-int cwPitch=600;
-
 int tune_drive=6;
 int drive=60;
 

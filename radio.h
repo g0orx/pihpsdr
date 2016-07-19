@@ -112,8 +112,6 @@ extern int nr2_gain_method;
 extern int nr2_npe_method;
 extern int nr2_ae;
 
-extern int cwPitch;
-
 extern int mic_linein;
 extern int mic_boost;
 extern int mic_bias_enabled;

@@ -804,19 +804,25 @@ void ozy_send_buffer() {
       }
       }
       break;
-    case 1:
+    case 1: // rx frequency
       output_buffer[C0]=0x04;
       output_buffer[C1]=ddsFrequency>>24;
       output_buffer[C2]=ddsFrequency>>16;
       output_buffer[C3]=ddsFrequency>>8;
       output_buffer[C4]=ddsFrequency;
       break;
-    case 2:
+    case 2: // tx frequency
       output_buffer[C0]=0x02;
-      output_buffer[C1]=ddsFrequency>>24;
-      output_buffer[C2]=ddsFrequency>>16;
-      output_buffer[C3]=ddsFrequency>>8;
-      output_buffer[C4]=ddsFrequency;
+      long txFrequency=ddsFrequency;
+      if(mode==modeCWU) {
+        txFrequency+=cw_keyer_sidetone_frequency;
+      } else if(mode==modeCWL) {
+        txFrequency-=cw_keyer_sidetone_frequency;
+      }
+      output_buffer[C1]=txFrequency>>24;
+      output_buffer[C2]=txFrequency>>16;
+      output_buffer[C3]=txFrequency>>8;
+      output_buffer[C4]=txFrequency;
       break;
     case 3:
       {

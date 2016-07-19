@@ -39,9 +39,6 @@
 #ifdef odroid
 #define INCLUDE_GPIO
 #endif
-#ifdef up
-#define INCLUDE_GPIO
-#endif
 
 static void display_panadapter_cb(GtkWidget *widget, gpointer data) {
   display_panadapter=display_panadapter==1?0:1;

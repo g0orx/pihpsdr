@@ -25,8 +25,8 @@
 
 #include "meter.h"
 #include "wdsp.h"
-#ifdef FREEDV
 #include "radio.h"
+#ifdef FREEDV
 #include "mode.h"
 #include "freedv.h"
 #endif
