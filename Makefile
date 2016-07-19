@@ -1,4 +1,8 @@
-UNAME_N := $(shell uname -n)
+UNAME_N=raspberrypi
+#UNAME_N=odroid
+#UNAME_N=up
+#UNAME_N=other
+
 CC=gcc
 LINK=gcc
 
