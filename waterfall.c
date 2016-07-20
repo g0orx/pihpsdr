@@ -109,7 +109,7 @@ waterfall_button_release_event_cb (GtkWidget      *widget,
       vfo_move((int)((float)(x-last_x)*hz_per_pixel));
     } else {
       // move to this frequency
-      vfo_move((int)((float)(x-(display_width/2))*hz_per_pixel));
+      vfo_move_to((int)((float)(x-(display_width/2))*hz_per_pixel));
     }
     last_x=x;
     pressed=FALSE;
