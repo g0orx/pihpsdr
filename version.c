@@ -17,6 +17,6 @@
 *
 */
 
-char build_date[]=__DATE__;
-char build_time[]=__TIME__;
+char build_date[]=GIT_DATE;
+char build_version[]=GIT_VERSION;
 

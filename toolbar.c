@@ -991,7 +991,6 @@ fprintf(stderr,"mox_cb\n");
 }
 
 int ptt_update(void *data) {
-fprintf(stderr,"ptt_update\n");
   int ptt=(int)data;
   if((mode==modeCWL || mode==modeCWU) && cw_keyer_internal==1) {
     // just ignore it

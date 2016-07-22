@@ -25,6 +25,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <net/if_arp.h>
+#include <net/if.h>
+#include <ifaddrs.h>
 
 #include "main.h"
 #include "agc.h"
@@ -40,9 +46,7 @@
 #include "toolbar.h"
 #include "wdsp.h"
 #include "wdsp_init.h"
-#ifdef LIMESDR
 #include "discovered.h"
-#endif
 
 static GtkWidget *parent_window;
 static int my_width;
@@ -146,6 +150,7 @@ static gboolean vfo_draw_cb (GtkWidget *widget,
 }
 
 int vfo_update(void *data) {
+    DISCOVERED *d=&discovered[selected_device];
     BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
     FILTER* band_filters=filters[entry->mode];
     FILTER* band_filter=&band_filters[entry->filter];
@@ -158,9 +163,31 @@ int vfo_update(void *data) {
         cairo_select_font_face(cr, "Arial",
             CAIRO_FONT_SLANT_NORMAL,
             CAIRO_FONT_WEIGHT_BOLD);
-        //cairo_set_font_size(cr, 36);
-        cairo_set_font_size(cr, 28);
 
+        char text[128];
+        switch(d->protocol) {
+            case ORIGINAL_PROTOCOL:
+            case NEW_PROTOCOL:
+              sprintf(text,"%s (%s %d.%d) %s",
+                    d->name,
+                    d->protocol==ORIGINAL_PROTOCOL?"old":"new",
+                    d->software_version/10,
+                    d->software_version%10,
+                    inet_ntoa(d->info.network.address.sin_addr));
+              break;
+#ifdef LIMESDR
+            case LIMESDR_PROTOCOL:
+              sprintf(text,"%s\n",
+                    d->name);
+              break;
+#endif
+        }
+        cairo_set_source_rgb(cr, 0.5, 0.5, 0.5);
+        cairo_set_font_size(cr, 12);
+        cairo_move_to(cr, 5, 15);  
+        cairo_show_text(cr, text);
+
+        cairo_set_font_size(cr, 28);
         if(isTransmitting()) {
             cairo_set_source_rgb(cr, 1, 0, 0);
         } else {
@@ -168,13 +195,13 @@ int vfo_update(void *data) {
         }
 
         long long f=entry->frequencyA+ddsOffset;
-
         char sf[32];
         //sprintf(sf,"%0lld.%06lld MHz",entry->frequencyA/(long long)1000000,entry->frequencyA%(long long)1000000);
         sprintf(sf,"%0lld.%06lld MHz",f/(long long)1000000,f%(long long)1000000);
-        cairo_move_to(cr, 5, 30);  
+        cairo_move_to(cr, 5, 38);  
         cairo_show_text(cr, sf);
 
+        cairo_set_source_rgb(cr, 0, 1, 0);
         cairo_set_font_size(cr, 12);
 
         cairo_move_to(cr, (my_width/2)+40, 30);  

@@ -251,9 +251,17 @@ void panadapter_update(float *data,int tx) {
             cairo_stroke(cr);
 
             // plot frequency markers
-            long divisor=20000;
             long f;
+            long divisor=20000;
             long half=(long)getSampleRate()/2L;
+            long frequency=getFrequency();
+/*
+            if(mode==modeCWU) {
+              frequency=frequency+cw_keyer_sidetone_frequency;
+            } else if(mode==modeCWL) {
+              frequency=frequency-cw_keyer_sidetone_frequency;
+            }
+*/
             switch(sample_rate) {
               case 48000:
                 divisor=5000L;
@@ -278,7 +286,7 @@ void panadapter_update(float *data,int tx) {
                 break;
             }
             for(i=0;i<display_width;i++) {
-                f = getFrequency() - half + (long) (hz_per_pixel * i);
+                f = frequency - half + (long) (hz_per_pixel * i);
                 if (f > 0) {
                     if ((f % divisor) < (long) hz_per_pixel) {
                         cairo_set_source_rgb (cr, 0, 1, 1);
@@ -304,8 +312,8 @@ void panadapter_update(float *data,int tx) {
             cairo_stroke(cr);
 
             // band edges
-            long min_display=getFrequency()-half;
-            long max_display=getFrequency()+half;
+            long min_display=frequency-half;
+            long max_display=frequency+half;
             BAND_LIMITS* bandLimits=getBandLimits(min_display,max_display);
             if(bandLimits!=NULL) {
                 cairo_set_source_rgb (cr, 1, 0, 0);

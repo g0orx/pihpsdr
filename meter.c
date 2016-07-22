@@ -26,6 +26,7 @@
 #include "meter.h"
 #include "wdsp.h"
 #include "radio.h"
+#include "version.h"
 #ifdef FREEDV
 #include "mode.h"
 #include "freedv.h"
@@ -191,6 +192,7 @@ fprintf(stderr,"meter_init: width=%d height=%d\n",width,height);
 
 void meter_update(int meter_type,double value,double reverse,double exciter,double alc) {
   
+  char text[128];
   char sf[32];
   int text_location;
   double offset;
@@ -200,6 +202,13 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
   // clear the meter
   cairo_set_source_rgb (cr, 0, 0, 0);
   cairo_paint (cr);
+
+
+  sprintf(text,"Version: %s %s", build_date, build_version);
+  cairo_set_source_rgb(cr, 0.5, 0.5, 0.5);
+  cairo_set_font_size(cr, 12);
+  cairo_move_to(cr, 5, 15);
+  cairo_show_text(cr, text);
 
   if(last_meter_type!=meter_type) {
     last_meter_type=meter_type;
@@ -228,11 +237,11 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
         cairo_set_line_width(cr, 1.0);
         cairo_set_source_rgb(cr, 1, 1, 1);
         for(i=0;i<54;i++) {
-          cairo_move_to(cr,offset+(double)(i*db),(double)meter_height-20);
+          cairo_move_to(cr,offset+(double)(i*db),(double)meter_height-10);
           if(i%18==0) {
-            cairo_line_to(cr,offset+(double)(i*db),(double)(meter_height-30));
+            cairo_line_to(cr,offset+(double)(i*db),(double)(meter_height-20));
           } else if(i%6==0) {
-            cairo_line_to(cr,offset+(double)(i*db),(double)(meter_height-25));
+            cairo_line_to(cr,offset+(double)(i*db),(double)(meter_height-15));
           }
         }
         cairo_stroke(cr);
@@ -244,14 +253,14 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
         cairo_show_text(cr, "6");
 
         cairo_set_source_rgb(cr, 1, 0, 0);
-        cairo_move_to(cr,offset+(double)(54*db),(double)meter_height-20);
-        cairo_line_to(cr,offset+(double)(54*db),(double)(meter_height-30));
-        cairo_move_to(cr,offset+(double)(74*db),(double)meter_height-20);
-        cairo_line_to(cr,offset+(double)(74*db),(double)(meter_height-30));
-        cairo_move_to(cr,offset+(double)(94*db),(double)meter_height-20);
-        cairo_line_to(cr,offset+(double)(94*db),(double)(meter_height-30));
-        cairo_move_to(cr,offset+(double)(114*db),(double)meter_height-20);
-        cairo_line_to(cr,offset+(double)(114*db),(double)(meter_height-30));
+        cairo_move_to(cr,offset+(double)(54*db),(double)meter_height-10);
+        cairo_line_to(cr,offset+(double)(54*db),(double)(meter_height-20));
+        cairo_move_to(cr,offset+(double)(74*db),(double)meter_height-10);
+        cairo_line_to(cr,offset+(double)(74*db),(double)(meter_height-20));
+        cairo_move_to(cr,offset+(double)(94*db),(double)meter_height-10);
+        cairo_line_to(cr,offset+(double)(94*db),(double)(meter_height-20));
+        cairo_move_to(cr,offset+(double)(114*db),(double)meter_height-10);
+        cairo_line_to(cr,offset+(double)(114*db),(double)(meter_height-20));
         cairo_stroke(cr);
 
         cairo_move_to(cr, offset+(double)(54*db)-3.0, (double)meter_height);
@@ -264,7 +273,7 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
         cairo_show_text(cr, "+60");
 
         cairo_set_source_rgb(cr, 0, 1, 0);
-        cairo_rectangle(cr, offset+0.0, (double)(meter_height-50), (double)((level+127.0)*db), 20.0);
+        cairo_rectangle(cr, offset+0.0, (double)(meter_height-40), (double)((level+127.0)*db), 20.0);
         cairo_fill(cr);
 
         if(level>max_level || max_count==10) {
@@ -274,8 +283,8 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
 
         if(max_level!=0) {
           cairo_set_source_rgb(cr, 1, 1, 0);
-          cairo_move_to(cr,offset+(double)((max_level+127.0)*db),(double)meter_height-30);
-          cairo_line_to(cr,offset+(double)((max_level+127.0)*db),(double)(meter_height-50));
+          cairo_move_to(cr,offset+(double)((max_level+127.0)*db),(double)meter_height-20);
+          cairo_line_to(cr,offset+(double)((max_level+127.0)*db),(double)(meter_height-40));
         }
 
 
@@ -321,7 +330,7 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
       max_count++;
 
       sprintf(sf,"FWD: %d W",(int)max_level);
-      cairo_move_to(cr, 10, 25);
+      cairo_move_to(cr, 10, 35);
       cairo_show_text(cr, sf);
 
       double swr=(value+reverse)/(value-reverse);
@@ -331,11 +340,11 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
       cairo_set_font_size(cr, 18);
 
       sprintf(sf,"SWR: %1.1f:1",swr);
-      cairo_move_to(cr, 10, 45);
+      cairo_move_to(cr, 10, 55);
       cairo_show_text(cr, sf);
 
       sprintf(sf,"ALC: %2.1f dB",alc);
-      cairo_move_to(cr, meter_width/2, 45);
+      cairo_move_to(cr, meter_width/2, 35);
       cairo_show_text(cr, sf);
       
 /*

@@ -70,7 +70,7 @@ void splash_show(char* image_name,int width,int height,int full_screen)
             G_CALLBACK (splash_configure_event_cb), NULL);
 
   char build[64];
-  sprintf(build,"build: %s %s",build_date, build_time);
+  sprintf(build,"build: %s %s",build_date, build_version);
 
   GtkWidget *pi_label=gtk_label_new("pihpsdr by John Melton g0orx/n6lyt");
   gtk_label_set_justify(GTK_LABEL(pi_label),GTK_JUSTIFY_LEFT);

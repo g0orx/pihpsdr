@@ -31,8 +31,11 @@
 
 #include "audio.h"
 #include "band.h"
+#include "bandstack.h"
 #include "channel.h"
 #include "discovered.h"
+#include "filter.h"
+#include "mode.h"
 #include "new_protocol.h"
 #include "radio.h"
 #include "toolbar.h"
@@ -100,6 +103,12 @@ static void cw_keyer_sidetone_level_value_changed_cb(GtkWidget *widget, gpointer
 
 static void cw_keyer_sidetone_frequency_value_changed_cb(GtkWidget *widget, gpointer data) {
   cw_keyer_sidetone_frequency=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+  if(mode==modeCWL || mode==modeCWU) {
+    BANDSTACK_ENTRY *entry=bandstack_entry_get_current();
+    FILTER* band_filters=filters[entry->mode];
+    FILTER* band_filter=&band_filters[entry->filter];
+    setFilter(band_filter->low,band_filter->high);
+  }
   cw_changed();
 }
 
@@ -199,7 +208,7 @@ static void apollo_cb(GtkWidget *widget, gpointer data) {
     filter_board_changed();
   }
 }
-
+/*
 static void apollo_tuner_cb(GtkWidget *widget, gpointer data) {
   apollo_tuner=apollo_tuner==1?0:1;
   if(protocol==NEW_PROTOCOL) {
@@ -213,6 +222,7 @@ static void pa_cb(GtkWidget *widget, gpointer data) {
     pa_changed();
   }
 }
+*/
 
 static void rx_dither_cb(GtkWidget *widget, gpointer data) {
   rx_dither=rx_dither==1?0:1;
@@ -613,6 +623,7 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
     g_signal_connect(alex_b,"toggled",G_CALLBACK(alex_cb),apollo_b);
     g_signal_connect(apollo_b,"toggled",G_CALLBACK(apollo_cb),alex_b);
   
+/*
     GtkWidget *apollo_tuner_b=gtk_check_button_new_with_label("Auto Tuner");
     //gtk_widget_override_font(apollo_tuner_b, pango_font_description_from_string("Arial 18"));
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (apollo_tuner_b), apollo_tuner);
@@ -626,7 +637,7 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
     gtk_widget_show(pa_b);
     gtk_grid_attach(GTK_GRID(general_grid),pa_b,2,5,1,1);
     g_signal_connect(pa_b,"toggled",G_CALLBACK(pa_cb),NULL);
-  
+ */ 
   }
 
   GtkWidget *sample_rate_label=gtk_label_new("Sample Rate:");

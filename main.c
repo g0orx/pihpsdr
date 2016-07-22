@@ -232,8 +232,8 @@ static gint save_cb(gpointer data) {
 }
 
 static void start_cb(GtkWidget *widget, gpointer data) {
-fprintf(stderr,"start_cb\n");
     selected_device=(int)data;
+fprintf(stderr,"start_cb: %d\n",selected_device);
     start=1;
     gtk_widget_destroy(discovery_dialog);
 }
@@ -685,7 +685,7 @@ main (int   argc,
 {
   gtk_init (&argc, &argv);
 
-  fprintf(stderr,"Build: %s %s\n",build_date,build_time);
+  fprintf(stderr,"Build: %s %s\n",build_date,build_version);
 
   uname(&unameData);
   fprintf(stderr,"sysname: %s\n",unameData.sysname);

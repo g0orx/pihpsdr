@@ -1,7 +1,12 @@
+# Get git commit version and date
+GIT_VERSION := $(shell git --no-pager describe --tags --always --dirty)
+GIT_DATE := $(firstword $(shell git --no-pager show --date=short --format="%ai" --name-only))
+
 UNAME_N=raspberrypi
 #UNAME_N=odroid
 #UNAME_N=up
-#UNAME_N=other
+#UNAME_N=pine64
+#UNAME_N=x86
 
 CC=gcc
 LINK=gcc
@@ -64,7 +69,8 @@ else
   gpio.o
 endif
 
-OPTIONS=-g -D $(UNAME_N) $(LIMESDR_OPTIONS) $(FREEDV_OPTIONS) -O3
+OPTIONS=-g -D $(UNAME_N) $(LIMESDR_OPTIONS) $(FREEDV_OPTIONS) -D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' -O3
+
 GTKINCLUDES=`pkg-config --cflags gtk+-3.0`
 GTKLIBS=`pkg-config --libs gtk+-3.0`
 

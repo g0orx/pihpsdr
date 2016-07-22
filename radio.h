@@ -46,11 +46,12 @@ extern char property_path[];
 #define ALEX 1
 #define APOLLO 2
 
+/*
 #define PA_DISABLED 0
 #define PA_ENABLED 1
 
 #define APOLLO_TUNER 1
-
+*/
 #define KEYER_STRAIGHT 0
 #define KEYER_MODE_A 1
 #define KEYER_MODE_B 2

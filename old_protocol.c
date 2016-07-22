@@ -407,6 +407,15 @@ static void process_ozy_input_buffer(char  *buffer) {
     dash=(control_in[0]&0x02)==0x02;
     dot=(control_in[0]&0x04)==0x04;
 
+if(last_ptt!=ptt) {
+  fprintf(stderr,"ptt=%d\n",ptt);
+}
+if(last_dot!=dot) {
+  fprintf(stderr,"dot=%d\n",dot);
+}
+if(last_dash!=dash) {
+  fprintf(stderr,"dash=%d\n",dash);
+}
     if(last_ptt!=ptt) {
       g_idle_add(ptt_update,(gpointer)ptt);
     }
@@ -804,25 +813,27 @@ void ozy_send_buffer() {
       }
       }
       break;
-    case 1: // rx frequency
+    case 1: // tx frequency
+      output_buffer[C0]=0x02;
+      long long txFrequency=ddsFrequency;
+/*
+      if(mode==modeCWU) {
+        txFrequency=ddsFrequency+(long long)cw_keyer_sidetone_frequency;
+      } else if(mode==modeCWL) {
+        txFrequency=ddsFrequency-(long long)cw_keyer_sidetone_frequency;
+      }
+*/
+      output_buffer[C1]=txFrequency>>24;
+      output_buffer[C2]=txFrequency>>16;
+      output_buffer[C3]=txFrequency>>8;
+      output_buffer[C4]=txFrequency;
+      break;
+    case 2: // rx frequency
       output_buffer[C0]=0x04;
       output_buffer[C1]=ddsFrequency>>24;
       output_buffer[C2]=ddsFrequency>>16;
       output_buffer[C3]=ddsFrequency>>8;
       output_buffer[C4]=ddsFrequency;
-      break;
-    case 2: // tx frequency
-      output_buffer[C0]=0x02;
-      long txFrequency=ddsFrequency;
-      if(mode==modeCWU) {
-        txFrequency+=cw_keyer_sidetone_frequency;
-      } else if(mode==modeCWL) {
-        txFrequency-=cw_keyer_sidetone_frequency;
-      }
-      output_buffer[C1]=txFrequency>>24;
-      output_buffer[C2]=txFrequency>>16;
-      output_buffer[C3]=txFrequency>>8;
-      output_buffer[C4]=txFrequency;
       break;
     case 3:
       {
@@ -843,9 +854,9 @@ void ozy_send_buffer() {
         output_buffer[C2]|=0x02;
       }
       if(filter_board==APOLLO) {
-        output_buffer[C2]|=0x2C; // board, filter ,tuner
+        output_buffer[C2]|=0x2C;
       }
-      if((filter_board==APOLLO) && tune && apollo_tuner) {
+      if((filter_board==APOLLO) && tune) {
         output_buffer[C2]|=0x10;
       }
       output_buffer[C3]=0x00;

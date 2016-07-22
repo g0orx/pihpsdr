@@ -58,8 +58,8 @@ int tx_out_of_band=0;
 
 int sample_rate=48000;
 int filter_board=ALEX;
-int pa=PA_ENABLED;
-int apollo_tuner=0;
+//int pa=PA_ENABLED;
+//int apollo_tuner=0;
 
 int updates_per_second=10;
 
@@ -397,10 +397,12 @@ void radioRestoreState() {
     if(value) sample_rate=atoi(value);
     value=getProperty("filter_board");
     if(value) filter_board=atoi(value);
+/*
     value=getProperty("apollo_tuner");
     if(value) apollo_tuner=atoi(value);
     value=getProperty("pa");
     if(value) pa=atoi(value);
+*/
     value=getProperty("updates_per_second");
     if(value) updates_per_second=atoi(value);
     value=getProperty("display_panadapter");
@@ -537,10 +539,12 @@ void radioSaveState() {
     setProperty("sample_rate",value);
     sprintf(value,"%d",filter_board);
     setProperty("filter_board",value);
+/*
     sprintf(value,"%d",apollo_tuner);
     setProperty("apollo_tuner",value);
     sprintf(value,"%d",pa);
     setProperty("pa",value);
+*/
     sprintf(value,"%d",updates_per_second);
     setProperty("updates_per_second",value);
     sprintf(value,"%d",display_panadapter);

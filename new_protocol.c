@@ -168,6 +168,7 @@ void filter_board_changed() {
     schedule_general();
 }
 
+/*
 void pa_changed() {
     schedule_general();
 }
@@ -175,6 +176,7 @@ void pa_changed() {
 void tuner_changed() {
     schedule_general();
 }
+*/
 
 void cw_changed() {
 }
@@ -219,8 +221,9 @@ fprintf(stderr,"new_protocol_general: receiver=%d\n", receiver);
 
     // use defaults apart from
     buffer[37]=0x08;  //  phase word (not frequency)
-    buffer[58]=pa;  // enable PA 0x01
-    if((filter_board==APOLLO) && tune && apollo_tuner) {
+    //buffer[58]=pa;  // enable PA 0x01
+    buffer[58]=0x01;  // enable PA 0x01
+    if((filter_board==APOLLO) && tune) {
         buffer[58]|=0x02;
     }
 
