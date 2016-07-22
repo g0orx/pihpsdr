@@ -770,7 +770,7 @@ void ozy_send_buffer() {
 
 
 // TODO - add Alex TX relay, duplex, receivers Mercury board frequency
-      output_buffer[C4]=0x00;
+      output_buffer[C4]=0x04;
       if(isTransmitting()) {
         switch(band->alexTxAntenna) {
           case 0:  // ANT 1
@@ -816,13 +816,6 @@ void ozy_send_buffer() {
     case 1: // tx frequency
       output_buffer[C0]=0x02;
       long long txFrequency=ddsFrequency;
-/*
-      if(mode==modeCWU) {
-        txFrequency=ddsFrequency+(long long)cw_keyer_sidetone_frequency;
-      } else if(mode==modeCWL) {
-        txFrequency=ddsFrequency-(long long)cw_keyer_sidetone_frequency;
-      }
-*/
       output_buffer[C1]=txFrequency>>24;
       output_buffer[C2]=txFrequency>>16;
       output_buffer[C3]=txFrequency>>8;
@@ -830,10 +823,16 @@ void ozy_send_buffer() {
       break;
     case 2: // rx frequency
       output_buffer[C0]=0x04;
-      output_buffer[C1]=ddsFrequency>>24;
-      output_buffer[C2]=ddsFrequency>>16;
-      output_buffer[C3]=ddsFrequency>>8;
-      output_buffer[C4]=ddsFrequency;
+      long long rxFrequency=ddsFrequency;
+      if(mode==modeCWU) {
+        rxFrequency-=(long long)cw_keyer_sidetone_frequency;
+      } else if(mode==modeCWL) {
+        rxFrequency+=(long long)cw_keyer_sidetone_frequency;
+      }
+      output_buffer[C1]=rxFrequency>>24;
+      output_buffer[C2]=rxFrequency>>16;
+      output_buffer[C3]=rxFrequency>>8;
+      output_buffer[C4]=rxFrequency;
       break;
     case 3:
       {
