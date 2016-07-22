@@ -253,7 +253,13 @@ fprintf(stderr,"new_protocol_high_priority: run=%d tx=%d drive=%d\n", run, tx, d
 
     buffer[4]=run|(tx<<1);
 
-    long phase=(long)((4294967296.0*(double)ddsFrequency)/122880000.0);
+    long rxFrequency=ddsFrequency;
+    if(mode==modeCWU) {
+      rxFrequency-=cw_keyer_sidetone_frequency;
+    } else if(mode==modeCWL) {
+      rxFrequency+=cw_keyer_sidetone_frequency;
+    }
+    long phase=(long)((4294967296.0*(double)rxFrequency)/122880000.0);
 
 // rx
     buffer[9]=phase>>24;
@@ -263,11 +269,6 @@ fprintf(stderr,"new_protocol_high_priority: run=%d tx=%d drive=%d\n", run, tx, d
 
 // tx (no split yet)
     long txFrequency=ddsFrequency;
-    if(mode==modeCWU) {
-      txFrequency+=cw_keyer_sidetone_frequency;
-    } else if(mode==modeCWL) {
-      txFrequency-=cw_keyer_sidetone_frequency;
-    }
     phase=(long)((4294967296.0*(double)txFrequency)/122880000.0);
 
     buffer[329]=phase>>24;
