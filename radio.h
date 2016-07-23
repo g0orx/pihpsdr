@@ -128,6 +128,7 @@ int adc[2];
 int locked;
 
 extern int step;
+extern int rit;
 
 extern int lt2208Dither;
 extern int lt2208Random;

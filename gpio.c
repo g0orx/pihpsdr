@@ -510,7 +510,7 @@ fprintf(stderr,"encoder_init\n");
     }
     gpioSetAlertFunc(AGC_ENCODER_A, agcEncoderPulse);
     gpioSetAlertFunc(AGC_ENCODER_B, agcEncoderPulse);
-    rfEncoderPos=0;
+    agcEncoderPos=0;
   }
 
 
@@ -715,10 +715,17 @@ int lock_get_state() {
 static int vfo_encoder_changed(void *data) {
   if(!locked) {
     int pos=*(int*)data;
-    BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
-    //entry->frequencyA=entry->frequencyA+(pos*step);
-    //setFrequency(entry->frequencyA);
-    setFrequency(entry->frequencyA+ddsOffset+(pos*step));
+
+    if(function) {
+      //RIT
+      rit-=pos;
+      if(rit>1000) rit=1000;
+      if(rit<-1000) rit=-1000;
+    } else {
+      // VFO
+      BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
+      setFrequency(entry->frequencyA+ddsOffset+(pos*step));
+    }
     vfo_update(NULL);
   }
   free(data);

@@ -121,6 +121,8 @@ int locked=0;
 
 int step=100;
 
+int rit=0;
+
 int lt2208Dither = 0;
 int lt2208Random = 0;
 int attenuation = 0; // 0dB

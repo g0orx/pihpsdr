@@ -823,7 +823,7 @@ void ozy_send_buffer() {
       break;
     case 2: // rx frequency
       output_buffer[C0]=0x04;
-      long long rxFrequency=ddsFrequency;
+      long long rxFrequency=ddsFrequency+(long long)rit;
       if(mode==modeCWU) {
         rxFrequency-=(long long)cw_keyer_sidetone_frequency;
       } else if(mode==modeCWL) {

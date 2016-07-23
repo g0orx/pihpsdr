@@ -111,6 +111,36 @@ void vfo_move_to(int hz) {
   }
 }
 
+static gboolean
+vfo_scroll_event_cb (GtkWidget      *widget,
+               GdkEventScroll *event,
+               gpointer        data)
+{
+  int i;
+  if(event->direction==GDK_SCROLL_UP) {
+    i=1;
+  } else {
+    i=-1;
+  }
+  if(event->x>(my_width/2)) {
+    if(event->x>((my_width/4)*3)) {
+      // rit
+      rit+=i;
+      if(rit>10000) {
+        rit=1000;
+      }
+      if(rit<-1000) {
+        rit=-1000;
+      }
+    } else {
+      // step
+    }
+  } else {
+    // frequency
+  }
+  vfo_update(NULL);
+}
+
 
 static gboolean vfo_configure_event_cb (GtkWidget         *widget,
             GdkEventConfigure *event,
@@ -187,30 +217,41 @@ int vfo_update(void *data) {
         cairo_move_to(cr, 5, 15);  
         cairo_show_text(cr, text);
 
+        long long f=entry->frequencyA+ddsOffset;
+        char sf[32];
+        sprintf(sf,"%0lld.%06lld MHz",f/(long long)1000000,f%(long long)1000000);
         cairo_set_font_size(cr, 28);
         if(isTransmitting()) {
             cairo_set_source_rgb(cr, 1, 0, 0);
         } else {
             cairo_set_source_rgb(cr, 0, 1, 0);
         }
-
-        long long f=entry->frequencyA+ddsOffset;
-        char sf[32];
-        //sprintf(sf,"%0lld.%06lld MHz",entry->frequencyA/(long long)1000000,entry->frequencyA%(long long)1000000);
-        sprintf(sf,"%0lld.%06lld MHz",f/(long long)1000000,f%(long long)1000000);
         cairo_move_to(cr, 5, 38);  
         cairo_show_text(cr, sf);
 
-        cairo_set_source_rgb(cr, 0, 1, 0);
         cairo_set_font_size(cr, 12);
 
-        cairo_move_to(cr, (my_width/2)+40, 30);  
-        //cairo_show_text(cr, getFrequencyInfo(entry->frequencyA));
-        cairo_show_text(cr, getFrequencyInfo(f));
-
-        sprintf(sf,"Step %dHz",step);
-        cairo_move_to(cr, (my_width/2)+40, 15);  
+        if(rit==0) {
+            cairo_set_source_rgb(cr, 0.5, 0.5, 0.5);
+        } else {
+            cairo_set_source_rgb(cr, 0, 1, 0);
+        }
+        sprintf(sf,"RIT: %d Hz",rit);
+        cairo_move_to(cr, (my_width/4)*3, 38);  
         cairo_show_text(cr, sf);
+
+        cairo_set_source_rgb(cr, 0, 1, 0);
+
+        int s=0;
+        while(steps[s]!=step && steps[s]!=0) {
+          s++;
+        }
+        sprintf(sf,"Step %s",step_labels[s]);
+        cairo_move_to(cr, my_width/2, 15);  
+        cairo_show_text(cr, sf);
+
+        cairo_move_to(cr, (my_width/4)*3, 15);  
+        cairo_show_text(cr, getFrequencyInfo(f));
 
         if(locked) {
             cairo_set_source_rgb(cr, 1, 0, 0);
@@ -354,8 +395,11 @@ fprintf(stderr,"vfo_init: width=%d height=%d\n", width, height);
   /* Event signals */
   g_signal_connect (vfo, "button-press-event",
             G_CALLBACK (vfo_press_event_cb), NULL);
+  g_signal_connect(vfo,"scroll_event",
+            G_CALLBACK(vfo_scroll_event_cb),NULL);
   gtk_widget_set_events (vfo, gtk_widget_get_events (vfo)
-                     | GDK_BUTTON_PRESS_MASK);
+                     | GDK_BUTTON_PRESS_MASK
+                     | GDK_SCROLL_MASK);
 
 fprintf(stderr,"vfo_init: set Frequency,Mode,Filter\n");
   BAND *band=band_get_current_band();

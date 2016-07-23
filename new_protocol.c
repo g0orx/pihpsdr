@@ -253,7 +253,7 @@ fprintf(stderr,"new_protocol_high_priority: run=%d tx=%d drive=%d\n", run, tx, d
 
     buffer[4]=run|(tx<<1);
 
-    long rxFrequency=ddsFrequency;
+    long rxFrequency=ddsFrequency+(long long)rit;
     if(mode==modeCWU) {
       rxFrequency-=cw_keyer_sidetone_frequency;
     } else if(mode==modeCWL) {
