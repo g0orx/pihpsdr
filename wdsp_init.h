@@ -25,3 +25,4 @@ extern void setFilter(int low,int high);
 extern int getFilterLow();
 extern int getFilterHigh();
 extern void wdsp_init(int rx,int pixels,int protocol);
+extern void wdsp_new_sample_rate(int rate);

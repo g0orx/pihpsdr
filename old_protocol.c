@@ -240,6 +240,7 @@ void old_protocol_new_sample_rate(int rate) {
   metis_start_stop(0);
   sample_rate=rate;
   old_protocol_calc_buffers();
+  wdsp_new_sample_rate(rate);
   metis_restart();
 }
 

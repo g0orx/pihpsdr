@@ -57,7 +57,7 @@ static void sample_rate_cb(GtkWidget *widget, gpointer data) {
   if(protocol==ORIGINAL_PROTOCOL) {
     old_protocol_new_sample_rate((int)data);
   } else {
-    sample_rate=(int)data;
+    new_protocol_new_sample_rate((int)data);
   }
 }
 

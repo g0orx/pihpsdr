@@ -191,7 +191,6 @@ static void setupTX(int tx) {
     SetTXAPostGenRun(tx, 0);
 
     SetChannelState(tx,1,0);
-    SetChannelState(tx,1,0);
 }
 
 void wdsp_init(int rx,int pixels,int protocol) {
@@ -248,7 +247,7 @@ void wdsp_init(int rx,int pixels,int protocol) {
     }
     fprintf(stderr,"OpenChannel %d buffer_size=%d fft_size=%d sample_rate=%d dspRate=%d outputRate=%d\n",
                 CHANNEL_TX,
-                tx_buffer_size,
+                buffer_size,
                 fft_size,
                 sample_rate, //micSampleRate,
                 micDspRate,
@@ -294,6 +293,16 @@ void wdsp_init(int rx,int pixels,int protocol) {
     setupRX(rx);
     setupTX(CHANNEL_TX);
 
+}
+
+void wdsp_new_sample_rate(int rate) {
+  SetChannelState(CHANNEL_TX,0,0);
+  SetInputSamplerate(CHANNEL_TX,rate);
+  SetChannelState(CHANNEL_TX,1,0);
+
+  SetChannelState(receiver,0,0);
+  SetInputSamplerate(receiver,rate);
+  SetChannelState(receiver,1,0);
 }
 
 static void initAnalyzer(int channel,int buffer_size) {

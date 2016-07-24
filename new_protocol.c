@@ -145,6 +145,7 @@ static int freedv_samples=0;
 static int freedv_resample=6;  // convert from 48000 to 8000
 #endif
 
+static void new_protocol_high_priority(int run,int tx,int drive);
 static void* new_protocol_thread(void* arg);
 static void* new_protocol_timer_thread(void* arg);
 static void full_rx_buffer();
@@ -207,6 +208,14 @@ void new_protocol_init(int rx,int pixels) {
 
 }
 
+void new_protocol_new_sample_rate(int rate) {
+  new_protocol_high_priority(0,0,0);
+  sample_rate=rate;
+  old_protocol_calc_buffers();
+  wdsp_new_sample_rate(rate);
+  new_protocol_high_priority(1,0,drive);
+}
+
 static void new_protocol_general() {
     unsigned char buffer[60];
 
@@ -253,7 +262,7 @@ fprintf(stderr,"new_protocol_high_priority: run=%d tx=%d drive=%d\n", run, tx, d
 
     buffer[4]=run|(tx<<1);
 
-    long rxFrequency=ddsFrequency+(long long)rit;
+    long rxFrequency=ddsFrequency;
     if(mode==modeCWU) {
       rxFrequency-=cw_keyer_sidetone_frequency;
     } else if(mode==modeCWL) {
