@@ -188,6 +188,7 @@ void panadapter_update(float *data,int tx) {
     gfloat saved_hz_per_pixel;
     cairo_text_extents_t extents;
 
+    hz_per_pixel=(double)getSampleRate()/(double)display_width;
     samples=data;
     //if(result==1) {
         if(panadapter_surface) {
@@ -255,13 +256,7 @@ void panadapter_update(float *data,int tx) {
             long divisor=20000;
             long half=(long)getSampleRate()/2L;
             long frequency=getFrequency();
-/*
-            if(mode==modeCWU) {
-              frequency=frequency+cw_keyer_sidetone_frequency;
-            } else if(mode==modeCWL) {
-              frequency=frequency-cw_keyer_sidetone_frequency;
-            }
-*/
+fprintf(stderr,"panadapter_update: sample_rate=%d\n",sample_rate);
             switch(sample_rate) {
               case 48000:
                 divisor=5000L;
