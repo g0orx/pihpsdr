@@ -991,10 +991,7 @@ fprintf(stderr,"mox_cb\n");
 }
 
 int ptt_update(void *data) {
-  int ptt=(int)data;
-  if((mode==modeCWL || mode==modeCWU) && cw_keyer_internal==1) {
-    // just ignore it
-  } else {
+  if(mode!=modeCWU && mode!=modeCWL) {
     mox_cb(NULL,NULL);
   }
   return 0;

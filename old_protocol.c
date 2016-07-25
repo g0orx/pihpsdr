@@ -408,15 +408,6 @@ static void process_ozy_input_buffer(char  *buffer) {
     dash=(control_in[0]&0x02)==0x02;
     dot=(control_in[0]&0x04)==0x04;
 
-if(last_ptt!=ptt) {
-  fprintf(stderr,"ptt=%d\n",ptt);
-}
-if(last_dot!=dot) {
-  fprintf(stderr,"dot=%d\n",dot);
-}
-if(last_dash!=dash) {
-  fprintf(stderr,"dash=%d\n",dash);
-}
     if(last_ptt!=ptt) {
       g_idle_add(ptt_update,(gpointer)ptt);
     }
@@ -506,8 +497,13 @@ if(last_dash!=dash) {
           }
         } else {
 #endif
-          micinputbuffer[samples*2]=(double)mic_sample_float*mic_gain;
-          micinputbuffer[(samples*2)+1]=(double)mic_sample_float*mic_gain;
+          if(mode==modeCWL || mode==modeCWU) {
+            micinputbuffer[samples*2]=0.0;
+            micinputbuffer[(samples*2)+1]=0.0;
+          } else {
+            micinputbuffer[samples*2]=(double)mic_sample_float*mic_gain;
+            micinputbuffer[(samples*2)+1]=(double)mic_sample_float*mic_gain;
+          }
           iqinputbuffer[samples*2]=0.0;
           iqinputbuffer[(samples*2)+1]=0.0;
           samples++;
@@ -931,16 +927,12 @@ void ozy_send_buffer() {
   }
 
   // set mox
-  if((mode!=modeCWU && mode!=modeCWL)) {
-    if(isTransmitting()) {
+  if(mode==modeCWU || mode==modeCWL) {
+    if(tune) {
       output_buffer[C0]|=0x01;
     }
   } else {
-    if(tune==0) {
-      if(cw_keyer_internal==0) {
-        output_buffer[C0]|=0x01;
-      }
-    } else {
+    if(isTransmitting()) {
       output_buffer[C0]|=0x01;
     }
   }

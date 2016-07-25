@@ -256,7 +256,6 @@ void panadapter_update(float *data,int tx) {
             long divisor=20000;
             long half=(long)getSampleRate()/2L;
             long frequency=getFrequency();
-fprintf(stderr,"panadapter_update: sample_rate=%d\n",sample_rate);
             switch(sample_rate) {
               case 48000:
                 divisor=5000L;
