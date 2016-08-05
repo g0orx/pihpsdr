@@ -17,24 +17,6 @@
 *
 */
 
-char *mode_string[]={
-  "LSB"
-  ,"USB"
-  ,"DSB"
-  ,"CWL"
-  ,"CWU"
-  ,"FMN"
-  ,"AM"
-  ,"DIGU"
-  ,"SPEC"
-  ,"DIGL"
-  ,"SAM"
-  ,"DRM"
-#ifdef FREEDV
-  ,"FREEDV"
-#endif
-#ifdef PSK
-  ,"PSK"
-#endif
-};
 
+void psk_waterfall_update(float *data);
+GtkWidget* psk_waterfall_init(int width,int height);

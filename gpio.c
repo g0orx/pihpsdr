@@ -1,11 +1,5 @@
-#ifdef raspberrypi
-#define INCLUDE_GPIO
-#endif
-#ifdef odroid
-#define INCLUDE_GPIO
-#endif
 
-#ifdef INCLUDE_GPIO
+#ifdef GPIO
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,6 +28,9 @@
 #include "main.h"
 #include "property.h"
 #include "wdsp.h"
+#ifdef PSK
+#include "psk.h"
+#endif
 
 #define SYSFS_GPIO_DIR  "/sys/class/gpio"
 
@@ -717,10 +714,18 @@ static int vfo_encoder_changed(void *data) {
     int pos=*(int*)data;
 
     if(function) {
-      //RIT
-      rit-=pos;
-      if(rit>1000) rit=1000;
-      if(rit<-1000) rit=-1000;
+#ifdef PSK
+      if(mode==modePSK) {
+        psk_set_frequency(psk_get_frequency()-(pos*10));
+      } else {
+#endif
+        //RIT
+        rit-=pos;
+        if(rit>1000) rit=1000;
+        if(rit<-1000) rit=-1000;
+#ifdef PSK
+      }
+#endif
     } else {
       // VFO
       BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
@@ -741,8 +746,8 @@ static int af_encoder_changed(void *data) {
       gain+=(double)pos/100.0;
       if(gain<0.0) {
         gain=0.0;
-      } else if(gain>4.0) {
-        gain=4.0;
+      } else if(gain>1.0) {
+        gain=1.0;
       }
       set_mic_gain(gain);
     } else {
@@ -767,27 +772,21 @@ static int rf_encoder_changed(void *data) {
     if(function || tune) {
       // tune drive
       double d=getTuneDrive();
-      //d+=(double)pos/100.0;
-      d+=(double)pos;
+      d+=(double)pos/100.0;
       if(d<0.0) {
         d=0.0;
-      //} else if(d>1.0) {
-      //  d=1.0;
-      } else if(d>255.0) {
-        d=255.0;
+      } else if(d>1.0) {
+        d=1.0;
       }
       set_tune(d);
     } else {
       // drive
       double d=getDrive();
-      //d+=(double)pos/100.0;
-      d+=(double)pos;
+      d+=(double)pos/100.0;
       if(d<0.0) {
         d=0.0;
-      //} else if(d>1.0) {
-      //  d=1.0;
-      } else if(d>255.0) {
-        d=255.0;
+      } else if(d>1.0) {
+        d=1.0;
       }
       set_drive(d);
     }

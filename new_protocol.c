@@ -49,6 +49,7 @@
 #include "mode.h"
 #include "filter.h"
 #include "radio.h"
+#include "signal.h"
 #include "vfo.h"
 #include "toolbar.h"
 #include "wdsp_init.h"
@@ -286,7 +287,11 @@ fprintf(stderr,"new_protocol_high_priority: run=%d tx=%d drive=%d\n", run, tx, d
     buffer[332]=phase;
 
 
-    buffer[345]=drive;
+    float d=(float)drive;
+    d=d*((float)band->pa_calibration/100.0F);
+    int power=(int)(d*255.0);
+
+    buffer[345]=power&0xFF;
 
 
     if(isTransmitting()) {
@@ -583,18 +588,6 @@ void new_protocol_stop() {
     running=0;
     sleep(1);
 }
-
-static float sineWave(double* buf, int samples, float phase, float freq) {
-    float phase_step = 2 * PI * freq / 48000.0F;
-    int i;
-    for (i = 0; i < samples; i++) {
-        buf[i*2] = (double) sin(phase);
-        buf[(i*2)+1] = (double) sin(phase);
-        phase += phase_step;
-    }
-    return phase;
-}
-
 
 double calibrate(int v) {
     // Angelia
@@ -955,7 +948,8 @@ static void full_tx_buffer() {
 
   if(tune==1) {
     double tunefrequency = (double)(filterLow+((filterHigh - filterLow) / 2));
-    phase=sineWave(micinputbuffer, BUFFER_SIZE, phase, (float)tunefrequency);
+    sineWave(micinputbuffer, BUFFER_SIZE, phase, tunefrequency);
+    phase=cosineWave(micinputbuffer, BUFFER_SIZE, phase, tunefrequency);
   }
 
   fexchange0(CHANNEL_TX, micinputbuffer, micoutputbuffer, &error);

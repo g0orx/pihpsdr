@@ -83,7 +83,7 @@ int display_toolbar=1;
 int toolbar_dialog_buttons=1;
 
 double volume=0.2;
-double mic_gain=1.5;
+double mic_gain=0.5;
 
 int rx_dither=0;
 int rx_random=0;
@@ -111,8 +111,8 @@ int nr2_gain_method=2; // 0=Linear 1=Log 2=gamma
 int nr2_npe_method=0; // 0=OSMS 1=MMSE
 int nr2_ae=1; // 0=disable 1=enable
 
-int tune_drive=6;
-int drive=60;
+double tune_drive=0.1;
+double drive=0.6;
 
 int receivers=2;
 int adc[2]={0,1};
@@ -180,9 +180,17 @@ int alc=TXA_ALC_PK;
 
 int local_audio=0;
 
+int eer_pwm_min=100;
+int eer_pwm_max=800;
+
+int tx_filter_low=200;
+int tx_filter_high=3100;
+
 #ifdef FREEDV
 char freedv_tx_text_data[64];
 #endif
+
+static int pre_tune_mode;
 
 void init_radio() {
   int rc;
@@ -244,9 +252,28 @@ fprintf(stderr,"setTune: protocol=%d\n", protocol);
       schedule_general();
     }
     if(tune) {
+      pre_tune_mode = mode;
+      if(mode==modeCWL) {
+        setMode(modeLSB);
+      } else if(mode==modeCWU) {
+        setMode(modeUSB);
+      }
+      
+      if(mode==modeLSB || mode==modeCWL || mode==modeDIGL) {
+        SetTXAPostGenToneFreq(CHANNEL_TX,-(double)cw_keyer_sidetone_frequency);
+      } else {
+        SetTXAPostGenToneFreq(CHANNEL_TX,(double)cw_keyer_sidetone_frequency);
+      }
+      SetTXAPostGenToneMag(CHANNEL_TX,0.99999);
+      SetTXAPostGenMode(CHANNEL_TX,0);
+      SetTXAPostGenRun(CHANNEL_TX,1);
       SetChannelState(CHANNEL_RX0,0,1);
       SetChannelState(CHANNEL_TX,1,0);
     } else {
+      SetTXAPostGenRun(CHANNEL_TX,0);
+      if(pre_tune_mode==modeCWL || pre_tune_mode==modeCWU) {
+        setMode(pre_tune_mode);
+      }
       SetChannelState(CHANNEL_TX,0,1);
       SetChannelState(CHANNEL_RX0,1,0);
     }
@@ -258,8 +285,6 @@ int getTune() {
 }
 
 int isTransmitting() {
-  BANDSTACK_ENTRY *entry;
-  entry=bandstack_entry_get_current();
   return ptt || mox || tune;
 }
 
@@ -313,26 +338,22 @@ long long getFrequency() {
 }
 
 double getDrive() {
-    //return (double)drive/255.0;
-    return (double)drive;
+    return drive;
 }
 
 void setDrive(double value) {
-    //drive=(int)(value*255.0);
-    drive=(int)(value);
+    drive=value;
     if(protocol==NEW_PROTOCOL) {
       schedule_high_priority(6);
     }
 }
 
 double getTuneDrive() {
-    //return (double)tune_drive/255.0;
-    return (double)tune_drive;
+    return tune_drive;
 }
 
 void setTuneDrive(double value) {
-    //tune_drive=(int)(value*255.0);
-    tune_drive=(int)(value);
+    tune_drive=value;
     if(protocol==NEW_PROTOCOL) {
       schedule_high_priority(7);
     }
@@ -433,11 +454,11 @@ void radioRestoreState() {
     value=getProperty("volume");
     if(value) volume=atof(value);
     value=getProperty("drive");
-    if(value) drive=atoi(value);
+    if(value) {drive=atof(value); if(drive>1.0) drive=1.0;}
     value=getProperty("tune_drive");
-    if(value) tune_drive=atoi(value);
+    if(value) {tune_drive=atof(value); if(tune_drive>1.0) tune_drive=1.0;}
     value=getProperty("mic_gain");
-    if(value) mic_gain=atof(value);
+    if(value) { mic_gain=atof(value); if(mic_gain>1.0) mic_gain=1.0; }
     value=getProperty("mic_boost");
     if(value) mic_boost=atof(value);
     value=getProperty("mic_linein");
@@ -576,9 +597,9 @@ void radioSaveState() {
     setProperty("volume",value);
     sprintf(value,"%f",mic_gain);
     setProperty("mic_gain",value);
-    sprintf(value,"%d",drive);
+    sprintf(value,"%f",drive);
     setProperty("drive",value);
-    sprintf(value,"%d",tune_drive);
+    sprintf(value,"%f",tune_drive);
     setProperty("tune_drive",value);
     sprintf(value,"%d",mic_boost);
     setProperty("mic_boost",value);

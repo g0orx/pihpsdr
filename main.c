@@ -57,12 +57,9 @@
 #ifdef FREEDV
 #include "mode.h"
 #endif
-
-#ifdef raspberrypi
-#define INCLUDE_GPIO
-#endif
-#ifdef odroid
-#define INCLUDE_GPIO
+#ifdef PSK
+#include "psk.h"
+#include "psk_waterfall.h"
 #endif
 
 #define VFO_HEIGHT ((display_height/32)*4)
@@ -97,24 +94,51 @@ static sem_t wisdom_sem;
 static GdkCursor *cursor_arrow;
 static GdkCursor *cursor_watch;
 
+static GtkWidget *fixed;
+static GtkWidget *panadapter;
+static GtkWidget *waterfall;
+#ifdef PSK
+static GtkWidget *psk;
+static GtkWidget *psk_waterfall;
+#endif
+
 gint update(gpointer data) {
     int result;
     double fwd;
     double rev;
     double exciter;
     int channel=CHANNEL_RX0;
+#ifdef PSK
+    if(mode==modePSK) {
+      channel=CHANNEL_PSK;
+    }
+#endif
     if(isTransmitting()) {
       channel=CHANNEL_TX;
     }
     GetPixels(channel,0,samples,&result);
     if(result==1) {
         if(display_panadapter) {
-          panadapter_update(samples,isTransmitting());
+#ifdef PSK
+          if(mode==modePSK) {
+            psk_waterfall_update(samples);
+          } else {
+#endif
+            panadapter_update(samples,isTransmitting());
+#ifdef PSK
+          }
+#endif
         }
         if(!isTransmitting()) {
+#ifdef PSK
+          if(mode!=modePSK) {
+#endif
             if(display_waterfall) {
               waterfall_update(samples);
             }
+#ifdef PSK
+          }
+#endif
         }
     }
 
@@ -273,7 +297,7 @@ static void* wisdom_thread(void *arg) {
 }
 
 gboolean main_delete (GtkWidget *widget) {
-#ifdef INCLUDE_GPIO
+#ifdef GPIO
   gpio_close();
 #endif
   switch(protocol) {
@@ -297,14 +321,11 @@ gint init(void* arg) {
 
   GtkWidget *window;
   GtkWidget *grid;
-  GtkWidget *fixed;
   gint x;
   gint y;
   GtkWidget *vfo;
   GtkWidget *menu;
   GtkWidget *meter;
-  GtkWidget *panadapter;
-  GtkWidget *waterfall;
   GtkWidget *sliders;
   GtkWidget *toolbar;
 
@@ -376,7 +397,7 @@ gint init(void* arg) {
           discovery_dialog = gtk_dialog_new_with_buttons ("Discovered",
                                       GTK_WINDOW(splash_window),
                                       flags,
-#ifdef INCLUDE_GPIO
+#ifdef GPIO
                                       "Configure GPIO",
                                       GTK_RESPONSE_YES,
 #endif
@@ -474,7 +495,7 @@ fprintf(stderr,"protocol=%d name=%s\n",d->protocol,d->name);
           }
          
           gtk_widget_destroy(discovery_dialog);
-#ifdef INCLUDE_GPIO
+#ifdef GPIO
           if(result==GTK_RESPONSE_YES) {
               configure_gpio(splash_window);
           }
@@ -510,7 +531,7 @@ fprintf(stderr,"protocol=%d name=%s\n",d->protocol,d->name);
 
   radioRestoreState();
 
-  samples=malloc(display_width*sizeof(float));
+  samples=malloc(display_width*sizeof(float)*2);
 
   //splash_status("Initializing wdsp ...");
   wdsp_init(0,display_width,d->protocol);
@@ -533,7 +554,7 @@ fprintf(stderr,"protocol=%d name=%s\n",d->protocol,d->name);
   }
 
   splash_status("Initializing GPIO ...");
-#ifdef INCLUDE_GPIO
+#ifdef GPIO
   gpio_init();
 #endif
 
@@ -542,42 +563,23 @@ fprintf(stderr,"protocol=%d name=%s\n",d->protocol,d->name);
   gtk_container_set_border_width (GTK_CONTAINER (window), 0);
   g_signal_connect (window, "delete-event", G_CALLBACK (main_delete), NULL);
 
-#ifdef GRID_LAYOUT
-  grid = gtk_grid_new();
-  gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
-  gtk_grid_set_row_homogeneous(GTK_GRID(grid),FALSE);
-  gtk_container_add(GTK_CONTAINER(window), grid);
-#else
   fixed=gtk_fixed_new();
   gtk_container_add(GTK_CONTAINER(window), fixed);
   y=0;
-#endif
 
 fprintf(stderr,"vfo_height=%d\n",VFO_HEIGHT);
   vfo = vfo_init(VFO_WIDTH,VFO_HEIGHT,window);
-#ifdef GRID_LAYOUT
-  gtk_grid_attach(GTK_GRID(grid), vfo, 0, y, 16, 1);
-#else
   gtk_fixed_put(GTK_FIXED(fixed),vfo,0,0);
-#endif
 
 
 fprintf(stderr,"menu_height=%d\n",MENU_HEIGHT);
   menu = menu_init(MENU_WIDTH,MENU_HEIGHT,window);
-#ifdef GRID_LAYOUT
-  gtk_grid_attach(GTK_GRID(grid), menu, 16, 0, 1, 1);
-#else
   gtk_fixed_put(GTK_FIXED(fixed),menu,VFO_WIDTH,y);
-#endif
 
 fprintf(stderr,"meter_height=%d\n",METER_HEIGHT);
   meter = meter_init(METER_WIDTH,METER_HEIGHT,window);
-#ifdef GRID_LAYOUT
-  gtk_grid_attach(GTK_GRID(grid), meter, 17, 0, 15, 1);
-#else
   gtk_fixed_put(GTK_FIXED(fixed),meter,VFO_WIDTH+MENU_WIDTH,y);
   y+=VFO_HEIGHT;
-#endif
 
   if(display_panadapter) {
     int height=PANADAPTER_HEIGHT;
@@ -596,12 +598,12 @@ fprintf(stderr,"meter_height=%d\n",METER_HEIGHT);
     }
 fprintf(stderr,"panadapter_height=%d\n",height);
     panadapter = panadapter_init(display_width,height);
-#ifdef GRID_LAYOUT
-    gtk_grid_attach(GTK_GRID(grid), panadapter, 0, 1, 32, 1);
-#else
     gtk_fixed_put(GTK_FIXED(fixed),panadapter,0,VFO_HEIGHT);
-    y+=height;
+#ifdef PSK
+    psk_waterfall = psk_waterfall_init(display_width,height);
+    gtk_fixed_put(GTK_FIXED(fixed),psk_waterfall,0,VFO_HEIGHT);
 #endif
+    y+=height;
   }
 
   if(display_waterfall) {
@@ -621,38 +623,30 @@ fprintf(stderr,"panadapter_height=%d\n",height);
     }
 fprintf(stderr,"waterfall_height=%d\n",height);
     waterfall = waterfall_init(display_width,height);
-#ifdef GRID_LAYOUT
-    gtk_grid_attach(GTK_GRID(grid), waterfall, 0, 2, 32, 1);
-#else
     gtk_fixed_put(GTK_FIXED(fixed),waterfall,0,y);
-    y+=height;
+#ifdef PSK
+    psk = init_psk();
+    gtk_fixed_put(GTK_FIXED(fixed),psk,0,y);
 #endif
+    y+=height;
+
   }
 
   if(display_sliders) {
 fprintf(stderr,"sliders_height=%d\n",SLIDERS_HEIGHT);
     sliders = sliders_init(display_width,SLIDERS_HEIGHT,window);
-#ifdef GRID_LAYOUT
-    gtk_grid_attach(GTK_GRID(grid), sliders, 0, 3, 32, 1);
-#else
     gtk_fixed_put(GTK_FIXED(fixed),sliders,0,y);
     y+=SLIDERS_HEIGHT;
-#endif
   }
 
   if(display_toolbar) {
 fprintf(stderr,"toolbar_height=%d\n",TOOLBAR_HEIGHT);
     toolbar = toolbar_init(display_width,TOOLBAR_HEIGHT,window);
-#ifdef GRID_LAYOUT
-    gtk_grid_attach(GTK_GRID(grid), toolbar, 0, 4, 32, 1);
-#else
     gtk_fixed_put(GTK_FIXED(fixed),toolbar,0,y);
     y+=TOOLBAR_HEIGHT;
-#endif
   }
 
   splash_close();
-
 
   gtk_widget_show_all (window);
 
@@ -663,7 +657,8 @@ fprintf(stderr,"toolbar_height=%d\n",TOOLBAR_HEIGHT);
   GdkWindow *gdk_window = gtk_widget_get_window(window);
   gdk_window_set_cursor(gdk_window,cursor_arrow);
 
-  update_timer_id=gdk_threads_add_timeout(1000/updates_per_second, update, NULL);
+  //update_timer_id=gdk_threads_add_timeout(1000/updates_per_second, update, NULL);
+  update_timer_id=gdk_threads_add_timeout_full(G_PRIORITY_HIGH_IDLE,1000/updates_per_second, update, NULL, NULL);
 
   // save every 30 seconds
   save_timer_id=gdk_threads_add_timeout(30000, save_cb, NULL);
@@ -673,10 +668,34 @@ fprintf(stderr,"toolbar_height=%d\n",TOOLBAR_HEIGHT);
     setFrequency(getFrequency());
   }
 
+#ifdef PSK
+  if(mode==modePSK) {
+    show_psk();
+  } else {
+    show_waterfall();
+  }
+#endif
+
   g_idle_add(vfo_update,(gpointer)NULL);
 
   return 0;
 }
+
+#ifdef PSK
+void show_psk() {
+  gtk_widget_hide(waterfall);
+  gtk_widget_hide(panadapter);
+  gtk_widget_show(psk);
+  gtk_widget_show(psk_waterfall);
+}
+
+void show_waterfall() {
+  gtk_widget_hide(psk_waterfall);
+  gtk_widget_hide(psk);
+  gtk_widget_show(panadapter);
+  gtk_widget_show(waterfall);
+}
+#endif
 
 
 int

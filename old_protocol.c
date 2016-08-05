@@ -45,9 +45,13 @@
 #include "filter.h"
 #include "old_protocol.h"
 #include "radio.h"
+#include "signal.h"
 #include "toolbar.h"
 #ifdef FREEDV
 #include "freedv.h"
+#endif
+#ifdef PSK
+#include "psk.h"
 #endif
 
 #define SYNC0 0
@@ -58,8 +62,6 @@
 #define C2 5
 #define C3 6
 #define C4 7
-
-#define PI 3.1415926535897932F
 
 #define DATA_PORT 1024
 
@@ -120,7 +122,7 @@ static int output_buffer_size;
 static unsigned char control_in[5]={0x00,0x00,0x00,0x00,0x00};
 
 static double tuning_phase;
-static float phase=0.0f;
+static double phase=0.0;
 
 static int running;
 static long ep4_sequence;
@@ -129,6 +131,10 @@ static int samples=0;
 #ifdef FREEDV
 static int freedv_samples=0;
 static int freedv_divisor=6;
+#endif
+#ifdef PSK
+static int psk_samples=0;
+static int psk_divisor=6;
 #endif
 
 //static float left_input_buffer[BUFFER_SIZE];
@@ -188,17 +194,6 @@ void schedule_frequency_changed() {
     //sem_post(&frequency_changed_sem);
 }
 
-static float sineWave(double* buf, int samples, float phase, float freq) {
-    float phase_step = 2 * PI * freq / sample_rate;
-    int i;
-    for (i = 0; i < samples; i++) {
-        buf[i*2] = (double) sin(phase);
-        buf[(i*2)+1] = (double) sin(phase);
-        phase += phase_step;
-    }
-    return phase;
-}
-
 void old_protocol_stop() {
   metis_start_stop(0);
   running=FALSE;
@@ -211,11 +206,17 @@ void old_protocol_calc_buffers() {
 #ifdef FREEDV
       freedv_divisor=6;
 #endif
+#ifdef PSK
+      psk_divisor=6;
+#endif
       break;
     case 96000:
       output_buffer_size=OUTPUT_BUFFER_SIZE/2;
 #ifdef FREEDV
       freedv_divisor=12;
+#endif
+#ifdef PSK
+      psk_divisor=12;
 #endif
       break;
     case 192000:
@@ -223,11 +224,17 @@ void old_protocol_calc_buffers() {
 #ifdef FREEDV
       freedv_divisor=24;
 #endif
+#ifdef PSK
+      psk_divisor=24;
+#endif
       break;
     case 384000:
       output_buffer_size=OUTPUT_BUFFER_SIZE/8;
 #ifdef FREEDV
       freedv_divisor=48;
+#endif
+#ifdef PSK
+      psk_divisor=48;
 #endif
       break;
     default:
@@ -389,9 +396,9 @@ static void process_ozy_input_buffer(char  *buffer) {
   int left_sample;
   int right_sample;
   int mic_sample;
-  float left_sample_float;
-  float right_sample_float;
-  float mic_sample_float;
+  double left_sample_double;
+  double right_sample_double;
+  double mic_sample_double;
 
   if(buffer[b++]==SYNC && buffer[b++]==SYNC && buffer[b++]==SYNC) {
     // extract control bytes
@@ -458,28 +465,24 @@ static void process_ozy_input_buffer(char  *buffer) {
       mic_sample    = (int)((signed char) buffer[b++]) << 8;
       mic_sample   += (int)((unsigned char)buffer[b++]);
 
-      left_sample_float=(float)left_sample/8388607.0; // 24 bit sample 2^23-1
-      right_sample_float=(float)right_sample/8388607.0; // 24 bit sample 2^23-1
-      mic_sample_float=(float)mic_sample/32767.0f; // 16 bit sample 2^16-1
+      left_sample_double=(double)left_sample/8388607.0; // 24 bit sample 2^23-1
+      right_sample_double=(double)right_sample/8388607.0; // 24 bit sample 2^23-1
+      mic_sample_double=(double)mic_sample/32767.0; // 16 bit sample 2^16-1
 
       // add to buffer
       if(isTransmitting()) {
 #ifdef FREEDV
-        if(mode==modeFREEDV) {
+        if(mode==modeFREEDV && !tune) {
           if(freedv_samples==0) {
             int modem_samples=mod_sample_freedv(mic_sample);
-            //short micinput=(short)(((double)mic_sample_float*mic_gain)*32767.0);
-            //int modem_samples=mod_sample_freedv(micinput);
             if(modem_samples!=0) {
               int s;
               for(s=0;s<modem_samples;s++) {
                 for(j=0;j<freedv_divisor;j++) {
                   mic_sample=mod_out[s];
-                  mic_sample_float=(float)mic_sample/32767.0f; // 16 bit sample 2^16-1
-                  micinputbuffer[samples*2]=(double)mic_sample_float*mic_gain;
-                  micinputbuffer[(samples*2)+1]=(double)mic_sample_float*mic_gain;
-                  //micinputbuffer[samples*2]=(double)mic_sample_float;
-                  //micinputbuffer[(samples*2)+1]=(double)mic_sample_float;
+                  mic_sample_double=(double)mic_sample/32767.0f; // 16 bit sample 2^16-1
+                  micinputbuffer[samples*2]=mic_sample_double*mic_gain;
+                  micinputbuffer[(samples*2)+1]=mic_sample_double*mic_gain;
                   iqinputbuffer[samples*2]=0.0;
                   iqinputbuffer[(samples*2)+1]=0.0;
                   samples++;
@@ -497,12 +500,12 @@ static void process_ozy_input_buffer(char  *buffer) {
           }
         } else {
 #endif
-          if(mode==modeCWL || mode==modeCWU) {
+          if(mode==modeCWL || mode==modeCWU || tune) {
             micinputbuffer[samples*2]=0.0;
             micinputbuffer[(samples*2)+1]=0.0;
           } else {
-            micinputbuffer[samples*2]=(double)mic_sample_float*mic_gain;
-            micinputbuffer[(samples*2)+1]=(double)mic_sample_float*mic_gain;
+            micinputbuffer[samples*2]=mic_sample_double*mic_gain;
+            micinputbuffer[(samples*2)+1]=mic_sample_double*mic_gain;
           }
           iqinputbuffer[samples*2]=0.0;
           iqinputbuffer[(samples*2)+1]=0.0;
@@ -517,8 +520,8 @@ static void process_ozy_input_buffer(char  *buffer) {
       } else {
         micinputbuffer[samples*2]=0.0;
         micinputbuffer[(samples*2)+1]=0.0;
-        iqinputbuffer[samples*2]=(double)left_sample_float;
-        iqinputbuffer[(samples*2)+1]=(double)right_sample_float;
+        iqinputbuffer[samples*2]=left_sample_double;
+        iqinputbuffer[(samples*2)+1]=right_sample_double;
         samples++;
         if(samples==buffer_size) {
           full_rx_buffer();
@@ -541,114 +544,129 @@ static void process_ozy_input_buffer(char  *buffer) {
   }
 }
 
-static void full_rx_buffer() {
-  int j;
-  int error;
 #ifdef FREEDV
-  if(mode==modeFREEDV) {
-    // process the input
-    fexchange0(CHANNEL_RX0, iqinputbuffer, audiooutputbuffer, &error);
-    if(error!=0) {
-      fprintf(stderr,"fexchange2 (CHANNEL_RX0) returned error: %d\n", error);
-    }
+static void process_freedv_rx_buffer() {
+  int j;
 
-    Spectrum0(1, CHANNEL_RX0, 0, 0, iqinputbuffer);
-
-    int demod_samples;
-    for(j=0;j<output_buffer_size;j++) {
-      if(freedv_samples==0) {
-        left_rx_sample=(short)(audiooutputbuffer[j*2]*32767.0*volume);
-        right_rx_sample=(short)(audiooutputbuffer[(j*2)+1]*32767.0*volume);
-        demod_samples=demod_sample_freedv(left_rx_sample);
-        if(demod_samples!=0) {
-          int s;
-          int t;
-          for(s=0;s<demod_samples;s++) {
-            for(t=0;t<6;t++) { // 8k to 48k
-              if(freedv_sync) {
-                left_rx_sample=right_rx_sample=(short)((double)speech_out[s]*volume);
-              } else {
-                left_rx_sample=right_rx_sample=0;
-              }
-              if(local_audio) {
-                audio_write(left_rx_sample,right_rx_sample);
-              }
-              output_buffer[output_buffer_index++]=left_rx_sample>>8;
-              output_buffer[output_buffer_index++]=left_rx_sample;
-              output_buffer[output_buffer_index++]=right_rx_sample>>8;
-              output_buffer[output_buffer_index++]=right_rx_sample;
-              left_tx_sample=right_tx_sample=0;
-              output_buffer[output_buffer_index++]=left_tx_sample>>8;
-  	      output_buffer[output_buffer_index++]=left_tx_sample;
-    	      output_buffer[output_buffer_index++]=right_tx_sample>>8;
-    	      output_buffer[output_buffer_index++]=right_tx_sample;
-    	      if(output_buffer_index>=OZY_BUFFER_SIZE) {
-    	        ozy_send_buffer();
-    	        output_buffer_index=8;
-  	      }
+  int demod_samples;
+  for(j=0;j<output_buffer_size;j++) {
+    if(freedv_samples==0) {
+      left_rx_sample=(short)(audiooutputbuffer[j*2]*32767.0*volume);
+      right_rx_sample=(short)(audiooutputbuffer[(j*2)+1]*32767.0*volume);
+      demod_samples=demod_sample_freedv(left_rx_sample);
+      if(demod_samples!=0) {
+        int s;
+        int t;
+        for(s=0;s<demod_samples;s++) {
+          for(t=0;t<6;t++) { // 8k to 48k
+            if(freedv_sync) {
+              left_rx_sample=right_rx_sample=(short)((double)speech_out[s]*volume);
+            } else {
+              left_rx_sample=right_rx_sample=0;
+            }
+            if(local_audio) {
+              audio_write(left_rx_sample,right_rx_sample);
+            }
+            output_buffer[output_buffer_index++]=left_rx_sample>>8;
+            output_buffer[output_buffer_index++]=left_rx_sample;
+            output_buffer[output_buffer_index++]=right_rx_sample>>8;
+            output_buffer[output_buffer_index++]=right_rx_sample;
+            left_tx_sample=right_tx_sample=0;
+            output_buffer[output_buffer_index++]=left_tx_sample>>8;
+            output_buffer[output_buffer_index++]=left_tx_sample;
+            output_buffer[output_buffer_index++]=right_tx_sample>>8;
+            output_buffer[output_buffer_index++]=right_tx_sample;
+            if(output_buffer_index>=OZY_BUFFER_SIZE) {
+              ozy_send_buffer();
+              output_buffer_index=8;
             }
           }
         }
       }
-      freedv_samples++;
-      if(freedv_samples==freedv_divisor) {
-        freedv_samples=0;
-      }
     }
-  } else {
+    freedv_samples++;
+    if(freedv_samples==freedv_divisor) {
+      freedv_samples=0;
+    }
+  }
+}
 #endif
-    // process the input
-    fexchange0(CHANNEL_RX0, iqinputbuffer, audiooutputbuffer, &error);
-    if(error!=0) {
-      fprintf(stderr,"fexchange2 (CHANNEL_RX0) returned error: %d\n", error);
+
+static void process_rx_buffer() {
+  int j;
+
+  for(j=0;j<output_buffer_size;j++) {
+    left_rx_sample=(short)(audiooutputbuffer[j*2]*32767.0*volume);
+    right_rx_sample=(short)(audiooutputbuffer[(j*2)+1]*32767.0*volume);
+#ifdef PSK
+    if(psk_samples==0) {
+      psk_demod((left_rx_sample+right_rx_sample)/2);
     }
+    psk_samples++;
+    if(psk_samples==psk_divisor) {
+      psk_samples=0;
+    }
+#endif
+    if(local_audio) {
+      audio_write(left_rx_sample,right_rx_sample);
+    }
+    left_tx_sample=0;
+    right_tx_sample=0;
+    output_buffer[output_buffer_index++]=left_rx_sample>>8;
+    output_buffer[output_buffer_index++]=left_rx_sample;
+    output_buffer[output_buffer_index++]=right_rx_sample>>8;
+    output_buffer[output_buffer_index++]=right_rx_sample;
+    output_buffer[output_buffer_index++]=left_tx_sample>>8;
+    output_buffer[output_buffer_index++]=left_tx_sample;
+    output_buffer[output_buffer_index++]=right_tx_sample>>8;
+    output_buffer[output_buffer_index++]=right_tx_sample;
+    if(output_buffer_index>=OZY_BUFFER_SIZE) {
+      ozy_send_buffer();
+      output_buffer_index=8;
+    }
+  }
+}
+
+static void full_rx_buffer() {
+  int j;
+  int error;
+
+  // process the input
+  fexchange0(CHANNEL_RX0, iqinputbuffer, audiooutputbuffer, &error);
+  if(error!=0) {
+    fprintf(stderr,"fexchange2 (CHANNEL_RX0) returned error: %d\n", error);
+  }
+#ifdef PSK
+  if(mode!=modePSK) {
+#endif
     Spectrum0(1, CHANNEL_RX0, 0, 0, iqinputbuffer);
-    for(j=0;j<output_buffer_size;j++) {
-      left_rx_sample=(short)(audiooutputbuffer[j*2]*32767.0*volume);
-      right_rx_sample=(short)(audiooutputbuffer[(j*2)+1]*32767.0*volume);
-      if(local_audio) {
-        audio_write(left_rx_sample,right_rx_sample);
-      }
-      left_tx_sample=0;
-      right_tx_sample=0;
-      output_buffer[output_buffer_index++]=left_rx_sample>>8;
-      output_buffer[output_buffer_index++]=left_rx_sample;
-      output_buffer[output_buffer_index++]=right_rx_sample>>8;
-      output_buffer[output_buffer_index++]=right_rx_sample;
-      output_buffer[output_buffer_index++]=left_tx_sample>>8;
-      output_buffer[output_buffer_index++]=left_tx_sample;
-      output_buffer[output_buffer_index++]=right_tx_sample>>8;
-      output_buffer[output_buffer_index++]=right_tx_sample;
-      if(output_buffer_index>=OZY_BUFFER_SIZE) {
-        ozy_send_buffer();
-        output_buffer_index=8;
-      }
-    }
-#ifdef FREEDV
+#ifdef PSK
   }
 #endif
+
+#ifdef FREEDV
+  if(mode==modeFREEDV) {
+    process_freedv_rx_buffer();
+    return;
+  }
+#endif
+  process_rx_buffer();
 }
 
 static void full_tx_buffer() {
   int j;
   int error;
-  double gain;
-  if(tune) {
-    double tunefrequency = (double)(filterLow+((filterHigh - filterLow) / 2));
-    phase=sineWave(micinputbuffer, BUFFER_SIZE, phase, (float)tunefrequency);
-  }
+  double gain=32767.0; // 2^16-1
 
   // process the output
+  fexchange0(CHANNEL_RX0, iqinputbuffer, audiooutputbuffer, &error);
   fexchange0(CHANNEL_TX, micinputbuffer, micoutputbuffer, &error);
-  if(error!=0) {
-    fprintf(stderr,"fexchange0 (CHANNEL_TX) returned error: %d\n", error);
-  }
   Spectrum0(1, CHANNEL_TX, 0, 0, micoutputbuffer);
   if(d->device!=DEVICE_METIS || atlas_penelope) {
     if(tune) {
-      gain=65535.0*255.0/(double)tune_drive;
+      gain=65535.0*tune_drive;
     } else {
-      gain=65535.0*255.0/(double)drive;
+      gain=65535.0*drive;
     }
   } else {
     gain=65535.0;
@@ -656,8 +674,8 @@ static void full_tx_buffer() {
   for(j=0;j<output_buffer_size;j++) {
     left_rx_sample=0;
     right_rx_sample=0;
-    left_tx_sample=(short)(micoutputbuffer[j*2]*gain*2);
-    right_tx_sample=(short)(micoutputbuffer[(j*2)+1]*gain*2);
+    left_tx_sample=(short)(micoutputbuffer[j*2]*gain);
+    right_tx_sample=(short)(micoutputbuffer[(j*2)+1]*gain);
     output_buffer[output_buffer_index++]=left_rx_sample>>8;
     output_buffer[output_buffer_index++]=left_rx_sample;
     output_buffer[output_buffer_index++]=right_rx_sample>>8;
@@ -838,10 +856,11 @@ void ozy_send_buffer() {
         d=(float)tune_drive;
       }
       BAND *band=band_get_current_band();
-      d=(d*(float)band->pa_calibration)/100.0F;
+      d=d*((float)band->pa_calibration/100.0F);
+      int power=(int)(d*255.0);
 
       output_buffer[C0]=0x12;
-      output_buffer[C1]=(int)d;
+      output_buffer[C1]=power&0xFF;
       output_buffer[C2]=0x00;
       if(mic_boost) {
         output_buffer[C2]|=0x01;
@@ -924,6 +943,13 @@ void ozy_send_buffer() {
       output_buffer[C3]=(cw_keyer_sidetone_frequency>>4) & 0xFF;
       output_buffer[C4]=cw_keyer_sidetone_frequency & 0x0F;
       break;
+    case 9:
+      output_buffer[C0]=0x22;
+      output_buffer[C1]=(eer_pwm_min>>2) & 0xFF;
+      output_buffer[C2]=eer_pwm_min & 0x03;
+      output_buffer[C3]=(eer_pwm_max>>3) & 0xFF;
+      output_buffer[C4]=eer_pwm_max & 0x03;
+      break;
   }
 
   // set mox
@@ -940,7 +966,7 @@ void ozy_send_buffer() {
   metis_write(0x02,output_buffer,OZY_BUFFER_SIZE);
 
   command++;
-  if(command>8) {
+  if(command>9) {
     command=0;
   }
 

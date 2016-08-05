@@ -8,7 +8,7 @@ extern short *mod_out;
 extern int freedv_sync;
 extern float freedv_snr;
 
-extern char freedv_rx_text_data[64];
+extern char freedv_text_data[64];
 
 void init_freedv();
 void close_freedv();

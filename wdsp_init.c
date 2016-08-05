@@ -50,6 +50,10 @@
 #ifdef FREEDV
 #include "freedv.h"
 #endif
+#ifdef PSK
+#include "main.h"
+#include "psk.h"
+#endif
 
 #define PI 3.1415926535897932F
 #define min(x,y) (x<y?x:y)
@@ -95,6 +99,16 @@ int local_mode=m;
       close_freedv();
     }
 #endif
+#ifdef PSK
+    if(mode!=modePSK && m==modePSK) {
+      local_mode=modeUSB;
+      //init_psk();
+      show_psk();
+    } else if(mode==modePSK && m!=modePSK) {
+      //close_psk();
+      show_waterfall();
+    }
+#endif
 fprintf(stderr,"setMode: %d mode=%d\n",receiver,mode);
     setRXMode(receiver,local_mode);
 fprintf(stderr,"setMode: %d mode=%d\n",CHANNEL_TX,mode);
@@ -128,6 +142,34 @@ fprintf(stderr,"setFilter: fl=%f fh=%f\n",fl,fh);
     SetRXASNBAOutputBandwidth(receiver, (double)filterLow, (double)filterHigh);
 
     SetTXABandpassFreqs(CHANNEL_TX, fl,fh);
+/*
+    switch(mode) {
+        case modeCWL:
+        case modeLSB:
+        case modeDIGL:
+            SetTXABandpassFreqs(CHANNEL_TX, -(double)tx_filter_high,-(double)tx_filter_low);
+            break;
+        case modeCWU:
+        case modeUSB:
+        case modeDIGU:
+#ifdef FREEDV
+        case modeFREEDV:
+#endif
+            SetTXABandpassFreqs(CHANNEL_TX, (double)tx_filter_low,(double)tx_filter_high);
+            break;
+        case modeDSB:
+        case modeAM:
+        case modeSAM:
+            SetTXABandpassFreqs(CHANNEL_TX, -(double)tx_filter_high,(double)tx_filter_high);
+            break;
+        case modeFMN:
+            SetTXABandpassFreqs(CHANNEL_TX, -8000.0,8000);
+            break;
+        case modeDRM:
+            SetTXABandpassFreqs(CHANNEL_TX, 7000.0,17000);
+            break;
+    }
+*/
 }
 
 int getFilterLow() {
@@ -187,7 +229,15 @@ static void setupTX(int tx) {
     SetTXAAMSQRun(tx, 0);
     SetTXACompressorRun(tx, 0);
     SetTXAosctrlRun(tx, 0);
+
+    SetTXAPreGenMode(tx, 0);
+    SetTXAPreGenToneMag(tx, 0.0);
+    SetTXAPreGenToneFreq(tx, 0.0);
     SetTXAPreGenRun(tx, 0);
+
+    SetTXAPostGenMode(tx, 0);
+    SetTXAPostGenToneMag(tx, 0.0);
+    SetTXAPostGenToneFreq(tx, 0.0);
     SetTXAPostGenRun(tx, 0);
 
     SetChannelState(tx,1,0);
@@ -293,6 +343,14 @@ void wdsp_init(int rx,int pixels,int protocol) {
     setupRX(rx);
     setupTX(CHANNEL_TX);
 
+#ifdef PSK
+    XCreateAnalyzer(CHANNEL_PSK, &success, PSK_BUFFER_SIZE, 1, 1, "");
+        if (success != 0) {
+            fprintf(stderr, "XCreateAnalyzer CHANNEL_PSK failed: %d\n" ,success);
+        }
+    initAnalyzer(CHANNEL_PSK,PSK_BUFFER_SIZE);
+#endif
+
 }
 
 void wdsp_new_sample_rate(int rate) {
@@ -331,7 +389,15 @@ static void initAnalyzer(int channel,int buffer_size) {
 
     int max_w = fft_size + (int) MIN(KEEP_TIME * (double) SPECTRUM_UPDATES_PER_SECOND, KEEP_TIME * (double) fft_size * (double) SPECTRUM_UPDATES_PER_SECOND);
 
-    fprintf(stderr,"SetAnalyzer channel=%d\n",channel);
+    fprintf(stderr,"SetAnalyzer channel=%d buffer_size=%d\n",channel,buffer_size);
+#ifdef PSK
+    if(channel==CHANNEL_PSK) {
+      data_type=0;
+      fft_size=1024;
+      overlap=0;
+      pixels=spectrumWIDTH;
+    }
+#endif
     SetAnalyzer(channel,
             n_pixout,
             spur_elimination_ffts, //number of LO frequencies = number of ffts used in elimination

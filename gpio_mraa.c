@@ -359,6 +359,10 @@ fprintf(stderr,"MRAA: gpio_init\n");
 
   mraa_init();
 
+  const char* board_name = mraa_get_platform_name();
+  fprintf(stderr,"MRAA: gpio_init: board=%s\n",board_name);
+
+if(ENABLE_VFO_ENCODER) {
   vfo_a_context=mraa_gpio_init(VFO_ENCODER_A);
   if(vfo_a_context!=NULL) {
     res=mraa_gpio_dir(vfo_a_context,MRAA_GPIO_IN);
@@ -398,7 +402,9 @@ fprintf(stderr,"MRAA: gpio_init\n");
   } else {
     fprintf(stderr,"mraa_gpio_init(%d) returned NULL\n",VFO_ENCODER_B);
   }
+}
 
+if(ENABLE_AF_ENCODER) {
   af_a_context=mraa_gpio_init(AF_ENCODER_A);
   if(af_a_context!=NULL) {
     res=mraa_gpio_dir(af_a_context,MRAA_GPIO_IN);
@@ -438,7 +444,9 @@ fprintf(stderr,"MRAA: gpio_init\n");
   } else {
     fprintf(stderr,"mraa_gpio_init(%d) returned NULL\n",AF_ENCODER_B);
   }
+}
 
+if(ENABLE_RF_ENCODER) {
   rf_a_context=mraa_gpio_init(RF_ENCODER_A);
   if(rf_a_context!=NULL) {
     res=mraa_gpio_dir(rf_a_context,MRAA_GPIO_IN);
@@ -478,7 +486,9 @@ fprintf(stderr,"MRAA: gpio_init\n");
   } else {
     fprintf(stderr,"mraa_gpio_init(%d) returned NULL\n",RF_ENCODER_B);
   }
+}
 
+if(ENABLE_AGC_ENCODER) {
   agc_a_context=mraa_gpio_init(AGC_ENCODER_A);
   if(agc_a_context!=NULL) {
     res=mraa_gpio_dir(agc_a_context,MRAA_GPIO_IN);
@@ -518,7 +528,9 @@ fprintf(stderr,"MRAA: gpio_init\n");
   } else {
     fprintf(stderr,"mraa_gpio_init(%d) returned NULL\n",AGC_ENCODER_B);
   }
+}
 
+if(ENABLE_FUNCTION_BUTTON) {
   function_context=mraa_gpio_init(FUNCTION_BUTTON);
   if(function_context!=NULL) {
     res=mraa_gpio_dir(function_context,MRAA_GPIO_IN);
@@ -532,7 +544,9 @@ fprintf(stderr,"MRAA: gpio_init\n");
   } else {
     fprintf(stderr,"mraa_gpio_init(%d) returned NULL\n",FUNCTION_BUTTON);
   }
+}
 
+if(ENABLE_BAND_BUTTON) {
   band_context=mraa_gpio_init(BAND_BUTTON);
   if(band_context!=NULL) {
     res=mraa_gpio_dir(band_context,MRAA_GPIO_IN);
@@ -546,7 +560,9 @@ fprintf(stderr,"MRAA: gpio_init\n");
   } else {
     fprintf(stderr,"mraa_gpio_init(%d) returned NULL\n",BAND_BUTTON);
   }
+}
 
+if(ENABLE_BANDSTACK_BUTTON) {
   bandstack_context=mraa_gpio_init(BANDSTACK_BUTTON);
   if(bandstack_context!=NULL) {
     res=mraa_gpio_dir(bandstack_context,MRAA_GPIO_IN);
@@ -560,7 +576,9 @@ fprintf(stderr,"MRAA: gpio_init\n");
   } else {
     fprintf(stderr,"mraa_gpio_init(%d) returned NULL\n",BANDSTACK_BUTTON);
   }
+}
 
+if(ENABLE_MODE_BUTTON) {
   mode_context=mraa_gpio_init(MODE_BUTTON);
   if(mode_context!=NULL) {
     res=mraa_gpio_dir(mode_context,MRAA_GPIO_IN);
@@ -574,12 +592,9 @@ fprintf(stderr,"MRAA: gpio_init\n");
   } else {
     fprintf(stderr,"mraa_gpio_init(%d) returned NULL\n",MODE_BUTTON);
   }
+}
 
-  int rc=pthread_create(&rotary_encoder_thread_id, NULL, rotary_encoder_thread, NULL);
-  if(rc<0) {
-    fprintf(stderr,"pthread_create for rotary_encoder_thread failed %d\n",rc);
-  }
-
+if(ENABLE_FILTER_BUTTON) {
   filter_context=mraa_gpio_init(FILTER_BUTTON);
   if(filter_context!=NULL) {
     res=mraa_gpio_dir(filter_context,MRAA_GPIO_IN);
@@ -593,7 +608,9 @@ fprintf(stderr,"MRAA: gpio_init\n");
   } else {
     fprintf(stderr,"mraa_gpio_init(%d) returned NULL\n",FILTER_BUTTON);
   }
+}
 
+if(ENABLE_NOISE_BUTTON) {
   noise_context=mraa_gpio_init(NOISE_BUTTON);
   if(noise_context!=NULL) {
     res=mraa_gpio_dir(noise_context,MRAA_GPIO_IN);
@@ -607,7 +624,9 @@ fprintf(stderr,"MRAA: gpio_init\n");
   } else {
     fprintf(stderr,"mraa_gpio_init(%d) returned NULL\n",NOISE_BUTTON);
   }
+}
 
+if(ENABLE_AGC_BUTTON) {
   agc_context=mraa_gpio_init(AGC_BUTTON);
   if(agc_context!=NULL) {
     res=mraa_gpio_dir(agc_context,MRAA_GPIO_IN);
@@ -621,7 +640,9 @@ fprintf(stderr,"MRAA: gpio_init\n");
   } else {
     fprintf(stderr,"mraa_gpio_init(%d) returned NULL\n",AGC_BUTTON);
   }
+}
 
+if(ENABLE_MOX_BUTTON) {
   mox_context=mraa_gpio_init(MOX_BUTTON);
   if(mox_context!=NULL) {
     res=mraa_gpio_dir(mox_context,MRAA_GPIO_IN);
@@ -634,6 +655,12 @@ fprintf(stderr,"MRAA: gpio_init\n");
     }
   } else {
     fprintf(stderr,"mraa_gpio_init(%d) returned NULL\n",MOX_BUTTON);
+  }
+}
+
+  int rc=pthread_create(&rotary_encoder_thread_id, NULL, rotary_encoder_thread, NULL);
+  if(rc<0) {
+    fprintf(stderr,"pthread_create for rotary_encoder_thread failed %d\n",rc);
   }
 
   return 0;

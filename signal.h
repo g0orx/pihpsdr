@@ -17,24 +17,5 @@
 *
 */
 
-char *mode_string[]={
-  "LSB"
-  ,"USB"
-  ,"DSB"
-  ,"CWL"
-  ,"CWU"
-  ,"FMN"
-  ,"AM"
-  ,"DIGU"
-  ,"SPEC"
-  ,"DIGL"
-  ,"SAM"
-  ,"DRM"
-#ifdef FREEDV
-  ,"FREEDV"
-#endif
-#ifdef PSK
-  ,"PSK"
-#endif
-};
-
+double sineWave(double* buf, int samples, double sinphase, double freq);
+double cosineWave(double* buf, int samples, double cosphase, double freq);

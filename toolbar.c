@@ -20,7 +20,7 @@
 #include <gtk/gtk.h>
 #include <semaphore.h>
 #include <stdio.h>
-#ifdef INCLUDE_GPIO
+#ifdef GPIO
 #include "gpio.h"
 #endif
 #include "toolbar.h"
@@ -663,7 +663,7 @@ static void stop() {
   } else {
     new_protocol_stop();
   }
-#ifdef INCLUDE_GPIO
+#ifdef GPIO
   gpio_close();
 #endif
 }
@@ -984,16 +984,22 @@ fprintf(stderr,"mox_cb\n");
   }
   if(getMox()==1) {
     setMox(0);
+    if(ptt) {
+      ptt=0;
+    }
   } else if(canTransmit() || tx_out_of_band) {
     setMox(1);
   }
+fprintf(stderr,"mox_cb: mox now %d\n",mox);
   vfo_update(NULL);
 }
 
 int ptt_update(void *data) {
+fprintf(stderr,"ptt_update\n");
   if(mode!=modeCWU && mode!=modeCWL) {
     mox_cb(NULL,NULL);
   }
+fprintf(stderr,"ptt_update: mox=%d ptt=%d tune=%d\n",mox,ptt,tune);
   return 0;
 }
 
@@ -1007,6 +1013,7 @@ fprintf(stderr,"tune_cb\n");
   } else if(canTransmit() || tx_out_of_band) {
     setTune(1);
   }
+fprintf(stderr,"tune_cb: calling vfo_update\n");
   vfo_update(NULL);
 }
 
@@ -1217,6 +1224,7 @@ void sim_mox_cb(GtkWidget *widget, gpointer data) {
   } else {
     mox_cb((GtkWidget *)NULL, (gpointer)NULL);
   }
+  vfo_update(NULL);
 }
 
 void sim_function_cb(GtkWidget *widget, gpointer data) {

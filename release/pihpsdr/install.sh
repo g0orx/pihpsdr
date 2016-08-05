@@ -1,7 +1,9 @@
 rm -rf /usr/local/lib/libwdsp.so
+rm -rf /usr/local/lib/libpsk.so
 rm -rf /usr/local/lib/libcodec2.so
 rm -rf /usr/local/lib/libSoapySDR.so
 cp libwdsp.so /usr/local/lib
+cp libpsk.so /usr/local/lib
 cp libcodec2.so.0.5 /usr/local/lib
 cp libSoapySDR.so.0.5-1 /usr/local/lib
 cd /usr/local/lib; ln -s libcodec2.so.0.5 libcodec2.so

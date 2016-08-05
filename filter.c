@@ -216,6 +216,23 @@ FILTER filterFREEDV[FILTERS]={
     };
 #endif
 
+#ifdef PSK
+FILTER filterPSK[FILTERS]={
+    {150,5150,"5.0k"},
+    {150,4550,"4.4k"},
+    {150,3950,"3.8k"},
+    {150,3150,"3k"},
+    {150,3050,"2.9k"},
+    {150,2850,"2.7k"},
+    {150,2550,"2.4k"},
+    {150,2250,"2.1k"},
+    {150,1950,"1.8k"},
+    {150,1150,"1.0k"}/*,
+    {150,2850,"Var1"},
+    {150,2850,"Var2"}*/
+    };
+#endif
+
 
 FILTER *filters[]={
     filterLSB
@@ -233,5 +250,9 @@ FILTER *filters[]={
 #ifdef FREEDV
     ,filterFREEDV
 #endif
+#ifdef PSK
+    ,filterPSK
+#endif
+
 };
 

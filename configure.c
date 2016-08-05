@@ -33,13 +33,6 @@
 #include "radio.h"
 #include "gpio.h"
 
-#ifdef raspberrypi
-#define INCLUDE_GPIO
-#endif
-#ifdef odroid
-#define INCLUDE_GPIO
-#endif
-
 static void display_panadapter_cb(GtkWidget *widget, gpointer data) {
   display_panadapter=display_panadapter==1?0:1;
 }
@@ -62,7 +55,7 @@ static void toolbar_dialog_buttons_cb(GtkWidget *widget, gpointer data) {
 }
 */
 
-#ifdef INCLUDE_GPIO
+#ifdef GPIO
 void configure_gpio(GtkWidget *parent) {
   gpio_restore_state();
 

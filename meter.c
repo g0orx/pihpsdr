@@ -42,6 +42,7 @@ static int meter_height;
 static int last_meter_type=SMETER;
 static int max_level=-200;
 static int max_count=0;
+static int max_reverse=0;
 
 static void
 meter_clear_surface (void)
@@ -117,13 +118,13 @@ meter_press_event_cb (GtkWidget *widget,
 
    
   GtkWidget *smeter_peak=gtk_radio_button_new_with_label(NULL,"S Meter Peak");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (smeter_peak), alc==RXA_S_PK);
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (smeter_peak), smeter==RXA_S_PK);
   gtk_widget_show(smeter_peak);
   gtk_grid_attach(GTK_GRID(grid),smeter_peak,0,1,1,1);
   g_signal_connect(smeter_peak,"pressed",G_CALLBACK(smeter_select_cb),(gpointer *)RXA_S_PK);
 
   GtkWidget *smeter_average=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(smeter_peak),"S Meter Average");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (smeter_average), alc==RXA_S_AV);
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (smeter_average), smeter==RXA_S_AV);
   gtk_widget_show(smeter_average);
   gtk_grid_attach(GTK_GRID(grid),smeter_average,0,2,1,1);
   g_signal_connect(smeter_average,"pressed",G_CALLBACK(smeter_select_cb),(gpointer *)RXA_S_AV);
@@ -217,6 +218,7 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
       max_level=-200;
     } else {
       max_level=0;
+      max_reverse=0;
     }
   }
 
@@ -333,12 +335,11 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
       cairo_move_to(cr, 10, 35);
       cairo_show_text(cr, sf);
 
-      double swr=(value+reverse)/(value-reverse);
+      double swr=(max_level+reverse)/(max_level-reverse);
       cairo_select_font_face(cr, "Arial",
             CAIRO_FONT_SLANT_NORMAL,
             CAIRO_FONT_WEIGHT_BOLD);
       cairo_set_font_size(cr, 18);
-
       sprintf(sf,"SWR: %1.1f:1",swr);
       cairo_move_to(cr, 10, 55);
       cairo_show_text(cr, sf);

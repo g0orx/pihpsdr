@@ -119,8 +119,8 @@ extern int mic_bias_enabled;
 extern int mic_ptt_enabled;
 extern int mic_ptt_tip_bias_ring;
 
-extern int tune_drive;
-extern int drive;
+extern double tune_drive;
+extern double drive;
 
 int receivers;
 int adc[2];
@@ -190,6 +190,12 @@ extern int smeter;
 extern int alc;
 
 extern int local_audio;
+
+extern int eer_pwm_min;
+extern int eer_pwm_max;
+
+extern int tx_filter_low;
+extern int tx_filter_high;
 
 extern void init_radio();
 extern void setSampleRate(int rate);

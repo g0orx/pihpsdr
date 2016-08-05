@@ -29,8 +29,8 @@
 #include "radio.h"
 #include "panadapter.h"
 #include "vfo.h"
-#ifdef FREEDV
 #include "mode.h"
+#ifdef FREEDV
 #include "freedv.h"
 #endif
 
@@ -199,20 +199,13 @@ void panadapter_update(float *data,int tx) {
                 saved_hz_per_pixel=hz_per_pixel;
 
                 panadapter_high=20;
-                panadapter_low=-100;
+                panadapter_low=-140;
                 if(protocol==ORIGINAL_PROTOCOL) {
                     hz_per_pixel=48000.0/(double)display_width;
                 } else {
                     hz_per_pixel=192000.0/(double)display_width;
                 }
-            } /* else if(mode==modeFREEDV) {
-                saved_max=panadapter_high;
-                saved_min=panadapter_low;
-                saved_hz_per_pixel=hz_per_pixel;
-                panadapter_high=20;
-                panadapter_low=-100;
-                hz_per_pixel=48000.0/(double)display_width;
-            } */
+            }
 
             //clear_panadater_surface();
             cairo_t *cr;
@@ -358,14 +351,15 @@ void panadapter_update(float *data,int tx) {
 
 #ifdef FREEDV
             if(mode==modeFREEDV) {
-//              cairo_set_source_rgb(cr, 0, 0, 0);
-//              cairo_rectangle(cr, (double)display_width/2.0+2.0, (double)panadapter_height-20.0, (double)display_width, (double)panadapter_height);
-//              cairo_fill(cr);
-              cairo_set_source_rgb(cr, 0, 1, 0);
+              if(tx) {
+                cairo_set_source_rgb(cr, 1, 0, 0);
+              } else {
+                cairo_set_source_rgb(cr, 0, 1, 0);
+              }
               cairo_set_font_size(cr, 16);
-              cairo_text_extents(cr, freedv_rx_text_data, &extents);
+              cairo_text_extents(cr, freedv_text_data, &extents);
               cairo_move_to(cr, (double)display_width/2.0-(extents.width/2.0),(double)panadapter_height-2.0);
-              cairo_show_text(cr, freedv_rx_text_data);
+              cairo_show_text(cr, freedv_text_data);
             }
 #endif
 

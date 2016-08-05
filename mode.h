@@ -30,10 +30,21 @@
 #define modeSAM 10
 #define modeDRM 11
 #ifdef FREEDV
+#ifdef PSK
 #define modeFREEDV 12
+#define modePSK 13
+#define MODES 14
+#else
+#define modeFREEDV 12
+#define MODES 13
+#endif
+#else
+#ifdef PSK
+#define modePSK 12
 #define MODES 13
 #else
 #define MODES 12
+#endif
 #endif
 
 int mode;

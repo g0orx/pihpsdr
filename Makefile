@@ -2,6 +2,13 @@
 GIT_VERSION := $(shell git --no-pager describe --tags --always --dirty)
 GIT_DATE := $(firstword $(shell git --no-pager show --date=short --format="%ai" --name-only))
 
+# uncomment the line below to include support for psk31
+PSK_INCLUDE=PSK
+
+# uncomment the line to below include support for FreeDV codec2
+FREEDV_INCLUDE=FREEDV
+
+#uncomment the line below for the platform being compiled on
 UNAME_N=raspberrypi
 #UNAME_N=odroid
 #UNAME_N=up
@@ -11,7 +18,7 @@ UNAME_N=raspberrypi
 CC=gcc
 LINK=gcc
 
-#required for LimeSDR (uncomment line below)
+# uncomment the line below for LimeSDR (uncomment line below)
 #LIMESDR_INCLUDE=LIMESDR
 
 ifeq ($(LIMESDR_INCLUDE),LIMESDR)
@@ -29,8 +36,20 @@ lime_protocol.o
 endif
 
 
-#required for FREEDV (uncomment lines below)
-FREEDV_INCLUDE=FREEDV
+ifeq ($(PSK_INCLUDE),PSK)
+PSK_OPTIONS=-D PSK
+PSKLIBS=-lpsk
+PSK_SOURCES= \
+psk.c \
+psk_waterfall.c
+PSK_HEADERS= \
+psk.h \
+psk_waterfall.h
+PSK_OBJS= \
+psk.o \
+psk_waterfall.o
+endif
+
 
 ifeq ($(FREEDV_INCLUDE),FREEDV)
 FREEDV_OPTIONS=-D FREEDV
@@ -47,6 +66,7 @@ endif
 #MRAA_INCLUDE=MRAA
 
 ifeq ($(MRAA_INCLUDE),MRAA)
+  GPIO_OPTIONS=-D GPIO
   GPIO_LIBS=-lmraa
   GPIO_SOURCES= \
   gpio_mraa.c
@@ -56,6 +76,7 @@ ifeq ($(MRAA_INCLUDE),MRAA)
   gpio_mraa.o
 else
   ifeq ($(UNAME_N),raspberrypi)
+  GPIO_OPTIONS=-D GPIO
   GPIO_LIBS=-lwiringPi -lpigpio
   endif
   ifeq ($(UNAME_N),odroid)
@@ -69,12 +90,12 @@ else
   gpio.o
 endif
 
-OPTIONS=-g -D $(UNAME_N) $(LIMESDR_OPTIONS) $(FREEDV_OPTIONS) -D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' -O3
+OPTIONS=-g -D $(UNAME_N) $(GPIO_OPTIONS) $(LIMESDR_OPTIONS) $(FREEDV_OPTIONS) $(PSK_OPTIONS) -D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' -O3
 
 GTKINCLUDES=`pkg-config --cflags gtk+-3.0`
 GTKLIBS=`pkg-config --libs gtk+-3.0`
 
-LIBS=-lrt -lm -lwdsp -lpthread -lpulse-simple -lpulse $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS)
+LIBS=-lrt -lm -lwdsp -lpthread -lpulse-simple -lpulse $(PSKLIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS)
 INCLUDES=$(GTKINCLUDES)
 
 COMPILE=$(CC) $(OPTIONS) $(INCLUDES)
@@ -100,6 +121,7 @@ new_protocol_programmer.c \
 panadapter.c \
 property.c \
 radio.c \
+signal.c \
 splash.c \
 toolbar.c \
 sliders.c \
@@ -130,6 +152,7 @@ new_protocol.h \
 panadapter.h \
 property.h \
 radio.h \
+signal.h \
 splash.h \
 toolbar.h \
 sliders.h \
@@ -160,6 +183,7 @@ new_protocol_programmer.o \
 panadapter.o \
 property.o \
 radio.o \
+signal.o \
 splash.o \
 toolbar.o \
 sliders.o \
@@ -167,13 +191,13 @@ vfo.o \
 waterfall.o \
 wdsp_init.o
 
-all: prebuild $(PROGRAM) $(HEADERS) $(LIMESDR_HEADERS) $(FREEDV_HEADERS) $(GPIO_HEADERS) $(SOURCES) $(LIMESDR_SOURCES) $(FREEDV_SOURCES) $(GPIO_SOURCES)
+all: prebuild $(PROGRAM) $(HEADERS) $(LIMESDR_HEADERS) $(FREEDV_HEADERS) $(GPIO_HEADERS) $(PSK_HEADERS) $(SOURCES) $(LIMESDR_SOURCES) $(FREEDV_SOURCES) $(GPIO_SOURCES) $(PSK_SOURCES)
 
 prebuild:
 	rm -f version.o
 
-$(PROGRAM): $(OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) $(GPIO_OBJS)
-	$(LINK) -o $(PROGRAM) $(OBJS) $(GPIO_OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) $(LIBS)
+$(PROGRAM): $(OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) $(GPIO_OBJS) $(PSK_OBJS)
+	$(LINK) -o $(PROGRAM) $(OBJS) $(GPIO_OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) $(PSK_OBJS) $(LIBS)
 
 .c.o:
 	$(COMPILE) -c -o $@ $<

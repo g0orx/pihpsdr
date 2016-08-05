@@ -24,20 +24,24 @@ float freedv_snr;
 
 int freedv_tx_text_index=0;
 
-char freedv_rx_text_data[64];
-int freedv_rx_text_data_index=0;
+char freedv_text_data[64];
+int freedv_text_data_index=0;
+
+static void text_data(char c) {
+  int i;
+  if(c==0x0D) {
+    c='|';
+  }
+  for(i=0;i<62;i++) {
+    freedv_text_data[i]=freedv_text_data[i+1];
+  }
+  freedv_text_data[62]=c;
+}
 
 static void my_put_next_rx_char(void *callback_state, char c) {
-  int i;
-  fprintf(stderr, "freedv: my_put_next_rx_char: %c sync=%d\n", c, freedv_sync);
+  //fprintf(stderr, "freedv: my_put_next_rx_char: %c sync=%d\n", c, freedv_sync);
   if(freedv_sync) {
-    if(c==0x0D) {
-      c='|';
-    }
-    for(i=0;i<62;i++) {
-      freedv_rx_text_data[i]=freedv_rx_text_data[i+1];
-    }
-    freedv_rx_text_data[62]=c;
+    text_data(c);
   }
 }
 
@@ -48,7 +52,8 @@ static char my_get_next_tx_char(void *callback_state){
     c=0x0D;
     freedv_tx_text_index=0;
   }
-fprintf(stderr,"freedv: my_get_next_tx_char=%c\n",c);
+//fprintf(stderr,"freedv: my_get_next_tx_char=%c\n",c);
+  text_data(c);
   return c;
 }
 
@@ -85,9 +90,9 @@ fprintf(stderr,"n_speech_samples=%d n_max_modem_samples=%d\n",n_speech_samples, 
 fprintf(stderr,"freedv modem sample rate=%d\n",rate);
 
   for(i=0;i<63;i++) {
-    freedv_rx_text_data[i]=' ';
+    freedv_text_data[i]=' ';
   }
-  freedv_rx_text_data[63]=0;
+  freedv_text_data[63]=0;
 }
 
 void close_freedv() {
