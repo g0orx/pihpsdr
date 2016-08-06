@@ -54,9 +54,7 @@
 #include "radio.h"
 #include "wdsp_init.h"
 #include "version.h"
-#ifdef FREEDV
 #include "mode.h"
-#endif
 #ifdef PSK
 #include "psk.h"
 #include "psk_waterfall.h"
@@ -143,8 +141,13 @@ gint update(gpointer data) {
     }
 
     if(!isTransmitting()) {
-        double m=GetRXAMeter(CHANNEL_RX0, smeter);
-        meter_update(SMETER,m,0.0,0.0,0.0);
+        if(mode==modePSK) {
+          double m=(double)psk_get_signal_level();
+          meter_update(PSKMETER,m,0.0,0.0,0.0);
+        } else {
+          double m=GetRXAMeter(CHANNEL_RX0, smeter);
+          meter_update(SMETER,m,0.0,0.0,0.0);
+        }
     } else {
 
         double alc=GetTXAMeter(CHANNEL_TX, alc);

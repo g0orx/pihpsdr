@@ -65,9 +65,16 @@ static void add_text(char *text, int length) {
       }
       current_text_offset=0;
     }
-    //if(text[i]!=0x0D && text[i]!=0x0A) {
-    if(text[i]>0x1F) {
-      text_label[current_text_line][current_text_offset++]=text[i];
+    if(text[i]==0x08 || text[i]==0x7F) {
+      if(current_text_offset>0) {
+        current_text_offset--;
+      }
+    } else {
+      if(text[i]!=0x0D && text[i]!=0x0A) {
+        if(text[i]>0x1F) {
+          text_label[current_text_line][current_text_offset++]=text[i];
+        }
+      }
     }
     text_label[current_text_line][current_text_offset]=0x00;
   }

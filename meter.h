@@ -19,6 +19,9 @@
 
 #define SMETER 0
 #define POWER 1
+#ifdef PSK
+#define PSKMETER 2
+#endif
 
 
 GtkWidget* meter_init(int width,int height,GtkWidget *parent);

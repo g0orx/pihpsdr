@@ -27,9 +27,12 @@
 #include "wdsp.h"
 #include "radio.h"
 #include "version.h"
-#ifdef FREEDV
 #include "mode.h"
+#ifdef FREEDV
 #include "freedv.h"
+#endif
+#ifdef PSK
+#include "psk.h"
 #endif
 
 static GtkWidget *parent_window;
@@ -316,8 +319,39 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
         cairo_show_text(cr, sf);
       }
 #endif
-
       break;
+#ifdef PSK
+    case PSKMETER:
+      {
+      int i;
+      offset=5.0;
+      cairo_set_line_width(cr, 1.0);
+      cairo_set_source_rgb(cr, 1, 1, 1);
+      for(i=0;i<11;i++) {
+        cairo_move_to(cr,offset+(double)(i*20),(double)meter_height-10);
+        if((i%2)==0) {
+          cairo_line_to(cr,offset+(double)(i*20),(double)(meter_height-20));
+          cairo_move_to(cr,offset+(double)(i*20),(double)meter_height);
+          sprintf(sf,"%d",i*10);
+          cairo_show_text(cr, sf);
+        } else {
+          cairo_line_to(cr,offset+(double)(i*20),(double)(meter_height-15));
+        }
+      }
+      cairo_stroke(cr);
+
+      cairo_set_source_rgb(cr, 0, 1, 0);
+      cairo_rectangle(cr, offset+0.0, (double)(meter_height-40), value*2, 20.0);
+      cairo_fill(cr);
+
+      cairo_set_source_rgb(cr, 0, 1, 0);
+      cairo_set_font_size(cr, 16);
+      sprintf(sf,"Level: %d",(int)value);
+      cairo_move_to(cr, 210, 45);
+      cairo_show_text(cr, sf);
+      }
+      break;
+#endif
     case POWER:
       // value is Watts
       cairo_select_font_face(cr, "Arial",
