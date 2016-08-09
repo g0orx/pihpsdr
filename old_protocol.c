@@ -63,6 +63,8 @@
 #define C3 6
 #define C4 7
 
+#define SCALE 4.6
+
 #define DATA_PORT 1024
 
 #define SYNC 0x7F
@@ -154,12 +156,12 @@ static double audiooutputbuffer[BUFFER_SIZE*2];
 
 //static float left_tx_buffer[OUTPUT_BUFFER_SIZE];
 //static float right_tx_buffer[OUTPUT_BUFFER_SIZE];
-static double micoutputbuffer[BUFFER_SIZE*2];
+static double iqoutputbuffer[BUFFER_SIZE*2];
 
-static short left_rx_sample;
-static short right_rx_sample;
-static short left_tx_sample;
-static short right_tx_sample;
+static int left_rx_sample;
+static int right_rx_sample;
+static int left_tx_sample;
+static int right_tx_sample;
 
 static unsigned char output_buffer[OZY_BUFFER_SIZE];
 static int output_buffer_index=0;
@@ -203,39 +205,15 @@ void old_protocol_calc_buffers() {
   switch(sample_rate) {
     case 48000:
       output_buffer_size=OUTPUT_BUFFER_SIZE;
-#ifdef FREEDV
-      freedv_divisor=6;
-#endif
-#ifdef PSK
-      psk_divisor=6;
-#endif
       break;
     case 96000:
       output_buffer_size=OUTPUT_BUFFER_SIZE/2;
-#ifdef FREEDV
-      freedv_divisor=12;
-#endif
-#ifdef PSK
-      psk_divisor=12;
-#endif
       break;
     case 192000:
       output_buffer_size=OUTPUT_BUFFER_SIZE/4;
-#ifdef FREEDV
-      freedv_divisor=24;
-#endif
-#ifdef PSK
-      psk_divisor=24;
-#endif
       break;
     case 384000:
       output_buffer_size=OUTPUT_BUFFER_SIZE/8;
-#ifdef FREEDV
-      freedv_divisor=48;
-#endif
-#ifdef PSK
-      psk_divisor=48;
-#endif
       break;
     default:
       fprintf(stderr,"Invalid sample rate: %d. Defaulting to 48K.\n",sample_rate);
@@ -656,26 +634,34 @@ static void full_rx_buffer() {
 static void full_tx_buffer() {
   int j;
   int error;
-  double gain=32767.0; // 2^16-1
+  double gain=32767.0*SCALE; // 2^16-1
 
   // process the output
   fexchange0(CHANNEL_RX0, iqinputbuffer, audiooutputbuffer, &error);
-  fexchange0(CHANNEL_TX, micinputbuffer, micoutputbuffer, &error);
-  Spectrum0(1, CHANNEL_TX, 0, 0, micoutputbuffer);
-  if(d->device!=DEVICE_METIS || atlas_penelope) {
+  fexchange0(CHANNEL_TX, micinputbuffer, iqoutputbuffer, &error);
+  Spectrum0(1, CHANNEL_TX, 0, 0, iqoutputbuffer);
+  if(d->device==DEVICE_METIS && atlas_penelope) {
     if(tune) {
-      gain=65535.0*tune_drive;
+      gain=32767.0*tune_drive;
     } else {
-      gain=65535.0*drive;
+      gain=32767.0*drive;
     }
-  } else {
-    gain=65535.0;
   }
   for(j=0;j<output_buffer_size;j++) {
     left_rx_sample=0;
     right_rx_sample=0;
-    left_tx_sample=(short)(micoutputbuffer[j*2]*gain);
-    right_tx_sample=(short)(micoutputbuffer[(j*2)+1]*gain);
+    left_tx_sample=(int)(iqoutputbuffer[j*2]*gain);
+    right_tx_sample=(int)(iqoutputbuffer[(j*2)+1]*gain);
+    if(left_tx_sample>32767) {
+      left_tx_sample=32767;
+    } else if(left_tx_sample<-32767) {
+      left_tx_sample=-2767;
+    }
+    if(right_tx_sample>32767) {
+      right_tx_sample=32767;
+    } else if(right_tx_sample<-32767) {
+      right_tx_sample=-32767;
+    }
     output_buffer[output_buffer_index++]=left_rx_sample>>8;
     output_buffer[output_buffer_index++]=left_rx_sample;
     output_buffer[output_buffer_index++]=right_rx_sample>>8;
@@ -858,6 +844,8 @@ void ozy_send_buffer() {
       BAND *band=band_get_current_band();
       d=d*((float)band->pa_calibration/100.0F);
       int power=(int)(d*255.0);
+
+//fprintf(stderr,"power=%d\n", power);
 
       output_buffer[C0]=0x12;
       output_buffer[C1]=power&0xFF;

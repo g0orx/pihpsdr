@@ -70,6 +70,10 @@
 #define SLIDERS_HEIGHT ((display_height/32)*6)
 #define TOOLBAR_HEIGHT ((display_height/32)*2)
 #define WATERFALL_HEIGHT (display_height-(VFO_HEIGHT+PANADAPTER_HEIGHT+SLIDERS_HEIGHT+TOOLBAR_HEIGHT))
+#ifdef PSK
+#define PSK_WATERFALL_HEIGHT ((display_height/32)*6)
+#define PSK_HEIGHT (display_height-(VFO_HEIGHT+PSK_WATERFALL_HEIGHT+SLIDERS_HEIGHT+TOOLBAR_HEIGHT))
+#endif
 
 struct utsname unameData;
 
@@ -602,10 +606,6 @@ fprintf(stderr,"meter_height=%d\n",METER_HEIGHT);
 fprintf(stderr,"panadapter_height=%d\n",height);
     panadapter = panadapter_init(display_width,height);
     gtk_fixed_put(GTK_FIXED(fixed),panadapter,0,VFO_HEIGHT);
-#ifdef PSK
-    psk_waterfall = psk_waterfall_init(display_width,height);
-    gtk_fixed_put(GTK_FIXED(fixed),psk_waterfall,0,VFO_HEIGHT);
-#endif
     y+=height;
   }
 
@@ -627,13 +627,23 @@ fprintf(stderr,"panadapter_height=%d\n",height);
 fprintf(stderr,"waterfall_height=%d\n",height);
     waterfall = waterfall_init(display_width,height);
     gtk_fixed_put(GTK_FIXED(fixed),waterfall,0,y);
-#ifdef PSK
-    psk = init_psk();
-    gtk_fixed_put(GTK_FIXED(fixed),psk,0,y);
-#endif
     y+=height;
 
   }
+
+#ifdef PSK
+    int psk_height=PSK_WATERFALL_HEIGHT;
+    if(!display_sliders) {
+      psk_height+=SLIDERS_HEIGHT/2;
+    }
+    if(!display_toolbar) {
+      psk_height+=TOOLBAR_HEIGHT/2;
+    }
+    psk_waterfall = psk_waterfall_init(display_width,psk_height);
+    gtk_fixed_put(GTK_FIXED(fixed),psk_waterfall,0,VFO_HEIGHT);
+    psk = init_psk();
+    gtk_fixed_put(GTK_FIXED(fixed),psk,0,VFO_HEIGHT+psk_height);
+#endif
 
   if(display_sliders) {
 fprintf(stderr,"sliders_height=%d\n",SLIDERS_HEIGHT);
@@ -686,8 +696,12 @@ fprintf(stderr,"toolbar_height=%d\n",TOOLBAR_HEIGHT);
 
 #ifdef PSK
 void show_psk() {
-  gtk_widget_hide(waterfall);
-  gtk_widget_hide(panadapter);
+  if(display_waterfall) {
+    gtk_widget_hide(waterfall);
+  }
+  if(display_panadapter) {
+    gtk_widget_hide(panadapter);
+  }
   gtk_widget_show(psk);
   gtk_widget_show(psk_waterfall);
 }
@@ -695,8 +709,12 @@ void show_psk() {
 void show_waterfall() {
   gtk_widget_hide(psk_waterfall);
   gtk_widget_hide(psk);
-  gtk_widget_show(panadapter);
-  gtk_widget_show(waterfall);
+  if(display_panadapter) {
+    gtk_widget_show(panadapter);
+  }
+  if(display_waterfall) {
+    gtk_widget_show(waterfall);
+  }
 }
 #endif
 

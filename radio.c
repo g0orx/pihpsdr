@@ -259,13 +259,13 @@ fprintf(stderr,"setTune: protocol=%d\n", protocol);
         setMode(modeUSB);
       }
       
+      SetTXAPostGenMode(CHANNEL_TX,0);
       if(mode==modeLSB || mode==modeCWL || mode==modeDIGL) {
         SetTXAPostGenToneFreq(CHANNEL_TX,-(double)cw_keyer_sidetone_frequency);
       } else {
         SetTXAPostGenToneFreq(CHANNEL_TX,(double)cw_keyer_sidetone_frequency);
       }
-      SetTXAPostGenToneMag(CHANNEL_TX,0.99999);
-      SetTXAPostGenMode(CHANNEL_TX,0);
+      SetTXAPostGenToneMag(CHANNEL_TX,1.0);
       SetTXAPostGenRun(CHANNEL_TX,1);
       SetChannelState(CHANNEL_RX0,0,1);
       SetChannelState(CHANNEL_TX,1,0);

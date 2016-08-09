@@ -73,6 +73,11 @@ waterfall_configure_event_cb (GtkWidget         *widget,
             GdkEventConfigure *event,
             gpointer           data)
 {
+  int width=gtk_widget_get_allocated_width (widget);
+  int height=gtk_widget_get_allocated_height (widget);
+  pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, FALSE, 8, width, height);
+  char *pixels = gdk_pixbuf_get_pixels (pixbuf);
+  memset(pixels, 0, width*height*3);
   return TRUE;
 }
 
@@ -177,8 +182,9 @@ waterfall_scroll_event_cb (GtkWidget      *widget,
 
 void psk_waterfall_update(float *data) {
 
-    int i;
+  int i;
 
+  if(pixbuf) {
     char *pixels = gdk_pixbuf_get_pixels (pixbuf);
 
     int width=gdk_pixbuf_get_width(pixbuf);
@@ -256,6 +262,7 @@ void psk_waterfall_update(float *data) {
 
     gtk_widget_queue_draw (waterfall);
 
+  }
 }
 
 GtkWidget* psk_waterfall_init(int width,int height) {
@@ -274,7 +281,7 @@ GtkWidget* psk_waterfall_init(int width,int height) {
   g_signal_connect (waterfall,"configure-event",
             G_CALLBACK (waterfall_configure_event_cb), NULL);
 
-  pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, FALSE, 8, width, height);
+  //pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, FALSE, 8, width, height);
 
   /* Event signals */
   g_signal_connect (waterfall, "motion-notify-event",
