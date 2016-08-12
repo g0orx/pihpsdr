@@ -33,28 +33,6 @@
 #include "radio.h"
 #include "gpio.h"
 
-static void display_panadapter_cb(GtkWidget *widget, gpointer data) {
-  display_panadapter=display_panadapter==1?0:1;
-}
-
-static void display_waterfall_cb(GtkWidget *widget, gpointer data) {
-  display_waterfall=display_waterfall==1?0:1;
-}
-
-static void display_sliders_cb(GtkWidget *widget, gpointer data) {
-  display_sliders=display_sliders==1?0:1;
-}
-
-static void display_toolbar_cb(GtkWidget *widget, gpointer data) {
-  display_toolbar=display_toolbar==1?0:1;
-}
-
-/*
-static void toolbar_dialog_buttons_cb(GtkWidget *widget, gpointer data) {
-  toolbar_dialog_buttons=toolbar_dialog_buttons==1?0:1;
-}
-*/
-
 #ifdef GPIO
 void configure_gpio(GtkWidget *parent) {
   gpio_restore_state();
@@ -339,60 +317,3 @@ void configure_gpio(GtkWidget *parent) {
 }
 #endif
 
-void configure(DISCOVERED* d,GtkWidget *parent) {
-
-  GtkWidget *dialog=gtk_dialog_new_with_buttons("Configure",GTK_WINDOW(parent),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
-  GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-  GtkWidget *grid=gtk_grid_new();
-  gtk_grid_set_column_homogeneous(GTK_GRID(grid),FALSE);
-  gtk_grid_set_row_homogeneous(GTK_GRID(grid),FALSE);
-
-  GtkWidget *display_label=gtk_label_new("Display:");
-  //gtk_widget_override_font(display_label, pango_font_description_from_string("Arial 18"));
-  gtk_widget_show(display_label);
-  gtk_grid_attach(GTK_GRID(grid),display_label,0,0,1,1);
-
-  GtkWidget *b_display_panadapter=gtk_check_button_new_with_label("Display Panadapter");
-  //gtk_widget_override_font(b_display_panadapter, pango_font_description_from_string("Arial 18"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_panadapter), display_panadapter);
-  gtk_widget_show(b_display_panadapter);
-  gtk_grid_attach(GTK_GRID(grid),b_display_panadapter,0,1,1,1);
-  g_signal_connect(b_display_panadapter,"toggled",G_CALLBACK(display_panadapter_cb),(gpointer *)NULL);
-
-  GtkWidget *b_display_waterfall=gtk_check_button_new_with_label("Display Waterfall");
-  //gtk_widget_override_font(b_display_waterfall, pango_font_description_from_string("Arial 18"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_waterfall), display_waterfall);
-  gtk_widget_show(b_display_waterfall);
-  gtk_grid_attach(GTK_GRID(grid),b_display_waterfall,0,2,1,1);
-  g_signal_connect(b_display_waterfall,"toggled",G_CALLBACK(display_waterfall_cb),(gpointer *)NULL);
-
-  GtkWidget *b_display_sliders=gtk_check_button_new_with_label("Display Sliders");
-  //gtk_widget_override_font(b_display_sliders, pango_font_description_from_string("Arial 18"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_sliders), display_sliders);
-  gtk_widget_show(b_display_sliders);
-  gtk_grid_attach(GTK_GRID(grid),b_display_sliders,0,3,1,1);
-  g_signal_connect(b_display_sliders,"toggled",G_CALLBACK(display_sliders_cb),(gpointer *)NULL);
-
-  GtkWidget *b_display_toolbar=gtk_check_button_new_with_label("Display Toolbar");
-  //gtk_widget_override_font(b_display_toolbar, pango_font_description_from_string("Arial 18"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_toolbar), display_toolbar);
-  gtk_widget_show(b_display_toolbar);
-  gtk_grid_attach(GTK_GRID(grid),b_display_toolbar,0,4,1,1);
-  g_signal_connect(b_display_toolbar,"toggled",G_CALLBACK(display_toolbar_cb),(gpointer *)NULL);
-
-  gtk_container_add(GTK_CONTAINER(content),grid);
-
-  GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close",GTK_RESPONSE_OK);
-  //gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 20"));
-  gtk_widget_show_all(dialog);
-
-  g_signal_connect_swapped (dialog,
-                           "response",
-                           G_CALLBACK (gtk_widget_destroy),
-                           dialog);
-
-  int result=gtk_dialog_run(GTK_DIALOG(dialog));
-
-  radioSaveState();
-
-}

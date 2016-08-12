@@ -46,6 +46,26 @@ static GtkWidget *menu;
 static GtkWidget *ant_grid;
 static gint ant_id=-1;
 
+static void display_panadapter_cb(GtkWidget *widget, gpointer data) {
+  display_panadapter=display_panadapter==1?0:1;
+  reconfigure_display();
+}
+
+static void display_waterfall_cb(GtkWidget *widget, gpointer data) {
+  display_waterfall=display_waterfall==1?0:1;
+  reconfigure_display();
+}
+
+static void display_sliders_cb(GtkWidget *widget, gpointer data) {
+  display_sliders=display_sliders==1?0:1;
+  reconfigure_display();
+}
+
+static void display_toolbar_cb(GtkWidget *widget, gpointer data) {
+  display_toolbar=display_toolbar==1?0:1;
+  reconfigure_display();
+}
+
 static void sample_rate_cb(GtkWidget *widget, gpointer data) {
   if(protocol==ORIGINAL_PROTOCOL) {
     old_protocol_new_sample_rate((int)data);
@@ -986,6 +1006,7 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
   g_signal_connect(detector_mode_sample,"pressed",G_CALLBACK(detector_mode_cb),(gpointer *)DETECTOR_MODE_SAMPLE);
 
 
+
   GtkWidget *average_mode_label=gtk_label_new("Averaging: ");
   //gtk_widget_override_font(average_mode_label, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(average_mode_label);
@@ -1026,6 +1047,35 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
   gtk_widget_show(time_r);
   gtk_grid_attach(GTK_GRID(display_grid),time_r,5,5,1,1);
   g_signal_connect(time_r,"value_changed",G_CALLBACK(time_value_changed_cb),NULL);
+
+  GtkWidget *b_display_panadapter=gtk_check_button_new_with_label("Display Panadapter");
+  //gtk_widget_override_font(b_display_panadapter, pango_font_description_from_string("Arial 18"));
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_panadapter), display_panadapter);
+  gtk_widget_show(b_display_panadapter);
+  gtk_grid_attach(GTK_GRID(display_grid),b_display_panadapter,6,0,1,1);
+  g_signal_connect(b_display_panadapter,"toggled",G_CALLBACK(display_panadapter_cb),(gpointer *)NULL);
+
+  GtkWidget *b_display_waterfall=gtk_check_button_new_with_label("Display Waterfall");
+  //gtk_widget_override_font(b_display_waterfall, pango_font_description_from_string("Arial 18"));
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_waterfall), display_waterfall);
+  gtk_widget_show(b_display_waterfall);
+  gtk_grid_attach(GTK_GRID(display_grid),b_display_waterfall,6,1,1,1);
+  g_signal_connect(b_display_waterfall,"toggled",G_CALLBACK(display_waterfall_cb),(gpointer *)NULL);
+
+  GtkWidget *b_display_sliders=gtk_check_button_new_with_label("Display Sliders");
+  //gtk_widget_override_font(b_display_sliders, pango_font_description_from_string("Arial 18"));
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_sliders), display_sliders);
+  gtk_widget_show(b_display_sliders);
+  gtk_grid_attach(GTK_GRID(display_grid),b_display_sliders,6,2,1,1);
+  g_signal_connect(b_display_sliders,"toggled",G_CALLBACK(display_sliders_cb),(gpointer *)NULL);
+
+  GtkWidget *b_display_toolbar=gtk_check_button_new_with_label("Display Toolbar");
+  //gtk_widget_override_font(b_display_toolbar, pango_font_description_from_string("Arial 18"));
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_toolbar), display_toolbar);
+  gtk_widget_show(b_display_toolbar);
+  gtk_grid_attach(GTK_GRID(display_grid),b_display_toolbar,6,3,1,1);
+  g_signal_connect(b_display_toolbar,"toggled",G_CALLBACK(display_toolbar_cb),(gpointer *)NULL);
+
 
   id=gtk_notebook_append_page(GTK_NOTEBOOK(notebook),display_grid,display_label);
 

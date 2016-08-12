@@ -38,7 +38,6 @@
 #define OLD_ORION_MIC_BIAS_DISABLED 0x00
 #define OLD_ORION_MIC_BIAS_ENABLED 0x20
 
-
 extern char property_path[];
 
 #define NONE 0

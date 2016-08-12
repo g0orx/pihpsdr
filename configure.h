@@ -21,4 +21,3 @@
 #ifdef INCLUDE_GPIO
 void configure_gpio(GtkWidget *parent);
 #endif
-void configure(DISCOVERED *d,GtkWidget *parent);

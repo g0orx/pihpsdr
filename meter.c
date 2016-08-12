@@ -315,7 +315,7 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
         }
         cairo_set_font_size(cr, 16);
         sprintf(sf,"SNR: %3.2f",freedv_snr);
-        cairo_move_to(cr, text_location, 20);
+        cairo_move_to(cr, text_location, 30);
         cairo_show_text(cr, sf);
       }
 #endif

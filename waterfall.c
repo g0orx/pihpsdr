@@ -58,7 +58,6 @@ static gint mode[BANDS];
 static gint band=4;
 
 static int display_width;
-static int waterfall_height;
 
 /* Create a new surface of the appropriate size to store our scribbles */
 static gboolean
@@ -244,7 +243,6 @@ void waterfall_update(float *data) {
 
 GtkWidget* waterfall_init(int width,int height) {
   display_width=width;
-  waterfall_height=height;
 
   hz_per_pixel=(double)getSampleRate()/(double)display_width;
 

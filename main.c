@@ -96,7 +96,14 @@ static sem_t wisdom_sem;
 static GdkCursor *cursor_arrow;
 static GdkCursor *cursor_watch;
 
+static GtkWidget *window;
+static GtkWidget *grid;
 static GtkWidget *fixed;
+static GtkWidget *vfo;
+static GtkWidget *menu;
+static GtkWidget *meter;
+static GtkWidget *sliders;
+static GtkWidget *toolbar;
 static GtkWidget *panadapter;
 static GtkWidget *waterfall;
 #ifdef PSK
@@ -269,31 +276,6 @@ fprintf(stderr,"start_cb: %d\n",selected_device);
     gtk_widget_destroy(discovery_dialog);
 }
 
-static void configure_cb(GtkWidget *widget, gpointer data) {
-  DISCOVERED* d;
-  d=&discovered[(int)data];
-  switch(d->protocol) {
-    case ORIGINAL_PROTOCOL:
-    case NEW_PROTOCOL:
-      sprintf(property_path,"%02X-%02X-%02X-%02X-%02X-%02X.props",
-                        d->info.network.mac_address[0],
-                        d->info.network.mac_address[1],
-                        d->info.network.mac_address[2],
-                        d->info.network.mac_address[3],
-                        d->info.network.mac_address[4],
-                        d->info.network.mac_address[5]);
-      break;
-#ifdef LIMESDR
-    case LIMESDR_PROTOCOL:
-      sprintf(property_path,"limesdr.props");
-      break;
-#endif
-  }
-  radioRestoreState();
-  
-  configure(d,splash_window);
-
-}
 
 static pthread_t wisdom_thread_id;
 
@@ -326,15 +308,8 @@ gboolean main_delete (GtkWidget *widget) {
 
 gint init(void* arg) {
 
-  GtkWidget *window;
-  GtkWidget *grid;
   gint x;
   gint y;
-  GtkWidget *vfo;
-  GtkWidget *menu;
-  GtkWidget *meter;
-  GtkWidget *sliders;
-  GtkWidget *toolbar;
 
   DISCOVERED* d;
 
@@ -486,11 +461,6 @@ fprintf(stderr,"protocol=%d name=%s\n",d->protocol,d->name);
                 gtk_widget_set_sensitive(start_button, FALSE);
               }
 
-              GtkWidget *configure_button=gtk_button_new_with_label("Configure");
-              gtk_widget_override_font(configure_button, pango_font_description_from_string("Arial 18"));
-              gtk_widget_show(configure_button);
-              gtk_grid_attach(GTK_GRID(grid),configure_button,4,i,1,1);
-              g_signal_connect(configure_button,"pressed",G_CALLBACK(configure_cb),(gpointer *)i);
           }
 
           gtk_container_add (GTK_CONTAINER (content), grid);
@@ -718,6 +688,117 @@ void show_waterfall() {
 }
 #endif
 
+void reconfigure_display() {
+  int y=VFO_HEIGHT;
+
+  // configure panadapter
+  if(display_panadapter) {
+    int height=PANADAPTER_HEIGHT;
+    if(!display_waterfall) {
+      height+=WATERFALL_HEIGHT;
+      if(!display_sliders) {
+        height+=SLIDERS_HEIGHT;
+      }
+      if(!display_toolbar) {
+        height+=TOOLBAR_HEIGHT;
+      }
+    } else {
+      if(!display_sliders) {
+        height+=SLIDERS_HEIGHT/2;
+      }
+      if(!display_toolbar) {
+        height+=TOOLBAR_HEIGHT/2;
+      }
+    }
+fprintf(stderr,"panadapter_height=%d\n",height);
+    if(panadapter==NULL) {
+fprintf(stderr,"reconfigure_display: panadapter_init: width:%d height:%d\n",display_width,height);
+      panadapter = panadapter_init(display_width,height);
+      gtk_fixed_put(GTK_FIXED(fixed),panadapter,0,y);
+    } else {
+      // set the size
+fprintf(stderr,"reconfigure_display: panadapter set_size_request: width:%d height:%d\n",display_width,height);
+      gtk_widget_set_size_request(panadapter, display_width, height);
+      // move the current one
+      gtk_fixed_move(GTK_FIXED(fixed),panadapter,0,y);
+    }
+    gtk_widget_show_all(panadapter);
+    y+=height;
+  } else {
+    gtk_widget_hide(panadapter);
+  }
+
+  // configure waterfall
+  if(display_waterfall) {
+    int height=WATERFALL_HEIGHT;
+
+    if(!display_panadapter) {
+      height+=PANADAPTER_HEIGHT;
+      if(!display_sliders) {
+        height+=SLIDERS_HEIGHT;
+      }
+      if(!display_toolbar) {
+        height+=TOOLBAR_HEIGHT;
+      }
+    } else {
+      if(!display_sliders) {
+        height+=SLIDERS_HEIGHT/2;
+      }
+      if(!display_toolbar) {
+        height+=TOOLBAR_HEIGHT/2;
+      }
+    }
+fprintf(stderr,"waterfall_height=%d\n",height);
+    if(waterfall==NULL) {
+fprintf(stderr,"reconfigure_display: waterfall_init: width:%d height:%d\n",display_width,height);
+      waterfall = waterfall_init(display_width,height);
+      gtk_fixed_put(GTK_FIXED(fixed),waterfall,0,y);
+    } else {
+      // set the size
+fprintf(stderr,"reconfigure_display: waterfall set_size_request: width:%d height:%d\n",display_width,height);
+      gtk_widget_set_size_request (waterfall, display_width, height);
+      // move the current one
+      gtk_fixed_move(GTK_FIXED(fixed),waterfall,0,y);
+    }
+    gtk_widget_show_all(waterfall);
+    y+=height;
+  } else {
+    gtk_widget_hide(waterfall);
+  }
+
+  if(display_sliders) {
+fprintf(stderr,"sliders_height=%d\n",SLIDERS_HEIGHT);
+    if(sliders==NULL) {
+fprintf(stderr,"reconfigure_display: sliders_init: width:%d height:%d\n",display_width,SLIDERS_HEIGHT);
+      sliders = sliders_init(display_width,SLIDERS_HEIGHT,window);
+      gtk_fixed_put(GTK_FIXED(fixed),sliders,0,y);
+    } else {
+      gtk_fixed_move(GTK_FIXED(fixed),sliders,0,y);
+      gtk_widget_show(sliders);
+    }
+    gtk_widget_show_all(sliders);
+    y+=SLIDERS_HEIGHT;
+  } else {
+    gtk_widget_hide(sliders);
+  }
+
+  if(display_toolbar) {
+fprintf(stderr,"toolbar_height=%d\n",TOOLBAR_HEIGHT);
+    if(toolbar==NULL) {
+fprintf(stderr,"reconfigure_display: toolbar_init: width:%d height:%d\n",display_width,TOOLBAR_HEIGHT);
+      toolbar = toolbar_init(display_width,TOOLBAR_HEIGHT,window);
+      gtk_fixed_put(GTK_FIXED(fixed),toolbar,0,y);
+    } else {
+      gtk_fixed_move(GTK_FIXED(fixed),toolbar,0,y);
+      gtk_widget_show(toolbar);
+    }
+    gtk_widget_show_all(toolbar);
+    y+=TOOLBAR_HEIGHT;
+  } else {
+    gtk_widget_hide(toolbar);
+  }
+
+}
 
 int
 main (int   argc,

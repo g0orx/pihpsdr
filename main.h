@@ -19,6 +19,7 @@
 
 #include <sys/utsname.h>
 extern struct utsname unameData;
+void reconfigure_display();
 #ifdef PSK
 void show_psk();
 void show_waterfall();

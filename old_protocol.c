@@ -64,6 +64,9 @@
 #define C4 7
 
 #define SCALE 4.6
+#ifdef FREEDV
+#define FREEDV_SCALE 8.5
+#endif
 
 #define DATA_PORT 1024
 
@@ -609,11 +612,9 @@ static void full_rx_buffer() {
   int j;
   int error;
 
-  // process the input
   fexchange0(CHANNEL_RX0, iqinputbuffer, audiooutputbuffer, &error);
-  if(error!=0) {
-    fprintf(stderr,"fexchange2 (CHANNEL_RX0) returned error: %d\n", error);
-  }
+  fexchange0(CHANNEL_TX, micinputbuffer, iqoutputbuffer, &error);
+
 #ifdef PSK
   if(mode!=modePSK) {
 #endif
@@ -636,10 +637,21 @@ static void full_tx_buffer() {
   int error;
   double gain=32767.0*SCALE; // 2^16-1
 
-  // process the output
+  // debug
+  //int min_sample=0;
+  //int max_sample=0;
+  //int overflow=0;
+
   fexchange0(CHANNEL_RX0, iqinputbuffer, audiooutputbuffer, &error);
   fexchange0(CHANNEL_TX, micinputbuffer, iqoutputbuffer, &error);
   Spectrum0(1, CHANNEL_TX, 0, 0, iqoutputbuffer);
+
+#ifdef FREEDV
+  if(mode==modeFREEDV) {
+    gain=32767.0*FREEDV_SCALE;
+  }
+#endif
+
   if(d->device==DEVICE_METIS && atlas_penelope) {
     if(tune) {
       gain=32767.0*tune_drive;
@@ -652,15 +664,26 @@ static void full_tx_buffer() {
     right_rx_sample=0;
     left_tx_sample=(int)(iqoutputbuffer[j*2]*gain);
     right_tx_sample=(int)(iqoutputbuffer[(j*2)+1]*gain);
+
+// debug
+    //if(left_tx_sample<min_sample) min_sample=left_tx_sample;
+    //if(left_tx_sample>max_sample) max_sample=left_tx_sample;
+    //if(right_tx_sample<min_sample) min_sample=right_tx_sample;
+    //if(right_tx_sample>max_sample) max_sample=right_tx_sample;
+    
     if(left_tx_sample>32767) {
       left_tx_sample=32767;
+//      overflow++;
     } else if(left_tx_sample<-32767) {
-      left_tx_sample=-2767;
+      left_tx_sample=-32767;
+//      overflow++;
     }
     if(right_tx_sample>32767) {
       right_tx_sample=32767;
+//      overflow++;
     } else if(right_tx_sample<-32767) {
       right_tx_sample=-32767;
+//      overflow++;
     }
     output_buffer[output_buffer_index++]=left_rx_sample>>8;
     output_buffer[output_buffer_index++]=left_rx_sample;
@@ -675,6 +698,10 @@ static void full_tx_buffer() {
       output_buffer_index=8;
     }
   }
+
+  //fprintf(stderr,"scale=%f min_sample=%d max_sample=%d\n",scale, min_sample,max_sample);
+  //fprintf(stderr,"scale=%f overflow=%d\n",scale,overflow);
+
 }
 /*
 static void process_bandscope_buffer(char  *buffer) {

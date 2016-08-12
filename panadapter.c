@@ -51,20 +51,7 @@ static gfloat filter_left;
 static gfloat filter_right;
 
 static int display_width;
-static int panadapter_height;
-
-static void
-panadapter_clear_surface (void)
-{
-  cairo_t *cr;
-
-  cr = cairo_create (panadapter_surface);
-
-  cairo_set_source_rgb (cr, 0, 0, 0);
-  cairo_paint (cr);
-
-  cairo_destroy (cr);
-}
+static int display_height;
 
 /* Create a new surface of the appropriate size to store our scribbles */
 static gboolean
@@ -72,18 +59,23 @@ panadapter_configure_event_cb (GtkWidget         *widget,
             GdkEventConfigure *event,
             gpointer           data)
 {
+  display_width=gtk_widget_get_allocated_width (widget);
+  display_height=gtk_widget_get_allocated_height (widget);
+
+fprintf(stderr,"panadapter_configure_event_cb: width:%d height:%d\n",display_width,display_height);
   if (panadapter_surface)
     cairo_surface_destroy (panadapter_surface);
 
   panadapter_surface = gdk_window_create_similar_surface (gtk_widget_get_window (widget),
                                        CAIRO_CONTENT_COLOR,
-                                       gtk_widget_get_allocated_width (widget),
-                                       gtk_widget_get_allocated_height (widget));
+                                       display_width,
+                                       display_height);
 
-  /* Initialize the surface to white */
-  panadapter_clear_surface ();
+  cairo_t *cr=cairo_create(panadapter_surface);
+  cairo_set_source_rgb(cr, 0, 0, 0);
+  cairo_paint(cr);
+  cairo_destroy(cr);
 
-  /* We've handled the configure event, no need for further processing. */
   return TRUE;
 }
 
@@ -199,7 +191,7 @@ void panadapter_update(float *data,int tx) {
                 saved_hz_per_pixel=hz_per_pixel;
 
                 panadapter_high=20;
-                panadapter_low=-140;
+                panadapter_low=-80;
                 if(protocol==ORIGINAL_PROTOCOL) {
                     hz_per_pixel=48000.0/(double)display_width;
                 } else {
@@ -217,7 +209,7 @@ void panadapter_update(float *data,int tx) {
             cairo_set_source_rgb (cr, 0.25, 0.25, 0.25);
             filter_left=(double)display_width/2.0+(((double)getFilterLow()+ddsOffset)/hz_per_pixel);
             filter_right=(double)display_width/2.0+(((double)getFilterHigh()+ddsOffset)/hz_per_pixel);
-            cairo_rectangle(cr, filter_left, 0.0, filter_right-filter_left, (double)panadapter_height);
+            cairo_rectangle(cr, filter_left, 0.0, filter_right-filter_left, (double)display_height);
             cairo_fill(cr);
 
             // plot the levels
@@ -225,7 +217,7 @@ void panadapter_update(float *data,int tx) {
             int numSteps = V / 20;
             for (i = 1; i < numSteps; i++) {
                 int num = panadapter_high - i * 20;
-                int y = (int)floor((panadapter_high - num) * panadapter_height / V);
+                int y = (int)floor((panadapter_high - num) * display_height / V);
 
                 cairo_set_source_rgb (cr, 0, 1, 1);
                 cairo_set_line_width(cr, 1.0);
@@ -280,7 +272,7 @@ void panadapter_update(float *data,int tx) {
                         cairo_set_line_width(cr, 1.0);
                         //cairo_move_to(cr,(double)i,0.0);
                         cairo_move_to(cr,(double)i,10.0);
-                        cairo_line_to(cr,(double)i,(double)panadapter_height);
+                        cairo_line_to(cr,(double)i,(double)display_height);
 
                         cairo_set_source_rgb (cr, 0, 1, 1);
                         cairo_select_font_face(cr, "Arial",
@@ -289,7 +281,7 @@ void panadapter_update(float *data,int tx) {
                         cairo_set_font_size(cr, 12);
                         char v[32];
                         sprintf(v,"%0ld.%03ld",f/1000000,(f%1000000)/1000);
-                        //cairo_move_to(cr, (double)i, (double)(panadapter_height-10));  
+                        //cairo_move_to(cr, (double)i, (double)(display_height-10));  
                         cairo_text_extents(cr, v, &extents);
                         cairo_move_to(cr, (double)i-(extents.width/2.0), 10.0);  
                         cairo_show_text(cr, v);
@@ -308,12 +300,12 @@ void panadapter_update(float *data,int tx) {
                 if((min_display<bandLimits->minFrequency)&&(max_display>bandLimits->minFrequency)) {
                     i=(bandLimits->minFrequency-min_display)/(long long)hz_per_pixel;
                     cairo_move_to(cr,(double)i,0.0);
-                    cairo_line_to(cr,(double)i,(double)panadapter_height);
+                    cairo_line_to(cr,(double)i,(double)display_height);
                 }
                 if((min_display<bandLimits->maxFrequency)&&(max_display>bandLimits->maxFrequency)) {
                     i=(bandLimits->maxFrequency-min_display)/(long long)hz_per_pixel;
                     cairo_move_to(cr,(double)i,0.0);
-                    cairo_line_to(cr,(double)i,(double)panadapter_height);
+                    cairo_line_to(cr,(double)i,(double)display_height);
                 }
             }
             
@@ -321,7 +313,7 @@ void panadapter_update(float *data,int tx) {
             cairo_set_source_rgb (cr, 1, 0, 0);
             cairo_set_line_width(cr, 1.0);
             cairo_move_to(cr,(double)display_width/2.0,0.0);
-            cairo_line_to(cr,(double)display_width/2.0,(double)panadapter_height);
+            cairo_line_to(cr,(double)display_width/2.0,(double)display_height);
             cairo_stroke(cr);
 
             // signal
@@ -330,13 +322,13 @@ void panadapter_update(float *data,int tx) {
             samples[display_width-1]=-200.0;
             s1=(double)samples[0]+(double)get_attenuation()-20.0;
             s1 = floor((panadapter_high - s1)
-                        * (double) panadapter_height
+                        * (double) display_height
                         / (panadapter_high - panadapter_low));
             cairo_move_to(cr, 0.0, s1);
             for(i=1;i<display_width;i++) {
                 s2=(double)samples[i]+(double)get_attenuation()-20.0;
                 s2 = floor((panadapter_high - s2)
-                            * (double) panadapter_height
+                            * (double) display_height
                             / (panadapter_high - panadapter_low));
                 cairo_line_to(cr, (double)i, s2);
             }
@@ -358,7 +350,7 @@ void panadapter_update(float *data,int tx) {
               }
               cairo_set_font_size(cr, 16);
               cairo_text_extents(cr, freedv_text_data, &extents);
-              cairo_move_to(cr, (double)display_width/2.0-(extents.width/2.0),(double)panadapter_height-2.0);
+              cairo_move_to(cr, (double)display_width/2.0-(extents.width/2.0),(double)display_height-2.0);
               cairo_show_text(cr, freedv_text_data);
             }
 #endif
@@ -380,19 +372,15 @@ void panadapter_update(float *data,int tx) {
 }
 
 GtkWidget* panadapter_init(int width,int height) {
-  //GtkWidget *panadapter_frame;
 
   display_width=width;
-  panadapter_height=height;
+  display_height=height;
 
   samples=malloc(display_width*sizeof(float));
   hz_per_pixel=(double)getSampleRate()/(double)display_width;
 
-  //panadapter_frame = gtk_frame_new (NULL);
   panadapter = gtk_drawing_area_new ();
   gtk_widget_set_size_request (panadapter, width, height);
-
-  //gtk_container_add (GTK_CONTAINER (panadapter_frame), panadapter);
 
   /* Signals used to handle the backing surface */
   g_signal_connect (panadapter, "draw",
@@ -422,6 +410,5 @@ GtkWidget* panadapter_init(int width,int height) {
                      | GDK_POINTER_MOTION_MASK
                      | GDK_POINTER_MOTION_HINT_MASK);
 
-  //return panadapter_frame;
   return panadapter;
 }
