@@ -18,6 +18,9 @@ UNAME_N=raspberrypi
 CC=gcc
 LINK=gcc
 
+# uncomment the line below for various denug facilities
+#DEBUG_OPTION=-D DEBUG
+
 # uncomment the line below for LimeSDR (uncomment line below)
 #LIMESDR_INCLUDE=LIMESDR
 
@@ -90,7 +93,7 @@ else
   gpio.o
 endif
 
-OPTIONS=-g -D $(UNAME_N) $(GPIO_OPTIONS) $(LIMESDR_OPTIONS) $(FREEDV_OPTIONS) $(PSK_OPTIONS) -D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' -O3
+OPTIONS=-g -D $(UNAME_N) $(GPIO_OPTIONS) $(LIMESDR_OPTIONS) $(FREEDV_OPTIONS) $(PSK_OPTIONS) -D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION) -O3
 
 GTKINCLUDES=`pkg-config --cflags gtk+-3.0`
 GTKLIBS=`pkg-config --libs gtk+-3.0`

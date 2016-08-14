@@ -40,6 +40,15 @@
 
 extern char property_path[];
 
+extern double scale;
+#ifdef FREEDV
+extern double freedv_scale;
+#endif
+#ifdef PSK
+extern double psk_scale;
+#endif
+
+
 #define NONE 0
 
 #define ALEX 1
@@ -98,6 +107,8 @@ extern double volume;
 extern double mic_gain;
 extern int agc;
 extern double agc_gain;
+extern double agc_slope;
+extern double agc_hang_threshold;
 
 extern int nr_none;
 extern int nr;

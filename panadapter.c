@@ -24,7 +24,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <semaphore.h>
+#include "agc.h"
 #include "band.h"
+#include "channel.h"
 #include "discovered.h"
 #include "radio.h"
 #include "panadapter.h"
@@ -309,6 +311,49 @@ void panadapter_update(float *data,int tx) {
                 }
             }
             
+            // agc
+            if(agc!=AGC_OFF) {
+                double hang=0.0;
+                double thresh=0;
+
+                GetRXAAGCHangLevel(CHANNEL_RX0, &hang);
+                GetRXAAGCThresh(CHANNEL_RX0, &thresh, 4096.0, (double)sample_rate);
+
+                double knee_y=thresh+(double)get_attenuation()-20.0;
+                knee_y = floor((panadapter_high - knee_y)
+                        * (double) display_height
+                        / (panadapter_high - panadapter_low));
+
+                double hang_y=hang+(double)get_attenuation()-20.0;
+                hang_y = floor((panadapter_high - hang_y)
+                        * (double) display_height
+                        / (panadapter_high - panadapter_low));
+
+//fprintf(stderr,"hang=%f thresh=%f hang_y=%f knee_y=%f\n",rx1_hang,rx1_thresh,hang_y,knee_y);
+                if(agc!=AGC_MEDIUM && agc!=AGC_FAST) {
+                    cairo_set_source_rgb (cr, 1.0, 1.0, 0.0);
+                    cairo_move_to(cr,40.0,hang_y-8.0);
+                    cairo_rectangle(cr, 40, hang_y-8.0,8.0,8.0);
+                    cairo_fill(cr);
+                    cairo_move_to(cr,40.0,hang_y);
+                    cairo_line_to(cr,(double)display_width-40.0,hang_y);
+                    cairo_stroke(cr);
+                    cairo_move_to(cr,48.0,hang_y);
+                    cairo_show_text(cr, "-H");
+                }
+
+                cairo_set_source_rgb (cr, 0.0, 1.0, 0.0);
+                cairo_move_to(cr,40.0,knee_y-8.0);
+                cairo_rectangle(cr, 40, knee_y-8.0,8.0,8.0);
+                cairo_fill(cr);
+                cairo_move_to(cr,40.0,knee_y);
+                cairo_line_to(cr,(double)display_width-40.0,knee_y);
+                cairo_stroke(cr);
+                cairo_move_to(cr,48.0,knee_y);
+                cairo_show_text(cr, "-G");
+            }
+
+
             // cursor
             cairo_set_source_rgb (cr, 1, 0, 0);
             cairo_set_line_width(cr, 1.0);
@@ -354,6 +399,7 @@ void panadapter_update(float *data,int tx) {
               cairo_show_text(cr, freedv_text_data);
             }
 #endif
+
 
             cairo_destroy (cr);
             gtk_widget_queue_draw (panadapter);

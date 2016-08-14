@@ -45,6 +45,13 @@
 char property_path[128];
 sem_t property_sem;
 
+double scale=4.6;
+#ifdef FREEDV
+double freedv_scale=4.6;
+#endif
+#ifdef PSK
+double psk_scale=8.5;
+#endif
 
 int atlas_penelope=0;
 int atlas_clock_source_10mhz=0;
@@ -96,7 +103,9 @@ int mic_ptt_enabled=0;
 int mic_ptt_tip_bias_ring=0;
 
 int agc=AGC_MEDIUM;
-double agc_gain=60.0;
+double agc_gain=80.0;
+double agc_slope=35.0;
+double agc_hang_threshold=0.0;
 
 int nr_none=1;
 int nr=0;
@@ -495,6 +504,8 @@ void radioRestoreState() {
     if(value) agc=atoi(value);
     value=getProperty("agc_gain");
     if(value) agc_gain=atof(value);
+    value=getProperty("agc_slope");
+    if(value) agc_slope=atof(value);
     value=getProperty("step");
     if(value) step=atoi(value);
     value=getProperty("cw_keys_reversed");
@@ -637,6 +648,8 @@ void radioSaveState() {
     setProperty("agc",value);
     sprintf(value,"%f",agc_gain);
     setProperty("agc_gain",value);
+    sprintf(value,"%f",agc_slope);
+    setProperty("agc_slope",value);
     sprintf(value,"%d",step);
     setProperty("step",value);
     sprintf(value,"%d",cw_keys_reversed);

@@ -66,6 +66,7 @@ BANDSTACK_ENTRY bandstack_entries30[] =
 
 BANDSTACK_ENTRY bandstack_entries20[] =
     {{14010000LL,modeCWU,filterF0,200,2800,200,2800},
+     {14150000LL,modeUSB,filterF5,200,2800,200,2800},
      {14230000LL,modeUSB,filterF5,200,2800,200,2800},
      {14336000LL,modeUSB,filterF5,200,2800,200,2800}};
 
@@ -164,7 +165,7 @@ BANDSTACK bandstack80={3,1,bandstack_entries80};
 BANDSTACK bandstack60={5,1,bandstack_entries60};
 BANDSTACK bandstack40={3,1,bandstack_entries40};
 BANDSTACK bandstack30={3,1,bandstack_entries30};
-BANDSTACK bandstack20={3,1,bandstack_entries20};
+BANDSTACK bandstack20={4,1,bandstack_entries20};
 BANDSTACK bandstack18={3,1,bandstack_entries18};
 BANDSTACK bandstack15={3,1,bandstack_entries15};
 BANDSTACK bandstack12={3,1,bandstack_entries12};

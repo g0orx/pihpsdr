@@ -36,6 +36,7 @@
 #include <semaphore.h>
 #include <math.h>
 
+#include "agc.h"
 #include "alex.h"
 #include "new_protocol.h"
 #include "channel.h"
@@ -180,6 +181,42 @@ int getFilterHigh() {
     return filterHigh;
 }
 
+void wdsp_set_agc(int rx, int agc) {
+  
+  SetRXAAGCMode(rx, agc);
+  //SetRXAAGCThresh(rx, agc_thresh_point, 4096.0, sample_rate);
+  SetRXAAGCSlope(rx,agc_slope);
+  SetRXAAGCTop(rx,agc_gain);
+  switch(agc) {
+    case AGC_OFF:
+      break;
+    case AGC_LONG:
+      SetRXAAGCAttack(rx,2);
+      SetRXAAGCHang(rx,2000);
+      SetRXAAGCDecay(rx,2000);
+      SetRXAAGCHangThreshold(rx,(int)agc_hang_threshold);
+      break;
+    case AGC_SLOW:
+      SetRXAAGCAttack(rx,2);
+      SetRXAAGCHang(rx,1000);
+      SetRXAAGCDecay(rx,500);
+      SetRXAAGCHangThreshold(rx,(int)agc_hang_threshold);
+      break;
+    case AGC_MEDIUM:
+      SetRXAAGCAttack(rx,2);
+      SetRXAAGCHang(rx,0);
+      SetRXAAGCDecay(rx,250);
+      SetRXAAGCHangThreshold(rx,100);
+      break;
+    case AGC_FAST:
+      SetRXAAGCAttack(rx,2);
+      SetRXAAGCHang(rx,0);
+      SetRXAAGCDecay(rx,50);
+      SetRXAAGCHangThreshold(rx,100);
+      break;
+  }
+}
+
 void wdsp_set_offset(long long offset) {
     if(offset==0) {
       SetRXAShiftFreq(receiver, (double)offset);
@@ -199,8 +236,10 @@ void wdsp_set_input_rate(double rate) {
 static void setupRX(int rx) {
     setRXMode(rx,mode);
     SetRXABandpassFreqs(rx, (double)filterLow, (double)filterHigh);
-    SetRXAAGCMode(rx, agc);
-    SetRXAAGCTop(rx,agc_gain);
+    
+    //SetRXAAGCMode(rx, agc);
+    //SetRXAAGCTop(rx,agc_gain);
+    wdsp_set_agc(rx, agc);
 
     SetRXAAMDSBMode(rx, 0);
     SetRXAShiftRun(rx, 0);

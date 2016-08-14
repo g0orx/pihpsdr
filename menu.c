@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "agc.h"
 #include "audio.h"
 #include "band.h"
 #include "bandstack.h"
@@ -45,6 +46,32 @@ static GtkWidget *menu;
 
 static GtkWidget *ant_grid;
 static gint ant_id=-1;
+
+#ifdef DEBUG
+static void scale_value_changed_cb(GtkWidget *widget, gpointer data) {
+  scale=(int)gtk_range_get_value(GTK_RANGE(widget));
+}
+
+#ifdef PSK
+static void psk_scale_value_changed_cb(GtkWidget *widget, gpointer data) {
+  psk_scale=(int)gtk_range_get_value(GTK_RANGE(widget));
+}
+#endif
+
+#ifdef FREEDV
+static void freedv_scale_value_changed_cb(GtkWidget *widget, gpointer data) {
+  freedv_scale=(int)gtk_range_get_value(GTK_RANGE(widget));
+}
+#endif
+
+#endif
+
+static void agc_hang_threshold_value_changed_cb(GtkWidget *widget, gpointer data) {
+  agc_hang_threshold=(int)gtk_range_get_value(GTK_RANGE(widget));
+  if(agc==AGC_LONG || agc==AGC_SLOW) {
+    SetRXAAGCHangThreshold(CHANNEL_RX0, (int)agc_hang_threshold);
+  }
+}
 
 static void display_panadapter_cb(GtkWidget *widget, gpointer data) {
   display_panadapter=display_panadapter==1?0:1;
@@ -979,30 +1006,30 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
   GtkWidget *detector_mode_label=gtk_label_new("Detector: ");
   //gtk_widget_override_font(detector_mode_label, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(detector_mode_label);
-  gtk_grid_attach(GTK_GRID(display_grid),detector_mode_label,3,0,1,1);
+  gtk_grid_attach(GTK_GRID(display_grid),detector_mode_label,2,0,1,1);
 
   GtkWidget *detector_mode_peak=gtk_radio_button_new_with_label(NULL,"Peak");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (detector_mode_peak), display_detector_mode==DETECTOR_MODE_PEAK);
   gtk_widget_show(detector_mode_peak);
-  gtk_grid_attach(GTK_GRID(display_grid),detector_mode_peak,3,1,1,1);
+  gtk_grid_attach(GTK_GRID(display_grid),detector_mode_peak,2,1,1,1);
   g_signal_connect(detector_mode_peak,"pressed",G_CALLBACK(detector_mode_cb),(gpointer *)DETECTOR_MODE_PEAK);
 
   GtkWidget *detector_mode_rosenfell=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(detector_mode_peak),"Rosenfell");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (detector_mode_rosenfell), display_detector_mode==DETECTOR_MODE_ROSENFELL);
   gtk_widget_show(detector_mode_rosenfell);
-  gtk_grid_attach(GTK_GRID(display_grid),detector_mode_rosenfell,3,2,1,1);
+  gtk_grid_attach(GTK_GRID(display_grid),detector_mode_rosenfell,2,2,1,1);
   g_signal_connect(detector_mode_rosenfell,"pressed",G_CALLBACK(detector_mode_cb),(gpointer *)DETECTOR_MODE_ROSENFELL);
 
   GtkWidget *detector_mode_average=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(detector_mode_rosenfell),"Average");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (detector_mode_average), display_detector_mode==DETECTOR_MODE_AVERAGE);
   gtk_widget_show(detector_mode_average);
-  gtk_grid_attach(GTK_GRID(display_grid),detector_mode_average,3,3,1,1);
+  gtk_grid_attach(GTK_GRID(display_grid),detector_mode_average,2,3,1,1);
   g_signal_connect(detector_mode_average,"pressed",G_CALLBACK(detector_mode_cb),(gpointer *)DETECTOR_MODE_AVERAGE);
 
   GtkWidget *detector_mode_sample=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(detector_mode_average),"Sample");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (detector_mode_sample), display_detector_mode==DETECTOR_MODE_SAMPLE);
   gtk_widget_show(detector_mode_sample);
-  gtk_grid_attach(GTK_GRID(display_grid),detector_mode_sample,3,4,1,1);
+  gtk_grid_attach(GTK_GRID(display_grid),detector_mode_sample,2,4,1,1);
   g_signal_connect(detector_mode_sample,"pressed",G_CALLBACK(detector_mode_cb),(gpointer *)DETECTOR_MODE_SAMPLE);
 
 
@@ -1010,70 +1037,70 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
   GtkWidget *average_mode_label=gtk_label_new("Averaging: ");
   //gtk_widget_override_font(average_mode_label, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(average_mode_label);
-  gtk_grid_attach(GTK_GRID(display_grid),average_mode_label,4,0,1,1);
+  gtk_grid_attach(GTK_GRID(display_grid),average_mode_label,3,0,1,1);
 
   GtkWidget *average_mode_none=gtk_radio_button_new_with_label(NULL,"None");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (average_mode_none), display_detector_mode==AVERAGE_MODE_NONE);
   gtk_widget_show(average_mode_none);
-  gtk_grid_attach(GTK_GRID(display_grid),average_mode_none,4,1,1,1);
+  gtk_grid_attach(GTK_GRID(display_grid),average_mode_none,3,1,1,1);
   g_signal_connect(average_mode_none,"pressed",G_CALLBACK(average_mode_cb),(gpointer *)AVERAGE_MODE_NONE);
 
   GtkWidget *average_mode_recursive=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(average_mode_none),"Recursive");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (average_mode_recursive), display_average_mode==AVERAGE_MODE_RECURSIVE);
   gtk_widget_show(average_mode_recursive);
-  gtk_grid_attach(GTK_GRID(display_grid),average_mode_recursive,4,2,1,1);
+  gtk_grid_attach(GTK_GRID(display_grid),average_mode_recursive,3,2,1,1);
   g_signal_connect(average_mode_recursive,"pressed",G_CALLBACK(average_mode_cb),(gpointer *)AVERAGE_MODE_RECURSIVE);
 
   GtkWidget *average_mode_time_window=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(average_mode_recursive),"Time Window");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (average_mode_time_window), display_average_mode==AVERAGE_MODE_TIME_WINDOW);
   gtk_widget_show(average_mode_time_window);
-  gtk_grid_attach(GTK_GRID(display_grid),average_mode_time_window,4,3,1,1);
+  gtk_grid_attach(GTK_GRID(display_grid),average_mode_time_window,3,3,1,1);
   g_signal_connect(average_mode_time_window,"pressed",G_CALLBACK(average_mode_cb),(gpointer *)AVERAGE_MODE_TIME_WINDOW);
 
   GtkWidget *average_mode_log_recursive=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(average_mode_time_window),"Log Recursive");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (average_mode_log_recursive), display_average_mode==AVERAGE_MODE_LOG_RECURSIVE);
   gtk_widget_show(average_mode_log_recursive);
-  gtk_grid_attach(GTK_GRID(display_grid),average_mode_log_recursive,4,4,1,1);
+  gtk_grid_attach(GTK_GRID(display_grid),average_mode_log_recursive,3,4,1,1);
   g_signal_connect(average_mode_log_recursive,"pressed",G_CALLBACK(average_mode_cb),(gpointer *)AVERAGE_MODE_LOG_RECURSIVE);
 
 
   GtkWidget *time_label=gtk_label_new("Time (ms): ");
   //gtk_widget_override_font(average_mode_label, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(time_label);
-  gtk_grid_attach(GTK_GRID(display_grid),time_label,4,5,1,1);
+  gtk_grid_attach(GTK_GRID(display_grid),time_label,3,5,1,1);
 
   GtkWidget *time_r=gtk_spin_button_new_with_range(1.0,9999.0,1.0);
   gtk_spin_button_set_value(GTK_SPIN_BUTTON(time_r),(double)display_average_time);
   gtk_widget_show(time_r);
-  gtk_grid_attach(GTK_GRID(display_grid),time_r,5,5,1,1);
+  gtk_grid_attach(GTK_GRID(display_grid),time_r,4,5,1,1);
   g_signal_connect(time_r,"value_changed",G_CALLBACK(time_value_changed_cb),NULL);
 
   GtkWidget *b_display_panadapter=gtk_check_button_new_with_label("Display Panadapter");
   //gtk_widget_override_font(b_display_panadapter, pango_font_description_from_string("Arial 18"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_panadapter), display_panadapter);
   gtk_widget_show(b_display_panadapter);
-  gtk_grid_attach(GTK_GRID(display_grid),b_display_panadapter,6,0,1,1);
+  gtk_grid_attach(GTK_GRID(display_grid),b_display_panadapter,0,7,1,1);
   g_signal_connect(b_display_panadapter,"toggled",G_CALLBACK(display_panadapter_cb),(gpointer *)NULL);
 
   GtkWidget *b_display_waterfall=gtk_check_button_new_with_label("Display Waterfall");
   //gtk_widget_override_font(b_display_waterfall, pango_font_description_from_string("Arial 18"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_waterfall), display_waterfall);
   gtk_widget_show(b_display_waterfall);
-  gtk_grid_attach(GTK_GRID(display_grid),b_display_waterfall,6,1,1,1);
+  gtk_grid_attach(GTK_GRID(display_grid),b_display_waterfall,1,7,1,1);
   g_signal_connect(b_display_waterfall,"toggled",G_CALLBACK(display_waterfall_cb),(gpointer *)NULL);
 
   GtkWidget *b_display_sliders=gtk_check_button_new_with_label("Display Sliders");
   //gtk_widget_override_font(b_display_sliders, pango_font_description_from_string("Arial 18"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_sliders), display_sliders);
   gtk_widget_show(b_display_sliders);
-  gtk_grid_attach(GTK_GRID(display_grid),b_display_sliders,6,2,1,1);
+  gtk_grid_attach(GTK_GRID(display_grid),b_display_sliders,2,7,1,1);
   g_signal_connect(b_display_sliders,"toggled",G_CALLBACK(display_sliders_cb),(gpointer *)NULL);
 
   GtkWidget *b_display_toolbar=gtk_check_button_new_with_label("Display Toolbar");
   //gtk_widget_override_font(b_display_toolbar, pango_font_description_from_string("Arial 18"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_toolbar), display_toolbar);
   gtk_widget_show(b_display_toolbar);
-  gtk_grid_attach(GTK_GRID(display_grid),b_display_toolbar,6,3,1,1);
+  gtk_grid_attach(GTK_GRID(display_grid),b_display_toolbar,3,7,1,1);
   g_signal_connect(b_display_toolbar,"toggled",G_CALLBACK(display_toolbar_cb),(gpointer *)NULL);
 
 
@@ -1087,68 +1114,77 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
   gtk_grid_set_row_homogeneous(GTK_GRID(dsp_grid),TRUE);
   gtk_grid_set_column_spacing (GTK_GRID(dsp_grid),10);
 
+  GtkWidget *agc_hang_threshold_label=gtk_label_new("AGC Hang Threshold:");
+  gtk_widget_show(agc_hang_threshold_label);
+  gtk_grid_attach(GTK_GRID(dsp_grid),agc_hang_threshold_label,0,0,1,1);
+  GtkWidget *agc_hang_threshold_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0.0, 100.0, 1.0);
+  gtk_range_set_value (GTK_RANGE(agc_hang_threshold_scale),agc_hang_threshold);
+  gtk_widget_show(agc_hang_threshold_scale);
+  gtk_grid_attach(GTK_GRID(dsp_grid),agc_hang_threshold_scale,1,0,2,1);
+  g_signal_connect(G_OBJECT(agc_hang_threshold_scale),"value_changed",G_CALLBACK(agc_hang_threshold_value_changed_cb),NULL);
+
   GtkWidget *pre_post_agc_label=gtk_label_new("NR/NR2/ANF");
   //gtk_widget_override_font(pre_post_agc_label, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(pre_post_agc_label);
-  gtk_grid_attach(GTK_GRID(dsp_grid),pre_post_agc_label,0,0,1,1);
+  gtk_grid_attach(GTK_GRID(dsp_grid),pre_post_agc_label,0,1,1,1);
 
   GtkWidget *pre_agc_b=gtk_radio_button_new_with_label(NULL,"Pre AGC");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (pre_agc_b),nr_agc==0);
   gtk_widget_show(pre_agc_b);
-  gtk_grid_attach(GTK_GRID(dsp_grid),pre_agc_b,1,0,1,1);
+  gtk_grid_attach(GTK_GRID(dsp_grid),pre_agc_b,1,1,1,1);
   g_signal_connect(pre_agc_b,"pressed",G_CALLBACK(pre_post_agc_cb),(gpointer *)0);
 
   GtkWidget *post_agc_b=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(pre_agc_b),"Post AGC");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (post_agc_b), nr_agc==1);
   gtk_widget_show(post_agc_b);
-  gtk_grid_attach(GTK_GRID(dsp_grid),post_agc_b,2,0,1,1);
+  gtk_grid_attach(GTK_GRID(dsp_grid),post_agc_b,2,1,1,1);
   g_signal_connect(post_agc_b,"pressed",G_CALLBACK(pre_post_agc_cb),(gpointer *)1);
 
   GtkWidget *nr2_gain_label=gtk_label_new("NR2 Gain Method");
   //gtk_widget_override_font(nr2_gain_label, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(nr2_gain_label);
-  gtk_grid_attach(GTK_GRID(dsp_grid),nr2_gain_label,0,1,1,1);
+  gtk_grid_attach(GTK_GRID(dsp_grid),nr2_gain_label,0,2,1,1);
 
   GtkWidget *linear_b=gtk_radio_button_new_with_label(NULL,"Linear");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (linear_b),nr2_gain_method==0);
   gtk_widget_show(linear_b);
-  gtk_grid_attach(GTK_GRID(dsp_grid),linear_b,1,1,1,1);
+  gtk_grid_attach(GTK_GRID(dsp_grid),linear_b,1,2,1,1);
   g_signal_connect(linear_b,"pressed",G_CALLBACK(nr2_gain_cb),(gpointer *)0);
 
   GtkWidget *log_b=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(linear_b),"Log");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (log_b), nr2_gain_method==1);
   gtk_widget_show(log_b);
-  gtk_grid_attach(GTK_GRID(dsp_grid),log_b,2,1,1,1);
+  gtk_grid_attach(GTK_GRID(dsp_grid),log_b,2,2,1,1);
   g_signal_connect(log_b,"pressed",G_CALLBACK(nr2_gain_cb),(gpointer *)1);
 
   GtkWidget *gamma_b=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(log_b),"Gamma");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (gamma_b), nr2_gain_method==2);
   gtk_widget_show(gamma_b);
-  gtk_grid_attach(GTK_GRID(dsp_grid),gamma_b,3,1,1,1);
+  gtk_grid_attach(GTK_GRID(dsp_grid),gamma_b,3,2,1,1);
   g_signal_connect(gamma_b,"pressed",G_CALLBACK(nr2_gain_cb),(gpointer *)2);
 
   GtkWidget *nr2_npe_method_label=gtk_label_new("NR2 NPE Method");
   //gtk_widget_override_font(nr2_npe_method_label, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(nr2_npe_method_label);
-  gtk_grid_attach(GTK_GRID(dsp_grid),nr2_npe_method_label,0,2,1,1);
+  gtk_grid_attach(GTK_GRID(dsp_grid),nr2_npe_method_label,0,3,1,1);
 
   GtkWidget *osms_b=gtk_radio_button_new_with_label(NULL,"OSMS");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (osms_b),nr2_npe_method==0);
   gtk_widget_show(osms_b);
-  gtk_grid_attach(GTK_GRID(dsp_grid),osms_b,1,2,1,1);
+  gtk_grid_attach(GTK_GRID(dsp_grid),osms_b,1,3,1,1);
   g_signal_connect(osms_b,"pressed",G_CALLBACK(nr2_npe_method_cb),(gpointer *)0);
 
   GtkWidget *mmse_b=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(osms_b),"MMSE");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (mmse_b), nr2_npe_method==1);
   gtk_widget_show(mmse_b);
-  gtk_grid_attach(GTK_GRID(dsp_grid),mmse_b,2,2,1,1);
+  gtk_grid_attach(GTK_GRID(dsp_grid),mmse_b,2,3,1,1);
   g_signal_connect(mmse_b,"pressed",G_CALLBACK(nr2_npe_method_cb),(gpointer *)1);
 
   GtkWidget *ae_b=gtk_check_button_new_with_label("NR2 AE Filter");
   //gtk_widget_override_font(ae_b, pango_font_description_from_string("Arial 18"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ae_b), nr2_ae);
   gtk_widget_show(ae_b);
-  gtk_grid_attach(GTK_GRID(dsp_grid),ae_b,0,3,1,1);
+  gtk_grid_attach(GTK_GRID(dsp_grid),ae_b,0,4,1,1);
   g_signal_connect(ae_b,"toggled",G_CALLBACK(ae_cb),NULL);
 
   id=gtk_notebook_append_page(GTK_NOTEBOOK(notebook),dsp_grid,dsp_label);
@@ -1446,27 +1482,43 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
   id=gtk_notebook_append_page(GTK_NOTEBOOK(notebook),exit_grid,exit_label);
 
 
+#ifdef DEBUG
 
-/*
-  GtkWidget *about_label=gtk_label_new("About");
-  GtkWidget *about_grid=gtk_grid_new();
-  gtk_grid_set_column_homogeneous(GTK_GRID(about_grid),TRUE);
+  GtkWidget *debug_label=gtk_label_new("Debug");
+  GtkWidget *debug_grid=gtk_grid_new();
+  gtk_grid_set_column_homogeneous(GTK_GRID(debug_grid),TRUE);
 
-  char build[64];
+  GtkWidget *scale_label=gtk_label_new("Scale:");
+  gtk_widget_show(scale_label);
+  gtk_grid_attach(GTK_GRID(debug_grid),scale_label,0,0,1,1);
+  GtkWidget *scale_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 20.0, 0.1);
+  gtk_range_set_value (GTK_RANGE(scale_scale),scale);
+  gtk_widget_show(scale_scale);
+  gtk_grid_attach(GTK_GRID(debug_grid),scale_scale,1,0,1,1);
+  g_signal_connect(G_OBJECT(scale_scale),"value_changed",G_CALLBACK(scale_value_changed_cb),NULL);
 
-  sprintf(build,"build: %s %s",build_date, build_time);
-  GtkWidget *pi_label=gtk_label_new("pihpsdr by John Melton g0orx/n6lyt");
-  gtk_widget_show(pi_label);
-  gtk_grid_attach(GTK_GRID(about_grid),pi_label,0,0,1,1);
-  GtkWidget *filler_label=gtk_label_new("");
-  gtk_widget_show(filler_label);
-  gtk_grid_attach(GTK_GRID(about_grid),filler_label,0,1,1,1);
-  GtkWidget *build_date_label=gtk_label_new(build);
-  gtk_widget_show(build_date_label);
-  gtk_grid_attach(GTK_GRID(about_grid),build_date_label,0,2,1,1);
-   
-  id=gtk_notebook_append_page(GTK_NOTEBOOK(notebook),about_grid,about_label);
-*/
+  GtkWidget *psk_scale_label=gtk_label_new("PSK Scale:");
+  gtk_widget_show(psk_scale_label);
+  gtk_grid_attach(GTK_GRID(debug_grid),psk_scale_label,0,1,1,1);
+  GtkWidget *psk_scale_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 20.0, 0.1);
+  gtk_range_set_value (GTK_RANGE(psk_scale_scale),psk_scale);
+  gtk_widget_show(psk_scale_scale);
+  gtk_grid_attach(GTK_GRID(debug_grid),psk_scale_scale,1,1,1,1);
+  g_signal_connect(G_OBJECT(psk_scale_scale),"value_changed",G_CALLBACK(psk_scale_value_changed_cb),NULL);
+
+  GtkWidget *freedv_scale_label=gtk_label_new("FREEDV Scale:");
+  gtk_widget_show(freedv_scale_label);
+  gtk_grid_attach(GTK_GRID(debug_grid),freedv_scale_label,0,2,1,1);
+  GtkWidget *freedv_scale_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 20.0, 0.1);
+  gtk_range_set_value (GTK_RANGE(freedv_scale_scale),freedv_scale);
+  gtk_widget_show(freedv_scale_scale);
+  gtk_grid_attach(GTK_GRID(debug_grid),freedv_scale_scale,1,2,1,1);
+  g_signal_connect(G_OBJECT(freedv_scale_scale),"value_changed",G_CALLBACK(freedv_scale_value_changed_cb),NULL);
+
+  id=gtk_notebook_append_page(GTK_NOTEBOOK(notebook),debug_grid,debug_label);
+
+#endif
+
   gtk_container_add(GTK_CONTAINER(content),notebook);
 
   GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close Dialog",GTK_RESPONSE_OK);

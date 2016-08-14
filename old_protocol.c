@@ -63,11 +63,6 @@
 #define C3 6
 #define C4 7
 
-#define SCALE 4.6
-#ifdef FREEDV
-#define FREEDV_SCALE 8.5
-#endif
-
 #define DATA_PORT 1024
 
 #define SYNC 0x7F
@@ -635,7 +630,7 @@ static void full_rx_buffer() {
 static void full_tx_buffer() {
   int j;
   int error;
-  double gain=32767.0*SCALE; // 2^16-1
+  double gain=32767.0*scale; // 2^16-1
 
   // debug
   //int min_sample=0;
@@ -648,7 +643,7 @@ static void full_tx_buffer() {
 
 #ifdef FREEDV
   if(mode==modeFREEDV) {
-    gain=32767.0*FREEDV_SCALE;
+    gain=32767.0*freedv_scale;
   }
 #endif
 
@@ -699,10 +694,8 @@ static void full_tx_buffer() {
     }
   }
 
-  //fprintf(stderr,"scale=%f min_sample=%d max_sample=%d\n",scale, min_sample,max_sample);
-  //fprintf(stderr,"scale=%f overflow=%d\n",scale,overflow);
-
 }
+
 /*
 static void process_bandscope_buffer(char  *buffer) {
 }
