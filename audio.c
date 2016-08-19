@@ -86,7 +86,9 @@ void audio_write(short left_sample,short right_sample) {
   audio_buffer[audio_offset++]=right_sample;
 
   if(audio_offset==AUDIO_BUFFER_SIZE) {
+//fprintf(stderr,"pa_simple_write...");
     result=pa_simple_write(stream, audio_buffer, (size_t)AUDIO_BUFFER_SIZE, &error);
+//fprintf(stderr,"%d\n",result);
     if(result< 0) {
       fprintf(stderr, __FILE__": pa_simple_write() failed: %s\n", pa_strerror(error));
       //_exit(1);
@@ -95,30 +97,3 @@ void audio_write(short left_sample,short right_sample) {
   }
 }
 
-/*
-void audio_write(double* buffer,int samples) {
-    int i;
-    int result;
-    int error;
-
-    for(i=0;i<samples;i++) {
-        int source_index=i*2;
-        short left_sample=(short)(buffer[source_index]*32767.0*volume);
-        short right_sample=(short)(buffer[source_index+1]*32767.0*volume);
-        audio_buffer[audio_offset++]=left_sample>>8;
-        audio_buffer[audio_offset++]=left_sample;
-        audio_buffer[audio_offset++]=right_sample>>8;
-        audio_buffer[audio_offset++]=right_sample;
-
-        if(audio_offset==AUDIO_BUFFER_SIZE) {
-            result=pa_simple_write(stream, audio_buffer, (size_t)AUDIO_BUFFER_SIZE, &error);
-            if(result< 0) {
-                fprintf(stderr, __FILE__": pa_simple_write() failed: %s\n", pa_strerror(error));
-                //_exit(1);
-            }
-            audio_offset=0;
-        }
-    }
-
-}
-*/

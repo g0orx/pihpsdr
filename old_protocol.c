@@ -575,12 +575,14 @@ static void process_rx_buffer() {
     left_rx_sample=(short)(audiooutputbuffer[j*2]*32767.0*volume);
     right_rx_sample=(short)(audiooutputbuffer[(j*2)+1]*32767.0*volume);
 #ifdef PSK
-    if(psk_samples==0) {
-      psk_demod((left_rx_sample+right_rx_sample)/2);
-    }
-    psk_samples++;
-    if(psk_samples==psk_divisor) {
-      psk_samples=0;
+    if(mode==modePSK) {
+      if(psk_samples==0) {
+        psk_demod((double)((left_rx_sample+right_rx_sample)/2));
+      }
+      psk_samples++;
+      if(psk_samples==psk_divisor) {
+        psk_samples=0;
+      }
     }
 #endif
     if(local_audio) {
