@@ -18,7 +18,7 @@ UNAME_N=raspberrypi
 CC=gcc
 LINK=gcc
 
-# uncomment the line below for various denug facilities
+# uncomment the line below for various debug facilities
 #DEBUG_OPTION=-D DEBUG
 
 # uncomment the line below for LimeSDR (uncomment line below)

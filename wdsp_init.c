@@ -437,6 +437,9 @@ static void initAnalyzer(int channel,int buffer_size) {
       pixels=spectrumWIDTH;
     }
 #endif
+    if(channel==CHANNEL_TX && protocol==NEW_PROTOCOL) {
+      pixels=spectrumWIDTH*4; // allows 192 -> 48 easy
+    }
     SetAnalyzer(channel,
             n_pixout,
             spur_elimination_ffts, //number of LO frequencies = number of ffts used in elimination

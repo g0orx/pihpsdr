@@ -194,11 +194,11 @@ void panadapter_update(float *data,int tx) {
 
                 panadapter_high=20;
                 panadapter_low=-80;
-                if(protocol==ORIGINAL_PROTOCOL) {
+                //if(protocol==ORIGINAL_PROTOCOL) {
                     hz_per_pixel=48000.0/(double)display_width;
-                } else {
-                    hz_per_pixel=192000.0/(double)display_width;
-                }
+                //} else {
+                //    hz_per_pixel=192000.0/(double)display_width;
+                //}
             }
 
             //clear_panadater_surface();
@@ -312,7 +312,7 @@ void panadapter_update(float *data,int tx) {
             }
             
             // agc
-            if(agc!=AGC_OFF) {
+            if(agc!=AGC_OFF && !tx) {
                 double hang=0.0;
                 double thresh=0;
 
@@ -365,17 +365,34 @@ void panadapter_update(float *data,int tx) {
             double s1,s2;
             samples[0]=-200.0;
             samples[display_width-1]=-200.0;
-            s1=(double)samples[0]+(double)get_attenuation()-20.0;
-            s1 = floor((panadapter_high - s1)
-                        * (double) display_height
-                        / (panadapter_high - panadapter_low));
-            cairo_move_to(cr, 0.0, s1);
-            for(i=1;i<display_width;i++) {
-                s2=(double)samples[i]+(double)get_attenuation()-20.0;
-                s2 = floor((panadapter_high - s2)
-                            * (double) display_height
-                            / (panadapter_high - panadapter_low));
-                cairo_line_to(cr, (double)i, s2);
+
+            if(tx && protocol==NEW_PROTOCOL) {
+              int offset=1200;
+              s1=(double)samples[0+offset]+(double)get_attenuation()-20.0;
+              s1 = floor((panadapter_high - s1)
+                          * (double) display_height
+                          / (panadapter_high - panadapter_low));
+              cairo_move_to(cr, 0.0, s1);
+              for(i=1;i<display_width;i++) {
+                  s2=(double)samples[i+offset]+(double)get_attenuation()-20.0;
+                  s2 = floor((panadapter_high - s2)
+                              * (double) display_height
+                              / (panadapter_high - panadapter_low));
+                  cairo_line_to(cr, (double)i, s2);
+              }
+            } else {
+              s1=(double)samples[0]+(double)get_attenuation()-20.0;
+              s1 = floor((panadapter_high - s1)
+                          * (double) display_height
+                          / (panadapter_high - panadapter_low));
+              cairo_move_to(cr, 0.0, s1);
+              for(i=1;i<display_width;i++) {
+                  s2=(double)samples[i]+(double)get_attenuation()-20.0;
+                  s2 = floor((panadapter_high - s2)
+                              * (double) display_height
+                              / (panadapter_high - panadapter_low));
+                  cairo_line_to(cr, (double)i, s2);
+              }
             }
             if(display_filled) {
               cairo_close_path (cr);

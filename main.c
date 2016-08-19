@@ -508,7 +508,11 @@ fprintf(stderr,"protocol=%d name=%s\n",d->protocol,d->name);
 
   radioRestoreState();
 
-  samples=malloc(display_width*sizeof(float)*2);
+  if(protocol==NEW_PROTOCOL) {
+    samples=malloc(display_width*sizeof(float)*2*4); // 192 -> 48
+  } else {
+    samples=malloc(display_width*sizeof(float)*2);
+  }
 
   //splash_status("Initializing wdsp ...");
   wdsp_init(0,display_width,d->protocol);
