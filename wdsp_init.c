@@ -79,6 +79,23 @@ static int SPECTRUM_UPDATES_PER_SECOND=10;
 
 static void initAnalyzer(int channel,int buffer_size);
 
+static void calc_tx_buffer_size() {
+  switch(sample_rate) {
+    case 48000:
+      tx_buffer_size=BUFFER_SIZE;
+      break;
+    case 96000:
+      tx_buffer_size=BUFFER_SIZE/2;
+      break;
+    case 192000:
+      tx_buffer_size=BUFFER_SIZE/4;
+      break;
+    case 384000:
+      tx_buffer_size=BUFFER_SIZE/8;
+      break;
+  }
+}
+
 void setRXMode(int rx,int m) {
 fprintf(stderr,"SetRXAMode: rx=%d mode=%d\n",rx,m);
   SetRXAMode(rx, m);
@@ -320,20 +337,8 @@ void wdsp_init(int rx,int pixels,int protocol) {
     while (gtk_events_pending ())
       gtk_main_iteration ();
 
-    switch(sample_rate) {
-      case 48000:
-        tx_buffer_size=BUFFER_SIZE;
-        break;
-      case 96000:
-        tx_buffer_size=BUFFER_SIZE/2;
-        break;
-      case 192000:
-        tx_buffer_size=BUFFER_SIZE/4;
-        break;
-      case 384000:
-        tx_buffer_size=BUFFER_SIZE/8;
-        break;
-    }
+    calc_tx_buffer_size();
+
     fprintf(stderr,"OpenChannel %d buffer_size=%d fft_size=%d sample_rate=%d dspRate=%d outputRate=%d\n",
                 CHANNEL_TX,
                 buffer_size,
@@ -394,6 +399,8 @@ void wdsp_init(int rx,int pixels,int protocol) {
 
 void wdsp_new_sample_rate(int rate) {
   SetChannelState(CHANNEL_TX,0,0);
+  calc_tx_buffer_size();
+  initAnalyzer(CHANNEL_TX,tx_buffer_size);
   SetInputSamplerate(CHANNEL_TX,rate);
   SetChannelState(CHANNEL_TX,1,0);
 
