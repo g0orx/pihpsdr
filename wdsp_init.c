@@ -80,19 +80,24 @@ static int SPECTRUM_UPDATES_PER_SECOND=10;
 static void initAnalyzer(int channel,int buffer_size);
 
 static void calc_tx_buffer_size() {
-  switch(sample_rate) {
-    case 48000:
-      tx_buffer_size=BUFFER_SIZE;
-      break;
-    case 96000:
-      tx_buffer_size=BUFFER_SIZE/2;
-      break;
-    case 192000:
-      tx_buffer_size=BUFFER_SIZE/4;
-      break;
-    case 384000:
-      tx_buffer_size=BUFFER_SIZE/8;
-      break;
+  if(protocol==ORIGINAL_PROTOCOL) {
+    switch(sample_rate) {
+      case 48000:
+        tx_buffer_size=BUFFER_SIZE;
+        break;
+      case 96000:
+        tx_buffer_size=BUFFER_SIZE/2;
+        break;
+      case 192000:
+        tx_buffer_size=BUFFER_SIZE/4;
+        break;
+      case 384000:
+        tx_buffer_size=BUFFER_SIZE/8;
+        break;
+    }
+  } else {
+    tx_buffer_size=BUFFER_SIZE*4;
+    // input always 48K -- output always 192K
   }
 }
 
@@ -398,11 +403,14 @@ void wdsp_init(int rx,int pixels,int protocol) {
 }
 
 void wdsp_new_sample_rate(int rate) {
-  SetChannelState(CHANNEL_TX,0,0);
-  calc_tx_buffer_size();
-  initAnalyzer(CHANNEL_TX,tx_buffer_size);
-  SetInputSamplerate(CHANNEL_TX,rate);
-  SetChannelState(CHANNEL_TX,1,0);
+
+  if(protocol==ORIGINAL_PROTOCOL) {
+    SetChannelState(CHANNEL_TX,0,0);
+    calc_tx_buffer_size();
+    initAnalyzer(CHANNEL_TX,tx_buffer_size);
+    SetInputSamplerate(CHANNEL_TX,rate);
+    SetChannelState(CHANNEL_TX,1,0);
+  }
 
   SetChannelState(receiver,0,0);
   SetInputSamplerate(receiver,rate);

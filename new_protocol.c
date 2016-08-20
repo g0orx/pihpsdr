@@ -156,6 +156,29 @@ static void* new_protocol_timer_thread(void* arg);
 static void full_rx_buffer();
 static void full_tx_buffer();
 
+static void new_protocol_calc_buffers() {
+  switch(sample_rate) {
+    case 48000:
+      outputsamples=BUFFER_SIZE;
+      break;
+    case 96000:
+      outputsamples=BUFFER_SIZE/2;
+      break;
+    case 192000:
+      outputsamples=BUFFER_SIZE/4;
+      break;
+    case 384000:
+      outputsamples=BUFFER_SIZE/8;
+      break;
+    case 768000:
+      outputsamples=BUFFER_SIZE/16;
+      break;
+    case 1536000:
+      outputsamples=BUFFER_SIZE/32;
+      break;
+  }
+}
+
 void schedule_high_priority(int source) {
 fprintf(stderr,"new_protocol: schedule_high_priority: source=%d\n",source);
     sem_wait(&send_high_priority_sem);
@@ -201,6 +224,8 @@ void new_protocol_init(int rx,int pixels) {
       }
     }
 
+    new_protocol_calc_buffers();
+
     rc=sem_init(&response_sem, 0, 0);
     rc=sem_init(&send_high_priority_sem, 0, 1);
     rc=sem_init(&send_general_sem, 0, 1);
@@ -216,7 +241,7 @@ void new_protocol_init(int rx,int pixels) {
 void new_protocol_new_sample_rate(int rate) {
   new_protocol_high_priority(0,0,0);
   sample_rate=rate;
-  old_protocol_calc_buffers();
+  new_protocol_calc_buffers();
   wdsp_new_sample_rate(rate);
   new_protocol_high_priority(1,0,drive);
 }
