@@ -32,6 +32,7 @@
 #include <net/if.h>
 #include <ifaddrs.h>
 
+#include "discovered.h"
 #include "main.h"
 #include "agc.h"
 #include "mode.h"
@@ -46,7 +47,6 @@
 #include "toolbar.h"
 #include "wdsp.h"
 #include "wdsp_init.h"
-#include "discovered.h"
 
 static GtkWidget *parent_window;
 static int my_width;
@@ -180,7 +180,6 @@ static gboolean vfo_draw_cb (GtkWidget *widget,
 }
 
 int vfo_update(void *data) {
-    DISCOVERED *d=&discovered[selected_device];
     BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
     FILTER* band_filters=filters[entry->mode];
     FILTER* band_filter=&band_filters[entry->filter];
@@ -195,20 +194,20 @@ int vfo_update(void *data) {
             CAIRO_FONT_WEIGHT_BOLD);
 
         char text[128];
-        switch(d->protocol) {
+        switch(discovered->protocol) {
             case ORIGINAL_PROTOCOL:
             case NEW_PROTOCOL:
               sprintf(text,"%s (%s %d.%d) %s",
-                    d->name,
-                    d->protocol==ORIGINAL_PROTOCOL?"old":"new",
-                    d->software_version/10,
-                    d->software_version%10,
-                    inet_ntoa(d->info.network.address.sin_addr));
+                    discovered->name,
+                    discovered->protocol==ORIGINAL_PROTOCOL?"old":"new",
+                    discovered->software_version/10,
+                    discovered->software_version%10,
+                    inet_ntoa(discovered->info.network.address.sin_addr));
               break;
 #ifdef LIMESDR
             case LIMESDR_PROTOCOL:
               sprintf(text,"%s\n",
-                    d->name);
+                    discovered->name);
               break;
 #endif
         }

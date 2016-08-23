@@ -484,20 +484,22 @@ fprintf(stderr,"protocol=%d name=%s\n",d->protocol,d->name);
 
   splash_status("Initializing wdsp ...");
 
-  d=&discovered[selected_device];
-  protocol=d->protocol;
-  device=d->device;
+  radio=&d[selected_device];
+  protocol=radio->protocol;
+  device=radio->device;
 
-  switch(d->protocol) {
+fprintf(stderr,"radio: %p\n",radio);
+
+  switch(radio->protocol) {
     case ORIGINAL_PROTOCOL:
     case NEW_PROTOCOL:
       sprintf(property_path,"%02X-%02X-%02X-%02X-%02X-%02X.props",
-                        d->info.network.mac_address[0],
-                        d->info.network.mac_address[1],
-                        d->info.network.mac_address[2],
-                        d->info.network.mac_address[3],
-                        d->info.network.mac_address[4],
-                        d->info.network.mac_address[5]);
+                        radio->info.network.mac_address[0],
+                        radio->info.network.mac_address[1],
+                        radio->info.network.mac_address[2],
+                        radio->info.network.mac_address[3],
+                        radio->info.network.mac_address[4],
+                        radio->info.network.mac_address[5]);
       break;
 #ifdef LIMESDR
     case LIMESDR_PROTOCOL:
@@ -508,7 +510,7 @@ fprintf(stderr,"protocol=%d name=%s\n",d->protocol,d->name);
 
   radioRestoreState();
 
-  if(protocol==NEW_PROTOCOL) {
+  if(radio->protocol==NEW_PROTOCOL) {
     samples=malloc(display_width*sizeof(float)*2*4); // 192 -> 48
   } else {
     samples=malloc(display_width*sizeof(float)*2);
@@ -517,7 +519,7 @@ fprintf(stderr,"protocol=%d name=%s\n",d->protocol,d->name);
   //splash_status("Initializing wdsp ...");
   wdsp_init(0,display_width,d->protocol);
 
-  switch(d->protocol) {
+  switch(radio->protocol) {
     case ORIGINAL_PROTOCOL:
       splash_status("Initializing old protocol ...");
       old_protocol_init(0,display_width);

@@ -23,12 +23,13 @@
 #include <semaphore.h>
 #include <math.h>
 
+#include "discovered.h"
+//#include "discovery.h"
 #include "mode.h"
 #include "radio.h"
 #include "channel.h"
 #include "agc.h"
 #include "band.h"
-#include "discovered.h"
 #include "property.h"
 #include "new_protocol.h"
 #ifdef LIMESDR
@@ -41,6 +42,8 @@
 
 #define min(x,y) (x<y?x:y)
 #define max(x,y) (x<y?y:x)
+
+DISCOVERED *radio;
 
 char property_path[128];
 sem_t property_sem;

@@ -38,6 +38,8 @@
 #define OLD_ORION_MIC_BIAS_DISABLED 0x00
 #define OLD_ORION_MIC_BIAS_ENABLED 0x20
 
+extern DISCOVERED *radio;
+
 extern char property_path[];
 
 extern double scale;

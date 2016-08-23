@@ -101,8 +101,6 @@
 #define LT2208_RANDOM_OFF         0x00
 #define LT2208_RANDOM_ON          0x10
 
-static DISCOVERED *d;
-
 static int buffer_size=BUFFER_SIZE;
 
 static int receiver;
@@ -232,8 +230,6 @@ void old_protocol_init(int rx,int pixels) {
 
   fprintf(stderr,"old_protocol_init\n");
 
-  d=&discovered[selected_device];
-
   //int result=sem_init(&frequency_changed_sem, 0, 1);
 
   if(local_audio) {
@@ -276,13 +272,13 @@ static void start_receive_thread() {
   setsockopt(data_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
 
   // bind to the interface
-  if(bind(data_socket,(struct sockaddr*)&d->info.network.interface_address,d->info.network.interface_length)<0) {
+  if(bind(data_socket,(struct sockaddr*)&radio->info.network.interface_address,radio->info.network.interface_length)<0) {
     perror("old_protocol: bind socket failed for data_socket\n");
     exit(-1);
   }
 
-  memcpy(&data_addr,&d->info.network.address,d->info.network.address_length);
-  data_addr_length=d->info.network.address_length;
+  memcpy(&data_addr,&radio->info.network.address,radio->info.network.address_length);
+  data_addr_length=radio->info.network.address_length;
   data_addr.sin_port=htons(DATA_PORT);
 
   rc=pthread_create(&receive_thread_id,NULL,receive_thread,NULL);
@@ -649,7 +645,7 @@ static void full_tx_buffer() {
   }
 #endif
 
-  if(d->device==DEVICE_METIS && atlas_penelope) {
+  if(radio->device==DEVICE_METIS && atlas_penelope) {
     if(tune) {
       gain=32767.0*tune_drive;
     } else {
@@ -732,7 +728,7 @@ void ozy_send_buffer() {
           output_buffer[C1]|=SPEED_384K;
           break;
       }
-      if(d->device==DEVICE_METIS) {
+      if(radio->device==DEVICE_METIS) {
       }
 
       output_buffer[C2]=0x00;
@@ -906,7 +902,7 @@ void ozy_send_buffer() {
       output_buffer[C2]=0x00;
       output_buffer[C3]=0x00;
 
-      if(d->device==DEVICE_HERMES || d->device==DEVICE_ANGELIA || d->device==DEVICE_ORION) {
+      if(radio->device==DEVICE_HERMES || radio->device==DEVICE_ANGELIA || radio->device==DEVICE_ORION) {
         output_buffer[C4]=0x20|attenuation;
       } else {
         output_buffer[C4]=0x00;

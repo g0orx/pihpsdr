@@ -728,7 +728,13 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
       gtk_widget_show(sample_rate_1536);
         gtk_grid_attach(GTK_GRID(general_grid),sample_rate_1536,0,10,1,1);
       g_signal_connect(sample_rate_1536,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)1536000);
+
+#ifdef raspberrypi
+      gtk_widget_set_sensitive(sample_rate_768,FALSE);
+      gtk_widget_set_sensitive(sample_rate_1536,FALSE);
+#endif
     }
+
   }
   
 #ifdef LIMESDR

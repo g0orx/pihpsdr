@@ -19,7 +19,6 @@
 
 static double bandwidth=3000000.0;
 
-static DISCOVERED *d;
 static size_t receiver;
 static SoapySDRDevice *lime_device;
 static SoapySDRStream *stream;
@@ -59,7 +58,6 @@ void lime_protocol_init(int rx,int pixels) {
 
 fprintf(stderr,"lime_protocol_init: receiver=%d pixels=%d\n",rx,pixels);
 
-  d=&discovered[selected_device];
   receiver=(size_t)rx;
   display_width=pixels;
 
@@ -94,7 +92,7 @@ fprintf(stderr,"lime_protocol_init: receiver=%d pixels=%d\n",rx,pixels);
 
   // initialize the radio
 fprintf(stderr,"lime_protocol: receive_thread: SoapySDRDevice_make\n");
-  lime_device=SoapySDRDevice_make(d->info.soapy.args);
+  lime_device=SoapySDRDevice_make(discovered->info.soapy.args);
   if(lime_device==NULL) {
     fprintf(stderr,"lime_protocol: SoapySDRDevice_make failed: %s\n",SoapySDRDevice_lastError());
     _exit(-1);

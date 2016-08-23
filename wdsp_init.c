@@ -96,8 +96,7 @@ static void calc_tx_buffer_size() {
         break;
     }
   } else {
-    tx_buffer_size=BUFFER_SIZE*4;
-    // input always 48K -- output always 192K
+    tx_buffer_size=BUFFER_SIZE; // input always 192K
   }
 }
 
@@ -312,8 +311,10 @@ void wdsp_init(int rx,int pixels,int protocol) {
     fprintf(stderr,"wdsp_init: %d\n",rx);
    
     if(protocol==ORIGINAL_PROTOCOL) {
+        micSampleRate=sample_rate;
         micOutputRate=48000;
     } else {
+        micSampleRate=48000;
         micOutputRate=192000;
     }
 
@@ -346,16 +347,16 @@ void wdsp_init(int rx,int pixels,int protocol) {
 
     fprintf(stderr,"OpenChannel %d buffer_size=%d fft_size=%d sample_rate=%d dspRate=%d outputRate=%d\n",
                 CHANNEL_TX,
-                buffer_size,
+                tx_buffer_size,
                 fft_size,
-                sample_rate, //micSampleRate,
+                micSampleRate,
                 micDspRate,
                 micOutputRate);
 
     OpenChannel(CHANNEL_TX,
-                buffer_size,
+                tx_buffer_size,
                 fft_size,
-                sample_rate, //micSampleRate,
+                micSampleRate,
                 micDspRate,
                 micOutputRate,
                 1, // transmit
@@ -453,6 +454,7 @@ static void initAnalyzer(int channel,int buffer_size) {
     }
 #endif
     if(channel==CHANNEL_TX && protocol==NEW_PROTOCOL) {
+      buffer_size=buffer_size*4;
       pixels=spectrumWIDTH*4; // allows 192 -> 48 easy
     }
     SetAnalyzer(channel,
