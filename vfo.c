@@ -193,21 +193,32 @@ int vfo_update(void *data) {
             CAIRO_FONT_SLANT_NORMAL,
             CAIRO_FONT_WEIGHT_BOLD);
 
+        char version[16];
         char text[128];
-        switch(discovered->protocol) {
+        if(radio->protocol==ORIGINAL_PROTOCOL) {
+            sprintf(version,"%d.%d",
+                radio->software_version/10,
+                radio->software_version%10);
+        } else {
+            sprintf(version,"%d.%d.%d",
+                radio->software_version/100,
+                (radio->software_version%100)/10,
+                radio->software_version%10);
+        }
+
+        switch(radio->protocol) {
             case ORIGINAL_PROTOCOL:
             case NEW_PROTOCOL:
-              sprintf(text,"%s (%s %d.%d) %s",
-                    discovered->name,
-                    discovered->protocol==ORIGINAL_PROTOCOL?"old":"new",
-                    discovered->software_version/10,
-                    discovered->software_version%10,
-                    inet_ntoa(discovered->info.network.address.sin_addr));
+              sprintf(text,"%s (%s %s) %s",
+                    radio->name,
+                    radio->protocol==ORIGINAL_PROTOCOL?"old":"new",
+                    version,
+                    inet_ntoa(radio->info.network.address.sin_addr));
               break;
 #ifdef LIMESDR
             case LIMESDR_PROTOCOL:
               sprintf(text,"%s\n",
-                    discovered->name);
+                    radio->name);
               break;
 #endif
         }

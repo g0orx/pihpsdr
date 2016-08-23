@@ -270,8 +270,8 @@ static gint save_cb(gpointer data) {
 }
 
 static void start_cb(GtkWidget *widget, gpointer data) {
-    selected_device=(int)data;
-fprintf(stderr,"start_cb: %d\n",selected_device);
+fprintf(stderr,"start_cb: %p\n",data);
+    radio=(DISCOVERED *)data;
     start=1;
     gtk_widget_destroy(discovery_dialog);
 }
@@ -399,20 +399,28 @@ gint init(void* arg) {
           gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
 
           int i;
+          char version[16];
           char text[128];
           for(i=0;i<devices;i++) {
               d=&discovered[i];
-fprintf(stderr,"protocol=%d name=%s\n",d->protocol,d->name);
+fprintf(stderr,"%p protocol=%d name=%s\n",d,d->protocol,d->name);
+              if(d->protocol==ORIGINAL_PROTOCOL) {
+                  sprintf(version,"%d.%d",
+                        d->software_version/10,
+                        d->software_version%10);
+              } else {
+                  sprintf(version,"%d.%d.%d",
+                        d->software_version/100,
+                        (d->software_version%100)/10,
+                        d->software_version%10);
+              }
               switch(d->protocol) {
                 case ORIGINAL_PROTOCOL:
                 case NEW_PROTOCOL:
-                  sprintf(text,"%s (%s %d.%d) %s (%02X:%02X:%02X:%02X:%02X:%02X) on %s\n",
+                  sprintf(text,"%s (%s %s) %s (%02X:%02X:%02X:%02X:%02X:%02X) on %s\n",
                         d->name,
                         d->protocol==ORIGINAL_PROTOCOL?"old":"new",
-                        //d->protocol==ORIGINAL_PROTOCOL?d->software_version/10:d->software_version/100,
-                        //d->protocol==ORIGINAL_PROTOCOL?d->software_version%10:d->software_version%100,
-                        d->software_version/10,
-                        d->software_version%10,
+                        version,
                         inet_ntoa(d->info.network.address.sin_addr),
                         d->info.network.mac_address[0],
                         d->info.network.mac_address[1],
@@ -425,12 +433,10 @@ fprintf(stderr,"protocol=%d name=%s\n",d->protocol,d->name);
 #ifdef LIMESDR
                 case LIMESDR_PROTOCOL:
 /*
-                  sprintf(text,"%s (%s %d.%d.%d)\n",
+                  sprintf(text,"%s (%s %s)\n",
                         d->name,
                         "lime",
-                        d->software_version/100,
-                        (d->software_version%100)/10,
-                        d->software_version%10);
+                        version);
 */
                   sprintf(text,"%s\n",
                         d->name);
@@ -447,7 +453,7 @@ fprintf(stderr,"protocol=%d name=%s\n",d->protocol,d->name);
               gtk_widget_override_font(start_button, pango_font_description_from_string("Arial 18"));
               gtk_widget_show(start_button);
               gtk_grid_attach(GTK_GRID(grid),start_button,3,i,1,1);
-              g_signal_connect(start_button,"pressed",G_CALLBACK(start_cb),(gpointer *)i);
+              g_signal_connect(start_button,"pressed",G_CALLBACK(start_cb),(gpointer)d);
 
               // if not available then cannot start it
               if(d->status!=STATE_AVAILABLE) {
@@ -471,7 +477,9 @@ fprintf(stderr,"protocol=%d name=%s\n",d->protocol,d->name);
               _exit(0);
           }
          
-          gtk_widget_destroy(discovery_dialog);
+          if(!start) {
+            gtk_widget_destroy(discovery_dialog);
+          }
 #ifdef GPIO
           if(result==GTK_RESPONSE_YES) {
               configure_gpio(splash_window);
@@ -484,11 +492,11 @@ fprintf(stderr,"protocol=%d name=%s\n",d->protocol,d->name);
 
   splash_status("Initializing wdsp ...");
 
-  radio=&d[selected_device];
+fprintf(stderr,"selected radio=%p device=%d\n",radio,radio->device);
+
   protocol=radio->protocol;
   device=radio->device;
 
-fprintf(stderr,"radio: %p\n",radio);
 
   switch(radio->protocol) {
     case ORIGINAL_PROTOCOL:

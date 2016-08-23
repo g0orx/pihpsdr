@@ -116,6 +116,8 @@ static int previous_mox_button=0;
 static int lock_button=0;
 static int previous_lock_button=0;
 
+static int running=1;
+
 static void afFunctionAlert(int gpio, int level, uint32_t tick) {
     afFunction=(level==0);
 }
@@ -613,12 +615,7 @@ fprintf(stderr,"encoder_init\n");
 }
 
 void gpio_close() {
-//  if(strcmp(unameData.nodename,"raspberrypi")==0) {
-#ifdef raspberrypi
-    gpioTerminate();
-#endif
-//  }
-//  if(strcmp(unameData.nodename,"odroid")==0) {
+    running=0;
 #ifdef odroid
     FILE *fp;
     fp = popen("echo 97 > /sys/class/gpio/unexport\n", "r");
@@ -626,7 +623,6 @@ void gpio_close() {
     fp = popen("echo 108 > /sys/class/gpio/unexport\n", "r");
     pclose(fp);
 #endif
-//  }
 }
 
 int vfo_encoder_get_pos() {
@@ -869,7 +865,8 @@ static int agc_pressed(void *data) {
 
 static void* rotary_encoder_thread(void *arg) {
     int pos;
-    while(1) {
+    running=1;
+    while(running) {
 
         int function_button=function_get_state();
         if(function_button!=previous_function_button) {
@@ -984,15 +981,15 @@ static void* rotary_encoder_thread(void *arg) {
             }
         }
 
-//        if(strcmp(unameData.nodename,"raspberrypi")==0) {
 #ifdef raspberrypi
-          gpioDelay(100000); // 10 per second
+          if(running) gpioDelay(100000); // 10 per second
 #endif
-//        } else if(strcmp(unameData.nodename,"odroid")==0) {
 #ifdef odroid
-          usleep(100000);
+          if(runnig) usleep(100000);
 #endif
-//        }
     }
+#ifdef raspberrypi
+    gpioTerminate();
+#endif
 }
 #endif

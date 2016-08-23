@@ -263,9 +263,11 @@ fprintf(stderr,"new_protocol_general: receiver=%d\n", receiver);
 
     // use defaults apart from
     buffer[37]=0x08;  //  phase word (not frequency)
+    buffer[38]=0x01;  //  enable hardware timer
     //buffer[58]=pa;  // enable PA 0x01
     buffer[58]=0x01;  // enable PA 0x01
-    if((filter_board==APOLLO) && tune) {
+    //if((filter_board==APOLLO) && tune) {
+    if(filter_board==APOLLO) {
         buffer[58]|=0x02;
     }
 

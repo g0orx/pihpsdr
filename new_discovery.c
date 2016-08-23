@@ -249,7 +249,8 @@ void* new_discover_receive_thread(void* arg) {
                     memcpy((void*)&discovered[devices].info.network.interface_netmask,(void*)&interface_netmask,sizeof(interface_netmask));
                     discovered[devices].info.network.interface_length=sizeof(interface_addr);
                     strcpy(discovered[devices].info.network.interface_name,interface_name);
-                    fprintf(stderr,"new_discover: found protocol=%d device=%d software_version=%d status=%d address=%s (%02X:%02X:%02X:%02X:%02X:%02X) on %s\n", 
+                    fprintf(stderr,"new_discover: found %d protocol=%d device=%d software_version=%d status=%d address=%s (%02X:%02X:%02X:%02X:%02X:%02X) on %s\n", 
+                            devices,
                             discovered[devices].protocol,
                             discovered[devices].device,
                             discovered[devices].software_version,
