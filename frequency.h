@@ -24,9 +24,8 @@
 * 
 */
 
-//
-// frequency.h
-//
+#ifndef _FREQUENCY_H
+#define _FREQUENCY_H
 
 /* --------------------------------------------------------------------------*/
 /** 
@@ -44,3 +43,5 @@ struct frequency_info {
 char* getFrequencyInfo(long long frequency);
 int getBand(long long frequency);
 int canTransmit();
+
+#endif

@@ -18,8 +18,13 @@
 */
 
 
+#ifndef _SPLASH_H
+#define _SPLASH_H
+
 extern GtkWidget* splash_window;
 
 void splash_close(void);
 void splash_show(char *image_name,int time,int width,int height);
 void splash_status(char *text);
+
+#endif

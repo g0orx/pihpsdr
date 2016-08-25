@@ -17,6 +17,9 @@
 *
 */
 
+#ifndef _ALEX_H
+#define _ALEX_H
+
 #define ALEX_RX_ANTENNA_NONE   0x00000000
 #define ALEX_RX_ANTENNA_XVTR   0x00000900
 #define ALEX_RX_ANTENNA_EXT1   0x00000A00
@@ -48,3 +51,5 @@
 #define ALEX_BYPASS_HPF        0x00000800
 
 #define ALEX_6M_PREAMP         0x00000008
+
+#endif

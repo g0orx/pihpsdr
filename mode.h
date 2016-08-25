@@ -17,6 +17,9 @@
 *
 */
 
+#ifndef _MODE_H
+#define _MODE_H
+
 #define modeLSB 0
 #define modeUSB 1
 #define modeDSB 2
@@ -51,3 +54,4 @@ int mode;
 
 char *mode_string[MODES];
 
+#endif

@@ -17,6 +17,9 @@
 *
 */
 
+#ifndef _SLIDERS_H
+#define _SLIDERS_H
+
 void set_agc_gain(double value);
 void set_af_gain(double value);
 void set_mic_gain(double value);
@@ -24,3 +27,5 @@ void set_drive(double drive);
 void set_tune(double tune);
 void set_attenuation_value(double attenuation);
 GtkWidget *sliders_init(int my_width, int my_height, GtkWidget* parent);
+
+#endif

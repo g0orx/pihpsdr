@@ -166,16 +166,21 @@ gint update(gpointer data) {
         DISCOVERED *d=&discovered[selected_device];
 
         double constant1=3.3;
-        double constant2=0.09;
+        double constant2=0.095;
 
         if(d->protocol==ORIGINAL_PROTOCOL) {
             switch(d->device) {
                 case DEVICE_METIS:
+                    constant1=3.3;
+                    constant2=0.09;
                     break;
                 case DEVICE_HERMES:
-                    //constant2=0.095; HERMES 2
+                    constant1=3.3;
+                    constant2=0.095;
                     break;
                 case DEVICE_ANGELIA:
+                    constant1=3.3;
+                    constant2=0.095;
                     break;
                 case DEVICE_ORION:
                     constant1=5.0;
@@ -256,9 +261,11 @@ gint update(gpointer data) {
             }
         }
 
-//fprintf(stderr,"drive=%d tune_drive=%d alex_forward_power=%d alex_reverse_power=%d exciter_power=%d fwd=%f rev=%f exciter=%f\n",
-//               drive, tune_drive, alex_forward_power, alex_reverse_power, exciter_power, fwd, rev, exciter);
+/*
+fprintf(stderr,"alex_forward_power=%d alex_reverse_power=%d exciter_power=%d fwd=%f rev=%f exciter=%f\n",
+               alex_forward_power, alex_reverse_power, exciter_power, fwd, rev, exciter);
         meter_update(POWER,fwd,rev,exciter,alc);
+*/
     }
 
     return TRUE;

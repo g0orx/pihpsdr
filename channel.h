@@ -17,6 +17,9 @@
 *
 */
 
+#ifndef _CHANNEL_H
+#define _CHANNEL_H
+
 #define CHANNEL_RX0 0
 #define CHANNEL_RX1 1
 #define CHANNEL_RX2 2
@@ -30,5 +33,7 @@
 #define CHANNEL_SUBRX 10
 #ifdef PSK
 #define CHANNEL_PSK 11
+#endif
+
 #endif
 

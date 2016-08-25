@@ -17,6 +17,9 @@
 *
 */
 
+#ifndef _AUDIO_H
+#define _AUDIO_H
+
 extern int audio;
 extern int audio_buffer_size;
 
@@ -26,3 +29,5 @@ void audio_write(short left_sample,short right_sample);
 /*
 void audio_write(double *buffer,int samples);
 */
+
+#endif

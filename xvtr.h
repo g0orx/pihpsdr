@@ -17,6 +17,9 @@
 *
 */
 
+#ifndef _XVTR_H
+#define _XVTR_H
+
 /* --------------------------------------------------------------------------*/
 /**
 * @brief XVTR definition
@@ -47,3 +50,4 @@ struct _XVTR_ENTRY {
 
 typedef struct _XVTR_ENTRY XVTR_ENTRY;
 
+#endif

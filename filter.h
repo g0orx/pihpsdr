@@ -17,6 +17,9 @@
 *
 */
 
+#ifndef _FILTER_H
+#define _FILTER_H
+
 #include "mode.h"
 
 // disable Var1 and Var2 (change to 12 to enable)
@@ -61,3 +64,4 @@ int filterVar2High;
 
 FILTER *filters[MODES];
 
+#endif

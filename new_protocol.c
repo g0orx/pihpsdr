@@ -149,7 +149,7 @@ static int psk_samples=0;
 static int psk_resample=6;  // convert from 48000 to 8000
 #endif
 
-static void new_protocol_high_priority(int run,int tx,double drive);
+static void new_protocol_high_priority(int run);
 static void* new_protocol_thread(void* arg);
 static void* new_protocol_timer_thread(void* arg);
 static void  process_iq_data(unsigned char *buffer);
@@ -242,11 +242,11 @@ void new_protocol_init(int rx,int pixels) {
 }
 
 void new_protocol_new_sample_rate(int rate) {
-  new_protocol_high_priority(0,0,0);
+  new_protocol_high_priority(0);
   sample_rate=rate;
   new_protocol_calc_buffers();
   wdsp_new_sample_rate(rate);
-  new_protocol_high_priority(1,0,drive);
+  new_protocol_high_priority(1);
 }
 
 static void new_protocol_general() {
@@ -264,11 +264,11 @@ fprintf(stderr,"new_protocol_general: receiver=%d\n", receiver);
     // use defaults apart from
     buffer[37]=0x08;  //  phase word (not frequency)
     buffer[38]=0x01;  //  enable hardware timer
-    //buffer[58]=pa;  // enable PA 0x01
+
     buffer[58]=0x01;  // enable PA 0x01
-    //if((filter_board==APOLLO) && tune) {
+
     if(filter_board==APOLLO) {
-        buffer[58]|=0x02;
+        buffer[58]|=0x02; // enable APOLLO tuner
     }
 
     if(filter_board==ALEX) {
@@ -283,11 +283,11 @@ fprintf(stderr,"new_protocol_general: receiver=%d\n", receiver);
     general_sequence++;
 }
 
-static void new_protocol_high_priority(int run,int tx,double drive) {
+static void new_protocol_high_priority(int run) {
     unsigned char buffer[1444];
     BAND *band=band_get_current_band();
 
-//fprintf(stderr,"new_protocol_high_priority: run=%d tx=%d drive=%f\n", run, tx, drive);
+fprintf(stderr,"new_protocol_high_priority: run=%d\n", run);
     memset(buffer, 0, sizeof(buffer));
 
     buffer[0]=high_priority_sequence>>24;
@@ -295,7 +295,16 @@ static void new_protocol_high_priority(int run,int tx,double drive) {
     buffer[2]=high_priority_sequence>>8;
     buffer[3]=high_priority_sequence;
 
-    buffer[4]=run|(tx<<1);
+    buffer[4]=run;
+    if(mode==modeCWU || mode==modeCWL) {
+      if(tune) {
+        buffer[4]|=0x02;
+      }
+    } else {
+      if(isTransmitting()) {
+        buffer[4]|=0x02;
+      }
+    }
 
     long rxFrequency=ddsFrequency;
     if(mode==modeCWU) {
@@ -320,11 +329,15 @@ static void new_protocol_high_priority(int run,int tx,double drive) {
     buffer[331]=phase>>8;
     buffer[332]=phase;
 
-
-    double d=drive*((double)band->pa_calibration/100.0);
+    double d=drive;
+    if(tune) {
+      d=tune_drive;
+    }
+    d=d*((double)band->pa_calibration/100.0);
     int power=(int)(d*255.0);
     buffer[345]=power&0xFF;
 
+fprintf(stderr,"power=%d\n",power);
 
     if(isTransmitting()) {
       buffer[1401]=band->OCtx;
@@ -461,16 +474,10 @@ else LPF <= 7'b0001000;             // < 2.4MHz so use 160m LPF^M
 
     //filters|=alex_attenuation;
 
-    if(tx) {
+    //if(isTransmitting() || mode==modeCWU || mode==modeCWL) {
+    if(isTransmitting()) {
         filters|=0x08000000;
     }
-
-/*
-    buffer[1420]=filters>>24;
-    buffer[1421]=filters>>16;
-    buffer[1422]=filters>>8;
-    buffer[1423]=filters;
-*/
 
     buffer[1432]=filters>>24;
     buffer[1433]=filters>>16;
@@ -503,7 +510,7 @@ static void new_protocol_transmit_specific() {
 
     buffer[4]=1; // 1 DAC
     buffer[5]=0; //  default no CW
-    if(cw_keyer_internal) {
+    if(cw_keyer_internal && (mode==modeCWU || mode==modeCWL)) {
         buffer[5]|=0x02;
     }
     if(cw_keys_reversed) {
@@ -548,7 +555,6 @@ static void new_protocol_transmit_specific() {
       buffer[50]|=0x08;
     }
     buffer[51]=0x7F; // Line in gain
-
 
     if(sendto(data_socket,buffer,sizeof(buffer),0,(struct sockaddr*)&transmitter_addr,transmitter_addr_length)<0) {
         fprintf(stderr,"sendto socket failed for tx specific\n");
@@ -616,7 +622,7 @@ static void new_protocol_start() {
 }
 
 void new_protocol_stop() {
-    new_protocol_high_priority(0,0,0);
+    new_protocol_high_priority(0);
     running=0;
     sleep(1);
 }
@@ -694,7 +700,7 @@ fprintf(stderr,"outputsamples=%d\n", outputsamples);
 
     new_protocol_general();
     new_protocol_start();
-    new_protocol_high_priority(1,0,drive);
+    new_protocol_high_priority(1);
 
     while(running) {
         bytesread=recvfrom(data_socket,buffer,sizeof(buffer),0,(struct sockaddr*)&addr,&length);
@@ -734,7 +740,7 @@ fprintf(stderr,"outputsamples=%d\n", outputsamples);
 
            sem_wait(&send_high_priority_sem);
            if(send_high_priority==1) {
-               new_protocol_high_priority(1,isTransmitting(),tune==0?drive:tune_drive);
+               new_protocol_high_priority(1);
                send_high_priority=0;
            }
            sem_post(&send_high_priority_sem);
@@ -764,7 +770,7 @@ static void process_iq_data(unsigned char *buffer) {
 
 //fprintf(stderr,"samples per frame %d\n",samplesperframe);
 
-    if(!isTransmitting()) {
+    //if(!isTransmitting()) {
         b=16;
         int i;
         for(i=0;i<samplesperframe;i++) {
@@ -787,7 +793,7 @@ static void process_iq_data(unsigned char *buffer) {
                 samples=0;
             }
        }
-   }
+  //}
 }
 
 static void process_command_response(unsigned char *buffer) {
@@ -823,6 +829,8 @@ if(dash!=previous_dash) {
   fprintf(stderr,"dash=%d\n",dash);
 }
     pll_locked=(buffer[4]>>3)&0x01;
+
+
     adc_overload=buffer[5]&0x01;
     exciter_power=((buffer[6]&0xFF)<<8)|(buffer[7]&0xFF);
     alex_forward_power=((buffer[14]&0xFF)<<8)|(buffer[15]&0xFF);
@@ -830,8 +838,6 @@ if(dash!=previous_dash) {
     supply_volts=((buffer[49]&0xFF)<<8)|(buffer[50]&0xFF);
 
     if(previous_ptt!=ptt) {
-        //send_high_priority=1;
-        previous_ptt=ptt;
         g_idle_add(ptt_update,(gpointer)ptt);
     }
 
@@ -905,41 +911,47 @@ static void process_freedv_rx_buffer() {
   int j;
   int demod_samples;
   for(j=0;j<outputsamples;j++) {
-    leftaudiosample=(short)(audiooutputbuffer[j*2]*32767.0*volume);
-    rightaudiosample=(short)(audiooutputbuffer[(j*2)+1]*32767.0*volume);
-    demod_samples=demod_sample_freedv(leftaudiosample);
-    if(demod_samples!=0) {
-      int s;
-      int t;
-      for(s=0;s<demod_samples;s++) {
-        if(freedv_sync) {
-          leftaudiosample=rightaudiosample=(short)((double)speech_out[s]*volume);
-        } else {
-          leftaudiosample=rightaudiosample=0;
-        }
-        for(t=0;t<6;t++) { // 8k to 48k
-          if(local_audio) {
-            audio_write(leftaudiosample,rightaudiosample);
+    if(freedv_samples==0) {
+      leftaudiosample=(short)(audiooutputbuffer[j*2]*32767.0*volume);
+      rightaudiosample=(short)(audiooutputbuffer[(j*2)+1]*32767.0*volume);
+      demod_samples=demod_sample_freedv(leftaudiosample);
+      if(demod_samples!=0) {
+        int s;
+        int t;
+        for(s=0;s<demod_samples;s++) {
+          if(freedv_sync) {
+            leftaudiosample=rightaudiosample=(short)((double)speech_out[s]*volume);
+          } else {
+            leftaudiosample=rightaudiosample=0;
           }
-          audiobuffer[audioindex++]=leftaudiosample>>8;
-          audiobuffer[audioindex++]=leftaudiosample;
-          audiobuffer[audioindex++]=rightaudiosample>>8;
-          audiobuffer[audioindex++]=rightaudiosample;
-          if(audioindex>=sizeof(audiobuffer)) {
-            // insert the sequence
-            audiobuffer[0]=audiosequence>>24;
-            audiobuffer[1]=audiosequence>>16;
-            audiobuffer[2]=audiosequence>>8;
-            audiobuffer[3]=audiosequence;
-            // send the buffer
-            if(sendto(data_socket,audiobuffer,sizeof(audiobuffer),0,(struct sockaddr*)&audio_addr,audio_addr_length)<0) {
-              fprintf(stderr,"sendto socket failed for audio\n");
-              exit(1);
+          for(t=0;t<6;t++) { // 8k to 48k
+            if(local_audio) {
+                audio_write(leftaudiosample,rightaudiosample);
             }
-            audioindex=4;
-            audiosequence++;
+            audiobuffer[audioindex++]=leftaudiosample>>8;
+            audiobuffer[audioindex++]=leftaudiosample;
+            audiobuffer[audioindex++]=rightaudiosample>>8;
+            audiobuffer[audioindex++]=rightaudiosample;
+            if(audioindex>=sizeof(audiobuffer)) {
+                // insert the sequence
+              audiobuffer[0]=audiosequence>>24;
+              audiobuffer[1]=audiosequence>>16;
+              audiobuffer[2]=audiosequence>>8;
+              audiobuffer[3]=audiosequence;
+              // send the buffer
+              if(sendto(data_socket,audiobuffer,sizeof(audiobuffer),0,(struct sockaddr*)&audio_addr,audio_addr_length)<0) {
+                fprintf(stderr,"sendto socket failed for audio\n");
+                exit(1);
+              }
+              audioindex=4;
+              audiosequence++;
+            }
           }
         }
+      }
+      freedv_samples++;
+      if(freedv_samples==freedv_resample) {
+        freedv_samples=0;
       }
     }
   }
@@ -994,21 +1006,26 @@ static void full_rx_buffer() {
   int error;
 
   fexchange0(CHANNEL_RX0, iqinputbuffer, audiooutputbuffer, &error);
+  switch(mode) {
 #ifdef PSK
-  if(mode!=modePSK) {
+    case modePSK:
+      break;
 #endif
-    Spectrum0(1, CHANNEL_RX0, 0, 0, iqinputbuffer);
-#ifdef PSK
+    default:
+      Spectrum0(1, CHANNEL_RX0, 0, 0, iqinputbuffer);
+      break;
   }
-#endif
 
+  switch(mode) {
 #ifdef FREEDV
-  if(mode==modeFREEDV) {
-    process_freedv_rx_buffer();
-    return;
-  }
+    case modeFREEDV:
+      process_freedv_rx_buffer();
+      break;
 #endif
-  process_rx_buffer();
+    default:
+      process_rx_buffer();
+      break;
+  }
 }
 
 static void full_tx_buffer() {

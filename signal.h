@@ -17,5 +17,10 @@
 *
 */
 
+#ifndef _SIGNAL_H
+#define _SIGNAL_H
+
 double sineWave(double* buf, int samples, double sinphase, double freq);
 double cosineWave(double* buf, int samples, double cosphase, double freq);
+
+#endif

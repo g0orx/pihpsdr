@@ -17,6 +17,9 @@
 *
 */
 
+#ifndef _GPIO_H
+#define _GPIO_H
+
 extern int ENABLE_VFO_ENCODER;
 extern int ENABLE_VFO_PULLUP;
 extern int VFO_ENCODER_A;
@@ -67,3 +70,5 @@ int mode_get_state();
 int filter_get_state();
 int noise_get_state();
 int mox_get_state();
+
+#endif

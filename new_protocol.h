@@ -17,6 +17,8 @@
 *
 */
 
+#ifndef _NEW_PROTOCOL_H
+#define _NEW_PROTOCOL_H
 
 // port definitions from host
 #define GENERAL_REGISTERS_FROM_HOST_PORT 1024
@@ -70,3 +72,4 @@ void setTune(int state);
 int getTune();
 int isTransmitting();
 
+#endif

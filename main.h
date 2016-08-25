@@ -17,6 +17,9 @@
 *
 */
 
+#ifndef _MAIN_H
+#define _MAIN_H
+
 #include <sys/utsname.h>
 extern struct utsname unameData;
 void reconfigure_display();
@@ -25,3 +28,4 @@ void show_psk();
 void show_waterfall();
 #endif
 
+#endif

@@ -67,6 +67,17 @@ static GtkWidget *last_filter;
 static GdkRGBA white;
 static GdkRGBA gray;
 
+static void set_button_text_color(GtkWidget *widget,char *color) {
+  GtkStyleContext *style_context;
+  GtkCssProvider *provider = gtk_css_provider_new ();
+  gchar tmp[64];
+  style_context = gtk_widget_get_style_context(widget);
+  gtk_style_context_add_provider(style_context, GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+  g_snprintf(tmp, sizeof tmp, "GtkButton, GtkLabel { color: %s; }", color);
+  gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(provider), tmp, -1, NULL);
+  g_object_unref (provider);
+}
+
 void update_toolbar_labels() {
   if(toolbar_dialog_buttons) {
       gtk_button_set_label(GTK_BUTTON(sim_band),"Band");
@@ -115,9 +126,9 @@ static void band_select_cb(GtkWidget *widget, gpointer data) {
   } else {
     BAND* band=band_set_current(b);
     entry=bandstack_entry_get_current();
-    gtk_widget_override_background_color(last_band, GTK_STATE_NORMAL, &white);
+    set_button_text_color(last_band,"black");
     last_band=widget;
-    gtk_widget_override_background_color(last_band, GTK_STATE_NORMAL, &gray);
+    set_button_text_color(last_band,"orange");
   }
   setMode(entry->mode);
   FILTER* band_filters=filters[entry->mode];
@@ -162,10 +173,10 @@ void band_cb(GtkWidget *widget, gpointer data) {
 #endif
       BAND* band=band_get_band(i);
       GtkWidget *b=gtk_button_new_with_label(band->title);
-      gtk_widget_override_background_color(b, GTK_STATE_NORMAL, &white);
+      set_button_text_color(b,"black");
       //gtk_widget_override_font(b, pango_font_description_from_string("Arial 20"));
       if(i==band_get_current()) {
-        gtk_widget_override_background_color(b, GTK_STATE_NORMAL, &gray);
+        set_button_text_color(b,"orange");
         last_band=b;
       }
       gtk_widget_show(b);
@@ -198,9 +209,9 @@ static void bandstack_select_cb(GtkWidget *widget, gpointer data) {
 
   bandstack->current_entry=b;
 
-  gtk_widget_override_background_color(last_bandstack, GTK_STATE_NORMAL, &white);
+  set_button_text_color(last_bandstack,"black");
   last_bandstack=widget;
-  gtk_widget_override_background_color(last_bandstack, GTK_STATE_NORMAL, &gray);
+  set_button_text_color(last_bandstack,"orange");
 
   BANDSTACK_ENTRY *entry;
   entry=&(bandstack->entry[b]);
@@ -247,10 +258,10 @@ void bandstack_cb(GtkWidget *widget, gpointer data) {
       BANDSTACK_ENTRY *entry=&bandstack->entry[i];
       sprintf(label,"%lld %s",entry->frequencyA,mode_string[entry->mode]);
       GtkWidget *b=gtk_button_new_with_label(label);
-      gtk_widget_override_background_color(b, GTK_STATE_NORMAL, &white);
+      set_button_text_color(b,"black");
       //gtk_widget_override_font(b, pango_font_description_from_string("Arial 20"));
       if(i==bandstack->current_entry) {
-        gtk_widget_override_background_color(b, GTK_STATE_NORMAL, &gray);
+        set_button_text_color(b,"orange");
         last_bandstack=b;
       }
       gtk_widget_show(b);
@@ -293,9 +304,9 @@ static void mode_select_cb(GtkWidget *widget, gpointer data) {
   FILTER* band_filters=filters[entry->mode];
   FILTER* band_filter=&band_filters[entry->filter];
   setFilter(band_filter->low,band_filter->high);
-  gtk_widget_override_background_color(last_mode, GTK_STATE_NORMAL, &white);
+  set_button_text_color(last_mode,"black");
   last_mode=widget;
-  gtk_widget_override_background_color(last_mode, GTK_STATE_NORMAL, &gray);
+  set_button_text_color(last_mode,"orange");
   vfo_update(NULL);
 }
 
@@ -321,10 +332,10 @@ void mode_cb(GtkWidget *widget, gpointer data) {
     for(i=0;i<MODES;i++) {
       GtkWidget *b=gtk_button_new_with_label(mode_string[i]);
       if(i==entry->mode) {
-        gtk_widget_override_background_color(b, GTK_STATE_NORMAL, &gray);
+        set_button_text_color(b,"orange");
         last_mode=b;
       } else {
-        gtk_widget_override_background_color(b, GTK_STATE_NORMAL, &white);
+        set_button_text_color(b,"black");
       }
       //gtk_widget_override_font(b, pango_font_description_from_string("Arial 20"));
       gtk_widget_show(b);
@@ -357,9 +368,9 @@ static void filter_select_cb(GtkWidget *widget, gpointer data) {
   FILTER* band_filters=filters[entry->mode];
   FILTER* band_filter=&band_filters[entry->filter];
   setFilter(band_filter->low,band_filter->high);
-  gtk_widget_override_background_color(last_filter, GTK_STATE_NORMAL, &white);
+  set_button_text_color(last_filter,"black");
   last_filter=widget;
-  gtk_widget_override_background_color(last_filter, GTK_STATE_NORMAL, &gray);
+  set_button_text_color(last_filter,"orange");
   vfo_update(NULL);
 }
 
@@ -388,10 +399,10 @@ void filter_cb(GtkWidget *widget, gpointer data) {
       GtkWidget *b=gtk_button_new_with_label(band_filters[i].title);
       //gtk_widget_override_font(b, pango_font_description_from_string("Arial 20"));
       if(i==entry->filter) {
-        gtk_widget_override_background_color(b, GTK_STATE_NORMAL, &gray);
+        set_button_text_color(b,"orange");
         last_filter=b;
       } else {
-        gtk_widget_override_background_color(b, GTK_STATE_NORMAL, &white);
+        set_button_text_color(b,"black");
       }
       gtk_widget_show(b);
       gtk_grid_attach(GTK_GRID(grid),b,i%5,i/5,1,1);
@@ -997,7 +1008,7 @@ fprintf(stderr,"mox_cb: mox now %d\n",mox);
 
 int ptt_update(void *data) {
 fprintf(stderr,"ptt_update\n");
-  if(mode!=modeCWU && mode!=modeCWL) {
+  if(protocol==NEW_PROTOCOL || (mode!=modeCWU && mode!=modeCWL)) {
     mox_cb(NULL,NULL);
   }
 fprintf(stderr,"ptt_update: mox=%d ptt=%d tune=%d\n",mox,ptt,tune);

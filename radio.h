@@ -17,6 +17,10 @@
 *
 */
 
+#ifndef _RADIO_H
+#define _RADIO_H
+
+#include "discovered.h"
 
 #define NEW_MIC_IN 0x00
 #define NEW_LINE_IN 0x01
@@ -236,3 +240,5 @@ extern void radioRestoreState();
 extern void radioSaveState();
 
 extern void calculate_display_average();
+
+#endif

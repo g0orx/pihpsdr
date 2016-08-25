@@ -18,4 +18,9 @@
 */
 
 
+#ifndef _MENU_H
+#define _MENU_H
+
 GtkWidget* menu_init(int width,int height,GtkWidget *parent);
+
+#endif

@@ -17,6 +17,9 @@
 *
 */
 
+#ifndef _TOOLBAR_H
+#define _TOOLBAR_H
+
 extern int function;
 
 void update_toolbar_labels();
@@ -34,3 +37,5 @@ void sim_agc_cb(GtkWidget *widget, gpointer data);
 void sim_function_cb(GtkWidget *widget, gpointer data);
 
 GtkWidget *toolbar_init(int my_width, int my_height, GtkWidget* parent);
+
+#endif

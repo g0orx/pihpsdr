@@ -17,6 +17,9 @@
 *
 */
 
+#ifndef _METER_H
+#define _METER_H
+
 #define SMETER 0
 #define POWER 1
 #ifdef PSK
@@ -26,3 +29,5 @@
 
 GtkWidget* meter_init(int width,int height,GtkWidget *parent);
 void meter_update(int meter_type,double value,double reverse,double exciter,double alc);
+
+#endif

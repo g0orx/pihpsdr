@@ -17,6 +17,9 @@
 *
 */
 
+#ifndef _WDSP_INIT_H
+#define _WDSP_INIT_H
+
 extern void wdsp_set_input_rate(double rate);
 extern void wdsp_set_offset(long long offset);
 extern void setMode(int m);
@@ -27,3 +30,5 @@ extern int getFilterHigh();
 extern void wdsp_init(int rx,int pixels,int protocol);
 extern void wdsp_new_sample_rate(int rate);
 extern void wdsp_set_agc(int rx, int agc);
+
+#endif

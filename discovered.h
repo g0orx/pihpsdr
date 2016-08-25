@@ -17,6 +17,9 @@
 *
 */
 
+#ifndef _DISCOVERED_H
+#define _DISCOVERED_H
+
 #include <netinet/in.h>
 #ifdef LIMESDR
 #include <SoapySDR/Device.h>
@@ -82,3 +85,4 @@ extern int selected_device;
 extern int devices;
 extern DISCOVERED discovered[MAX_DEVICES];
 
+#endif
