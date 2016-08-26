@@ -101,9 +101,9 @@ GtkWidget *init_psk() {
   gtk_label_set_width_chars (GTK_LABEL(psk_label), 80);
   gtk_label_set_lines (GTK_LABEL(psk_label), TEXT_LINES);
   gtk_label_set_line_wrap (GTK_LABEL(psk_label), TRUE);
-  //gtk_misc_set_alignment (GTK_MISC(psk_label), 0, 0);
-  gtk_widget_set_halign(psk_label,GTK_ALIGN_START);
-  gtk_widget_set_valign(psk_label,GTK_ALIGN_START);
+  gtk_misc_set_alignment (GTK_MISC(psk_label), 0, 0);
+  //gtk_widget_set_halign(psk_label,GTK_ALIGN_START);
+  //gtk_widget_set_valign(psk_label,GTK_ALIGN_START);
   
   return psk_label;
 }

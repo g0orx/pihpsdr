@@ -264,8 +264,8 @@ gint update(gpointer data) {
 /*
 fprintf(stderr,"alex_forward_power=%d alex_reverse_power=%d exciter_power=%d fwd=%f rev=%f exciter=%f\n",
                alex_forward_power, alex_reverse_power, exciter_power, fwd, rev, exciter);
-        meter_update(POWER,fwd,rev,exciter,alc);
 */
+        meter_update(POWER,fwd,rev,exciter,alc);
     }
 
     return TRUE;
