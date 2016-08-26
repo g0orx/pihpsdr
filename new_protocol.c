@@ -369,6 +369,11 @@ else                                               HPF <= 6'b000010;    // 20MHz
 
 
     long filters=0x00000000;
+
+    if(isTransmitting()) {
+      filters=0x08000000;
+    }
+
 // set HPF
     if(ddsFrequency<1800000L) {
         filters|=ALEX_BYPASS_HPF;
@@ -419,15 +424,17 @@ else LPF <= 7'b0001000;             // < 2.4MHz so use 160m LPF^M
         case 2:  // ANT 3
           break;
         case 3:  // EXT 1
-          //filters|=ALEX_RX_ANTENNA_EXT1;
           filters|=ALEX_RX_ANTENNA_EXT2;
           break;
         case 4:  // EXT 2
-          //filters|=ALEX_RX_ANTENNA_EXT2;
           filters|=ALEX_RX_ANTENNA_EXT1;
           break;
         case 5:  // XVTR
           filters|=ALEX_RX_ANTENNA_XVTR;
+          break;
+        default:
+          // invalid value - set to 0
+          band->alexRxAntenna=0;
           break;
     }
 
@@ -442,6 +449,12 @@ else LPF <= 7'b0001000;             // < 2.4MHz so use 160m LPF^M
         case 2:  // ANT 3
           filters|=ALEX_TX_ANTENNA_3;
           break;
+        default:
+          // invalid value - set to 0
+          filters|=ALEX_TX_ANTENNA_1;
+          band->alexRxAntenna=0;
+          break;
+         
       }
     } else {
       switch(band->alexRxAntenna) {
@@ -472,17 +485,10 @@ else LPF <= 7'b0001000;             // < 2.4MHz so use 160m LPF^M
       }
     }
 
-    //filters|=alex_attenuation;
-
-    //if(isTransmitting() || mode==modeCWU || mode==modeCWL) {
-    if(isTransmitting()) {
-        filters|=0x08000000;
-    }
-
-    buffer[1432]=filters>>24;
-    buffer[1433]=filters>>16;
-    buffer[1434]=filters>>8;
-    buffer[1435]=filters;
+    buffer[1432]=(filters>>24)&0xFF;
+    buffer[1433]=(filters>>16)&0xFF;
+    buffer[1434]=(filters>>8)&0xFF;
+    buffer[1435]=filters&0xFF;
 
     //buffer[1442]=attenuation;
     buffer[1443]=attenuation;
@@ -554,7 +560,10 @@ static void new_protocol_transmit_specific() {
     if(mic_ptt_tip_bias_ring) {
       buffer[50]|=0x08;
     }
-    buffer[51]=0x7F; // Line in gain
+
+    // 0..30
+    int g=(int)(30.0*mic_gain);
+    buffer[51]=g&0xFF; // Line in gain
 
     if(sendto(data_socket,buffer,sizeof(buffer),0,(struct sockaddr*)&transmitter_addr,transmitter_addr_length)<0) {
         fprintf(stderr,"sendto socket failed for tx specific\n");

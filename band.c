@@ -186,30 +186,30 @@ BANDSTACK bandstackGEN={3,1,bandstack_entriesGEN};
 BANDSTACK bandstackWWV={5,1,bandstack_entriesWWV};
 
 BAND bands[BANDS] = 
-    {{"160",&bandstack160,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
-     {"80",&bandstack80,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
-     {"60",&bandstack60,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
-     {"40",&bandstack40,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
-     {"30",&bandstack30,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
-     {"20",&bandstack20,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
-     {"18",&bandstack18,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
-     {"15",&bandstack15,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
-     {"12",&bandstack12,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
-     {"10",&bandstack10,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
-     {"50",&bandstack50,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
+    {{"160",&bandstack160,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
+     {"80",&bandstack80,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
+     {"60",&bandstack60,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
+     {"40",&bandstack40,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
+     {"30",&bandstack30,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
+     {"20",&bandstack20,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
+     {"18",&bandstack18,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
+     {"15",&bandstack15,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
+     {"12",&bandstack12,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
+     {"10",&bandstack10,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
+     {"50",&bandstack50,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
 #ifdef LIMESDR
-     {"70",&bandstack70,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
-     {"144",&bandstack144,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
-     {"220",&bandstack144,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
-     {"430",&bandstack430,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
-     {"902",&bandstack430,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
-     {"1240",&bandstack1240,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
-     {"2300",&bandstack2300,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
-     {"3400",&bandstack3400,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
-     {"AIR",&bandstackAIR,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,30},
+     {"70",&bandstack70,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
+     {"144",&bandstack144,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
+     {"220",&bandstack144,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
+     {"430",&bandstack430,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
+     {"902",&bandstack430,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
+     {"1240",&bandstack1240,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
+     {"2300",&bandstack2300,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
+     {"3400",&bandstack3400,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
+     {"AIR",&bandstackAIR,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
 #endif
-     {"GEN",&bandstackGEN,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,0},
-     {"WWV",&bandstackWWV,0,0,0,ALEX_RX_ANTENNA_NONE,ALEX_TX_ANTENNA_1,ALEX_ATTENUATION_0dB,0}};
+     {"GEN",&bandstackGEN,0,0,0,0,0,ALEX_ATTENUATION_0dB,0},
+     {"WWV",&bandstackWWV,0,0,0,0,0,ALEX_ATTENUATION_0dB,0}};
 
 #define NUM_BAND_LIMITS 22
 
@@ -419,6 +419,9 @@ void bandRestoreState() {
         sprintf(name,"band.%d.alexTxAntenna",b);
         value=getProperty(name);
         if(value) bands[b].alexTxAntenna=atoi(value);
+
+// fix bug so props file does not have to be deleted
+        if(bands[b].alexTxAntenna>2) bands[b].alexTxAntenna=0;
 
         sprintf(name,"band.%d.alexAttenuation",b);
         value=getProperty(name);

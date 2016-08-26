@@ -27,6 +27,7 @@
 #include "toolbar.h"
 #include "main.h"
 #include "property.h"
+#include "vfo.h"
 #include "wdsp.h"
 #ifdef PSK
 #include "psk.h"
@@ -82,6 +83,7 @@ static volatile int afFunction;
 static volatile int rfEncoderPos;
 static volatile int rfFunction;
 static volatile int agcEncoderPos;
+static volatile int agcFunction;
 static volatile int function_state;
 static volatile int band_state;
 static volatile int bandstack_state;
@@ -120,6 +122,12 @@ static int running=1;
 
 static void afFunctionAlert(int gpio, int level, uint32_t tick) {
     afFunction=(level==0);
+}
+
+static void agcFunctionAlert(int gpio, int level, uint32_t tick) {
+    if(level==0) {
+      agcFunction=agcFunction==0?1:0;
+    }
 }
 
 static void rfFunctionAlert(int gpio, int level, uint32_t tick) {
@@ -497,6 +505,11 @@ fprintf(stderr,"encoder_init\n");
     rfEncoderPos=0;
   }
 
+  gpioSetMode(AGC_FUNCTION, PI_INPUT);
+  gpioSetPullUpDown(AGC_FUNCTION,PI_PUD_UP);
+  gpioSetAlertFunc(AGC_FUNCTION, agcFunctionAlert);
+  agcFunction=0;
+
   if(ENABLE_AGC_ENCODER) {
     gpioSetMode(AGC_ENCODER_A, PI_INPUT);
     gpioSetMode(AGC_ENCODER_B, PI_INPUT);
@@ -664,6 +677,10 @@ int agc_encoder_get_pos() {
     return pos;
 }
 
+int agc_function_get_state() {
+    return agcFunction;
+}
+
 int rf_function_get_state() {
     return rfFunction;
 }
@@ -713,13 +730,6 @@ static int vfo_encoder_changed(void *data) {
 #ifdef PSK
       if(mode==modePSK) {
         psk_set_frequency(psk_get_frequency()-(pos*10));
-      } else {
-#endif
-        //RIT
-        rit-=pos;
-        if(rit>1000) rit=1000;
-        if(rit<-1000) rit=-1000;
-#ifdef PSK
       }
 #endif
     } else {
@@ -794,24 +804,31 @@ static int rf_encoder_changed(void *data) {
 static int agc_encoder_changed(void *data) {
   int pos=*(int*)data;
   if(pos!=0) {
-    if(function) {
-      int att=attenuation;
-      att+=pos;
-      if(att<0) {
-        att=0;
-      } else if (att>31) {
-        att=31;
-      }
-      set_attenuation_value((double)att);
+    if(agcFunction) {
+      rit-=pos;
+      if(rit>1000) rit=1000;
+      if(rit<-1000) rit=-1000;
+      vfo_update(NULL);
     } else {
-      double gain=agc_gain;
-      gain+=(double)pos;
-      if(gain<-20.0) {
-        gain=-20.0;
-      } else if(gain>120.0) {
-        gain=120.0;
+      if(function) {
+        int att=attenuation;
+        att+=pos;
+        if(att<0) {
+          att=0;
+        } else if (att>31) {
+          att=31;
+        }
+        set_attenuation_value((double)att);
+      } else {
+        double gain=agc_gain;
+        gain+=(double)pos;
+        if(gain<-20.0) {
+          gain=-20.0;
+        } else if(gain>120.0) {
+          gain=120.0;
+        }
+        set_agc_gain(gain);
       }
-      set_agc_gain(gain);
     }
   }
   return 0;

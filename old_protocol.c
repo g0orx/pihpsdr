@@ -767,24 +767,28 @@ void ozy_send_buffer() {
       }
 */
 
-       switch(band->alexRxAntenna) {
-         case 0:  // ANT 1
-           break;
-         case 1:  // ANT 2
-           break;
-         case 2:  // ANT 3
-           break;
-         case 3:  // EXT 1
-           //output_buffer[C3]|=0xA0;
-           output_buffer[C3]|=0xC0;
-           break;
-         case 4:  // EXT 2
-           //output_buffer[C3]|=0xC0;
-           output_buffer[C3]|=0xA0;
-           break;
-         case 5:  // XVTR
-           output_buffer[C3]|=0xE0;
-           break;
+      switch(band->alexRxAntenna) {
+        case 0:  // ANT 1
+          break;
+        case 1:  // ANT 2
+          break;
+        case 2:  // ANT 3
+          break;
+        case 3:  // EXT 1
+          //output_buffer[C3]|=0xA0;
+          output_buffer[C3]|=0xC0;
+          break;
+        case 4:  // EXT 2
+          //output_buffer[C3]|=0xC0;
+          output_buffer[C3]|=0xA0;
+          break;
+        case 5:  // XVTR
+          output_buffer[C3]|=0xE0;
+          break;
+        default:
+          // invalid - set to 0
+          band->alexRxAntenna=0;
+          break;
       }
 
 
@@ -800,6 +804,10 @@ void ozy_send_buffer() {
             break;
           case 2:  // ANT 3
             output_buffer[C4]|=0x02;
+            break;
+          default:
+            // invalid - set to 0
+            band->alexRxAntenna=0;
             break;
         }
       } else {

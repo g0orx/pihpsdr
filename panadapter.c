@@ -319,12 +319,12 @@ void panadapter_update(float *data,int tx) {
                 GetRXAAGCHangLevel(CHANNEL_RX0, &hang);
                 GetRXAAGCThresh(CHANNEL_RX0, &thresh, 4096.0, (double)sample_rate);
 
-                double knee_y=thresh+(double)get_attenuation()-20.0;
+                double knee_y=thresh+(double)get_attenuation();
                 knee_y = floor((panadapter_high - knee_y)
                         * (double) display_height
                         / (panadapter_high - panadapter_low));
 
-                double hang_y=hang+(double)get_attenuation()-20.0;
+                double hang_y=hang+(double)get_attenuation();
                 hang_y = floor((panadapter_high - hang_y)
                         * (double) display_height
                         / (panadapter_high - panadapter_low));
@@ -368,26 +368,26 @@ void panadapter_update(float *data,int tx) {
 
             if(tx && protocol==NEW_PROTOCOL) {
               int offset=1200;
-              s1=(double)samples[0+offset]+(double)get_attenuation()-20.0;
+              s1=(double)samples[0+offset]+(double)get_attenuation();
               s1 = floor((panadapter_high - s1)
                           * (double) display_height
                           / (panadapter_high - panadapter_low));
               cairo_move_to(cr, 0.0, s1);
               for(i=1;i<display_width;i++) {
-                  s2=(double)samples[i+offset]+(double)get_attenuation()-20.0;
+                  s2=(double)samples[i+offset]+(double)get_attenuation();
                   s2 = floor((panadapter_high - s2)
                               * (double) display_height
                               / (panadapter_high - panadapter_low));
                   cairo_line_to(cr, (double)i, s2);
               }
             } else {
-              s1=(double)samples[0]+(double)get_attenuation()-20.0;
+              s1=(double)samples[0]+(double)get_attenuation();
               s1 = floor((panadapter_high - s1)
                           * (double) display_height
                           / (panadapter_high - panadapter_low));
               cairo_move_to(cr, 0.0, s1);
               for(i=1;i<display_width;i++) {
-                  s2=(double)samples[i]+(double)get_attenuation()-20.0;
+                  s2=(double)samples[i]+(double)get_attenuation();
                   s2 = floor((panadapter_high - s2)
                               * (double) display_height
                               / (panadapter_high - panadapter_low));

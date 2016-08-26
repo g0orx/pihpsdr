@@ -212,7 +212,7 @@ fprintf(stderr,"set_mic_gain: %f\n",mic_gain);
     }
     if(scale_status==NONE) {
       scale_status=MIC_GAIN;
-      scale_dialog=gtk_dialog_new_with_buttons("Mic Gain",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
+      scale_dialog=gtk_dialog_new_with_buttons(mic_linein?"Linein Gain":"Mic Gain",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
       GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
       mic_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.00);
       gtk_widget_set_size_request (mic_gain_scale, 400, 30);
@@ -350,7 +350,7 @@ GtkWidget *sliders_init(int my_width, int my_height, GtkWidget* parent) {
 
 
 
-  mic_gain_label=gtk_label_new("Mic:");
+  mic_gain_label=gtk_label_new(mic_linein?"Linein:":"Mic:");
   //gtk_widget_override_font(mic_gain_label, pango_font_description_from_string("Arial 16"));
   gtk_widget_show(mic_gain_label);
   gtk_grid_attach(GTK_GRID(sliders),mic_gain_label,0,1,1,1);
