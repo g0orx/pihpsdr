@@ -152,12 +152,18 @@ gint update(gpointer data) {
     }
 
     if(!isTransmitting()) {
-        if(mode==modePSK) {
-          double m=(double)psk_get_signal_level();
-          meter_update(PSKMETER,m,0.0,0.0,0.0);
-        } else {
-          double m=GetRXAMeter(CHANNEL_RX0, smeter);
-          meter_update(SMETER,m,0.0,0.0,0.0);
+        double m;
+        switch(mode) {
+#ifdef PSK
+            case modePSK:
+                m=(double)psk_get_signal_level();
+                meter_update(PSKMETER,m,0.0,0.0,0.0);
+                break;
+#endif
+            default:
+                m=GetRXAMeter(CHANNEL_RX0, smeter);
+                meter_update(SMETER,m,0.0,0.0,0.0);
+                break;
         }
     } else {
 
