@@ -726,17 +726,9 @@ static int vfo_encoder_changed(void *data) {
   if(!locked) {
     int pos=*(int*)data;
 
-    if(function) {
-#ifdef PSK
-      if(mode==modePSK) {
-        psk_set_frequency(psk_get_frequency()-(pos*10));
-      }
-#endif
-    } else {
-      // VFO
-      BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
-      setFrequency(entry->frequencyA+ddsOffset+(pos*step));
-    }
+    // VFO
+    BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
+    setFrequency(entry->frequencyA+ddsOffset+(pos*step));
     vfo_update(NULL);
   }
   free(data);

@@ -49,7 +49,7 @@ static GtkWidget *sliders;
 #define AGC_GAIN 3
 #define DRIVE 4
 #define TUNE_DRIVE 5
-#define ATTENUATION 5
+#define ATTENUATION 6
 
 //#define MIC_GAIN_FUDGE 25.0
 
@@ -74,7 +74,6 @@ static GdkRGBA white;
 static GdkRGBA gray;
 
 int scale_timeout_cb(gpointer data) {
-fprintf(stderr,"scale_timeout_cb\n");
   gtk_widget_destroy(scale_dialog);
   scale_status=NONE;
   return FALSE;
@@ -194,12 +193,10 @@ void set_af_gain(double value) {
 
 static void micgain_value_changed_cb(GtkWidget *widget, gpointer data) {
     mic_gain=gtk_range_get_value(GTK_RANGE(widget))/100.0;
-fprintf(stderr,"micgain_value_changed: %f\n",mic_gain);
 }
 
 void set_mic_gain(double value) {
   mic_gain=value;
-fprintf(stderr,"set_mic_gain: %f\n",mic_gain);
   if(display_sliders) {
     gtk_range_set_value (GTK_RANGE(mic_gain_scale),mic_gain*100.0);
   } else {

@@ -58,6 +58,7 @@ static gint mode[BANDS];
 static gint band=4;
 
 static int display_width;
+static int display_height;
 
 /* Create a new surface of the appropriate size to store our scribbles */
 static gboolean
@@ -65,13 +66,13 @@ waterfall_configure_event_cb (GtkWidget         *widget,
             GdkEventConfigure *event,
             gpointer           data)
 {
-  int width=gtk_widget_get_allocated_width (widget);
-  int height=gtk_widget_get_allocated_height (widget);
-  pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, FALSE, 8, width, height);
+  display_width=gtk_widget_get_allocated_width (widget);
+  display_height=gtk_widget_get_allocated_height (widget);
+  pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, FALSE, 8, display_width, display_height);
 
   char *pixels = gdk_pixbuf_get_pixels (pixbuf);
 
-  memset(pixels, 0, width*height*3);
+  memset(pixels, 0, display_width*display_height*3);
 
   return TRUE;
 }
@@ -124,8 +125,7 @@ waterfall_button_release_event_cb (GtkWidget      *widget,
   return TRUE;
 }
 
-static gboolean
-waterfall_motion_notify_event_cb (GtkWidget      *widget,
+static gboolean waterfall_motion_notify_event_cb (GtkWidget      *widget,
                 GdkEventMotion *event,
                 gpointer        data)
 {
@@ -161,6 +161,8 @@ waterfall_scroll_event_cb (GtkWidget      *widget,
 void waterfall_update(float *data) {
 
   int i;
+
+  hz_per_pixel=(double)getSampleRate()/(double)display_width;
 
   if(pixbuf) {
     char *pixels = gdk_pixbuf_get_pixels (pixbuf);
@@ -243,6 +245,7 @@ void waterfall_update(float *data) {
 
 GtkWidget* waterfall_init(int width,int height) {
   display_width=width;
+  display_height=height;
 
   hz_per_pixel=(double)getSampleRate()/(double)display_width;
 
