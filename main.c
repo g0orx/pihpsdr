@@ -27,6 +27,8 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+
+#include "audio.h"
 #include "main.h"
 #include "channel.h"
 #include "discovered.h"
@@ -331,6 +333,9 @@ gint init(void* arg) {
   char wisdom_file[1024];
 
   fprintf(stderr,"init\n");
+
+  audio_get_cards(0);
+  audio_get_cards(1);
 
   cursor_arrow=gdk_cursor_new(GDK_ARROW);
   cursor_watch=gdk_cursor_new(GDK_WATCH);

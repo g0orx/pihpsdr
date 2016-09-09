@@ -233,8 +233,8 @@ void old_protocol_init(int rx,int pixels) {
   //int result=sem_init(&frequency_changed_sem, 0, 1);
 
   if(local_audio) {
-    if(audio_init()!=0) {
-      fprintf(stderr,"audio_init failed\n");
+    if(audio_open_output()!=0) {
+      fprintf(stderr,"audio_open_output failed\n");
       local_audio=0;
     }
   }

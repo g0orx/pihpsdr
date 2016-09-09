@@ -23,6 +23,7 @@
 #include <semaphore.h>
 #include <math.h>
 
+#include "audio.h"
 #include "discovered.h"
 //#include "discovery.h"
 #include "mode.h"
@@ -191,6 +192,7 @@ int smeter=RXA_S_AV;
 int alc=TXA_ALC_PK;
 
 int local_audio=0;
+int local_microphone=0;
 
 int eer_pwm_min=100;
 int eer_pwm_max=800;
@@ -559,6 +561,12 @@ void radioRestoreState() {
     if(value) alc=atoi(value);
     value=getProperty("local_audio");
     if(value) local_audio=atoi(value);
+    value=getProperty("n_selected_output_device");
+    if(value) n_selected_output_device=atoi(value);
+    value=getProperty("local_microphone");
+    if(value) local_microphone=atoi(value);
+    value=getProperty("n_selected_input_device");
+    if(value) n_selected_input_device=atoi(value);
     bandRestoreState();
     sem_post(&property_sem);
 }
@@ -704,6 +712,12 @@ void radioSaveState() {
     setProperty("alc",value);
     sprintf(value,"%d",local_audio);
     setProperty("local_audio",value);
+    sprintf(value,"%d",n_selected_output_device);
+    setProperty("n_selected_output_device",value);
+    sprintf(value,"%d",local_microphone);
+    setProperty("local_microphone",value);
+    sprintf(value,"%d",n_selected_input_device);
+    setProperty("n_selected_input_device",value);
     bandSaveState();
 
     saveProperties(property_path);

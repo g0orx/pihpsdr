@@ -206,6 +206,7 @@ extern int smeter;
 extern int alc;
 
 extern int local_audio;
+extern int local_microphone;
 
 extern int eer_pwm_min;
 extern int eer_pwm_max;

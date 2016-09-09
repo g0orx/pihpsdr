@@ -187,10 +187,10 @@ fprintf(stderr,"lime_protocol: setting save_frequency: %lld\n",saved_frequency);
       lime_protocol_set_frequency(saved_frequency);
   }
 
-fprintf(stderr,"lime_protocol_init: audio_init\n");
-  if(audio_init()!=0) {
+fprintf(stderr,"lime_protocol_init: audio_open_output\n");
+  if(audio_open_output()!=0) {
     local_audio=false;
-    fprintf(stderr,"audio_init failed\n");
+    fprintf(stderr,"audio_open_output failed\n");
   }
 
 fprintf(stderr,"lime_protocol_init: create receive_thread\n");

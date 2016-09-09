@@ -72,4 +72,5 @@ void setTune(int state);
 int getTune();
 int isTransmitting();
 
+void *new_protocol_process_local_mic(unsigned char *buffer,int le);
 #endif

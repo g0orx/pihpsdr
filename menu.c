@@ -187,10 +187,44 @@ static void micboost_cb(GtkWidget *widget, gpointer data) {
 static void local_audio_cb(GtkWidget *widget, gpointer data) {
   if(local_audio) {
     local_audio=0;
-    audio_close();
+    audio_close_output();
   } else {
-    if(audio_init()==0) {
+    if(audio_open_output()==0) {
       local_audio=1;
+    }
+  }
+}
+
+static void local_output_changed_cb(GtkWidget *widget, gpointer data) {
+  n_selected_output_device=(int)(long)data;
+fprintf(stderr,"local_output_changed: %d\n",n_selected_output_device);
+
+  if(local_audio) {
+    audio_close_output();
+    if(audio_open_output()==0) {
+      local_audio=1;
+    }
+  }
+}
+
+static void local_microphone_cb(GtkWidget *widget, gpointer data) {
+  if(local_microphone) {
+    local_microphone=0;
+    audio_close_input();
+  } else {
+    if(audio_open_input()==0) {
+      local_microphone=1;
+    }
+  }
+}
+
+static void local_input_changed_cb(GtkWidget *widget, gpointer data) {
+  n_selected_input_device=(int)(long)data;
+fprintf(stderr,"local_input_changed: %d\n",n_selected_input_device);
+  if(local_microphone) {
+    audio_close_input();
+    if(audio_open_input()==0) {
+      local_microphone=1;
     }
   }
 }
@@ -535,8 +569,9 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
 
   GtkWidget *general_label=gtk_label_new("General");
   GtkWidget *general_grid=gtk_grid_new();
+  gtk_grid_set_column_spacing (GTK_GRID(general_grid),10);
   //gtk_grid_set_row_homogeneous(GTK_GRID(general_grid),TRUE);
-  gtk_grid_set_column_homogeneous(GTK_GRID(general_grid),TRUE);
+  //gtk_grid_set_column_homogeneous(GTK_GRID(general_grid),TRUE);
 
 
   GtkWidget *vfo_divisor_label=gtk_label_new("VFO Encoder Divisor: ");
@@ -586,34 +621,6 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
     g_signal_connect(rx_preamp_b,"toggled",G_CALLBACK(rx_preamp_cb),NULL);
 */
 
-    GtkWidget *linein_b=gtk_check_button_new_with_label("Mic Line In");
-    //gtk_widget_override_font(linein_b, pango_font_description_from_string("Arial 18"));
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (linein_b), mic_linein);
-    gtk_widget_show(linein_b);
-    gtk_grid_attach(GTK_GRID(general_grid),linein_b,1,2,1,1);
-    g_signal_connect(linein_b,"toggled",G_CALLBACK(linein_cb),NULL);
-
-    GtkWidget *micboost_b=gtk_check_button_new_with_label("Mic Boost");
-    //gtk_widget_override_font(micboost_b, pango_font_description_from_string("Arial 18"));
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (micboost_b), mic_boost);
-    gtk_widget_show(micboost_b);
-    gtk_grid_attach(GTK_GRID(general_grid),micboost_b,1,3,1,1);
-    g_signal_connect(micboost_b,"toggled",G_CALLBACK(micboost_cb),NULL);
-
-    GtkWidget *local_audio_b=gtk_check_button_new_with_label("Local Audio");
-    //gtk_widget_override_font(local_audio_b, pango_font_description_from_string("Arial 18"));
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (local_audio_b), local_audio);
-    gtk_widget_show(local_audio_b);
-    gtk_grid_attach(GTK_GRID(general_grid),local_audio_b,1,4,1,1);
-    g_signal_connect(local_audio_b,"toggled",G_CALLBACK(local_audio_cb),NULL);
-
-    GtkWidget *b_toolbar_dialog_buttons=gtk_check_button_new_with_label("Buttons Display Dialog");
-    //gtk_widget_override_font(b_toolbar_dialog_buttons, pango_font_description_from_string("Arial 18"));
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_toolbar_dialog_buttons), toolbar_dialog_buttons);
-    gtk_widget_show(b_toolbar_dialog_buttons);
-    gtk_grid_attach(GTK_GRID(general_grid),b_toolbar_dialog_buttons,1,5,1,1);
-    g_signal_connect(b_toolbar_dialog_buttons,"toggled",G_CALLBACK(toolbar_dialog_buttons_cb),(gpointer *)NULL);
-
     if((protocol==NEW_PROTOCOL && device==NEW_DEVICE_ORION) ||
        (protocol==NEW_PROTOCOL && device==NEW_DEVICE_ORION2) ||
        (protocol==ORIGINAL_PROTOCOL && device==DEVICE_ORION)) {
@@ -622,28 +629,28 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
       //gtk_widget_override_font(ptt_ring_b, pango_font_description_from_string("Arial 18"));
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ptt_ring_b), mic_ptt_tip_bias_ring==0);
       gtk_widget_show(ptt_ring_b);
-      gtk_grid_attach(GTK_GRID(general_grid),ptt_ring_b,1,6,1,1);
+      gtk_grid_attach(GTK_GRID(general_grid),ptt_ring_b,1,5,1,1);
       g_signal_connect(ptt_ring_b,"pressed",G_CALLBACK(ptt_ring_cb),NULL);
 
       GtkWidget *ptt_tip_b=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(ptt_ring_b),"PTT On Tip, Mic and Bias on Ring");
       //gtk_widget_override_font(ptt_tip_b, pango_font_description_from_string("Arial 18"));
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ptt_tip_b), mic_ptt_tip_bias_ring==1);
       gtk_widget_show(ptt_tip_b);
-      gtk_grid_attach(GTK_GRID(general_grid),ptt_tip_b,1,7,1,1);
+      gtk_grid_attach(GTK_GRID(general_grid),ptt_tip_b,1,6,1,1);
       g_signal_connect(ptt_tip_b,"pressed",G_CALLBACK(ptt_tip_cb),NULL);
 
       GtkWidget *ptt_b=gtk_check_button_new_with_label("PTT Enabled");
       //gtk_widget_override_font(ptt_b, pango_font_description_from_string("Arial 18"));
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ptt_b), mic_ptt_enabled);
       gtk_widget_show(ptt_b);
-      gtk_grid_attach(GTK_GRID(general_grid),ptt_b,1,8,1,1);
+      gtk_grid_attach(GTK_GRID(general_grid),ptt_b,1,7,1,1);
       g_signal_connect(ptt_b,"toggled",G_CALLBACK(ptt_cb),NULL);
 
       GtkWidget *bias_b=gtk_check_button_new_with_label("BIAS Enabled");
       //gtk_widget_override_font(bias_b, pango_font_description_from_string("Arial 18"));
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (bias_b), mic_bias_enabled);
       gtk_widget_show(bias_b);
-      gtk_grid_attach(GTK_GRID(general_grid),bias_b,1,9,1,1);
+      gtk_grid_attach(GTK_GRID(general_grid),bias_b,1,8,1,1);
       g_signal_connect(bias_b,"toggled",G_CALLBACK(bias_cb),NULL);
     }
 
@@ -652,13 +659,13 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
     //gtk_widget_override_font(alex_b, pango_font_description_from_string("Arial 18"));
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (alex_b), filter_board==ALEX);
     gtk_widget_show(alex_b);
-    gtk_grid_attach(GTK_GRID(general_grid),alex_b,2,2,1,1);
+    gtk_grid_attach(GTK_GRID(general_grid),alex_b,1,2,1,1);
 
     GtkWidget *apollo_b=gtk_check_button_new_with_label("APOLLO");
     //gtk_widget_override_font(apollo_b, pango_font_description_from_string("Arial 18"));
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (apollo_b), filter_board==APOLLO);
     gtk_widget_show(apollo_b);
-    gtk_grid_attach(GTK_GRID(general_grid),apollo_b,2,3,1,1);
+    gtk_grid_attach(GTK_GRID(general_grid),apollo_b,1,3,1,1);
   
     g_signal_connect(alex_b,"toggled",G_CALLBACK(alex_cb),apollo_b);
     g_signal_connect(apollo_b,"toggled",G_CALLBACK(apollo_cb),alex_b);
@@ -757,6 +764,77 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
 #endif
 
   id=gtk_notebook_append_page(GTK_NOTEBOOK(notebook),general_grid,general_label);
+
+
+
+  GtkWidget *audio_label=gtk_label_new("Audio");
+  GtkWidget *audio_grid=gtk_grid_new();
+  //gtk_grid_set_row_homogeneous(GTK_GRID(audio_grid),TRUE);
+  gtk_grid_set_column_spacing (GTK_GRID(audio_grid),10);
+
+  if(protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL) {
+    GtkWidget *linein_b=gtk_check_button_new_with_label("Mic Line In");
+    //gtk_widget_override_font(linein_b, pango_font_description_from_string("Arial 18"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (linein_b), mic_linein);
+    gtk_widget_show(linein_b);
+    gtk_grid_attach(GTK_GRID(audio_grid),linein_b,0,0,1,1);
+    g_signal_connect(linein_b,"toggled",G_CALLBACK(linein_cb),NULL);
+
+    GtkWidget *micboost_b=gtk_check_button_new_with_label("Mic Boost");
+    //gtk_widget_override_font(micboost_b, pango_font_description_from_string("Arial 18"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (micboost_b), mic_boost);
+    gtk_widget_show(micboost_b);
+    gtk_grid_attach(GTK_GRID(audio_grid),micboost_b,0,1,1,1);
+    g_signal_connect(micboost_b,"toggled",G_CALLBACK(micboost_cb),NULL);
+  }
+
+
+  if(n_output_devices>0) {
+    GtkWidget *local_audio_b=gtk_check_button_new_with_label("Local Audio");
+    //gtk_widget_override_font(local_audio_b, pango_font_description_from_string("Arial 18"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (local_audio_b), local_audio);
+    gtk_widget_show(local_audio_b);
+    gtk_grid_attach(GTK_GRID(audio_grid),local_audio_b,1,0,1,1);
+    g_signal_connect(local_audio_b,"toggled",G_CALLBACK(local_audio_cb),NULL);
+ 
+    for(i=0;i<n_output_devices;i++) {
+      GtkWidget *output;
+      if(i==0) {
+        output=gtk_radio_button_new_with_label(NULL,output_devices[i]);
+      } else {
+        output=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(output),output_devices[i]);
+      }
+      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (output), n_selected_output_device==i);
+      gtk_widget_show(output);
+      gtk_grid_attach(GTK_GRID(audio_grid),output,1,i+1,1,1);
+      g_signal_connect(output,"pressed",G_CALLBACK(local_output_changed_cb),(gpointer *)i);
+    }
+  }
+
+  if(n_input_devices>0) {
+    GtkWidget *local_audio_b=gtk_check_button_new_with_label("Microphone Audio");
+    //gtk_widget_override_font(local_audio_b, pango_font_description_from_string("Arial 18"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (local_audio_b), local_audio);
+    gtk_widget_show(local_audio_b);
+    gtk_grid_attach(GTK_GRID(audio_grid),local_audio_b,2,0,1,1);
+    g_signal_connect(local_audio_b,"toggled",G_CALLBACK(local_input_changed_cb),NULL);
+ 
+    for(i=0;i<n_input_devices;i++) {
+      GtkWidget *input;
+      if(i==0) {
+        input=gtk_radio_button_new_with_label(NULL,input_devices[i]);
+      } else {
+        input=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(input),input_devices[i]);
+      }
+      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (input), n_selected_input_device==i);
+      gtk_widget_show(input);
+      gtk_grid_attach(GTK_GRID(audio_grid),input,2,i+1,1,1);
+      g_signal_connect(input,"pressed",G_CALLBACK(local_microphone_cb),(gpointer *)i);
+    }
+  }
+
+  id=gtk_notebook_append_page(GTK_NOTEBOOK(notebook),audio_grid,audio_label);
+
 
   GtkWidget *ant_label=gtk_label_new("Ant");
   ant_grid=gtk_grid_new();
@@ -1109,6 +1187,12 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
   gtk_grid_attach(GTK_GRID(display_grid),b_display_toolbar,3,7,1,1);
   g_signal_connect(b_display_toolbar,"toggled",G_CALLBACK(display_toolbar_cb),(gpointer *)NULL);
 
+  GtkWidget *b_toolbar_dialog_buttons=gtk_check_button_new_with_label("Buttons Display Dialog");
+  //gtk_widget_override_font(b_toolbar_dialog_buttons, pango_font_description_from_string("Arial 18"));
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_toolbar_dialog_buttons), toolbar_dialog_buttons);
+  gtk_widget_show(b_toolbar_dialog_buttons);
+  gtk_grid_attach(GTK_GRID(display_grid),b_toolbar_dialog_buttons,0,8,1,1);
+  g_signal_connect(b_toolbar_dialog_buttons,"toggled",G_CALLBACK(toolbar_dialog_buttons_cb),(gpointer *)NULL);
 
   id=gtk_notebook_append_page(GTK_NOTEBOOK(notebook),display_grid,display_label);
 
@@ -1551,6 +1635,9 @@ GtkWidget* menu_init(int width,int height,GtkWidget *parent) {
   black.alpha=0.0;
 
   fprintf(stderr,"menu_init: width=%d height=%d\n",width,height);
+
+  audio_get_cards(1); // input
+  audio_get_cards(0); // output
 
   parent_window=parent;
 
