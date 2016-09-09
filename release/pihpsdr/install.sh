@@ -1,8 +1,5 @@
 sudo apt-get -y install libfftw3-3
 sudo apt-get -y install xscreensaver
-wget abyz.co.uk/rpi/pigpio/pigpio.zip
-unzip pigpio.zip
-cd PIGPIO; make; sudo make install
 sudo rm -rf /usr/local/lib/libwdsp.so
 sudo rm -rf /usr/local/lib/libpsk.so
 sudo rm -rf /usr/local/lib/libcodec2.so
