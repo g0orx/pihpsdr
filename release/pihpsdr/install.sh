@@ -8,8 +8,9 @@ sudo cp libwdsp.so /usr/local/lib
 sudo cp libpsk.so /usr/local/lib
 sudo cp libcodec2.so.0.5 /usr/local/lib
 sudo cp libSoapySDR.so.0.5-1 /usr/local/lib
+cp pihpsdr.desktop ~/Desktop
+cp pihpsdr.desktop ~/.local/share/applications
 cd /usr/local/lib; sudo ln -s libcodec2.so.0.5 libcodec2.so
 cd /usr/local/lib; sudo ln -s libSoapySDR.so.0.5-1 libSoapySDR.so.0.5.0
 cd /usr/local/lib; sudo ln -s libSoapySDR.so.0.5-1 libSoapySDR.so
 sudo ldconfig
-
