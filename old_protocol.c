@@ -239,6 +239,13 @@ void old_protocol_init(int rx,int pixels) {
     }
   }
 
+  if(local_microphone) {
+    if(audio_open_input()!=0) {
+      fprintf(stderr,"audio_open_input failed\n");
+      local_microphone=0;
+    }
+  }
+
   receiver=rx;
   display_width=pixels;
  
@@ -442,7 +449,7 @@ static void process_ozy_input_buffer(char  *buffer) {
       mic_sample_double=(double)mic_sample/32767.0; // 16 bit sample 2^16-1
 
       // add to buffer
-      if(isTransmitting()) {
+      if(isTransmitting() && !local_microphone) {
 #ifdef FREEDV
         if(mode==modeFREEDV && !tune) {
           if(freedv_samples==0) {
@@ -692,6 +699,79 @@ static void full_tx_buffer() {
     }
   }
 
+}
+
+void *old_protocol_process_local_mic(unsigned char *buffer,int le) {
+  int b;
+  int leftmicsample;
+  int rightmicsample;
+  double leftmicsampledouble;
+  double rightmicsampledouble;
+
+  if(isTransmitting()) {
+    b=0;
+    int i,j,s;
+    for(i=0;i<720;i++) {
+      if(le) {
+        leftmicsample  = (int)((unsigned char)buffer[b++] & 0xFF);
+        leftmicsample  |= (int)((signed char) buffer[b++]) << 8;
+        //rightmicsample  = (int)((unsigned char)buffer[b++] & 0xFF);
+        //rightmicsample  |= (int)((signed char) buffer[b++]) << 8;
+        rightmicsample=leftmicsample;
+      } else {
+        leftmicsample  = (int)((signed char) buffer[b++]) << 8;
+        leftmicsample  |= (int)((unsigned char)buffer[b++] & 0xFF);
+        rightmicsample  = (int)((signed char) buffer[b++]) << 8;
+        rightmicsample  |= (int)((unsigned char)buffer[b++] & 0xFF);
+      }
+#ifdef FREEDV
+      if(mode==modeFREEDV && !tune) {
+        if(freedv_samples==0) { // 48K to 8K
+          int modem_samples=mod_sample_freedv(leftmicsample);
+          if(modem_samples!=0) {
+            for(s=0;s<modem_samples;s++) {
+              for(j=0;j<freedv_divisor;j++) {  // 8K to 48K
+                leftmicsample=mod_out[s];
+                leftmicsampledouble=(double)leftmicsample/32767.0; // 16 bit sample 2^16-1
+                micinputbuffer[samples*2]=leftmicsampledouble*mic_gain;
+                micinputbuffer[(samples*2)+1]=leftmicsampledouble*mic_gain;
+                iqinputbuffer[samples*2]=0.0;
+                iqinputbuffer[(samples*2)+1]=0.0;
+                samples++;
+                if(samples==buffer_size) {
+                  full_tx_buffer();
+                  samples=0;
+                }
+              }
+            }
+          }
+         }
+         freedv_samples++;
+         if(freedv_samples==freedv_divisor) {
+           freedv_samples=0;
+         }
+      } else {
+#endif
+         if(mode==modeCWL || mode==modeCWU || tune) {
+            micinputbuffer[samples*2]=0.0;
+            micinputbuffer[(samples*2)+1]=0.0;
+          } else {
+            micinputbuffer[samples*2]=leftmicsampledouble*mic_gain;
+            micinputbuffer[(samples*2)+1]=leftmicsampledouble*mic_gain;
+          }
+          iqinputbuffer[samples*2]=0.0;
+          iqinputbuffer[(samples*2)+1]=0.0;
+          samples++;
+          if(samples==buffer_size) {
+            full_tx_buffer();
+            samples=0;
+          }
+#ifdef FREEDV
+       }
+#endif
+
+    }
+  }
 }
 
 /*

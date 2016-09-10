@@ -315,6 +315,7 @@ static void *mic_read_thread(void *arg) {
       // process the mic input
       switch(protocol) {
         case ORIGINAL_PROTOCOL:
+          old_protocol_process_local_mic(mic_buffer,1);
           break;
         case NEW_PROTOCOL:
           new_protocol_process_local_mic(mic_buffer,1);
