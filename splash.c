@@ -54,7 +54,6 @@ void splash_show(char* image_name,int width,int height,int full_screen)
     gtk_window_fullscreen(GTK_WINDOW(splash_window));
   }
   gtk_widget_set_size_request(splash_window, width, height);
-  gtk_window_set_decorated(GTK_WINDOW(splash_window), FALSE);
   gtk_window_set_position(GTK_WINDOW(splash_window),GTK_WIN_POS_CENTER_ALWAYS);
   gtk_window_set_resizable(GTK_WINDOW(splash_window), FALSE);
 

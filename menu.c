@@ -197,7 +197,6 @@ static void local_audio_cb(GtkWidget *widget, gpointer data) {
 
 static void local_output_changed_cb(GtkWidget *widget, gpointer data) {
   n_selected_output_device=(int)(long)data;
-fprintf(stderr,"local_output_changed: %d\n",n_selected_output_device);
 
   if(local_audio) {
     audio_close_output();
@@ -220,7 +219,6 @@ static void local_microphone_cb(GtkWidget *widget, gpointer data) {
 
 static void local_input_changed_cb(GtkWidget *widget, gpointer data) {
   n_selected_input_device=(int)(long)data;
-fprintf(stderr,"local_input_changed: %d\n",n_selected_input_device);
   if(local_microphone) {
     audio_close_input();
     if(audio_open_input()==0) {
@@ -812,12 +810,12 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
   }
 
   if(n_input_devices>0) {
-    GtkWidget *local_audio_b=gtk_check_button_new_with_label("Microphone Audio");
-    //gtk_widget_override_font(local_audio_b, pango_font_description_from_string("Arial 18"));
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (local_audio_b), local_audio);
-    gtk_widget_show(local_audio_b);
-    gtk_grid_attach(GTK_GRID(audio_grid),local_audio_b,2,0,1,1);
-    g_signal_connect(local_audio_b,"toggled",G_CALLBACK(local_input_changed_cb),NULL);
+    GtkWidget *local_microphone_b=gtk_check_button_new_with_label("Microphone Audio");
+    //gtk_widget_override_font(local_microphone_b, pango_font_description_from_string("Arial 18"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (local_microphone_b), local_microphone);
+    gtk_widget_show(local_microphone_b);
+    gtk_grid_attach(GTK_GRID(audio_grid),local_microphone_b,2,0,1,1);
+    g_signal_connect(local_microphone_b,"toggled",G_CALLBACK(local_microphone_cb),NULL);
  
     for(i=0;i<n_input_devices;i++) {
       GtkWidget *input;
@@ -829,7 +827,7 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (input), n_selected_input_device==i);
       gtk_widget_show(input);
       gtk_grid_attach(GTK_GRID(audio_grid),input,2,i+1,1,1);
-      g_signal_connect(input,"pressed",G_CALLBACK(local_microphone_cb),(gpointer *)i);
+      g_signal_connect(input,"pressed",G_CALLBACK(local_input_changed_cb),(gpointer *)i);
     }
   }
 

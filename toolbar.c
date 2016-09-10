@@ -289,7 +289,6 @@ void bandstack_cb(GtkWidget *widget, gpointer data) {
 }
 
 void function_cb(GtkWidget *widget, gpointer data) {
-  fprintf(stderr,"function_cb\n");
   function=function==1?0:1;
   update_toolbar_labels();
   vfo_update(NULL);
@@ -990,7 +989,6 @@ void lock_cb(GtkWidget *widget, gpointer data) {
 }
 
 void mox_cb(GtkWidget *widget, gpointer data) {
-fprintf(stderr,"mox_cb\n");
   if(getTune()==1) {
     setTune(0);
   }
@@ -1002,21 +1000,17 @@ fprintf(stderr,"mox_cb\n");
   } else if(canTransmit() || tx_out_of_band) {
     setMox(1);
   }
-fprintf(stderr,"mox_cb: mox now %d\n",mox);
   vfo_update(NULL);
 }
 
 int ptt_update(void *data) {
-fprintf(stderr,"ptt_update\n");
   if(protocol==NEW_PROTOCOL || (mode!=modeCWU && mode!=modeCWL)) {
     mox_cb(NULL,NULL);
   }
-fprintf(stderr,"ptt_update: mox=%d ptt=%d tune=%d\n",mox,ptt,tune);
   return 0;
 }
 
 void tune_cb(GtkWidget *widget, gpointer data) {
-fprintf(stderr,"tune_cb\n");
   if(getMox()==1) {
     setMox(0);
   }
@@ -1025,14 +1019,12 @@ fprintf(stderr,"tune_cb\n");
   } else if(canTransmit() || tx_out_of_band) {
     setTune(1);
   }
-fprintf(stderr,"tune_cb: calling vfo_update\n");
   vfo_update(NULL);
 }
 
 void sim_band_cb(GtkWidget *widget, gpointer data) {
   BAND* band;
   BANDSTACK_ENTRY *entry;
-fprintf(stderr,"sim_band_cb\n");
   if(toolbar_dialog_buttons) {
     band_cb(widget,data);
   } else {
@@ -1081,7 +1073,6 @@ fprintf(stderr,"sim_band_cb\n");
 
 void sim_bandstack_cb(GtkWidget *widget, gpointer data) {
   BANDSTACK_ENTRY *entry;
-  fprintf(stderr,"sim_bandstack_cb\n");
   if(toolbar_dialog_buttons) {
     bandstack_cb(widget,data);
   } else {
@@ -1103,7 +1094,6 @@ void sim_mode_cb(GtkWidget *widget, gpointer data) {
   BAND* band;
   BANDSTACK_ENTRY *entry;
 
-fprintf(stderr,"sim_mode_cb\n");
   if(toolbar_dialog_buttons) {
     mode_cb(widget,data);
   } else {
@@ -1122,7 +1112,6 @@ fprintf(stderr,"sim_mode_cb\n");
     }
     setMode(entry->mode);
 
-    fprintf(stderr,"sim_mode_cb: entry->mode=%d entry->filter=%d\n",entry->mode,entry->filter);
     FILTER* band_filters=filters[entry->mode];
     FILTER* band_filter=&band_filters[entry->filter];
     setFilter(band_filter->low,band_filter->high);
@@ -1135,7 +1124,6 @@ void sim_filter_cb(GtkWidget *widget, gpointer data) {
   BAND* band;
   BANDSTACK_ENTRY *entry;
 
-fprintf(stderr,"sim_filter_cb\n");
   if(toolbar_dialog_buttons) {
     filter_cb(widget,data);
   } else {
@@ -1154,7 +1142,6 @@ fprintf(stderr,"sim_filter_cb\n");
       }
     }
 
-  fprintf(stderr,"sim_filter_cb: entry->mode=%d entry->filter=%d\n",entry->mode,entry->filter);
     FILTER* band_filters=filters[entry->mode];
     FILTER* band_filter=&band_filters[entry->filter];
     setFilter(band_filter->low,band_filter->high);
@@ -1165,7 +1152,6 @@ fprintf(stderr,"sim_filter_cb\n");
 }
 
 void sim_agc_cb(GtkWidget *widget, gpointer data) {
-  fprintf(stderr,"sim_agc_cb\n");
   if(toolbar_dialog_buttons) {
     agc_cb(widget,data);
   } else {
@@ -1186,7 +1172,6 @@ void sim_agc_cb(GtkWidget *widget, gpointer data) {
 }
 
 void sim_noise_cb(GtkWidget *widget, gpointer data) {
-  fprintf(stderr,"sim_noise_cb\n");
   if(toolbar_dialog_buttons) {
     noise_cb(widget,data);
   } else {
@@ -1230,7 +1215,6 @@ void sim_noise_cb(GtkWidget *widget, gpointer data) {
 }
 
 void sim_mox_cb(GtkWidget *widget, gpointer data) {
-  fprintf(stderr,"sim_pressed\n");
   if(function) {
     tune_cb((GtkWidget *)NULL, (gpointer)NULL);
   } else {
@@ -1240,7 +1224,6 @@ void sim_mox_cb(GtkWidget *widget, gpointer data) {
 }
 
 void sim_function_cb(GtkWidget *widget, gpointer data) {
-  fprintf(stderr,"sim_function_cb\n");
   function=function==1?0:1;
   update_toolbar_labels();
   vfo_update(NULL);

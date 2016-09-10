@@ -294,7 +294,6 @@ static void new_protocol_high_priority(int run) {
     unsigned char buffer[1444];
     BAND *band=band_get_current_band();
 
-fprintf(stderr,"new_protocol_high_priority: run=%d\n", run);
     memset(buffer, 0, sizeof(buffer));
 
     buffer[0]=high_priority_sequence>>24;
@@ -347,8 +346,6 @@ fprintf(stderr,"new_protocol_high_priority: run=%d\n", run);
     }
     
     buffer[345]=power&0xFF;
-
-fprintf(stderr,"power=%d\n",power);
 
     if(isTransmitting()) {
       buffer[1401]=band->OCtx;

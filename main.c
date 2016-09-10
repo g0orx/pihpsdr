@@ -569,7 +569,8 @@ fprintf(stderr,"selected radio=%p device=%d\n",radio,radio->device);
 
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   gtk_window_set_title (GTK_WINDOW (window), "pihpsdr");
-  gtk_container_set_border_width (GTK_CONTAINER (window), 0);
+  gtk_window_set_position(GTK_WINDOW(window),GTK_WIN_POS_CENTER_ALWAYS);
+  gtk_window_set_resizable(GTK_WINDOW(window), FALSE);
   g_signal_connect (window, "delete-event", G_CALLBACK (main_delete), NULL);
 
   fixed=gtk_fixed_new();

@@ -155,7 +155,7 @@ int cw_keyer_hang_time=300; // ms
 int cw_keyer_sidetone_frequency=400; // Hz
 int cw_breakin=1; // 0=disabled 1=enabled
 
-int vfo_encoder_divisor=25;
+int vfo_encoder_divisor=15;
 
 int protocol;
 int device;
@@ -552,6 +552,7 @@ void radioRestoreState() {
     value=getProperty("rx_preamp");
     if(value) rx_preamp=atoi(value);
 #ifdef FREEDV
+    strcpy(freedv_tx_text_data,"NO TEXT DATA");
     value=getProperty("freedv_tx_text_data");
     if(value) strcpy(freedv_tx_text_data,value);
 #endif
