@@ -76,7 +76,7 @@ int updates_per_second=10;
 
 int display_panadapter=1;
 int panadapter_high=-60;
-int panadapter_low=-160;
+int panadapter_low=-140;
 
 int display_filled=1;
 int display_detector_mode=DETECTOR_MODE_AVERAGE;

@@ -290,6 +290,11 @@ static void setupTX(int tx) {
     SetTXACompressorRun(tx, 0);
     SetTXAosctrlRun(tx, 0);
 
+    SetTXAALCDecay(tx, 10);
+    SetTXALevelerTop(tx, 15.0);
+    SetTXALevelerDecay(tx, 500);
+    SetTXALevelerSt(tx, 1);
+
     SetTXAPreGenMode(tx, 0);
     SetTXAPreGenToneMag(tx, 0.0);
     SetTXAPreGenToneFreq(tx, 0.0);

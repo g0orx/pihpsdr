@@ -137,7 +137,7 @@ static double audiooutputbuffer[BUFFER_SIZE*2];
 static int leftaudiosample;
 static int rightaudiosample;
 static long audiosequence;
-static unsigned char audiobuffer[1444];
+static unsigned char audiobuffer[260]; // was 1444
 static int audioindex;
 
 #ifdef FREEDV
@@ -872,7 +872,7 @@ static void process_mic_data(unsigned char *buffer) {
 //    if(isTransmitting()) {
         b=4;
         int i,j,s;
-        for(i=0;i<720;i++) {
+        for(i=0;i<MIC_SAMPLES;i++) {
             micsample  = (int)((signed char) buffer[b++]) << 8;
             micsample  |= (int)((unsigned char)buffer[b++] & 0xFF);
 #ifdef FREEDV
@@ -1115,7 +1115,7 @@ void *new_protocol_process_local_mic(unsigned char *buffer,int le) {
 //    if(isTransmitting()) {
         b=0;
         int i,j,s;
-        for(i=0;i<720;i++) {
+        for(i=0;i<MIC_SAMPLES;i++) {
             if(le) {
               leftmicsample  = (int)((unsigned char)buffer[b++] & 0xFF);
               leftmicsample  |= (int)((signed char) buffer[b++]) << 8;

@@ -38,6 +38,8 @@
 
 #define BUFFER_SIZE 1024
 
+#define MIC_SAMPLES 64
+
 extern int data_socket;
 extern sem_t response_sem;
 
