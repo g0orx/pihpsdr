@@ -154,7 +154,7 @@ meter_press_event_cb (GtkWidget *widget,
   gtk_container_add(GTK_CONTAINER(content),grid);
 
   GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close",GTK_RESPONSE_OK);
-  gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 18"));
+  gtk_widget_override_font(close_button, pango_font_description_from_string("FreeMono 18"));
   gtk_widget_show_all(dialog);
 
   g_signal_connect_swapped (dialog,
@@ -207,10 +207,13 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
   cairo_set_source_rgb (cr, 0, 0, 0);
   cairo_paint (cr);
 
-
-  sprintf(text,"Version: %s %s", build_date, build_version);
+  //sprintf(text,"Version: %s %s", build_date, build_version);
+  sprintf(text,"Version: %s", version);
+  cairo_select_font_face(cr, "FreeMono",
+                CAIRO_FONT_SLANT_NORMAL,
+                CAIRO_FONT_WEIGHT_BOLD);
   cairo_set_source_rgb(cr, 0.5, 0.5, 0.5);
-  cairo_set_font_size(cr, 12);
+  cairo_set_font_size(cr, 10);
   cairo_move_to(cr, 5, 15);
   cairo_show_text(cr, text);
 
@@ -231,13 +234,11 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
       // value is dBm
       text_location=10;
       offset=5.0;
-      cairo_select_font_face(cr, "Arial",
-                    CAIRO_FONT_SLANT_NORMAL,
-                    CAIRO_FONT_WEIGHT_BOLD);
       double level=value+(double)get_attenuation();
       if(meter_width>=114) {
-        int db=meter_width/114; // S9+60 (9*6)+60
-        if(db>2) db=2;
+        //int db=meter_width/114; // S9+60 (9*6)+60
+        //if(db>2) db=2;
+        int db=1;
         int i;
         cairo_set_line_width(cr, 1.0);
         cairo_set_source_rgb(cr, 1, 1, 1);
@@ -354,7 +355,7 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
 #endif
     case POWER:
       // value is Watts
-      cairo_select_font_face(cr, "Arial",
+      cairo_select_font_face(cr, "FreeMono",
             CAIRO_FONT_SLANT_NORMAL,
             CAIRO_FONT_WEIGHT_BOLD);
       cairo_set_font_size(cr, 18);
@@ -370,7 +371,7 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
       cairo_show_text(cr, sf);
 
       double swr=(max_level+reverse)/(max_level-reverse);
-      cairo_select_font_face(cr, "Arial",
+      cairo_select_font_face(cr, "FreeMono",
             CAIRO_FONT_SLANT_NORMAL,
             CAIRO_FONT_WEIGHT_BOLD);
       cairo_set_font_size(cr, 18);

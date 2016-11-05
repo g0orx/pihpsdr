@@ -137,7 +137,11 @@ static double audiooutputbuffer[BUFFER_SIZE*2];
 static int leftaudiosample;
 static int rightaudiosample;
 static long audiosequence;
+#ifdef SHORT_FRAMES
 static unsigned char audiobuffer[260]; // was 1444
+#else
+static unsigned char audiobuffer[1444]; // was 1444
+#endif
 static int audioindex;
 
 #ifdef FREEDV
@@ -327,7 +331,10 @@ static void new_protocol_high_priority(int run) {
     buffer[12]=phase;
 
 // tx (no split yet)
-    long txFrequency=ddsFrequency;
+    long long txFrequency=ddsFrequency;
+    if(ctun) {
+      txFrequency+=ddsOffset;
+    }
     phase=(long)((4294967296.0*(double)txFrequency)/122880000.0);
 
     buffer[329]=phase>>24;
@@ -501,7 +508,7 @@ else LPF <= 7'b0001000;             // < 2.4MHz so use 160m LPF^M
     //buffer[1442]=attenuation;
     buffer[1443]=attenuation;
 
-//fprintf(stderr,"[4]=%02X\n", buffer[4]);
+//fprintf(stderr,"high_priority[4]=0x%02X\n", buffer[4]);
 //fprintf(stderr,"filters=%04X\n", filters);
 
     if(sendto(data_socket,buffer,sizeof(buffer),0,(struct sockaddr*)&high_priority_addr,high_priority_addr_length)<0) {
@@ -884,8 +891,8 @@ static void process_mic_data(unsigned char *buffer) {
                         for(j=0;j<freedv_resample;j++) {  // 8K to 48K
                           micsample=mod_out[s];
                           micsampledouble=(double)micsample/32767.0; // 16 bit sample 2^16-1
-                          micinputbuffer[micsamples*2]=micsampledouble*mic_gain;
-                          micinputbuffer[(micsamples*2)+1]=micsampledouble*mic_gain;
+                          micinputbuffer[micsamples*2]=micsampledouble*(mic_gain*1.0);
+                          micinputbuffer[(micsamples*2)+1]=micsampledouble*(mic_gain*1.0);
                           micsamples++;
                           if(micsamples==BUFFER_SIZE) {
                             full_tx_buffer();
@@ -906,8 +913,8 @@ static void process_mic_data(unsigned char *buffer) {
                    micinputbuffer[micsamples*2]=0.0;
                    micinputbuffer[(micsamples*2)+1]=0.0;
                } else {
-                   micinputbuffer[micsamples*2]=micsampledouble*mic_gain;
-                   micinputbuffer[(micsamples*2)+1]=micsampledouble*mic_gain;
+                   micinputbuffer[micsamples*2]=micsampledouble*(mic_gain*1.0);
+                   micinputbuffer[(micsamples*2)+1]=micsampledouble*(mic_gain*1.0);
                }
 
                micsamples++;
@@ -1054,7 +1061,7 @@ static void full_rx_buffer() {
 static void full_tx_buffer() {
   long isample;
   long qsample;
-  double gain=8388607.0*scale;;
+  double gain=8388607.0;
   int j;
   int error;
 
@@ -1063,15 +1070,15 @@ static void full_tx_buffer() {
 
 #ifdef FREEDV
   if(mode==modeFREEDV) {
-    gain=8388607.0*freedv_scale;
+    gain=8388607.0;
   }
 #endif
 
-  if(radio->device==DEVICE_METIS && atlas_penelope) {
+  if(radio->device==NEW_DEVICE_ATLAS && atlas_penelope) {
     if(tune) {
-      gain=8388607.0*(double)tune_drive;
+      gain=gain*tune_drive;
     } else {
-      gain=8388607.0*(double)drive;
+      gain=gain*(double)drive;
     }
   }
 

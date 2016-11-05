@@ -209,8 +209,13 @@ void panadapter_update(float *data,int tx) {
 
             // filter
             cairo_set_source_rgb (cr, 0.25, 0.25, 0.25);
-            filter_left=(double)display_width/2.0+(((double)getFilterLow()+ddsOffset)/hz_per_pixel);
-            filter_right=(double)display_width/2.0+(((double)getFilterHigh()+ddsOffset)/hz_per_pixel);
+            if(ctun && isTransmitting()) {
+              filter_left=(double)display_width/2.0+((double)getFilterLow()/hz_per_pixel);
+              filter_right=(double)display_width/2.0+((double)getFilterHigh()/hz_per_pixel);
+            } else {
+              filter_left=(double)display_width/2.0+(((double)getFilterLow()+ddsOffset)/hz_per_pixel);
+              filter_right=(double)display_width/2.0+(((double)getFilterHigh()+ddsOffset)/hz_per_pixel);
+            }
             cairo_rectangle(cr, filter_left, 0.0, filter_right-filter_left, (double)display_height);
             cairo_fill(cr);
 
@@ -227,7 +232,7 @@ void panadapter_update(float *data,int tx) {
                 cairo_line_to(cr,(double)display_width,(double)y);
 
                 cairo_set_source_rgb (cr, 0, 1, 1);
-                cairo_select_font_face(cr, "Arial",
+                cairo_select_font_face(cr, "FreeMono",
                     CAIRO_FONT_SLANT_NORMAL,
                     CAIRO_FONT_WEIGHT_BOLD);
                 cairo_set_font_size(cr, 12);
@@ -243,6 +248,9 @@ void panadapter_update(float *data,int tx) {
             long divisor=20000;
             long half=(long)getSampleRate()/2L;
             long frequency=getFrequency();
+            if(ctun && isTransmitting()) {
+              frequency+=ddsOffset;
+            }
             switch(sample_rate) {
               case 48000:
                 divisor=5000L;
@@ -277,7 +285,7 @@ void panadapter_update(float *data,int tx) {
                         cairo_line_to(cr,(double)i,(double)display_height);
 
                         cairo_set_source_rgb (cr, 0, 1, 1);
-                        cairo_select_font_face(cr, "Arial",
+                        cairo_select_font_face(cr, "FreeMono",
                             CAIRO_FONT_SLANT_NORMAL,
                             CAIRO_FONT_WEIGHT_BOLD);
                         cairo_set_font_size(cr, 12);
@@ -357,8 +365,8 @@ void panadapter_update(float *data,int tx) {
             // cursor
             cairo_set_source_rgb (cr, 1, 0, 0);
             cairo_set_line_width(cr, 1.0);
-            cairo_move_to(cr,(double)display_width/2.0,0.0);
-            cairo_line_to(cr,(double)display_width/2.0,(double)display_height);
+            cairo_move_to(cr,(double)(display_width/2.0)+(ddsOffset/hz_per_pixel),0.0);
+            cairo_line_to(cr,(double)(display_width/2.0)+(ddsOffset/hz_per_pixel),(double)display_height);
             cairo_stroke(cr);
 
             // signal

@@ -49,14 +49,6 @@ DISCOVERED *radio;
 char property_path[128];
 sem_t property_sem;
 
-double scale=4.6;
-#ifdef FREEDV
-double freedv_scale=4.6;
-#endif
-#ifdef PSK
-double psk_scale=8.5;
-#endif
-
 int atlas_penelope=0;
 int atlas_clock_source_10mhz=0;
 int atlas_clock_source_128mhz=0;
@@ -206,6 +198,8 @@ char freedv_tx_text_data[64];
 
 static int pre_tune_mode;
 
+int ctun=0;
+
 void init_radio() {
   int rc;
   rc=sem_init(&property_sem, 0, 0);
@@ -225,7 +219,6 @@ int getSampleRate() {
 }
 
 void setMox(int state) {
-fprintf(stderr,"setMox: protocol=%d\n", protocol);
   if(mox!=state) {
     mox=state;
     if(protocol==NEW_PROTOCOL) {
@@ -251,7 +244,6 @@ int getMox() {
 }
 
 void setTune(int state) {
-fprintf(stderr,"setTune: protocol=%d\n", protocol);
   if(tune!=state) {
     tune=state;
     if(tune) {
@@ -279,6 +271,7 @@ fprintf(stderr,"setTune: protocol=%d\n", protocol);
       } else {
         SetTXAPostGenToneFreq(CHANNEL_TX,(double)cw_keyer_sidetone_frequency);
       }
+      //SetTXAPostGenToneMag(CHANNEL_TX,0.99999);
       SetTXAPostGenToneMag(CHANNEL_TX,1.0);
       SetTXAPostGenRun(CHANNEL_TX,1);
       SetChannelState(CHANNEL_RX0,0,1);
@@ -309,7 +302,17 @@ void setFrequency(long long f) {
     switch(protocol) {
       case NEW_PROTOCOL:
       case ORIGINAL_PROTOCOL:
-        entry->frequencyA=f;
+        if(ctun) {
+          long long minf=entry->frequencyA-(long long)(sample_rate/2);
+          long long maxf=entry->frequencyA+(long long)(sample_rate/2);
+          if(f<minf) f=minf;
+          if(f>maxf) f=maxf;
+          ddsOffset=f-entry->frequencyA;
+          wdsp_set_offset(ddsOffset);
+          return;
+        } else {
+          entry->frequencyA=f;
+        }
         break;
 #ifdef LIMESDR
       case LIMESDR_PROTOCOL:
@@ -319,7 +322,6 @@ void setFrequency(long long f) {
         if(f<minf) f=minf;
         if(f>maxf) f=maxf;
         ddsOffset=f-entry->frequencyA;
-fprintf(stderr,"radio.c: setFrequency: ddsOffset=%lld\n",ddsOffset);
         wdsp_set_offset(ddsOffset);
         return;
         }
@@ -328,7 +330,6 @@ fprintf(stderr,"radio.c: setFrequency: ddsOffset=%lld\n",ddsOffset);
     }
   }
 
-//fprintf(stderr,"setFrequency: protocol=%d f=%lld\n", protocol, f);
   ddsFrequency=f;
   switch(protocol) {
     case NEW_PROTOCOL:

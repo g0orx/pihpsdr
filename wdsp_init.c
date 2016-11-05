@@ -155,6 +155,8 @@ fprintf(stderr,"setFilter: %d %d\n",low,high);
         filterHigh=high;
     }
 
+fprintf(stderr,"setFilter: filterLow=%d filterHigh=%d\n",filterLow,filterHigh);
+
     double fl=filterLow+ddsOffset;
     double fh=filterHigh+ddsOffset;
 
@@ -313,7 +315,7 @@ void wdsp_init(int rx,int pixels,int protocol) {
     receiver=rx;
     spectrumWIDTH=pixels;
 
-    fprintf(stderr,"wdsp_init: %d\n",rx);
+    fprintf(stderr,"wdsp_init: rx=%d pixels=%d protocol=%d\n",rx,pixels,protocol);
    
     if(protocol==ORIGINAL_PROTOCOL) {
         micSampleRate=sample_rate;

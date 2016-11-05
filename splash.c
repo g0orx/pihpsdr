@@ -82,7 +82,7 @@ void splash_show(char* image_name,int width,int height,int full_screen)
 
   status=gtk_label_new("");
   gtk_label_set_justify(GTK_LABEL(status),GTK_JUSTIFY_LEFT);
-  gtk_widget_override_font(status, pango_font_description_from_string("Arial 18"));
+  gtk_widget_override_font(status, pango_font_description_from_string("FreeMono 18"));
   gtk_widget_show(status);
   //gtk_container_add(GTK_CONTAINER(splash_window), status);
   gtk_grid_attach(GTK_GRID(grid), status, 1, 3, 1, 1);

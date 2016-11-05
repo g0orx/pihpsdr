@@ -450,8 +450,12 @@ fprintf(stderr,"encoder_init\n");
   }
 
   if(ENABLE_VFO_ENCODER) {
-    gpioSetMode(VFO_ENCODER_A, PI_INPUT);
-    gpioSetMode(VFO_ENCODER_B, PI_INPUT);
+    if(gpioSetMode(VFO_ENCODER_A, PI_INPUT)!=0) {
+      fprintf(stderr,"gpioSetMode for VFO_ENCODER_A failed\n");
+    }
+    if(gpioSetMode(VFO_ENCODER_B, PI_INPUT)!=0) {
+      fprintf(stderr,"gpioSetMode for VFO_ENCODER_B failed\n");
+    }
     if(ENABLE_VFO_PULLUP) {
       gpioSetPullUpDown(VFO_ENCODER_A, PI_PUD_UP);
       gpioSetPullUpDown(VFO_ENCODER_B, PI_PUD_UP);
@@ -459,8 +463,12 @@ fprintf(stderr,"encoder_init\n");
       gpioSetPullUpDown(VFO_ENCODER_A, PI_PUD_OFF);
       gpioSetPullUpDown(VFO_ENCODER_B, PI_PUD_OFF);
     }
-    gpioSetAlertFunc(VFO_ENCODER_A, vfoEncoderPulse);
-    gpioSetAlertFunc(VFO_ENCODER_B, vfoEncoderPulse);
+    if(gpioSetAlertFunc(VFO_ENCODER_A, vfoEncoderPulse)!=0) {
+      fprintf(stderr,"gpioSetAlertFunc for VFO_ENCODER_A failed\n");
+    }
+    if(gpioSetAlertFunc(VFO_ENCODER_B, vfoEncoderPulse)!=0) {
+      fprintf(stderr,"gpioSetAlertFunc for VFO_ENCODER_B failed\n");
+    }
     vfoEncoderPos=0;
   }
 
@@ -588,7 +596,7 @@ fprintf(stderr,"encoder_init\n");
     fprintf(stderr,"wiringPiSetup\n");
     if (wiringPiSetup () < 0) {
       printf ("Unable to setup wiringPi: %s\n", strerror (errno));
-      return 1;
+      return -1;
     }
 
     FILE *fp;
@@ -609,12 +617,12 @@ fprintf(stderr,"encoder_init\n");
 
     if ( wiringPiISR (0, INT_EDGE_BOTH, &interruptB) < 0 ) {
       printf ("Unable to setup ISR: %s\n", strerror (errno));
-      return 1;
+      return -1;
     }
 
     if ( wiringPiISR (1, INT_EDGE_BOTH, &interruptA) < 0 ) {
       printf ("Unable to setup ISR: %s\n", strerror (errno));
-      return 1;
+      return -1;
     }
 #endif
 
@@ -796,31 +804,24 @@ static int rf_encoder_changed(void *data) {
 static int agc_encoder_changed(void *data) {
   int pos=*(int*)data;
   if(pos!=0) {
-    if(agcFunction) {
-      rit-=pos;
-      if(rit>1000) rit=1000;
-      if(rit<-1000) rit=-1000;
-      vfo_update(NULL);
-    } else {
-      if(function) {
-        int att=attenuation;
-        att+=pos;
-        if(att<0) {
-          att=0;
-        } else if (att>31) {
-          att=31;
-        }
-        set_attenuation_value((double)att);
-      } else {
-        double gain=agc_gain;
-        gain+=(double)pos;
-        if(gain<-20.0) {
-          gain=-20.0;
-        } else if(gain>120.0) {
-          gain=120.0;
-        }
-        set_agc_gain(gain);
+    if(function) {
+      int att=attenuation;
+      att+=pos;
+      if(att<0) {
+        att=0;
+      } else if (att>31) {
+        att=31;
       }
+      set_attenuation_value((double)att);
+    } else {
+      double gain=agc_gain;
+      gain+=(double)pos;
+      if(gain<-20.0) {
+        gain=-20.0;
+      } else if(gain>120.0) {
+        gain=120.0;
+      }
+      set_agc_gain(gain);
     }
   }
   return 0;

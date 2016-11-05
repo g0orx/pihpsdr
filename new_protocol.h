@@ -38,7 +38,11 @@
 
 #define BUFFER_SIZE 1024
 
+#ifdef SHORT_FRAMES
 #define MIC_SAMPLES 64
+#else
+#define MIC_SAMPLES 720
+#endif
 
 extern int data_socket;
 extern sem_t response_sem;

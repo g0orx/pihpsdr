@@ -160,7 +160,7 @@ static int left_tx_sample;
 static int right_tx_sample;
 
 static unsigned char output_buffer[OZY_BUFFER_SIZE];
-static int output_buffer_index=0;
+static int output_buffer_index=8;
 
 static int command=0;
 
@@ -460,8 +460,8 @@ static void process_ozy_input_buffer(char  *buffer) {
                 for(j=0;j<freedv_divisor;j++) {
                   mic_sample=mod_out[s];
                   mic_sample_double=(double)mic_sample/32767.0f; // 16 bit sample 2^16-1
-                  micinputbuffer[samples*2]=mic_sample_double*mic_gain;
-                  micinputbuffer[(samples*2)+1]=mic_sample_double*mic_gain;
+                  micinputbuffer[samples*2]=mic_sample_double*(mic_gain*1);
+                  micinputbuffer[(samples*2)+1]=mic_sample_double*(mic_gain*1);
                   iqinputbuffer[samples*2]=0.0;
                   iqinputbuffer[(samples*2)+1]=0.0;
                   samples++;
@@ -483,8 +483,8 @@ static void process_ozy_input_buffer(char  *buffer) {
             micinputbuffer[samples*2]=0.0;
             micinputbuffer[(samples*2)+1]=0.0;
           } else {
-            micinputbuffer[samples*2]=mic_sample_double*mic_gain;
-            micinputbuffer[(samples*2)+1]=mic_sample_double*mic_gain;
+            micinputbuffer[samples*2]=mic_sample_double*(mic_gain*1);
+            micinputbuffer[(samples*2)+1]=mic_sample_double*(mic_gain*1);
           }
           iqinputbuffer[samples*2]=0.0;
           iqinputbuffer[(samples*2)+1]=0.0;
@@ -635,7 +635,7 @@ static void full_rx_buffer() {
 static void full_tx_buffer() {
   int j;
   int error;
-  double gain=32767.0*scale; // 2^16-1
+  double gain=32767.0; // 2^16-1
 
   // debug
   //int min_sample=0;
@@ -646,19 +646,14 @@ static void full_tx_buffer() {
   fexchange0(CHANNEL_TX, micinputbuffer, iqoutputbuffer, &error);
   Spectrum0(1, CHANNEL_TX, 0, 0, iqoutputbuffer);
 
-#ifdef FREEDV
-  if(mode==modeFREEDV) {
-    gain=32767.0*freedv_scale;
-  }
-#endif
-
   if(radio->device==DEVICE_METIS && atlas_penelope) {
     if(tune) {
-      gain=32767.0*tune_drive;
+      gain=gain*tune_drive;
     } else {
-      gain=32767.0*drive;
+      gain=gain*drive;
     }
   }
+fprintf(stderr,"full_tx_buffer: gain=%f\n",gain);
   for(j=0;j<output_buffer_size;j++) {
     left_rx_sample=0;
     right_rx_sample=0;
@@ -733,8 +728,8 @@ void *old_protocol_process_local_mic(unsigned char *buffer,int le) {
               for(j=0;j<freedv_divisor;j++) {  // 8K to 48K
                 leftmicsample=mod_out[s];
                 leftmicsampledouble=(double)leftmicsample/32767.0; // 16 bit sample 2^16-1
-                micinputbuffer[samples*2]=leftmicsampledouble*mic_gain;
-                micinputbuffer[(samples*2)+1]=leftmicsampledouble*mic_gain;
+                micinputbuffer[samples*2]=leftmicsampledouble*(mic_gain*1);
+                micinputbuffer[(samples*2)+1]=leftmicsampledouble*(mic_gain*1);
                 iqinputbuffer[samples*2]=0.0;
                 iqinputbuffer[(samples*2)+1]=0.0;
                 samples++;
@@ -756,8 +751,8 @@ void *old_protocol_process_local_mic(unsigned char *buffer,int le) {
             micinputbuffer[samples*2]=0.0;
             micinputbuffer[(samples*2)+1]=0.0;
           } else {
-            micinputbuffer[samples*2]=leftmicsampledouble*mic_gain;
-            micinputbuffer[(samples*2)+1]=leftmicsampledouble*mic_gain;
+            micinputbuffer[samples*2]=leftmicsampledouble*(mic_gain*1);
+            micinputbuffer[(samples*2)+1]=leftmicsampledouble*(mic_gain*1);
           }
           iqinputbuffer[samples*2]=0.0;
           iqinputbuffer[(samples*2)+1]=0.0;
@@ -923,6 +918,9 @@ void ozy_send_buffer() {
     case 1: // tx frequency
       output_buffer[C0]=0x02;
       long long txFrequency=ddsFrequency;
+      if(ctun) {
+        txFrequency+=ddsOffset;
+      }
       output_buffer[C1]=txFrequency>>24;
       output_buffer[C2]=txFrequency>>16;
       output_buffer[C3]=txFrequency>>8;
@@ -947,11 +945,13 @@ void ozy_send_buffer() {
       if(tune) {
         d=(float)tune_drive;
       }
-      BAND *band=band_get_current_band();
-      d=d*((float)band->pa_calibration/100.0F);
-      int power=(int)(d*255.0);
 
-//fprintf(stderr,"power=%d\n", power);
+      int power=0;
+      if(isTransmitting()) {
+        BAND *band=band_get_current_band();
+        d=d*((float)band->pa_calibration/100.0F);
+        power=(int)(d*255.0);
+      }
 
       output_buffer[C0]=0x12;
       output_buffer[C1]=power&0xFF;

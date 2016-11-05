@@ -68,10 +68,14 @@ void saveProperties(char* filename) {
     PROPERTY* property=properties;
     FILE* f=fopen(filename,"w+");
     char line[512];
+    char version[32];
     if(!f) {
         fprintf(stderr,"can't open %s\n",filename);
         exit(1);
     }
+
+    sprintf(version,"%0.2f", PROPERTY_VERSION);
+    setProperty("property_version",version);
     while(property) {
         sprintf(line,"%s=%s\n",property->name,property->value);
         fwrite(line,1,strlen(line),f);

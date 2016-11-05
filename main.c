@@ -65,9 +65,11 @@
 #define VFO_HEIGHT ((display_height/32)*4)
 #define VFO_WIDTH ((display_width/32)*16)
 #define MENU_HEIGHT VFO_HEIGHT
-#define MENU_WIDTH ((display_width/32)*3)
+//#define MENU_WIDTH ((display_width/32)*3)
+#define MENU_WIDTH ((display_width/32)*8)
 #define METER_HEIGHT VFO_HEIGHT
-#define METER_WIDTH ((display_width/32)*13)
+//#define METER_WIDTH ((display_width/32)*13)
+#define METER_WIDTH ((display_width/32)*8)
 #define PANADAPTER_HEIGHT ((display_height/32)*8)
 #define SLIDERS_HEIGHT ((display_height/32)*6)
 #define TOOLBAR_HEIGHT ((display_height/32)*2)
@@ -384,7 +386,7 @@ gint init(void* arg) {
                                  GTK_MESSAGE_ERROR,
                                  GTK_BUTTONS_OK_CANCEL,
                                  "No devices found! Retry Discovery?");
-          gtk_widget_override_font(discovery_dialog, pango_font_description_from_string("Arial 18"));
+          gtk_widget_override_font(discovery_dialog, pango_font_description_from_string("FreeMono 18"));
           gint result=gtk_dialog_run (GTK_DIALOG (discovery_dialog));
           gtk_widget_destroy(discovery_dialog);
           if(result==GTK_RESPONSE_CANCEL) {
@@ -407,7 +409,7 @@ gint init(void* arg) {
                                       GTK_RESPONSE_CLOSE,
                                       NULL);
 
-          gtk_widget_override_font(discovery_dialog, pango_font_description_from_string("Arial 18"));
+          gtk_widget_override_font(discovery_dialog, pango_font_description_from_string("FreeMono 18"));
           GtkWidget *content;
 
           content=gtk_dialog_get_content_area(GTK_DIALOG(discovery_dialog));
@@ -463,12 +465,12 @@ fprintf(stderr,"%p protocol=%d name=%s\n",d,d->protocol,d->name);
               }
 
               GtkWidget *label=gtk_label_new(text);
-              gtk_widget_override_font(label, pango_font_description_from_string("Arial 12"));
+              gtk_widget_override_font(label, pango_font_description_from_string("FreeMono 12"));
               gtk_widget_show(label);
               gtk_grid_attach(GTK_GRID(grid),label,0,i,3,1);
 
               GtkWidget *start_button=gtk_button_new_with_label("Start");
-              gtk_widget_override_font(start_button, pango_font_description_from_string("Arial 18"));
+              gtk_widget_override_font(start_button, pango_font_description_from_string("FreeMono 18"));
               gtk_widget_show(start_button);
               gtk_grid_attach(GTK_GRID(grid),start_button,3,i,1,1);
               g_signal_connect(start_button,"pressed",G_CALLBACK(start_cb),(gpointer)d);
@@ -543,7 +545,7 @@ fprintf(stderr,"selected radio=%p device=%d\n",radio,radio->device);
   }
 
   //splash_status("Initializing wdsp ...");
-  wdsp_init(0,display_width,d->protocol);
+  wdsp_init(0,display_width,radio->protocol);
 
   switch(radio->protocol) {
     case ORIGINAL_PROTOCOL:
@@ -564,7 +566,8 @@ fprintf(stderr,"selected radio=%p device=%d\n",radio,radio->device);
 
   splash_status("Initializing GPIO ...");
 #ifdef GPIO
-  gpio_init();
+  if(gpio_init()<0) {
+  }
 #endif
 
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);

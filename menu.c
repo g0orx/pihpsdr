@@ -41,30 +41,31 @@
 
 static GtkWidget *parent_window;
 
-static GtkWidget *box;
-static GtkWidget *menu;
+static GtkWidget *h_box;
+static GtkWidget *v_box_1;
+static GtkWidget *v_box_2;
+static GtkWidget *menu_b;
+static GtkWidget *ctun_b;
+static GtkWidget *rit_b;
+static GtkWidget *rit_plus_b;
+static GtkWidget *rit_minus_b;
+static gint rit_timer;
 
 static GtkWidget *ant_grid;
 static gint ant_id=-1;
 
-#ifdef DEBUG
-static void scale_value_changed_cb(GtkWidget *widget, gpointer data) {
-  scale=(int)gtk_range_get_value(GTK_RANGE(widget));
-}
+static gboolean rit_enabled=FALSE;
 
-#ifdef PSK
-static void psk_scale_value_changed_cb(GtkWidget *widget, gpointer data) {
-  psk_scale=(int)gtk_range_get_value(GTK_RANGE(widget));
+static void set_button_text_color(GtkWidget *widget,char *color) {
+  GtkStyleContext *style_context;
+  GtkCssProvider *provider = gtk_css_provider_new ();
+  gchar tmp[64];
+  style_context = gtk_widget_get_style_context(widget);
+  gtk_style_context_add_provider(style_context, GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+  g_snprintf(tmp, sizeof tmp, "GtkButton, GtkLabel { color: %s; }", color);
+  gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(provider), tmp, -1, NULL);
+  g_object_unref (provider);
 }
-#endif
-
-#ifdef FREEDV
-static void freedv_scale_value_changed_cb(GtkWidget *widget, gpointer data) {
-  freedv_scale=(int)gtk_range_get_value(GTK_RANGE(widget));
-}
-#endif
-
-#endif
 
 static void agc_hang_threshold_value_changed_cb(GtkWidget *widget, gpointer data) {
   agc_hang_threshold=(int)gtk_range_get_value(GTK_RANGE(widget));
@@ -264,6 +265,19 @@ static void alex_cb(GtkWidget *widget, gpointer data) {
   if(protocol==NEW_PROTOCOL) {
     filter_board_changed();
   }
+
+  if(filter_board==ALEX) {
+    BAND *band=band_get_current_band();
+    BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
+    setFrequency(entry->frequencyA);
+    setMode(entry->mode);
+    FILTER* band_filters=filters[entry->mode];
+    FILTER* band_filter=&band_filters[entry->filter];
+    setFilter(band_filter->low,band_filter->high);
+    set_alex_rx_antenna(band->alexRxAntenna);
+    set_alex_tx_antenna(band->alexTxAntenna);
+    set_alex_attenuation(band->alexAttenuation);
+  }
 }
 
 static void apollo_cb(GtkWidget *widget, gpointer data) {
@@ -278,6 +292,16 @@ static void apollo_cb(GtkWidget *widget, gpointer data) {
   }
   if(protocol==NEW_PROTOCOL) {
     filter_board_changed();
+  }
+
+  if(filter_board==APOLLO) {
+    BAND *band=band_get_current_band();
+    BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
+    setFrequency(entry->frequencyA);
+    setMode(entry->mode);
+    FILTER* band_filters=filters[entry->mode];
+    FILTER* band_filter=&band_filters[entry->filter];
+    setFilter(band_filter->low,band_filter->high);
   }
 }
 /*
@@ -1306,38 +1330,6 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
     gtk_grid_attach(GTK_GRID(tx_grid),tx_out_of_band_b,0,7,4,1);
     g_signal_connect(tx_out_of_band_b,"toggled",G_CALLBACK(tx_out_of_band_cb),NULL);
 
-
-#ifdef DEBUG
-    int column=((i/6)*2)+2;
-
-    GtkWidget *scale_label=gtk_label_new("Mic Scale:");
-    gtk_widget_show(scale_label);
-    gtk_grid_attach(GTK_GRID(tx_grid),scale_label,column,0,1,1);
-    GtkWidget *scale_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 20.0, 0.1);
-    gtk_range_set_value (GTK_RANGE(scale_scale),scale);
-    gtk_widget_show(scale_scale);
-    gtk_grid_attach(GTK_GRID(tx_grid),scale_scale,column+1,0,30,1);
-    g_signal_connect(G_OBJECT(scale_scale),"value_changed",G_CALLBACK(scale_value_changed_cb),NULL);
-
-    GtkWidget *psk_scale_label=gtk_label_new("PSK Scale:");
-    gtk_widget_show(psk_scale_label);
-    gtk_grid_attach(GTK_GRID(tx_grid),psk_scale_label,column,1,1,1);
-    GtkWidget *psk_scale_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 20.0, 0.1);
-    gtk_range_set_value (GTK_RANGE(psk_scale_scale),psk_scale);
-    gtk_widget_show(psk_scale_scale);
-    gtk_grid_attach(GTK_GRID(tx_grid),psk_scale_scale,column+1,1,30,1);
-    g_signal_connect(G_OBJECT(psk_scale_scale),"value_changed",G_CALLBACK(psk_scale_value_changed_cb),NULL);
-
-    GtkWidget *freedv_scale_label=gtk_label_new("FREEDV Scale:");
-    gtk_widget_show(freedv_scale_label);
-    gtk_grid_attach(GTK_GRID(tx_grid),freedv_scale_label,column,2,1,1);
-    GtkWidget *freedv_scale_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 20.0, 0.1);
-    gtk_range_set_value (GTK_RANGE(freedv_scale_scale),freedv_scale);
-    gtk_widget_show(freedv_scale_scale);
-    gtk_grid_attach(GTK_GRID(tx_grid),freedv_scale_scale,column+1,2,30,1);
-    g_signal_connect(G_OBJECT(freedv_scale_scale),"value_changed",G_CALLBACK(freedv_scale_value_changed_cb),NULL);
-#endif
-
     id=gtk_notebook_append_page(GTK_NOTEBOOK(notebook),tx_grid,tx_label);
   }
 
@@ -1618,6 +1610,70 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
 
 }
 
+static gboolean ctun_pressed_event_cb (GtkWidget *widget, GdkEventButton *event, gpointer        data) {
+  ctun=ctun==1?0:1;
+  
+  if(ctun) {
+    set_button_text_color(ctun_b,"red");
+  } else {
+    set_button_text_color(ctun_b,"black");
+    if(ddsOffset!=0) {
+      ddsOffset=0;
+      wdsp_set_offset(ddsOffset);
+      vfo_update(NULL);
+    }
+  }
+  return TRUE;
+}
+
+static gboolean rit_timer_cb(gpointer data) {
+  if((GtkWidget*)data==rit_plus_b) {
+    rit++;
+  } else {
+    rit--;
+  }
+  if(rit>1000) rit=1000;
+  if(rit<-1000) rit=-1000;
+  vfo_update(NULL);
+  return TRUE;
+}
+
+static gboolean rit_pressed_event_cb (GtkWidget *widget, GdkEventButton *event, gpointer        data) {
+  if(rit_enabled) {
+    rit_enabled=FALSE;
+    set_button_text_color(rit_b,"black");
+    rit=0;
+    gtk_widget_set_sensitive(rit_plus_b,FALSE);
+    gtk_widget_set_sensitive(rit_minus_b,FALSE);
+  } else {
+    rit_enabled=TRUE;
+    set_button_text_color(rit_b,"red");
+    gtk_widget_set_sensitive(rit_plus_b,TRUE);
+    gtk_widget_set_sensitive(rit_minus_b,TRUE);
+  }
+  vfo_update(NULL);
+}
+
+static gboolean rit_step_pressed_event_cb (GtkWidget *widget, GdkEventButton *event, gpointer        data) {
+  if(widget==rit_plus_b) {
+    rit++;
+  } else {
+    rit--;
+  }
+  if(rit>1000) rit=1000;
+  if(rit<-1000) rit=-1000;
+  vfo_update(NULL);
+  rit_timer=g_timeout_add(200,rit_timer_cb,widget);
+  return TRUE;
+}
+
+
+static gboolean rit_step_released_event_cb (GtkWidget *widget, GdkEventButton *event, gpointer        data) {
+  g_source_remove(rit_timer);
+  return TRUE;
+}
+
+
 GtkWidget* menu_init(int width,int height,GtkWidget *parent) {
 
   GdkRGBA black;
@@ -1633,16 +1689,52 @@ GtkWidget* menu_init(int width,int height,GtkWidget *parent) {
 
   parent_window=parent;
 
-  box=gtk_box_new(GTK_ORIENTATION_HORIZONTAL,0);
-  gtk_widget_set_size_request (box, width, height);
-  gtk_widget_override_background_color(box, GTK_STATE_NORMAL, &black);
+  h_box=gtk_box_new(GTK_ORIENTATION_HORIZONTAL,0);
+  gtk_widget_set_size_request (h_box, width, height);
+  gtk_widget_override_background_color(h_box, GTK_STATE_NORMAL, &black);
 
-  menu=gtk_button_new_with_label("Menu");
- // gtk_widget_set_size_request (menu, width, height);
-  g_signal_connect (menu, "pressed", G_CALLBACK(menu_pressed_event_cb), NULL);
-  gtk_box_pack_start (GTK_BOX(box),menu,TRUE,TRUE,0);
+  v_box_2=gtk_box_new(GTK_ORIENTATION_VERTICAL,0);
+  gtk_widget_override_background_color(v_box_2, GTK_STATE_NORMAL, &black);
 
-  gtk_widget_show_all(box);
+  rit_plus_b=gtk_button_new_with_label("RIT+");
+  gtk_widget_override_font(rit_plus_b, pango_font_description_from_string("FreeMono Bold 10"));
+  g_signal_connect (rit_plus_b, "pressed", G_CALLBACK(rit_step_pressed_event_cb), NULL);
+  g_signal_connect (rit_plus_b, "released", G_CALLBACK(rit_step_released_event_cb), NULL);
+  gtk_box_pack_start (GTK_BOX(v_box_2),rit_plus_b,TRUE,TRUE,0);
 
-  return box;
+  rit_minus_b=gtk_button_new_with_label("RIT-");
+  gtk_widget_override_font(rit_minus_b, pango_font_description_from_string("FreeMono Bold 10"));
+  g_signal_connect (rit_minus_b, "pressed", G_CALLBACK(rit_step_pressed_event_cb), NULL);
+  g_signal_connect (rit_minus_b, "released", G_CALLBACK(rit_step_released_event_cb), NULL);
+  gtk_box_pack_start (GTK_BOX(v_box_2),rit_minus_b,TRUE,TRUE,0);
+  
+  gtk_widget_set_sensitive(rit_plus_b,FALSE);
+  gtk_widget_set_sensitive(rit_minus_b,FALSE);
+
+  gtk_box_pack_start (GTK_BOX(h_box),v_box_2,TRUE,TRUE,0);
+  
+  v_box_1=gtk_box_new(GTK_ORIENTATION_VERTICAL,0);
+  gtk_widget_override_background_color(v_box_1, GTK_STATE_NORMAL, &black);
+
+  ctun_b=gtk_button_new_with_label("CTUN");
+  gtk_widget_override_font(ctun_b, pango_font_description_from_string("FreeMono Bold 10"));
+  g_signal_connect (ctun_b, "pressed", G_CALLBACK(ctun_pressed_event_cb), NULL);
+  gtk_box_pack_start (GTK_BOX(v_box_1),ctun_b,TRUE,TRUE,0);
+  
+  rit_b=gtk_button_new_with_label("RIT");
+  gtk_widget_override_font(rit_b, pango_font_description_from_string("FreeMono Bold 10"));
+  g_signal_connect (rit_b, "pressed", G_CALLBACK(rit_pressed_event_cb), NULL);
+  gtk_box_pack_start (GTK_BOX(v_box_1),rit_b,TRUE,TRUE,0);
+  
+  gtk_box_pack_start (GTK_BOX(h_box),v_box_1,TRUE,TRUE,0);
+
+  menu_b=gtk_button_new_with_label("Menu");
+ // gtk_widget_set_size_request (menu_b, width, height);
+  gtk_widget_override_font(menu_b, pango_font_description_from_string("FreeMono Bold 10"));
+  g_signal_connect (menu_b, "pressed", G_CALLBACK(menu_pressed_event_cb), NULL);
+  gtk_box_pack_start (GTK_BOX(h_box),menu_b,TRUE,TRUE,0);
+
+  gtk_widget_show_all(h_box);
+
+  return h_box;
 }

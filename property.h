@@ -20,6 +20,8 @@
 #ifndef _PROPERTY_H
 #define _PROPERTY_H
 
+#define PROPERTY_VERSION 1.0
+
 typedef struct _PROPERTY PROPERTY;
 
 /* --------------------------------------------------------------------------*/

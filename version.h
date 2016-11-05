@@ -22,5 +22,6 @@
 
 extern char build_version[];
 extern char build_date[];
+extern char version[];
 
 #endif

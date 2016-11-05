@@ -82,28 +82,34 @@ void vfo_move(int hz) {
       setFrequency((entry->frequencyA+ddsOffset-hz)/step*step);
     else 
 #endif
-      setFrequency((entry->frequencyA+ddsOffset+hz)/step*step);
+      if(ctun) {
+        setFrequency((entry->frequencyA+ddsOffset-hz)/step*step);
+      } else {
+        setFrequency((entry->frequencyA+ddsOffset+hz)/step*step);
+      }
     vfo_update(NULL);
   }
 }
 void vfo_move_to(int hz) {
   if(!locked) {
     BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
-    //entry->frequencyA=(entry->frequencyA+hz)/step*step;
-    //setFrequency(entry->frequencyA);
 
 #ifdef LIMESDR
     if(protocol==LIMESDR_PROTOCOL) {
       setFrequency((entry->frequencyA+ddsOffset-hz)/step*step);
     } else {
 #endif
-      long f=(entry->frequencyA+ddsOffset+hz)/step*step;
-      if(mode==modeCWL) {
-        f+=cw_keyer_sidetone_frequency;
-      } else if(mode==modeCWU) {
-        f-=cw_keyer_sidetone_frequency;
+      if(ctun) {
+        setFrequency((entry->frequencyA+hz)/step*step);
+      } else {
+        long f=(entry->frequencyA+ddsOffset+hz)/step*step;
+        if(mode==modeCWL) {
+          f+=cw_keyer_sidetone_frequency;
+        } else if(mode==modeCWU) {
+          f-=cw_keyer_sidetone_frequency;
+        }
+        setFrequency(f);
       }
-      setFrequency(f);
 #ifdef LIMESDR
     }
 #endif
@@ -189,7 +195,7 @@ int vfo_update(void *data) {
         cairo_set_source_rgb (cr, 0, 0, 0);
         cairo_paint (cr);
 
-        cairo_select_font_face(cr, "Arial",
+        cairo_select_font_face(cr, "FreeMono",
             CAIRO_FONT_SLANT_NORMAL,
             CAIRO_FONT_WEIGHT_BOLD);
 
@@ -209,9 +215,8 @@ int vfo_update(void *data) {
         switch(radio->protocol) {
             case ORIGINAL_PROTOCOL:
             case NEW_PROTOCOL:
-              sprintf(text,"%s (%s %s) %s",
+              sprintf(text,"%s %s %s",
                     radio->name,
-                    radio->protocol==ORIGINAL_PROTOCOL?"old":"new",
                     version,
                     inet_ntoa(radio->info.network.address.sin_addr));
               break;
@@ -223,7 +228,7 @@ int vfo_update(void *data) {
 #endif
         }
         cairo_set_source_rgb(cr, 0.5, 0.5, 0.5);
-        cairo_set_font_size(cr, 12);
+        cairo_set_font_size(cr, 10);
         cairo_move_to(cr, 5, 15);  
         cairo_show_text(cr, text);
 
@@ -362,7 +367,7 @@ vfo_press_event_cb (GtkWidget *widget,
       } else {
           step_rb=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(step_rb),step_labels[i]);
       }
-      gtk_widget_override_font(step_rb, pango_font_description_from_string("Arial 18"));
+      gtk_widget_override_font(step_rb, pango_font_description_from_string("FreeMono 18"));
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (step_rb), steps[i]==step);
       gtk_widget_show(step_rb);
       gtk_grid_attach(GTK_GRID(grid),step_rb,i%5,i/5,1,1);
@@ -373,7 +378,7 @@ vfo_press_event_cb (GtkWidget *widget,
     gtk_container_add(GTK_CONTAINER(content),grid);
   
     GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close",GTK_RESPONSE_OK);
-    gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 18"));
+    gtk_widget_override_font(close_button, pango_font_description_from_string("FreeMono 18"));
     gtk_widget_show_all(dialog);
 
     g_signal_connect_swapped (dialog,

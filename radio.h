@@ -46,15 +46,6 @@ extern DISCOVERED *radio;
 
 extern char property_path[];
 
-extern double scale;
-#ifdef FREEDV
-extern double freedv_scale;
-#endif
-#ifdef PSK
-extern double psk_scale;
-#endif
-
-
 #define NONE 0
 
 #define ALEX 1
@@ -213,6 +204,8 @@ extern int eer_pwm_max;
 
 extern int tx_filter_low;
 extern int tx_filter_high;
+
+extern int ctun;
 
 extern void init_radio();
 extern void setSampleRate(int rate);
