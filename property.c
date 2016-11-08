@@ -71,7 +71,7 @@ void saveProperties(char* filename) {
     char version[32];
     if(!f) {
         fprintf(stderr,"can't open %s\n",filename);
-        exit(1);
+        return;
     }
 
     sprintf(version,"%0.2f", PROPERTY_VERSION);

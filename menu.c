@@ -224,6 +224,8 @@ static void local_input_changed_cb(GtkWidget *widget, gpointer data) {
     audio_close_input();
     if(audio_open_input()==0) {
       local_microphone=1;
+    } else {
+      local_microphone=0;
     }
   }
 }

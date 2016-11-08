@@ -157,10 +157,12 @@ void set_agc_gain(double value) {
 
 static void afgain_value_changed_cb(GtkWidget *widget, gpointer data) {
     volume=gtk_range_get_value(GTK_RANGE(af_gain_scale))/100.0;
+    SetRXAPanelGain1 (CHANNEL_RX0, volume);
 }
 
 void set_af_gain(double value) {
   volume=value;
+  SetRXAPanelGain1 (CHANNEL_RX0, volume);
   if(display_sliders) {
     gtk_range_set_value (GTK_RANGE(af_gain_scale),volume*100.0);
   } else {
@@ -193,10 +195,12 @@ void set_af_gain(double value) {
 
 static void micgain_value_changed_cb(GtkWidget *widget, gpointer data) {
     mic_gain=gtk_range_get_value(GTK_RANGE(widget))/100.0;
+    SetTXAPanelGain1(CHANNEL_TX,mic_gain);
 }
 
 void set_mic_gain(double value) {
   mic_gain=value;
+  SetTXAPanelGain1(CHANNEL_TX,mic_gain);
   if(display_sliders) {
     gtk_range_set_value (GTK_RANGE(mic_gain_scale),mic_gain*100.0);
   } else {

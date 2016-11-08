@@ -676,6 +676,9 @@ fprintf(stderr,"toolbar_height=%d\n",TOOLBAR_HEIGHT);
   GdkWindow *gdk_window = gtk_widget_get_window(window);
   gdk_window_set_cursor(gdk_window,cursor_arrow);
 
+  // start the receiver
+  SetChannelState(CHANNEL_RX0,1,1);
+
   //update_timer_id=gdk_threads_add_timeout(1000/updates_per_second, update, NULL);
   update_timer_id=gdk_threads_add_timeout_full(G_PRIORITY_HIGH_IDLE,1000/updates_per_second, update, NULL, NULL);
 
