@@ -750,10 +750,10 @@ static int af_encoder_changed(void *data) {
       // mic gain
       double gain=mic_gain;
       gain+=(double)pos/100.0;
-      if(gain<0.0) {
-        gain=0.0;
-      } else if(gain>1.0) {
-        gain=1.0;
+      if(gain<-10.0) {
+        gain=-10.0;
+      } else if(gain>50.0) {
+        gain=50.0;
       }
       set_mic_gain(gain);
     } else {

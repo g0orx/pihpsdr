@@ -86,7 +86,7 @@ int display_toolbar=1;
 int toolbar_dialog_buttons=1;
 
 double volume=0.2;
-double mic_gain=0.5;
+double mic_gain=0.0;
 
 int rx_dither=0;
 int rx_random=0;
@@ -271,8 +271,7 @@ void setTune(int state) {
       } else {
         SetTXAPostGenToneFreq(CHANNEL_TX,(double)cw_keyer_sidetone_frequency);
       }
-      //SetTXAPostGenToneMag(CHANNEL_TX,0.99999);
-      SetTXAPostGenToneMag(CHANNEL_TX,1.0);
+      SetTXAPostGenToneMag(CHANNEL_TX,2.0);
       SetTXAPostGenRun(CHANNEL_TX,1);
       SetChannelState(CHANNEL_RX0,0,1);
       SetChannelState(CHANNEL_TX,1,0);
@@ -473,7 +472,7 @@ void radioRestoreState() {
     value=getProperty("tune_drive");
     if(value) {tune_drive=atof(value); if(tune_drive>1.0) tune_drive=1.0;}
     value=getProperty("mic_gain");
-    if(value) { mic_gain=atof(value); if(mic_gain>1.0) mic_gain=1.0; }
+    if(value) { mic_gain=atof(value); if(mic_gain<1.0) mic_gain=0.0; }
     value=getProperty("mic_boost");
     if(value) mic_boost=atof(value);
     value=getProperty("mic_linein");

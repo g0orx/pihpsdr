@@ -1114,7 +1114,7 @@ static void full_tx_buffer() {
   }
 }
 
-void *new_protocol_process_local_mic(unsigned char *buffer,int le) {
+void new_protocol_process_local_mic(unsigned char *buffer,int le) {
     int b;
     int leftmicsample;
     int rightmicsample;
@@ -1128,14 +1128,11 @@ void *new_protocol_process_local_mic(unsigned char *buffer,int le) {
             if(le) {
               leftmicsample  = (int)((unsigned char)buffer[b++] & 0xFF);
               leftmicsample  |= (int)((signed char) buffer[b++]) << 8;
-              //rightmicsample  = (int)((unsigned char)buffer[b++] & 0xFF);
-              //rightmicsample  |= (int)((signed char) buffer[b++]) << 8;
               rightmicsample=leftmicsample;
             } else {
               leftmicsample  = (int)((signed char) buffer[b++]) << 8;
               leftmicsample  |= (int)((unsigned char)buffer[b++] & 0xFF);
-              rightmicsample  = (int)((signed char) buffer[b++]) << 8;
-              rightmicsample  |= (int)((unsigned char)buffer[b++] & 0xFF);
+              rightmicsample=leftmicsample;
             }
 #ifdef FREEDV
             if(mode==modeFREEDV && isTransmitting()) {

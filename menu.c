@@ -186,12 +186,17 @@ static void micboost_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void local_audio_cb(GtkWidget *widget, gpointer data) {
-  if(local_audio) {
-    local_audio=0;
-    audio_close_output();
-  } else {
+  if(gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget))) {
     if(audio_open_output()==0) {
       local_audio=1;
+    } else {
+      local_audio=0;
+      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), FALSE);
+    }
+  } else {
+    if(local_audio) {
+      local_audio=0;
+      audio_close_output();
     }
   }
 }
@@ -208,18 +213,25 @@ static void local_output_changed_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void local_microphone_cb(GtkWidget *widget, gpointer data) {
-  if(local_microphone) {
-    local_microphone=0;
-    audio_close_input();
-  } else {
+fprintf(stderr,"local_microphone_cb: %d\n",local_microphone);
+  if(gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget))) {
     if(audio_open_input()==0) {
       local_microphone=1;
+    } else {
+      local_microphone=0;
+      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), FALSE);
+    }
+  } else {
+    if(local_microphone) {
+      local_microphone=0;
+      audio_close_input();
     }
   }
 }
 
 static void local_input_changed_cb(GtkWidget *widget, gpointer data) {
   n_selected_input_device=(int)(long)data;
+fprintf(stderr,"local_input_changed_cb: %d selected=%d\n",local_microphone,n_selected_input_device);
   if(local_microphone) {
     audio_close_input();
     if(audio_open_input()==0) {

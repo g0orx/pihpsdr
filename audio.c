@@ -34,6 +34,7 @@
 
 #include "audio.h"
 #include "new_protocol.h"
+#include "old_protocol.h"
 #include "radio.h"
 
 int audio = 0;
@@ -183,6 +184,7 @@ fprintf(stderr,"audio_open_input: %d\n",n_selected_input_device);
       break;
   }
   
+  fprintf(stderr,"audio_open_input: mic_buffer_size=%d\n",mic_buffer_size);
   i=0;
   while(selected[i]!=' ') {
     hw[i]=selected[i];
@@ -190,6 +192,7 @@ fprintf(stderr,"audio_open_input: %d\n",n_selected_input_device);
   }
   hw[i]='\0';
 
+  fprintf(stderr,"audio_open_input: hw=%s\n",hw);
 
   if ((err = snd_pcm_open (&record_handle, hw, SND_PCM_STREAM_CAPTURE, 0)) < 0) {
     fprintf (stderr, "audio_open_input: cannot open audio device %s (%s)\n",
@@ -309,20 +312,24 @@ int audio_write(short left_sample,short right_sample) {
 }
 
 static void *mic_read_thread(void *arg) {
-  int error;
-  if ((error = snd_pcm_prepare (record_handle)) < 0) {
+  int rc;
+  if ((rc = snd_pcm_prepare (record_handle)) < 0) {
     fprintf (stderr, "mic_read_thread: cannot prepare audio interface for use (%s)\n",
-            snd_strerror (error));
+            snd_strerror (rc));
     return;
   }
+fprintf(stderr,"mic_read_thread: mic_buffer_size=%d\n",mic_buffer_size);
   while(running) {
-    if ((error = snd_pcm_readi (record_handle, mic_buffer, mic_buffer_size)) != mic_buffer_size) {
+    if ((rc = snd_pcm_readi (record_handle, mic_buffer, mic_buffer_size)) != mic_buffer_size) {
       if(running) {
-        fprintf (stderr, "mic_read_thread: read from audio interface failed (%s)\n",
-                snd_strerror (error));
-        running=FALSE;
+        if(rc<0) {
+          fprintf (stderr, "mic_read_thread: read from audio interface failed (%s)\n",
+                  snd_strerror (rc));
+          running=FALSE;
+        } else {
+          fprintf(stderr,"mic_read_thread: read %d",rc);
+        }
       }
-      break;
     } else {
       // process the mic input
       switch(protocol) {
@@ -337,6 +344,7 @@ static void *mic_read_thread(void *arg) {
       }
     }
   }
+fprintf(stderr,"mic_read_thread: exiting\n");
 
 }
 

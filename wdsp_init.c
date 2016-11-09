@@ -269,6 +269,8 @@ static void setupRX(int rx) {
     SetRXAANRRun(rx, nr);
     SetRXAANFRun(rx, anf);
     SetRXASNBARun(rx, snb);
+
+    SetRXAPanelGain1(rx, volume);
 }
 
 static void setupTX(int tx) {
@@ -298,6 +300,10 @@ static void setupTX(int tx) {
     SetTXAPostGenToneMag(tx, 0.0);
     SetTXAPostGenToneFreq(tx, 0.0);
     SetTXAPostGenRun(tx, 0);
+
+    SetTXAPanelRun(tx, 1);
+    double gain=pow(10.0, mic_gain / 20.0);
+    SetTXAPanelGain1(tx,gain);
 
     //SetChannelState(tx,1,0);
 }

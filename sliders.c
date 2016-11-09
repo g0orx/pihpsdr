@@ -20,6 +20,7 @@
 #include <gtk/gtk.h>
 #include <semaphore.h>
 #include <stdio.h>
+#include <math.h>
 
 #include "sliders.h"
 #include "mode.h"
@@ -194,15 +195,17 @@ void set_af_gain(double value) {
 }
 
 static void micgain_value_changed_cb(GtkWidget *widget, gpointer data) {
-    mic_gain=gtk_range_get_value(GTK_RANGE(widget))/100.0;
-    SetTXAPanelGain1(CHANNEL_TX,mic_gain);
+    mic_gain=gtk_range_get_value(GTK_RANGE(widget));
+    double gain=pow(10.0, mic_gain / 20.0);
+    SetTXAPanelGain1(CHANNEL_TX,gain);
 }
 
 void set_mic_gain(double value) {
   mic_gain=value;
-  SetTXAPanelGain1(CHANNEL_TX,mic_gain);
+  double gain=pow(10.0, mic_gain / 20.0);
+  SetTXAPanelGain1(CHANNEL_TX,gain);
   if(display_sliders) {
-    gtk_range_set_value (GTK_RANGE(mic_gain_scale),mic_gain*100.0);
+    gtk_range_set_value (GTK_RANGE(mic_gain_scale),mic_gain);
   } else {
     if(scale_status!=MIC_GAIN) {
       if(scale_status!=NONE) {
@@ -213,11 +216,11 @@ void set_mic_gain(double value) {
     }
     if(scale_status==NONE) {
       scale_status=MIC_GAIN;
-      scale_dialog=gtk_dialog_new_with_buttons(mic_linein?"Linein Gain":"Mic Gain",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
+      scale_dialog=gtk_dialog_new_with_buttons(mic_linein?"Linein Gain (dB)":"Mic Gain (dB)",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
       GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
-      mic_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.00);
+      mic_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-10.0, 50.0, 1.00);
       gtk_widget_set_size_request (mic_gain_scale, 400, 30);
-      gtk_range_set_value (GTK_RANGE(mic_gain_scale),mic_gain*100.0);
+      gtk_range_set_value (GTK_RANGE(mic_gain_scale),mic_gain);
       gtk_widget_show(mic_gain_scale);
       gtk_container_add(GTK_CONTAINER(content),mic_gain_scale);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
@@ -225,7 +228,7 @@ void set_mic_gain(double value) {
       int result=gtk_dialog_run(GTK_DIALOG(scale_dialog));
     } else {
       g_source_remove(scale_timer);
-      gtk_range_set_value (GTK_RANGE(mic_gain_scale),mic_gain*100.0);
+      gtk_range_set_value (GTK_RANGE(mic_gain_scale),mic_gain);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
     }
 
@@ -351,13 +354,13 @@ GtkWidget *sliders_init(int my_width, int my_height, GtkWidget* parent) {
 
 
 
-  mic_gain_label=gtk_label_new(mic_linein?"Linein:":"Mic:");
+  mic_gain_label=gtk_label_new(mic_linein?"Linein (dB):":"Mic (dB):");
   //gtk_widget_override_font(mic_gain_label, pango_font_description_from_string("Arial 16"));
   gtk_widget_show(mic_gain_label);
   gtk_grid_attach(GTK_GRID(sliders),mic_gain_label,0,1,1,1);
 
-  mic_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.0);
-  gtk_range_set_value (GTK_RANGE(mic_gain_scale),mic_gain*100.0);
+  mic_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-10.0, 50.0, 1.0);
+  gtk_range_set_value (GTK_RANGE(mic_gain_scale),mic_gain);
   gtk_widget_show(mic_gain_scale);
   gtk_grid_attach(GTK_GRID(sliders),mic_gain_scale,1,1,2,1);
   g_signal_connect(G_OBJECT(mic_gain_scale),"value_changed",G_CALLBACK(micgain_value_changed_cb),NULL);

@@ -446,7 +446,7 @@ static void process_ozy_input_buffer(char  *buffer) {
 
       left_sample_double=(double)left_sample/8388607.0; // 24 bit sample 2^23-1
       right_sample_double=(double)right_sample/8388607.0; // 24 bit sample 2^23-1
-      mic_sample_double=(double)mic_sample/32767.0; // 16 bit sample 2^16-1
+      mic_sample_double = (1.0 / 2147483648.0) * (double)(mic_sample<<16);
 
       // add to buffer
       if(isTransmitting() && !local_microphone) {
@@ -459,7 +459,7 @@ static void process_ozy_input_buffer(char  *buffer) {
               for(s=0;s<modem_samples;s++) {
                 for(j=0;j<freedv_divisor;j++) {
                   mic_sample=mod_out[s];
-                  mic_sample_double=(double)mic_sample/32767.0f; // 16 bit sample 2^16-1
+                  mic_sample_double = (1.0 / 2147483648.0) * (double)(mic_sample<<16);
                   micinputbuffer[samples*2]=mic_sample_double;
                   micinputbuffer[(samples*2)+1]=mic_sample_double;
                   iqinputbuffer[samples*2]=0.0;
@@ -497,14 +497,16 @@ static void process_ozy_input_buffer(char  *buffer) {
         }
 #endif
       } else {
-        micinputbuffer[samples*2]=0.0;
-        micinputbuffer[(samples*2)+1]=0.0;
-        iqinputbuffer[samples*2]=left_sample_double;
-        iqinputbuffer[(samples*2)+1]=right_sample_double;
-        samples++;
-        if(samples==buffer_size) {
-          full_rx_buffer();
-          samples=0;
+        if(!isTransmitting()) {
+          micinputbuffer[samples*2]=0.0;
+          micinputbuffer[(samples*2)+1]=0.0;
+          iqinputbuffer[samples*2]=left_sample_double;
+          iqinputbuffer[(samples*2)+1]=right_sample_double;
+          samples++;
+          if(samples==buffer_size) {
+            full_rx_buffer();
+            samples=0;
+          }
         }
       }
     }
@@ -637,13 +639,10 @@ static void full_tx_buffer() {
   int error;
   double gain=32767.0; // 2^16-1
 
-  // debug
-  //int min_sample=0;
-  //int max_sample=0;
-  //int overflow=0;
-
-  fexchange0(CHANNEL_RX0, iqinputbuffer, audiooutputbuffer, &error);
   fexchange0(CHANNEL_TX, micinputbuffer, iqoutputbuffer, &error);
+  if(error!=0) {
+    fprintf(stderr,"full_tx_buffer: fexchange0: error=%d\n",error);
+  }
   Spectrum0(1, CHANNEL_TX, 0, 0, iqoutputbuffer);
 
   if(radio->device==DEVICE_METIS && atlas_penelope) {
@@ -653,37 +652,16 @@ static void full_tx_buffer() {
       gain=gain*drive;
     }
   }
-fprintf(stderr,"full_tx_buffer: gain=%f\n",gain);
   for(j=0;j<output_buffer_size;j++) {
     left_rx_sample=0;
     right_rx_sample=0;
     left_tx_sample=(int)(iqoutputbuffer[j*2]*gain);
     right_tx_sample=(int)(iqoutputbuffer[(j*2)+1]*gain);
 
-// debug
-    //if(left_tx_sample<min_sample) min_sample=left_tx_sample;
-    //if(left_tx_sample>max_sample) max_sample=left_tx_sample;
-    //if(right_tx_sample<min_sample) min_sample=right_tx_sample;
-    //if(right_tx_sample>max_sample) max_sample=right_tx_sample;
-    
-    if(left_tx_sample>32767) {
-      left_tx_sample=32767;
-//      overflow++;
-    } else if(left_tx_sample<-32767) {
-      left_tx_sample=-32767;
-//      overflow++;
-    }
-    if(right_tx_sample>32767) {
-      right_tx_sample=32767;
-//      overflow++;
-    } else if(right_tx_sample<-32767) {
-      right_tx_sample=-32767;
-//      overflow++;
-    }
-    output_buffer[output_buffer_index++]=left_rx_sample>>8;
-    output_buffer[output_buffer_index++]=left_rx_sample;
-    output_buffer[output_buffer_index++]=right_rx_sample>>8;
-    output_buffer[output_buffer_index++]=right_rx_sample;
+    output_buffer[output_buffer_index++]=0;
+    output_buffer[output_buffer_index++]=0;
+    output_buffer[output_buffer_index++]=0;
+    output_buffer[output_buffer_index++]=0;
     output_buffer[output_buffer_index++]=left_tx_sample>>8;
     output_buffer[output_buffer_index++]=left_tx_sample;
     output_buffer[output_buffer_index++]=right_tx_sample>>8;
@@ -696,7 +674,7 @@ fprintf(stderr,"full_tx_buffer: gain=%f\n",gain);
 
 }
 
-void *old_protocol_process_local_mic(unsigned char *buffer,int le) {
+void old_protocol_process_local_mic(unsigned char *buffer,int le) {
   int b;
   int leftmicsample;
   int rightmicsample;
@@ -710,14 +688,11 @@ void *old_protocol_process_local_mic(unsigned char *buffer,int le) {
       if(le) {
         leftmicsample  = (int)((unsigned char)buffer[b++] & 0xFF);
         leftmicsample  |= (int)((signed char) buffer[b++]) << 8;
-        //rightmicsample  = (int)((unsigned char)buffer[b++] & 0xFF);
-        //rightmicsample  |= (int)((signed char) buffer[b++]) << 8;
         rightmicsample=leftmicsample;
       } else {
         leftmicsample  = (int)((signed char) buffer[b++]) << 8;
         leftmicsample  |= (int)((unsigned char)buffer[b++] & 0xFF);
-        rightmicsample  = (int)((signed char) buffer[b++]) << 8;
-        rightmicsample  |= (int)((unsigned char)buffer[b++] & 0xFF);
+        rightmicsample=leftmicsample;
       }
 #ifdef FREEDV
       if(mode==modeFREEDV && !tune) {
@@ -747,25 +722,28 @@ void *old_protocol_process_local_mic(unsigned char *buffer,int le) {
          }
       } else {
 #endif
+         leftmicsampledouble=(double)leftmicsample/32767.0; // 16 bit sample 2^16-1
          if(mode==modeCWL || mode==modeCWU || tune) {
-            micinputbuffer[samples*2]=0.0;
-            micinputbuffer[(samples*2)+1]=0.0;
-          } else {
-            micinputbuffer[samples*2]=leftmicsampledouble;
-            micinputbuffer[(samples*2)+1]=leftmicsampledouble;
-          }
-          iqinputbuffer[samples*2]=0.0;
-          iqinputbuffer[(samples*2)+1]=0.0;
-          samples++;
-          if(samples==buffer_size) {
-            full_tx_buffer();
-            samples=0;
-          }
+           micinputbuffer[samples*2]=0.0;
+           micinputbuffer[(samples*2)+1]=0.0;
+         } else {
+           micinputbuffer[samples*2]=leftmicsampledouble;
+           micinputbuffer[(samples*2)+1]=leftmicsampledouble;
+         }
+         iqinputbuffer[samples*2]=0.0;
+         iqinputbuffer[(samples*2)+1]=0.0;
+         samples++;
+         if(samples==buffer_size) {
+           full_tx_buffer();
+           samples=0;
+         }
 #ifdef FREEDV
        }
 #endif
 
     }
+  } else {
+    //fprintf(stderr,"not transmitting - ignore local mic buffer\n");
   }
 }
 
@@ -941,15 +919,15 @@ void ozy_send_buffer() {
       break;
     case 3:
       {
-      float d=(float)drive;
+      double d=(double)drive;
       if(tune) {
-        d=(float)tune_drive;
+        d=(double)tune_drive;
       }
 
       int power=0;
       if(isTransmitting()) {
         BAND *band=band_get_current_band();
-        d=d*((float)band->pa_calibration/100.0F);
+        d=d*((double)band->pa_calibration/100.0);
         power=(int)(d*255.0);
       }
 
