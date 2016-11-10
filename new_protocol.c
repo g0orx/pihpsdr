@@ -883,7 +883,8 @@ static void process_mic_data(unsigned char *buffer) {
                 micsample  = (int)((signed char) buffer[b++]) << 8;
                 micsample  |= (int)((unsigned char)buffer[b++] & 0xFF);
                 if(freedv_samples==0) { // 48K to 8K
-                    int modem_samples=mod_sample_freedv(micsample);
+                    int sample=(int)((double)micsample*pow(10.0, mic_gain / 20.0));
+                    int modem_samples=mod_sample_freedv(sample);
                     if(modem_samples!=0) {
                       for(s=0;s<modem_samples;s++) {
                         for(j=0;j<freedv_resample;j++) {  // 8K to 48K

@@ -749,7 +749,8 @@ static int af_encoder_changed(void *data) {
     if(function || isTransmitting()) {
       // mic gain
       double gain=mic_gain;
-      gain+=(double)pos/100.0;
+      //gain+=(double)pos/100.0;
+      gain+=(double)pos;
       if(gain<-10.0) {
         gain=-10.0;
       } else if(gain>50.0) {

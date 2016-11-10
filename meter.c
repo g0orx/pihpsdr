@@ -302,7 +302,7 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
         text_location=offset+(db*114)+5;
       }
 
-      cairo_set_font_size(cr, 16);
+      cairo_set_font_size(cr, 12);
       sprintf(sf,"%d dBm",(int)level);
       cairo_move_to(cr, text_location, 45);
       cairo_show_text(cr, sf);
@@ -314,7 +314,7 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
         } else {
           cairo_set_source_rgb(cr, 1, 0, 0);
         }
-        cairo_set_font_size(cr, 16);
+        cairo_set_font_size(cr, 12);
         sprintf(sf,"SNR: %3.2f",freedv_snr);
         cairo_move_to(cr, text_location, 30);
         cairo_show_text(cr, sf);
@@ -346,7 +346,7 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
       cairo_fill(cr);
 
       cairo_set_source_rgb(cr, 0, 1, 0);
-      cairo_set_font_size(cr, 16);
+      cairo_set_font_size(cr, 12);
       sprintf(sf,"Level: %d",(int)value);
       cairo_move_to(cr, 210, 45);
       cairo_show_text(cr, sf);
@@ -358,7 +358,7 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
       cairo_select_font_face(cr, "FreeMono",
             CAIRO_FONT_SLANT_NORMAL,
             CAIRO_FONT_WEIGHT_BOLD);
-      cairo_set_font_size(cr, 18);
+      cairo_set_font_size(cr, 12);
 
       if((int)value>max_level || max_count==10) {
           max_level=(int)value;
@@ -374,7 +374,7 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
       cairo_select_font_face(cr, "FreeMono",
             CAIRO_FONT_SLANT_NORMAL,
             CAIRO_FONT_WEIGHT_BOLD);
-      cairo_set_font_size(cr, 18);
+      cairo_set_font_size(cr, 12);
       sprintf(sf,"SWR: %1.1f:1",swr);
       cairo_move_to(cr, 10, 55);
       cairo_show_text(cr, sf);

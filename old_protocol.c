@@ -453,7 +453,8 @@ static void process_ozy_input_buffer(char  *buffer) {
 #ifdef FREEDV
         if(mode==modeFREEDV && !tune) {
           if(freedv_samples==0) {
-            int modem_samples=mod_sample_freedv(mic_sample);
+            int sample=(int)((double)mic_sample*pow(10.0, mic_gain / 20.0));
+            int modem_samples=mod_sample_freedv(sample);
             if(modem_samples!=0) {
               int s;
               for(s=0;s<modem_samples;s++) {

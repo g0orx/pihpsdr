@@ -8,3 +8,4 @@ Name[en_GB]=pihpsdr
 Exec=/home/pi/pihpsdr/start_pihpsdr.sh
 Name=pihpsdr
 Icon=/home/pi/pihpsdr/hpsdr_icon.png
+Categories=RadioMenuCategory
