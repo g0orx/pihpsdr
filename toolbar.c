@@ -144,6 +144,9 @@ static void band_select_cb(GtkWidget *widget, gpointer data) {
   vfo_update(NULL);
 
   setFrequency(entry->frequencyA);
+
+  calcDriveLevel();
+  calcTuneDriveLevel();
 }
 
 void band_cb(GtkWidget *widget, gpointer data) {
@@ -1068,6 +1071,9 @@ void sim_band_cb(GtkWidget *widget, gpointer data) {
     set_alex_tx_antenna(band->alexTxAntenna);
     set_alex_attenuation(band->alexAttenuation);
     vfo_update(NULL);
+
+    calcDriveLevel();
+    calcTuneDriveLevel();
   }
 }
 

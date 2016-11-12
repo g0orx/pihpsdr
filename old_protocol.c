@@ -54,6 +54,8 @@
 #include "psk.h"
 #endif
 
+#define min(x,y) (x<y?x:y)
+
 #define SYNC0 0
 #define SYNC1 1
 #define SYNC2 2
@@ -371,13 +373,13 @@ static void process_ozy_input_buffer(char  *buffer) {
   int last_ptt;
   int last_dot;
   int last_dash;
-  double gain;
   int left_sample;
   int right_sample;
   int mic_sample;
   double left_sample_double;
   double right_sample_double;
   double mic_sample_double;
+  double gain=pow(10.0, mic_gain / 20.0);
 
   if(buffer[b++]==SYNC && buffer[b++]==SYNC && buffer[b++]==SYNC) {
     // extract control bytes
@@ -453,7 +455,7 @@ static void process_ozy_input_buffer(char  *buffer) {
 #ifdef FREEDV
         if(mode==modeFREEDV && !tune) {
           if(freedv_samples==0) {
-            int sample=(int)((double)mic_sample*pow(10.0, mic_gain / 20.0));
+            int sample=(int)((double)mic_sample*gain);
             int modem_samples=mod_sample_freedv(sample);
             if(modem_samples!=0) {
               int s;
@@ -484,8 +486,8 @@ static void process_ozy_input_buffer(char  *buffer) {
             micinputbuffer[samples*2]=0.0;
             micinputbuffer[(samples*2)+1]=0.0;
           } else {
-            micinputbuffer[samples*2]=mic_sample_double;
-            micinputbuffer[(samples*2)+1]=mic_sample_double;
+            micinputbuffer[samples*2]=mic_sample_double*gain;
+            micinputbuffer[(samples*2)+1]=mic_sample_double*gain;
           }
           iqinputbuffer[samples*2]=0.0;
           iqinputbuffer[(samples*2)+1]=0.0;
@@ -920,16 +922,13 @@ void ozy_send_buffer() {
       break;
     case 3:
       {
-      double d=(double)drive;
-      if(tune) {
-        d=(double)tune_drive;
-      }
-
       int power=0;
       if(isTransmitting()) {
-        BAND *band=band_get_current_band();
-        d=d*((double)band->pa_calibration/100.0);
-        power=(int)(d*255.0);
+        if(tune) {
+          power=tune_drive_level;
+        } else {
+          power=drive_level;
+        }
       }
 
       output_buffer[C0]=0x12;

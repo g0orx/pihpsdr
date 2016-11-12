@@ -186,17 +186,17 @@ BANDSTACK bandstackGEN={3,1,bandstack_entriesGEN};
 BANDSTACK bandstackWWV={5,1,bandstack_entriesWWV};
 
 BAND bands[BANDS] = 
-    {{"160",&bandstack160,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
-     {"80",&bandstack80,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
-     {"60",&bandstack60,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
-     {"40",&bandstack40,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
-     {"30",&bandstack30,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
-     {"20",&bandstack20,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
-     {"18",&bandstack18,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
-     {"15",&bandstack15,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
-     {"12",&bandstack12,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
-     {"10",&bandstack10,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
-     {"50",&bandstack50,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
+    {{"160",&bandstack160,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8},
+     {"80",&bandstack80,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8},
+     {"60",&bandstack60,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8},
+     {"40",&bandstack40,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8},
+     {"30",&bandstack30,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8},
+     {"20",&bandstack20,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8},
+     {"18",&bandstack18,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8},
+     {"15",&bandstack15,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8},
+     {"12",&bandstack12,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8},
+     {"10",&bandstack10,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8},
+     {"50",&bandstack50,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8},
 #ifdef LIMESDR
      {"70",&bandstack70,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
      {"144",&bandstack144,0,0,0,0,0,ALEX_ATTENUATION_0dB,30},
@@ -338,7 +338,7 @@ void bandSaveState() {
         sprintf(name,"band.%d.alexAttenuation",b);
         setProperty(name,value);
 
-        sprintf(value,"%d",bands[b].pa_calibration);
+        sprintf(value,"%f",bands[b].pa_calibration);
         sprintf(name,"band.%d.pa_calibration",b);
         setProperty(name,value);
 
@@ -429,7 +429,10 @@ void bandRestoreState() {
 
         sprintf(name,"band.%d.pa_calibration",b);
         value=getProperty(name);
-        if(value) bands[b].pa_calibration=atoi(value);
+        if(value) bands[b].pa_calibration=atof(value);
+        if(bands[b].pa_calibration<38.8 || bands[b].pa_calibration>100.0) {
+          bands[b].pa_calibration=38.8;
+        }
 
         sprintf(name,"band.%d.OCrx",b);
         value=getProperty(name);

@@ -78,7 +78,7 @@ struct _BAND {
     int alexRxAntenna;
     int alexTxAntenna;
     int alexAttenuation;
-    int pa_calibration;
+    double pa_calibration;
 };
 
 typedef struct _BAND BAND;

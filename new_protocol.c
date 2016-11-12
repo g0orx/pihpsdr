@@ -57,6 +57,8 @@
 #include "freedv.h"
 #endif
 
+#define min(x,y) (x<y?x:y)
+
 #define PI 3.1415926535897932F
 
 int data_socket;
@@ -187,14 +189,12 @@ static void new_protocol_calc_buffers() {
 }
 
 void schedule_high_priority(int source) {
-//fprintf(stderr,"new_protocol: schedule_high_priority: source=%d\n",source);
     sem_wait(&send_high_priority_sem);
     send_high_priority=1;
     sem_post(&send_high_priority_sem);
 }
 
 void schedule_general() {
-fprintf(stderr,"new_protocol: schedule_general\n");
     sem_wait(&send_general_sem);
     send_general=1;
     sem_post(&send_general_sem);
@@ -262,8 +262,6 @@ void new_protocol_new_sample_rate(int rate) {
 
 static void new_protocol_general() {
     unsigned char buffer[60];
-
-fprintf(stderr,"new_protocol_general: receiver=%d\n", receiver);
 
     memset(buffer, 0, sizeof(buffer));
 
@@ -344,14 +342,13 @@ static void new_protocol_high_priority(int run) {
 
     int power=0;
     if(isTransmitting()) {
-      double d=drive;
       if(tune) {
-        d=tune_drive;
+        power=tune_drive_level;
+      } else {
+        power=drive_level;
       }
-      d=d*((double)band->pa_calibration/100.0);
-      power=(int)(d*255.0);
     }
-    
+
     buffer[345]=power&0xFF;
 
     if(isTransmitting()) {

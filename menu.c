@@ -357,9 +357,31 @@ static void tx_out_of_band_cb(GtkWidget *widget, gpointer data) {
   tx_out_of_band=tx_out_of_band==1?0:1;
 }
 
+static void tone_value_changed_cb(GtkWidget *widget, gpointer data) {
+  tone_level=gtk_spin_button_get_value(GTK_SPIN_BUTTON(widget));
+  SetTXAPostGenToneMag(CHANNEL_TX,tone_level);
+}
+
+static void tx_cfir_cb(GtkWidget *widget, gpointer data) {
+  tx_cfir=tx_cfir==1?0:1;
+  SetTXACFIRRun(CHANNEL_TX, tx_cfir);
+}
+
+static void tx_alc_cb(GtkWidget *widget, gpointer data) {
+  tx_alc=tx_alc==1?0:1;
+  SetTXAALCSt(CHANNEL_TX, tx_alc);
+}
+
+static void tx_leveler_cb(GtkWidget *widget, gpointer data) {
+  tx_leveler=tx_leveler==1?0:1;
+  SetTXALevelerSt(CHANNEL_TX, tx_leveler);
+}
+
 static void pa_value_changed_cb(GtkWidget *widget, gpointer data) {
   BAND *band=(BAND *)data;
-  band->pa_calibration=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+  band->pa_calibration=gtk_spin_button_get_value(GTK_SPIN_BUTTON(widget));
+  calcDriveLevel();
+  calcTuneDriveLevel();
 }
 
 static gboolean exit_pressed_event_cb (GtkWidget *widget,
@@ -1316,7 +1338,7 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
   id=gtk_notebook_append_page(GTK_NOTEBOOK(notebook),dsp_grid,dsp_label);
 
   if(protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL) {
-    GtkWidget *tx_label=gtk_label_new("PA Gain");
+    GtkWidget *tx_label=gtk_label_new("PA Gain (dB)");
     GtkWidget *tx_grid=gtk_grid_new();
     gtk_grid_set_row_homogeneous(GTK_GRID(tx_grid),TRUE);
     gtk_grid_set_column_spacing (GTK_GRID(tx_grid),10);
@@ -1329,7 +1351,7 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
       gtk_widget_show(band_label);
       gtk_grid_attach(GTK_GRID(tx_grid),band_label,(i/6)*2,i%6,1,1);
 
-      GtkWidget *pa_r=gtk_spin_button_new_with_range(0.0,100.0,1.0);
+      GtkWidget *pa_r=gtk_spin_button_new_with_range(38.8,100.0,0.1);
       //gtk_widget_override_font(pa_r, pango_font_description_from_string("Arial 18"));
       gtk_spin_button_set_value(GTK_SPIN_BUTTON(pa_r),(double)band->pa_calibration);
       gtk_widget_show(pa_r);
@@ -1344,6 +1366,34 @@ static gboolean menu_pressed_event_cb (GtkWidget *widget,
     gtk_grid_attach(GTK_GRID(tx_grid),tx_out_of_band_b,0,7,4,1);
     g_signal_connect(tx_out_of_band_b,"toggled",G_CALLBACK(tx_out_of_band_cb),NULL);
 
+/*
+    GtkWidget *tx_cfir_b=gtk_check_button_new_with_label("TX CFIR");
+    //gtk_widget_override_font(tx_out_of_band_b, pango_font_description_from_string("Arial 18"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (tx_cfir_b), tx_cfir);
+    gtk_widget_show(tx_cfir_b);
+    gtk_grid_attach(GTK_GRID(tx_grid),tx_cfir_b,4,7,4,1);
+    g_signal_connect(tx_cfir_b,"toggled",G_CALLBACK(tx_cfir_cb),NULL);
+
+    GtkWidget *tx_alc_b=gtk_check_button_new_with_label("TX ALC");
+    //gtk_widget_override_font(tx_out_of_band_b, pango_font_description_from_string("Arial 18"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (tx_alc_b), tx_alc);
+    gtk_widget_show(tx_alc_b);
+    gtk_grid_attach(GTK_GRID(tx_grid),tx_alc_b,8,7,4,1);
+    g_signal_connect(tx_alc_b,"toggled",G_CALLBACK(tx_alc_cb),NULL);
+
+    GtkWidget *tx_leveler_b=gtk_check_button_new_with_label("TX Leveler");
+    //gtk_widget_override_font(tx_out_of_band_b, pango_font_description_from_string("Arial 18"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (tx_leveler_b), tx_leveler);
+    gtk_widget_show(tx_leveler_b);
+    gtk_grid_attach(GTK_GRID(tx_grid),tx_leveler_b,12,7,4,1);
+    g_signal_connect(tx_leveler_b,"toggled",G_CALLBACK(tx_leveler_cb),NULL);
+
+    GtkWidget *tone_r=gtk_spin_button_new_with_range(0.0,1.0,0.01);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(tone_r),tone_level);
+    gtk_widget_show(tone_r);
+    gtk_grid_attach(GTK_GRID(tx_grid),tone_r,4,6,4,1);
+    g_signal_connect(tone_r,"value_changed",G_CALLBACK(tone_value_changed_cb),NULL);
+*/
     id=gtk_notebook_append_page(GTK_NOTEBOOK(notebook),tx_grid,tx_label);
   }
 

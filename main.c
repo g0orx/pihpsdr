@@ -538,6 +538,7 @@ fprintf(stderr,"selected radio=%p device=%d\n",radio,radio->device);
 
   radioRestoreState();
 
+  fprintf(stderr,"malloc samples\n");
   if(radio->protocol==NEW_PROTOCOL) {
     samples=malloc(display_width*sizeof(float)*2*4); // 192 -> 48
   } else {
@@ -545,15 +546,18 @@ fprintf(stderr,"selected radio=%p device=%d\n",radio,radio->device);
   }
 
   //splash_status("Initializing wdsp ...");
+  fprintf(stderr,"wdsp_init\n");
   wdsp_init(0,display_width,radio->protocol);
 
   switch(radio->protocol) {
     case ORIGINAL_PROTOCOL:
       splash_status("Initializing old protocol ...");
+  fprintf(stderr,"old_protocol_init\n");
       old_protocol_init(0,display_width);
       break;
     case NEW_PROTOCOL:
       splash_status("Initializing new protocol ...");
+  fprintf(stderr,"new_protocol_init\n");
       new_protocol_init(0,display_width);
       break;
 #ifdef LIMESDR
@@ -564,6 +568,7 @@ fprintf(stderr,"selected radio=%p device=%d\n",radio,radio->device);
 #endif
   }
 
+  fprintf(stderr,"gpio_init\n");
   splash_status("Initializing GPIO ...");
 #ifdef GPIO
   if(gpio_init()<0) {

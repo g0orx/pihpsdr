@@ -279,17 +279,21 @@ static void setupTX(int tx) {
     SetTXABandpassWindow(tx, 1);
     SetTXABandpassRun(tx, 1);
 
-    SetTXACFIRRun(tx, 1);
+    SetTXACFIRRun(tx, protocol==NEW_PROTOCOL?1:0); // turned in if new protocol
     SetTXAEQRun(tx, 0);
     SetTXACTCSSRun(tx, 0);
     SetTXAAMSQRun(tx, 0);
     SetTXACompressorRun(tx, 0);
     SetTXAosctrlRun(tx, 0);
 
+    SetTXAALCAttack(tx, 1);
     SetTXAALCDecay(tx, 10);
-    SetTXALevelerTop(tx, 15.0);
+    SetTXAALCSt(tx, tx_alc);
+
+    SetTXALevelerAttack(tx, 1);
     SetTXALevelerDecay(tx, 500);
-    SetTXALevelerSt(tx, 1);
+    SetTXALevelerTop(tx, 5.0);
+    SetTXALevelerSt(tx, tx_leveler);
 
     SetTXAPreGenMode(tx, 0);
     SetTXAPreGenToneMag(tx, 0.0);
@@ -297,13 +301,15 @@ static void setupTX(int tx) {
     SetTXAPreGenRun(tx, 0);
 
     SetTXAPostGenMode(tx, 0);
-    SetTXAPostGenToneMag(tx, 0.0);
+    SetTXAPostGenToneMag(tx, tone_level);
     SetTXAPostGenToneFreq(tx, 0.0);
     SetTXAPostGenRun(tx, 0);
 
-    SetTXAPanelRun(tx, 1);
-    double gain=pow(10.0, mic_gain / 20.0);
-    SetTXAPanelGain1(tx,gain);
+    if(protocol==NEW_PROTOCOL) {
+      double gain=pow(10.0, mic_gain / 20.0);
+      SetTXAPanelGain1(tx,gain);
+      //SetTXAPanelRun(tx, protocol==NEW_PROTOCOL?1:0);
+    }
 
     //SetChannelState(tx,1,0);
 }
@@ -405,6 +411,9 @@ void wdsp_init(int rx,int pixels,int protocol) {
         }
     initAnalyzer(CHANNEL_PSK,PSK_BUFFER_SIZE);
 #endif
+
+    calcDriveLevel();
+    calcTuneDriveLevel();
 
 }
 

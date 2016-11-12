@@ -56,6 +56,7 @@ void loadProperties(char* filename) {
         }
         fclose(f);
     }
+    fprintf(stderr,"loadProperties: done\n");
 }
 
 /* --------------------------------------------------------------------------*/

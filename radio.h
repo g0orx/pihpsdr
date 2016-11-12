@@ -75,6 +75,12 @@ extern int classE;
 
 extern int tx_out_of_band;
 
+extern int tx_cfir;
+extern int tx_alc;
+extern int tx_leveler;
+
+extern double tone_level;
+
 extern int sample_rate;
 extern int filter_board;
 extern int pa;
@@ -128,6 +134,9 @@ extern int mic_ptt_tip_bias_ring;
 
 extern double tune_drive;
 extern double drive;
+
+extern int tune_drive_level;
+extern int drive_level;
 
 int receivers;
 int adc[2];
@@ -214,16 +223,18 @@ extern void setMox(int state);
 extern int getMox();
 extern void setTune(int state);
 extern int getTune();
-double getDrive();
-void setDrive(double d);
-double getTuneDrive();
-void setTuneDrive(double d);
+extern double getDrive();
+extern void setDrive(double d);
+extern void calcDriveLevel();
+extern double getTuneDrive();
+extern void setTuneDrive(double d);
+extern void calcTuneDriveLevel();
 
-void set_attenuation(int value);
-int get_attenuation();
-void set_alex_rx_antenna(int v);
-void set_alex_tx_antenna(int v);
-void set_alex_attenuation(int v);
+extern void set_attenuation(int value);
+extern int get_attenuation();
+extern void set_alex_rx_antenna(int v);
+extern void set_alex_tx_antenna(int v);
+extern void set_alex_attenuation(int v);
 
 extern int isTransmitting();
 

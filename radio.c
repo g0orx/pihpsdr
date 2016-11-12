@@ -59,6 +59,12 @@ int classE=0;
 
 int tx_out_of_band=0;
 
+int tx_cfir=0;
+int tx_alc=1;
+int tx_leveler=0;
+
+double tone_level=0.0;
+
 int sample_rate=48000;
 int filter_board=ALEX;
 //int pa=PA_ENABLED;
@@ -116,8 +122,11 @@ int nr2_gain_method=2; // 0=Linear 1=Log 2=gamma
 int nr2_npe_method=0; // 0=OSMS 1=MMSE
 int nr2_ae=1; // 0=disable 1=enable
 
-double tune_drive=0.1;
-double drive=0.6;
+double tune_drive=10;
+double drive=50;
+
+int drive_level=0;
+int tune_drive_level=0;
 
 int receivers=2;
 int adc[2]={0,1};
@@ -271,7 +280,11 @@ void setTune(int state) {
       } else {
         SetTXAPostGenToneFreq(CHANNEL_TX,(double)cw_keyer_sidetone_frequency);
       }
-      SetTXAPostGenToneMag(CHANNEL_TX,2.0);
+      //if(protocol==ORIGINAL_PROTOCOL) {
+        SetTXAPostGenToneMag(CHANNEL_TX,0.3);
+      //} else {
+      //  SetTXAPostGenToneMag(CHANNEL_TX,0.99999);
+      //}
       SetTXAPostGenRun(CHANNEL_TX,1);
       SetChannelState(CHANNEL_RX0,0,1);
       SetChannelState(CHANNEL_TX,1,0);
@@ -355,8 +368,33 @@ double getDrive() {
     return drive;
 }
 
+static int calcLevel(double d) {
+  int level=0;
+  BAND *band=band_get_current_band();
+  double target_dbm = 10.0 * log10(d * 1000.0);
+  double gbb=band->pa_calibration;
+  target_dbm-=gbb;
+  double target_volts = sqrt(pow(10, target_dbm * 0.1) * 0.05);
+  double volts=min((target_volts / 0.8), 1.0);
+  double v=volts*(1.0/0.98);
+
+  if(v<0.0) {
+    v=0.0;
+  } else if(v>1.0) {
+    v=1.0;
+  }
+
+  level=(int)(v*255.0);
+  return level;
+}
+
+void calcDriveLevel() {
+    drive_level=calcLevel(drive);
+}
+
 void setDrive(double value) {
     drive=value;
+    calcDriveLevel();
     if(protocol==NEW_PROTOCOL) {
       schedule_high_priority(6);
     }
@@ -366,8 +404,14 @@ double getTuneDrive() {
     return tune_drive;
 }
 
+void calcTuneDriveLevel() {
+    tune_drive_level=calcLevel(tune_drive);
+}
+
 void setTuneDrive(double value) {
     tune_drive=value;
+
+    calcTuneDriveLevel();
     if(protocol==NEW_PROTOCOL) {
       schedule_high_priority(7);
     }
@@ -420,6 +464,7 @@ void set_alex_attenuation(int v) {
 void radioRestoreState() {
     char *value;
 
+fprintf(stderr,"radioRestoreState: %s\n",property_path);
     sem_wait(&property_sem);
     loadProperties(property_path);
 
@@ -468,11 +513,11 @@ void radioRestoreState() {
     value=getProperty("volume");
     if(value) volume=atof(value);
     value=getProperty("drive");
-    if(value) {drive=atof(value); if(drive>1.0) drive=1.0;}
+    if(value) drive=atof(value);
     value=getProperty("tune_drive");
-    if(value) {tune_drive=atof(value); if(tune_drive>1.0) tune_drive=1.0;}
+    if(value) tune_drive=atof(value);
     value=getProperty("mic_gain");
-    if(value) { mic_gain=atof(value); if(mic_gain<1.0) mic_gain=0.0; }
+    if(value) mic_gain=atof(value);
     value=getProperty("mic_boost");
     if(value) mic_boost=atof(value);
     value=getProperty("mic_linein");
@@ -569,6 +614,7 @@ void radioRestoreState() {
     value=getProperty("n_selected_input_device");
     if(value) n_selected_input_device=atoi(value);
     bandRestoreState();
+
     sem_post(&property_sem);
 }
 
