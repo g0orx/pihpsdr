@@ -106,7 +106,7 @@ void ant_menu(GtkWidget *parent) {
     GtkWidget *rx2_label=gtk_label_new("2");
     //gtk_widget_override_font(rx2_label, pango_font_description_from_string("Arial 18"));
     gtk_widget_show(rx2_label);
-    gtk_grid_attach(GTK_GRID(grid),rx2_label,2,2,1,1);
+    gtk_grid_attach(GTK_GRID(grid),rx2_label,2,1,1,1);
 
     GtkWidget *rx3_label=gtk_label_new("3");
     //gtk_widget_override_font(rx3_label, pango_font_description_from_string("Arial 18"));
