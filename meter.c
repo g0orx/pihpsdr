@@ -112,6 +112,14 @@ meter_press_event_cb (GtkWidget *widget,
                gpointer        data)
 {
   GtkWidget *dialog=gtk_dialog_new_with_buttons("Meter",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
+  //gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+
+  GdkRGBA color;
+  color.red = 1.0;
+  color.green = 1.0;
+  color.blue = 1.0;
+  color.alpha = 1.0;
+  gtk_widget_override_background_color(dialog,GTK_STATE_FLAG_NORMAL,&color);
 
   GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
   GtkWidget *grid=gtk_grid_new();

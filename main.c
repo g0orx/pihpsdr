@@ -46,7 +46,9 @@
 #endif
 #include "wdsp.h"
 #include "vfo.h"
-#include "menu.h"
+//#include "menu.h"
+#include "new_menu.h"
+#include "rit.h"
 #include "meter.h"
 #include "panadapter.h"
 #include "splash.h"
@@ -67,6 +69,7 @@
 #define MENU_HEIGHT VFO_HEIGHT
 //#define MENU_WIDTH ((display_width/32)*3)
 #define MENU_WIDTH ((display_width/32)*8)
+#define RIT_WIDTH ((MENU_WIDTH/3)*2)
 #define METER_HEIGHT VFO_HEIGHT
 //#define METER_WIDTH ((display_width/32)*13)
 #define METER_WIDTH ((display_width/32)*8)
@@ -104,6 +107,7 @@ static GtkWidget *window;
 static GtkWidget *grid;
 static GtkWidget *fixed;
 static GtkWidget *vfo;
+static GtkWidget *rit_control;
 static GtkWidget *menu;
 static GtkWidget *meter;
 static GtkWidget *sliders;
@@ -417,6 +421,7 @@ gint init(void* arg) {
           GtkWidget *grid=gtk_grid_new();
           gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
           gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
+          gtk_grid_set_row_spacing (GTK_GRID(grid),10);
 
           int i;
           char version[16];
@@ -590,9 +595,14 @@ fprintf(stderr,"vfo_height=%d\n",VFO_HEIGHT);
   gtk_fixed_put(GTK_FIXED(fixed),vfo,0,0);
 
 
+
+  rit_control = rit_init(RIT_WIDTH,MENU_HEIGHT,window);
+  gtk_fixed_put(GTK_FIXED(fixed),rit_control,VFO_WIDTH,y);
+
 fprintf(stderr,"menu_height=%d\n",MENU_HEIGHT);
-  menu = menu_init(MENU_WIDTH,MENU_HEIGHT,window);
-  gtk_fixed_put(GTK_FIXED(fixed),menu,VFO_WIDTH,y);
+  //menu = menu_init(MENU_WIDTH,MENU_HEIGHT,window);
+  menu = new_menu_init(MENU_WIDTH-RIT_WIDTH,MENU_HEIGHT,window);
+  gtk_fixed_put(GTK_FIXED(fixed),menu,VFO_WIDTH+((MENU_WIDTH/3)*2),y);
 
 fprintf(stderr,"meter_height=%d\n",METER_HEIGHT);
   meter = meter_init(METER_WIDTH,METER_HEIGHT,window);

@@ -929,6 +929,7 @@ void ozy_send_buffer() {
         } else {
           power=drive_level;
         }
+fprintf(stderr,"power=%d\n",power);
       }
 
       output_buffer[C0]=0x12;
