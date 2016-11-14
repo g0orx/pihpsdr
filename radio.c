@@ -229,6 +229,28 @@ int getSampleRate() {
 
 void setMox(int state) {
   if(mox!=state) {
+    if(state) {
+      // switch to tx
+      SetChannelState(CHANNEL_RX0,0,1);
+      mox=state;
+      if(protocol==NEW_PROTOCOL) {
+        schedule_high_priority(3);
+      }
+      SetChannelState(CHANNEL_TX,1,0);
+#ifdef FREEDV
+      if(mode==modeFREEDV) {
+        freedv_reset_tx_text_index();
+      }
+#endif
+    } else {
+      SetChannelState(CHANNEL_TX,0,1);
+      mox=state;
+      if(protocol==NEW_PROTOCOL) {
+        schedule_high_priority(3);
+      }
+      SetChannelState(CHANNEL_RX0,1,0);
+    }
+/*
     mox=state;
     if(protocol==NEW_PROTOCOL) {
       schedule_high_priority(3);
@@ -245,6 +267,7 @@ void setMox(int state) {
       SetChannelState(CHANNEL_TX,0,1);
       SetChannelState(CHANNEL_RX0,1,0);
     }
+*/
   }
 }
 
