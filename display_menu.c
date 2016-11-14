@@ -40,6 +40,7 @@ static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
     dialog=NULL;
     sub_menu=NULL;
   }
+  return TRUE;
 }
 
 static void detector_mode_cb(GtkWidget *widget, gpointer data) {

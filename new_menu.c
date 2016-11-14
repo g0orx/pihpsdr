@@ -47,6 +47,7 @@ static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
     gtk_widget_destroy(dialog);
     dialog=NULL;
   }
+  return TRUE;
 }
 
 static gboolean exit_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
@@ -153,47 +154,47 @@ static gboolean new_menu_pressed_event_cb (GtkWidget *widget,
     gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
   
     GtkWidget *close_b=gtk_button_new_with_label("Close Menu");
-    g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
+    g_signal_connect (close_b, "button-press-event", G_CALLBACK(close_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),close_b,0,0,2,1);
 
     GtkWidget *exit_b=gtk_button_new_with_label("Exit piHPSDR");
-    g_signal_connect (exit_b, "pressed", G_CALLBACK(exit_cb), NULL);
+    g_signal_connect (exit_b, "button-press-event", G_CALLBACK(exit_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),exit_b,3,0,2,1);
 
     GtkWidget *general_b=gtk_button_new_with_label("General");
-    g_signal_connect (general_b, "pressed", G_CALLBACK(general_cb), NULL);
+    g_signal_connect (general_b, "button-press-event", G_CALLBACK(general_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),general_b,0,1,1,1);
 
     GtkWidget *audio_b=gtk_button_new_with_label("Audio");
-    g_signal_connect (audio_b, "pressed", G_CALLBACK(audio_cb), NULL);
+    g_signal_connect (audio_b, "button-press-event", G_CALLBACK(audio_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),audio_b,1,1,1,1);
 
     GtkWidget *ant_b=gtk_button_new_with_label("Ant");
-    g_signal_connect (ant_b, "pressed", G_CALLBACK(ant_cb), NULL);
+    g_signal_connect (ant_b, "button-press-event", G_CALLBACK(ant_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),ant_b,2,1,1,1);
 
     GtkWidget *display_b=gtk_button_new_with_label("Display");
-    g_signal_connect (display_b, "pressed", G_CALLBACK(display_cb), NULL);
+    g_signal_connect (display_b, "button-press-event", G_CALLBACK(display_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),display_b,3,1,1,1);
 
     GtkWidget *dsp_b=gtk_button_new_with_label("DSP");
-    g_signal_connect (dsp_b, "pressed", G_CALLBACK(dsp_cb), NULL);
+    g_signal_connect (dsp_b, "button-press-event", G_CALLBACK(dsp_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),dsp_b,4,1,1,1);
 
     GtkWidget *pa_b=gtk_button_new_with_label("PA");
-    g_signal_connect (pa_b, "pressed", G_CALLBACK(pa_cb), NULL);
+    g_signal_connect (pa_b, "button-press-event", G_CALLBACK(pa_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),pa_b,0,2,1,1);
 
     GtkWidget *cw_b=gtk_button_new_with_label("CW");
-    g_signal_connect (cw_b, "pressed", G_CALLBACK(cw_cb), NULL);
+    g_signal_connect (cw_b, "button-press-event", G_CALLBACK(cw_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),cw_b,1,2,1,1);
 
     GtkWidget *oc_b=gtk_button_new_with_label("OC");
-    g_signal_connect (oc_b, "pressed", G_CALLBACK(oc_cb), NULL);
+    g_signal_connect (oc_b, "button-press-event", G_CALLBACK(oc_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),oc_b,2,2,1,1);
 
     GtkWidget *freedv_b=gtk_button_new_with_label("FreeDV");
-    g_signal_connect (freedv_b, "pressed", G_CALLBACK(freedv_cb), NULL);
+    g_signal_connect (freedv_b, "button-press-event", G_CALLBACK(freedv_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),freedv_b,3,2,1,1);
 
     gtk_container_add(GTK_CONTAINER(content),grid);
@@ -215,7 +216,7 @@ GtkWidget* new_menu_init(int width,int height,GtkWidget *parent) {
   menu_b=gtk_button_new_with_label("Menu");
   gtk_widget_override_font(menu_b, pango_font_description_from_string("FreeMono Bold 10"));
   gtk_widget_set_size_request (menu_b, width, height);
-  g_signal_connect (menu_b, "pressed", G_CALLBACK(new_menu_pressed_event_cb), NULL);
+  g_signal_connect (menu_b, "button-press-event", G_CALLBACK(new_menu_pressed_event_cb), NULL);
   gtk_widget_show(menu_b);
 
   return menu_b;

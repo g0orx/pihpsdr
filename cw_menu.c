@@ -41,6 +41,7 @@ static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
     dialog=NULL;
     sub_menu=NULL;
   }
+  return TRUE;
 }
 
 static void cw_keyer_internal_cb(GtkWidget *widget, gpointer data) {

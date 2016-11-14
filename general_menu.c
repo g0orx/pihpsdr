@@ -40,6 +40,7 @@ static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
     dialog=NULL;
     sub_menu=NULL;
   }
+  return TRUE;
 }
 
 static void vfo_divisor_value_changed_cb(GtkWidget *widget, gpointer data) {
@@ -187,7 +188,7 @@ void general_menu(GtkWidget *parent) {
   //gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
 
   GtkWidget *close_b=gtk_button_new_with_label("Close General");
-  g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
+  g_signal_connect (close_b, "button_press_event", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
   GtkWidget *vfo_divisor_label=gtk_label_new("VFO Encoder Divisor: ");

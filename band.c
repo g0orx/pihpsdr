@@ -18,6 +18,7 @@
 */
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "bandstack.h"
 #include "band.h"
@@ -391,7 +392,6 @@ void bandSaveState() {
 
 void bandRestoreState() {
     char* value;
-
     int b;
     int stack;
     char name[128];
@@ -429,9 +429,11 @@ void bandRestoreState() {
 
         sprintf(name,"band.%d.pa_calibration",b);
         value=getProperty(name);
-        if(value) bands[b].pa_calibration=atof(value);
-        if(bands[b].pa_calibration<38.8 || bands[b].pa_calibration>100.0) {
-          bands[b].pa_calibration=38.8;
+        if(value) {
+          bands[b].pa_calibration=strtod(value,NULL);
+          if(bands[b].pa_calibration<38.8 || bands[b].pa_calibration>100.0) {
+            bands[b].pa_calibration=38.8;
+          }
         }
 
         sprintf(name,"band.%d.OCrx",b);

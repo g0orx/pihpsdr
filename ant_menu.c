@@ -39,6 +39,7 @@ static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
     dialog=NULL;
     sub_menu=NULL;
   }
+  return TRUE;
 }
 
 static void rx_ant_cb(GtkWidget *widget, gpointer data) {
