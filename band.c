@@ -31,7 +31,7 @@
 #define LINESDR
 
 int band=band20;
-int xvtr_band=band160;
+int xvtr_band=BANDS;
 
 /* --------------------------------------------------------------------------*/
 /**
@@ -244,19 +244,42 @@ BAND_LIMITS bandLimits[NUM_BAND_LIMITS] = {
 * @brief xvtr
 */
 /* ----------------------------------------------------------------------------*/
-static XVTR_ENTRY xvtr[12]=
-    {{"",0LL,0LL,0LL,0LL,0LL,0LL,0LL,0LL,0,modeUSB,filterF5,-2800,-200,-2800,-200,0,0,0,0},
-     {"",0LL,0LL,0LL,0LL,0LL,0LL,0LL,0LL,0,modeUSB,filterF5,-2800,-200,-2800,-200,0,0,0,0},
-     {"",0LL,0LL,0LL,0LL,0LL,0LL,0LL,0LL,0,modeUSB,filterF5,-2800,-200,-2800,-200,0,0,0,0},
-     {"",0LL,0LL,0LL,0LL,0LL,0LL,0LL,0LL,0,modeUSB,filterF5,-2800,-200,-2800,-200,0,0,0,0},
-     {"",0LL,0LL,0LL,0LL,0LL,0LL,0LL,0LL,0,modeUSB,filterF5,-2800,-200,-2800,-200,0,0,0,0},
-     {"",0LL,0LL,0LL,0LL,0LL,0LL,0LL,0LL,0,modeUSB,filterF5,-2800,-200,-2800,-200,0,0,0,0},
-     {"",0LL,0LL,0LL,0LL,0LL,0LL,0LL,0LL,0,modeUSB,filterF5,-2800,-200,-2800,-200,0,0,0,0},
-     {"",0LL,0LL,0LL,0LL,0LL,0LL,0LL,0LL,0,modeUSB,filterF5,-2800,-200,-2800,-200,0,0,0,0},
-     {"",0LL,0LL,0LL,0LL,0LL,0LL,0LL,0LL,0,modeUSB,filterF5,-2800,-200,-2800,-200,0,0,0,0},
-     {"",0LL,0LL,0LL,0LL,0LL,0LL,0LL,0LL,0,modeUSB,filterF5,-2800,-200,-2800,-200,0,0,0,0},
-     {"",0LL,0LL,0LL,0LL,0LL,0LL,0LL,0LL,0,modeUSB,filterF5,-2800,-200,-2800,-200,0,0,0,0},
-     {"",0LL,0LL,0LL,0LL,0LL,0LL,0LL,0LL,0,modeUSB,filterF5,-2800,-200,-2800,-200,0,0,0,0}};
+
+BANDSTACK_ENTRY bandstack_entries_xvtr_0[] =
+    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
+BANDSTACK_ENTRY bandstack_entries_xvtr_1[] =
+    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
+BANDSTACK_ENTRY bandstack_entries_xvtr_2[] =
+    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
+BANDSTACK_ENTRY bandstack_entries_xvtr_3[] =
+    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
+BANDSTACK_ENTRY bandstack_entries_xvtr_4[] =
+    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
+BANDSTACK_ENTRY bandstack_entries_xvtr_5[] =
+    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
+BANDSTACK_ENTRY bandstack_entries_xvtr_6[] =
+    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
+BANDSTACK_ENTRY bandstack_entries_xvtr_7[] =
+    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
+
+BANDSTACK bandstack_xvtr_0={1,1,bandstack_entries_xvtr_0};
+BANDSTACK bandstack_xvtr_1={1,1,bandstack_entries_xvtr_1};
+BANDSTACK bandstack_xvtr_2={1,1,bandstack_entries_xvtr_2};
+BANDSTACK bandstack_xvtr_3={1,1,bandstack_entries_xvtr_3};
+BANDSTACK bandstack_xvtr_4={1,1,bandstack_entries_xvtr_4};
+BANDSTACK bandstack_xvtr_5={1,1,bandstack_entries_xvtr_5};
+BANDSTACK bandstack_xvtr_6={1,1,bandstack_entries_xvtr_6};
+BANDSTACK bandstack_xvtr_7={1,1,bandstack_entries_xvtr_7};
+
+static XVTR_ENTRY xvtr[XVTRS]=
+    {{"",&bandstack_xvtr_0,0x00,0x00,0,0,0,0,0.0,0LL,0LL,0LL},
+     {"",&bandstack_xvtr_1,0x00,0x00,0,0,0,0,0.0,0LL,0LL,0LL},
+     {"",&bandstack_xvtr_2,0x00,0x00,0,0,0,0,0.0,0LL,0LL,0LL},
+     {"",&bandstack_xvtr_3,0x00,0x00,0,0,0,0,0.0,0LL,0LL,0LL},
+     {"",&bandstack_xvtr_4,0x00,0x00,0,0,0,0,0.0,0LL,0LL,0LL},
+     {"",&bandstack_xvtr_5,0x00,0x00,0,0,0,0,0.0,0LL,0LL,0LL},
+     {"",&bandstack_xvtr_6,0x00,0x00,0,0,0,0,0.0,0LL,0LL,0LL},
+     {"",&bandstack_xvtr_7,0x00,0x00,0,0,0,0,0.0,0LL,0LL,0LL}};
 
 
 BANDSTACK_ENTRY *bandstack_entry_get_current() {

@@ -34,7 +34,10 @@
 #define HIGH_PRIORITY_TO_HOST_PORT 1025
 #define MIC_LINE_TO_HOST_PORT 1026
 #define WIDE_BAND_TO_HOST_PORT 1027
-#define RX_IQ_TO_HOST_PORT 1035
+#define RX_IQ_TO_HOST_PORT_0 1035
+#define RX_IQ_TO_HOST_PORT_1 1036
+#define RX_IQ_TO_HOST_PORT_2 1037
+#define RX_IQ_TO_HOST_PORT_3 1038
 
 #define BUFFER_SIZE 1024
 
@@ -64,7 +67,7 @@ extern int send_general;
 void schedule_high_priority(int source);
 void schedule_general();
 
-void new_protocol_init(int rx,int pixels);
+void new_protocol_init(int pixels);
 void new_protocol_stop();
 
 void filter_board_changed();

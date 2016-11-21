@@ -128,7 +128,7 @@ double drive=50;
 int drive_level=0;
 int tune_drive_level=0;
 
-int receivers=2;
+int receivers=RECEIVERS;
 int adc[2]={0,1};
 
 int locked=0;

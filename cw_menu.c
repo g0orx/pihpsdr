@@ -175,6 +175,7 @@ void cw_menu(GtkWidget *parent) {
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (cw_keys_reversed_b), cw_keys_reversed);
   gtk_widget_show(cw_keys_reversed_b);
   gtk_grid_attach(GTK_GRID(grid),cw_keys_reversed_b,0,6,1,1);
+  g_signal_connect(cw_keys_reversed_b,"toggled",G_CALLBACK(cw_keys_reversed_cb),NULL);
 
   GtkWidget *cw_keyer_sidetone_level_label=gtk_label_new("Sidetone Level:");
   //gtk_widget_override_font(cw_keyer_sidetone_level_label, pango_font_description_from_string("Arial 18"));

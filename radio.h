@@ -51,6 +51,7 @@ extern char property_path[];
 #define ALEX 1
 #define APOLLO 2
 
+#define RECEIVERS 2
 /*
 #define PA_DISABLED 0
 #define PA_ENABLED 1

@@ -139,7 +139,7 @@ static int psk_divisor=6;
 
 //static float left_input_buffer[BUFFER_SIZE];
 //static float right_input_buffer[BUFFER_SIZE];
-static double iqinputbuffer[BUFFER_SIZE*2];
+static double iqinputbuffer[RECEIVERS][BUFFER_SIZE*2];
 
 //static float mic_left_buffer[BUFFER_SIZE];
 //static float mic_right_buffer[BUFFER_SIZE];
@@ -367,17 +367,18 @@ static void *receive_thread(void* arg) {
 
 static void process_ozy_input_buffer(char  *buffer) {
   int i,j;
+  int r;
   int b=0;
   unsigned char ozy_samples[8*8];
   int bytes;
   int last_ptt;
   int last_dot;
   int last_dash;
-  int left_sample;
-  int right_sample;
+  int left_sample[RECEIVERS];
+  int right_sample[RECEIVERS];
   int mic_sample;
-  double left_sample_double;
-  double right_sample_double;
+  double left_sample_double[RECEIVERS];
+  double right_sample_double[RECEIVERS];
   double mic_sample_double;
   double gain=pow(10.0, mic_gain / 20.0);
 
@@ -435,19 +436,32 @@ static void process_ozy_input_buffer(char  *buffer) {
 
 
     // extract the 63 samples
-    for(i=0;i<63;i++) {
+    int iq_samples=63;
+    switch(RECEIVERS) {
+      case 1:
+        iq_samples=63;
+        break;
+      case 2:
+        iq_samples=36;
+        break;
+    }
+    for(i=0;i<iq_samples;i++) {
 
-      left_sample   = (int)((signed char) buffer[b++]) << 16;
-      left_sample  += (int)((unsigned char)buffer[b++]) << 8;
-      left_sample  += (int)((unsigned char)buffer[b++]);
-      right_sample  = (int)((signed char) buffer[b++]) << 16;
-      right_sample += (int)((unsigned char)buffer[b++]) << 8;
-      right_sample += (int)((unsigned char)buffer[b++]);
+      for(r=0;r<RECEIVERS;r++) {
+        left_sample[r]   = (int)((signed char) buffer[b++]) << 16;
+        left_sample[r]  += (int)((unsigned char)buffer[b++]) << 8;
+        left_sample[r]  += (int)((unsigned char)buffer[b++]);
+        right_sample[r]  = (int)((signed char) buffer[b++]) << 16;
+        right_sample[r] += (int)((unsigned char)buffer[b++]) << 8;
+        right_sample[r] += (int)((unsigned char)buffer[b++]);
+      }
       mic_sample    = (int)((signed char) buffer[b++]) << 8;
       mic_sample   += (int)((unsigned char)buffer[b++]);
 
-      left_sample_double=(double)left_sample/8388607.0; // 24 bit sample 2^23-1
-      right_sample_double=(double)right_sample/8388607.0; // 24 bit sample 2^23-1
+      for(r=0;r<RECEIVERS;r++) {
+        left_sample_double[r]=(double)left_sample[r]/8388607.0; // 24 bit sample 2^23-1
+        right_sample_double[r]=(double)right_sample[r]/8388607.0; // 24 bit sample 2^23-1
+      }
       mic_sample_double = (1.0 / 2147483648.0) * (double)(mic_sample<<16);
 
       // add to buffer
@@ -465,8 +479,8 @@ static void process_ozy_input_buffer(char  *buffer) {
                   mic_sample_double = (1.0 / 2147483648.0) * (double)(mic_sample<<16);
                   micinputbuffer[samples*2]=mic_sample_double;
                   micinputbuffer[(samples*2)+1]=mic_sample_double;
-                  iqinputbuffer[samples*2]=0.0;
-                  iqinputbuffer[(samples*2)+1]=0.0;
+                  iqinputbuffer[0][samples*2]=0.0;
+                  iqinputbuffer[0][(samples*2)+1]=0.0;
                   samples++;
                   if(samples==buffer_size) {
                     full_tx_buffer();
@@ -489,8 +503,8 @@ static void process_ozy_input_buffer(char  *buffer) {
             micinputbuffer[samples*2]=mic_sample_double*gain;
             micinputbuffer[(samples*2)+1]=mic_sample_double*gain;
           }
-          iqinputbuffer[samples*2]=0.0;
-          iqinputbuffer[(samples*2)+1]=0.0;
+          iqinputbuffer[0][samples*2]=0.0;
+          iqinputbuffer[0][(samples*2)+1]=0.0;
           samples++;
           if(samples==buffer_size) {
             full_tx_buffer();
@@ -503,8 +517,8 @@ static void process_ozy_input_buffer(char  *buffer) {
         if(!isTransmitting()) {
           micinputbuffer[samples*2]=0.0;
           micinputbuffer[(samples*2)+1]=0.0;
-          iqinputbuffer[samples*2]=left_sample_double;
-          iqinputbuffer[(samples*2)+1]=right_sample_double;
+          iqinputbuffer[0][samples*2]=left_sample_double[0];
+          iqinputbuffer[0][(samples*2)+1]=right_sample_double[0];
           samples++;
           if(samples==buffer_size) {
             full_rx_buffer();
@@ -617,13 +631,13 @@ static void full_rx_buffer() {
   int j;
   int error;
 
-  fexchange0(CHANNEL_RX0, iqinputbuffer, audiooutputbuffer, &error);
+  fexchange0(CHANNEL_RX0, iqinputbuffer[0], audiooutputbuffer, &error);
   fexchange0(CHANNEL_TX, micinputbuffer, iqoutputbuffer, &error);
 
 #ifdef PSK
   if(mode!=modePSK) {
 #endif
-    Spectrum0(1, CHANNEL_RX0, 0, 0, iqinputbuffer);
+    Spectrum0(1, CHANNEL_RX0, 0, 0, iqinputbuffer[0]);
 #ifdef PSK
   }
 #endif
@@ -708,8 +722,8 @@ void old_protocol_process_local_mic(unsigned char *buffer,int le) {
                 leftmicsampledouble=(double)leftmicsample/32767.0; // 16 bit sample 2^16-1
                 micinputbuffer[samples*2]=leftmicsampledouble;
                 micinputbuffer[(samples*2)+1]=leftmicsampledouble;
-                iqinputbuffer[samples*2]=0.0;
-                iqinputbuffer[(samples*2)+1]=0.0;
+                iqinputbuffer[0][samples*2]=0.0;
+                iqinputbuffer[0][(samples*2)+1]=0.0;
                 samples++;
                 if(samples==buffer_size) {
                   full_tx_buffer();
@@ -733,8 +747,8 @@ void old_protocol_process_local_mic(unsigned char *buffer,int le) {
            micinputbuffer[samples*2]=leftmicsampledouble;
            micinputbuffer[(samples*2)+1]=leftmicsampledouble;
          }
-         iqinputbuffer[samples*2]=0.0;
-         iqinputbuffer[(samples*2)+1]=0.0;
+         iqinputbuffer[0][samples*2]=0.0;
+         iqinputbuffer[0][(samples*2)+1]=0.0;
          samples++;
          if(samples==buffer_size) {
            full_tx_buffer();
@@ -755,6 +769,8 @@ static void process_bandscope_buffer(char  *buffer) {
 }
 */
 
+
+int current_rx=0;
 
 void ozy_send_buffer() {
 
@@ -849,7 +865,9 @@ void ozy_send_buffer() {
 
 
 // TODO - add Alex TX relay, duplex, receivers Mercury board frequency
-      output_buffer[C4]=0x04;
+      output_buffer[C4]=0x04;  // duplex
+      output_buffer[C4]|=(RECEIVERS-1)<<3;
+    
       if(isTransmitting()) {
         switch(band->alexTxAntenna) {
           case 0:  // ANT 1
@@ -908,7 +926,7 @@ void ozy_send_buffer() {
       output_buffer[C4]=txFrequency;
       break;
     case 2: // rx frequency
-      output_buffer[C0]=0x04;
+      output_buffer[C0]=0x04+(current_rx*2);
       long long rxFrequency=ddsFrequency+(long long)rit;
       if(mode==modeCWU) {
         rxFrequency-=(long long)cw_keyer_sidetone_frequency;
@@ -919,6 +937,10 @@ void ozy_send_buffer() {
       output_buffer[C2]=rxFrequency>>16;
       output_buffer[C3]=rxFrequency>>8;
       output_buffer[C4]=rxFrequency;
+      current_rx++;
+      if(current_rx==RECEIVERS) {
+        current_rx=0;
+      }
       break;
     case 3:
       {

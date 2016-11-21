@@ -563,7 +563,7 @@ fprintf(stderr,"selected radio=%p device=%d\n",radio,radio->device);
     case NEW_PROTOCOL:
       splash_status("Initializing new protocol ...");
   fprintf(stderr,"new_protocol_init\n");
-      new_protocol_init(0,display_width);
+      new_protocol_init(display_width);
       break;
 #ifdef LIMESDR
     case LIMESDR_PROTOCOL:

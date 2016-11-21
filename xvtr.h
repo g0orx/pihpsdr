@@ -20,32 +20,27 @@
 #ifndef _XVTR_H
 #define _XVTR_H
 
+#include "bandstack.h"
+
+#define XVTRS 8
+
 /* --------------------------------------------------------------------------*/
 /**
 * @brief XVTR definition
 */
 struct _XVTR_ENTRY {
-    char name[32];
-    long long rxFrequency;
-    long long rxFrequencyMin;
-    long long rxFrequencyMax;
-    long long rxFrequencyLO;
-    long long txFrequency;
-    long long txFrequencyMin;
-    long long txFrequencyMax;
-    long long txFrequencyLO;
-    int fullDuplex;
-    int mode;
-    int filter;
-    int var1Low;
-    int var1High;
-    int var2Low;
-    int var2High;
-    int step;
+    char title[16];
+    BANDSTACK *bandstack;
+    unsigned char OCrx;
+    unsigned char OCtx;
     int preamp;
     int alexRxAntenna;
     int alexTxAntenna;
     int alexAttenuation;
+    double pa_calibration;
+    long long frequencyMin;
+    long long frequencyMax;
+    long long frequencyLO;
 };
 
 typedef struct _XVTR_ENTRY XVTR_ENTRY;
