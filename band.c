@@ -246,9 +246,9 @@ BAND_LIMITS bandLimits[NUM_BAND_LIMITS] = {
 /* ----------------------------------------------------------------------------*/
 
 BANDSTACK_ENTRY bandstack_entries_xvtr_0[] =
-    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
+    {{144000000LL,modeUSB,filterF6,150,2550,150,2550}};
 BANDSTACK_ENTRY bandstack_entries_xvtr_1[] =
-    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
+    {{430000000LL,modeUSB,filterF6,150,2550,150,2550}};
 BANDSTACK_ENTRY bandstack_entries_xvtr_2[] =
     {{0LL,modeUSB,filterF6,150,2550,150,2550}};
 BANDSTACK_ENTRY bandstack_entries_xvtr_3[] =
@@ -271,9 +271,9 @@ BANDSTACK bandstack_xvtr_5={1,1,bandstack_entries_xvtr_5};
 BANDSTACK bandstack_xvtr_6={1,1,bandstack_entries_xvtr_6};
 BANDSTACK bandstack_xvtr_7={1,1,bandstack_entries_xvtr_7};
 
-static XVTR_ENTRY xvtr[XVTRS]=
-    {{"",&bandstack_xvtr_0,0x00,0x00,0,0,0,0,0.0,0LL,0LL,0LL},
-     {"",&bandstack_xvtr_1,0x00,0x00,0,0,0,0,0.0,0LL,0LL,0LL},
+static XVTR xvtrs[XVTRS]=
+    {{"144",&bandstack_xvtr_0,0x00,0x00,0,0,0,0,0.0,144000000LL,146000000LL,116000000LL},
+     {"430",&bandstack_xvtr_1,0x00,0x00,0,0,0,0,0.0,430000000LL,432000000LL,402000000LL},
      {"",&bandstack_xvtr_2,0x00,0x00,0,0,0,0,0.0,0LL,0LL,0LL},
      {"",&bandstack_xvtr_3,0x00,0x00,0,0,0,0,0.0,0LL,0LL,0LL},
      {"",&bandstack_xvtr_4,0x00,0x00,0,0,0,0,0.0,0LL,0LL,0LL},
@@ -328,6 +328,10 @@ BAND *band_set_current(int b) {
     return &bands[b];
 }
 
+XVTR* band_get_xvtr(int b) {
+    XVTR* xvtr=&xvtrs[b];
+    return xvtr;
+}
 
 void bandSaveState() {
     char name[128];

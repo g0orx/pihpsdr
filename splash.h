@@ -21,7 +21,7 @@
 #ifndef _SPLASH_H
 #define _SPLASH_H
 
-extern GtkWidget* splash_window;
+extern GtkWidget* splash_screen;
 
 void splash_close(void);
 void splash_show(char *image_name,int time,int width,int height);

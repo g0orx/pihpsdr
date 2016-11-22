@@ -22,6 +22,7 @@
 
 #include <gtk/gtk.h>
 #include "bandstack.h"
+#include "xvtr.h"
 
 #define band160 0
 #define band80 1
@@ -84,7 +85,6 @@ struct _BAND {
 typedef struct _BAND BAND;
 
 int band;
-int xvtr_band;
 gboolean displayHF;
 
 int band_get_current();
@@ -98,8 +98,6 @@ BANDSTACK_ENTRY *bandstack_entry_get_current();
 
 BAND_LIMITS* getBandLimits(long long minDisplay,long long maxDisplay);
 
-/*
-XVTR_ENTRY* getXvtrEntry(int i);
-*/
+XVTR* getXvtr(int i);
 
 #endif

@@ -20,14 +20,14 @@
 #include <gtk/gtk.h>
 #include "version.h"
 
-GtkWidget *splash_window;
+GtkWidget *splash_screen;
 GtkWidget *status;
 static cairo_surface_t *splash_surface = NULL;
 
 /* Close the splash screen */
 void splash_close()
 {
-  gtk_widget_destroy(splash_window);
+  gtk_widget_destroy(splash_screen);
 }
 
 static gboolean splash_configure_event_cb (GtkWidget         *widget,
@@ -49,13 +49,13 @@ static gboolean splash_configure_event_cb (GtkWidget         *widget,
 void splash_show(char* image_name,int width,int height,int full_screen)
 {
   GtkWidget  *image;
-  splash_window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+  splash_screen = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   if(full_screen) {
-    gtk_window_fullscreen(GTK_WINDOW(splash_window));
+    gtk_window_fullscreen(GTK_WINDOW(splash_screen));
   }
-  gtk_widget_set_size_request(splash_window, width, height);
-  gtk_window_set_position(GTK_WINDOW(splash_window),GTK_WIN_POS_CENTER_ALWAYS);
-  gtk_window_set_resizable(GTK_WINDOW(splash_window), FALSE);
+  gtk_widget_set_size_request(splash_screen, width, height);
+  gtk_window_set_position(GTK_WINDOW(splash_screen),GTK_WIN_POS_CENTER_ALWAYS);
+  gtk_window_set_resizable(GTK_WINDOW(splash_screen), FALSE);
 
 
   GtkWidget *grid = gtk_grid_new();
@@ -63,9 +63,9 @@ void splash_show(char* image_name,int width,int height,int full_screen)
   gtk_grid_set_column_homogeneous(GTK_GRID(grid),FALSE);
 
   image=gtk_image_new_from_file(image_name);
-  //gtk_container_add(GTK_CONTAINER(splash_window), image);
+  //gtk_container_add(GTK_CONTAINER(splash_screen), image);
   gtk_grid_attach(GTK_GRID(grid), image, 0, 0, 1, 4);
-  g_signal_connect (splash_window,"configure-event",
+  g_signal_connect (splash_screen,"configure-event",
             G_CALLBACK (splash_configure_event_cb), NULL);
 
   char build[64];
@@ -84,11 +84,11 @@ void splash_show(char* image_name,int width,int height,int full_screen)
   gtk_label_set_justify(GTK_LABEL(status),GTK_JUSTIFY_LEFT);
   gtk_widget_override_font(status, pango_font_description_from_string("FreeMono 18"));
   gtk_widget_show(status);
-  //gtk_container_add(GTK_CONTAINER(splash_window), status);
+  //gtk_container_add(GTK_CONTAINER(splash_screen), status);
   gtk_grid_attach(GTK_GRID(grid), status, 1, 3, 1, 1);
 
-  gtk_container_add(GTK_CONTAINER(splash_window), grid);
-  gtk_widget_show_all (splash_window);
+  gtk_container_add(GTK_CONTAINER(splash_screen), grid);
+  gtk_widget_show_all (splash_screen);
 }
 
 void splash_status(char *text) {

@@ -155,12 +155,12 @@ GtkWidget* rit_init(int width,int height,GtkWidget *parent) {
 
   ctun_b=gtk_button_new_with_label("CTUN");
   gtk_widget_override_font(ctun_b, pango_font_description_from_string("FreeMono Bold 10"));
-  g_signal_connect (ctun_b, "pressed", G_CALLBACK(ctun_pressed_event_cb), NULL);
+  g_signal_connect (ctun_b, "button_press_event", G_CALLBACK(ctun_pressed_event_cb), NULL);
   gtk_box_pack_start (GTK_BOX(v_box_1),ctun_b,TRUE,TRUE,0);
   
   rit_b=gtk_button_new_with_label("RIT");
   gtk_widget_override_font(rit_b, pango_font_description_from_string("FreeMono Bold 10"));
-  g_signal_connect (rit_b, "pressed", G_CALLBACK(rit_pressed_event_cb), NULL);
+  g_signal_connect (rit_b, "button_press_event", G_CALLBACK(rit_pressed_event_cb), NULL);
   gtk_box_pack_start (GTK_BOX(v_box_1),rit_b,TRUE,TRUE,0);
   
   gtk_box_pack_start (GTK_BOX(h_box),v_box_1,TRUE,TRUE,0);

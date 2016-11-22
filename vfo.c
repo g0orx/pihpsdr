@@ -371,7 +371,7 @@ vfo_press_event_cb (GtkWidget *widget,
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (step_rb), steps[i]==step);
       gtk_widget_show(step_rb);
       gtk_grid_attach(GTK_GRID(grid),step_rb,i%5,i/5,1,1);
-      g_signal_connect(step_rb,"pressed",G_CALLBACK(vfo_step_select_cb),(gpointer *)i);
+      g_signal_connect(step_rb,"button_press_event",G_CALLBACK(vfo_step_select_cb),(gpointer *)i);
       i++;
     }
   

@@ -94,14 +94,14 @@ static gint save_timer_id;
 
 static float *samples;
 
-static int start=0;
-
 static GtkWidget *discovery_dialog;
 
 static sem_t wisdom_sem;
 
 static GdkCursor *cursor_arrow;
 static GdkCursor *cursor_watch;
+
+static GdkWindow *splash_window;
 
 static GtkWidget *window;
 static GtkWidget *grid;
@@ -118,6 +118,11 @@ static GtkWidget *waterfall;
 static GtkWidget *psk;
 static GtkWidget *psk_waterfall;
 #endif
+
+static DISCOVERED* d;
+
+static void start_radio();
+static void discover_devices();
 
 gint update(gpointer data) {
     int result;
@@ -275,10 +280,6 @@ gint update(gpointer data) {
             }
         }
 
-/*
-fprintf(stderr,"alex_forward_power=%d alex_reverse_power=%d exciter_power=%d fwd=%f rev=%f exciter=%f\n",
-               alex_forward_power, alex_reverse_power, exciter_power, fwd, rev, exciter);
-*/
         meter_update(POWER,fwd,rev,exciter,alc);
     }
 
@@ -289,14 +290,6 @@ static gint save_cb(gpointer data) {
     radioSaveState();
     return TRUE;
 }
-
-static void start_cb(GtkWidget *widget, gpointer data) {
-fprintf(stderr,"start_cb: %p\n",data);
-    radio=(DISCOVERED *)data;
-    start=1;
-    gtk_widget_destroy(discovery_dialog);
-}
-
 
 static pthread_t wisdom_thread_id;
 
@@ -327,49 +320,34 @@ gboolean main_delete (GtkWidget *widget) {
   _exit(0);
 }
 
-gint init(void* arg) {
+static gboolean start_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+fprintf(stderr,"start_cb: %p\n",data);
+  radio=(DISCOVERED *)data;
+  gtk_widget_destroy(discovery_dialog);
+  start_radio();
+  return TRUE;
+}
 
-  gint x;
-  gint y;
+static gboolean gpio_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  configure_gpio(discovery_dialog);
+  return TRUE;
+}
 
-  DISCOVERED* d;
+static gboolean discover_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  gtk_widget_destroy(discovery_dialog);
+  discover_devices();
+  return TRUE;
+}
 
-  char *res;
-  char wisdom_directory[1024];
-  char wisdom_file[1024];
+static gboolean exit_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  gtk_widget_destroy(discovery_dialog);
+  _exit(0);
+  return TRUE;
+}
 
-  fprintf(stderr,"init\n");
+static void discover_devices() {
 
-  audio_get_cards(0);
-  audio_get_cards(1);
-
-  cursor_arrow=gdk_cursor_new(GDK_ARROW);
-  cursor_watch=gdk_cursor_new(GDK_WATCH);
-
-  GdkWindow *gdk_splash_window = gtk_widget_get_window(splash_window);
-  gdk_window_set_cursor(gdk_splash_window,cursor_watch);
-
-  init_radio();
-
-  // check if wisdom file exists
-  res=getcwd(wisdom_directory, sizeof(wisdom_directory));
-  strcpy(&wisdom_directory[strlen(wisdom_directory)],"/");
-  strcpy(wisdom_file,wisdom_directory);
-  strcpy(&wisdom_file[strlen(wisdom_file)],"wdspWisdom");
-  splash_status("Checking FFTW Wisdom file ...");
-  if(access(wisdom_file,F_OK)<0) {
-      int rc=sem_init(&wisdom_sem, 0, 0);
-      rc=pthread_create(&wisdom_thread_id, NULL, wisdom_thread, (void *)wisdom_directory);
-      while(sem_trywait(&wisdom_sem)<0) {
-        splash_status(wisdom_get_status());
-        while (gtk_events_pending ())
-          gtk_main_iteration ();
-        usleep(100000); // 100ms
-      }
-  }
-
-  while(!start) {
-      gdk_window_set_cursor(gdk_splash_window,cursor_watch);
+      gdk_window_set_cursor(splash_window,cursor_watch);
       selected_device=0;
       devices=0;
       splash_status("Old Protocol ... Discovering Devices");
@@ -382,10 +360,10 @@ gint init(void* arg) {
 #endif
       splash_status("Discovery");
       if(devices==0) {
-          gdk_window_set_cursor(gdk_splash_window,cursor_arrow);
+          gdk_window_set_cursor(splash_window,cursor_arrow);
           fprintf(stderr,"No devices found!\n");
           GtkDialogFlags flags = GTK_DIALOG_DESTROY_WITH_PARENT;
-          discovery_dialog = gtk_message_dialog_new (GTK_WINDOW(splash_window),
+          discovery_dialog = gtk_message_dialog_new (GTK_WINDOW(splash_screen),
                                  flags,
                                  GTK_MESSAGE_ERROR,
                                  GTK_BUTTONS_OK_CANCEL,
@@ -397,8 +375,9 @@ gint init(void* arg) {
                _exit(0);
           }
       } else {
-          fprintf(stderr,"%s: found %d devices.\n", (char *)arg, devices);
-          gdk_window_set_cursor(gdk_splash_window,cursor_arrow);
+          //fprintf(stderr,"%s: found %d devices.\n", (char *)arg, devices);
+          gdk_window_set_cursor(splash_window,cursor_arrow);
+/*
           GtkDialogFlags flags=GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT;
           discovery_dialog = gtk_dialog_new_with_buttons ("Discovered",
                                       GTK_WINDOW(splash_window),
@@ -412,8 +391,21 @@ gint init(void* arg) {
                                       "Exit",
                                       GTK_RESPONSE_CLOSE,
                                       NULL);
+*/
 
-          gtk_widget_override_font(discovery_dialog, pango_font_description_from_string("FreeMono 18"));
+          discovery_dialog = gtk_dialog_new();
+          gtk_window_set_transient_for(GTK_WINDOW(discovery_dialog),GTK_WINDOW(splash_screen));
+          gtk_window_set_decorated(GTK_WINDOW(discovery_dialog),FALSE);
+
+          gtk_widget_override_font(discovery_dialog, pango_font_description_from_string("FreeMono 16"));
+
+          GdkRGBA color;
+          color.red = 1.0;
+          color.green = 1.0;
+          color.blue = 1.0;
+          color.alpha = 1.0;
+          gtk_widget_override_background_color(discovery_dialog,GTK_STATE_FLAG_NORMAL,&color);
+
           GtkWidget *content;
 
           content=gtk_dialog_get_content_area(GTK_DIALOG(discovery_dialog));
@@ -478,7 +470,7 @@ fprintf(stderr,"%p protocol=%d name=%s\n",d,d->protocol,d->name);
               gtk_widget_override_font(start_button, pango_font_description_from_string("FreeMono 18"));
               gtk_widget_show(start_button);
               gtk_grid_attach(GTK_GRID(grid),start_button,3,i,1,1);
-              g_signal_connect(start_button,"pressed",G_CALLBACK(start_cb),(gpointer)d);
+              g_signal_connect(start_button,"button_press_event",G_CALLBACK(start_cb),(gpointer)d);
 
               // if not available then cannot start it
               if(d->status!=STATE_AVAILABLE) {
@@ -494,34 +486,32 @@ fprintf(stderr,"%p protocol=%d name=%s\n",d,d->protocol,d->name);
 
           }
 
+          GtkWidget *gpio_b=gtk_button_new_with_label("Config GPIO");
+          g_signal_connect (gpio_b, "button-press-event", G_CALLBACK(gpio_cb), NULL);
+          gtk_grid_attach(GTK_GRID(grid),gpio_b,0,i,1,1);
+
+          GtkWidget *discover_b=gtk_button_new_with_label("Discover");
+          g_signal_connect (discover_b, "button-press-event", G_CALLBACK(discover_cb), NULL);
+          gtk_grid_attach(GTK_GRID(grid),discover_b,1,i,1,1);
+
+          GtkWidget *exit_b=gtk_button_new_with_label("Exit");
+          g_signal_connect (exit_b, "button-press-event", G_CALLBACK(exit_cb), NULL);
+          gtk_grid_attach(GTK_GRID(grid),exit_b,2,i,1,1);
+
+
           gtk_container_add (GTK_CONTAINER (content), grid);
           gtk_widget_show_all(discovery_dialog);
-          gint result=gtk_dialog_run(GTK_DIALOG(discovery_dialog));
-
-          if(result==GTK_RESPONSE_CLOSE) {
-              _exit(0);
-          }
-         
-          if(!start) {
-            gtk_widget_destroy(discovery_dialog);
-          }
-#ifdef GPIO
-          if(result==GTK_RESPONSE_YES) {
-              configure_gpio(splash_window);
-          }
-#endif
       }
-  }
+}
 
-  gdk_window_set_cursor(gdk_splash_window,cursor_watch);
+static void start_radio() {
+  int y;
+fprintf(stderr,"start: selected radio=%p device=%d\n",radio,radio->device);
+  gdk_window_set_cursor(splash_window,cursor_watch);
 
   splash_status("Initializing wdsp ...");
-
-fprintf(stderr,"selected radio=%p device=%d\n",radio,radio->device);
-
   protocol=radio->protocol;
   device=radio->device;
-
 
   switch(radio->protocol) {
     case ORIGINAL_PROTOCOL:
@@ -715,7 +705,6 @@ fprintf(stderr,"toolbar_height=%d\n",TOOLBAR_HEIGHT);
 
   g_idle_add(vfo_update,(gpointer)NULL);
 
-  return 0;
 }
 
 #ifdef PSK
@@ -854,10 +843,47 @@ fprintf(stderr,"reconfigure_display: toolbar_init: width:%d height:%d\n",display
 
 }
 
-int
-main (int   argc,
-      char *argv[])
-{
+gint init(void* arg) {
+  char *res;
+  char wisdom_directory[1024];
+  char wisdom_file[1024];
+
+  fprintf(stderr,"init\n");
+
+  audio_get_cards(0);
+  audio_get_cards(1);
+
+  cursor_arrow=gdk_cursor_new(GDK_ARROW);
+  cursor_watch=gdk_cursor_new(GDK_WATCH);
+
+  splash_window = gtk_widget_get_window(splash_screen);
+  gdk_window_set_cursor(splash_window,cursor_watch);
+
+  init_radio();
+
+  // check if wisdom file exists
+  res=getcwd(wisdom_directory, sizeof(wisdom_directory));
+  strcpy(&wisdom_directory[strlen(wisdom_directory)],"/");
+  strcpy(wisdom_file,wisdom_directory);
+  strcpy(&wisdom_file[strlen(wisdom_file)],"wdspWisdom");
+  splash_status("Checking FFTW Wisdom file ...");
+  if(access(wisdom_file,F_OK)<0) {
+      int rc=sem_init(&wisdom_sem, 0, 0);
+      rc=pthread_create(&wisdom_thread_id, NULL, wisdom_thread, (void *)wisdom_directory);
+      while(sem_trywait(&wisdom_sem)<0) {
+        splash_status(wisdom_get_status());
+        while (gtk_events_pending ())
+          gtk_main_iteration ();
+        usleep(100000); // 100ms
+      }
+  }
+
+  discover_devices();
+
+  return 0;
+}
+
+int main (int   argc, char *argv[]) {
   gtk_init (&argc, &argv);
 
   fprintf(stderr,"Build: %s %s\n",build_date,build_version);

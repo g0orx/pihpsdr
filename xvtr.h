@@ -28,7 +28,7 @@
 /**
 * @brief XVTR definition
 */
-struct _XVTR_ENTRY {
+struct _XVTR {
     char title[16];
     BANDSTACK *bandstack;
     unsigned char OCrx;
@@ -43,6 +43,6 @@ struct _XVTR_ENTRY {
     long long frequencyLO;
 };
 
-typedef struct _XVTR_ENTRY XVTR_ENTRY;
+typedef struct _XVTR XVTR;
 
 #endif
