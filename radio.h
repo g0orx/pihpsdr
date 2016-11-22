@@ -52,7 +52,7 @@ extern char property_path[];
 #define APOLLO 2
 
 // soecify how many receivers (only 1 or 2 for now)
-#define RECEIVERS 2
+#define RECEIVERS 1
 
 /*
 #define PA_DISABLED 0
