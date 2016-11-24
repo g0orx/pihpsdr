@@ -19,12 +19,12 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "bandstack.h"
 #include "band.h"
 #include "filter.h"
 #include "mode.h"
-#include "xvtr.h"
 #include "alex.h"
 #include "property.h"
 
@@ -57,7 +57,7 @@ BANDSTACK_ENTRY bandstack_entries60[] =
 
 BANDSTACK_ENTRY bandstack_entries40[] =
     {{7001000LL,7001000LL,modeCWL,filterF0,-2800,-200,-2800,-200},
-     {7152000LL,71521000LL,modeLSB,filterF5,-2800,-200,-2800,-200},
+     {7152000LL,7152000LL,modeLSB,filterF5,-2800,-200,-2800,-200},
      {7255000LL,7255000LL,modeLSB,filterF5,-2800,-200,-2800,-200}};
 
 BANDSTACK_ENTRY bandstack_entries30[] =
@@ -186,31 +186,76 @@ BANDSTACK bandstackAIR={6,1,bandstack_entriesAIR};
 BANDSTACK bandstackGEN={3,1,bandstack_entriesGEN};
 BANDSTACK bandstackWWV={5,1,bandstack_entriesWWV};
 
-BAND bands[BANDS] = 
-    {{"160",&bandstack160,0,0,0,0,0,ALEX_ATTENUATION_0dB,42.0},
-     {"80",&bandstack80,0,0,0,0,0,ALEX_ATTENUATION_0dB,42.5},
-     {"60",&bandstack60,0,0,0,0,0,ALEX_ATTENUATION_0dB,42.5},
-     {"40",&bandstack40,0,0,0,0,0,ALEX_ATTENUATION_0dB,42.5},
-     {"30",&bandstack30,0,0,0,0,0,ALEX_ATTENUATION_0dB,41.3},
-     {"20",&bandstack20,0,0,0,0,0,ALEX_ATTENUATION_0dB,40.5},
-     {"18",&bandstack18,0,0,0,0,0,ALEX_ATTENUATION_0dB,40.0},
-     {"15",&bandstack15,0,0,0,0,0,ALEX_ATTENUATION_0dB,39.6},
-     {"12",&bandstack12,0,0,0,0,0,ALEX_ATTENUATION_0dB,39.0},
-     {"10",&bandstack10,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8},
-     {"50",&bandstack50,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8},
+/* --------------------------------------------------------------------------*/
+/**
+* @brief xvtr
+*/
+/* ----------------------------------------------------------------------------*/
+
+BANDSTACK_ENTRY bandstack_entries_xvtr_0[] =
+    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
+BANDSTACK_ENTRY bandstack_entries_xvtr_1[] =
+    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
+BANDSTACK_ENTRY bandstack_entries_xvtr_2[] =
+    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
+BANDSTACK_ENTRY bandstack_entries_xvtr_3[] =
+    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
+BANDSTACK_ENTRY bandstack_entries_xvtr_4[] =
+    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
+BANDSTACK_ENTRY bandstack_entries_xvtr_5[] =
+    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
+BANDSTACK_ENTRY bandstack_entries_xvtr_6[] =
+    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
+BANDSTACK_ENTRY bandstack_entries_xvtr_7[] =
+    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
+
+BANDSTACK bandstack_xvtr_0={1,1,bandstack_entries_xvtr_0};
+BANDSTACK bandstack_xvtr_1={1,1,bandstack_entries_xvtr_1};
+BANDSTACK bandstack_xvtr_2={1,1,bandstack_entries_xvtr_2};
+BANDSTACK bandstack_xvtr_3={1,1,bandstack_entries_xvtr_3};
+BANDSTACK bandstack_xvtr_4={1,1,bandstack_entries_xvtr_4};
+BANDSTACK bandstack_xvtr_5={1,1,bandstack_entries_xvtr_5};
+BANDSTACK bandstack_xvtr_6={1,1,bandstack_entries_xvtr_6};
+BANDSTACK bandstack_xvtr_7={1,1,bandstack_entries_xvtr_7};
+
+
+
+BAND bands[BANDS+XVTRS] = 
+    {{"160",&bandstack160,0,0,0,0,0,ALEX_ATTENUATION_0dB,42.0,0LL,0LL,0LL},
+     {"80",&bandstack80,0,0,0,0,0,ALEX_ATTENUATION_0dB,42.5,0LL,0LL,0LL},
+     {"60",&bandstack60,0,0,0,0,0,ALEX_ATTENUATION_0dB,42.5,0LL,0LL,0LL},
+     {"40",&bandstack40,0,0,0,0,0,ALEX_ATTENUATION_0dB,42.5,0LL,0LL,0LL},
+     {"30",&bandstack30,0,0,0,0,0,ALEX_ATTENUATION_0dB,41.3,0LL,0LL,0LL},
+     {"20",&bandstack20,0,0,0,0,0,ALEX_ATTENUATION_0dB,40.5,0LL,0LL,0LL},
+     {"18",&bandstack18,0,0,0,0,0,ALEX_ATTENUATION_0dB,40.0,0LL,0LL,0LL},
+     {"15",&bandstack15,0,0,0,0,0,ALEX_ATTENUATION_0dB,39.6,0LL,0LL,0LL},
+     {"12",&bandstack12,0,0,0,0,0,ALEX_ATTENUATION_0dB,39.0,0LL,0LL,0LL},
+     {"10",&bandstack10,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
+     {"50",&bandstack50,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
 #ifdef LIMESDR
-     {"70",&bandstack70,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8},
-     {"144",&bandstack144,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8},
-     {"220",&bandstack144,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8},
-     {"430",&bandstack430,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8},
-     {"902",&bandstack430,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8},
-     {"1240",&bandstack1240,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8},
-     {"2300",&bandstack2300,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8},
-     {"3400",&bandstack3400,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8},
-     {"AIR",&bandstackAIR,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8},
+     {"70",&bandstack70,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
+     {"144",&bandstack144,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
+     {"220",&bandstack144,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
+     {"430",&bandstack430,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
+     {"902",&bandstack430,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
+     {"1240",&bandstack1240,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
+     {"2300",&bandstack2300,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
+     {"3400",&bandstack3400,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
+     {"AIR",&bandstackAIR,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
 #endif
-     {"GEN",&bandstackGEN,0,0,0,0,0,ALEX_ATTENUATION_0dB,0},
-     {"WWV",&bandstackWWV,0,0,0,0,0,ALEX_ATTENUATION_0dB,0}};
+     {"GEN",&bandstackGEN,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
+     {"WWV",&bandstackWWV,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
+// XVTRS
+     {"",&bandstack_xvtr_0,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
+     {"",&bandstack_xvtr_1,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
+     {"",&bandstack_xvtr_2,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
+     {"",&bandstack_xvtr_3,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
+     {"",&bandstack_xvtr_4,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
+     {"",&bandstack_xvtr_5,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
+     {"",&bandstack_xvtr_6,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
+     {"",&bandstack_xvtr_7,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL}
+    };
+
 
 #define NUM_BAND_LIMITS 22
 
@@ -238,53 +283,6 @@ BAND_LIMITS bandLimits[NUM_BAND_LIMITS] = {
     {24192000000LL,24192400000LL},
     {47088000000LL,47088400000LL}
 };
-
-/* --------------------------------------------------------------------------*/
-/**
-* @brief xvtr
-*/
-/* ----------------------------------------------------------------------------*/
-
-BANDSTACK_ENTRY bandstack_entries_xvtr_0[] =
-    {{144000000LL,modeUSB,filterF6,150,2550,150,2550}};
-BANDSTACK_ENTRY bandstack_entries_xvtr_1[] =
-    {{430000000LL,modeUSB,filterF6,150,2550,150,2550}};
-BANDSTACK_ENTRY bandstack_entries_xvtr_2[] =
-    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
-BANDSTACK_ENTRY bandstack_entries_xvtr_3[] =
-    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
-BANDSTACK_ENTRY bandstack_entries_xvtr_4[] =
-    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
-BANDSTACK_ENTRY bandstack_entries_xvtr_5[] =
-    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
-BANDSTACK_ENTRY bandstack_entries_xvtr_6[] =
-    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
-BANDSTACK_ENTRY bandstack_entries_xvtr_7[] =
-    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
-
-BANDSTACK bandstack_xvtr_0={1,1,bandstack_entries_xvtr_0};
-BANDSTACK bandstack_xvtr_1={1,1,bandstack_entries_xvtr_1};
-BANDSTACK bandstack_xvtr_2={1,1,bandstack_entries_xvtr_2};
-BANDSTACK bandstack_xvtr_3={1,1,bandstack_entries_xvtr_3};
-BANDSTACK bandstack_xvtr_4={1,1,bandstack_entries_xvtr_4};
-BANDSTACK bandstack_xvtr_5={1,1,bandstack_entries_xvtr_5};
-BANDSTACK bandstack_xvtr_6={1,1,bandstack_entries_xvtr_6};
-BANDSTACK bandstack_xvtr_7={1,1,bandstack_entries_xvtr_7};
-
-static XVTR xvtrs[XVTRS]=
-/*
-    {{"144",&bandstack_xvtr_0,0x00,0x00,0,0,0,0,0.0,144000000LL,146000000LL,116000000LL},
-     {"430",&bandstack_xvtr_1,0x00,0x00,0,0,0,0,0.0,430000000LL,432000000LL,402000000LL},
-*/
-    {{"",&bandstack_xvtr_2,0x00,0x00,0,0,0,0,0.0,0LL,0LL,0LL},
-     {"",&bandstack_xvtr_2,0x00,0x00,0,0,0,0,0.0,0LL,0LL,0LL},
-     {"",&bandstack_xvtr_2,0x00,0x00,0,0,0,0,0.0,0LL,0LL,0LL},
-     {"",&bandstack_xvtr_3,0x00,0x00,0,0,0,0,0.0,0LL,0LL,0LL},
-     {"",&bandstack_xvtr_4,0x00,0x00,0,0,0,0,0.0,0LL,0LL,0LL},
-     {"",&bandstack_xvtr_5,0x00,0x00,0,0,0,0,0.0,0LL,0LL,0LL},
-     {"",&bandstack_xvtr_6,0x00,0x00,0,0,0,0,0.0,0LL,0LL,0LL},
-     {"",&bandstack_xvtr_7,0x00,0x00,0,0,0,0,0.0,0LL,0LL,0LL}};
-
 
 BANDSTACK_ENTRY *bandstack_entry_get_current() {
     BANDSTACK *bandstack=bands[band].bandstack;
@@ -332,11 +330,6 @@ BAND *band_set_current(int b) {
     return &bands[b];
 }
 
-XVTR* band_get_xvtr(int b) {
-    XVTR* xvtr=&xvtrs[b];
-    return xvtr;
-}
-
 void bandSaveState() {
     char name[128];
     char value[128];
@@ -345,7 +338,11 @@ void bandSaveState() {
 
     int b;
     int stack;
-    for(b=0;b<BANDS;b++) {
+    for(b=0;b<BANDS+XVTRS;b++) {
+      if(strlen(bands[b].title)>0) {
+        sprintf(name,"band.%d.title",b);
+        setProperty(name,bands[b].title);
+
         sprintf(value,"%d",bands[b].bandstack->entries);
         sprintf(name,"band.%d.entries",b);
         setProperty(name,value);
@@ -364,6 +361,7 @@ void bandSaveState() {
 
         sprintf(value,"%d",bands[b].alexTxAntenna);
         sprintf(name,"band.%d.alexTxAntenna",b);
+        sprintf(name,"band.%d.alexTxAntenna",b);
         setProperty(name,value);
 
         sprintf(value,"%d",bands[b].alexAttenuation);
@@ -380,6 +378,18 @@ void bandSaveState() {
 
         sprintf(value,"%d",bands[b].OCtx);
         sprintf(name,"band.%d.OCtx",b);
+        setProperty(name,value);
+
+        sprintf(value,"%lld",bands[b].frequencyMin);
+        sprintf(name,"band.%d.frequencyMin",b);
+        setProperty(name,value);
+
+        sprintf(value,"%lld",bands[b].frequencyMax);
+        sprintf(name,"band.%d.frequencyMax",b);
+        setProperty(name,value);
+
+        sprintf(value,"%lld",bands[b].frequencyLO);
+        sprintf(name,"band.%d.frequencyLO",b);
         setProperty(name,value);
 
         for(stack=0;stack<bands[b].bandstack->entries;stack++) {
@@ -415,6 +425,7 @@ void bandSaveState() {
             setProperty(name,value);
 
         }
+      }
     }
 
     sprintf(value,"%d",band);
@@ -429,8 +440,13 @@ void bandRestoreState() {
     BANDSTACK_ENTRY* entry;
     int current;
 
+fprintf(stderr,"bandRestoreState: restore bands\n");
 
-    for(b=0;b<BANDS;b++) {
+    for(b=0;b<BANDS+XVTRS;b++) {
+        sprintf(name,"band.%d.title",b);
+        value=getProperty(name);
+        if(value) strcpy(bands[b].title,value);
+
         sprintf(name,"band.%d.entries",b);
         value=getProperty(name);
         if(value) bands[b].bandstack->entries=atoi(value);
@@ -475,6 +491,18 @@ void bandRestoreState() {
         value=getProperty(name);
         if(value) bands[b].OCtx=atoi(value);
 
+        sprintf(name,"band.%d.frequencyMin",b);
+        value=getProperty(name);
+        if(value) bands[b].frequencyMin=atoll(value);
+
+        sprintf(name,"band.%d.frequencyMax",b);
+        value=getProperty(name);
+        if(value) bands[b].frequencyMax=atoll(value);
+
+        sprintf(name,"band.%d.frequencyLO",b);
+        value=getProperty(name);
+        if(value) bands[b].frequencyLO=atoll(value);
+
         for(stack=0;stack<bands[b].bandstack->entries;stack++) {
             entry=bands[b].bandstack->entry;
             entry+=stack;
@@ -509,6 +537,7 @@ void bandRestoreState() {
 
         }
     }
+
     value=getProperty("band");
     if(value) band=atoi(value);
 }

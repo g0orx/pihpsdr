@@ -23,18 +23,50 @@
 #include <string.h>
 
 #include "new_menu.h"
+#include "band.h"
+#include "filter.h"
+#include "mode.h"
 #include "xvtr_menu.h"
-#include "xvtr.h"
 #include "radio.h"
 
 static GtkWidget *parent_window=NULL;
-
 static GtkWidget *menu_b=NULL;
-
 static GtkWidget *dialog=NULL;
+static GtkWidget *title[BANDS+XVTRS];
+static GtkWidget *min_frequency[BANDS+XVTRS];
+static GtkWidget *max_frequency[BANDS+XVTRS];
+static GtkWidget *lo_frequency[BANDS+XVTRS];
 
 static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  int i;
   if(dialog!=NULL) {
+    const char *t;
+    const char *minf;
+    const char *maxf;
+    const char *lof;
+    for(i=BANDS;i<BANDS+XVTRS;i++) {
+      BAND *xvtr=band_get_band(i);
+      BANDSTACK *bandstack=xvtr->bandstack;
+      BANDSTACK_ENTRY *entry=bandstack->entry;
+      t=gtk_entry_get_text(GTK_ENTRY(title[i]));
+      strcpy(xvtr->title,t);
+      if(strlen(t)!=0) {
+        minf=gtk_entry_get_text(GTK_ENTRY(min_frequency[i]));
+        xvtr->frequencyMin=atoll(minf);
+        maxf=gtk_entry_get_text(GTK_ENTRY(max_frequency[i]));
+        xvtr->frequencyMax=atoll(maxf);
+        lof=gtk_entry_get_text(GTK_ENTRY(lo_frequency[i]));
+        xvtr->frequencyLO=atoll(lof);
+        entry->frequencyA=xvtr->frequencyMin;
+        entry->frequencyB=xvtr->frequencyMin;
+        entry->mode=modeUSB;
+        entry->filter=filterF6;
+      } else {
+        xvtr->frequencyMin=0;
+        xvtr->frequencyMax=0;
+        xvtr->frequencyLO=0;
+      }
+    }
     gtk_widget_destroy(dialog);
     dialog=NULL;
     sub_menu=NULL;
@@ -44,7 +76,9 @@ static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
 
 void xvtr_menu(GtkWidget *parent) {
   int i,j;
+  char f[16];
 
+fprintf(stderr,"xvtr_menu\n");
   parent_window=parent;
 
   dialog=gtk_dialog_new();
@@ -63,13 +97,50 @@ void xvtr_menu(GtkWidget *parent) {
 
   GtkWidget *grid=gtk_grid_new();
   gtk_grid_set_column_spacing (GTK_GRID(grid),10);
-  gtk_grid_set_row_spacing (GTK_GRID(grid),10);
-  gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
+  //gtk_grid_set_row_spacing (GTK_GRID(grid),10);
+  //gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
   gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
 
   GtkWidget *close_b=gtk_button_new_with_label("Close XVTR");
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
+
+  GtkWidget *label=gtk_label_new("Title");
+  gtk_grid_attach(GTK_GRID(grid),label,0,1,1,1);
+  label=gtk_label_new("Min Freq (Hz)");
+  gtk_grid_attach(GTK_GRID(grid),label,1,1,1,1);
+  label=gtk_label_new("Max Freq (Hz)");
+  gtk_grid_attach(GTK_GRID(grid),label,2,1,1,1);
+  label=gtk_label_new("LO Freq (Hz)");
+  gtk_grid_attach(GTK_GRID(grid),label,3,1,1,1);
+
+
+
+  for(i=BANDS;i<BANDS+XVTRS;i++) {
+fprintf(stderr,"xvtr_menu: band: %d\n",i);
+    BAND *xvtr=band_get_band(i);
+fprintf(stderr,"xvtr_menu: band: %s\n",xvtr->title);
+
+    title[i]=gtk_entry_new();
+    gtk_entry_set_text(GTK_ENTRY(title[i]),xvtr->title);
+    gtk_grid_attach(GTK_GRID(grid),title[i],0,i+2,1,1);
+
+    min_frequency[i]=gtk_entry_new();
+    sprintf(f,"%lld",xvtr->frequencyMin);
+    gtk_entry_set_text(GTK_ENTRY(min_frequency[i]),f);
+    gtk_grid_attach(GTK_GRID(grid),min_frequency[i],1,i+2,1,1);
+    
+    max_frequency[i]=gtk_entry_new();
+    sprintf(f,"%lld",xvtr->frequencyMax);
+    gtk_entry_set_text(GTK_ENTRY(max_frequency[i]),f);
+    gtk_grid_attach(GTK_GRID(grid),max_frequency[i],2,i+2,1,1);
+    
+    lo_frequency[i]=gtk_entry_new();
+    sprintf(f,"%lld",xvtr->frequencyLO);
+    gtk_entry_set_text(GTK_ENTRY(lo_frequency[i]),f);
+    gtk_grid_attach(GTK_GRID(grid),lo_frequency[i],3,i+2,1,1);
+    
+  }
 
   gtk_container_add(GTK_CONTAINER(content),grid);
 

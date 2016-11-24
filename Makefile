@@ -192,8 +192,7 @@ sliders.h \
 version.h \
 vfo.h \
 waterfall.h \
-wdsp_init.h \
-xvtr.h
+wdsp_init.h
 
 
 OBJS= \

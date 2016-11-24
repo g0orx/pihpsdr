@@ -30,7 +30,6 @@
 //
 
 #include <gtk/gtk.h>
-#include "xvtr.h"
 #include "band.h"
 #include "frequency.h"
 

@@ -29,7 +29,6 @@
 #include "filter.h"
 #include "frequency.h"
 #include "bandstack.h"
-#include "xvtr.h"
 #include "band.h"
 #include "discovered.h"
 #include "new_protocol.h"
@@ -178,11 +177,7 @@ void band_cb(GtkWidget *widget, gpointer data) {
       }
 #endif
       
-      if(i<BANDS) {
-        band=band_get_band(i);
-      } else {
-        band=(BAND*)band_get_xvtr(i-BANDS);
-      }
+      band=(BAND*)band_get_band(i);
       if(strlen(band->title)>0) {
         GtkWidget *b=gtk_button_new_with_label(band->title);
         set_button_text_color(b,"black");

@@ -331,6 +331,7 @@ int isTransmitting() {
 }
 
 void setFrequency(long long f) {
+  BAND *band=band_get_current_band();
   BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
 
   if(entry->frequencyA!=f) {
@@ -366,6 +367,9 @@ void setFrequency(long long f) {
   }
 
   ddsFrequency=f;
+  if(band->frequencyLO!=0LL) {
+    ddsFrequency=f-band->frequencyLO;
+  }
   switch(protocol) {
     case NEW_PROTOCOL:
       schedule_high_priority(5);
