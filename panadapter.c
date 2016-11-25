@@ -249,7 +249,7 @@ void panadapter_update(float *data,int tx) {
             long f;
             long divisor=20000;
             long half=(long)getSampleRate()/2L;
-            long frequency=getFrequency();
+            long frequency=displayFrequency;
             if(ctun && isTransmitting()) {
               frequency+=ddsOffset;
             }

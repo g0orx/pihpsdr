@@ -193,6 +193,7 @@ extern unsigned int AIN4;
 extern unsigned int AIN6;
 extern int supply_volts;
 
+extern long long displayFrequency;
 extern long long ddsFrequency;
 extern long long ddsOffset;
 

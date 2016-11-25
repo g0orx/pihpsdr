@@ -121,12 +121,15 @@ static void close_cb(GtkWidget *widget, gpointer data) {
 static void band_select_cb(GtkWidget *widget, gpointer data) {
   GtkWidget *label;
   int b=(int)data;
+fprintf(stderr,"band_select_cb: %d\n",b);
   BANDSTACK_ENTRY *entry;
   if(b==band_get_current()) {
     entry=bandstack_entry_next();
   } else {
     BAND* band=band_set_current(b);
+fprintf(stderr,"band_select_cb: %s\n",band->title);
     entry=bandstack_entry_get_current();
+fprintf(stderr,"band_select_cb: entry: %d\n",entry);
     set_button_text_color(last_band,"black");
     last_band=widget;
     set_button_text_color(last_band,"orange");

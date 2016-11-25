@@ -181,6 +181,7 @@ int supply_volts;
 int mox;
 int tune;
 
+long long displayFrequency=14250000;
 long long ddsFrequency=14250000;
 long long ddsOffset=0;
 
@@ -366,6 +367,7 @@ void setFrequency(long long f) {
     }
   }
 
+  displayFrequency=f;
   ddsFrequency=f;
   if(band->frequencyLO!=0LL) {
     ddsFrequency=f-band->frequencyLO;

@@ -209,14 +209,14 @@ BANDSTACK_ENTRY bandstack_entries_xvtr_6[] =
 BANDSTACK_ENTRY bandstack_entries_xvtr_7[] =
     {{0LL,modeUSB,filterF6,150,2550,150,2550}};
 
-BANDSTACK bandstack_xvtr_0={1,1,bandstack_entries_xvtr_0};
-BANDSTACK bandstack_xvtr_1={1,1,bandstack_entries_xvtr_1};
-BANDSTACK bandstack_xvtr_2={1,1,bandstack_entries_xvtr_2};
-BANDSTACK bandstack_xvtr_3={1,1,bandstack_entries_xvtr_3};
-BANDSTACK bandstack_xvtr_4={1,1,bandstack_entries_xvtr_4};
-BANDSTACK bandstack_xvtr_5={1,1,bandstack_entries_xvtr_5};
-BANDSTACK bandstack_xvtr_6={1,1,bandstack_entries_xvtr_6};
-BANDSTACK bandstack_xvtr_7={1,1,bandstack_entries_xvtr_7};
+BANDSTACK bandstack_xvtr_0={1,0,bandstack_entries_xvtr_0};
+BANDSTACK bandstack_xvtr_1={1,0,bandstack_entries_xvtr_1};
+BANDSTACK bandstack_xvtr_2={1,0,bandstack_entries_xvtr_2};
+BANDSTACK bandstack_xvtr_3={1,0,bandstack_entries_xvtr_3};
+BANDSTACK bandstack_xvtr_4={1,0,bandstack_entries_xvtr_4};
+BANDSTACK bandstack_xvtr_5={1,0,bandstack_entries_xvtr_5};
+BANDSTACK bandstack_xvtr_6={1,0,bandstack_entries_xvtr_6};
+BANDSTACK bandstack_xvtr_7={1,0,bandstack_entries_xvtr_7};
 
 
 
