@@ -60,17 +60,6 @@
 
 /* --------------------------------------------------------------------------*/
 /**
-* @brief Bandlimit definition
-*/
-struct _BAND_LIMITS {
-    long long minFrequency;
-    long long maxFrequency;
-};
-
-typedef struct _BAND_LIMITS BAND_LIMITS;
-
-/* --------------------------------------------------------------------------*/
-/**
 * @brief Band definition
 */
 struct _BAND {
@@ -102,7 +91,5 @@ BAND *band_set_current(int b);
 BANDSTACK_ENTRY *bandstack_entry_next();
 BANDSTACK_ENTRY *bandstack_entry_previous();
 BANDSTACK_ENTRY *bandstack_entry_get_current();
-
-BAND_LIMITS* getBandLimits(long long minDisplay,long long maxDisplay);
 
 #endif

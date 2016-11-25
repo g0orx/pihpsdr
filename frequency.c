@@ -42,6 +42,9 @@ struct frequency_info frequencyInfo[]=
         {60000LL, 60000LL, "MSF Time Signal",                     bandGen,FALSE}, 
         {75000LL, 75000LL, "HGB Time Signal",                   bandGen,FALSE}, 
         {77500LL, 77500LL, "DCF77 Time Signal",                   bandGen,FALSE}, 
+        {135700LL, 137800LL, "136kHz CW",                         band136,TRUE},
+        {472000LL, 474999LL, "472kHz CW",                         band472,TRUE},
+        {475000LL, 479000LL, "472kHz CW/Data",                    band472,TRUE},
         {153000LL, 279000LL, "AM - Long Wave",                    bandGen,FALSE}, 
         {530000LL, 1710000LL, "Broadcast AM Med Wave",            bandGen,FALSE},                                 
 

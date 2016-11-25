@@ -249,7 +249,7 @@ void panadapter_update(float *data,int tx) {
             long f;
             long divisor=20000;
             long half=(long)getSampleRate()/2L;
-            long frequency=displayFrequency;
+            long long frequency=displayFrequency;
             if(ctun && isTransmitting()) {
               frequency+=ddsOffset;
             }
@@ -303,21 +303,23 @@ void panadapter_update(float *data,int tx) {
             cairo_stroke(cr);
 
             // band edges
-            long min_display=frequency-half;
-            long max_display=frequency+half;
-            BAND_LIMITS* bandLimits=getBandLimits(min_display,max_display);
-            if(bandLimits!=NULL) {
+            long long min_display=frequency-half;
+            long long max_display=frequency+half;
+            BAND *band=band_get_current_band();
+            if(band->frequencyMin!=0LL) {
                 cairo_set_source_rgb (cr, 1, 0, 0);
                 cairo_set_line_width(cr, 2.0);
-                if((min_display<bandLimits->minFrequency)&&(max_display>bandLimits->minFrequency)) {
-                    i=(bandLimits->minFrequency-min_display)/(long long)hz_per_pixel;
+                if((min_display<band->frequencyMin)&&(max_display>band->frequencyMin)) {
+                    i=(band->frequencyMin-min_display)/(long long)hz_per_pixel;
                     cairo_move_to(cr,(double)i,0.0);
                     cairo_line_to(cr,(double)i,(double)display_height);
+                    cairo_stroke(cr);
                 }
-                if((min_display<bandLimits->maxFrequency)&&(max_display>bandLimits->maxFrequency)) {
-                    i=(bandLimits->maxFrequency-min_display)/(long long)hz_per_pixel;
+                if((min_display<band->frequencyMax)&&(max_display>band->frequencyMax)) {
+                    i=(band->frequencyMax-min_display)/(long long)hz_per_pixel;
                     cairo_move_to(cr,(double)i,0.0);
                     cairo_line_to(cr,(double)i,(double)display_height);
+                    cairo_stroke(cr);
                 }
             }
             
