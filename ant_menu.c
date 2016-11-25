@@ -149,7 +149,7 @@ void ant_menu(GtkWidget *parent) {
     gtk_widget_show(tx3_label);
     gtk_grid_attach(GTK_GRID(grid),tx3_label,10,1,1,1);
 
-    for(i=0;i<HAM_BANDS+XVTRS;i++) {
+    for(i=0;i<BANDS+XVTRS;i++) {
       BAND *band=band_get_band(i);
       if(strlen(band->title)>0) {
 

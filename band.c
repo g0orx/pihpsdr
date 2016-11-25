@@ -38,6 +38,14 @@ int xvtr_band=BANDS;
 * @brief bandstack
 */
 /* ----------------------------------------------------------------------------*/
+BANDSTACK_ENTRY bandstack_entries136[] =
+    {{135800,135800,modeCWL,filterF4,-2800,-200,-2800,-200},
+     {137100,137100,modeCWL,filterF4,-2800,-200,-2800,-200}};
+
+BANDSTACK_ENTRY bandstack_entries472[] =
+    {{472100LL,472100LL,modeCWL,filterF4,-2800,-200,-2800,-200},
+     {475100LL,475100LL,modeCWL,filterF4,-2800,-200,-2800,-200}};
+
 BANDSTACK_ENTRY bandstack_entries160[] =
     {{1810000LL,1810000LL,modeCWL,filterF4,-2800,-200,-2800,-200},
      {1835000LL,1835000LL,modeCWU,filterF0,-2800,-200,-2800,-200},
@@ -185,6 +193,8 @@ BANDSTACK bandstackAIR={6,1,bandstack_entriesAIR};
 #endif
 BANDSTACK bandstackGEN={3,1,bandstack_entriesGEN};
 BANDSTACK bandstackWWV={5,1,bandstack_entriesWWV};
+BANDSTACK bandstack136={2,0,bandstack_entries136};
+BANDSTACK bandstack472={2,0,bandstack_entries472};
 
 /* --------------------------------------------------------------------------*/
 /**
@@ -245,6 +255,8 @@ BAND bands[BANDS+XVTRS] =
 #endif
      {"GEN",&bandstackGEN,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL,0},
      {"WWV",&bandstackWWV,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL,0},
+     {"136kHz",&bandstack136,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL,0},
+     {"472kHz",&bandstack472,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL,0},
 // XVTRS
      {"",&bandstack_xvtr_0,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL,0},
      {"",&bandstack_xvtr_1,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL,0},

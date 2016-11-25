@@ -45,13 +45,15 @@
 #define bandAIR 19
 #define bandGen 20
 #define bandWWV 21
-#define BANDS 22
-#define HAM_BANDS 19
+#define band136 22
+#define band472 23
+#define BANDS 24
 #else
 #define bandGen 11
 #define bandWWV 12
-#define BANDS 13
-#define HAM_BANDS 11
+#define band136 13
+#define band472 14
+#define BANDS 15
 #endif
 
 #define XVTRS 8

@@ -81,7 +81,7 @@ void pa_menu(GtkWidget *parent) {
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
-  for(i=0;i<HAM_BANDS;i++) {
+  for(i=0;i<BANDS;i++) {
     BAND *band=band_get_band(i);
 
     GtkWidget *band_label=gtk_label_new(band->title);

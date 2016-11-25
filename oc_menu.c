@@ -147,7 +147,7 @@ void oc_menu(GtkWidget *parent) {
     gtk_grid_attach(GTK_GRID(grid),oc_tx_title,i+7,2,1,1);
   }
 
-  for(i=0;i<HAM_BANDS;i++) {
+  for(i=0;i<BANDS;i++) {
     BAND *band=band_get_band(i);
 
     GtkWidget *band_label=gtk_label_new(band->title);
