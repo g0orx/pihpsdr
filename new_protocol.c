@@ -260,6 +260,7 @@ void new_protocol_new_sample_rate(int rate) {
 
 static void new_protocol_general() {
     unsigned char buffer[60];
+    BAND *band=band_get_current_band();
 
     memset(buffer, 0, sizeof(buffer));
 
@@ -272,7 +273,13 @@ static void new_protocol_general() {
     buffer[37]=0x08;  //  phase word (not frequency)
     buffer[38]=0x01;  //  enable hardware timer
 
-    buffer[58]=0x01;  // enable PA 0x01
+    
+    
+    if(band->disablePA) {
+      buffer[58]=0x00;
+    } else {
+      buffer[58]=0x01;  // enable PA
+    }
 
     if(filter_board==APOLLO) {
         buffer[58]|=0x02; // enable APOLLO tuner

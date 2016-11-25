@@ -84,6 +84,7 @@ struct _BAND {
     long long frequencyMin;
     long long frequencyMax;
     long long frequencyLO;
+    int disablePA;
 };
 
 typedef struct _BAND BAND;

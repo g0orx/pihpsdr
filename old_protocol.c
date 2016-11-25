@@ -944,6 +944,7 @@ void ozy_send_buffer() {
       break;
     case 3:
       {
+      BAND *band=band_get_current_band();
       int power=0;
       if(isTransmitting()) {
         if(tune) {
@@ -971,7 +972,10 @@ fprintf(stderr,"power=%d\n",power);
       }
       output_buffer[C3]=0x00;
       if(band_get_current()==band6) {
-        output_buffer[C3]=output_buffer[6]|0x40; // Alex 6M low noise amplifier
+        output_buffer[C3]=output_buffer[C3]|0x40; // Alex 6M low noise amplifier
+      }
+      if(band->disablePA) {
+        output_buffer[C3]=output_buffer[C3]|0x80; // disable PA
       }
       output_buffer[C4]=0x00;
       }

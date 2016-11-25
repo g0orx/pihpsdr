@@ -221,39 +221,39 @@ BANDSTACK bandstack_xvtr_7={1,0,bandstack_entries_xvtr_7};
 
 
 BAND bands[BANDS+XVTRS] = 
-    {{"160",&bandstack160,0,0,0,0,0,ALEX_ATTENUATION_0dB,42.0,0LL,0LL,0LL},
-     {"80",&bandstack80,0,0,0,0,0,ALEX_ATTENUATION_0dB,42.5,0LL,0LL,0LL},
-     {"60",&bandstack60,0,0,0,0,0,ALEX_ATTENUATION_0dB,42.5,0LL,0LL,0LL},
-     {"40",&bandstack40,0,0,0,0,0,ALEX_ATTENUATION_0dB,42.5,0LL,0LL,0LL},
-     {"30",&bandstack30,0,0,0,0,0,ALEX_ATTENUATION_0dB,41.3,0LL,0LL,0LL},
-     {"20",&bandstack20,0,0,0,0,0,ALEX_ATTENUATION_0dB,40.5,0LL,0LL,0LL},
-     {"18",&bandstack18,0,0,0,0,0,ALEX_ATTENUATION_0dB,40.0,0LL,0LL,0LL},
-     {"15",&bandstack15,0,0,0,0,0,ALEX_ATTENUATION_0dB,39.6,0LL,0LL,0LL},
-     {"12",&bandstack12,0,0,0,0,0,ALEX_ATTENUATION_0dB,39.0,0LL,0LL,0LL},
-     {"10",&bandstack10,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
-     {"50",&bandstack50,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
+    {{"160",&bandstack160,0,0,0,0,0,ALEX_ATTENUATION_0dB,42.0,0LL,0LL,0LL,0},
+     {"80",&bandstack80,0,0,0,0,0,ALEX_ATTENUATION_0dB,42.5,0LL,0LL,0LL,0},
+     {"60",&bandstack60,0,0,0,0,0,ALEX_ATTENUATION_0dB,42.5,0LL,0LL,0LL,0},
+     {"40",&bandstack40,0,0,0,0,0,ALEX_ATTENUATION_0dB,42.5,0LL,0LL,0LL,0},
+     {"30",&bandstack30,0,0,0,0,0,ALEX_ATTENUATION_0dB,41.3,0LL,0LL,0LL,0},
+     {"20",&bandstack20,0,0,0,0,0,ALEX_ATTENUATION_0dB,40.5,0LL,0LL,0LL,0},
+     {"18",&bandstack18,0,0,0,0,0,ALEX_ATTENUATION_0dB,40.0,0LL,0LL,0LL,0},
+     {"15",&bandstack15,0,0,0,0,0,ALEX_ATTENUATION_0dB,39.6,0LL,0LL,0LL,0},
+     {"12",&bandstack12,0,0,0,0,0,ALEX_ATTENUATION_0dB,39.0,0LL,0LL,0LL,0},
+     {"10",&bandstack10,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL,0},
+     {"50",&bandstack50,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL,0},
 #ifdef LIMESDR
-     {"70",&bandstack70,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
-     {"144",&bandstack144,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
-     {"220",&bandstack144,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
-     {"430",&bandstack430,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
-     {"902",&bandstack430,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
-     {"1240",&bandstack1240,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
-     {"2300",&bandstack2300,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
-     {"3400",&bandstack3400,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
-     {"AIR",&bandstackAIR,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
+     {"70",&bandstack70,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL,0},
+     {"144",&bandstack144,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL,0},
+     {"220",&bandstack144,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL,0},
+     {"430",&bandstack430,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL,0},
+     {"902",&bandstack430,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL,0},
+     {"1240",&bandstack1240,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL,0},
+     {"2300",&bandstack2300,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL,0},
+     {"3400",&bandstack3400,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL,0},
+     {"AIR",&bandstackAIR,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL,0},
 #endif
-     {"GEN",&bandstackGEN,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
-     {"WWV",&bandstackWWV,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
+     {"GEN",&bandstackGEN,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL,0},
+     {"WWV",&bandstackWWV,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL,0},
 // XVTRS
-     {"",&bandstack_xvtr_0,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
-     {"",&bandstack_xvtr_1,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
-     {"",&bandstack_xvtr_2,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
-     {"",&bandstack_xvtr_3,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
-     {"",&bandstack_xvtr_4,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
-     {"",&bandstack_xvtr_5,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
-     {"",&bandstack_xvtr_6,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL},
-     {"",&bandstack_xvtr_7,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL}
+     {"",&bandstack_xvtr_0,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL,0},
+     {"",&bandstack_xvtr_1,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL,0},
+     {"",&bandstack_xvtr_2,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL,0},
+     {"",&bandstack_xvtr_3,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL,0},
+     {"",&bandstack_xvtr_4,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL,0},
+     {"",&bandstack_xvtr_5,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL,0},
+     {"",&bandstack_xvtr_6,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL,0},
+     {"",&bandstack_xvtr_7,0,0,0,0,0,ALEX_ATTENUATION_0dB,38.8,0LL,0LL,0LL,0}
     };
 
 
@@ -392,6 +392,10 @@ void bandSaveState() {
         sprintf(name,"band.%d.frequencyLO",b);
         setProperty(name,value);
 
+        sprintf(value,"%d",bands[b].disablePA);
+        sprintf(name,"band.%d.disablePA",b);
+        setProperty(name,value);
+
         for(stack=0;stack<bands[b].bandstack->entries;stack++) {
             entry=bands[b].bandstack->entry;
             entry+=stack;
@@ -502,6 +506,10 @@ fprintf(stderr,"bandRestoreState: restore bands\n");
         sprintf(name,"band.%d.frequencyLO",b);
         value=getProperty(name);
         if(value) bands[b].frequencyLO=atoll(value);
+
+        sprintf(name,"band.%d.disablePA",b);
+        value=getProperty(name);
+        if(value) bands[b].disablePA=atoi(value);
 
         for(stack=0;stack<bands[b].bandstack->entries;stack++) {
             entry=bands[b].bandstack->entry;
