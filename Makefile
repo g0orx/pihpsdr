@@ -1,6 +1,7 @@
 # Get git commit version and date
-GIT_VERSION := $(shell git --no-pager describe --tags --always --dirty)
+#GIT_VERSION := $(shell git --no-pager describe --tags --always --dirty)
 GIT_DATE := $(firstword $(shell git --no-pager show --date=short --format="%ai" --name-only))
+GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 
 # uncomment the line below to include support for psk31
 PSK_INCLUDE=PSK
@@ -253,5 +254,6 @@ clean:
 install:
 	cp pihpsdr ../pihpsdr
 	cp pihpsdr ./release/pihpsdr
+	cd release; tar cvf pihpsdr_$(GIT_VERSION).tar pihpsdr
 	cd release; tar cvf pihpsdr.tar pihpsdr
 

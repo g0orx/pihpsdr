@@ -215,7 +215,7 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
   cairo_set_source_rgb (cr, 0, 0, 0);
   cairo_paint (cr);
 
-  //sprintf(text,"Version: %s %s", build_date, build_version);
+  //sprintf(text,"Version: %s %s", build_date, version);
   sprintf(text,"Version: %s", version);
   cairo_select_font_face(cr, "FreeMono",
                 CAIRO_FONT_SLANT_NORMAL,

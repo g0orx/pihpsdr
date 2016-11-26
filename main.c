@@ -886,7 +886,7 @@ gint init(void* arg) {
 int main (int   argc, char *argv[]) {
   gtk_init (&argc, &argv);
 
-  fprintf(stderr,"Build: %s %s\n",build_date,build_version);
+  fprintf(stderr,"Build: %s %s\n",build_date,version);
 
   uname(&unameData);
   fprintf(stderr,"sysname: %s\n",unameData.sysname);
