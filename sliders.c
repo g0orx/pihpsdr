@@ -161,6 +161,11 @@ static void afgain_value_changed_cb(GtkWidget *widget, gpointer data) {
     SetRXAPanelGain1 (CHANNEL_RX0, volume);
 }
 
+int update_af_gain(void *data) {
+  set_af_gain(volume);
+  return 0;
+}
+
 void set_af_gain(double value) {
   volume=value;
   SetRXAPanelGain1 (CHANNEL_RX0, volume);

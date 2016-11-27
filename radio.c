@@ -210,6 +210,9 @@ static int pre_tune_mode;
 
 int ctun=0;
 
+int enable_rx_equalizer=0;
+double rx_equalizer[4]={0.0,0.0,0.0,0.0};
+
 void init_radio() {
   int rc;
   rc=sem_init(&property_sem, 0, 0);

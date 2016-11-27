@@ -35,6 +35,7 @@
 #include "freedv_menu.h"
 #endif
 #include "xvtr_menu.h"
+#include "equalizer_menu.h"
 #include "radio.h"
 
 static GtkWidget *parent_window=NULL;
@@ -132,6 +133,13 @@ static gboolean xvtr_cb (GtkWidget *widget, GdkEventButton *event, gpointer data
   return TRUE;
 }
 
+static gboolean equalizer_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  gtk_widget_destroy(dialog);
+  dialog=NULL;
+  equalizer_menu(parent_window);
+  return TRUE;
+}
+
 static gboolean new_menu_pressed_event_cb (GtkWidget *widget,
                GdkEventButton *event,
                gpointer        data)
@@ -214,6 +222,10 @@ static gboolean new_menu_pressed_event_cb (GtkWidget *widget,
     GtkWidget *xvtr_b=gtk_button_new_with_label("XVTR");
     g_signal_connect (xvtr_b, "button-press-event", G_CALLBACK(xvtr_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),xvtr_b,4,2,1,1);
+
+    GtkWidget *equalizer_b=gtk_button_new_with_label("Equalizer");
+    g_signal_connect (equalizer_b, "button-press-event", G_CALLBACK(equalizer_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),equalizer_b,0,3,1,1);
 
     gtk_container_add(GTK_CONTAINER(content),grid);
 

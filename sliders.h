@@ -20,6 +20,8 @@
 #ifndef _SLIDERS_H
 #define _SLIDERS_H
 
+int update_af_gain(void *data);
+
 void set_agc_gain(double value);
 void set_af_gain(double value);
 void set_mic_gain(double value);

@@ -56,6 +56,7 @@
 #include "toolbar.h"
 #include "sliders.h"
 #include "radio.h"
+#include "rigctl.h"
 #include "wdsp_init.h"
 #include "version.h"
 #include "mode.h"
@@ -702,6 +703,8 @@ fprintf(stderr,"toolbar_height=%d\n",TOOLBAR_HEIGHT);
     show_waterfall();
   }
 #endif
+
+  launch_rigctl();
 
   g_idle_add(vfo_update,(gpointer)NULL);
 

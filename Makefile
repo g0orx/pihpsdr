@@ -133,6 +133,7 @@ pa_menu.c \
 cw_menu.c \
 oc_menu.c \
 xvtr_menu.c \
+equalizer_menu.c \
 rit.c \
 meter.c \
 mode.c \
@@ -144,6 +145,7 @@ new_protocol_programmer.c \
 panadapter.c \
 property.c \
 radio.c \
+rigctl.c \
 signal.c \
 splash.c \
 toolbar.c \
@@ -176,6 +178,7 @@ pa_menu.h \
 cw_menu.h \
 oc_menu.h \
 xvtr_menu.h \
+equalizer_menu.h \
 rit.h \
 meter.h \
 mode.h \
@@ -186,6 +189,7 @@ new_protocol.h \
 panadapter.h \
 property.h \
 radio.h \
+rigctl.h \
 signal.h \
 splash.h \
 toolbar.h \
@@ -216,6 +220,7 @@ pa_menu.o \
 cw_menu.o \
 oc_menu.o \
 xvtr_menu.o \
+equalizer_menu.o \
 rit.o \
 meter.o \
 mode.o \
@@ -227,6 +232,7 @@ new_protocol_programmer.o \
 panadapter.o \
 property.o \
 radio.o \
+rigctl.o \
 signal.o \
 splash.o \
 toolbar.o \
