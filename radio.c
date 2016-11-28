@@ -210,8 +210,11 @@ static int pre_tune_mode;
 
 int ctun=0;
 
+int enable_tx_equalizer=0;
+int tx_equalizer[4]={0,0,0,0};
+
 int enable_rx_equalizer=0;
-double rx_equalizer[4]={0.0,0.0,0.0,0.0};
+int rx_equalizer[4]={0,0,0,0};
 
 void init_radio() {
   int rc;
@@ -291,36 +294,31 @@ void setTune(int state) {
     }
     if(protocol==NEW_PROTOCOL) {
       schedule_high_priority(4);
-      schedule_general();
+      //schedule_general();
     }
     if(tune) {
+      SetChannelState(CHANNEL_RX0,0,1);
       pre_tune_mode = mode;
       if(mode==modeCWL) {
         setMode(modeLSB);
       } else if(mode==modeCWU) {
         setMode(modeUSB);
       }
-      
       SetTXAPostGenMode(CHANNEL_TX,0);
       if(mode==modeLSB || mode==modeCWL || mode==modeDIGL) {
         SetTXAPostGenToneFreq(CHANNEL_TX,-(double)cw_keyer_sidetone_frequency);
       } else {
         SetTXAPostGenToneFreq(CHANNEL_TX,(double)cw_keyer_sidetone_frequency);
       }
-      //if(protocol==ORIGINAL_PROTOCOL) {
-        SetTXAPostGenToneMag(CHANNEL_TX,0.3);
-      //} else {
-      //  SetTXAPostGenToneMag(CHANNEL_TX,0.99999);
-      //}
+      SetTXAPostGenToneMag(CHANNEL_TX,0.3);
       SetTXAPostGenRun(CHANNEL_TX,1);
-      SetChannelState(CHANNEL_RX0,0,1);
       SetChannelState(CHANNEL_TX,1,0);
     } else {
+      SetChannelState(CHANNEL_TX,0,1);
       SetTXAPostGenRun(CHANNEL_TX,0);
       if(pre_tune_mode==modeCWL || pre_tune_mode==modeCWU) {
         setMode(pre_tune_mode);
       }
-      SetChannelState(CHANNEL_TX,0,1);
       SetChannelState(CHANNEL_RX0,1,0);
     }
   }
@@ -649,6 +647,27 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     if(value) local_microphone=atoi(value);
     value=getProperty("n_selected_input_device");
     if(value) n_selected_input_device=atoi(value);
+    value=getProperty("enable_tx_equalizer");
+    if(value) enable_tx_equalizer=atoi(value);
+    value=getProperty("tx_equalizer.0");
+    if(value) tx_equalizer[0]=atoi(value);
+    value=getProperty("tx_equalizer.1");
+    if(value) tx_equalizer[1]=atoi(value);
+    value=getProperty("tx_equalizer.2");
+    if(value) tx_equalizer[2]=atoi(value);
+    value=getProperty("tx_equalizer.3");
+    if(value) tx_equalizer[3]=atoi(value);
+    value=getProperty("enable_rx_equalizer");
+    if(value) enable_rx_equalizer=atoi(value);
+    value=getProperty("rx_equalizer.0");
+    if(value) rx_equalizer[0]=atoi(value);
+    value=getProperty("rx_equalizer.1");
+    if(value) rx_equalizer[1]=atoi(value);
+    value=getProperty("rx_equalizer.2");
+    if(value) rx_equalizer[2]=atoi(value);
+    value=getProperty("rx_equalizer.3");
+    if(value) rx_equalizer[3]=atoi(value);
+
     bandRestoreState();
 
     sem_post(&property_sem);
@@ -805,6 +824,28 @@ void radioSaveState() {
     setProperty("local_microphone",value);
     sprintf(value,"%d",n_selected_input_device);
     setProperty("n_selected_input_device",value);
+
+    sprintf(value,"%d",enable_tx_equalizer);
+    setProperty("enable_tx_equalizer",value);
+    sprintf(value,"%d",tx_equalizer[0]);
+    setProperty("tx_equalizer.0",value);
+    sprintf(value,"%d",tx_equalizer[1]);
+    setProperty("tx_equalizer.1",value);
+    sprintf(value,"%d",tx_equalizer[2]);
+    setProperty("tx_equalizer.2",value);
+    sprintf(value,"%d",tx_equalizer[3]);
+    setProperty("tx_equalizer.3",value);
+    sprintf(value,"%d",enable_rx_equalizer);
+    setProperty("enable_rx_equalizer",value);
+    sprintf(value,"%d",rx_equalizer[0]);
+    setProperty("rx_equalizer.0",value);
+    sprintf(value,"%d",rx_equalizer[1]);
+    setProperty("rx_equalizer.1",value);
+    sprintf(value,"%d",rx_equalizer[2]);
+    setProperty("rx_equalizer.2",value);
+    sprintf(value,"%d",rx_equalizer[3]);
+    setProperty("rx_equalizer.3",value);
+
     bandSaveState();
 
     saveProperties(property_path);

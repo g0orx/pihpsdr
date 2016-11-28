@@ -220,8 +220,11 @@ extern int tx_filter_high;
 
 extern int ctun;
 
+extern int enable_tx_equalizer;
+extern int tx_equalizer[4];
+
 extern int enable_rx_equalizer;
-extern double rx_equalizer[4];
+extern int rx_equalizer[4];
 
 extern void init_radio();
 extern void setSampleRate(int rate);

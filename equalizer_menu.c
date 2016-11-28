@@ -22,13 +22,23 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <wdsp.h>
+
 #include "new_menu.h"
 #include "equalizer_menu.h"
 #include "radio.h"
+#include "channel.h"
 
 static GtkWidget *parent_window=NULL;
 
 static GtkWidget *dialog=NULL;
+static GtkWidget *enable_b;
+static GtkWidget *preamp_scale;
+static GtkWidget *low_scale;
+static GtkWidget *mid_scale;
+static GtkWidget *high_scale;
+
+static gboolean tx_menu=TRUE;
 
 static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   if(dialog!=NULL) {
@@ -39,15 +49,49 @@ static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
   return TRUE;
 }
 
+static gboolean tx_rb_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
+    tx_menu=TRUE;
+    gtk_button_set_label(GTK_BUTTON(enable_b),"Enable TX Equalizer");
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (enable_b), enable_tx_equalizer);
+    gtk_range_set_value(GTK_RANGE(preamp_scale),(double)tx_equalizer[0]);
+    gtk_range_set_value(GTK_RANGE(low_scale),(double)tx_equalizer[1]);
+    gtk_range_set_value(GTK_RANGE(mid_scale),(double)tx_equalizer[2]);
+    gtk_range_set_value(GTK_RANGE(high_scale),(double)tx_equalizer[3]);
+  }
+}
+
+static gboolean rx_rb_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
+    tx_menu=FALSE;
+    gtk_button_set_label(GTK_BUTTON(enable_b),"Enable RX Equalizer");
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (enable_b), enable_rx_equalizer);
+    gtk_range_set_value(GTK_RANGE(preamp_scale),(double)rx_equalizer[0]);
+    gtk_range_set_value(GTK_RANGE(low_scale),(double)rx_equalizer[1]);
+    gtk_range_set_value(GTK_RANGE(mid_scale),(double)rx_equalizer[2]);
+    gtk_range_set_value(GTK_RANGE(high_scale),(double)rx_equalizer[3]);
+  }
+}
+
 static gboolean enable_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  enable_rx_equalizer=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-  // update WDSP
+  if(tx_menu) {
+    enable_tx_equalizer=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+    SetTXAEQRun(CHANNEL_TX, enable_tx_equalizer);
+  } else {
+    enable_rx_equalizer=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+    SetRXAEQRun(CHANNEL_RX0, enable_rx_equalizer);
+  }
 }
 
 static gboolean rx_value_changed_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   int i=(int)data;
-  rx_equalizer[i]=gtk_range_get_value(GTK_RANGE(widget));
-  // update WDSP
+  if(tx_menu) {
+    tx_equalizer[i]=(int)gtk_range_get_value(GTK_RANGE(widget));
+    SetTXAGrphEQ(CHANNEL_TX, tx_equalizer);
+  } else {
+    rx_equalizer[i]=(int)gtk_range_get_value(GTK_RANGE(widget));
+    SetRXAGrphEQ(CHANNEL_RX0, rx_equalizer);
+  }
 }
 
 void equalizer_menu(GtkWidget *parent) {
@@ -74,14 +118,24 @@ void equalizer_menu(GtkWidget *parent) {
   gtk_grid_set_row_homogeneous(GTK_GRID(grid),FALSE);
   gtk_grid_set_column_homogeneous(GTK_GRID(grid),FALSE);
 
-  GtkWidget *close_b=gtk_button_new_with_label("Close TX Equalizer");
+  GtkWidget *close_b=gtk_button_new_with_label("Close Equalizer");
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
+  GtkWidget *tx_rb=gtk_radio_button_new_with_label(NULL,"TX Equalizer");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(tx_rb),TRUE);
+  g_signal_connect(tx_rb,"toggled",G_CALLBACK(tx_rb_cb),NULL);
+  gtk_grid_attach(GTK_GRID(grid),tx_rb,1,0,1,1);
 
-  GtkWidget *enable_b=gtk_check_button_new_with_label("Enable TX Equalizer");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (enable_b), enable_rx_equalizer);
-  g_signal_connect(enable_b,"toggled-changed",G_CALLBACK(enable_cb),NULL);
+
+  GtkWidget *rx_rb=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(tx_rb),"RX Equalizer");
+  g_signal_connect(rx_rb,"toggled",G_CALLBACK(rx_rb_cb),NULL);
+  gtk_grid_attach(GTK_GRID(grid),rx_rb,2,0,1,1);
+
+
+  enable_b=gtk_check_button_new_with_label("Enable TX Equalizer");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (enable_b), enable_tx_equalizer);
+  g_signal_connect(enable_b,"toggled",G_CALLBACK(enable_cb),NULL);
   gtk_grid_attach(GTK_GRID(grid),enable_b,0,1,1,1);
 
 
@@ -97,8 +151,8 @@ void equalizer_menu(GtkWidget *parent) {
   label=gtk_label_new("High");
   gtk_grid_attach(GTK_GRID(grid),label,3,2,1,1);
 
-  GtkWidget *preamp_scale=gtk_scale_new_with_range(GTK_ORIENTATION_VERTICAL,-12.0,15.0,1.0);
-  gtk_range_set_value(GTK_RANGE(preamp_scale),rx_equalizer[0]);
+  preamp_scale=gtk_scale_new_with_range(GTK_ORIENTATION_VERTICAL,-12.0,15.0,1.0);
+  gtk_range_set_value(GTK_RANGE(preamp_scale),(double)tx_equalizer[0]);
   g_signal_connect(preamp_scale,"value-changed",G_CALLBACK(rx_value_changed_cb),(gpointer)0);
   gtk_grid_attach(GTK_GRID(grid),preamp_scale,0,3,1,10);
   gtk_widget_set_size_request(preamp_scale,10,270);
@@ -113,8 +167,8 @@ void equalizer_menu(GtkWidget *parent) {
   gtk_scale_add_mark(GTK_SCALE(preamp_scale),12.0,GTK_POS_LEFT,NULL);
   gtk_scale_add_mark(GTK_SCALE(preamp_scale),15.0,GTK_POS_LEFT,"15dB");
 
-  GtkWidget *low_scale=gtk_scale_new_with_range(GTK_ORIENTATION_VERTICAL,-12.0,15.0,1.0);
-  gtk_range_set_value(GTK_RANGE(low_scale),rx_equalizer[1]);
+  low_scale=gtk_scale_new_with_range(GTK_ORIENTATION_VERTICAL,-12.0,15.0,1.0);
+  gtk_range_set_value(GTK_RANGE(low_scale),(double)tx_equalizer[1]);
   g_signal_connect(low_scale,"value-changed",G_CALLBACK(rx_value_changed_cb),(gpointer)1);
   gtk_grid_attach(GTK_GRID(grid),low_scale,1,3,1,10);
   gtk_scale_add_mark(GTK_SCALE(low_scale),-12.0,GTK_POS_LEFT,"-12dB");
@@ -128,8 +182,8 @@ void equalizer_menu(GtkWidget *parent) {
   gtk_scale_add_mark(GTK_SCALE(low_scale),12.0,GTK_POS_LEFT,NULL);
   gtk_scale_add_mark(GTK_SCALE(low_scale),15.0,GTK_POS_LEFT,"15dB");
 
-  GtkWidget *mid_scale=gtk_scale_new_with_range(GTK_ORIENTATION_VERTICAL,-12.0,15.0,1.0);
-  gtk_range_set_value(GTK_RANGE(mid_scale),rx_equalizer[2]);
+  mid_scale=gtk_scale_new_with_range(GTK_ORIENTATION_VERTICAL,-12.0,15.0,1.0);
+  gtk_range_set_value(GTK_RANGE(mid_scale),(double)tx_equalizer[2]);
   g_signal_connect(mid_scale,"value-changed",G_CALLBACK(rx_value_changed_cb),(gpointer)2);
   gtk_grid_attach(GTK_GRID(grid),mid_scale,2,3,1,10);
   gtk_scale_add_mark(GTK_SCALE(mid_scale),-12.0,GTK_POS_LEFT,"-12dB");
@@ -143,8 +197,8 @@ void equalizer_menu(GtkWidget *parent) {
   gtk_scale_add_mark(GTK_SCALE(mid_scale),12.0,GTK_POS_LEFT,NULL);
   gtk_scale_add_mark(GTK_SCALE(mid_scale),15.0,GTK_POS_LEFT,"15dB");
 
-  GtkWidget *high_scale=gtk_scale_new_with_range(GTK_ORIENTATION_VERTICAL,-12.0,15.0,1.0);
-  gtk_range_set_value(GTK_RANGE(high_scale),rx_equalizer[3]);
+  high_scale=gtk_scale_new_with_range(GTK_ORIENTATION_VERTICAL,-12.0,15.0,1.0);
+  gtk_range_set_value(GTK_RANGE(high_scale),(double)tx_equalizer[3]);
   g_signal_connect(high_scale,"value-changed",G_CALLBACK(rx_value_changed_cb),(gpointer)3);
   gtk_grid_attach(GTK_GRID(grid),high_scale,3,3,1,10);
   gtk_scale_add_mark(GTK_SCALE(high_scale),-12.0,GTK_POS_LEFT,"-12dB");

@@ -271,6 +271,14 @@ static void setupRX(int rx) {
     SetRXASNBARun(rx, snb);
 
     SetRXAPanelGain1(rx, volume);
+
+    if(enable_rx_equalizer) {
+      SetRXAGrphEQ(rx, rx_equalizer);
+      SetRXAEQRun(rx, 1);
+    } else {
+      SetRXAEQRun(rx, 0);
+    }
+
 }
 
 static void setupTX(int tx) {
@@ -280,7 +288,12 @@ static void setupTX(int tx) {
     SetTXABandpassRun(tx, 1);
 
     SetTXACFIRRun(tx, protocol==NEW_PROTOCOL?1:0); // turned in if new protocol
-    SetTXAEQRun(tx, 0);
+    if(enable_tx_equalizer) {
+      SetTXAGrphEQ(tx, tx_equalizer);
+      SetTXAEQRun(tx, 1);
+    } else {
+      SetTXAEQRun(tx, 0);
+    }
     SetTXACTCSSRun(tx, 0);
     SetTXAAMSQRun(tx, 0);
     SetTXACompressorRun(tx, 0);
