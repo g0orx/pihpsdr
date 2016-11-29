@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "audio.h"
 #include "new_menu.h"
 #include "exit_menu.h"
 #include "general_menu.h"
@@ -140,6 +141,12 @@ static gboolean equalizer_cb (GtkWidget *widget, GdkEventButton *event, gpointer
   return TRUE;
 }
 
+static gboolean test_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+fprintf(stderr,"test_cb\n");
+  audio_get_mic_level();
+  return TRUE;
+}
+
 static gboolean new_menu_pressed_event_cb (GtkWidget *widget,
                GdkEventButton *event,
                gpointer        data)
@@ -226,6 +233,12 @@ static gboolean new_menu_pressed_event_cb (GtkWidget *widget,
     GtkWidget *equalizer_b=gtk_button_new_with_label("Equalizer");
     g_signal_connect (equalizer_b, "button-press-event", G_CALLBACK(equalizer_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),equalizer_b,0,3,1,1);
+
+/*
+    GtkWidget *test_b=gtk_button_new_with_label("Test");
+    g_signal_connect (test_b, "button-press-event", G_CALLBACK(test_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),test_b,1,3,1,1);
+*/
 
     gtk_container_add(GTK_CONTAINER(content),grid);
 

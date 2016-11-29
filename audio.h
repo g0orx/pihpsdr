@@ -34,5 +34,7 @@ extern void audio_close_output();
 extern void audio_close_input();
 extern int audio_write(short left_sample,short right_sample);
 extern void audio_get_cards();
-
+/*
+extern int audio_get_mic_level();
+*/
 #endif

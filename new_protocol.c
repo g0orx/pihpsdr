@@ -888,16 +888,18 @@ static void process_mic_data(unsigned char *buffer) {
     int b;
     int micsample;
     double micsampledouble;
+    double gain=pow(10, mic_gain/20.0);
 
     sequence=((buffer[0]&0xFF)<<24)+((buffer[1]&0xFF)<<16)+((buffer[2]&0xFF)<<8)+(buffer[3]&0xFF);
 //    if(isTransmitting()) {
         b=4;
         int i,j,s;
         for(i=0;i<MIC_SAMPLES;i++) {
+            micsample  = (int)((signed char) buffer[b++]) << 8;
+            micsample  |= (int)((unsigned char)buffer[b++] & 0xFF);
+            micsampledouble = (1.0 / 2147483648.0) * (double)(micsample<<16);
 #ifdef FREEDV
             if(mode==modeFREEDV && isTransmitting()) {
-                micsample  = (int)((signed char) buffer[b++]) << 8;
-                micsample  |= (int)((unsigned char)buffer[b++] & 0xFF);
                 if(freedv_samples==0) { // 48K to 8K
                     int sample=(int)((double)micsample*pow(10.0, mic_gain / 20.0));
                     int modem_samples=mod_sample_freedv(sample);
@@ -905,7 +907,7 @@ static void process_mic_data(unsigned char *buffer) {
                       for(s=0;s<modem_samples;s++) {
                         for(j=0;j<freedv_resample;j++) {  // 8K to 48K
                           micsample=mod_out[s];
-                          micsampledouble=(double)micsample/32767.0; // 16 bit sample 2^16-1
+                          micsampledouble = (1.0 / 2147483648.0) * (double)(micsample<<16);
                           micinputbuffer[micsamples*2]=micsampledouble;
                           micinputbuffer[(micsamples*2)+1]=micsampledouble;
                           micsamples++;
@@ -923,8 +925,6 @@ static void process_mic_data(unsigned char *buffer) {
                }
             } else {
 #endif
-               //micsampledouble = (double)micsample/32767.0; // 16 bit sample
-               micsampledouble = (1.0 / 2147483648.0) * (double)(buffer[b++] << 24 | buffer[b++] << 16);
                if(mode==modeCWL || mode==modeCWU || tune || !isTransmitting()) {
                    micinputbuffer[micsamples*2]=0.0;
                    micinputbuffer[(micsamples*2)+1]=0.0;

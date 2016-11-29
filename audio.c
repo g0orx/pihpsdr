@@ -327,7 +327,7 @@ fprintf(stderr,"mic_read_thread: mic_buffer_size=%d\n",mic_buffer_size);
                   snd_strerror (rc));
           running=FALSE;
         } else {
-          fprintf(stderr,"mic_read_thread: read %d",rc);
+          fprintf(stderr,"mic_read_thread: read %d\n",rc);
         }
       }
     } else {
@@ -408,3 +408,54 @@ fprintf(stderr,"output_device: %s\n",device_id);
 
   }
 }
+/*
+int audio_get_mic_level() {
+  fprintf(stderr,"audio_get_mic_level\n");
+  if(local_microphone==0) {
+    fprintf(stderr,"local microphone not enabled\n");
+    return -1;
+  }
+  if(n_selected_input_device<0 || n_selected_input_device>=n_input_devices) {
+    fprintf(stderr,"no imput device selected\n");
+    return -1;
+  }
+
+  long db;
+
+  int i;
+  char hw[16];
+  char *selected=input_devices[n_selected_input_device];
+  fprintf(stderr,"audio_get_mic_level: selected=%d:%s\n",n_selected_input_device,selected);
+
+  i=0;
+  while(selected[i]!=' ') {
+    hw[i]=selected[i];
+    i++;
+  }
+  hw[i]='\0';
+  fprintf(stderr,"audio_get_mic_level: hw=%s\n",hw);
+
+  snd_mixer_t* handle;
+  snd_mixer_selem_id_t* sid;
+  const char *selem_name="Mic";
+
+  snd_mixer_open(&handle, 0);
+  snd_mixer_attach(handle, hw);
+  snd_mixer_selem_register(handle, NULL, NULL);
+  snd_mixer_load(handle);
+
+  snd_mixer_selem_id_alloca(&sid);
+  snd_mixer_selem_id_set_index(sid, 0);
+  snd_mixer_selem_id_set_name(sid, selem_name);
+  snd_mixer_elem_t* elem = snd_mixer_find_selem(handle, sid);
+
+  //snd_mixer_selem_get_capture_volume_range(elem, &min, &max);
+  snd_mixer_selem_get_capture_dB(elem,0,&db);
+
+  fprintf(stderr,"audio_get_mic_level: %ld dB\n",db);
+  snd_mixer_close(handle);
+
+
+  return 0;
+}
+*/

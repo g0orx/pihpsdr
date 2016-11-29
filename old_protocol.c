@@ -500,8 +500,8 @@ static void process_ozy_input_buffer(char  *buffer) {
             micinputbuffer[samples*2]=0.0;
             micinputbuffer[(samples*2)+1]=0.0;
           } else {
-            micinputbuffer[samples*2]=mic_sample_double*gain;
-            micinputbuffer[(samples*2)+1]=mic_sample_double*gain;
+            micinputbuffer[samples*2]=mic_sample_double;
+            micinputbuffer[(samples*2)+1]=mic_sample_double;
           }
           iqinputbuffer[0][samples*2]=0.0;
           iqinputbuffer[0][(samples*2)+1]=0.0;
@@ -693,35 +693,33 @@ static void full_tx_buffer() {
 
 void old_protocol_process_local_mic(unsigned char *buffer,int le) {
   int b;
-  int leftmicsample;
-  int rightmicsample;
-  double leftmicsampledouble;
-  double rightmicsampledouble;
+  int micsample;
+  double micsampledouble;
+  double gain=pow(10.0, mic_gain / 20.0);
 
   if(isTransmitting()) {
     b=0;
     int i,j,s;
     for(i=0;i<720;i++) {
       if(le) {
-        leftmicsample  = (int)((unsigned char)buffer[b++] & 0xFF);
-        leftmicsample  |= (int)((signed char) buffer[b++]) << 8;
-        rightmicsample=leftmicsample;
+        micsample  = (int)((unsigned char)buffer[b++] & 0xFF);
+        micsample  |= (int)((signed char) buffer[b++]) << 8;
       } else {
-        leftmicsample  = (int)((signed char) buffer[b++]) << 8;
-        leftmicsample  |= (int)((unsigned char)buffer[b++] & 0xFF);
-        rightmicsample=leftmicsample;
+        micsample  = (int)((signed char) buffer[b++]) << 8;
+        micsample  |= (int)((unsigned char)buffer[b++] & 0xFF);
       }
+      micsampledouble=(1.0 / 2147483648.0) * (double)(micsample<<16);
 #ifdef FREEDV
       if(mode==modeFREEDV && !tune) {
         if(freedv_samples==0) { // 48K to 8K
-          int modem_samples=mod_sample_freedv(leftmicsample);
+          int modem_samples=mod_sample_freedv(micsample*gain);
           if(modem_samples!=0) {
             for(s=0;s<modem_samples;s++) {
               for(j=0;j<freedv_divisor;j++) {  // 8K to 48K
-                leftmicsample=mod_out[s];
-                leftmicsampledouble=(double)leftmicsample/32767.0; // 16 bit sample 2^16-1
-                micinputbuffer[samples*2]=leftmicsampledouble;
-                micinputbuffer[(samples*2)+1]=leftmicsampledouble;
+                micsample=mod_out[s];
+                micsampledouble = (1.0 / 2147483648.0) * (double)(micsample<<16);
+                micinputbuffer[samples*2]=micsampledouble;
+                micinputbuffer[(samples*2)+1]=micsampledouble;
                 iqinputbuffer[0][samples*2]=0.0;
                 iqinputbuffer[0][(samples*2)+1]=0.0;
                 samples++;
@@ -739,13 +737,12 @@ void old_protocol_process_local_mic(unsigned char *buffer,int le) {
          }
       } else {
 #endif
-         leftmicsampledouble=(double)leftmicsample/32767.0; // 16 bit sample 2^16-1
          if(mode==modeCWL || mode==modeCWU || tune) {
            micinputbuffer[samples*2]=0.0;
            micinputbuffer[(samples*2)+1]=0.0;
          } else {
-           micinputbuffer[samples*2]=leftmicsampledouble;
-           micinputbuffer[(samples*2)+1]=leftmicsampledouble;
+           micinputbuffer[samples*2]=micsampledouble*gain;
+           micinputbuffer[(samples*2)+1]=micsampledouble*gain;
          }
          iqinputbuffer[0][samples*2]=0.0;
          iqinputbuffer[0][(samples*2)+1]=0.0;

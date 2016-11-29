@@ -1014,9 +1014,9 @@ int init_server () {
     socket_desc = socket(AF_INET , SOCK_STREAM , 0);
     if (socket_desc == -1)
     {
-        fprintf(stderr,"RIGCTL: Could not create socket");
+        fprintf(stderr,"RIGCTL: Could not create socket\n");
     }
-    fprintf(stderr, "RIGCTL: Socket created");
+    fprintf(stderr, "RIGCTL: Socket created\n");
      
     //Prepare the sockaddr_in structure
     server.sin_family = AF_INET;
@@ -1027,23 +1027,23 @@ int init_server () {
     if( bind(socket_desc,(struct sockaddr *)&server , sizeof(server)) < 0)
     {
         //print the error message
-        fprintf(stderr,"RIGCLT: bind failed. Error");
+        fprintf(stderr,"RIGCLT: bind failed. Error\n");
         return 1;
     }
-    fprintf(stderr,"RIGCTL: bind done");
+    fprintf(stderr,"RIGCTL: bind done\n");
      
     //Listen
     listen(socket_desc , 3);
      
     //Accept and incoming connection
-    fprintf(stderr,"RIGCTL: Waiting for incoming connections...");
+    fprintf(stderr,"RIGCTL: Waiting for incoming connections...\n");
     c = sizeof(struct sockaddr_in);
      
     //accept connection from an incoming client
     client_sock = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c);
     if (client_sock < 0)
     {
-        fprintf(stderr,"RIGCTL: Accept failed");
+        fprintf(stderr,"RIGCTL: Accept failed\n");
         return 1;
     }
     fprintf(stderr,"RIGCTL: Connection accepted\n");
