@@ -143,7 +143,7 @@ static gboolean equalizer_cb (GtkWidget *widget, GdkEventButton *event, gpointer
 
 static gboolean test_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
 fprintf(stderr,"test_cb\n");
-  audio_get_mic_level();
+  // some test code
   return TRUE;
 }
 

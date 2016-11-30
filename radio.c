@@ -310,7 +310,7 @@ void setTune(int state) {
       } else {
         SetTXAPostGenToneFreq(CHANNEL_TX,(double)cw_keyer_sidetone_frequency);
       }
-      SetTXAPostGenToneMag(CHANNEL_TX,0.3);
+      SetTXAPostGenToneMag(CHANNEL_TX,0.99999);
       SetTXAPostGenRun(CHANNEL_TX,1);
       SetChannelState(CHANNEL_TX,1,0);
     } else {
@@ -420,14 +420,14 @@ static int calcLevel(double d) {
 
 void calcDriveLevel() {
     drive_level=calcLevel(drive);
+    if(mox && protocol==NEW_PROTOCOL) {
+      schedule_high_priority(6);
+    }
 }
 
 void setDrive(double value) {
     drive=value;
     calcDriveLevel();
-    if(protocol==NEW_PROTOCOL) {
-      schedule_high_priority(6);
-    }
 }
 
 double getTuneDrive() {
@@ -436,15 +436,14 @@ double getTuneDrive() {
 
 void calcTuneDriveLevel() {
     tune_drive_level=calcLevel(tune_drive);
+    if(tune  && protocol==NEW_PROTOCOL) {
+      schedule_high_priority(7);
+    }
 }
 
 void setTuneDrive(double value) {
     tune_drive=value;
-
     calcTuneDriveLevel();
-    if(protocol==NEW_PROTOCOL) {
-      schedule_high_priority(7);
-    }
 }
 
 void set_attenuation(int value) {

@@ -376,7 +376,7 @@ static void process_ozy_input_buffer(char  *buffer) {
   int last_dash;
   int left_sample[RECEIVERS];
   int right_sample[RECEIVERS];
-  int mic_sample;
+  short mic_sample;
   double left_sample_double[RECEIVERS];
   double right_sample_double[RECEIVERS];
   double mic_sample_double;
@@ -455,14 +455,14 @@ static void process_ozy_input_buffer(char  *buffer) {
         right_sample[r] += (int)((unsigned char)buffer[b++]) << 8;
         right_sample[r] += (int)((unsigned char)buffer[b++]);
       }
-      mic_sample    = (int)((signed char) buffer[b++]) << 8;
-      mic_sample   += (int)((unsigned char)buffer[b++]);
+      mic_sample    = (short)((signed char) buffer[b++]) << 16;
+      mic_sample   |= (short)((unsigned char)buffer[b++]);
+      mic_sample_double = (1.0 / 2147483648.0) * (double)(mic_sample<<16);
 
       for(r=0;r<RECEIVERS;r++) {
         left_sample_double[r]=(double)left_sample[r]/8388607.0; // 24 bit sample 2^23-1
         right_sample_double[r]=(double)right_sample[r]/8388607.0; // 24 bit sample 2^23-1
       }
-      mic_sample_double = (1.0 / 2147483648.0) * (double)(mic_sample<<16);
 
       // add to buffer
       if(isTransmitting() && !local_microphone) {
@@ -514,7 +514,7 @@ static void process_ozy_input_buffer(char  *buffer) {
         }
 #endif
       } else {
-        if(!isTransmitting()) {
+        //if(!isTransmitting()) {
           micinputbuffer[samples*2]=0.0;
           micinputbuffer[(samples*2)+1]=0.0;
           iqinputbuffer[0][samples*2]=left_sample_double[0];
@@ -522,9 +522,10 @@ static void process_ozy_input_buffer(char  *buffer) {
           samples++;
           if(samples==buffer_size) {
             full_rx_buffer();
+            full_tx_buffer();
             samples=0;
           }
-        }
+        //}
       }
     }
   } else {
@@ -632,7 +633,7 @@ static void full_rx_buffer() {
   int error;
 
   fexchange0(CHANNEL_RX0, iqinputbuffer[0], audiooutputbuffer, &error);
-  fexchange0(CHANNEL_TX, micinputbuffer, iqoutputbuffer, &error);
+  //fexchange0(CHANNEL_TX, micinputbuffer, iqoutputbuffer, &error);
 
 #ifdef PSK
   if(mode!=modePSK) {
@@ -693,8 +694,8 @@ static void full_tx_buffer() {
 
 void old_protocol_process_local_mic(unsigned char *buffer,int le) {
   int b;
-  int micsample;
-  double micsampledouble;
+  int mic_sample;
+  double mic_sample_double;
   double gain=pow(10.0, mic_gain / 20.0);
 
   if(isTransmitting()) {
@@ -702,24 +703,24 @@ void old_protocol_process_local_mic(unsigned char *buffer,int le) {
     int i,j,s;
     for(i=0;i<720;i++) {
       if(le) {
-        micsample  = (int)((unsigned char)buffer[b++] & 0xFF);
-        micsample  |= (int)((signed char) buffer[b++]) << 8;
+        mic_sample  = (int)((unsigned char)buffer[b++] & 0xFF);
+        mic_sample  |= (int)((signed char) buffer[b++]) << 8;
       } else {
-        micsample  = (int)((signed char) buffer[b++]) << 8;
-        micsample  |= (int)((unsigned char)buffer[b++] & 0xFF);
+        mic_sample  = (int)((signed char) buffer[b++]) << 8;
+        mic_sample  |= (int)((unsigned char)buffer[b++] & 0xFF);
       }
-      micsampledouble=(1.0 / 2147483648.0) * (double)(micsample<<16);
+      mic_sample_double=(1.0 / 2147483648.0) * (double)(mic_sample<<16);
 #ifdef FREEDV
       if(mode==modeFREEDV && !tune) {
         if(freedv_samples==0) { // 48K to 8K
-          int modem_samples=mod_sample_freedv(micsample*gain);
+          int modem_samples=mod_sample_freedv(mic_sample*gain);
           if(modem_samples!=0) {
             for(s=0;s<modem_samples;s++) {
               for(j=0;j<freedv_divisor;j++) {  // 8K to 48K
-                micsample=mod_out[s];
-                micsampledouble = (1.0 / 2147483648.0) * (double)(micsample<<16);
-                micinputbuffer[samples*2]=micsampledouble;
-                micinputbuffer[(samples*2)+1]=micsampledouble;
+                mic_sample=mod_out[s];
+                mic_sample_double = (1.0 / 2147483648.0) * (double)(mic_sample<<16);
+                micinputbuffer[samples*2]=mic_sample_double;
+                micinputbuffer[(samples*2)+1]=mic_sample_double;
                 iqinputbuffer[0][samples*2]=0.0;
                 iqinputbuffer[0][(samples*2)+1]=0.0;
                 samples++;
@@ -741,8 +742,8 @@ void old_protocol_process_local_mic(unsigned char *buffer,int le) {
            micinputbuffer[samples*2]=0.0;
            micinputbuffer[(samples*2)+1]=0.0;
          } else {
-           micinputbuffer[samples*2]=micsampledouble*gain;
-           micinputbuffer[(samples*2)+1]=micsampledouble*gain;
+           micinputbuffer[samples*2]=mic_sample_double;
+           micinputbuffer[(samples*2)+1]=mic_sample_double;
          }
          iqinputbuffer[0][samples*2]=0.0;
          iqinputbuffer[0][(samples*2)+1]=0.0;
