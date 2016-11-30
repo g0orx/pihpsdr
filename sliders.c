@@ -202,17 +202,13 @@ void set_af_gain(double value) {
 static void micgain_value_changed_cb(GtkWidget *widget, gpointer data) {
     mic_gain=gtk_range_get_value(GTK_RANGE(widget));
     double gain=pow(10.0, mic_gain / 20.0);
-    if(protocol==NEW_PROTOCOL) {
-      SetTXAPanelGain1(CHANNEL_TX,gain);
-    }
+    SetTXAPanelGain1(CHANNEL_TX,gain);
 }
 
 void set_mic_gain(double value) {
   mic_gain=value;
   double gain=pow(10.0, mic_gain / 20.0);
-  if(protocol==NEW_PROTOCOL) {
-    SetTXAPanelGain1(CHANNEL_TX,gain);
-  }
+  SetTXAPanelGain1(CHANNEL_TX,gain);
   if(display_sliders) {
     gtk_range_set_value (GTK_RANGE(mic_gain_scale),mic_gain);
   } else {

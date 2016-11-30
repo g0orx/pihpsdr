@@ -514,7 +514,7 @@ static void process_ozy_input_buffer(char  *buffer) {
         }
 #endif
       } else {
-        //if(!isTransmitting()) {
+        if(!isTransmitting()) {
           micinputbuffer[samples*2]=0.0;
           micinputbuffer[(samples*2)+1]=0.0;
           iqinputbuffer[0][samples*2]=left_sample_double[0];
@@ -524,7 +524,7 @@ static void process_ozy_input_buffer(char  *buffer) {
             full_rx_buffer();
             samples=0;
           }
-        //}
+        }
       }
     }
   } else {
@@ -949,7 +949,6 @@ void ozy_send_buffer() {
         } else {
           power=drive_level;
         }
-fprintf(stderr,"power=%d\n",power);
       }
 
       output_buffer[C0]=0x12;
