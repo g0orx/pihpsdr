@@ -522,7 +522,6 @@ static void process_ozy_input_buffer(char  *buffer) {
           samples++;
           if(samples==buffer_size) {
             full_rx_buffer();
-            full_tx_buffer();
             samples=0;
           }
         //}
