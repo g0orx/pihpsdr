@@ -37,6 +37,7 @@
 #include <math.h>
 
 #include "agc.h"
+#include "band.h"
 #include "alex.h"
 #include "new_protocol.h"
 #include "channel.h"
@@ -138,6 +139,7 @@ int getMode() {
 }
 
 void setFilter(int low,int high) {
+fprintf(stderr,"setFilter: low=%d high=%d\n", low, high);
     if(mode==modeCWL) {
         filterLow=-cw_keyer_sidetone_frequency-low;
         filterHigh=-cw_keyer_sidetone_frequency+high;
@@ -148,44 +150,18 @@ void setFilter(int low,int high) {
         filterLow=low;
         filterHigh=high;
     }
-
+fprintf(stderr,"setFilter: filterLow=%d filterHigh=%d\n", filterLow, filterHigh);
 
     double fl=filterLow+ddsOffset;
     double fh=filterHigh+ddsOffset;
+
+fprintf(stderr,"setFilter: fl=%f fh=%f\n", fl, fh);
 
     RXANBPSetFreqs(receiver,(double)filterLow,(double)filterHigh);
     SetRXABandpassFreqs(receiver, fl,fh);
     SetRXASNBAOutputBandwidth(receiver, (double)filterLow, (double)filterHigh);
 
     SetTXABandpassFreqs(CHANNEL_TX, fl,fh);
-/*
-    switch(mode) {
-        case modeCWL:
-        case modeLSB:
-        case modeDIGL:
-            SetTXABandpassFreqs(CHANNEL_TX, -(double)tx_filter_high,-(double)tx_filter_low);
-            break;
-        case modeCWU:
-        case modeUSB:
-        case modeDIGU:
-#ifdef FREEDV
-        case modeFREEDV:
-#endif
-            SetTXABandpassFreqs(CHANNEL_TX, (double)tx_filter_low,(double)tx_filter_high);
-            break;
-        case modeDSB:
-        case modeAM:
-        case modeSAM:
-            SetTXABandpassFreqs(CHANNEL_TX, -(double)tx_filter_high,(double)tx_filter_high);
-            break;
-        case modeFMN:
-            SetTXABandpassFreqs(CHANNEL_TX, -8000.0,8000);
-            break;
-        case modeDRM:
-            SetTXABandpassFreqs(CHANNEL_TX, 7000.0,17000);
-            break;
-    }
-*/
 }
 
 int getFilterLow() {
@@ -233,15 +209,21 @@ void wdsp_set_agc(int rx, int agc) {
 }
 
 void wdsp_set_offset(long long offset) {
-    if(offset==0) {
-      SetRXAShiftFreq(receiver, (double)offset);
-      SetRXAShiftRun(receiver, 0);
-    } else {
-      SetRXAShiftFreq(receiver, (double)offset);
-      SetRXAShiftRun(receiver, 1);
-    }
+  if(offset==0) {
+    SetRXAShiftFreq(receiver, (double)offset);
+    SetRXAShiftRun(receiver, 0);
+  } else {
+    SetRXAShiftFreq(receiver, (double)offset);
+    SetRXAShiftRun(receiver, 1);
+  }
 
-    setFilter(filterLow,filterHigh);
+  BAND *band=band_get_current_band();
+  BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
+  setFrequency(entry->frequencyA);
+  setMode(entry->mode);
+  FILTER* band_filters=filters[entry->mode];
+  FILTER* band_filter=&band_filters[entry->filter];
+  setFilter(band_filter->low,band_filter->high);
 }
 
 void wdsp_set_input_rate(double rate) {
