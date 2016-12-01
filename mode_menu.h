@@ -1,5 +1,5 @@
 /* Copyright (C)
-* 2015 - John Melton, G0ORX/N6LYT
+* 2016 - John Melton, G0ORX/N6LYT
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License
@@ -17,15 +17,4 @@
 *
 */
 
-#ifndef _VFO_H
-#define _VFO_H
-
-extern int steps[];
-extern char *step_labels[];
-
-extern GtkWidget* vfo_init(int width,int height,GtkWidget *parent);
-extern void vfo_step(int steps);
-extern void vfo_move(int hz);
-extern int vfo_update(void*);
-
-#endif
+extern void mode_menu(GtkWidget *parent);

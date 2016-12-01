@@ -34,6 +34,7 @@
 #ifdef PSK
 #include "psk.h"
 #endif
+#include "new_menu.h"
 
 static GtkWidget *parent_window;
 
@@ -92,6 +93,7 @@ meter_draw_cb (GtkWidget *widget, cairo_t   *cr, gpointer   data) {
   return FALSE;
 }
 
+/*
 static void
 smeter_select_cb (GtkWidget *widget,
                gpointer        data)
@@ -105,12 +107,15 @@ alc_meter_select_cb (GtkWidget *widget,
 {
   alc=(int)data;
 }
+*/
 
 static gboolean
 meter_press_event_cb (GtkWidget *widget,
                GdkEventButton *event,
                gpointer        data)
 {
+  start_meter();
+/*
   GtkWidget *dialog=gtk_dialog_new_with_buttons("Meter",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
   //gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
 
@@ -171,7 +176,7 @@ meter_press_event_cb (GtkWidget *widget,
                            dialog);
 
   int result=gtk_dialog_run(GTK_DIALOG(dialog));
-
+*/
   return TRUE;
 }
 

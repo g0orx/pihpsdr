@@ -68,9 +68,9 @@ static gboolean ctun_pressed_event_cb (GtkWidget *widget, GdkEventButton *event,
 
 static gboolean rit_timer_cb(gpointer data) {
   if((GtkWidget*)data==rit_plus_b) {
-    rit++;
+    rit+=rit_increment;
   } else {
-    rit--;
+    rit-=rit_increment;
   }
   if(rit>1000) rit=1000;
   if(rit<-1000) rit=-1000;
@@ -96,9 +96,9 @@ static gboolean rit_pressed_event_cb (GtkWidget *widget, GdkEventButton *event, 
 
 static gboolean rit_step_pressed_event_cb (GtkWidget *widget, GdkEventButton *event, gpointer        data) {
   if(widget==rit_plus_b) {
-    rit++;
+    rit+=rit_increment;
   } else {
-    rit--;
+    rit-=rit_increment;
   }
   if(rit>1000) rit=1000;
   if(rit<-1000) rit=-1000;

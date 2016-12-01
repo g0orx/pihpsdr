@@ -38,6 +38,15 @@
 #include "xvtr_menu.h"
 #include "equalizer_menu.h"
 #include "radio.h"
+#include "step_menu.h"
+#include "meter_menu.h"
+#include "band_menu.h"
+#include "bandstack_menu.h"
+#include "mode_menu.h"
+#include "filter_menu.h"
+#include "noise_menu.h"
+#include "agc_menu.h"
+
 
 static GtkWidget *parent_window=NULL;
 
@@ -47,103 +56,174 @@ static GtkWidget *dialog=NULL;
 
 GtkWidget *sub_menu=NULL;
 
-static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+static cleanup() {
   if(dialog!=NULL) {
     gtk_widget_destroy(dialog);
     dialog=NULL;
   }
+  if(sub_menu!=NULL) {
+    gtk_widget_destroy(sub_menu);
+    sub_menu=NULL;
+  }
+}
+
+static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  cleanup();
   return TRUE;
 }
 
+
 static gboolean exit_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  gtk_widget_destroy(dialog);
-  dialog=NULL;
+  cleanup();
   exit_menu(parent_window);
   return TRUE;
 }
 
 static gboolean general_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  gtk_widget_destroy(dialog);
-  dialog=NULL;
+  cleanup();
   general_menu(parent_window);
   return TRUE;
 }
 
 static gboolean audio_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  gtk_widget_destroy(dialog);
-  dialog=NULL;
+  cleanup();
   audio_menu(parent_window);
   return TRUE;
 }
 
 static gboolean ant_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  gtk_widget_destroy(dialog);
-  dialog=NULL;
+  cleanup();
   ant_menu(parent_window);
   return TRUE;
 }
 
 static gboolean display_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  gtk_widget_destroy(dialog);
-  dialog=NULL;
+  cleanup();
   display_menu(parent_window);
   return TRUE;
 }
 
 static gboolean dsp_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  gtk_widget_destroy(dialog);
-  dialog=NULL;
+  cleanup();
   dsp_menu(parent_window);
   return TRUE;
 }
 
 static gboolean pa_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  gtk_widget_destroy(dialog);
-  dialog=NULL;
+  cleanup();
   pa_menu(parent_window);
   return TRUE;
 }
 
 static gboolean cw_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  gtk_widget_destroy(dialog);
-  dialog=NULL;
+  cleanup();
   cw_menu(parent_window);
   return TRUE;
 }
 
 static gboolean oc_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  gtk_widget_destroy(dialog);
-  dialog=NULL;
+  cleanup();
   oc_menu(parent_window);
   return TRUE;
 }
 
 #ifdef FREEDV
 static gboolean freedv_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  gtk_widget_destroy(dialog);
-  dialog=NULL;
+  cleanup();
   freedv_menu(parent_window);
   return TRUE;
 }
 #endif
 
 static gboolean xvtr_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  gtk_widget_destroy(dialog);
-  dialog=NULL;
+  cleanup();
   xvtr_menu(parent_window);
   return TRUE;
 }
 
 static gboolean equalizer_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  gtk_widget_destroy(dialog);
-  dialog=NULL;
+  cleanup();
   equalizer_menu(parent_window);
   return TRUE;
 }
 
-static gboolean test_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-fprintf(stderr,"test_cb\n");
-  // some test code
+void start_step() {
+  cleanup();
+  step_menu(parent_window);
+}
+
+static gboolean step_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  start_step();
+  return TRUE;
+}
+
+void start_meter() {
+  cleanup();
+  meter_menu(parent_window);
+}
+
+static gboolean meter_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  start_meter();
+  return TRUE;
+}
+
+void start_band() {
+  cleanup();
+  band_menu(parent_window);
+}
+
+static gboolean band_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  start_band();
+  return TRUE;
+}
+
+void start_bandstack() {
+  cleanup();
+  bandstack_menu(parent_window);
+}
+
+static gboolean bandstack_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  start_bandstack();
+  return TRUE;
+}
+
+void start_mode() {
+  cleanup();
+  mode_menu(parent_window);
+}
+
+static gboolean mode_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  start_mode();
+  return TRUE;
+}
+
+void start_filter() {
+  cleanup();
+  filter_menu(parent_window);
+}
+
+static gboolean filter_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  start_filter();
+  return TRUE;
+}
+
+void start_noise() {
+  cleanup();
+  noise_menu(parent_window);
+}
+
+static gboolean noise_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  start_noise();
+  return TRUE;
+}
+
+void start_agc() {
+  cleanup();
+  agc_menu(parent_window);
+}
+
+static gboolean agc_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  start_agc();
   return TRUE;
 }
 
@@ -186,7 +266,7 @@ static gboolean new_menu_pressed_event_cb (GtkWidget *widget,
 
     GtkWidget *exit_b=gtk_button_new_with_label("Exit piHPSDR");
     g_signal_connect (exit_b, "button-press-event", G_CALLBACK(exit_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),exit_b,3,0,2,1);
+    gtk_grid_attach(GTK_GRID(grid),exit_b,4,0,2,1);
 
     GtkWidget *general_b=gtk_button_new_with_label("General");
     g_signal_connect (general_b, "button-press-event", G_CALLBACK(general_cb), NULL);
@@ -210,35 +290,62 @@ static gboolean new_menu_pressed_event_cb (GtkWidget *widget,
 
     GtkWidget *pa_b=gtk_button_new_with_label("PA");
     g_signal_connect (pa_b, "button-press-event", G_CALLBACK(pa_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),pa_b,0,2,1,1);
+    gtk_grid_attach(GTK_GRID(grid),pa_b,5,1,1,1);
 
     GtkWidget *cw_b=gtk_button_new_with_label("CW");
     g_signal_connect (cw_b, "button-press-event", G_CALLBACK(cw_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),cw_b,1,2,1,1);
+    gtk_grid_attach(GTK_GRID(grid),cw_b,0,2,1,1);
 
     GtkWidget *oc_b=gtk_button_new_with_label("OC");
     g_signal_connect (oc_b, "button-press-event", G_CALLBACK(oc_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),oc_b,2,2,1,1);
+    gtk_grid_attach(GTK_GRID(grid),oc_b,1,2,1,1);
 
 #ifdef FREEDV
     GtkWidget *freedv_b=gtk_button_new_with_label("FreeDV");
     g_signal_connect (freedv_b, "button-press-event", G_CALLBACK(freedv_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),freedv_b,3,2,1,1);
+    gtk_grid_attach(GTK_GRID(grid),freedv_b,2,2,1,1);
 #endif
 
     GtkWidget *xvtr_b=gtk_button_new_with_label("XVTR");
     g_signal_connect (xvtr_b, "button-press-event", G_CALLBACK(xvtr_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),xvtr_b,4,2,1,1);
+    gtk_grid_attach(GTK_GRID(grid),xvtr_b,3,2,1,1);
 
     GtkWidget *equalizer_b=gtk_button_new_with_label("Equalizer");
     g_signal_connect (equalizer_b, "button-press-event", G_CALLBACK(equalizer_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),equalizer_b,0,3,1,1);
+    gtk_grid_attach(GTK_GRID(grid),equalizer_b,4,2,1,1);
 
-/*
-    GtkWidget *test_b=gtk_button_new_with_label("Test");
-    g_signal_connect (test_b, "button-press-event", G_CALLBACK(test_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),test_b,1,3,1,1);
-*/
+    GtkWidget *step_b=gtk_button_new_with_label("Step");
+    g_signal_connect (step_b, "button-press-event", G_CALLBACK(step_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),step_b,0,3,1,1);
+
+    GtkWidget *meter_b=gtk_button_new_with_label("Meter");
+    g_signal_connect (meter_b, "button-press-event", G_CALLBACK(meter_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),meter_b,1,3,1,1);
+
+    GtkWidget *band_b=gtk_button_new_with_label("Band");
+    g_signal_connect (band_b, "button-press-event", G_CALLBACK(band_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),band_b,0,4,1,1);
+
+    GtkWidget *bandstack_b=gtk_button_new_with_label("Band Stack");
+    g_signal_connect (bandstack_b, "button-press-event", G_CALLBACK(bandstack_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),bandstack_b,1,4,1,1);
+
+    GtkWidget *mode_b=gtk_button_new_with_label("Mode");
+    g_signal_connect (mode_b, "button-press-event", G_CALLBACK(mode_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),mode_b,2,4,1,1);
+
+    GtkWidget *filter_b=gtk_button_new_with_label("Filter");
+    g_signal_connect (filter_b, "button-press-event", G_CALLBACK(filter_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),filter_b,3,4,1,1);
+
+    GtkWidget *noise_b=gtk_button_new_with_label("Noise");
+    g_signal_connect (noise_b, "button-press-event", G_CALLBACK(noise_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),noise_b,4,4,1,1);
+
+    GtkWidget *agc_b=gtk_button_new_with_label("AGC");
+    g_signal_connect (agc_b, "button-press-event", G_CALLBACK(agc_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),agc_b,5,4,1,1);
+
 
     gtk_container_add(GTK_CONTAINER(content),grid);
 

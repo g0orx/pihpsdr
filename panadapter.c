@@ -35,6 +35,7 @@
 #ifdef FREEDV
 #include "freedv.h"
 #endif
+#include "wdsp_init.h"
 
 static GtkWidget *panadapter;
 static cairo_surface_t *panadapter_surface = NULL;

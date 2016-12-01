@@ -47,6 +47,7 @@
 #include "toolbar.h"
 #include "wdsp.h"
 #include "wdsp_init.h"
+#include "new_menu.h"
 
 static GtkWidget *parent_window;
 static int my_width;
@@ -55,8 +56,8 @@ static int my_height;
 static GtkWidget *vfo;
 static cairo_surface_t *vfo_surface = NULL;
 
-static int steps[]={1,10,25,50,100,250,500,1000,2500,5000,6250,9000,10000,12500,15000,20000,25000,30000,50000,100000,0};
-static char *step_labels[]={"1Hz","10Hz","25Hz","50Hz","100Hz","250Hz","500Hz","1kHz","2.5kHz","5kHz","6.25kHz","9kHz","10kHz","12.5kHz","15kHz","20kHz","25kHz","30kHz","50kHz","100kHz",0};
+int steps[]={1,10,25,50,100,250,500,1000,2500,5000,6250,9000,10000,12500,15000,20000,25000,30000,50000,100000,0};
+char *step_labels[]={"1Hz","10Hz","25Hz","50Hz","100Hz","250Hz","500Hz","1kHz","2.5kHz","5kHz","6.25kHz","9kHz","10kHz","12.5kHz","15kHz","20kHz","25kHz","30kHz","50kHz","100kHz",0};
 
 static GtkWidget* menu=NULL;
 static GtkWidget* band_menu=NULL;
@@ -334,6 +335,7 @@ fprintf(stderr,"vfo_update: no surface!\n");
     return 0;
 }
 
+/*
 static gboolean
 vfo_step_select_cb (GtkWidget *widget,
                gpointer        data)
@@ -341,6 +343,7 @@ vfo_step_select_cb (GtkWidget *widget,
   step=steps[(int)data];
   vfo_update(NULL);
 }
+*/
 
 static gboolean
 vfo_press_event_cb (GtkWidget *widget,
@@ -351,6 +354,8 @@ vfo_press_event_cb (GtkWidget *widget,
   if((int)event->x < (my_width/2)) {
     lock_cb(NULL,NULL);
   } else {
+    start_step();
+/*
     GtkWidget *dialog=gtk_dialog_new_with_buttons("Step",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
 
     GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
@@ -387,6 +392,7 @@ vfo_press_event_cb (GtkWidget *widget,
                              dialog);
   
     int result=gtk_dialog_run(GTK_DIALOG(dialog));
+*/
   }
   return TRUE;
 }

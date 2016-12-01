@@ -148,6 +148,7 @@ int locked;
 
 extern int step;
 extern int rit;
+extern int rit_increment;
 
 extern int lt2208Dither;
 extern int lt2208Random;

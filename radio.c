@@ -136,6 +136,7 @@ int locked=0;
 int step=100;
 
 int rit=0;
+int rit_increment=10;
 
 int lt2208Dither = 0;
 int lt2208Random = 0;
@@ -666,6 +667,8 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     if(value) rx_equalizer[2]=atoi(value);
     value=getProperty("rx_equalizer.3");
     if(value) rx_equalizer[3]=atoi(value);
+    value=getProperty("rit_increment");
+    if(value) rit_increment=atoi(value);
 
     bandRestoreState();
 
@@ -844,6 +847,8 @@ void radioSaveState() {
     setProperty("rx_equalizer.2",value);
     sprintf(value,"%d",rx_equalizer[3]);
     setProperty("rx_equalizer.3",value);
+    sprintf(value,"%d",rit_increment);
+    setProperty("rit_increment",value);
 
     bandSaveState();
 

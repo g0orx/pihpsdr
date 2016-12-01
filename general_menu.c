@@ -165,6 +165,10 @@ static void sample_rate_cb(GtkWidget *widget, gpointer data) {
   }
 }
 
+static void rit_cb(GtkWidget *widget,gpointer data) {
+  rit_increment=(int)data;
+}
+
 void general_menu(GtkWidget *parent) {
   parent_window=parent;
 
@@ -182,7 +186,7 @@ void general_menu(GtkWidget *parent) {
   GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
 
   GtkWidget *grid=gtk_grid_new();
-  //gtk_grid_set_column_spacing (GTK_GRID(grid),10);
+  gtk_grid_set_column_spacing (GTK_GRID(grid),10);
   //gtk_grid_set_row_spacing (GTK_GRID(grid),10);
   //gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
   //gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
@@ -308,6 +312,24 @@ void general_menu(GtkWidget *parent) {
   }
 #endif
 
+
+  GtkWidget *rit_label=gtk_label_new("RIT step: ");
+  gtk_grid_attach(GTK_GRID(grid),rit_label,5,1,1,1);
+
+  GtkWidget *rit_1=gtk_radio_button_new_with_label(NULL,"1 Hz");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rit_1), rit_increment==1);
+  gtk_grid_attach(GTK_GRID(grid),rit_1,5,2,1,1);
+  g_signal_connect(rit_1,"pressed",G_CALLBACK(rit_cb),(gpointer *)1);
+
+  GtkWidget *rit_10=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(rit_1),"10");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rit_10), rit_increment==10);
+  gtk_grid_attach(GTK_GRID(grid),rit_10,5,3,1,1);
+  g_signal_connect(rit_10,"pressed",G_CALLBACK(rit_cb),(gpointer *)10);
+
+  GtkWidget *rit_100=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(rit_10),"100");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rit_100), rit_increment==100);
+  gtk_grid_attach(GTK_GRID(grid),rit_100,5,4,1,1);
+  g_signal_connect(rit_100,"pressed",G_CALLBACK(rit_cb),(gpointer *)100);
 
   gtk_container_add(GTK_CONTAINER(content),grid);
 
