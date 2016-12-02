@@ -234,6 +234,7 @@ static void setupRX(int rx) {
     setRXMode(rx,mode);
     SetRXABandpassFreqs(rx, (double)filterLow, (double)filterHigh);
     
+    SetRXAFMDeviation(rx,(double)deviation);
     //SetRXAAGCMode(rx, agc);
     //SetRXAAGCTop(rx,agc_gain);
     wdsp_set_agc(rx, agc);
@@ -269,6 +270,9 @@ static void setupTX(int tx) {
     SetTXABandpassWindow(tx, 1);
     SetTXABandpassRun(tx, 1);
 
+    SetTXAFMDeviation(tx,(double)deviation);
+    SetTXAFMEmphPosition(tx,pre_emphasize);
+
     SetTXACFIRRun(tx, protocol==NEW_PROTOCOL?1:0); // turned in if new protocol
     if(enable_tx_equalizer) {
       SetTXAGrphEQ(tx, tx_equalizer);
@@ -300,11 +304,9 @@ static void setupTX(int tx) {
     SetTXAPostGenToneFreq(tx, 0.0);
     SetTXAPostGenRun(tx, 0);
 
-    if(protocol==NEW_PROTOCOL) {
-      double gain=pow(10.0, mic_gain / 20.0);
-      SetTXAPanelGain1(tx,gain);
-      //SetTXAPanelRun(tx, protocol==NEW_PROTOCOL?1:0);
-    }
+    double gain=pow(10.0, mic_gain / 20.0);
+    SetTXAPanelGain1(tx,gain);
+    SetTXAPanelRun(tx, 1);
 
     //SetChannelState(tx,1,0);
 }
@@ -425,6 +427,15 @@ void wdsp_new_sample_rate(int rate) {
   SetChannelState(receiver,0,0);
   SetInputSamplerate(receiver,rate);
   SetChannelState(receiver,1,0);
+}
+
+void wdsp_set_deviation(double deviation) {
+  SetRXAFMDeviation(CHANNEL_RX0, deviation);
+  SetTXAFMDeviation(CHANNEL_TX, deviation);
+}
+
+void wdsp_set_pre_emphasize(int state) {
+  SetTXAFMEmphPosition(CHANNEL_TX,state);
 }
 
 static void initAnalyzer(int channel,int buffer_size) {

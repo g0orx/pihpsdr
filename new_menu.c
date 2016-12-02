@@ -46,6 +46,7 @@
 #include "filter_menu.h"
 #include "noise_menu.h"
 #include "agc_menu.h"
+#include "fm_menu.h"
 
 
 static GtkWidget *parent_window=NULL;
@@ -227,6 +228,16 @@ static gboolean agc_cb (GtkWidget *widget, GdkEventButton *event, gpointer data)
   return TRUE;
 }
 
+void start_fm() {
+  cleanup();
+  fm_menu(parent_window);
+}
+
+static gboolean fm_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  start_fm();
+  return TRUE;
+}
+
 static gboolean new_menu_pressed_event_cb (GtkWidget *widget,
                GdkEventButton *event,
                gpointer        data)
@@ -313,6 +324,10 @@ static gboolean new_menu_pressed_event_cb (GtkWidget *widget,
     GtkWidget *equalizer_b=gtk_button_new_with_label("Equalizer");
     g_signal_connect (equalizer_b, "button-press-event", G_CALLBACK(equalizer_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),equalizer_b,4,2,1,1);
+
+    GtkWidget *fm_b=gtk_button_new_with_label("FM");
+    g_signal_connect (fm_b, "button-press-event", G_CALLBACK(fm_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),fm_b,5,2,1,1);
 
     GtkWidget *step_b=gtk_button_new_with_label("Step");
     g_signal_connect (step_b, "button-press-event", G_CALLBACK(step_cb), NULL);

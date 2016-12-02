@@ -142,6 +142,7 @@ mode_menu.c \
 filter_menu.c \
 noise_menu.c \
 agc_menu.c \
+fm_menu.c \
 rit.c \
 meter.c \
 mode.c \
@@ -196,6 +197,7 @@ mode_menu.h \
 filter_menu.h \
 noise_menu.h \
 agc_menu.h \
+fm_menu.h \
 rit.h \
 meter.h \
 mode.h \
@@ -247,6 +249,7 @@ mode_menu.o \
 filter_menu.o \
 noise_menu.o \
 agc_menu.o \
+fm_menu.o \
 rit.o \
 meter.o \
 mode.o \

@@ -1,5 +1,5 @@
 /* Copyright (C)
-* 2015 - John Melton, G0ORX/N6LYT
+* 2016 - John Melton, G0ORX/N6LYT
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License
@@ -17,19 +17,4 @@
 *
 */
 
-#ifndef _WDSP_INIT_H
-#define _WDSP_INIT_H
-
-extern void wdsp_set_input_rate(double rate);
-extern void wdsp_set_offset(long long offset);
-extern void setMode(int m);
-extern int getMode();
-extern void setFilter(int low,int high);
-extern int getFilterLow();
-extern int getFilterHigh();
-extern void wdsp_init(int rx,int pixels,int protocol);
-extern void wdsp_new_sample_rate(int rate);
-extern void wdsp_set_agc(int rx, int agc);
-extern void wdsp_set_deviation(double deviation);
-extern void wdsp_set_pre_emphasize(int state);
-#endif
+void fm_menu(GtkWidget *parent);

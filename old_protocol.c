@@ -376,7 +376,7 @@ static void process_ozy_input_buffer(char  *buffer) {
   int last_dash;
   int left_sample[RECEIVERS];
   int right_sample[RECEIVERS];
-  short mic_sample;
+  int mic_sample;
   double left_sample_double[RECEIVERS];
   double right_sample_double[RECEIVERS];
   double mic_sample_double;
@@ -455,8 +455,8 @@ static void process_ozy_input_buffer(char  *buffer) {
         right_sample[r] += (int)((unsigned char)buffer[b++]) << 8;
         right_sample[r] += (int)((unsigned char)buffer[b++]);
       }
-      mic_sample    = (short)((signed char) buffer[b++]) << 16;
-      mic_sample   |= (short)((unsigned char)buffer[b++]);
+      mic_sample    = (int)((signed char) buffer[b++]) << 8;
+      mic_sample   |= (int)((unsigned char)buffer[b++]);
       mic_sample_double = (1.0 / 2147483648.0) * (double)(mic_sample<<16);
 
       for(r=0;r<RECEIVERS;r++) {

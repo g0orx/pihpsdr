@@ -217,6 +217,9 @@ int tx_equalizer[4]={0,0,0,0};
 int enable_rx_equalizer=0;
 int rx_equalizer[4]={0,0,0,0};
 
+int deviation=2500;
+int pre_emphasize=0;
+
 void init_radio() {
   int rc;
   rc=sem_init(&property_sem, 0, 0);
@@ -669,6 +672,10 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     if(value) rx_equalizer[3]=atoi(value);
     value=getProperty("rit_increment");
     if(value) rit_increment=atoi(value);
+    value=getProperty("deviation");
+    if(value) deviation=atoi(value);
+    value=getProperty("pre_emphasize");
+    if(value) pre_emphasize=atoi(value);
 
     bandRestoreState();
 
@@ -849,6 +856,10 @@ void radioSaveState() {
     setProperty("rx_equalizer.3",value);
     sprintf(value,"%d",rit_increment);
     setProperty("rit_increment",value);
+    sprintf(value,"%d",deviation);
+    setProperty("deviation",value);
+    sprintf(value,"%d",pre_emphasize);
+    setProperty("pre_emphasize",value);
 
     bandSaveState();
 

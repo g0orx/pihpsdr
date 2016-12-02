@@ -286,7 +286,15 @@ int vfo_update(void *data) {
         cairo_show_text(cr, mode_string[entry->mode]);
 
         cairo_move_to(cr, 190, 50);  
-        cairo_show_text(cr, band_filter->title);
+        if(mode==modeFMN) {
+          if(deviation==2500) {
+            cairo_show_text(cr, "8k");
+          } else {
+            cairo_show_text(cr, "16k");
+          }
+        } else {
+          cairo_show_text(cr, band_filter->title);
+        }
 
         cairo_move_to(cr, 250, 50);  
         if(nr) {

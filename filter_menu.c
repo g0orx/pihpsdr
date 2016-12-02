@@ -30,6 +30,7 @@
 #include "radio.h"
 #include "vfo.h"
 #include "button_text.h"
+#include "wdsp_init.h"
 
 static GtkWidget *parent_window=NULL;
 
@@ -54,6 +55,20 @@ static gboolean filter_select_cb (GtkWidget *widget, gpointer        data) {
   FILTER* band_filters=filters[entry->mode];
   FILTER* band_filter=&band_filters[entry->filter];
   setFilter(band_filter->low,band_filter->high);
+  set_button_text_color(last_filter,"black");
+  last_filter=widget;
+  set_button_text_color(last_filter,"orange");
+  vfo_update(NULL);
+}
+
+static gboolean deviation_select_cb (GtkWidget *widget, gpointer        data) {
+  deviation=(int)data;
+  if(deviation==2500) {
+    setFilter(-4000,4000);
+  } else {
+    setFilter(-8000,8000);
+  }
+  wdsp_set_deviation((double)deviation);
   set_button_text_color(last_filter,"black");
   last_filter=widget;
   set_button_text_color(last_filter,"orange");
@@ -94,18 +109,48 @@ void filter_menu(GtkWidget *parent) {
   BANDSTACK_ENTRY *entry=bandstack_entry_get_current();
   FILTER* band_filters=filters[entry->mode];
 
-  for(i=0;i<FILTERS;i++) {
-    FILTER* band_filter=&band_filters[i];
-    GtkWidget *b=gtk_button_new_with_label(band_filters[i].title);
-    if(i==entry->filter) {
-      set_button_text_color(b,"orange");
-      last_filter=b;
-    } else {
-      set_button_text_color(b,"black");
-    }
-    gtk_widget_show(b);
-    gtk_grid_attach(GTK_GRID(grid),b,i%5,1+(i/5),1,1);
-    g_signal_connect(b,"pressed",G_CALLBACK(filter_select_cb),(gpointer *)i);
+  switch(entry->mode) {
+    case modeFMN:
+      {
+      GtkWidget *l=gtk_label_new("Deviation:");
+      gtk_grid_attach(GTK_GRID(grid),l,0,1,1,1);
+
+      GtkWidget *b=gtk_button_new_with_label("2.5K");
+      if(deviation==2500) {
+        set_button_text_color(b,"orange");
+        last_filter=b;
+      } else {
+        set_button_text_color(b,"black");
+      }
+      g_signal_connect(b,"pressed",G_CALLBACK(deviation_select_cb),(gpointer *)2500);
+      gtk_grid_attach(GTK_GRID(grid),b,1,1,1,1);
+
+      b=gtk_button_new_with_label("5.0K");
+      if(deviation==5000) {
+        set_button_text_color(b,"orange");
+        last_filter=b;
+      } else {
+        set_button_text_color(b,"black");
+      }
+      g_signal_connect(b,"pressed",G_CALLBACK(deviation_select_cb),(gpointer *)5000);
+      gtk_grid_attach(GTK_GRID(grid),b,2,1,1,1);
+      }
+      break;
+
+    default:
+      for(i=0;i<FILTERS;i++) {
+        FILTER* band_filter=&band_filters[i];
+        GtkWidget *b=gtk_button_new_with_label(band_filters[i].title);
+        if(i==entry->filter) {
+          set_button_text_color(b,"orange");
+          last_filter=b;
+        } else {
+          set_button_text_color(b,"black");
+        }
+        gtk_grid_attach(GTK_GRID(grid),b,i%5,1+(i/5),1,1);
+        g_signal_connect(b,"pressed",G_CALLBACK(filter_select_cb),(gpointer *)i);
+      }
+      break;
   }
 
   gtk_container_add(GTK_CONTAINER(content),grid);

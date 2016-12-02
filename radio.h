@@ -227,6 +227,9 @@ extern int tx_equalizer[4];
 extern int enable_rx_equalizer;
 extern int rx_equalizer[4];
 
+extern int deviation;
+extern int pre_emphasize;
+
 extern void init_radio();
 extern void setSampleRate(int rate);
 extern int getSampleRate();
