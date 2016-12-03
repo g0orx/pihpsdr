@@ -27,6 +27,7 @@
 #include "band.h"
 #include "channel.h"
 #include "radio.h"
+#include "vfo.h"
 #include "button_text.h"
 
 static GtkWidget *parent_window=NULL;
@@ -45,6 +46,7 @@ static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
 static gboolean agc_select_cb (GtkWidget *widget, gpointer        data) {
   agc=(int)data;
   wdsp_set_agc(CHANNEL_RX0, agc);
+  vfo_update(NULL);
 }
 
 void agc_menu(GtkWidget *parent) {
