@@ -139,7 +139,6 @@ int getMode() {
 }
 
 void setFilter(int low,int high) {
-fprintf(stderr,"setFilter: low=%d high=%d\n", low, high);
     if(mode==modeCWL) {
         filterLow=-cw_keyer_sidetone_frequency-low;
         filterHigh=-cw_keyer_sidetone_frequency+high;
@@ -150,16 +149,14 @@ fprintf(stderr,"setFilter: low=%d high=%d\n", low, high);
         filterLow=low;
         filterHigh=high;
     }
-fprintf(stderr,"setFilter: filterLow=%d filterHigh=%d\n", filterLow, filterHigh);
 
     double fl=filterLow+ddsOffset;
     double fh=filterHigh+ddsOffset;
 
-fprintf(stderr,"setFilter: fl=%f fh=%f\n", fl, fh);
-
-    RXANBPSetFreqs(receiver,(double)filterLow,(double)filterHigh);
-    SetRXABandpassFreqs(receiver, fl,fh);
-    SetRXASNBAOutputBandwidth(receiver, (double)filterLow, (double)filterHigh);
+    //RXANBPSetFreqs(receiver,(double)filterLow,(double)filterHigh);
+    //SetRXABandpassFreqs(receiver, fl,fh);
+    //SetRXASNBAOutputBandwidth(receiver, (double)filterLow, (double)filterHigh);
+    RXASetPassband(receiver,fl,fh);
 
     SetTXABandpassFreqs(CHANNEL_TX, fl,fh);
 }
@@ -211,12 +208,15 @@ void wdsp_set_agc(int rx, int agc) {
 void wdsp_set_offset(long long offset) {
   if(offset==0) {
     SetRXAShiftFreq(receiver, (double)offset);
+    RXANBPSetShiftFrequency(receiver, (double)offset);
     SetRXAShiftRun(receiver, 0);
   } else {
     SetRXAShiftFreq(receiver, (double)offset);
+    RXANBPSetShiftFrequency(receiver, (double)offset);
     SetRXAShiftRun(receiver, 1);
   }
 
+/*
   BAND *band=band_get_current_band();
   BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
   setFrequency(entry->frequencyA);
@@ -224,6 +224,7 @@ void wdsp_set_offset(long long offset) {
   FILTER* band_filters=filters[entry->mode];
   FILTER* band_filter=&band_filters[entry->filter];
   setFilter(band_filter->low,band_filter->high);
+*/
 }
 
 void wdsp_set_input_rate(double rate) {
