@@ -65,8 +65,7 @@
 #include "psk_waterfall.h"
 #endif
 
-//#define VFO_HEIGHT ((display_height/32)*4)
-#define VFO_HEIGHT ((display_height/32)*6)
+#define VFO_HEIGHT ((display_height/32)*4)
 #define VFO_WIDTH ((display_width/32)*16)
 #define MENU_HEIGHT VFO_HEIGHT
 #define MENU_WIDTH ((display_width/32)*8)
