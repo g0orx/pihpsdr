@@ -65,14 +65,13 @@
 #include "psk_waterfall.h"
 #endif
 
-#define VFO_HEIGHT ((display_height/32)*4)
+//#define VFO_HEIGHT ((display_height/32)*4)
+#define VFO_HEIGHT ((display_height/32)*6)
 #define VFO_WIDTH ((display_width/32)*16)
 #define MENU_HEIGHT VFO_HEIGHT
-//#define MENU_WIDTH ((display_width/32)*3)
 #define MENU_WIDTH ((display_width/32)*8)
 #define RIT_WIDTH ((MENU_WIDTH/3)*2)
 #define METER_HEIGHT VFO_HEIGHT
-//#define METER_WIDTH ((display_width/32)*13)
 #define METER_WIDTH ((display_width/32)*8)
 #define PANADAPTER_HEIGHT ((display_height/32)*8)
 #define SLIDERS_HEIGHT ((display_height/32)*6)
@@ -536,6 +535,11 @@ fprintf(stderr,"%p protocol=%d name=%s\n",d,d->protocol,d->name);
       }
 }
 
+static gboolean minimize_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  gtk_window_iconify(GTK_WINDOW(window));
+  return TRUE;
+}
+
 static void start_radio() {
   int y;
 fprintf(stderr,"start: selected radio=%p device=%d\n",radio,radio->device);
@@ -612,7 +616,6 @@ fprintf(stderr,"start: selected radio=%p device=%d\n",radio,radio->device);
   gtk_container_add(GTK_CONTAINER(window), fixed);
   y=0;
 
-fprintf(stderr,"vfo_height=%d\n",VFO_HEIGHT);
   vfo = vfo_init(VFO_WIDTH,VFO_HEIGHT,window);
   gtk_fixed_put(GTK_FIXED(fixed),vfo,0,0);
 
@@ -621,12 +624,17 @@ fprintf(stderr,"vfo_height=%d\n",VFO_HEIGHT);
   rit_control = rit_init(RIT_WIDTH,MENU_HEIGHT,window);
   gtk_fixed_put(GTK_FIXED(fixed),rit_control,VFO_WIDTH,y);
 
-fprintf(stderr,"menu_height=%d\n",MENU_HEIGHT);
-  //menu = menu_init(MENU_WIDTH,MENU_HEIGHT,window);
-  menu = new_menu_init(MENU_WIDTH-RIT_WIDTH,MENU_HEIGHT,window);
-  gtk_fixed_put(GTK_FIXED(fixed),menu,VFO_WIDTH+((MENU_WIDTH/3)*2),y);
+  GtkWidget *minimize_b=gtk_button_new_with_label("Hide");
+  gtk_widget_override_font(minimize_b, pango_font_description_from_string("FreeMono Bold 10"));
+  gtk_widget_set_size_request (minimize_b, MENU_WIDTH-RIT_WIDTH, MENU_HEIGHT/2);
+  g_signal_connect (minimize_b, "button-press-event", G_CALLBACK(minimize_cb), NULL);
+  gtk_widget_show(minimize_b);
+  gtk_fixed_put(GTK_FIXED(fixed),minimize_b,VFO_WIDTH+((MENU_WIDTH/3)*2),y);
 
-fprintf(stderr,"meter_height=%d\n",METER_HEIGHT);
+  //menu = menu_init(MENU_WIDTH,MENU_HEIGHT,window);
+  menu = new_menu_init(MENU_WIDTH-RIT_WIDTH,MENU_HEIGHT/2,window);
+  gtk_fixed_put(GTK_FIXED(fixed),menu,VFO_WIDTH+((MENU_WIDTH/3)*2),y+(MENU_HEIGHT/2));
+
   meter = meter_init(METER_WIDTH,METER_HEIGHT,window);
   gtk_fixed_put(GTK_FIXED(fixed),meter,VFO_WIDTH+MENU_WIDTH,y);
   y+=VFO_HEIGHT;
@@ -646,7 +654,6 @@ fprintf(stderr,"meter_height=%d\n",METER_HEIGHT);
         height+=SLIDERS_HEIGHT/2;
       }
     }
-fprintf(stderr,"panadapter_height=%d\n",height);
     panadapter = panadapter_init(display_width,height);
     gtk_fixed_put(GTK_FIXED(fixed),panadapter,0,VFO_HEIGHT);
     y+=height;
@@ -667,7 +674,6 @@ fprintf(stderr,"panadapter_height=%d\n",height);
     if(!display_toolbar) {
       height+=TOOLBAR_HEIGHT;
     }
-fprintf(stderr,"waterfall_height=%d\n",height);
     waterfall = waterfall_init(display_width,height);
     gtk_fixed_put(GTK_FIXED(fixed),waterfall,0,y);
     y+=height;
@@ -689,14 +695,12 @@ fprintf(stderr,"waterfall_height=%d\n",height);
 #endif
 
   if(display_sliders) {
-fprintf(stderr,"sliders_height=%d\n",SLIDERS_HEIGHT);
     sliders = sliders_init(display_width,SLIDERS_HEIGHT,window);
     gtk_fixed_put(GTK_FIXED(fixed),sliders,0,y);
     y+=SLIDERS_HEIGHT;
   }
 
   if(display_toolbar) {
-fprintf(stderr,"toolbar_height=%d\n",TOOLBAR_HEIGHT);
     toolbar = toolbar_init(display_width,TOOLBAR_HEIGHT,window);
     gtk_fixed_put(GTK_FIXED(fixed),toolbar,0,y);
     y+=TOOLBAR_HEIGHT;

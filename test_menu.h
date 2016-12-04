@@ -1,5 +1,5 @@
 /* Copyright (C)
-* 2015 - John Melton, G0ORX/N6LYT
+* 2016 - John Melton, G0ORX/N6LYT
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License
@@ -17,20 +17,4 @@
 *
 */
 
-#ifndef _SLIDERS_H
-#define _SLIDERS_H
-
-extern int update_agc_gain(void *);
-extern int update_af_gain(void *);
-extern int update_mic_gain(void *);
-extern int update_drive(void *);
-
-void set_agc_gain(double value);
-void set_af_gain(double value);
-void set_mic_gain(double value);
-void set_drive(double drive);
-void set_tune(double tune);
-void set_attenuation_value(double attenuation);
-GtkWidget *sliders_init(int my_width, int my_height, GtkWidget* parent);
-
-#endif
+void test_menu(GtkWidget *parent);

@@ -1,4 +1,5 @@
-/* TS-2000 emulation via TCP
+
+/* S-2000 emulation via TCP
  * Copyright (C) 2016 Steve Wilson <wevets@gmail.com>
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -36,13 +37,14 @@
 #include "wdsp_init.h"
 #include "bandstack.h"
 #include "vfo.h"
+#include "sliders.h"
 #include <pthread.h>
 
 // IP stuff below
 #include<sys/socket.h>
 #include<arpa/inet.h> //inet_addr
 
-#define RIGCTL_DEBUG
+#undef RIGCTL_DEBUG
 
 // the port client will be connecting to
 #define PORT 19090  // This is the HAMLIB port
@@ -194,10 +196,6 @@ static void * rigctl (void * arg) {
                                             // Response - AG<0/1>123; Where 123 is 0-260
                                             if(len>4) { // Set Audio Gain
                                                volume = (double) atoi(&cmd_input[3])/260; 
-/*  KA6S - This crashes the system
-    BUG
-                                               set_af_gain(volume);               
-*/
                                                g_idle_add(update_af_gain,NULL);               
                                             } else { // Read Audio Gain
                                               sprintf(msg,"AG0%03d;",2.6 * volume);
@@ -327,9 +325,6 @@ static void * rigctl (void * arg) {
                                             if(len == 13) { //We are receiving freq info
                                                long long new_freqA = atoll(&cmd_input[2]);
                                                setFrequency(new_freqA);
-                                               // KA6S - this kills the system pretty quickly - it freezes
-                                               // vfo_update(NULL);
-                                               // BUG
                                                g_idle_add(vfo_update,NULL);
                                             } else {
                                                if(len==2) {
@@ -342,6 +337,7 @@ static void * rigctl (void * arg) {
                                             if(len==13) { //We are receiving freq info
                                                long long new_freqA = atoll(&cmd_input[2]); 
                                                setFrequency(new_freqA);
+                                               g_idle_add(vfo_update,NULL);
                                             } else if(len == 2) {
                                                sprintf(msg,"FB%011d;",getFrequency());
                                                send_resp(msg);
@@ -511,12 +507,20 @@ static void * rigctl (void * arg) {
                                             entry= (BANDSTACK_ENTRY *) 
                                                   bandstack_entry_get_current();
                                             entry->mode=new_mode;
+                                            //  BUG - kills the system when there is some
+                                            // GPIO activity and Mode sets occur. Used twittling the
+ 					    // frequency along with setting mode between USB/LSB with
+					    // flrig. Tried doing the g_idle_add trick - but don't know the
+					    // the magic to get that to compile without warnings 
                                             setMode(entry->mode);
+                                            // Moved the vfo_update down after filter updated. (John G0ORX)
+                                            //g_idle_add(vfo_update,NULL);
                                             
                                             FILTER* band_filters=filters[entry->mode];
                                             FILTER* band_filter=&band_filters[entry->filter];
                                             setFilter(band_filter->low,band_filter->high);
                                             /* Need a way to update VFO info here..*/
+                                            g_idle_add(vfo_update,NULL);
                                             }  else {     // Read Mode
                                                int curr_mode;
                                                switch (mode) {
@@ -559,8 +563,11 @@ static void * rigctl (void * arg) {
                                                send_resp(msg);
                                             } else {
                                                int tval = atoi(&cmd_input[2]);                
-                                               new_vol = (double) tval/100; 
-                                               set_mic_gain(new_vol); 
+                                               new_vol = (double) tval/2; 
+                                               //set_mic_gain(new_vol); 
+                                               double *p_mic_gain=malloc(sizeof(double));
+                                               *p_mic_gain=new_vol;
+                                               g_idle_add(update_mic_gain,(void *)p_mic_gain);
                                             }
                                          }
         else if(strcmp(cmd_str,"ML")==0) {  // Set/read the monitor function level
@@ -669,9 +676,12 @@ static void * rigctl (void * arg) {
                                                //Scales to 0.00-1.00
                                                 
                                                double drive_val = 
-                                                   (double)(atoi(&cmd_input[2]))/10; 
+                                                   (double)(atoi(&cmd_input[2])); 
                                                // setDrive(drive_val);
-                                               set_drive(drive_val);
+                                               double *p_drive=malloc(sizeof(double));
+                                               *p_drive=drive_val;
+                                               g_idle_add(update_drive,(gpointer)p_drive);
+                                               //set_drive(drive_val);
                                             }
                                          }
         else if(strcmp(cmd_str,"PI")==0) {  // STore the programmable memory channel
@@ -736,8 +746,11 @@ static void * rigctl (void * arg) {
                                             // Scale from -20 - 120
                                             if(len>4) { // Set Audio Gain
                                                int base_value = atoi(&cmd_input[2]);
-                                               float new_gain = ((((float) base_value)/255) * 140) - 20; 
-                                               set_agc_gain(new_gain);               
+                                               double new_gain = ((((double) base_value)/255) * 140) - 20; 
+                                               //set_agc_gain(new_gain);               
+                                               double *p_gain=malloc(sizeof(double));
+                                               *p_gain=new_gain;
+                                               g_idle_add(update_agc_gain,(gpointer)p_gain);
                                             } else { // Read Audio Gain
                                               sprintf(msg,"RG%03d;",(255/140)*(agc_gain+20));
                                               send_resp(msg);
@@ -1014,7 +1027,7 @@ int init_server () {
     socket_desc = socket(AF_INET , SOCK_STREAM , 0);
     if (socket_desc == -1)
     {
-        fprintf(stderr,"RIGCTL: Could not create socket\n");
+        fprintf(stderr,"RIGCTL: Could not create socket");
     }
     fprintf(stderr, "RIGCTL: Socket created\n");
      

@@ -139,6 +139,7 @@ int getMode() {
 }
 
 void setFilter(int low,int high) {
+
     if(mode==modeCWL) {
         filterLow=-cw_keyer_sidetone_frequency-low;
         filterHigh=-cw_keyer_sidetone_frequency+high;
@@ -150,15 +151,12 @@ void setFilter(int low,int high) {
         filterHigh=high;
     }
 
+    RXASetPassband(receiver,(double)filterLow,(double)filterHigh);
+
     double fl=filterLow+ddsOffset;
     double fh=filterHigh+ddsOffset;
-
-    //RXANBPSetFreqs(receiver,(double)filterLow,(double)filterHigh);
-    //SetRXABandpassFreqs(receiver, fl,fh);
-    //SetRXASNBAOutputBandwidth(receiver, (double)filterLow, (double)filterHigh);
-    RXASetPassband(receiver,fl,fh);
-
     SetTXABandpassFreqs(CHANNEL_TX, fl,fh);
+
 }
 
 int getFilterLow() {
@@ -215,16 +213,6 @@ void wdsp_set_offset(long long offset) {
     RXANBPSetShiftFrequency(receiver, (double)offset);
     SetRXAShiftRun(receiver, 1);
   }
-
-/*
-  BAND *band=band_get_current_band();
-  BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
-  setFrequency(entry->frequencyA);
-  setMode(entry->mode);
-  FILTER* band_filters=filters[entry->mode];
-  FILTER* band_filter=&band_filters[entry->filter];
-  setFilter(band_filter->low,band_filter->high);
-*/
 }
 
 void wdsp_set_input_rate(double rate) {

@@ -203,6 +203,7 @@ void ant_menu(GtkWidget *parent) {
         gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (tx1_b), band->alexTxAntenna==0);
         gtk_widget_show(tx1_b);
         gtk_grid_attach(GTK_GRID(grid),tx1_b,8,i+2,1,1);
+        g_signal_connect(tx1_b,"pressed",G_CALLBACK(tx_ant_cb),(gpointer)((i<<4)+0));
   
         GtkWidget *tx2_b=gtk_radio_button_new_from_widget(GTK_RADIO_BUTTON(tx1_b));
         gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (tx2_b), band->alexTxAntenna==1);

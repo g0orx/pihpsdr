@@ -340,25 +340,10 @@ void setFrequency(long long f) {
   BAND *band=band_get_current_band();
   BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
 
-  if(entry->frequencyA!=f) {
-    switch(protocol) {
-      case NEW_PROTOCOL:
-      case ORIGINAL_PROTOCOL:
-        if(ctun) {
-          long long minf=entry->frequencyA-(long long)(sample_rate/2);
-          long long maxf=entry->frequencyA+(long long)(sample_rate/2);
-          if(f<minf) f=minf;
-          if(f>maxf) f=maxf;
-          ddsOffset=f-entry->frequencyA;
-          wdsp_set_offset(ddsOffset);
-          return;
-        } else {
-          entry->frequencyA=f;
-        }
-        break;
-#ifdef LIMESDR
-      case LIMESDR_PROTOCOL:
-        {
+  switch(protocol) {
+    case NEW_PROTOCOL:
+    case ORIGINAL_PROTOCOL:
+      if(ctun) {
         long long minf=entry->frequencyA-(long long)(sample_rate/2);
         long long maxf=entry->frequencyA+(long long)(sample_rate/2);
         if(f<minf) f=minf;
@@ -366,10 +351,23 @@ void setFrequency(long long f) {
         ddsOffset=f-entry->frequencyA;
         wdsp_set_offset(ddsOffset);
         return;
-        }
-        break;
+      } else {
+        entry->frequencyA=f;
+      }
+      break;
+#ifdef LIMESDR
+    case LIMESDR_PROTOCOL:
+      {
+      long long minf=entry->frequencyA-(long long)(sample_rate/2);
+      long long maxf=entry->frequencyA+(long long)(sample_rate/2);
+      if(f<minf) f=minf;
+      if(f>maxf) f=maxf;
+      ddsOffset=f-entry->frequencyA;
+      wdsp_set_offset(ddsOffset);
+      return;
+      }
+      break;
 #endif
-    }
   }
 
   displayFrequency=f;

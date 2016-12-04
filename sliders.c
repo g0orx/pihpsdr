@@ -20,6 +20,7 @@
 #include <gtk/gtk.h>
 #include <semaphore.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 
 #include "sliders.h"
@@ -156,6 +157,12 @@ void set_agc_gain(double value) {
   }
 }
 
+int update_agc_gain(void *data) {
+  set_agc_gain(*(double*)data);
+  free(data);
+  return 0;
+}
+
 static void afgain_value_changed_cb(GtkWidget *widget, gpointer data) {
     volume=gtk_range_get_value(GTK_RANGE(af_gain_scale))/100.0;
     SetRXAPanelGain1 (CHANNEL_RX0, volume);
@@ -240,6 +247,12 @@ void set_mic_gain(double value) {
   }
 }
 
+int update_mic_gain(void *data) {
+  set_mic_gain(*(double*)data);
+  free(data);
+  return 0;
+}
+
 void set_drive(double value) {
   setDrive(value);
   if(display_sliders) {
@@ -274,6 +287,12 @@ void set_drive(double value) {
 
 static void drive_value_changed_cb(GtkWidget *widget, gpointer data) {
   setDrive(gtk_range_get_value(GTK_RANGE(drive_scale)));
+}
+
+int update_drive(void *data) {
+  set_drive(*(double *)data);
+  free(data);
+  return 0;
 }
 
 void set_tune(double value) {

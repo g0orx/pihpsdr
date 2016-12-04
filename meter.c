@@ -317,7 +317,7 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
 
       cairo_set_font_size(cr, 12);
       sprintf(sf,"%d dBm",(int)level);
-      cairo_move_to(cr, text_location, 45);
+      cairo_move_to(cr, text_location, meter_height-30);
       cairo_show_text(cr, sf);
 
 #ifdef FREEDV

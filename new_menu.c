@@ -47,6 +47,7 @@
 #include "noise_menu.h"
 #include "agc_menu.h"
 #include "fm_menu.h"
+#include "test_menu.h"
 
 
 static GtkWidget *parent_window=NULL;
@@ -238,6 +239,16 @@ static gboolean fm_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) 
   return TRUE;
 }
 
+void start_test() {
+  cleanup();
+  test_menu(parent_window);
+}
+
+static gboolean test_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  start_test();
+  return TRUE;
+}
+
 static gboolean new_menu_pressed_event_cb (GtkWidget *widget,
                GdkEventButton *event,
                gpointer        data)
@@ -361,6 +372,11 @@ static gboolean new_menu_pressed_event_cb (GtkWidget *widget,
     g_signal_connect (agc_b, "button-press-event", G_CALLBACK(agc_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),agc_b,5,4,1,1);
 
+/*
+    GtkWidget *test_b=gtk_button_new_with_label("Test");
+    g_signal_connect (test_b, "button-press-event", G_CALLBACK(test_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),test_b,0,5,1,1);
+*/
 
     gtk_container_add(GTK_CONTAINER(content),grid);
 
