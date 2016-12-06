@@ -220,6 +220,12 @@ int rx_equalizer[4]={0,0,0,0};
 int deviation=2500;
 int pre_emphasize=0;
 
+int vox_enabled=0;
+double vox_threshold=0.001;
+double vox_gain=1;
+double vox_hang=250.0;
+int vox=0;
+
 void init_radio() {
   int rc;
   rc=sem_init(&property_sem, 0, 0);
@@ -238,47 +244,36 @@ int getSampleRate() {
     return sample_rate;
 }
 
-void setMox(int state) {
-  if(mox!=state) {
-    if(state) {
-      // switch to tx
-      SetChannelState(CHANNEL_RX0,0,1);
-      mox=state;
-      if(protocol==NEW_PROTOCOL) {
-        schedule_high_priority(3);
-      }
-      SetChannelState(CHANNEL_TX,1,0);
-#ifdef FREEDV
-      if(mode==modeFREEDV) {
-        freedv_reset_tx_text_index();
-      }
-#endif
-    } else {
-      SetChannelState(CHANNEL_TX,0,1);
-      mox=state;
-      if(protocol==NEW_PROTOCOL) {
-        schedule_high_priority(3);
-      }
-      SetChannelState(CHANNEL_RX0,1,0);
-    }
-/*
-    mox=state;
+static void rxtx(int state) {
+  if(state) {
+    // switch to tx
+    SetChannelState(CHANNEL_RX0,0,1);
     if(protocol==NEW_PROTOCOL) {
       schedule_high_priority(3);
     }
-    if(mox) {
+    SetChannelState(CHANNEL_TX,1,0);
 #ifdef FREEDV
-      if(mode==modeFREEDV) {
-        freedv_reset_tx_text_index();
-      }
-#endif
-      SetChannelState(CHANNEL_RX0,0,1);
-      SetChannelState(CHANNEL_TX,1,0);
-    } else {
-      SetChannelState(CHANNEL_TX,0,1);
-      SetChannelState(CHANNEL_RX0,1,0);
+    if(mode==modeFREEDV) {
+      freedv_reset_tx_text_index();
     }
-*/
+#endif
+  } else {
+    SetChannelState(CHANNEL_TX,0,1);
+    if(protocol==NEW_PROTOCOL) {
+      schedule_high_priority(3);
+    }
+    SetChannelState(CHANNEL_RX0,1,0);
+  }
+}
+
+void setMox(int state) {
+  if(mox!=state) {
+    mox=state;
+    if(vox_enabled && vox) {
+      vox_cancel();
+    } else {
+      rxtx(state);
+    }
   }
 }
 
@@ -286,9 +281,19 @@ int getMox() {
     return mox;
 }
 
+void setVox(int state) {
+  if(vox!=state && !tune) {
+    vox=state;
+    rxtx(state);
+  }
+}
+
 void setTune(int state) {
   if(tune!=state) {
     tune=state;
+    if(vox_enabled && vox) {
+      vox_cancel();
+    }
     if(tune) {
       if(OCmemory_tune_time!=0) {
         struct timeval te;
@@ -333,7 +338,7 @@ int getTune() {
 }
 
 int isTransmitting() {
-  return ptt || mox || tune;
+  return ptt || mox || vox || tune;
 }
 
 void setFrequency(long long f) {
@@ -675,6 +680,15 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     value=getProperty("pre_emphasize");
     if(value) pre_emphasize=atoi(value);
 
+    value=getProperty("vox_enabled");
+    if(value) vox_enabled=atoi(value);
+    value=getProperty("vox_threshold");
+    if(value) vox_threshold=atof(value);
+    value=getProperty("vox_gain");
+    if(value) vox_gain=atof(value);
+    value=getProperty("vox_hang");
+    if(value) vox_hang=atof(value);
+
     bandRestoreState();
 
     sem_post(&property_sem);
@@ -858,6 +872,15 @@ void radioSaveState() {
     setProperty("deviation",value);
     sprintf(value,"%d",pre_emphasize);
     setProperty("pre_emphasize",value);
+
+    sprintf(value,"%d",vox_enabled);
+    setProperty("vox_enabled",value);
+    sprintf(value,"%f",vox_threshold);
+    setProperty("vox_threshold",value);
+    sprintf(value,"%f",vox_gain);
+    setProperty("vox_gain",value);
+    sprintf(value,"%f",vox_hang);
+    setProperty("vox_hang",value);
 
     bandSaveState();
 

@@ -42,12 +42,12 @@ static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
   return TRUE;
 }
 
-static void linein_cb(GtkWidget *widget, gpointer data) {
-  mic_linein=mic_linein==1?0:1;
-}
-
 static void micboost_cb(GtkWidget *widget, gpointer data) {
   mic_boost=mic_boost==1?0:1;
+}
+
+static void linein_cb(GtkWidget *widget, gpointer data) {
+  mic_linein=mic_linein==1?0:1;
 }
 
 static void local_audio_cb(GtkWidget *widget, gpointer data) {
@@ -107,7 +107,6 @@ fprintf(stderr,"local_input_changed_cb: %d selected=%d\n",local_microphone,n_sel
   }
 }
 
-
 void audio_menu(GtkWidget *parent) {
   int i;
 
@@ -127,8 +126,8 @@ void audio_menu(GtkWidget *parent) {
   GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
 
   GtkWidget *grid=gtk_grid_new();
-  //gtk_grid_set_column_spacing (GTK_GRID(grid),10);
-  //gtk_grid_set_row_spacing (GTK_GRID(grid),10);
+  gtk_grid_set_column_spacing (GTK_GRID(grid),10);
+  gtk_grid_set_row_spacing (GTK_GRID(grid),5);
   //gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
   //gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
 
@@ -136,50 +135,28 @@ void audio_menu(GtkWidget *parent) {
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
+  int row=0;
 
   if(protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL) {
-    GtkWidget *linein_b=gtk_check_button_new_with_label("Mic Line In");
+    GtkWidget *linein_b=gtk_check_button_new_with_label("Mic Line In (ACC connector)");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (linein_b), mic_linein);
     gtk_widget_show(linein_b);
-    gtk_grid_attach(GTK_GRID(grid),linein_b,0,1,1,1);
+    gtk_grid_attach(GTK_GRID(grid),linein_b,0,++row,1,1);
     g_signal_connect(linein_b,"toggled",G_CALLBACK(linein_cb),NULL);
 
-    GtkWidget *micboost_b=gtk_check_button_new_with_label("Mic Boost");
+    GtkWidget *micboost_b=gtk_check_button_new_with_label("Mic Boost (radio only)");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (micboost_b), mic_boost);
     gtk_widget_show(micboost_b);
-    gtk_grid_attach(GTK_GRID(grid),micboost_b,0,2,1,1);
+    gtk_grid_attach(GTK_GRID(grid),micboost_b,0,++row,1,1);
     g_signal_connect(micboost_b,"toggled",G_CALLBACK(micboost_cb),NULL);
   }
 
 
-  if(n_output_devices>0) {
-    GtkWidget *local_audio_b=gtk_check_button_new_with_label("Local Audio");
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (local_audio_b), local_audio);
-    gtk_widget_show(local_audio_b);
-    gtk_grid_attach(GTK_GRID(grid),local_audio_b,1,1,1,1);
-    g_signal_connect(local_audio_b,"toggled",G_CALLBACK(local_audio_cb),NULL);
-
-    if(n_selected_output_device==-1) n_selected_output_device=0;
-
-    for(i=0;i<n_output_devices;i++) {
-      GtkWidget *output;
-      if(i==0) {
-        output=gtk_radio_button_new_with_label(NULL,output_devices[i]);
-      } else {
-        output=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(output),output_devices[i]);
-      }
-      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (output), n_selected_output_device==i);
-      gtk_widget_show(output);
-      gtk_grid_attach(GTK_GRID(grid),output,1,i+2,1,1);
-      g_signal_connect(output,"pressed",G_CALLBACK(local_output_changed_cb),(gpointer *)i);
-    }
-  }
-
   if(n_input_devices>0) {
-    GtkWidget *local_microphone_b=gtk_check_button_new_with_label("Microphone Audio");
+    GtkWidget *local_microphone_b=gtk_check_button_new_with_label("Local Microphone Input");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (local_microphone_b), local_microphone);
     gtk_widget_show(local_microphone_b);
-    gtk_grid_attach(GTK_GRID(grid),local_microphone_b,2,1,1,1);
+    gtk_grid_attach(GTK_GRID(grid),local_microphone_b,0,++row,1,1);
     g_signal_connect(local_microphone_b,"toggled",G_CALLBACK(local_microphone_cb),NULL);
 
     if(n_selected_input_device==-1) n_selected_input_device=0;
@@ -193,8 +170,33 @@ void audio_menu(GtkWidget *parent) {
       }
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (input), n_selected_input_device==i);
       gtk_widget_show(input);
-      gtk_grid_attach(GTK_GRID(grid),input,2,i+2,1,1);
+      gtk_grid_attach(GTK_GRID(grid),input,0,++row,1,1);
       g_signal_connect(input,"pressed",G_CALLBACK(local_input_changed_cb),(gpointer *)i);
+    }
+  }
+
+  row=0;
+
+  if(n_output_devices>0) {
+    GtkWidget *local_audio_b=gtk_check_button_new_with_label("Local Audio Output");
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (local_audio_b), local_audio);
+    gtk_widget_show(local_audio_b);
+    gtk_grid_attach(GTK_GRID(grid),local_audio_b,1,++row,1,1);
+    g_signal_connect(local_audio_b,"toggled",G_CALLBACK(local_audio_cb),NULL);
+
+    if(n_selected_output_device==-1) n_selected_output_device=0;
+
+    for(i=0;i<n_output_devices;i++) {
+      GtkWidget *output;
+      if(i==0) {
+        output=gtk_radio_button_new_with_label(NULL,output_devices[i]);
+      } else {
+        output=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(output),output_devices[i]);
+      }
+      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (output), n_selected_output_device==i);
+      gtk_widget_show(output);
+      gtk_grid_attach(GTK_GRID(grid),output,1,++row,1,1);
+      g_signal_connect(output,"pressed",G_CALLBACK(local_output_changed_cb),(gpointer *)i);
     }
   }
 

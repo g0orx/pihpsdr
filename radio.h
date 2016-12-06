@@ -230,6 +230,12 @@ extern int rx_equalizer[4];
 extern int deviation;
 extern int pre_emphasize;
 
+extern int vox_enabled;
+extern double vox_threshold;
+extern double vox_gain;
+extern double vox_hang;
+extern int vox;
+
 extern void init_radio();
 extern void setSampleRate(int rate);
 extern int getSampleRate();

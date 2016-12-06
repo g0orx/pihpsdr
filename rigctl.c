@@ -39,6 +39,7 @@
 #include "vfo.h"
 #include "sliders.h"
 #include <pthread.h>
+#include <wdsp.h>
 
 // IP stuff below
 #include<sys/socket.h>
@@ -47,7 +48,7 @@
 #undef RIGCTL_DEBUG
 
 // the port client will be connecting to
-#define PORT 19090  // This is the HAMLIB port
+#define TELNET_PORT 19090  // This is the HAMLIB port
 // max number of bytes we can get at once
 #define MAXDATASIZE 300
 
@@ -142,7 +143,7 @@ char * cmd_lookup (int index_num) {
 }
 
 static void * rigctl (void * arg) {
-        
+   int work_int;     
    int len;
    init_server();
    double meter;
@@ -157,7 +158,7 @@ static void * rigctl (void * arg) {
            strcpy(cmd_save,cmd_input);      // And save a copy of it till next time through
            save_flag = 1;
            #ifdef RIGCTL_DEBUG
-           fprintf(stderr,"RIGCTL: *** CMD_SAVE=%s\n",cmd_save);
+           fprintf(stderr,"RIGCTL: CMD_SAVE=%s  LEN=%d\n",cmd_save,numbytes);
            #endif
         } else if(save_flag == 1) {
            save_flag = 0;
@@ -166,14 +167,21 @@ static void * rigctl (void * arg) {
            strcpy(cmd_input,cmd_save);      // Cat them together and replace cmd_input
            numbytes = strlen(cmd_input);
            #ifdef RIGCTL_DEBUG
-           fprintf(stderr,"RIGCTL: *** CMD_INPUT=%s LEN=%d\n",cmd_input,numbytes);
+            fprintf(stderr,"RIGCTL: CMD_INPUT=%s LEN=%d\n",cmd_input,numbytes);
+           #endif
+        } else {
+           #ifdef RIGCTL_DEBUG
+           fprintf(stderr,"RIGCTL: CMD_NORM=%s  NUMBYTES=%d\n",cmd_input,numbytes);
            #endif
         }
 
         cmd_input[numbytes-1] = '\0';  // Turn it into a C string.
         len = strlen(cmd_input);
+           #ifdef RIGCTL_DEBUG
+           fprintf(stderr,"RIGCTL: CMD_AFTER=%s  LEN=%d\n",cmd_input,len);
+           #endif
         #ifdef RIGCTL_DEBUG
-        fprintf(stderr,"RIGCTL: RCVD=%s LENGTH=%d\n",cmd_input,len);
+        fprintf(stderr,"RIGCTL: RCVD=%s  LENGTH=%d\n",cmd_input,len);
         #endif
         // Parse the cmd_input
         //int space = command.indexOf(' ');
@@ -361,27 +369,27 @@ static void * rigctl (void * arg) {
                                               send_resp("FD00000000;");
                                           }
         else if(strcmp(cmd_str,"FR")==0)  {  // Set/reads the extension menu
-                                             if(len <2) {
+                                             if(len <=2) {
                                                 send_resp("FR0;");
                                              } 
                                           }
         else if(strcmp(cmd_str,"FS")==0)  {  // Set/reads fine funct status
-                                             if(len <2) {
+                                             if(len <=2) {
                                                 send_resp("FS0;");
                                              } 
                                           }
         else if(strcmp(cmd_str,"FT")==0)  { // Sel or reads the transmitters VFO, M, ch or Call comm   
-                                             if(len <2) {
+                                             if(len <=2) {
                                                 send_resp("FT0;");
                                              } 
                                           }  
         else if(strcmp(cmd_str,"FW")==0)  { // Sets/Reas DSP receive filter width in hz 0-9999hz 
-                                             if(len <2) {
+                                             if(len <=2) {
                                                 send_resp("FW0000;");
                                              } 
                                           }  
         else if(strcmp(cmd_str,"GT")==0)  { // Sets/Reas AGC constant status
-                                             if(len <2) {
+                                             if(len <=2) {
                                                 send_resp("GT000;");
                                              } 
                                           }  
@@ -424,37 +432,37 @@ static void * rigctl (void * arg) {
                                             send_resp(msg);
                                          }
         else if(strcmp(cmd_str,"IS")==0)  { // Sets/Reas IF shift funct status
-                                             if(len <2) {
+                                             if(len <=2) {
                                                 send_resp("IS00000;");
                                              } 
                                           }  
         else if(strcmp(cmd_str,"KS")==0)  { // Sets/Reads keying freq - 0-060 max
-                                             if(len <2) {
+                                             if(len <=2) {
                                                 send_resp("KS000;");
                                              } 
                                           }  
         else if(strcmp(cmd_str,"KY")==0)  { // Convert char to morse code
-                                             if(len <2) {
+                                             if(len <=2) {
                                                 send_resp("KY0;");
                                              } 
                                           }  
         else if(strcmp(cmd_str,"LK")==0)  { // Set/read key lock function status
-                                             if(len <2) {
+                                             if(len <=2) {
                                                 send_resp("LK00;");
                                              } 
                                           }  
         else if(strcmp(cmd_str,"LM")==0)  { // Set/read DRU 3A unit or elect keyer recording status
-                                             if(len <2) {
+                                             if(len <=2) {
                                                 send_resp("LM0;");
                                              } 
                                           }  
         else if(strcmp(cmd_str,"LT")==0)  { // Set/read Alt function
-                                             if(len <2) {
+                                             if(len <=2) {
                                                 send_resp("LT0;");
                                              } 
                                           }  
         else if(strcmp(cmd_str,"MC")==0) {  // Recalls or reads memory channel
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("MC000;"); // Link this to band stack at some point
                                              }
                                          }
@@ -497,7 +505,7 @@ static void * rigctl (void * arg) {
                                                  default:
                                                      break;
                                                      #ifdef RIGCTL_DEBUG
-                                                     fprintf(stderr,"MD command Unknown");
+                                                     fprintf(stderr,"MD command Unknown\n");
                                                      #endif
                                                }
                                             // Other stuff to switch modes goes here..
@@ -553,17 +561,18 @@ static void * rigctl (void * arg) {
                                             }
                                          }
         else if(strcmp(cmd_str,"MF")==0) {  // Set/read menu A/B
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("MF0;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"MG")==0) {  // Mike Gain - 3 digit value 
-                                            if(len <2) {
-                                               sprintf(msg,"MG%03d",mic_gain * 100);
+                                            if(len <=2) {
+                                               work_int = (int) ((mic_gain +10.0)* 100.0/60.0);
+                                               sprintf(msg,"MG%03d",work_int);
                                                send_resp(msg);
                                             } else {
                                                int tval = atoi(&cmd_input[2]);                
-                                               new_vol = (double) tval/2; 
+                                               new_vol = (double) (tval * 60/100) - 10; 
                                                //set_mic_gain(new_vol); 
                                                double *p_mic_gain=malloc(sizeof(double));
                                                *p_mic_gain=new_vol;
@@ -571,17 +580,17 @@ static void * rigctl (void * arg) {
                                             }
                                          }
         else if(strcmp(cmd_str,"ML")==0) {  // Set/read the monitor function level
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("ML000;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"MO")==0) {  // Set Monitor on/off
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("MO0;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"MR")==0) {  // Read Memory Channel data
-                                             sprintf("MR%1d%02d%02d%011d%1d%1d%1d%02d%02d%03d%1d%1d%09d%02d%1d%08d;",
+                                             sprintf(msg,"MR%1d%02d%02d%011d%1d%1d%1d%02d%02d%03d%1d%1d%09d%02d%1d%08d;",
                                                       0, // P1 - Rx Freq - 1 Tx Freq
                                                       0, // P2 Bankd and channel number -- see MC comment
                                                       0, // P3 - see MC comment 
@@ -601,39 +610,39 @@ static void * rigctl (void * arg) {
                                                send_resp(msg);
                                          }
         else if(strcmp(cmd_str,"MU")==0) {  // Set/Read Memory Group Data
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("MU0000000000;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"MW")==0) {  // Store Data to Memory Channel
                                          }
         else if(strcmp(cmd_str,"NB")==0) {  // Set/Read Noise Blanker func status (on/off)
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("NB0;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"NL")==0) {  // Set/Read Noise Reduction  Level
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("NL000;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"NR")==0) {  // Set/Read Noise Reduction function status
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("NR0;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"NT")==0) {  // Set/Read autonotch function
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("NT0;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"OF")==0) {  // Set/Read Offset freq (9 digits - hz)
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("OF000000000;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"OI")==0) {  // Read Memory Channel Data
-                                             if(len <2) {
+                                             if(len <=2) {
                                                sprintf(msg,"OI%011d%04d%06d%1d%1d%1d%02d%1d%1d%1d%1d%1d%1d%02d%1d;",
                                                   getFrequency(),
                                                   0, // P2 - Freq Step size
@@ -653,23 +662,23 @@ static void * rigctl (void * arg) {
                                              }
                                          }
         else if(strcmp(cmd_str,"OS")==0) {  // Set/Read Offset freq (9 digits - hz)
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("OS0;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"PA")==0) {  // Set/Read Preamp function status
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("PA00;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"PB")==0) {  // Set/Read DRU-3A Playback status
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("PB0;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"PC")==0) {  // Set/Read Drive Power output
-                                            if(len==2) {
-                                              sprintf(msg,"PC%03d;",drive*100);
+                                            if(len<=2) {
+                                              sprintf(msg,"PC%03d;",(int) drive);
                                               send_resp(msg); 
                                             } else {
                                                // Power Control - 3 digit number- 0 to 100
@@ -692,30 +701,30 @@ static void * rigctl (void * arg) {
         else if(strcmp(cmd_str,"PL")==0) {  // Set/Read Speech processor level
                                             // P1 000 - min-100 max
                                             // P2 000 - min - 100 max
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("PL000000;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"PM")==0) {  // Recalls the Programmable memory
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("PM0;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"PR")==0) {  // Sets/reads the speech processor function on/off
                                             // 0 - off, 1=on
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("PR0;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"PS")==0) {  // Sets/reads Power on/off state
                                             // 0 - off, 1=on
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("PS1;"); // Lets pretend we're powered up ;-) 
                                              }
                                          }
         else if(strcmp(cmd_str,"PS")==0) {  // Sets/reads DCS code
                                             // Codes numbered from 000 to 103.
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("QC000;"); // Lets pretend we're powered up ;-) 
                                              }
                                          }
@@ -724,20 +733,20 @@ static void * rigctl (void * arg) {
         else if(strcmp(cmd_str,"QR")==0) {  // Send the Quick memory channel data
                                             // P1 - Quick mem off, 1 quick mem on
                                             // P2 - Quick mem channel number
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("QR00;"); // Lets pretend we're powered up ;-) 
                                              }
                                          }
         else if(strcmp(cmd_str,"RA")==0) {  // Sets/reads Attenuator function status
                                             // 00-off, 1-99 -on - Main and sub receivers reported
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("RA0000;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"RC")==0) {  // Clears the RIT offset freq
                                          }
         else if(strcmp(cmd_str,"RD")==0) {  // Move the RIT offset freq down, slow down the scan speed in scan mode
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("RD0;"); 
                                              }
                                          }
@@ -752,70 +761,70 @@ static void * rigctl (void * arg) {
                                                *p_gain=new_gain;
                                                g_idle_add(update_agc_gain,(gpointer)p_gain);
                                             } else { // Read Audio Gain
-                                              sprintf(msg,"RG%03d;",(255/140)*(agc_gain+20));
+                                              sprintf(msg,"RG%03d;",((256 * (int) agc_gain)/140)+36);
                                               send_resp(msg);
                                             }
                                          }
         else if(strcmp(cmd_str,"RL")==0) {  // Set/read Noise reduction level
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("RL00;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"RM")==0) {  // Set/read Meter function
                                             // P1- 0, unsel, 1 SWR, 2 Comp, 3 ALC
                                             // P2 - 4 dig - Meter value in dots - 000-0030
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("RM00000;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"RT")==0) {  // Set/read the RIT function status
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("RT0;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"RU")==0) {  // Set/move RIT frequency up
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("RU0;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"RX")==0) {  // Unkey Xmitter
                                             setMox(0);
                                             // 0-main, 1=sub
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("RX0;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"SA")==0) {  // Set/reads satellite mode status
                                             // 0-main, 1=sub
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("SA000000000000000;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"SB")==0) {  // Set/read the SUB TF-W status
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("SB0;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"SC")==0) {  // Set/read the Scan function status
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("SC0;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"SD")==0) {  // Set/read CW break-in time delay
                                             // 0000-1000 ms (in steps of 50 ms) 0000 is full break in
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("SD0000;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"SH")==0) {  // Set/read the DSP filter settings
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("SH00;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"SI")==0) {  // Enters the satellite memory name
                                          }
         else if(strcmp(cmd_str,"SL")==0) {  // Set/read the DSP filter settings - this appears twice? See SH
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("SL00;"); 
                                              }
                                          }
@@ -840,93 +849,93 @@ static void * rigctl (void * arg) {
         else if(strcmp(cmd_str,"SQ")==0) {  // Set/read the squelch level
                                             // P1 - 0- main, 1=sub
                                             // P2 - 0-255
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("SQ0000;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"SR")==0) {  // Resets the transceiver
                                          }
         else if(strcmp(cmd_str,"SS")==0) {  // Set/read Scan pause freq
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("SS0;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"ST")==0) {  // Set/read the multi/ch control freq steps
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("ST00;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"SU")==0) {  // Set/read the scan pause freq
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("SU00000000000;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"SV")==0) {  // Execute the memory transfer function
                                          }
         else if(strcmp(cmd_str,"TC")==0) {  // Set/read the internal TNC mode
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("TC00;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"TD")==0) {  // Sends the DTMF memory channel
                                          }
         else if(strcmp(cmd_str,"TI")==0) {  // Reads the TNC LED status
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("TI00;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"TN")==0) {  // Set/Read sub tone freq
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("TN00;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"TO")==0) {  // Set/Read tone function
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("TO0;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"TS")==0) {  // Set/Read TF Set function status
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("TS0;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"TX")==0) {  // Key Xmitter - P1 - transmit on main/sub freq
                                             setMox(1);
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("TS0;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"TY")==0) {  // Set/Read uP firmware type
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("TY000;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"UL")==0) {  // Detects the PLL unlock status - this should never occur - xmit only
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("UL0;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"UP")==0) {  // Emulates the mic up key
                                          }
         else if(strcmp(cmd_str,"VD")==0) {  // Sets/Reads VOX dleay time - 0000-3000ms in steps of 150
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("VD0000;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"VG")==0) {  // Sets/Reads VOX gain 000-009
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("VG000;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"VG")==0) {  // Emulates the voide 1/2 key
                                          }
         else if(strcmp(cmd_str,"VX")==0) {  // Sets/reads vox f(x) state
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("VX0;"); 
                                              }
                                          }
         else if(strcmp(cmd_str,"XT")==0) {  // Sets/reads the XIT f(x) state
-                                             if(len <2) {
+                                             if(len <=2) {
                                                send_resp("XT0;"); 
                                              }
                                          }
@@ -937,7 +946,7 @@ static void * rigctl (void * arg) {
                                                digl_pol = (cmd_input[2]=='0') ? -1 : 1;
                                                digl_offset = atoi(&cmd_input[3]); 
                                                #ifdef RIGCTL_DEBUG
-                                               fprintf(stderr,"RIGCTL:RL set %d %d",digl_pol,digl_offset); 
+                                               fprintf(stderr,"RIGCTL:RL set %d %d\n",digl_pol,digl_offset); 
                                                #endif
                                             } else {
                                                if(digl_pol==1) { // Nah - its a read
@@ -958,7 +967,7 @@ static void * rigctl (void * arg) {
                                                digl_pol = (cmd_input[2]=='0') ? -1 : 1;
                                                digl_offset = atoi(&cmd_input[3]); 
                                                #ifdef RIGCTL_DEBUG
-                                               fprintf(stderr,"RIGCTL:RL set %d %d",digl_pol,digl_offset); 
+                                               fprintf(stderr,"RIGCTL:RL set %d %d\n",digl_pol,digl_offset); 
                                                #endif
                                             } else {
                                                if(digl_pol==1) { // Nah - its a read
@@ -1016,8 +1025,6 @@ void launch_rigctl () {
 //
 // Telnet Server Code below:
 //
-     // the port client will be connecting to
-    #define PORT 19090  // This is the HAMLIB port
     // max number of bytes we can get at once
     #define MAXDATASIZE 300
 
@@ -1034,7 +1041,7 @@ int init_server () {
     //Prepare the sockaddr_in structure
     server.sin_family = AF_INET;
     server.sin_addr.s_addr = INADDR_ANY;
-    server.sin_port = htons( PORT );
+    server.sin_port = htons( TELNET_PORT );
      
     //Bind
     if( bind(socket_desc,(struct sockaddr *)&server , sizeof(server)) < 0)

@@ -925,7 +925,7 @@ static void process_mic_data(unsigned char *buffer) {
                }
             } else {
 #endif
-               if(mode==modeCWL || mode==modeCWU || tune || !isTransmitting()) {
+               if(mode==modeCWL || mode==modeCWU || tune /*|| !isTransmitting()*/) {
                    micinputbuffer[micsamples*2]=0.0;
                    micinputbuffer[(micsamples*2)+1]=0.0;
                } else {
@@ -1007,20 +1007,26 @@ static void process_freedv_rx_buffer() {
 static void process_rx_buffer() {
   int j;
   for(j=0;j<outputsamples;j++) {
-    leftaudiosample=(short)(audiooutputbuffer[j*2]*32767.0*volume);
-    rightaudiosample=(short)(audiooutputbuffer[(j*2)+1]*32767.0*volume);
+    if(isTransmitting()) {
+      leftaudiosample=0;
+      rightaudiosample=0;
+    } else {
+      leftaudiosample=(short)(audiooutputbuffer[j*2]*32767.0*volume);
+      rightaudiosample=(short)(audiooutputbuffer[(j*2)+1]*32767.0*volume);
 
 #ifdef PSK
-    if(mode==modePSK) {
-      if(psk_samples==0) {
-        psk_demod((double)((leftaudiosample+rightaudiosample)/2));
+      if(mode==modePSK) {
+        if(psk_samples==0) {
+          psk_demod((double)((leftaudiosample+rightaudiosample)/2));
+        }
+        psk_samples++;
+        if(psk_samples==psk_resample) {
+          psk_samples=0;
+        }
       }
-      psk_samples++;
-      if(psk_samples==psk_resample) {
-        psk_samples=0;
-      }
-    }
 #endif
+    }
+
     if(local_audio) {
       audio_write(leftaudiosample,rightaudiosample);
     }
@@ -1085,6 +1091,22 @@ static void full_tx_buffer() {
   double gain=8388607.0;
   int j;
   int error;
+
+  if(vox_enabled) {
+    switch(mode) {
+      case modeLSB:
+      case modeUSB:
+      case modeDSB:
+      case modeFMN:
+      case modeAM:
+      case modeSAM:
+#ifdef FREEDV
+      case modeFREEDV:
+#endif
+        update_vox(micinputbuffer,BUFFER_SIZE);
+        break;
+    }
+  }
 
   fexchange0(CHANNEL_TX, micinputbuffer, iqoutputbuffer, &error);
   Spectrum0(1, CHANNEL_TX, 0, 0, iqoutputbuffer);

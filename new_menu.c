@@ -48,6 +48,7 @@
 #include "agc_menu.h"
 #include "fm_menu.h"
 #include "test_menu.h"
+#include "vox_menu.h"
 
 
 static GtkWidget *parent_window=NULL;
@@ -239,6 +240,16 @@ static gboolean fm_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) 
   return TRUE;
 }
 
+void start_vox() {
+  cleanup();
+  vox_menu(parent_window);
+}
+
+static gboolean vox_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  start_vox();
+  return TRUE;
+}
+
 void start_test() {
   cleanup();
   test_menu(parent_window);
@@ -347,6 +358,10 @@ static gboolean new_menu_pressed_event_cb (GtkWidget *widget,
     GtkWidget *meter_b=gtk_button_new_with_label("Meter");
     g_signal_connect (meter_b, "button-press-event", G_CALLBACK(meter_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),meter_b,1,3,1,1);
+
+    GtkWidget *vox_b=gtk_button_new_with_label("VOX");
+    g_signal_connect (vox_b, "button-press-event", G_CALLBACK(vox_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),vox_b,2,3,1,1);
 
     GtkWidget *band_b=gtk_button_new_with_label("Band");
     g_signal_connect (band_b, "button-press-event", G_CALLBACK(band_cb), NULL);

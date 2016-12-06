@@ -53,6 +53,7 @@
 #ifdef PSK
 #include "psk.h"
 #endif
+#include "vox.h"
 
 #define min(x,y) (x<y?x:y)
 
@@ -374,8 +375,8 @@ static void process_ozy_input_buffer(char  *buffer) {
   int last_ptt;
   int last_dot;
   int last_dash;
-  int left_sample[RECEIVERS];
-  int right_sample[RECEIVERS];
+  int left_sample;
+  int right_sample;
   int mic_sample;
   double left_sample_double[RECEIVERS];
   double right_sample_double[RECEIVERS];
@@ -448,21 +449,18 @@ static void process_ozy_input_buffer(char  *buffer) {
     for(i=0;i<iq_samples;i++) {
 
       for(r=0;r<RECEIVERS;r++) {
-        left_sample[r]   = (int)((signed char) buffer[b++]) << 16;
-        left_sample[r]  += (int)((unsigned char)buffer[b++]) << 8;
-        left_sample[r]  += (int)((unsigned char)buffer[b++]);
-        right_sample[r]  = (int)((signed char) buffer[b++]) << 16;
-        right_sample[r] += (int)((unsigned char)buffer[b++]) << 8;
-        right_sample[r] += (int)((unsigned char)buffer[b++]);
+        left_sample   = (int)((signed char) buffer[b++]) << 16;
+        left_sample  += (int)((unsigned char)buffer[b++]) << 8;
+        left_sample  += (int)((unsigned char)buffer[b++]);
+        right_sample  = (int)((signed char) buffer[b++]) << 16;
+        right_sample += (int)((unsigned char)buffer[b++]) << 8;
+        right_sample += (int)((unsigned char)buffer[b++]);
+        left_sample_double[r]=(double)left_sample/8388607.0; // 24 bit sample 2^23-1
+        right_sample_double[r]=(double)right_sample/8388607.0; // 24 bit sample 2^23-1
       }
       mic_sample    = (int)((signed char) buffer[b++]) << 8;
       mic_sample   |= (int)((unsigned char)buffer[b++]);
       mic_sample_double = (1.0 / 2147483648.0) * (double)(mic_sample<<16);
-
-      for(r=0;r<RECEIVERS;r++) {
-        left_sample_double[r]=(double)left_sample[r]/8388607.0; // 24 bit sample 2^23-1
-        right_sample_double[r]=(double)right_sample[r]/8388607.0; // 24 bit sample 2^23-1
-      }
 
       // add to buffer
       if(isTransmitting() && !local_microphone) {
@@ -515,8 +513,8 @@ static void process_ozy_input_buffer(char  *buffer) {
 #endif
       } else {
         if(!isTransmitting()) {
-          micinputbuffer[samples*2]=0.0;
-          micinputbuffer[(samples*2)+1]=0.0;
+          micinputbuffer[samples*2]=mic_sample_double;
+          micinputbuffer[(samples*2)+1]=mic_sample_double;
           iqinputbuffer[0][samples*2]=left_sample_double[0];
           iqinputbuffer[0][(samples*2)+1]=right_sample_double[0];
           samples++;
@@ -631,8 +629,23 @@ static void full_rx_buffer() {
   int j;
   int error;
 
+  if(vox_enabled) {
+    switch(mode) {
+      case modeLSB:
+      case modeUSB:
+      case modeDSB:
+      case modeFMN:
+      case modeAM:
+      case modeSAM:
+#ifdef FREEDV
+      case modeFREEDV:
+#endif
+        update_vox(micinputbuffer,BUFFER_SIZE);
+        break;
+    }
+  }
+
   fexchange0(CHANNEL_RX0, iqinputbuffer[0], audiooutputbuffer, &error);
-  //fexchange0(CHANNEL_TX, micinputbuffer, iqoutputbuffer, &error);
 
 #ifdef PSK
   if(mode!=modePSK) {
@@ -656,39 +669,44 @@ static void full_tx_buffer() {
   int error;
   double gain=32767.0; // 2^16-1
 
-  fexchange0(CHANNEL_TX, micinputbuffer, iqoutputbuffer, &error);
-  if(error!=0) {
-    fprintf(stderr,"full_tx_buffer: fexchange0: error=%d\n",error);
+  if(vox_enabled && vox) {
+    update_vox(micinputbuffer,BUFFER_SIZE);
   }
-  Spectrum0(1, CHANNEL_TX, 0, 0, iqoutputbuffer);
 
-  if(radio->device==DEVICE_METIS && atlas_penelope) {
-    if(tune) {
-      gain=gain*tune_drive;
-    } else {
-      gain=gain*drive;
+  if(isTransmitting()) {
+    fexchange0(CHANNEL_TX, micinputbuffer, iqoutputbuffer, &error);
+    if(error!=0) {
+      fprintf(stderr,"full_tx_buffer: fexchange0: error=%d\n",error);
+    }
+    Spectrum0(1, CHANNEL_TX, 0, 0, iqoutputbuffer);
+
+    if(radio->device==DEVICE_METIS && atlas_penelope) {
+      if(tune) {
+        gain=gain*tune_drive;
+      } else {
+        gain=gain*drive;
+      }
+    }
+    for(j=0;j<output_buffer_size;j++) {
+      left_rx_sample=0;
+      right_rx_sample=0;
+      left_tx_sample=(int)(iqoutputbuffer[j*2]*gain);
+      right_tx_sample=(int)(iqoutputbuffer[(j*2)+1]*gain);
+  
+      output_buffer[output_buffer_index++]=0;
+      output_buffer[output_buffer_index++]=0;
+      output_buffer[output_buffer_index++]=0;
+      output_buffer[output_buffer_index++]=0;
+      output_buffer[output_buffer_index++]=left_tx_sample>>8;
+      output_buffer[output_buffer_index++]=left_tx_sample;
+      output_buffer[output_buffer_index++]=right_tx_sample>>8;
+      output_buffer[output_buffer_index++]=right_tx_sample;
+      if(output_buffer_index>=OZY_BUFFER_SIZE) {
+        ozy_send_buffer();
+        output_buffer_index=8;
+      }
     }
   }
-  for(j=0;j<output_buffer_size;j++) {
-    left_rx_sample=0;
-    right_rx_sample=0;
-    left_tx_sample=(int)(iqoutputbuffer[j*2]*gain);
-    right_tx_sample=(int)(iqoutputbuffer[(j*2)+1]*gain);
-
-    output_buffer[output_buffer_index++]=0;
-    output_buffer[output_buffer_index++]=0;
-    output_buffer[output_buffer_index++]=0;
-    output_buffer[output_buffer_index++]=0;
-    output_buffer[output_buffer_index++]=left_tx_sample>>8;
-    output_buffer[output_buffer_index++]=left_tx_sample;
-    output_buffer[output_buffer_index++]=right_tx_sample>>8;
-    output_buffer[output_buffer_index++]=right_tx_sample;
-    if(output_buffer_index>=OZY_BUFFER_SIZE) {
-      ozy_send_buffer();
-      output_buffer_index=8;
-    }
-  }
-
 }
 
 void old_protocol_process_local_mic(unsigned char *buffer,int le) {
@@ -757,7 +775,8 @@ void old_protocol_process_local_mic(unsigned char *buffer,int le) {
 
     }
   } else {
-    //fprintf(stderr,"not transmitting - ignore local mic buffer\n");
+    if(vox_enabled) {
+    }
   }
 }
 
@@ -1021,7 +1040,7 @@ void ozy_send_buffer() {
       if(mode!=modeCWU && mode!=modeCWL) {
         // output_buffer[C1]|=0x00;
       } else {
-        if((tune==1) || (mox==1) || (cw_keyer_internal==0)) {
+        if((tune==1) || (mox==1) || (vox==1) || (cw_keyer_internal==0)) {
           output_buffer[C1]|=0x00;
         } else {
           output_buffer[C1]|=0x01;
