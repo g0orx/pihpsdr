@@ -327,10 +327,12 @@ fprintf(stderr,"start_cb: %p\n",data);
   return TRUE;
 }
 
+#ifdef GPIO
 static gboolean gpio_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   configure_gpio(discovery_dialog);
   return TRUE;
 }
+#endif
 
 static gboolean discover_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   gtk_widget_destroy(discovery_dialog);
@@ -516,10 +518,11 @@ fprintf(stderr,"%p protocol=%d name=%s\n",d,d->protocol,d->name);
 
           }
 
+#ifdef GPIO
           GtkWidget *gpio_b=gtk_button_new_with_label("Config GPIO");
           g_signal_connect (gpio_b, "button-press-event", G_CALLBACK(gpio_cb), NULL);
           gtk_grid_attach(GTK_GRID(grid),gpio_b,0,i,1,1);
-
+#endif
           GtkWidget *discover_b=gtk_button_new_with_label("Discover");
           g_signal_connect (discover_b, "button-press-event", G_CALLBACK(discover_cb), NULL);
           gtk_grid_attach(GTK_GRID(grid),discover_b,1,i,1,1);
@@ -598,9 +601,9 @@ fprintf(stderr,"start: selected radio=%p device=%d\n",radio,radio->device);
 #endif
   }
 
+#ifdef GPIO
   fprintf(stderr,"gpio_init\n");
   splash_status("Initializing GPIO ...");
-#ifdef GPIO
   if(gpio_init()<0) {
   }
 #endif
