@@ -837,7 +837,10 @@ static void * rigctl (void * arg) {
                                             double level;
                                             level = GetRXAMeter(CHANNEL_RX0, smeter); 
                                             level = level + (double) get_attenuation();
-                                            new_level = (int) level;            
+                                            level = level + 90;
+                                            new_level = (int) (level)/2;            
+                                            if(new_level < 0) { new_level = 0; }
+                                            if(new_level > 30) { new_level = 30;}
                                             #ifdef RIGCTL_DEBUG
                                             fprintf(stderr,"RIGCTL: SM level=%.21f new_level=%d\n",
                                                         level,new_level);

@@ -436,16 +436,8 @@ static void process_ozy_input_buffer(char  *buffer) {
     }
 
 
-    // extract the 63 samples
-    int iq_samples=63;
-    switch(RECEIVERS) {
-      case 1:
-        iq_samples=63;
-        break;
-      case 2:
-        iq_samples=36;
-        break;
-    }
+    int iq_samples = (512 -8) / ((RECEIVERS*6)+2);
+
     for(i=0;i<iq_samples;i++) {
 
       for(r=0;r<RECEIVERS;r++) {
