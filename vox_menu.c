@@ -21,14 +21,35 @@
 #include <semaphore.h>
 #include <stdio.h>
 #include <string.h>
+#include <pthread.h>
 
 #include "new_menu.h"
 #include "vox_menu.h"
+#include "vox.h"
 #include "radio.h"
 
 static GtkWidget *parent_window=NULL;
 
 static GtkWidget *dialog=NULL;
+
+static GtkWidget *level;
+
+static pthread_t level_thread_id;
+static int run_level=0;
+static double peak=0.0;
+
+static int level_update(void *data) {
+  gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(level),peak);
+  return 0;
+}
+
+static void *level_thread(void* arg) {
+  while(run_level && !gtk_widget_in_destruction(dialog)) {
+    peak=vox_get_peak();
+    g_idle_add(level_update,NULL);
+    usleep(100000); // 100ms
+  }
+}
 
 static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   if(dialog!=NULL) {
@@ -39,8 +60,24 @@ static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
   return TRUE;
 }
 
+static void start_level_thread() {
+  int rc;
+  fprintf(stderr,"start_level_thread\n");
+  run_level=1;
+  rc=pthread_create(&level_thread_id,NULL,level_thread,NULL);
+  if(rc != 0) {
+    fprintf(stderr,"vox_menu: pthread_create failed on level_thread: rc=%d\n", rc);
+    run_level=0;
+  }
+}
+
 static void vox_cb(GtkWidget *widget, gpointer data) {
   vox_enabled=vox_enabled==1?0:1;
+  if(vox_enabled) {
+    start_level_thread();
+  } else {
+    run_level=0;
+  }
 }
 
 static void vox_value_changed_cb(GtkWidget *widget, gpointer data) {
@@ -89,6 +126,21 @@ void vox_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),vox_b,0,1,1,1);
   g_signal_connect(vox_b,"toggled",G_CALLBACK(vox_cb),NULL);
 
+  level=gtk_progress_bar_new();
+  gtk_widget_show(level);
+  gtk_grid_attach(GTK_GRID(grid),level,1,1,1,1);
+
+/*
+  GtkStyleContext *style_context;
+  GtkCssProvider *provider = gtk_css_provider_new ();
+  gchar tmp[64];
+  style_context = gtk_widget_get_style_context(level);
+  gtk_style_context_add_provider(style_context, GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+  g_snprintf(tmp, sizeof tmp, "GtkProgressBar.progress { background-color: %s; }", "red");
+  gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(provider), tmp, -1, NULL);
+  g_object_unref (provider);
+*/
+
   GtkWidget *threshold_label=gtk_label_new("VOX Threshold:");
   gtk_misc_set_alignment (GTK_MISC(threshold_label), 0, 0);
   gtk_widget_show(threshold_label);
@@ -127,6 +179,10 @@ void vox_menu(GtkWidget *parent) {
   sub_menu=dialog;
 
   gtk_widget_show_all(dialog);
+
+  if(vox_enabled) {
+    start_level_thread();
+  }
 
 }
 

@@ -1,3 +1,21 @@
+/* Copyright (C)
+* 2016 - John Melton, G0ORX/N6LYT
+*
+* This program is free software; you can redistribute it and/or
+* modify it under the terms of the GNU General Public License
+* as published by the Free Software Foundation; either version 2
+* of the License, or (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software
+* Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+*
+*/
 
 #include <gtk/gtk.h>
 
@@ -7,19 +25,25 @@
 
 static guint vox_timeout;
 
+static double peak=0.0;
+
 static int vox_timeout_cb(gpointer data) {
-fprintf(stderr,"vox_timeout_cb: setVox: 0\n");
   setVox(0);
   g_idle_add(vfo_update,NULL);
   return FALSE;
+}
+
+
+double vox_get_peak() {
+  return peak;
 }
 
 void update_vox(double *in,int length) {
   // assumes in is interleaved left and right channel with length samples
   int previous_vox=vox;
   int i;
-  double peak=0.0;
   double sample;
+  peak=0.0;
   for(i=0;i<length;i++) {
     sample=in[(i*2)+0];
     if(sample<0.0) {
@@ -34,15 +58,11 @@ void update_vox(double *in,int length) {
     threshold=vox_threshold*vox_gain;
   }
   if(peak>threshold) {
-fprintf(stderr,"update_vox: threshold=%f\n",threshold);
     if(previous_vox) {
-fprintf(stderr,"update_vox: g_source_remove: vox_timeout\n");
       g_source_remove(vox_timeout);
     } else {
-fprintf(stderr,"update_vox: setVox: 1\n");
       setVox(1);
     }
-fprintf(stderr,"g_timeout_add: %d\n",(int)vox_hang);
     vox_timeout=g_timeout_add((int)vox_hang,vox_timeout_cb,NULL);
   }
   if(vox!=previous_vox) {
@@ -52,9 +72,7 @@ fprintf(stderr,"g_timeout_add: %d\n",(int)vox_hang);
 
 void vox_cancel() {
   if(vox) {
-fprintf(stderr,"vox_cancel: g_source_remove: vox_timeout\n");
     g_source_remove(vox_timeout);
-fprintf(stderr,"vox_cancel: setVox: 0\n");
     setVox(0);
   }
 }
