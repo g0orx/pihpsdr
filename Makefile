@@ -144,6 +144,8 @@ noise_menu.c \
 agc_menu.c \
 fm_menu.c \
 vox_menu.c \
+diversity_menu.c \
+freqent_menu.c \
 test_menu.c \
 rit.c \
 meter.c \
@@ -202,6 +204,8 @@ noise_menu.h \
 agc_menu.h \
 fm_menu.h \
 vox_menu.h \
+diversity_menu.h \
+freqent_menu.h \
 test_menu.h \
 rit.h \
 meter.h \
@@ -257,6 +261,8 @@ noise_menu.o \
 agc_menu.o \
 fm_menu.o \
 vox_menu.o \
+diversity_menu.o \
+freqent_menu.o \
 test_menu.o \
 rit.o \
 meter.o \

@@ -637,6 +637,14 @@ static void full_rx_buffer() {
     }
   }
 
+  if(diversity_enabled) {
+    double *pin[2];
+    pin[0]=iqinputbuffer[0];
+    pin[1]=iqinputbuffer[1];
+
+    xdivEXT(0,BUFFER_SIZE,pin,iqinputbuffer[0]);
+  }
+
   fexchange0(CHANNEL_RX0, iqinputbuffer[0], audiooutputbuffer, &error);
 
 #ifdef PSK

@@ -251,6 +251,10 @@ static void setupRX(int rx) {
       SetRXAEQRun(rx, 0);
     }
 
+    // setup for diversity
+    create_divEXT(0,0,2,BUFFER_SIZE);
+    SetEXTDIVRotate(0, 2, &i_rotate, &q_rotate);
+    SetEXTDIVRun(0,diversity_enabled);
 }
 
 static void setupTX(int tx) {

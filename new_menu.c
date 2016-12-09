@@ -49,6 +49,8 @@
 #include "fm_menu.h"
 #include "test_menu.h"
 #include "vox_menu.h"
+#include "diversity_menu.h"
+#include "freqent_menu.h"
 
 
 static GtkWidget *parent_window=NULL;
@@ -250,6 +252,26 @@ static gboolean vox_cb (GtkWidget *widget, GdkEventButton *event, gpointer data)
   return TRUE;
 }
 
+void start_diversity() {
+  cleanup();
+  diversity_menu(parent_window);
+}
+
+static gboolean diversity_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  start_diversity();
+  return TRUE;
+}
+
+void start_freqent() {
+  cleanup();
+  freqent_menu(parent_window);
+}
+
+static gboolean freqent_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  start_freqent();
+  return TRUE;
+}
+
 void start_test() {
   cleanup();
   test_menu(parent_window);
@@ -362,6 +384,14 @@ static gboolean new_menu_pressed_event_cb (GtkWidget *widget,
     GtkWidget *vox_b=gtk_button_new_with_label("VOX");
     g_signal_connect (vox_b, "button-press-event", G_CALLBACK(vox_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),vox_b,2,3,1,1);
+
+    GtkWidget *diversity_b=gtk_button_new_with_label("Diversity");
+    g_signal_connect (diversity_b, "button-press-event", G_CALLBACK(diversity_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),diversity_b,3,3,1,1);
+
+    GtkWidget *frequency_b=gtk_button_new_with_label("Frequency");
+    g_signal_connect (frequency_b, "button-press-event", G_CALLBACK(freqent_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),frequency_b,4,3,1,1);
 
     GtkWidget *band_b=gtk_button_new_with_label("Band");
     g_signal_connect (band_b, "button-press-event", G_CALLBACK(band_cb), NULL);

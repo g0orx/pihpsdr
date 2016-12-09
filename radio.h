@@ -142,6 +142,8 @@ extern int tune_drive_level;
 extern int drive_level;
 
 int receivers;
+int active_receiver;
+
 int adc[2];
 
 int locked;
@@ -235,6 +237,10 @@ extern double vox_threshold;
 extern double vox_gain;
 extern double vox_hang;
 extern int vox;
+
+extern int diversity_enabled;
+extern double i_rotate[2];
+extern double q_rotate[2];
 
 extern void init_radio();
 extern void setSampleRate(int rate);

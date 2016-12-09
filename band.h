@@ -87,6 +87,7 @@ int band_get_current();
 BAND *band_get_current_band();
 BAND *band_get_band(int b);
 BAND *band_set_current(int b);
+int get_band_from_frequency(long long f);
 
 BANDSTACK_ENTRY *bandstack_entry_next();
 BANDSTACK_ENTRY *bandstack_entry_previous();

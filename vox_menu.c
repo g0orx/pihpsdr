@@ -131,12 +131,13 @@ void vox_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),level,1,1,1,1);
 
 /*
+  // try to set progress bar to red
   GtkStyleContext *style_context;
   GtkCssProvider *provider = gtk_css_provider_new ();
   gchar tmp[64];
   style_context = gtk_widget_get_style_context(level);
   gtk_style_context_add_provider(style_context, GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
-  g_snprintf(tmp, sizeof tmp, "GtkProgressBar.progress { background-color: %s; }", "red");
+  g_snprintf(tmp, sizeof tmp, "progressbar.trough.progress { background-color: %s; }", "red");
   gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(provider), tmp, -1, NULL);
   g_object_unref (provider);
 */

@@ -129,6 +129,8 @@ int drive_level=0;
 int tune_drive_level=0;
 
 int receivers=RECEIVERS;
+int active_receiver=0;
+
 int adc[2]={0,1};
 
 int locked=0;
@@ -225,6 +227,10 @@ double vox_threshold=0.001;
 double vox_gain=1;
 double vox_hang=250.0;
 int vox=0;
+
+int diversity_enabled=0;
+double i_rotate[2]={1.0,1.0};
+double q_rotate[2]={0.0,0.0};
 
 void init_radio() {
   int rc;

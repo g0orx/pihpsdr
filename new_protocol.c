@@ -752,10 +752,14 @@ fprintf(stderr,"outputsamples=%d\n", outputsamples);
 
         switch(sourceport) {
             case RX_IQ_TO_HOST_PORT_0:
-              process_iq_data(0,buffer);
-              break;
             case RX_IQ_TO_HOST_PORT_1:
-              process_iq_data(1,buffer);
+            case RX_IQ_TO_HOST_PORT_2:
+            case RX_IQ_TO_HOST_PORT_3:
+            case RX_IQ_TO_HOST_PORT_4:
+            case RX_IQ_TO_HOST_PORT_5:
+            case RX_IQ_TO_HOST_PORT_6:
+            case RX_IQ_TO_HOST_PORT_7:
+              process_iq_data(sourceport-RX_IQ_TO_HOST_PORT_0,buffer);
               break;
             case COMMAND_RESPONCE_TO_HOST_PORT:
               process_command_response(buffer);
@@ -803,6 +807,8 @@ static void process_iq_data(int rx,unsigned char *buffer) {
     int rightsample;
     double leftsampledouble;
     double rightsampledouble;
+
+fprintf(stderr,"process_iq_data: %d\n",rx);
 
     sequence=((buffer[0]&0xFF)<<24)+((buffer[1]&0xFF)<<16)+((buffer[2]&0xFF)<<8)+(buffer[3]&0xFF);
     timestamp=((long long)(buffer[4]&0xFF)<<56)+((long long)(buffer[5]&0xFF)<<48)+((long long)(buffer[6]&0xFF)<<40)+((long long)(buffer[7]&0xFF)<<32);
@@ -1057,11 +1063,14 @@ static void full_rx_buffer(int rx) {
   int j;
   int error;
 
-if(rx==0) {
-  fexchange0(CHANNEL_RX0, iqinputbuffer[rx], audiooutputbuffer, &error);
-  if(error!=0) {
-    fprintf(stderr,"full_rx_buffer: fexchange0: error=%d\n",error);
-  }
+  Spectrum0(1, CHANNEL_RX0, 0, 0, iqinputbuffer[rx]);
+
+  if(rx==active_receiver) {
+    fexchange0(CHANNEL_RX0, iqinputbuffer[rx], audiooutputbuffer, &error);
+    if(error!=0) {
+      fprintf(stderr,"full_rx_buffer: fexchange0: error=%d\n",error);
+    }
+/*
     switch(mode) {
 #ifdef PSK
       case modePSK:
@@ -1071,7 +1080,7 @@ if(rx==0) {
         Spectrum0(1, CHANNEL_RX0, 0, 0, iqinputbuffer[rx]);
         break;
     }
-
+*/
     switch(mode) {
 #ifdef FREEDV
       case modeFREEDV:

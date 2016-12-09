@@ -535,3 +535,17 @@ fprintf(stderr,"bandRestoreState: restore bands\n");
     if(value) band=atoi(value);
 }
 
+int get_band_from_frequency(long long f) {
+  int b;
+  int found=-1;
+  for(b=0;b<BANDS+XVTRS;b++) {
+    BAND *band=band_get_band(b);
+    if(strlen(band->title)>0) {
+      if(f>=band->frequencyMin && f<=band->frequencyMax) {
+        found=b;
+        break;
+      }
+    }
+  }
+  return found;
+}
