@@ -44,7 +44,7 @@ static int level_update(void *data) {
 }
 
 static void *level_thread(void* arg) {
-  while(run_level && !gtk_widget_in_destruction(dialog)) {
+  while(run_level) {
     peak=vox_get_peak();
     g_idle_add(level_update,NULL);
     usleep(100000); // 100ms
@@ -62,13 +62,16 @@ static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
 
 static void start_level_thread() {
   int rc;
-  fprintf(stderr,"start_level_thread\n");
   run_level=1;
   rc=pthread_create(&level_thread_id,NULL,level_thread,NULL);
   if(rc != 0) {
     fprintf(stderr,"vox_menu: pthread_create failed on level_thread: rc=%d\n", rc);
     run_level=0;
   }
+}
+
+static void destroy_cb(GtkWidget *widget, gpointer data) {
+  run_level=0;
 }
 
 static void vox_cb(GtkWidget *widget, gpointer data) {
@@ -98,6 +101,7 @@ void vox_menu(GtkWidget *parent) {
   parent_window=parent;
 
   dialog=gtk_dialog_new();
+  g_signal_connect (dialog, "destroy", G_CALLBACK(destroy_cb), NULL);
   gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent_window));
   gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
 
