@@ -606,6 +606,11 @@ fprintf(stderr,"start: selected radio=%p device=%d\n",radio,radio->device);
   splash_status("Initializing GPIO ...");
   if(gpio_init()<0) {
   }
+#ifdef LOCALCW
+  // init local keyer if enabled
+  else if (cw_keyer_internal == 0)
+    keyer_update();
+#endif
 #endif
 
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);

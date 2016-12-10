@@ -56,6 +56,9 @@
 #ifdef FREEDV
 #include "freedv.h"
 #endif
+#ifdef LOCALCW
+#include "iambic.h"
+#endif
 #include "vox.h"
 
 #define min(x,y) (x<y?x:y)
@@ -215,6 +218,11 @@ void tuner_changed() {
 */
 
 void cw_changed() {
+#ifdef LOCALCW
+    // update the iambic keyer params
+    if (cw_keyer_internal == 0)
+        keyer_update();
+#endif
 }
 
 void new_protocol_init(int pixels) {
@@ -315,6 +323,13 @@ static void new_protocol_high_priority(int run) {
       if(tune) {
         buffer[4]|=0x02;
       }
+#ifdef LOCALCW
+      if (cw_keyer_internal == 0) {
+        // set the ptt if we're not in breakin mode and mox is on
+        if(cw_breakin == 0 && getMox()) buffer[4]|=0x02;
+        buffer[5]|=(keyer_out) ? 0x01 : 0;
+      }
+#endif
     } else {
       if(isTransmitting()) {
         buffer[4]|=0x02;
@@ -538,7 +553,8 @@ static void new_protocol_transmit_specific() {
 
     buffer[4]=1; // 1 DAC
     buffer[5]=0; //  default no CW
-    if(cw_keyer_internal && (mode==modeCWU || mode==modeCWL)) {
+    // may be using local pihpsdr OR hpsdr CW
+    if(mode==modeCWU || mode==modeCWL) {
         buffer[5]|=0x02;
     }
     if(cw_keys_reversed) {

@@ -618,6 +618,8 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     if(value) cw_keyer_spacing=atoi(value);
     value=getProperty("cw_keyer_internal");
     if(value) cw_keyer_internal=atoi(value);
+    value=getProperty("cw_active_level");
+    if(value) cw_active_level=atoi(value);
     value=getProperty("cw_keyer_sidetone_volume");
     if(value) cw_keyer_sidetone_volume=atoi(value);
     value=getProperty("cw_keyer_ptt_delay");
@@ -815,6 +817,8 @@ void radioSaveState() {
     setProperty("cw_keyer_spacing",value);
     sprintf(value,"%d",cw_keyer_internal);
     setProperty("cw_keyer_internal",value);
+    sprintf(value,"%d",cw_active_level);
+    setProperty("cw_active_level",value);
     sprintf(value,"%d",cw_keyer_sidetone_volume);
     setProperty("cw_keyer_sidetone_volume",value);
     sprintf(value,"%d",cw_keyer_ptt_delay);

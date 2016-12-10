@@ -109,6 +109,7 @@ else
   GPIO_LIBS=-lwiringPi
   endif
   ifeq ($(SX1509_INCLUDE),sx1509)
+  GPIO_OPTIONS=-D GPIO
   GPIO_OPTIONS+=-D sx1509
   GPIO_LIBS+=-lsx1509
   endif

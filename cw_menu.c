@@ -49,6 +49,11 @@ static void cw_keyer_internal_cb(GtkWidget *widget, gpointer data) {
   cw_changed();
 }
 
+static void cw_active_level_cb(GtkWidget *widget, gpointer data) {
+  cw_active_level=cw_active_level==1?0:1;
+  cw_changed();
+}
+
 static void cw_keyer_speed_value_changed_cb(GtkWidget *widget, gpointer data) {
   cw_keyer_speed=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
   cw_changed();
@@ -219,6 +224,13 @@ void cw_menu(GtkWidget *parent) {
   gtk_widget_show(cw_keyer_internal_b);
   gtk_grid_attach(GTK_GRID(grid),cw_keyer_internal_b,0,10,1,1);
   g_signal_connect(cw_keyer_internal_b,"toggled",G_CALLBACK(cw_keyer_internal_cb),NULL);
+
+  GtkWidget *cw_active_level_b=gtk_check_button_new_with_label("CW Local Active_Low");
+  //gtk_widget_override_font(cw_active_level_b, pango_font_description_from_string("Arial 18"));
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (cw_active_level_b), cw_active_level==0);
+  gtk_widget_show(cw_active_level_b);
+  gtk_grid_attach(GTK_GRID(grid),cw_active_level_b,1,10,1,1);
+  g_signal_connect(cw_active_level_b,"toggled",G_CALLBACK(cw_active_level_cb),NULL);
 
   gtk_container_add(GTK_CONTAINER(content),grid);
 
