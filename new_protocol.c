@@ -56,6 +56,7 @@
 #ifdef FREEDV
 #include "freedv.h"
 #endif
+#include "vox.h"
 
 #define min(x,y) (x<y?x:y)
 
@@ -958,15 +959,15 @@ static void process_freedv_rx_buffer() {
   int demod_samples;
   for(j=0;j<outputsamples;j++) {
     if(freedv_samples==0) {
-      leftaudiosample=(short)(audiooutputbuffer[j*2]*32767.0*volume);
-      rightaudiosample=(short)(audiooutputbuffer[(j*2)+1]*32767.0*volume);
+      leftaudiosample=(short)(audiooutputbuffer[j*2]*32767.0);
+      rightaudiosample=(short)(audiooutputbuffer[(j*2)+1]*32767.0);
       demod_samples=demod_sample_freedv(leftaudiosample);
       if(demod_samples!=0) {
         int s;
         int t;
         for(s=0;s<demod_samples;s++) {
           if(freedv_sync) {
-            leftaudiosample=rightaudiosample=(short)((double)speech_out[s]*volume);
+            leftaudiosample=rightaudiosample=(short)((double)speech_out[s]);
           } else {
             leftaudiosample=rightaudiosample=0;
           }
@@ -1015,8 +1016,8 @@ static void process_rx_buffer() {
       leftaudiosample=0;
       rightaudiosample=0;
     } else {
-      leftaudiosample=(short)(audiooutputbuffer[j*2]*32767.0*volume);
-      rightaudiosample=(short)(audiooutputbuffer[(j*2)+1]*32767.0*volume);
+      leftaudiosample=(short)(audiooutputbuffer[j*2]*32767.0);
+      rightaudiosample=(short)(audiooutputbuffer[(j*2)+1]*32767.0);
 
 #ifdef PSK
       if(mode==modePSK) {
@@ -1206,7 +1207,7 @@ void new_protocol_process_local_mic(unsigned char *buffer,int le) {
                }
             } else {
 #endif
-               if(mode==modeCWL || mode==modeCWU || tune || !isTransmitting()) {
+               if(mode==modeCWL || mode==modeCWU || tune /*|| !isTransmitting()*/) {
                    micinputbuffer[micsamples*2]=0.0;
                    micinputbuffer[(micsamples*2)+1]=0.0;
                } else {

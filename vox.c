@@ -57,6 +57,8 @@ void update_vox(double *in,int length) {
   if(mic_boost && !local_microphone) {
     threshold=vox_threshold*vox_gain;
   }
+
+fprintf(stderr,"update_vox: peak=%f threshold=%f\n",peak,threshold);
   if(peak>threshold) {
     if(previous_vox) {
       g_source_remove(vox_timeout);

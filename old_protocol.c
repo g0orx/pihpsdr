@@ -129,6 +129,7 @@ static int running;
 static long ep4_sequence;
 
 static int samples=0;
+static int mic_samples=0;
 #ifdef FREEDV
 static int freedv_samples=0;
 static int freedv_divisor=6;
@@ -621,7 +622,7 @@ static void full_rx_buffer() {
   int j;
   int error;
 
-  if(vox_enabled) {
+  if(vox_enabled && !local_microphone) {
     switch(mode) {
       case modeLSB:
       case modeUSB:
@@ -669,7 +670,7 @@ static void full_tx_buffer() {
   int error;
   double gain=32767.0; // 2^16-1
 
-  if(vox_enabled && vox) {
+  if(vox_enabled && (vox || local_microphone)) {
     update_vox(micinputbuffer,BUFFER_SIZE);
   }
 
@@ -715,7 +716,7 @@ void old_protocol_process_local_mic(unsigned char *buffer,int le) {
   double mic_sample_double;
   double gain=pow(10.0, mic_gain / 20.0);
 
-  if(isTransmitting()) {
+  //if(isTransmitting()) {
     b=0;
     int i,j,s;
     for(i=0;i<720;i++) {
@@ -736,14 +737,14 @@ void old_protocol_process_local_mic(unsigned char *buffer,int le) {
               for(j=0;j<freedv_divisor;j++) {  // 8K to 48K
                 mic_sample=mod_out[s];
                 mic_sample_double = (1.0 / 2147483648.0) * (double)(mic_sample<<16);
-                micinputbuffer[samples*2]=mic_sample_double;
-                micinputbuffer[(samples*2)+1]=mic_sample_double;
-                iqinputbuffer[0][samples*2]=0.0;
-                iqinputbuffer[0][(samples*2)+1]=0.0;
-                samples++;
-                if(samples==buffer_size) {
+                micinputbuffer[mic_samples*2]=mic_sample_double;
+                micinputbuffer[(mic_samples*2)+1]=mic_sample_double;
+                //iqinputbuffer[0][samples*2]=0.0;
+                //iqinputbuffer[0][(samples*2)+1]=0.0;
+                mic_samples++;
+                if(mic_samples==buffer_size) {
                   full_tx_buffer();
-                  samples=0;
+                  mic_samples=0;
                 }
               }
             }
@@ -756,28 +757,25 @@ void old_protocol_process_local_mic(unsigned char *buffer,int le) {
       } else {
 #endif
          if(mode==modeCWL || mode==modeCWU || tune) {
-           micinputbuffer[samples*2]=0.0;
-           micinputbuffer[(samples*2)+1]=0.0;
+           micinputbuffer[mic_samples*2]=0.0;
+           micinputbuffer[(mic_samples*2)+1]=0.0;
          } else {
-           micinputbuffer[samples*2]=mic_sample_double;
-           micinputbuffer[(samples*2)+1]=mic_sample_double;
+           micinputbuffer[mic_samples*2]=mic_sample_double;
+           micinputbuffer[(mic_samples*2)+1]=mic_sample_double;
          }
-         iqinputbuffer[0][samples*2]=0.0;
-         iqinputbuffer[0][(samples*2)+1]=0.0;
-         samples++;
-         if(samples==buffer_size) {
+//         iqinputbuffer[0][samples*2]=0.0;
+//         iqinputbuffer[0][(samples*2)+1]=0.0;
+         mic_samples++;
+         if(mic_samples==buffer_size) {
            full_tx_buffer();
-           samples=0;
+           mic_samples=0;
          }
 #ifdef FREEDV
        }
 #endif
 
     }
-  } else {
-    if(vox_enabled) {
-    }
-  }
+  //}
 }
 
 /*

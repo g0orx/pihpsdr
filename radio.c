@@ -224,7 +224,7 @@ int pre_emphasize=0;
 
 int vox_enabled=0;
 double vox_threshold=0.001;
-double vox_gain=1;
+double vox_gain=10.0;
 double vox_hang=250.0;
 int vox=0;
 
@@ -690,8 +690,10 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     if(value) vox_enabled=atoi(value);
     value=getProperty("vox_threshold");
     if(value) vox_threshold=atof(value);
+/*
     value=getProperty("vox_gain");
     if(value) vox_gain=atof(value);
+*/
     value=getProperty("vox_hang");
     if(value) vox_hang=atof(value);
 
@@ -883,8 +885,10 @@ void radioSaveState() {
     setProperty("vox_enabled",value);
     sprintf(value,"%f",vox_threshold);
     setProperty("vox_threshold",value);
+/*
     sprintf(value,"%f",vox_gain);
     setProperty("vox_gain",value);
+*/
     sprintf(value,"%f",vox_hang);
     setProperty("vox_hang",value);
 

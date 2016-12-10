@@ -158,6 +158,7 @@ void vox_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),vox_scale,1,2,1,1);
   g_signal_connect(G_OBJECT(vox_scale),"value_changed",G_CALLBACK(vox_value_changed_cb),NULL);
   
+/*
   GtkWidget *gain_label=gtk_label_new("VOX Gain:");
   gtk_misc_set_alignment (GTK_MISC(gain_label), 0, 0);
   gtk_widget_show(gain_label);
@@ -168,7 +169,7 @@ void vox_menu(GtkWidget *parent) {
   gtk_widget_show(gain_scale);
   gtk_grid_attach(GTK_GRID(grid),gain_scale,1,3,1,1);
   g_signal_connect(G_OBJECT(gain_scale),"value_changed",G_CALLBACK(vox_gain_value_changed_cb),NULL);
-  
+*/  
   GtkWidget *hang_label=gtk_label_new("VOX Hang (ms):");
   gtk_misc_set_alignment (GTK_MISC(hang_label), 0, 0);
   gtk_widget_show(hang_label);
