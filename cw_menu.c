@@ -213,6 +213,12 @@ void cw_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),cw_keyer_weight_b,1,9,1,1);
   g_signal_connect(cw_keyer_weight_b,"value_changed",G_CALLBACK(cw_keyer_weight_value_changed_cb),NULL);
 
+  GtkWidget *cw_keyer_internal_b=gtk_check_button_new_with_label("CW Internal");
+  //gtk_widget_override_font(cw_keyer_internal_b, pango_font_description_from_string("Arial 18"));
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (cw_keyer_internal_b), cw_keyer_internal);
+  gtk_widget_show(cw_keyer_internal_b);
+  gtk_grid_attach(GTK_GRID(grid),cw_keyer_internal_b,0,10,1,1);
+  g_signal_connect(cw_keyer_internal_b,"toggled",G_CALLBACK(cw_keyer_internal_cb),NULL);
 
   gtk_container_add(GTK_CONTAINER(content),grid);
 

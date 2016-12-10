@@ -54,6 +54,8 @@ extern int ENABLE_MOX_BUTTON;
 extern int MOX_BUTTON;
 extern int ENABLE_FUNCTION_BUTTON;
 extern int FUNCTION_BUTTON;
+extern int CWL_BUTTON;
+extern int CWR_BUTTON;
 
 void gpio_restore_state();
 void gpio_save_state();

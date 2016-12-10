@@ -171,6 +171,7 @@ extern int cw_keyer_ptt_delay;
 extern int cw_keyer_hang_time;
 extern int cw_keyer_sidetone_frequency;
 extern int cw_breakin;
+extern int cw_active_level;
 
 extern int vfo_encoder_divisor;
 

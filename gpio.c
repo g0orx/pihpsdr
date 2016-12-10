@@ -11,8 +11,12 @@
 #include <sched.h>
 #include <pthread.h>
 #include <wiringPi.h>
+#include <semaphore.h>
 #ifdef raspberrypi
 #include <pigpio.h>
+#endif
+#ifdef sx1509
+#include <SparkFunSX1509_C.h>
 #endif
 
 #include "band.h"
@@ -39,7 +43,7 @@ int ENABLE_VFO_ENCODER=1;
 int ENABLE_VFO_PULLUP=1;
 int VFO_ENCODER_A=17;
 int VFO_ENCODER_B=18;
-#ifdef odroid
+#if defined odroid && !defined sx1509
 int VFO_ENCODER_A_PIN=0;
 int VFO_ENCODER_B_PIN=1;
 #endif
@@ -47,7 +51,12 @@ int ENABLE_AF_ENCODER=1;
 int ENABLE_AF_PULLUP=0;
 int AF_ENCODER_A=20;
 int AF_ENCODER_B=26;
+#ifdef sx1509
 int AF_FUNCTION=25;
+#else
+int AF_FUNCTION=2; //RRK, was 25 now taken by waveshare LCD TS, disable i2c
+int LOCK_BUTTON=2; //temporarily in flux upstream
+#endif
 int ENABLE_RF_ENCODER=1;
 int ENABLE_RF_PULLUP=0;
 int RF_ENCODER_A=16;
@@ -57,7 +66,11 @@ int ENABLE_AGC_ENCODER=1;
 int ENABLE_AGC_PULLUP=0;
 int AGC_ENCODER_A=4;
 int AGC_ENCODER_B=21;
+#if defined sx1509
 int AGC_FUNCTION=7;
+#else
+int AGC_FUNCTION=3; //RRK, was 7 now taken by waveshare LCD TS, disable i2c
+#endif
 int ENABLE_BAND_BUTTON=1;
 int BAND_BUTTON=13;
 int ENABLE_BANDSTACK_BUTTON=1;
@@ -75,7 +88,68 @@ int MOX_BUTTON=27;
 int ENABLE_FUNCTION_BUTTON=1;
 int FUNCTION_BUTTON=22;
 int ENABLE_LOCK_BUTTON=1;
-int LOCK_BUTTON=25;
+int ENABLE_CW_BUTTONS=1;
+// make sure to disable UART0 for next 2 gpios
+int CWL_BUTTON=15;
+int CWR_BUTTON=14;
+
+#ifdef sx1509
+/* Hardware Hookup:
+
+Leaves a spare gpio and an extra unused button (x1)
+
+SX1509 Breakout ------ Odroid ------------ Component
+      GND -------------- GND (1)
+      3V3 -------------- 3.3V(6)
+      SDA -------------- SDA (3)
+      SCL -------------- SCL (5)
+      INT -------------- #88 (11)
+       0 --------------------------------- TN S1 E1 (row 1)
+       1 --------------------------------- S2 S3 E2 (row 2)
+       2 --------------------------------- S4 S5 E3 (row 3)
+       3 --------------------------------- S6 FN x1 (row 4)
+       4 --------------------------------- VFO_ENCODER_A
+       5 --------------------------------- VFO_ENCODER_B
+       6 --------------------------------- AF_ENCODER_A
+       7 --------------------------------- AF_ENCODER_B
+       8 --------------------------------- TN S2 S4 S6 (col 1)
+       9 --------------------------------- S1 S3 S5 FN (col 2)
+       10 -------------------------------- E1 E2 E3 x1 (col 3)
+       11 -------------------------------- RF_ENCODER_A
+       12 -------------------------------- RF_ENCODER_B
+       13 -------------------------------- AGC_ENCODER_A
+       14 -------------------------------- AGC_ENCODER_B
+       15 -------------------------------- spare_gpio
+
+Alternate to allow 5 extra buttons
+
+       0 --------------------------------- TN S1 x1 x2 (row 1)
+       1 --------------------------------- S2 S3 E1 x4 (row 2)
+       2 --------------------------------- S4 S5 E2 x5 (row 3)
+       3 --------------------------------- S6 x3 E3 FN (row 4)
+       4 --------------------------------- VFO_ENCODER_A
+       5 --------------------------------- VFO_ENCODER_B
+       6 --------------------------------- AF_ENCODER_A
+       7 --------------------------------- AF_ENCODER_B
+       8 --------------------------------- TN S2 S4 S6 (col 1)
+       9 --------------------------------- S1 S3 S5 x3 (col 2)
+       10 -------------------------------- x1 E1 E2 E3 (col 3)
+       11 -------------------------------- x2 x4 x5 FN (col 4)
+       12 -------------------------------- RF_ENCODER_A
+       13 -------------------------------- RF_ENCODER_B
+       14 -------------------------------- AGC_ENCODER_A
+       15 -------------------------------- AGC_ENCODER_B
+
+x1-x5 (spare buttons)
+
+*/
+const uint8_t SX1509_ADDRESS=0x3E;
+struct SX1509* pSX1509;
+
+//#ifdef odroid
+int SX1509_INT_PIN=0;
+//#endif
+#endif
 
 static volatile int vfoEncoderPos;
 static volatile int afEncoderPos;
@@ -170,6 +244,11 @@ static void lockAlert(int gpio, int level, uint32_t tick) {
     lock_state=(level==0);
 }
 
+static void cwAlert(int gpio, int level, uint32_t tick) {
+    if (cw_keyer_internal == 0)
+       keyer_event(gpio, cw_active_level == 0 ? level : (level==0));
+}
+
 static void vfoEncoderPulse(int gpio, int level, unsigned int tick) {
    static int levA=0, levB=0, lastGpio = -1;
 
@@ -253,7 +332,67 @@ static void agcEncoderPulse(int gpio, int level, uint32_t tick)
    }
 }
 
-#ifdef odroid
+#ifdef sx1509
+#define SX1509_ENCODER_MASK 0xF0F0
+
+#define BTN_ROWS 4 // Number of rows in the button matrix
+#define BTN_COLS 4 // Number of columns in the button matrix
+
+// btnMap maps row/column combinations to button states:
+volatile int *btnArray[BTN_ROWS][BTN_COLS] = {
+  { &mox_state, &band_state, NULL, NULL},
+  { &bandstack_state, &mode_state, &afFunction, NULL},
+  { &filter_state, &noise_state, &rfFunction, NULL},
+  { &agc_state, NULL, &agcFunction, &function_state}
+};
+
+void sx1509_interrupt(void) {
+
+   static int lastBtnPress = 255;
+   static uint64_t lastBtnPressTime = 0;
+
+   // read and clear encoder interrupts
+   uint16_t encInterrupt = SX1509_interruptSource(pSX1509, true);
+
+
+   if (encInterrupt & SX1509_ENCODER_MASK) {
+      if (encInterrupt & (1<<VFO_ENCODER_A))
+        vfoEncoderPulse(VFO_ENCODER_A, SX1509_digitalRead(pSX1509, VFO_ENCODER_A), 0);
+      if (encInterrupt & (1<<VFO_ENCODER_B))
+        vfoEncoderPulse(VFO_ENCODER_B, SX1509_digitalRead(pSX1509, VFO_ENCODER_B), 0);
+      if (encInterrupt & (1<<AF_ENCODER_A))
+        afEncoderPulse(AF_ENCODER_A, SX1509_digitalRead(pSX1509, AF_ENCODER_A), 0);
+      if (encInterrupt & (1<<AF_ENCODER_B))
+        afEncoderPulse(AF_ENCODER_B, SX1509_digitalRead(pSX1509, AF_ENCODER_B), 0);
+      if (encInterrupt & (1<<RF_ENCODER_A))
+        rfEncoderPulse(RF_ENCODER_A, SX1509_digitalRead(pSX1509, RF_ENCODER_A), 0);
+      if (encInterrupt & (1<<RF_ENCODER_B))
+        rfEncoderPulse(RF_ENCODER_B, SX1509_digitalRead(pSX1509, RF_ENCODER_B), 0);
+      if (encInterrupt & (1<<AGC_ENCODER_A))
+        agcEncoderPulse(AGC_ENCODER_A, SX1509_digitalRead(pSX1509, AGC_ENCODER_A), 0);
+      if (encInterrupt & (1<<AGC_ENCODER_B))
+        agcEncoderPulse(AGC_ENCODER_B, SX1509_digitalRead(pSX1509, AGC_ENCODER_B), 0);
+   }
+
+   uint16_t btnData = SX1509_readKeypad(pSX1509);
+
+   if (btnData) {
+      uint8_t row = SX1509_getRow(pSX1509, btnData);
+      uint8_t col = SX1509_getCol(pSX1509, btnData);
+
+      if ((btnData != lastBtnPress) ||
+          (lastBtnPressTime < millis() - 100)) //100ms
+      {
+         lastBtnPress = btnData;
+         lastBtnPressTime = millis();
+         if (btnArray[row][col] != NULL)
+            *btnArray[row][col] = 1;
+      }
+   }
+}
+#endif
+
+#if defined odroid && !defined sx1509
 void interruptB(void) {
    vfoEncoderPulse(VFO_ENCODER_B,digitalRead(VFO_ENCODER_B_PIN),0);
 }
@@ -274,7 +413,7 @@ void gpio_restore_state() {
   if(value) VFO_ENCODER_A=atoi(value);
   value=getProperty("VFO_ENCODER_B");
   if(value) VFO_ENCODER_B=atoi(value);
-#ifdef odroid
+#if defined odroid && !defined sx1509
   value=getProperty("VFO_ENCODER_A_PIN");
   if(value) VFO_ENCODER_A_PIN=atoi(value);
   value=getProperty("VFO_ENCODER_B_PIN");
@@ -338,8 +477,16 @@ void gpio_restore_state() {
   if(value) MOX_BUTTON=atoi(value);
   value=getProperty("ENABLE_LOCK_BUTTON");
   if(value) ENABLE_LOCK_BUTTON=atoi(value);
+#ifndef sx1509
   value=getProperty("LOCK_BUTTON");
   if(value) LOCK_BUTTON=atoi(value);
+#endif
+  value=getProperty("ENABLE_CW_BUTTONS");
+  if(value) ENABLE_CW_BUTTONS=atoi(value);
+  value=getProperty("CWL_BUTTON");
+  if(value) CWL_BUTTON=atoi(value);
+  value=getProperty("CWR_BUTTON");
+  if(value) CWR_BUTTON=atoi(value);
 }
 
 void gpio_save_state() {
@@ -353,7 +500,7 @@ void gpio_save_state() {
   setProperty("VFO_ENCODER_A",value);
   sprintf(value,"%d",VFO_ENCODER_B);
   setProperty("VFO_ENCODER_B",value);
-#ifdef odroid
+#if defined odroid && !defined sx1509
   sprintf(value,"%d",VFO_ENCODER_A_PIN);
   setProperty("VFO_ENCODER_A_PIN",value);
   sprintf(value,"%d",VFO_ENCODER_B_PIN);
@@ -417,8 +564,16 @@ void gpio_save_state() {
   setProperty("MOX_BUTTON",value);
   sprintf(value,"%d",ENABLE_LOCK_BUTTON);
   setProperty("ENABLE_LOCK_BUTTON",value);
+#ifndef sx1509
   sprintf(value,"%d",LOCK_BUTTON);
   setProperty("LOCK_BUTTON",value);
+#endif
+  sprintf(value,"%d",ENABLE_CW_BUTTONS);
+  setProperty("ENABLE_CW_BUTTONS",value);
+  sprintf(value,"%d",CWL_BUTTON);
+  setProperty("CWL_BUTTON",value);
+  sprintf(value,"%d",CWR_BUTTON);
+  setProperty("CWR_BUTTON",value);
 
   saveProperties("gpio.props");
 }
@@ -427,13 +582,24 @@ void gpio_save_state() {
 int gpio_init() {
 fprintf(stderr,"encoder_init\n");
 
-#ifdef odroid
+#if defined odroid && !defined sx1509
   VFO_ENCODER_A=88;
   VFO_ENCODER_B=87;
 #endif
 
   gpio_restore_state();
 #ifdef raspberrypi
+
+#define BUTTON_STEADY_TIME_US 5000
+
+  void setup_button(int button, gpioAlertFunc_t pAlert) {
+    gpioSetMode(button, PI_INPUT);
+    gpioSetPullUpDown(button,PI_PUD_UP);
+    // give time to settle to avoid false triggers
+    usleep(10000);
+    gpioSetAlertFunc(button, pAlert);
+    gpioGlitchFilter(button, BUTTON_STEADY_TIME_US);
+  }
 
     fprintf(stderr,"encoder_init: VFO_ENCODER_A=%d VFO_ENCODER_B=%d\n",VFO_ENCODER_A,VFO_ENCODER_B);
 
@@ -444,9 +610,7 @@ fprintf(stderr,"encoder_init\n");
     }
 
   if(ENABLE_FUNCTION_BUTTON) {
-    gpioSetMode(FUNCTION_BUTTON, PI_INPUT);
-    gpioSetPullUpDown(FUNCTION_BUTTON,PI_PUD_UP);
-    gpioSetAlertFunc(FUNCTION_BUTTON, functionAlert);
+    setup_button(FUNCTION_BUTTON, functionAlert);
   }
 
   if(ENABLE_VFO_ENCODER) {
@@ -473,10 +637,8 @@ fprintf(stderr,"encoder_init\n");
   }
 
 
-    gpioSetMode(AF_FUNCTION, PI_INPUT);
-    gpioSetPullUpDown(AF_FUNCTION,PI_PUD_UP);
-    gpioSetAlertFunc(AF_FUNCTION, afFunctionAlert);
-    afFunction=0;
+  setup_button(AF_FUNCTION, afFunctionAlert);
+  afFunction=0;
 
   if(ENABLE_AF_ENCODER) {
     gpioSetMode(AF_ENCODER_A, PI_INPUT);
@@ -493,9 +655,7 @@ fprintf(stderr,"encoder_init\n");
     afEncoderPos=0;
   }
 
-    gpioSetMode(RF_FUNCTION, PI_INPUT);
-    gpioSetPullUpDown(RF_FUNCTION,PI_PUD_UP);
-    gpioSetAlertFunc(RF_FUNCTION, rfFunctionAlert);
+    setup_button(RF_FUNCTION, rfFunctionAlert);
     rfFunction=0;
 
   if(ENABLE_RF_ENCODER) {
@@ -513,9 +673,7 @@ fprintf(stderr,"encoder_init\n");
     rfEncoderPos=0;
   }
 
-  gpioSetMode(AGC_FUNCTION, PI_INPUT);
-  gpioSetPullUpDown(AGC_FUNCTION,PI_PUD_UP);
-  gpioSetAlertFunc(AGC_FUNCTION, agcFunctionAlert);
+  setup_button(AGC_FUNCTION, agcFunctionAlert);
   agcFunction=0;
 
   if(ENABLE_AGC_ENCODER) {
@@ -535,56 +693,119 @@ fprintf(stderr,"encoder_init\n");
 
 
   if(ENABLE_BAND_BUTTON) {
-    gpioSetMode(BAND_BUTTON, PI_INPUT);
-    gpioSetPullUpDown(BAND_BUTTON,PI_PUD_UP);
-    gpioSetAlertFunc(BAND_BUTTON, bandAlert);
+    setup_button(BAND_BUTTON, bandAlert);
   }
  
   if(ENABLE_BANDSTACK_BUTTON) {
-    gpioSetMode(BANDSTACK_BUTTON, PI_INPUT);
-    gpioSetPullUpDown(BANDSTACK_BUTTON,PI_PUD_UP);
-    gpioSetAlertFunc(BANDSTACK_BUTTON, bandstackAlert);
+    setup_button(BANDSTACK_BUTTON, bandstackAlert);
   }
  
   if(ENABLE_MODE_BUTTON) {
-    gpioSetMode(MODE_BUTTON, PI_INPUT);
-    gpioSetPullUpDown(MODE_BUTTON,PI_PUD_UP);
-    gpioSetAlertFunc(MODE_BUTTON, modeAlert);
+    setup_button(MODE_BUTTON, modeAlert);
   }
  
   if(ENABLE_FILTER_BUTTON) {
-    gpioSetMode(FILTER_BUTTON, PI_INPUT);
-    gpioSetPullUpDown(FILTER_BUTTON,PI_PUD_UP);
-    gpioSetAlertFunc(FILTER_BUTTON, filterAlert);
+    setup_button(FILTER_BUTTON, filterAlert);
   }
  
   if(ENABLE_NOISE_BUTTON) {
-    gpioSetMode(NOISE_BUTTON, PI_INPUT);
-    gpioSetPullUpDown(NOISE_BUTTON,PI_PUD_UP);
-    gpioSetAlertFunc(NOISE_BUTTON, noiseAlert);
+    setup_button(NOISE_BUTTON, noiseAlert);
   }
  
   if(ENABLE_AGC_BUTTON) {
-    gpioSetMode(AGC_BUTTON, PI_INPUT);
-    gpioSetPullUpDown(AGC_BUTTON,PI_PUD_UP);
-    gpioSetAlertFunc(AGC_BUTTON, agcAlert);
+    setup_button(AGC_BUTTON, agcAlert);
   }
  
   if(ENABLE_MOX_BUTTON) {
-    gpioSetMode(MOX_BUTTON, PI_INPUT);
-    gpioSetPullUpDown(MOX_BUTTON,PI_PUD_UP);
-    gpioSetAlertFunc(MOX_BUTTON, moxAlert);
+    setup_button(MOX_BUTTON, moxAlert);
   }
 
+#ifndef sx1509
   if(ENABLE_LOCK_BUTTON) {
-    gpioSetMode(LOCK_BUTTON, PI_INPUT);
-    gpioSetPullUpDown(LOCK_BUTTON,PI_PUD_UP);
-    gpioSetAlertFunc(LOCK_BUTTON, lockAlert);
+    setup_button(LOCK_BUTTON, lockAlert);
+  }
+#endif
+
+  if(ENABLE_CW_BUTTONS) {
+    gpioSetMode(CWL_BUTTON, PI_INPUT);
+    gpioSetAlertFunc(CWL_BUTTON, cwAlert);
+    gpioSetMode(CWR_BUTTON, PI_INPUT);
+    gpioSetAlertFunc(CWR_BUTTON, cwAlert);
+    gpioGlitchFilter(CWL_BUTTON, 5000);
+    gpioGlitchFilter(CWR_BUTTON, 5000);
   }
  
 #endif
 
-#ifdef odroid
+#ifdef sx1509
+  // override default (PI) values
+  VFO_ENCODER_A=4;
+  VFO_ENCODER_B=5;
+  AF_ENCODER_A=6;
+  AF_ENCODER_B=7;
+  RF_ENCODER_A=12;
+  RF_ENCODER_B=13;
+  AGC_ENCODER_A=14;
+  AGC_ENCODER_B=15;
+
+  fprintf(stderr,"sx1509 encoder_init: VFO_ENCODER_A=%d VFO_ENCODER_B=%d\n",VFO_ENCODER_A,VFO_ENCODER_B);
+
+  pSX1509 = newSX1509();
+
+  // Call SX1509_begin(<address>) to initialize the SX1509. If it
+  // successfully communicates, it'll return 1. 255 for soft reset
+  if (!SX1509_begin(pSX1509, SX1509_ADDRESS, 255))
+  {
+    printf("Failed to communicate to sx1509 at %x.\n", SX1509_ADDRESS);
+    return 1;
+  }
+
+  fprintf(stderr,"wiringPiSetup\n");
+  if (wiringPiSetup () < 0) {
+    printf ("Unable to setup wiringPi: %s\n", strerror (errno));
+    return 1;
+  }
+
+  // Initialize the buttons
+  // Sleep time off (0). 16ms scan time, 8ms debounce:
+  SX1509_keypad(pSX1509, BTN_ROWS, BTN_COLS, 0, 16, 8);
+
+  // Initialize the encoders
+  SX1509_pinMode(pSX1509, VFO_ENCODER_A, INPUT_PULLUP);
+  SX1509_pinMode(pSX1509, VFO_ENCODER_B, INPUT_PULLUP);
+  SX1509_enableInterrupt(pSX1509, VFO_ENCODER_A, CHANGE);
+  SX1509_enableInterrupt(pSX1509, VFO_ENCODER_B, CHANGE);
+  vfoEncoderPos=0;
+  SX1509_pinMode(pSX1509, AF_ENCODER_A, INPUT_PULLUP);
+  SX1509_pinMode(pSX1509, AF_ENCODER_B, INPUT_PULLUP);
+  SX1509_enableInterrupt(pSX1509, AF_ENCODER_A, CHANGE);
+  SX1509_enableInterrupt(pSX1509, AF_ENCODER_B, CHANGE);
+  afEncoderPos=0;
+  SX1509_pinMode(pSX1509, RF_ENCODER_A, INPUT_PULLUP);
+  SX1509_pinMode(pSX1509, RF_ENCODER_B, INPUT_PULLUP);
+  SX1509_enableInterrupt(pSX1509, RF_ENCODER_A, CHANGE);
+  SX1509_enableInterrupt(pSX1509, RF_ENCODER_B, CHANGE);
+  rfEncoderPos=0;
+  SX1509_pinMode(pSX1509, AGC_ENCODER_A, INPUT_PULLUP);
+  SX1509_pinMode(pSX1509, AGC_ENCODER_B, INPUT_PULLUP);
+  SX1509_enableInterrupt(pSX1509, AGC_ENCODER_A, CHANGE);
+  SX1509_enableInterrupt(pSX1509, AGC_ENCODER_B, CHANGE);
+  agcEncoderPos=0;
+
+  afFunction=0;
+  rfFunction=0;
+  agcFunction=0;
+
+  pinMode(SX1509_INT_PIN, INPUT);
+  pullUpDnControl(SX1509_INT_PIN, PUD_UP);
+
+  if ( wiringPiISR (SX1509_INT_PIN, INT_EDGE_FALLING, &sx1509_interrupt) < 0 ) {
+    printf ("Unable to setup ISR: %s\n", strerror (errno));
+    return 1;
+  }
+#endif
+
+#if defined odroid && !defined sx1509
 
     //VFO_ENCODER_A=ODROID_VFO_ENCODER_A;
     //VFO_ENCODER_B=ODROID_VFO_ENCODER_B;
@@ -637,7 +858,7 @@ fprintf(stderr,"encoder_init\n");
 
 void gpio_close() {
     running=0;
-#ifdef odroid
+#if defined odroid && !defined sx1509
     FILE *fp;
     fp = popen("echo 97 > /sys/class/gpio/unexport\n", "r");
     pclose(fp);
@@ -849,7 +1070,6 @@ static int mox_pressed(void *data) {
 }
 
 static int lock_pressed(void *data) {
-fprintf(stderr,"lock_pressed\n");
   lock_cb((GtkWidget *)NULL, (gpointer)NULL);
   return 0;
 }
@@ -992,11 +1212,25 @@ static void* rotary_encoder_thread(void *arg) {
             }
         }
 
+#ifdef sx1509
+        // buttons only generate interrupt when
+        // pushed on, so clear them now
+        function_state = 0;
+        band_state = 0;
+        bandstack_state = 0;
+        mode_state = 0;
+        filter_state = 0;
+        noise_state = 0;
+        agc_state = 0;
+        mox_state = 0;
+        lock_state = 0;
+#endif
+
 #ifdef raspberrypi
           if(running) gpioDelay(100000); // 10 per second
 #endif
 #ifdef odroid
-          if(runnig) usleep(100000);
+          if(running) usleep(100000);
 #endif
     }
 #ifdef raspberrypi

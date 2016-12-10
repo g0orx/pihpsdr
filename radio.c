@@ -159,6 +159,7 @@ int cw_keyer_ptt_delay=20; // 0-255ms
 int cw_keyer_hang_time=300; // ms
 int cw_keyer_sidetone_frequency=400; // Hz
 int cw_breakin=1; // 0=disabled 1=enabled
+int cw_active_level=1; // 0=active_low 1=active_high
 
 int vfo_encoder_divisor=15;
 
