@@ -25,7 +25,9 @@
 #include "new_menu.h"
 #include "audio_menu.h"
 #include "audio.h"
+#include "channel.h"
 #include "radio.h"
+#include "wdsp.h"
 
 static GtkWidget *parent_window=NULL;
 
@@ -43,6 +45,11 @@ static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
     sub_menu=NULL;
   }
   return TRUE;
+}
+
+static void binaural_cb(GtkWidget *widget, gpointer data) {
+  binaural=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
+  SetRXAPanelBinaural(CHANNEL_RX0, binaural);
 }
 
 static void micboost_cb(GtkWidget *widget, gpointer data) {
@@ -143,6 +150,11 @@ void audio_menu(GtkWidget *parent) {
   GtkWidget *close_b=gtk_button_new_with_label("Close Audio");
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
+
+  GtkWidget *binaural_b=gtk_check_button_new_with_label("Binaural");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (binaural_b), binaural);
+  gtk_grid_attach(GTK_GRID(grid),binaural_b,1,0,1,1);
+  g_signal_connect(binaural_b,"toggled",G_CALLBACK(binaural_cb),NULL);
 
   int row=0;
 

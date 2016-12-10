@@ -93,6 +93,7 @@ int toolbar_dialog_buttons=1;
 
 double volume=0.2;
 double mic_gain=0.0;
+int binaural=0;
 
 int rx_dither=0;
 int rx_random=0;
@@ -697,6 +698,9 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     value=getProperty("vox_hang");
     if(value) vox_hang=atof(value);
 
+    value=getProperty("binaural");
+    if(value) binaural=atoi(value);
+
     bandRestoreState();
 
     sem_post(&property_sem);
@@ -891,6 +895,9 @@ void radioSaveState() {
 */
     sprintf(value,"%f",vox_hang);
     setProperty("vox_hang",value);
+
+    sprintf(value,"%d",binaural);
+    setProperty("binaural",value);
 
     bandSaveState();
 

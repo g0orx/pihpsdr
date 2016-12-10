@@ -48,7 +48,7 @@
 #define ALEX_9_5MHZ_HPF        0x00000010
 #define ALEX_6_5MHZ_HPF        0x00000020
 #define ALEX_1_5MHZ_HPF        0x00000040
-#define ALEX_BYPASS_HPF        0x00000800
+#define ALEX_BYPASS_HPF        0x00001000
 
 #define ALEX_6M_PREAMP         0x00000008
 

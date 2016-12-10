@@ -111,6 +111,7 @@ extern int toolbar_dialog_buttons;
 
 extern double volume;
 extern double mic_gain;
+extern int binaural;
 extern int agc;
 extern double agc_gain;
 extern double agc_slope;

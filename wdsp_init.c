@@ -243,6 +243,7 @@ static void setupRX(int rx) {
     SetRXASNBARun(rx, snb);
 
     SetRXAPanelGain1(rx, volume);
+    SetRXAPanelBinaural(rx, binaural);
 
     if(enable_rx_equalizer) {
       SetRXAGrphEQ(rx, rx_equalizer);

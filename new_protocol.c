@@ -378,7 +378,15 @@ static void new_protocol_high_priority(int run) {
     } else {
       buffer[1401]=band->OCrx;
     }
-// alex HPF filters
+
+
+    long filters=0x00000000;
+
+    if(isTransmitting()) {
+      filters=0x08000000;
+    }
+
+// Alex RX HPF filters
 /*
 if              (frequency <  1800000) HPF <= 6'b100000;        // bypass
 else if (frequency <  6500000) HPF <= 6'b010000;        // 1.5MHz HPF   
@@ -388,15 +396,6 @@ else if (frequency < 20000000) HPF <= 6'b000001;        // 13MHz HPF
 else                                               HPF <= 6'b000010;    // 20MHz HPF
 */
 
-
-
-    long filters=0x00000000;
-
-    if(isTransmitting()) {
-      filters=0x08000000;
-    }
-
-// set HPF
     if(ddsFrequency<1800000L) {
         filters|=ALEX_BYPASS_HPF;
     } else if(ddsFrequency<6500000L) {
@@ -410,7 +409,8 @@ else                                               HPF <= 6'b000010;    // 20MHz
     } else {
         filters|=ALEX_20MHZ_HPF;
     }
-// alex LPF filters
+
+// Alex TX LPF filters
 /*
 if (frequency > 32000000)   LPF <= 7'b0010000;             // > 10m so use 6m LPF^M
 else if (frequency > 22000000) LPF <= 7'b0100000;       // > 15m so use 12/10m LPF^M
