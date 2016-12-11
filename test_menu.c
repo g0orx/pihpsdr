@@ -22,6 +22,7 @@
 #include <string.h>
 
 #include "new_menu.h"
+#include "update.h"
 
 static GtkWidget *parent_window=NULL;
 
@@ -37,7 +38,15 @@ static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
 }
 
 static gboolean test_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  gtk_window_iconify(GTK_WINDOW(parent_window));
+  
+  int result=check_update();
+  fprintf(stderr,"check_update returned %d\n",result);
+
+  if(result>0) {
+    result=load_update();
+    fprintf(stderr,"load_update returned %d\n",result);
+  }
+
   return TRUE;
 }
 

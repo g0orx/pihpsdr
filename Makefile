@@ -192,7 +192,8 @@ vfo.c \
 waterfall.c \
 wdsp_init.c \
 button_text.c \
-vox.c
+vox.c \
+update.c
 
 
 HEADERS= \
@@ -251,7 +252,8 @@ vfo.h \
 waterfall.h \
 wdsp_init.h \
 button_text.h \
-vox.h
+vox.h \
+update.h
 
 
 OBJS= \
@@ -308,7 +310,8 @@ vfo.o \
 waterfall.o \
 wdsp_init.o \
 button_text.o \
-vox.o
+vox.o \
+update.o
 
 all: prebuild $(PROGRAM) $(HEADERS) $(LIMESDR_HEADERS) $(FREEDV_HEADERS) $(LOCALCW_HEADERS) $(GPIO_HEADERS) $(PSK_HEADERS) $(SOURCES) $(LIMESDR_SOURCES) $(FREEDV_SOURCES) $(GPIO_SOURCES) $(PSK_SOURCES)
 
@@ -331,4 +334,5 @@ install:
 	cp pihpsdr ./release/pihpsdr
 	cd release; tar cvf pihpsdr_$(GIT_VERSION).tar pihpsdr
 	cd release; tar cvf pihpsdr.tar pihpsdr
+	cd release; echo $(GIT_VERSION) > pihpsdr/latest
 
