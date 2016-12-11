@@ -35,6 +35,7 @@
 #include "mode.h"
 #include "filter.h"
 #include "wdsp_init.h"
+#include "band.h"
 #include "bandstack.h"
 #include "vfo.h"
 #include "sliders.h"
@@ -45,7 +46,7 @@
 #include<sys/socket.h>
 #include<arpa/inet.h> //inet_addr
 
-#undef RIGCTL_DEBUG
+#define RIGCTL_DEBUG
 
 // the port client will be connecting to
 #define TELNET_PORT 19090  // This is the HAMLIB port
@@ -59,6 +60,9 @@ int rigctlGetFilterHigh();
 int rigctlSetFilterLow(int val);
 int rigctlSetFilterHigh(int val);
 int new_level;
+void parse_cmd ( char *,int );
+
+extern int enable_tx_equalizer;
 
 typedef struct com_list {
      char  cmd_string[80];
@@ -143,46 +147,65 @@ char * cmd_lookup (int index_num) {
 }
 
 static void * rigctl (void * arg) {
-   int work_int;     
    int len;
    init_server();
-   double meter;
    int save_flag = 0; // Used to concatenate two cmd lines together
+   int semi_number = 0;
+   int i;
+   char * work_ptr;
 
   for(;;) {
     fprintf(stderr,"RIGCTL - New run\n");
-    while((numbytes=recv(client_sock , cmd_input , 1000 , 0)) > 0 ) {
-       
-        if(cmd_input[numbytes-1] != ';') {  // Got here because the command line is short
+    while((numbytes=recv(client_sock , cmd_input , MAXDATASIZE-2 , 0)) > 0 ) {
+         cmd_input[numbytes+1]='\0'; // Turn into a C string
+         i=strlen(cmd_input);
+         #ifdef RIGCTL_DEBUG
+         fprintf(stderr,"RIGCTL: RCVD=%s  NB=%d LEN=%d\n",cmd_input,numbytes,i);
+         #endif
+        
+        // Need to handle two cases
+        // 1. Command is short, i.e. no semicolon - that will set save_flag=1 and
+        //    read another line..
+        // 2. 1 to N commands per line. Turns out N1MM sends multiple commands per line
+         
+        if(save_flag == 0) { // Count the number of semicolons if we aren't already in mode 1.
+          semi_number = 0;
+          for(i=0;i<numbytes;i++) {
+             if(cmd_input[i] == ';') { semi_number++;};
+          } 
+        }
+        if((save_flag == 0) && (semi_number == 0)) {
            cmd_input[numbytes] = '\0';      // Turn it into a C string
            strcpy(cmd_save,cmd_input);      // And save a copy of it till next time through
            save_flag = 1;
-           #ifdef RIGCTL_DEBUG
-           fprintf(stderr,"RIGCTL: CMD_SAVE=%s  LEN=%d\n",cmd_save,numbytes);
-           #endif
         } else if(save_flag == 1) {
            save_flag = 0;
            cmd_input[numbytes] = '\0';      // Turn it into a C string
            strcat(cmd_save,cmd_input);
            strcpy(cmd_input,cmd_save);      // Cat them together and replace cmd_input
            numbytes = strlen(cmd_input);
-           #ifdef RIGCTL_DEBUG
-            fprintf(stderr,"RIGCTL: CMD_INPUT=%s LEN=%d\n",cmd_input,numbytes);
-           #endif
-        } else {
-           #ifdef RIGCTL_DEBUG
-           fprintf(stderr,"RIGCTL: CMD_NORM=%s  NUMBYTES=%d\n",cmd_input,numbytes);
-           #endif
+        } 
+        if(save_flag != 1) {
+           work_ptr = strtok(cmd_input,";");
+           while(work_ptr != NULL) {
+               parse_cmd(work_ptr,strlen(work_ptr));
+               work_ptr = strtok(NULL,";");
+           }
         }
+       // Got here because pipe closed 
+    }
+    if(numbytes == 0) {
+         fprintf(stderr,"RIGCTL: Client disconnected\n");
+         close(client_sock);
+         sleep(1);
+         client_sock = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c);
+    }
+ }
+}
 
-        cmd_input[numbytes-1] = '\0';  // Turn it into a C string.
-        len = strlen(cmd_input);
-           #ifdef RIGCTL_DEBUG
-           fprintf(stderr,"RIGCTL: CMD_AFTER=%s  LEN=%d\n",cmd_input,len);
-           #endif
-        #ifdef RIGCTL_DEBUG
-        fprintf(stderr,"RIGCTL: RCVD=%s  LENGTH=%d\n",cmd_input,len);
-        #endif
+void parse_cmd ( char * cmd_input,int len) {
+        int work_int;     
+        double meter;
         // Parse the cmd_input
         //int space = command.indexOf(' ');
         //char cmd_char = com_head->cmd_string[0]; // Assume the command is first thing!
@@ -206,7 +229,7 @@ static void * rigctl (void * arg) {
                                                volume = (double) atoi(&cmd_input[3])/260; 
                                                g_idle_add(update_af_gain,NULL);               
                                             } else { // Read Audio Gain
-                                              sprintf(msg,"AG0%03d;",2.6 * volume);
+                                              sprintf(msg,"AG0%03d;",(int) (2.6 * volume));
                                               send_resp(msg);
                                               #ifdef RIGCTL_DEBUG
                                               fprintf(stderr,":%s\n",msg);
@@ -242,7 +265,7 @@ static void * rigctl (void * arg) {
                                              // AS<P1><2xP2><11P3><P4>;
                                              // AS<P1><2xP2><11P3><P4>;
                                              if(len < 6) {  
-                                                sprintf(msg,"AS%1d%02d%011d%01d;",
+                                                sprintf(msg,"AS%1d%02d%011lld%01d;",
                                                              0, // P1
                                                              0, // Automode 
                                                              getFrequency(),
@@ -336,7 +359,7 @@ static void * rigctl (void * arg) {
                                                g_idle_add(vfo_update,NULL);
                                             } else {
                                                if(len==2) {
-                                                  sprintf(msg,"FA%011d;",getFrequency());
+                                                  sprintf(msg,"FA%011lld;",getFrequency());
                                                   send_resp(msg);
                                                }
                                             }
@@ -347,7 +370,7 @@ static void * rigctl (void * arg) {
                                                setFrequency(new_freqA);
                                                g_idle_add(vfo_update,NULL);
                                             } else if(len == 2) {
-                                               sprintf(msg,"FB%011d;",getFrequency());
+                                               sprintf(msg,"FB%011lld;",getFrequency());
                                                send_resp(msg);
                                             }
                                          }
@@ -359,7 +382,7 @@ static void * rigctl (void * arg) {
                                                long long new_freqA = atoll(&cmd_input[2]);              
                                                //setFrequency(new_freqA);
                                             } else {
-                                               sprintf(msg,"FC%011d;",getFrequency());
+                                               sprintf(msg,"FC%011lld;",getFrequency());
 /*
                                                send_resp(msg);
 */
@@ -413,7 +436,7 @@ static void * rigctl (void * arg) {
                                             //   0           - 1 char - CTCSS tone - not used
                                             //   00          - 2 char - More tone control
                                             //   0           - 1 char - Shift status
-                                            sprintf(msg,"IF%011d%04d%06d%1d%1d%1d%02d%01d%01d%01d%01d%01d%01d%02d%01d;",
+                                            sprintf(msg,"IF%011lld%04d%06d%1d%1d%1d%02d%01d%01d%01d%01d%01d%01d%02d%01d;",
                                                          getFrequency(),
                                                          0,  // Shift Offset
                                                          0,  // Rit Freq
@@ -590,7 +613,7 @@ static void * rigctl (void * arg) {
                                              }
                                          }
         else if(strcmp(cmd_str,"MR")==0) {  // Read Memory Channel data
-                                             sprintf(msg,"MR%1d%02d%02d%011d%1d%1d%1d%02d%02d%03d%1d%1d%09d%02d%1d%08d;",
+                                             sprintf(msg,"MR%1d%02d%02d%011lld%1d%1d%1d%02d%02d%03d%1d%1d%09d%02d%1d%08d;",
                                                       0, // P1 - Rx Freq - 1 Tx Freq
                                                       0, // P2 Bankd and channel number -- see MC comment
                                                       0, // P3 - see MC comment 
@@ -618,7 +641,20 @@ static void * rigctl (void * arg) {
                                          }
         else if(strcmp(cmd_str,"NB")==0) {  // Set/Read Noise Blanker func status (on/off)
                                              if(len <=2) {
-                                               send_resp("NB0;"); 
+                                               sprintf(msg,"NB%1d;",snb);
+                                               send_resp(msg);
+                                             } else {
+                                               if(cmd_input[2]=='0') { // Turn off ANF
+                                                  snb=0;
+                                               } else { // Turn on ANF
+                                                  snb=1;
+                                               }
+                                               // Update ALL the filters
+                                               SetRXAANRRun(CHANNEL_RX0, nr);
+                                               SetRXAEMNRRun(CHANNEL_RX0, nr2);
+                                               SetRXAANFRun(CHANNEL_RX0, anf);
+                                               SetRXASNBARun(CHANNEL_RX0, snb);
+                                               g_idle_add(vfo_update,NULL);
                                              }
                                          }
         else if(strcmp(cmd_str,"NL")==0) {  // Set/Read Noise Reduction  Level
@@ -628,13 +664,50 @@ static void * rigctl (void * arg) {
                                          }
         else if(strcmp(cmd_str,"NR")==0) {  // Set/Read Noise Reduction function status
                                              if(len <=2) {
-                                               send_resp("NR0;"); 
-                                             }
+                                               if(nr_none == 1) {
+                                                   send_resp("NR0;"); 
+                                               } else if ((nr_none == 0) && (nr==1)) { 
+                                                   send_resp("NR1;"); 
+                                               } else if (nr2 == 1) { 
+                                                   send_resp("NR2;"); 
+                                               }
+                                             } else {
+                                               if(cmd_input[2] == '0') {
+                                                  nr_none = 1;
+                                                  nr = 0;
+                                                  nr2 = 0;
+                                               } else if(cmd_input[2] == '1') {
+                                                  nr_none = 0;
+                                                  nr = 1;
+                                                  nr2 = 0;
+                                               } else if(cmd_input[2] == '2') {
+                                                  nr_none = 0;
+                                                  nr = 0;
+                                                  nr2 = 1;
+                                             } 
+                                             SetRXAANRRun(CHANNEL_RX0, nr_none);
+                                             SetRXAEMNRRun(CHANNEL_RX0, nr2);
+                                             SetRXAANFRun(CHANNEL_RX0, anf);
+                                             SetRXASNBARun(CHANNEL_RX0, snb);
+                                             g_idle_add(vfo_update,NULL);
+                                            }
                                          }
         else if(strcmp(cmd_str,"NT")==0) {  // Set/Read autonotch function
                                              if(len <=2) {
-                                               send_resp("NT0;"); 
+                                               sprintf(msg,"NT%1d;",anf);
+                                               send_resp(msg);
+                                             } else {
+                                               if(cmd_input[2] == '0') { // Clear ANF
+                                                 anf = 0;
+                                               } else { // Set ANF
+                                                 anf = 1;
+                                               }
                                              }
+                                             SetRXAANRRun(CHANNEL_RX0, nr_none);
+                                             SetRXAEMNRRun(CHANNEL_RX0, nr2);
+                                             SetRXAANFRun(CHANNEL_RX0, anf);
+                                             SetRXASNBARun(CHANNEL_RX0, snb);
+                                             g_idle_add(vfo_update,NULL);
                                          }
         else if(strcmp(cmd_str,"OF")==0) {  // Set/Read Offset freq (9 digits - hz)
                                              if(len <=2) {
@@ -643,7 +716,7 @@ static void * rigctl (void * arg) {
                                          }
         else if(strcmp(cmd_str,"OI")==0) {  // Read Memory Channel Data
                                              if(len <=2) {
-                                               sprintf(msg,"OI%011d%04d%06d%1d%1d%1d%02d%1d%1d%1d%1d%1d%1d%02d%1d;",
+                                               sprintf(msg,"OI%011lld%04d%06d%1d%1d%1d%02d%1d%1d%1d%1d%1d%1d%02d%1d;",
                                                   getFrequency(),
                                                   0, // P2 - Freq Step size
                                                   0, // P3 - Rit/Xit Freq 
@@ -656,8 +729,8 @@ static void * rigctl (void * arg) {
                                                   0, // P11 - SC command
                                                   0, // P12 Split op - SP command
                                                   0, // P13 Off, 1, 2, 
-                                                  0, // P14 Tone freq - See TN command
-                                                  0);
+                                                  0,// P14 Tone freq - See TN command
+                                                  0,0);
                                                send_resp(msg);
                                              }
                                          }
@@ -668,7 +741,16 @@ static void * rigctl (void * arg) {
                                          }
         else if(strcmp(cmd_str,"PA")==0) {  // Set/Read Preamp function status
                                              if(len <=2) {
-                                               send_resp("PA00;"); 
+                                               sprintf(msg,"PA0%1d;",enable_tx_equalizer);
+                                               send_resp(msg);
+                                             } else {
+                                                if(cmd_input[2] =='0') {
+                                                  enable_tx_equalizer=0;
+                                                  SetTXAEQRun(CHANNEL_TX, enable_tx_equalizer);
+                                                } else {
+                                                  enable_tx_equalizer=1;
+                                                  SetTXAEQRun(CHANNEL_TX, enable_tx_equalizer);
+                                                }
                                              }
                                          }
         else if(strcmp(cmd_str,"PB")==0) {  // Set/Read DRU-3A Playback status
@@ -825,22 +907,35 @@ static void * rigctl (void * arg) {
                                          }
         else if(strcmp(cmd_str,"SL")==0) {  // Set/read the DSP filter settings - this appears twice? See SH
                                              if(len <=2) {
-                                               send_resp("SL00;"); 
-                                             }
+                                               send_resp("SL00;");
+                                             } 
                                          }
         else if(strcmp(cmd_str,"SM")==0) {  // Read SMETER
                                             // SMx;  x=0 RX1, x=1 RX2 
                                             // meter is in dbm - value will be 0<260
                                             // Translate to 00-30 for main, 0-15 fo sub
                                             // Resp= SMxAABB; 
-                                            // 
+                                            //  Received range from the SMeter can be -127 for S0, S9 is -73, and S9+60=-13.;
+                                            //  PowerSDR returns S9=0015 code. 
+                                            //  Let's make S9 half scale or a value of 70.  
                                             double level;
                                             level = GetRXAMeter(CHANNEL_RX0, smeter); 
-                                            level = level + (double) get_attenuation();
-                                            level = level + 90;
-                                            new_level = (int) (level)/2;            
-                                            if(new_level < 0) { new_level = 0; }
-                                            if(new_level > 30) { new_level = 30;}
+                                            // Determine how high above 127 we are..making a range of 114 from S0 to S9+60db
+                                            // 5 is a fugdge factor that shouldn't be there - but seems to get us to S9=SM015
+                                            level =  abs(127+(level + (double) get_attenuation()))+5;
+                                         
+                                            // Clip the value just in case
+                                            if(cmd_input[2] == '0') { 
+                                               new_level = (int) ((level * 30.0)/114.0);
+                                               // Do saturation check
+                                               if(new_level < 0) { new_level = 0; }
+                                               if(new_level > 30) { new_level = 30;}
+                                            } else { //Assume we are using sub receiver where range is 0-15
+                                               new_level = (int) ((level * 15.0)/114.0);
+                                               // Do saturation check
+                                               if(new_level < 0) { new_level = 0; }
+                                               if(new_level > 15) { new_level = 15;}
+                                            }
                                             #ifdef RIGCTL_DEBUG
                                             fprintf(stderr,"RIGCTL: SM level=%.21f new_level=%d\n",
                                                         level,new_level);
@@ -953,9 +1048,9 @@ static void * rigctl (void * arg) {
                                                #endif
                                             } else {
                                                if(digl_pol==1) { // Nah - its a read
-                                                 sprintf(msg,"RL1%04d;");
+                                                 sprintf(msg,"RL1%04d;",0);
                                                } else {
-                                                 sprintf(msg,"RL0%04d;");
+                                                 sprintf(msg,"RL0%04d;",0);
                                                }         
                                                send_resp(msg);
                                                #ifdef RIGCTL_DEBUG
@@ -974,9 +1069,9 @@ static void * rigctl (void * arg) {
                                                #endif
                                             } else {
                                                if(digl_pol==1) { // Nah - its a read
-                                                 sprintf(msg,"RL1%04d;");
+                                                 sprintf(msg,"RL1%04d;",0);
                                                } else {
-                                                 sprintf(msg,"RL0%04d;");
+                                                 sprintf(msg,"RL0%04d;",0);
                                                }         
                                                send_resp(msg);
                                                #ifdef RIGCTL_DEBUG
@@ -987,17 +1082,11 @@ static void * rigctl (void * arg) {
         else                             {
                                             fprintf(stderr,"RIGCTL: UNKNOWN\n");
                                          }
-   } 
-    // Got here because pipe closed 
-   if(numbytes == 0) {
-         fprintf(stderr,"RIGCTL: Client disconnected\n");
-         close(client_sock);
-         sleep(1);
-         client_sock = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c);
-   }
- }
 }
-
+//
+// End of Parser
+// 
+/*
 char * rigctlGetFilter()
 {
    
@@ -1013,7 +1102,7 @@ char * rigctlGetFilter()
     else
     return (char *) (getFilterHigh() - getFilterLow());
 }
-
+*/
 
 void launch_rigctl () {
    int err;
@@ -1071,7 +1160,7 @@ int init_server () {
     }
     fprintf(stderr,"RIGCTL: Connection accepted\n");
 }
-
+/*
 int rigctlGetFilterLow() {
    int lookup;
    int rval;
@@ -1109,6 +1198,7 @@ int rigctlGetFilterHigh() {
    }
    return rval;
 }
+*/
 int rigctlGetMode()  {
         BANDSTACK_ENTRY *entry;
         entry= (BANDSTACK_ENTRY *) 
