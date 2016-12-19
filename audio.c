@@ -281,7 +281,9 @@ void audio_close_input() {
 }
 
 int audio_write(short left_sample,short right_sample) {
+  snd_pcm_sframes_t delay;
   int error;
+  long trim;
 
   if(playback_handle!=NULL && audio_buffer!=NULL) {
     audio_buffer[audio_offset++]=left_sample;
@@ -291,7 +293,16 @@ int audio_write(short left_sample,short right_sample) {
 
     if(audio_offset==AUDIO_BUFFER_SIZE) {
 
-      if ((error = snd_pcm_writei (playback_handle, audio_buffer, audio_buffer_size)) != audio_buffer_size) {
+      trim=0;
+
+      if(snd_pcm_delay(playback_handle,&delay)==0) {
+        if(delay>2048) {
+          trim=delay-2048;
+fprintf(stderr,"audio delay=%ld trim=%ld\n",delay,trim);
+        }
+      }
+
+      if ((error = snd_pcm_writei (playback_handle, audio_buffer, audio_buffer_size-trim)) != audio_buffer_size-trim) {
         if(error==-EPIPE) {
           if ((error = snd_pcm_prepare (playback_handle)) < 0) {
             fprintf (stderr, "audio_write: cannot prepare audio interface for use (%s)\n",
