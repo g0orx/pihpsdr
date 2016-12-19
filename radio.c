@@ -100,6 +100,7 @@ int rx_random=0;
 int rx_preamp=0;
 
 int mic_linein=0;
+int linein_gain=16; // 0..31
 int mic_boost=0;
 int mic_bias_enabled=0;
 int mic_ptt_enabled=0;
@@ -567,7 +568,9 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     value=getProperty("mic_boost");
     if(value) mic_boost=atof(value);
     value=getProperty("mic_linein");
-    if(value) mic_linein=atof(value);
+    if(value) mic_linein=atoi(value);
+    value=getProperty("linein_gain");
+    if(value) linein_gain=atoi(value);
     value=getProperty("mic_ptt_enabled");
     if(value) mic_ptt_enabled=atof(value);
     value=getProperty("mic_bias_enabled");
@@ -767,6 +770,8 @@ void radioSaveState() {
     setProperty("mic_boost",value);
     sprintf(value,"%d",mic_linein);
     setProperty("mic_linein",value);
+    sprintf(value,"%d",linein_gain);
+    setProperty("linein_gain",value);
     sprintf(value,"%d",mic_ptt_enabled);
     setProperty("mic_ptt_enabled",value);
     sprintf(value,"%d",mic_bias_enabled);

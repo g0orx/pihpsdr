@@ -48,12 +48,11 @@ static GtkWidget *sliders;
 #define NONE 0
 #define AF_GAIN 1
 #define MIC_GAIN 2
-#define AGC_GAIN 3
-#define DRIVE 4
-#define TUNE_DRIVE 5
-#define ATTENUATION 6
-
-//#define MIC_GAIN_FUDGE 25.0
+#define LINEIN_GAIN 3
+#define AGC_GAIN 4
+#define DRIVE 5
+#define TUNE_DRIVE 6
+#define ATTENUATION 7
 
 static gint scale_timer;
 static int scale_status=NONE;
@@ -66,6 +65,8 @@ static GtkWidget *attenuation_label;
 static GtkWidget *attenuation_scale;
 static GtkWidget *mic_gain_label;
 static GtkWidget *mic_gain_scale;
+static GtkWidget *linein_gain_label;
+static GtkWidget *linein_gain_scale;
 static GtkWidget *drive_label;
 static GtkWidget *drive_scale;
 static GtkWidget *tune_label;
@@ -74,6 +75,22 @@ static GtkWidget *dummy_label;
 
 static GdkRGBA white;
 static GdkRGBA gray;
+
+void linein_changed() {
+  if(display_sliders) {
+    if(mic_linein) {
+      gtk_widget_hide(mic_gain_label);
+      gtk_widget_hide(mic_gain_scale);
+      gtk_widget_show(linein_gain_label);
+      gtk_widget_show(linein_gain_scale);
+    } else {
+      gtk_widget_hide(linein_gain_label);
+      gtk_widget_hide(linein_gain_scale);
+      gtk_widget_show(mic_gain_label);
+      gtk_widget_show(mic_gain_scale);
+    }
+  }
+}
 
 int scale_timeout_cb(gpointer data) {
   gtk_widget_destroy(scale_dialog);
@@ -228,7 +245,7 @@ void set_mic_gain(double value) {
     }
     if(scale_status==NONE) {
       scale_status=MIC_GAIN;
-      scale_dialog=gtk_dialog_new_with_buttons(mic_linein?"Linein Gain (dB)":"Mic Gain (dB)",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
+      scale_dialog=gtk_dialog_new_with_buttons("Mic Gain (dB)",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
       GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
       mic_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-10.0, 50.0, 1.00);
       gtk_widget_set_size_request (mic_gain_scale, 400, 30);
@@ -249,6 +266,49 @@ void set_mic_gain(double value) {
 
 int update_mic_gain(void *data) {
   set_mic_gain(*(double*)data);
+  free(data);
+  return 0;
+}
+
+static void lineingain_value_changed_cb(GtkWidget *widget, gpointer data) {
+    linein_gain=(int)gtk_range_get_value(GTK_RANGE(widget));
+}
+
+void set_linein_gain(int value) {
+  linein_gain=value;
+  if(display_sliders) {
+    gtk_range_set_value (GTK_RANGE(linein_gain_scale),linein_gain);
+  } else {
+    if(scale_status!=LINEIN_GAIN) {
+      if(scale_status!=NONE) {
+        g_source_remove(scale_timer);
+        gtk_widget_destroy(scale_dialog);
+        scale_status=NONE;
+      }
+    }
+    if(scale_status==NONE) {
+      scale_status=LINEIN_GAIN;
+      scale_dialog=gtk_dialog_new_with_buttons("Linein Gain",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
+      GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
+      linein_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 31.0, 1.00);
+      gtk_widget_set_size_request (linein_gain_scale, 400, 30);
+      gtk_range_set_value (GTK_RANGE(linein_gain_scale),linein_gain);
+      gtk_widget_show(linein_gain_scale);
+      gtk_container_add(GTK_CONTAINER(content),linein_gain_scale);
+      scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
+      //gtk_widget_show_all(scale_dialog);
+      int result=gtk_dialog_run(GTK_DIALOG(scale_dialog));
+    } else {
+      g_source_remove(scale_timer);
+      gtk_range_set_value (GTK_RANGE(linein_gain_scale),linein_gain);
+      scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
+    }
+
+  }
+}
+
+int update_linein_gain(void *data) {
+  set_linein_gain(*(int*)data);
   free(data);
   return 0;
 }
@@ -378,16 +438,23 @@ GtkWidget *sliders_init(int my_width, int my_height, GtkWidget* parent) {
 
 
 
-  mic_gain_label=gtk_label_new(mic_linein?"Linein (dB):":"Mic (dB):");
+  mic_gain_label=gtk_label_new("Mic (dB):");
   //gtk_widget_override_font(mic_gain_label, pango_font_description_from_string("Arial 16"));
-  gtk_widget_show(mic_gain_label);
   gtk_grid_attach(GTK_GRID(sliders),mic_gain_label,0,1,1,1);
 
   mic_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-10.0, 50.0, 1.0);
   gtk_range_set_value (GTK_RANGE(mic_gain_scale),mic_gain);
-  gtk_widget_show(mic_gain_scale);
   gtk_grid_attach(GTK_GRID(sliders),mic_gain_scale,1,1,2,1);
   g_signal_connect(G_OBJECT(mic_gain_scale),"value_changed",G_CALLBACK(micgain_value_changed_cb),NULL);
+
+  linein_gain_label=gtk_label_new("Linein:");
+  gtk_grid_attach(GTK_GRID(sliders),linein_gain_label,0,1,1,1);
+
+  linein_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 31.0, 1.0);
+  gtk_range_set_value (GTK_RANGE(linein_gain_scale),linein_gain);
+  gtk_widget_show(linein_gain_scale);
+  gtk_grid_attach(GTK_GRID(sliders),linein_gain_scale,1,1,2,1);
+  g_signal_connect(G_OBJECT(linein_gain_scale),"value_changed",G_CALLBACK(lineingain_value_changed_cb),NULL);
 
   drive_label=gtk_label_new("Drive:");
   //gtk_widget_override_font(drive_label, pango_font_description_from_string("Arial 16"));

@@ -298,7 +298,7 @@ int audio_write(short left_sample,short right_sample) {
       if(snd_pcm_delay(playback_handle,&delay)==0) {
         if(delay>2048) {
           trim=delay-2048;
-fprintf(stderr,"audio delay=%ld trim=%ld\n",delay,trim);
+//fprintf(stderr,"audio delay=%ld trim=%ld\n",delay,trim);
         }
       }
 

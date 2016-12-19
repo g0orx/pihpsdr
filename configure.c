@@ -268,6 +268,32 @@ void configure_gpio(GtkWidget *parent) {
   gtk_widget_show(function);
   gtk_grid_attach(GTK_GRID(grid),function,2,10,1,1);
 
+  GtkWidget *cwl_label=gtk_label_new("CWL");
+  gtk_widget_show(cwl_label);
+  gtk_grid_attach(GTK_GRID(grid),cwl_label,0,11,1,1);
+
+  GtkWidget *cwl_gpio_label=gtk_label_new("GPIO:");
+  gtk_widget_show(cwl_gpio_label);
+  gtk_grid_attach(GTK_GRID(grid),cwl_gpio_label,1,11,1,1);
+
+  GtkWidget *cwl=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(cwl),CWL_BUTTON);
+  gtk_widget_show(cwl);
+  gtk_grid_attach(GTK_GRID(grid),cwl,2,11,1,1);
+
+  GtkWidget *cwr_label=gtk_label_new("CWR");
+  gtk_widget_show(cwr_label);
+  gtk_grid_attach(GTK_GRID(grid),cwr_label,0,12,1,1);
+
+  GtkWidget *cwr_gpio_label=gtk_label_new("GPIO:");
+  gtk_widget_show(cwr_gpio_label);
+  gtk_grid_attach(GTK_GRID(grid),cwr_gpio_label,1,12,1,1);
+
+  GtkWidget *cwr=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(cwr),CWR_BUTTON);
+  gtk_widget_show(cwr);
+  gtk_grid_attach(GTK_GRID(grid),cwr,2,12,1,1);
+
 
 
   gtk_container_add(GTK_CONTAINER(content),grid);
@@ -310,6 +336,8 @@ void configure_gpio(GtkWidget *parent) {
   MOX_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(mox));
   ENABLE_FUNCTION_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_function))?1:0;
   FUNCTION_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(function));
+  CWL_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(cwl));
+  CWR_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(cwr));
 
   gtk_widget_destroy(dialog);
 

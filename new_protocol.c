@@ -328,6 +328,10 @@ static void new_protocol_high_priority(int run) {
         // set the ptt if we're not in breakin mode and mox is on
         if(cw_breakin == 0 && getMox()) buffer[4]|=0x02;
         buffer[5]|=(keyer_out) ? 0x01 : 0;
+        //buffer[5]|=(*kdot) ? 0x02 : 0;
+        //buffer[5]|=(*kdash) ? 0x04 : 0;
+        buffer[5]|=(key_state==SENDDOT) ? 0x02 : 0;
+        buffer[5]|=(key_state==SENDDASH) ? 0x04 : 0;
       }
 #endif
     } else {
@@ -599,9 +603,8 @@ static void new_protocol_transmit_specific() {
       buffer[50]|=0x08;
     }
 
-    // 0..30
-    int g=(int)(30.0*mic_gain);
-    buffer[51]=g&0xFF; // Line in gain
+    // 0..31
+    buffer[51]=linein_gain;
 
     if(sendto(data_socket,buffer,sizeof(buffer),0,(struct sockaddr*)&transmitter_addr,transmitter_addr_length)<0) {
         fprintf(stderr,"sendto socket failed for tx specific\n");

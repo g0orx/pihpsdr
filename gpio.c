@@ -90,8 +90,8 @@ int FUNCTION_BUTTON=22;
 int ENABLE_LOCK_BUTTON=1;
 int ENABLE_CW_BUTTONS=1;
 // make sure to disable UART0 for next 2 gpios
-int CWL_BUTTON=15;
-int CWR_BUTTON=14;
+int CWL_BUTTON=9;
+int CWR_BUTTON=10;
 
 #ifdef sx1509
 /* Hardware Hookup:
@@ -727,12 +727,16 @@ fprintf(stderr,"encoder_init\n");
 #endif
 
   if(ENABLE_CW_BUTTONS) {
+    setup_button(CWL_BUTTON, cwAlert);
+    setup_button(CWR_BUTTON, cwAlert);
+/*
     gpioSetMode(CWL_BUTTON, PI_INPUT);
     gpioSetAlertFunc(CWL_BUTTON, cwAlert);
     gpioSetMode(CWR_BUTTON, PI_INPUT);
     gpioSetAlertFunc(CWR_BUTTON, cwAlert);
     gpioGlitchFilter(CWL_BUTTON, 5000);
     gpioGlitchFilter(CWR_BUTTON, 5000);
+*/
   }
  
 #endif

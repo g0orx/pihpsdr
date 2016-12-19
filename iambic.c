@@ -89,6 +89,7 @@ static pthread_t keyer_thread_id;
 #define MAX_SAFE_STACK (8*1024)
 #define NSEC_PER_SEC   (1000000000)
 
+/*
 enum {
     CHECK = 0,
     PREDOT,
@@ -102,17 +103,18 @@ enum {
     LETTERSPACE,
     EXITLOOP
 };
+*/
 
 static int dot_memory = 0;
 static int dash_memory = 0;
-static int key_state = 0;
+int key_state = 0;
 static int kdelay = 0;
 static int dot_delay = 0;
 static int dash_delay = 0;
 static int kcwl = 0;
 static int kcwr = 0;
-static int *kdot;
-static int *kdash;
+int *kdot;
+int *kdash;
 static int running = 0;
 static sem_t cw_event;
 
@@ -157,8 +159,9 @@ void keyer_event(int gpio, int level) {
     else  // CWR_BUTTON
         kcwr = state;
 
-    if (state || cw_keyer_mode == KEYER_STRAIGHT)
+    if (state || cw_keyer_mode == KEYER_STRAIGHT) {
         sem_post(&cw_event);
+    }
 }
 
 void clear_memory() {
@@ -173,13 +176,15 @@ void set_keyer_out(int state) {
         if (state)
             if (SIDETONE_GPIO)
                 softToneWrite (SIDETONE_GPIO, cw_keyer_sidetone_frequency);
-            else
+            else {
                 beep_mute(1);
+            }
         else
             if (SIDETONE_GPIO)
                 softToneWrite (SIDETONE_GPIO, 0);
-            else
+            else  {
                 beep_mute(0);
+            }
     }
 }
 
@@ -376,26 +381,10 @@ int keyer_init() {
             running = 0;
     }
 
-    stack_prefault();
+    //stack_prefault();
 
-    fprintf(stderr,"keyer_init\n");
 
     if (wiringPiSetup () < 0) {
-        fprintf (stderr, "Unable to setup wiringPi: %s\n", strerror (errno));
-        return 1;
-    }
-
-    if (SIDETONE_GPIO)
-        softToneCreate(SIDETONE_GPIO);
-    else {
-        beep_init();
-        beep_vol(cw_keyer_sidetone_volume);
-    }
-
-    rc = sem_init(&cw_event, 0, 0);
-    rc |= pthread_create(&keyer_thread_id, NULL, keyer_thread, NULL);
-    running = 1;
-    if(rc < 0) {
         fprintf(stderr,"pthread_create for keyer_thread failed %d\n", rc);
         exit(-1);
     }

@@ -27,6 +27,7 @@
 #include "audio.h"
 #include "channel.h"
 #include "radio.h"
+#include "sliders.h"
 #include "wdsp.h"
 
 static GtkWidget *parent_window=NULL;
@@ -58,6 +59,7 @@ static void micboost_cb(GtkWidget *widget, gpointer data) {
 
 static void linein_cb(GtkWidget *widget, gpointer data) {
   mic_linein=mic_linein==1?0:1;
+  linein_changed();
 }
 
 static void local_audio_cb(GtkWidget *widget, gpointer data) {

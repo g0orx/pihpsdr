@@ -20,6 +20,7 @@
 #ifndef _SLIDERS_H
 #define _SLIDERS_H
 
+extern void linein_changed();
 extern int update_agc_gain(void *);
 extern int update_af_gain(void *);
 extern int update_mic_gain(void *);

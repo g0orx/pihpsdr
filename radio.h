@@ -52,7 +52,7 @@ extern char property_path[];
 #define APOLLO 2
 
 // soecify how many receivers (only 1 or 2 for now)
-#define RECEIVERS 2
+#define RECEIVERS 1
 
 /*
 #define PA_DISABLED 0
@@ -131,6 +131,7 @@ extern int nr2_npe_method;
 extern int nr2_ae;
 
 extern int mic_linein;
+extern int linein_gain;
 extern int mic_boost;
 extern int mic_bias_enabled;
 extern int mic_ptt_enabled;

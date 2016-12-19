@@ -65,19 +65,23 @@
 #include "psk_waterfall.h"
 #endif
 
-#define VFO_HEIGHT ((display_height/32)*4)
+#define DISPLAY_INCREMENT (display_height/32)
+#define VFO_HEIGHT (DISPLAY_INCREMENT*4)
+//#define VFO_HEIGHT (DISPLAY_INCREMENT*8)
 #define VFO_WIDTH ((display_width/32)*16)
 #define MENU_HEIGHT VFO_HEIGHT
+//#define MENU_HEIGHT (DISPLAY_INCREMENT*4)
 #define MENU_WIDTH ((display_width/32)*8)
 #define RIT_WIDTH ((MENU_WIDTH/3)*2)
 #define METER_HEIGHT VFO_HEIGHT
+//#define METER_HEIGHT (DISPLAY_INCREMENT*4)
 #define METER_WIDTH ((display_width/32)*8)
-#define PANADAPTER_HEIGHT ((display_height/32)*8)
-#define SLIDERS_HEIGHT ((display_height/32)*6)
-#define TOOLBAR_HEIGHT ((display_height/32)*2)
+#define PANADAPTER_HEIGHT (DISPLAY_INCREMENT*8)
+#define SLIDERS_HEIGHT (DISPLAY_INCREMENT*6)
+#define TOOLBAR_HEIGHT (DISPLAY_INCREMENT*2)
 #define WATERFALL_HEIGHT (display_height-(VFO_HEIGHT+PANADAPTER_HEIGHT+SLIDERS_HEIGHT+TOOLBAR_HEIGHT))
 #ifdef PSK
-#define PSK_WATERFALL_HEIGHT ((display_height/32)*6)
+#define PSK_WATERFALL_HEIGHT (DISPLAY_INCREMENT*6)
 #define PSK_HEIGHT (display_height-(VFO_HEIGHT+PSK_WATERFALL_HEIGHT+SLIDERS_HEIGHT+TOOLBAR_HEIGHT))
 #endif
 
@@ -716,6 +720,8 @@ fprintf(stderr,"start: selected radio=%p device=%d\n",radio,radio->device);
   splash_close();
 
   gtk_widget_show_all (window);
+
+  linein_changed();
 
   if(full_screen) {
     gtk_window_fullscreen(GTK_WINDOW(window));

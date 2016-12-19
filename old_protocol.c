@@ -1005,7 +1005,7 @@ void ozy_send_buffer() {
       if(mic_ptt_tip_bias_ring) {
         output_buffer[C1]|=0x10;
       }
-      output_buffer[C2]=0x00;
+      output_buffer[C2]=linein_gain;
       output_buffer[C3]=0x00;
 
       if(radio->device==DEVICE_HERMES || radio->device==DEVICE_ANGELIA || radio->device==DEVICE_ORION) {
