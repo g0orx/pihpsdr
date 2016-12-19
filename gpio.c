@@ -245,6 +245,7 @@ static void lockAlert(int gpio, int level, uint32_t tick) {
 }
 
 static void cwAlert(int gpio, int level, uint32_t tick) {
+fprintf(stderr,"cwAlert: gpio=%d level=%d internal=%d\n",gpio,level,cw_keyer_internal);
     if (cw_keyer_internal == 0)
        keyer_event(gpio, cw_active_level == 0 ? level : (level==0));
 }
@@ -726,6 +727,7 @@ fprintf(stderr,"encoder_init\n");
   }
 #endif
 
+fprintf(stderr,"GPIO: ENABLE_CW_BUTTONS=%d  CWL_BUTTON=%d CWR_BUTTON=%d\n",ENABLE_CW_BUTTONS, CWL_BUTTON, CWR_BUTTON);
   if(ENABLE_CW_BUTTONS) {
     setup_button(CWL_BUTTON, cwAlert);
     setup_button(CWR_BUTTON, cwAlert);

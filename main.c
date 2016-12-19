@@ -871,6 +871,7 @@ fprintf(stderr,"reconfigure_display: sliders_init: width:%d height:%d\n",display
       gtk_widget_show(sliders);
     }
     gtk_widget_show_all(sliders);
+    linein_changed();
     y+=SLIDERS_HEIGHT;
   } else {
     gtk_widget_hide(sliders);

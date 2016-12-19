@@ -193,8 +193,10 @@ static void* keyer_thread(void *arg) {
     struct timespec loop_delay;
     int interval = 1000000; // 1 ms
 
+fprintf(stderr,"keyer_thread\n");
     while(running) {
         sem_wait(&cw_event);
+
         key_state = CHECK;
 
         while (key_state != EXITLOOP) {
@@ -358,7 +360,9 @@ static void* keyer_thread(void *arg) {
             }
             clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
         }
+
     }
+fprintf(stderr,"keyer_thread: EXIT\n");
 }
 
 void keyer_close() {
@@ -384,7 +388,24 @@ int keyer_init() {
     //stack_prefault();
 
 
+/*
     if (wiringPiSetup () < 0) {
+        fprintf(stderr,"pthread_create for keyer_thread failed %d\n", rc);
+        exit(-1);
+    }
+*/
+
+    if (SIDETONE_GPIO)
+        softToneCreate(SIDETONE_GPIO);
+    else {
+        beep_init();
+        beep_vol(cw_keyer_sidetone_volume);
+    }
+
+    rc = sem_init(&cw_event, 0, 0);
+    rc |= pthread_create(&keyer_thread_id, NULL, keyer_thread, NULL);
+    running = 1;
+    if(rc < 0) {
         fprintf(stderr,"pthread_create for keyer_thread failed %d\n", rc);
         exit(-1);
     }

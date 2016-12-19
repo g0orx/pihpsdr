@@ -169,6 +169,7 @@ fprintf(stderr,"vfo_configure_event_cb: width=%d height=%d\n",
   cr = cairo_create (vfo_surface);
   cairo_set_source_rgb (cr, 0, 0, 0);
   cairo_paint (cr);
+  cairo_destroy(cr);
 
   g_idle_add(vfo_update,NULL);
 

@@ -975,6 +975,8 @@ void lock_cb(GtkWidget *widget, gpointer data) {
 }
 
 void mox_cb(GtkWidget *widget, gpointer data) {
+
+
   if(getTune()==1) {
     setTune(0);
   }
@@ -1209,7 +1211,7 @@ void sim_mox_cb(GtkWidget *widget, gpointer data) {
   } else {
     mox_cb((GtkWidget *)NULL, (gpointer)NULL);
   }
-  vfo_update(NULL);
+  //vfo_update(NULL);
 }
 
 void sim_function_cb(GtkWidget *widget, gpointer data) {
