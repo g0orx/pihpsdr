@@ -46,7 +46,7 @@
 #include<sys/socket.h>
 #include<arpa/inet.h> //inet_addr
 
-#define RIGCTL_DEBUG
+#undef RIGCTL_DEBUG
 
 // the port client will be connecting to
 #define TELNET_PORT 19090  // This is the HAMLIB port
@@ -95,6 +95,7 @@ FILTER * band_filter;
 static pthread_t rigctl_thread_id;
 static void * rigctl (void * arg);
 
+int squelch=100; //local sim of squelch level
 // This stuff from the telnet server
 int sockfd, numbytes;
 char buf[MAXDATASIZE];
@@ -114,6 +115,12 @@ int digl_pol = 0;
 int digu_offset = 0;
 int digu_pol = 0;
 double new_vol = 0;
+
+// Radio functions - 
+// Memory channel stuff and things that aren't 
+// implemented - but here for a more complete emulation
+int ctcss_tone;  // Numbers 01-38 are legal values - set by CN command, read by CT command
+int ctcss_mode;  // Numbers 0/1 - on off.
 
 // Now my stuff
 //
@@ -153,16 +160,22 @@ static void * rigctl (void * arg) {
    int semi_number = 0;
    int i;
    char * work_ptr;
+   char work_buf[MAXDATASIZE];
 
   for(;;) {
     fprintf(stderr,"RIGCTL - New run\n");
     while((numbytes=recv(client_sock , cmd_input , MAXDATASIZE-2 , 0)) > 0 ) {
-         cmd_input[numbytes+1]='\0'; // Turn into a C string
-         i=strlen(cmd_input);
+         //cmd_input[numbytes+1]='\0'; // Turn into a C string
+         //i=strlen(cmd_input);
+         //#ifdef RIGCTL_DEBUG
+         //fprintf(stderr,"RIGCTL: RCVD=%s  NB=%d LEN=%d\n",cmd_input,numbytes,i);
+         //#endif
+         for(i=0;i<numbytes;i++)  { work_buf[i] = cmd_input[i]; }
+         work_buf[i+1] = '\0';
          #ifdef RIGCTL_DEBUG
-         fprintf(stderr,"RIGCTL: RCVD=%s  NB=%d LEN=%d\n",cmd_input,numbytes,i);
+         fprintf(stderr,"RIGCTL: RCVD=%s<-\n",work_buf);
          #endif
-        
+
         // Need to handle two cases
         // 1. Command is short, i.e. no semicolon - that will set save_flag=1 and
         //    read another line..
@@ -191,6 +204,10 @@ static void * rigctl (void * arg) {
                parse_cmd(work_ptr,strlen(work_ptr));
                work_ptr = strtok(NULL,";");
            }
+           for(i=0;i<MAXDATASIZE;i++){
+                cmd_input[i] = '\0'; 
+                work_buf[i]  = '\0';  // Clear the input buffer
+           }
         }
        // Got here because pipe closed 
     }
@@ -205,7 +222,9 @@ static void * rigctl (void * arg) {
 
 void parse_cmd ( char * cmd_input,int len) {
         int work_int;     
+        int new_low, new_high;
         double meter;
+        BANDSTACK_ENTRY *entry;
         // Parse the cmd_input
         //int space = command.indexOf(' ');
         //char cmd_char = com_head->cmd_string[0]; // Assume the command is first thing!
@@ -324,14 +343,22 @@ void parse_cmd ( char * cmd_input,int len) {
                                              } 
                                           }
         else if(strcmp(cmd_str,"CN")==0)  {  // Sets and reads CTSS function - 01-38 legal values
+                                             // Stored locally in rigctl - not used.
                                              if(len <=2) {
-                                                send_resp("CN00;");
-                                             } 
+                                                sprintf(msg,"CN%02d;",ctcss_tone);
+                                                send_resp(msg);
+                                             } else {
+                                                ctcss_tone = atoi(&cmd_input[2]);
+                                             }
                                           }
         else if(strcmp(cmd_str,"CT")==0)  {  // Sets and reads CTSS function status
+                                             // Stored locally in rigctl - not used.
                                              if(len <=2) {
-                                                send_resp("CT0;");
-                                             } 
+                                                sprintf(msg,"CT%01d;",ctcss_mode);
+                                                send_resp(msg);
+                                             } else {
+                                                ctcss_mode = atoi(&cmd_input[2]);
+                                             }
                                           }
         else if(strcmp(cmd_str,"DC")==0)  {  // Sets/Reads TX band status
                                              if(len <=2) {
@@ -346,17 +373,18 @@ void parse_cmd ( char * cmd_input,int len) {
                                              } 
                                           }
         else if(strcmp(cmd_str,"EX")==0)  {  // Set/reads the extension menu
-                                             if(len <=12) {
-                                                send_resp("EX00000000000000000000000;");
-                                             } 
+                                             cmd_input[9] = '\0'; // Make sure we have a C string
+                                             sprintf(msg,"EX%s0;",&cmd_input[2]);
+                                             send_resp(msg);
                                           }
         else if(strcmp(cmd_str,"FA")==0) {  // VFO A frequency
                                             // LEN=7 - set frequency
                                             // Next data will be rest of freq
                                             if(len == 13) { //We are receiving freq info
                                                long long new_freqA = atoll(&cmd_input[2]);
-                                               setFrequency(new_freqA);
-                                               g_idle_add(vfo_update,NULL);
+                                               set_band(new_freqA);
+                                               //setFrequency(new_freqA);
+                                               //g_idle_add(vfo_update,NULL);
                                             } else {
                                                if(len==2) {
                                                   sprintf(msg,"FA%011lld;",getFrequency());
@@ -367,8 +395,9 @@ void parse_cmd ( char * cmd_input,int len) {
         else if(strcmp(cmd_str,"FB")==0) {  // VFO B frequency
                                             if(len==13) { //We are receiving freq info
                                                long long new_freqA = atoll(&cmd_input[2]); 
-                                               setFrequency(new_freqA);
-                                               g_idle_add(vfo_update,NULL);
+                                               set_band(new_freqA);
+                                               //setFrequency(new_freqA);
+                                               //g_idle_add(vfo_update,NULL);
                                             } else if(len == 2) {
                                                sprintf(msg,"FB%011lld;",getFrequency());
                                                send_resp(msg);
@@ -407,9 +436,83 @@ void parse_cmd ( char * cmd_input,int len) {
                                              } 
                                           }  
         else if(strcmp(cmd_str,"FW")==0)  { // Sets/Reas DSP receive filter width in hz 0-9999hz 
+                                             // CW - legal values  50  80  100 150 200 300 400 500 600 1000 2000
+                                             //      PiHPSDR map   50  100 100 100 250 250 400 500 600 1000
+                                             //                    25                                   750
+                                             entry= (BANDSTACK_ENTRY *) 
+                                                         bandstack_entry_get_current();
+                                             FILTER* band_filters=filters[entry->mode];
+                                             FILTER* band_filter=&band_filters[entry->filter];
                                              if(len <=2) {
-                                                send_resp("FW0000;");
-                                             } 
+                                                // CW filter high and low are always the same and the filter value is 2*filter val
+                                                int filter_val = band_filter->high * 2;
+                                                switch(filter_val) {
+                                                 case 25:  
+                                                 case 50:
+                                                        work_int = 50;
+                                                        break;
+                                                 case 100:
+                                                        work_int = 100; 
+                                                        break;
+                                                 case 250:
+                                                        work_int = 300; 
+                                                        break;
+                                                 case 400:
+                                                        work_int = 400; 
+                                                        break;
+                                                 case 500:
+                                                        work_int = 500; 
+                                                        break;
+                                                 case 600:
+                                                        work_int = 600; 
+                                                        break;
+                                                 case 750:
+                                                        work_int = 1000; 
+                                                        break;
+                                                 case 800:
+                                                        work_int = 1000; 
+                                                        break;
+                                                 case 1000:
+                                                        work_int = 1000; 
+                                                        break;
+                                                 default: work_int = 500; 
+                                                        break;
+                                                } 
+                                                sprintf(msg,"FW%04d;",work_int);
+                                                #ifdef  RIGCTL_DEBUG
+                                                    fprintf(stderr,"RIGCTL: FW Filter Act=%d work_int=%d\n",band_filter->high,work_int);
+                                                #endif
+                                                send_resp(msg);
+                                             } else {
+                                               // Try to set filters here!
+                                               // CW - legal values  50  80  100 150 200 300 400 500 600 1000 2000
+                                               //      PiHPSDR map   50  100 100 100 250 250 400 500 600 1000
+                                               //                    25                                   750
+                                               work_int = atoi(&cmd_input[2]);
+                                               switch (work_int) {
+
+                                                    case 50:  new_low = 25; new_high = 25; break;
+                                                    case 80:  new_low = 50; new_high = 50; break;
+                                                    case 100:  new_low = 50; new_high = 50; break;
+                                                    case 150:  new_low = 50; new_high = 50; break;
+                                                    case 200:  new_low = 125; new_high = 125; break;
+                                                    case 300:  new_low = 125; new_high = 125; break;
+                                                    case 400:  new_low = 200; new_high = 200; break;
+                                                    case 500:  new_low = 250; new_high = 250; break;
+                                                    case 600:  new_low = 300; new_high = 300; break;
+                                                    case 1000:  new_low = 500; new_high = 500; break;
+                                                    case 2000:  new_low = 500; new_high = 500; break;
+                                                    default: new_low  = band_filter->low;
+                                                             new_high = band_filter->high;
+
+                                               }
+                                               #ifdef  RIGCTL_DEBUG
+                                                   fprintf(stderr,"RIGCTL: FW Filter new_low=%d new_high=%d\n",new_low,new_high);
+                                               #endif
+                                               // entry->filter = new_low * 2 ;
+                                               setFilter(new_low,new_high);
+                                               g_idle_add(vfo_update,NULL);
+                                             }
                                           }  
         else if(strcmp(cmd_str,"GT")==0)  { // Sets/Reas AGC constant status
                                              if(len <=2) {
@@ -438,7 +541,7 @@ void parse_cmd ( char * cmd_input,int len) {
                                             //   0           - 1 char - Shift status
                                             sprintf(msg,"IF%011lld%04d%06d%1d%1d%1d%02d%01d%01d%01d%01d%01d%01d%02d%01d;",
                                                          getFrequency(),
-                                                         0,  // Shift Offset
+                                                         step,  // Shift Offset
                                                          0,  // Rit Freq
                                                          0,  // Rit Status
                                                          0,  // XIT Status
@@ -449,7 +552,7 @@ void parse_cmd ( char * cmd_input,int len) {
                                                          0,  // VFO Status
                                                          0,  // Scan status
                                                          0,  // FT command 
-                                                         0,  // CTSS Tone
+                                                         ctcss_tone,  // CTSS Tone
                                                          0,  // More tone control
                                                          0); // Shift status
                                             send_resp(msg);
@@ -461,8 +564,16 @@ void parse_cmd ( char * cmd_input,int len) {
                                           }  
         else if(strcmp(cmd_str,"KS")==0)  { // Sets/Reads keying freq - 0-060 max
                                              if(len <=2) {
-                                                send_resp("KS000;");
-                                             } 
+                                                sprintf(msg,"KS%03d;",cw_keyer_speed);
+                                                send_resp(msg);
+                                             } else {
+                                                int key_speed;
+                                                key_speed = atoi(&cmd_input[2]);
+                                                if(key_speed >1 && key_speed <= 60) {
+                                                   cw_keyer_speed=key_speed;
+                                                   g_idle_add(vfo_update,NULL);
+                                                } 
+                                            }
                                           }  
         else if(strcmp(cmd_str,"KY")==0)  { // Convert char to morse code
                                              if(len <=2) {
@@ -471,8 +582,16 @@ void parse_cmd ( char * cmd_input,int len) {
                                           }  
         else if(strcmp(cmd_str,"LK")==0)  { // Set/read key lock function status
                                              if(len <=2) {
-                                                send_resp("LK00;");
-                                             } 
+                                                sprintf(msg,"LK%01d%01d;",locked,locked);
+                                                send_resp(msg);
+                                             }  else {
+                                                  if(cmd_input[3] == '0') {
+                                                      locked = 0;
+                                                  } else if(cmd_input[3] == '1') {
+                                                      locked = 1;
+                                                  }
+                                                  g_idle_add(vfo_update,NULL);
+                                             }
                                           }  
         else if(strcmp(cmd_str,"LM")==0)  { // Set/read DRU 3A unit or elect keyer recording status
                                              if(len <=2) {
@@ -534,7 +653,6 @@ void parse_cmd ( char * cmd_input,int len) {
                                             // Other stuff to switch modes goes here..
                                             // since new_mode has the interpreted command in 
                                             // in it now.
-                                            BANDSTACK_ENTRY *entry;
                                             entry= (BANDSTACK_ENTRY *) 
                                                   bandstack_entry_get_current();
                                             entry->mode=new_mode;
@@ -591,7 +709,7 @@ void parse_cmd ( char * cmd_input,int len) {
         else if(strcmp(cmd_str,"MG")==0) {  // Mike Gain - 3 digit value 
                                             if(len <=2) {
                                                work_int = (int) ((mic_gain +10.0)* 100.0/60.0);
-                                               sprintf(msg,"MG%03d",work_int);
+                                               sprintf(msg,"MG%03d;",work_int);
                                                send_resp(msg);
                                             } else {
                                                int tval = atoi(&cmd_input[2]);                
@@ -619,10 +737,10 @@ void parse_cmd ( char * cmd_input,int len) {
                                                       0, // P3 - see MC comment 
                                                       getFrequency(), // P4 - frequency
                                                       rigctlGetMode(), // P5 - Mode
-                                                      0, // P6 - Locked status
+                                                      locked, // P6 - Locked status
                                                       0, // P7 - O-off, 1-tone, 2-CTCSS, 3 =DCS
-                                                      0, // P8 - Tone Numbe3r - see page 35
-                                                      0, // P9 - CTCSS tone number - see CN command
+                                                      0, // P8 - Tone Number - see page 35
+                                                      ctcss_tone, // P9 - CTCSS tone number - see CN command
                                                       0, // P10 - DCS code - see QC command 
                                                       0, // P11 - Reverse status
                                                       0, // P12 - Shift status - see OS command
@@ -670,6 +788,8 @@ void parse_cmd ( char * cmd_input,int len) {
                                                    send_resp("NR1;"); 
                                                } else if (nr2 == 1) { 
                                                    send_resp("NR2;"); 
+                                               } else {
+                                                   send_resp("NR0;"); 
                                                }
                                              } else {
                                                if(cmd_input[2] == '0') {
@@ -936,10 +1056,6 @@ void parse_cmd ( char * cmd_input,int len) {
                                                if(new_level < 0) { new_level = 0; }
                                                if(new_level > 15) { new_level = 15;}
                                             }
-                                            #ifdef RIGCTL_DEBUG
-                                            fprintf(stderr,"RIGCTL: SM level=%.21f new_level=%d\n",
-                                                        level,new_level);
-                                            #endif
                                             sprintf(msg,"SM%1c%04d;",
                                                 cmd_input[2],new_level);
                                             send_resp(msg);
@@ -947,8 +1063,11 @@ void parse_cmd ( char * cmd_input,int len) {
         else if(strcmp(cmd_str,"SQ")==0) {  // Set/read the squelch level
                                             // P1 - 0- main, 1=sub
                                             // P2 - 0-255
-                                             if(len <=2) {
-                                               send_resp("SQ0000;"); 
+                                             if(len <=3) {
+                                               sprintf(msg,"SQ%04d;",squelch);
+                                               send_resp(msg);
+                                             } else {
+                                                squelch = atoi(&cmd_input[2]);
                                              }
                                          }
         else if(strcmp(cmd_str,"SR")==0) {  // Resets the transceiver
@@ -959,8 +1078,101 @@ void parse_cmd ( char * cmd_input,int len) {
                                              }
                                          }
         else if(strcmp(cmd_str,"ST")==0) {  // Set/read the multi/ch control freq steps
+                                            // SSB/CW/FSK - values 00-03
+                                            // 00: 1KHz, 01: 2.5Khz 02:5KHz 03: 10Khz
+                                            // AM/FM mode 00-09
+                                            // 00: 5KHz, 
+                                            // 01: 6.25KHz, 
+                                            // 02:10Khz, 
+                                            // 03: 12.5Khz,
+                                            // 04: 15Khz, 
+                                            // 05: 20Khz, 
+                                            // 06: 25KHz
+                                            // 07: 30Khz
+                                            // 08: 50Khz
+                                            // 09: 100Khz 
+                                             int coded_step_val;
+                                             entry= (BANDSTACK_ENTRY *) 
+                                                bandstack_entry_get_current();
                                              if(len <=2) {
-                                               send_resp("ST00;"); 
+                                                 switch(entry->mode) {
+                                                     case modeLSB: 
+                                                     case modeUSB: 
+                                                     case modeCWL: 
+                                                     case modeCWU: 
+                                                     case modeDIGU: 
+                                                     case modeDIGL: 
+                                                        if(step >0 && step <= 1000)  {
+                                                          coded_step_val = 0; 
+                                                        } else if (step >1000 && step <=2500) {
+                                                          coded_step_val = 1; 
+                                                        } else if (step >2500 && step <=5000) {
+                                                          coded_step_val = 2; 
+                                                        } else {
+                                                          coded_step_val = 3; 
+                                                        }
+                                                        break;
+                                                     case modeFMN: 
+                                                     case modeAM:  
+                                                        if(step >0 && step <= 5000)  {
+                                                          coded_step_val = 0; 
+                                                        } else if (step >5000 && step <=6250) {
+                                                          coded_step_val = 1; 
+                                                        } else if (step >6250 && step <=10000) {
+                                                          coded_step_val = 2; 
+                                                        } else if (step >10000 && step <=12500) {
+                                                          coded_step_val = 3; 
+                                                        } else if (step >12500 && step <=15000) {
+                                                          coded_step_val = 4; 
+                                                        } else if (step >15000 && step <=20000) {
+                                                          coded_step_val = 5; 
+                                                        } else if (step >20000 && step <=25000) {
+                                                          coded_step_val = 6; 
+                                                        } else if (step >25000 && step <=30000) {
+                                                          coded_step_val = 7; 
+                                                        } else if (step >30000 && step <=50000) {
+                                                          coded_step_val = 8; 
+                                                        } else if (step >50000 && step <=100000) {
+                                                          coded_step_val = 9; 
+                                                        } else {
+                                                          coded_step_val = 0; 
+                                                        }
+                                                        break;
+                                                 } 
+                                                 sprintf(msg,"ST%02d;",coded_step_val);
+                                                 send_resp(msg); 
+                                             } else {
+                                                 coded_step_val = atoi(&cmd_input[2]);   
+                                                 switch(entry->mode) {
+                                                     case modeLSB: 
+                                                     case modeUSB: 
+                                                     case modeCWL: 
+                                                     case modeCWU: 
+                                                     case modeDIGU: 
+                                                     case modeDIGL: 
+                                                        if(coded_step_val==0) { step = 1000;}
+                                                        if(coded_step_val==1) { step = 2500;}
+                                                        if(coded_step_val==2) { step = 5000;}
+                                                        if(coded_step_val==3) { step = 10000;}
+                                                        break; 
+                                                     case modeFMN: 
+                                                     case modeAM:  
+                                                         switch(coded_step_val) {
+                                                            case 0: step = 5000; break;
+                                                            case 1: step = 6250; break;
+                                                            case 2: step = 10000; break;
+                                                            case 3: step = 12500; break;
+                                                            case 4: step = 15000; break;
+                                                            case 5: step = 20000; break;
+                                                            case 6: step = 25000; break;
+                                                            case 7: step = 30000; break;
+                                                            case 8: step = 50000; break;
+                                                            case 9: step = 100000; break;
+                                                            default: break; // No change if not a valid number
+                                                         } 
+                                                     default: break; // No change if not a valid number
+                                                 } 
+                                                 g_idle_add(vfo_update,NULL);
                                              }
                                          }
         else if(strcmp(cmd_str,"SU")==0) {  // Set/read the scan pause freq
@@ -1016,20 +1228,56 @@ void parse_cmd ( char * cmd_input,int len) {
         else if(strcmp(cmd_str,"UP")==0) {  // Emulates the mic up key
                                          }
         else if(strcmp(cmd_str,"VD")==0) {  // Sets/Reads VOX dleay time - 0000-3000ms in steps of 150
+                                            // We want vox_hang variable in PiHPSDR
+                                            // Max value in variable in ms... so 250 = 250ms
+                                            #ifdef RIGCTL_DEBUG
+                                            fprintf(stderr,"RIGCTL: Vox hang=%0.20f\n",vox_hang);
+                                            #endif
                                              if(len <=2) {
-                                               send_resp("VD0000;"); 
+                                               work_int = (int) vox_hang;
+                                               sprintf(msg,"VD%04d;",work_int); 
+                                               send_resp(msg);
+                                             } else {
+                                                  work_int = atoi(&cmd_input[2]);
+                                                  // Bounds check for legal values for PiHPSDR
+                                                  if(work_int > 1000) { work_int = 1000; }
+                                                  if(work_int < 0) { work_int = 0; }
+                                                  vox_hang = (double) work_int;
+                                                  #ifdef RIGCTL_DEBUG
+                                                  fprintf(stderr,"RIGCTL: Vox hang=%0.20f\n",vox_hang);
+                                                  #endif
                                              }
                                          }
         else if(strcmp(cmd_str,"VG")==0) {  // Sets/Reads VOX gain 000-009
+                                            // We want vox_threshold variable in PiHPSDR
+                                            // Max value in variable 0.1 
+                                            // 3 char 000-009 valid ranges
+                                            #ifdef RIGCTL_DEBUG
+                                            fprintf(stderr,"RIGCTL: Vox thesh=%0.20f\n",vox_threshold);
+                                            #endif
                                              if(len <=2) {
-                                               send_resp("VG000;"); 
+                                               work_int = (int) ((vox_threshold) * 100.0);
+                                               sprintf(msg,"VG00%1d;",work_int);
+                                               send_resp(msg);
+                                             } else {
+                                                  // Set the threshold here
+                                                  work_int = atoi(&cmd_input[2]);
+                                                  vox_threshold = ((double) work_int)/100.0;
+                                                  #ifdef RIGCTL_DEBUG
+                                                  fprintf(stderr,"RIGCTL: Vox thresh=%0.20f\n",vox_threshold);
+                                                  #endif
                                              }
                                          }
-        else if(strcmp(cmd_str,"VG")==0) {  // Emulates the voide 1/2 key
+        else if(strcmp(cmd_str,"VR")==0) {  // Emulates the voice 1/2 key
                                          }
         else if(strcmp(cmd_str,"VX")==0) {  // Sets/reads vox f(x) state
                                              if(len <=2) {
-                                               send_resp("VX0;"); 
+                                               sprintf(msg,"VX%1d;",vox_enabled); 
+                                               send_resp(msg);
+                                             } else {
+                                               work_int = atoi(&cmd_input[2]);
+                                               if(work_int>1) { vox_enabled = 1; vox= 1;}
+                                               if(work_int<1) { vox_enabled = 0; vox=0; }
                                              }
                                          }
         else if(strcmp(cmd_str,"XT")==0) {  // Sets/reads the XIT f(x) state
@@ -1080,7 +1328,7 @@ void parse_cmd ( char * cmd_input,int len) {
                                             }
                                          }
         else                             {
-                                            fprintf(stderr,"RIGCTL: UNKNOWN\n");
+                                            fprintf(stderr,"RIGCTL: UNKNOWN=%s\n",cmd_str);
                                          }
 }
 //
@@ -1220,3 +1468,41 @@ int rigctlSetFilterLow(int val){
 };
 int rigctlSetFilterHigh(int val){
 };
+
+void set_band(long long new_freqA) {      
+
+   BANDSTACK_ENTRY *entry;
+   int b = get_band_from_frequency(new_freqA);
+   if(b == -1) { // Out of ham bands...
+      setFrequency(new_freqA);
+      g_idle_add(vfo_update,NULL);
+      return;
+   }   
+
+   if(b==band_get_current()) {
+      entry = bandstack_entry_next(); 
+      setFrequency(new_freqA);
+      g_idle_add(vfo_update,NULL);
+      return;
+   } else {
+    BAND* band=band_set_current(b);
+    entry=bandstack_entry_get_current();
+   }
+  setMode(entry->mode);
+  FILTER* band_filters=filters[entry->mode];
+  FILTER* band_filter=&band_filters[entry->filter];
+  setFilter(band_filter->low,band_filter->high);
+  setFrequency(new_freqA);
+
+  BAND *band=band_get_current_band();
+  set_alex_rx_antenna(band->alexRxAntenna);
+  set_alex_tx_antenna(band->alexTxAntenna);
+  set_alex_attenuation(band->alexAttenuation);
+
+  setFrequency(new_freqA);
+  g_idle_add(vfo_update,NULL);
+
+
+  calcDriveLevel();
+  calcTuneDriveLevel();
+}
