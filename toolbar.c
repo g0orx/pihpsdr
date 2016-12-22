@@ -69,6 +69,8 @@ static GtkWidget *last_filter;
 static GdkRGBA white;
 static GdkRGBA gray;
 
+static gint rit_timer;
+
 static void set_button_text_color(GtkWidget *widget,char *color) {
   GtkStyleContext *style_context;
   GtkCssProvider *provider = gtk_css_provider_new ();
@@ -82,16 +84,25 @@ static void set_button_text_color(GtkWidget *widget,char *color) {
 
 void update_toolbar_labels() {
   if(toolbar_dialog_buttons) {
-      gtk_button_set_label(GTK_BUTTON(sim_band),"Band");
-      gtk_button_set_label(GTK_BUTTON(sim_bandstack),"BStack");
-      gtk_button_set_label(GTK_BUTTON(sim_mode),"Mode");
-      gtk_button_set_label(GTK_BUTTON(sim_filter),"Filter");
-      gtk_button_set_label(GTK_BUTTON(sim_noise),"Noise");
-      gtk_button_set_label(GTK_BUTTON(sim_agc),"AGC");
       if(function) {
-        gtk_button_set_label(GTK_BUTTON(sim_mox),"Tune");
       } else {
         gtk_button_set_label(GTK_BUTTON(sim_mox),"Mox");
+        gtk_button_set_label(GTK_BUTTON(sim_band),"Band");
+        gtk_button_set_label(GTK_BUTTON(sim_bandstack),"BStack");
+        gtk_button_set_label(GTK_BUTTON(sim_mode),"Mode");
+        gtk_button_set_label(GTK_BUTTON(sim_filter),"Filter");
+        gtk_button_set_label(GTK_BUTTON(sim_noise),"Noise");
+        gtk_button_set_label(GTK_BUTTON(sim_agc),"AGC");
+      }
+      if(function) {
+        gtk_button_set_label(GTK_BUTTON(sim_mox),"Tune");
+        gtk_button_set_label(GTK_BUTTON(sim_band),"RIT+");
+        gtk_button_set_label(GTK_BUTTON(sim_bandstack),"RIT-");
+        gtk_button_set_label(GTK_BUTTON(sim_mode),"CTUN");
+        gtk_button_set_label(GTK_BUTTON(sim_filter),"Filter");
+        gtk_button_set_label(GTK_BUTTON(sim_noise),"Noise");
+        gtk_button_set_label(GTK_BUTTON(sim_agc),"AGC");
+      } else {
       }
   } else {
     if(function) {
@@ -998,7 +1009,7 @@ int ptt_update(void *data) {
   return 0;
 }
 
-void tune_cb(GtkWidget *widget, gpointer data) {
+static void tune_cb(GtkWidget *widget, gpointer data) {
   if(getMox()==1) {
     setMox(0);
   }
@@ -1010,104 +1021,152 @@ void tune_cb(GtkWidget *widget, gpointer data) {
   vfo_update(NULL);
 }
 
-void sim_band_cb(GtkWidget *widget, gpointer data) {
-  BAND* band;
-  BANDSTACK_ENTRY *entry;
-  if(toolbar_dialog_buttons) {
-    band_cb(widget,data);
+static gboolean rit_timer_cb(gpointer data) {
+  if((int)data==1) {
+    rit+=rit_increment;
   } else {
-    int b=band_get_current();
-    if(function) {
-      b--;
-      if(b<0) {
-        b=BANDS-1;
-      }
-#ifdef LIMESDR
-      if(protocol!=LIMESDR_PROTOCOL) {
-        if(b==band3400) {
-          b=band6;
-        }
-      }
-#endif
-    } else {
-      b++;
-      if(b>=BANDS) {
-        b=0;
-      }
-#ifdef LIMESDR
-      if(protocol!=LIMESDR_PROTOCOL) {
-        if(b==band70) { 
-          b=bandGen;
-        }
-      }
-#endif
-    }
-    band=band_set_current(b);
-    entry=bandstack_entry_get_current();
+    rit-=rit_increment;
+  }
+  if(rit>1000) rit=1000;
+  if(rit<-1000) rit=-1000;
+  vfo_update(NULL);
+  return TRUE;
+}
 
-    setFrequency(entry->frequencyA);
-    setMode(entry->mode);
-    FILTER* band_filters=filters[entry->mode];
-    FILTER* band_filter=&band_filters[entry->filter];
-    setFilter(band_filter->low,band_filter->high);
-
-    band=band_get_current_band();
-    set_alex_rx_antenna(band->alexRxAntenna);
-    set_alex_tx_antenna(band->alexTxAntenna);
-    set_alex_attenuation(band->alexAttenuation);
+void sim_band_pressed_cb(GtkWidget *widget, gpointer data) {
+  if(function) {
+    rit+=rit_increment;
+    if(rit>1000) rit=1000;
     vfo_update(NULL);
+    rit_timer=g_timeout_add(200,rit_timer_cb,(gpointer)1);
+  } else {
+    BAND* band;
+    BANDSTACK_ENTRY *entry;
+    if(toolbar_dialog_buttons) {
+      band_cb(widget,data);
+    } else {
+      int b=band_get_current();
+      if(function) {
+        b--;
+        if(b<0) {
+          b=BANDS-1;
+        }
+#ifdef LIMESDR
+        if(protocol!=LIMESDR_PROTOCOL) {
+          if(b==band3400) {
+            b=band6;
+          }
+        }
+#endif
+      } else {
+        b++;
+        if(b>=BANDS) {
+          b=0;
+        }
+#ifdef LIMESDR
+        if(protocol!=LIMESDR_PROTOCOL) {
+          if(b==band70) { 
+            b=bandGen;
+          }
+        }
+#endif
+      }
+      band=band_set_current(b);
+      entry=bandstack_entry_get_current();
 
-    calcDriveLevel();
-    calcTuneDriveLevel();
+      setFrequency(entry->frequencyA);
+      setMode(entry->mode);
+      FILTER* band_filters=filters[entry->mode];
+      FILTER* band_filter=&band_filters[entry->filter];
+      setFilter(band_filter->low,band_filter->high);
+
+      band=band_get_current_band();
+      set_alex_rx_antenna(band->alexRxAntenna);
+      set_alex_tx_antenna(band->alexTxAntenna);
+      set_alex_attenuation(band->alexAttenuation);
+      vfo_update(NULL);
+  
+      calcDriveLevel();
+      calcTuneDriveLevel();
+    }
   }
 }
 
-void sim_bandstack_cb(GtkWidget *widget, gpointer data) {
-  BANDSTACK_ENTRY *entry;
-  if(toolbar_dialog_buttons) {
-    bandstack_cb(widget,data);
-  } else {
-    if(function) {
-      entry=bandstack_entry_previous();
-    } else {
-      entry=bandstack_entry_next();
-    }
-    setFrequency(entry->frequencyA);
-    setMode(entry->mode);
-    FILTER* band_filters=filters[entry->mode];
-    FILTER* band_filter=&band_filters[entry->filter];
-    setFilter(band_filter->low,band_filter->high);
-    vfo_update(NULL);
+void sim_band_released_cb(GtkWidget *widget, gpointer data) {
+  if(function) {
+    g_source_remove(rit_timer);
   }
 }
+
+void sim_bandstack_pressed_cb(GtkWidget *widget, gpointer data) {
+  if(function) {
+    rit-=rit_increment;
+    if(rit<-1000) rit=-1000;
+    vfo_update(NULL);
+    rit_timer=g_timeout_add(200,rit_timer_cb,(gpointer)-1);
+  } else {
+    BANDSTACK_ENTRY *entry;
+    if(toolbar_dialog_buttons) {
+      bandstack_cb(widget,data);
+    } else {
+      if(function) {
+        entry=bandstack_entry_previous();
+      } else {
+        entry=bandstack_entry_next();
+      }
+      setFrequency(entry->frequencyA);
+      setMode(entry->mode);
+      FILTER* band_filters=filters[entry->mode];
+      FILTER* band_filter=&band_filters[entry->filter];
+      setFilter(band_filter->low,band_filter->high);
+      vfo_update(NULL);
+    }
+  }
+}
+
+void sim_bandstack_released_cb(GtkWidget *widget, gpointer data) {
+  if(function) {
+    g_source_remove(rit_timer);
+  }
+}
+
 
 void sim_mode_cb(GtkWidget *widget, gpointer data) {
-  BAND* band;
-  BANDSTACK_ENTRY *entry;
-
-  if(toolbar_dialog_buttons) {
-    mode_cb(widget,data);
-  } else {
-    band=band_get_current_band();
-    entry=bandstack_entry_get_current();
-    if(function) {
-      entry->mode--;
-      if(entry->mode<0) {
-        entry->mode=MODES-1;
-      }
-    } else {
-      entry->mode++;
-      if(entry->mode>=MODES) {
-        entry->mode=0;
-      }
+  if(function) {
+    ctun=ctun==1?0:1;
+    if(!ctun) {
+      ddsOffset=0;
+      wdsp_set_offset(ddsOffset);
     }
-    setMode(entry->mode);
-
-    FILTER* band_filters=filters[entry->mode];
-    FILTER* band_filter=&band_filters[entry->filter];
-    setFilter(band_filter->low,band_filter->high);
-
     vfo_update(NULL);
+  } else {
+    BAND* band;
+    BANDSTACK_ENTRY *entry;
+  
+    if(toolbar_dialog_buttons) {
+      mode_cb(widget,data);
+    } else {
+        band=band_get_current_band();
+      entry=bandstack_entry_get_current();
+      if(function) {
+        entry->mode--;
+        if(entry->mode<0) {
+          entry->mode=MODES-1;
+        }
+      } else {
+        entry->mode++;
+        if(entry->mode>=MODES) {
+          entry->mode=0;
+        }
+      }
+      setMode(entry->mode);
+
+      FILTER* band_filters=filters[entry->mode];
+      FILTER* band_filter=&band_filters[entry->filter];
+      setFilter(band_filter->low,band_filter->high);
+
+      vfo_update(NULL);
+    }
   }
 }
 
@@ -1251,13 +1310,15 @@ GtkWidget *toolbar_init(int my_width, int my_height, GtkWidget* parent) {
     sim_band=gtk_button_new_with_label("Band ^");
     gtk_widget_set_size_request (sim_band, button_width, 0);
     //gtk_widget_override_font(sim_band, pango_font_description_from_string("Arial 16"));
-    g_signal_connect(G_OBJECT(sim_band),"clicked",G_CALLBACK(sim_band_cb),NULL);
+    g_signal_connect(G_OBJECT(sim_band),"pressed",G_CALLBACK(sim_band_pressed_cb),NULL);
+    g_signal_connect(G_OBJECT(sim_band),"released",G_CALLBACK(sim_band_released_cb),NULL);
     gtk_grid_attach(GTK_GRID(toolbar),sim_band,4,0,4,1);
 
     sim_bandstack=gtk_button_new_with_label("BStack ^");
     gtk_widget_set_size_request (sim_bandstack, button_width, 0);
     //gtk_widget_override_font(sim_bandstack, pango_font_description_from_string("Arial 16"));
-    g_signal_connect(G_OBJECT(sim_bandstack),"clicked",G_CALLBACK(sim_bandstack_cb),NULL);
+    g_signal_connect(G_OBJECT(sim_bandstack),"pressed",G_CALLBACK(sim_bandstack_pressed_cb),NULL);
+    g_signal_connect(G_OBJECT(sim_bandstack),"released",G_CALLBACK(sim_bandstack_released_cb),NULL);
     gtk_grid_attach(GTK_GRID(toolbar),sim_bandstack,8,0,4,1);
 
     sim_mode=gtk_button_new_with_label("Mode ^");

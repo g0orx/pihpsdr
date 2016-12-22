@@ -50,7 +50,7 @@ int check_update() {
 
 int load_update() {
   char command[1024];
-  sprintf(command,"/usr/sbin/wget -N https://github.com/g0orx/pihpsdr/raw/master/release/pihpsdr_%s.tar",new_version);
+  sprintf(command,"cd ..; /usr/bin/wget -N https://github.com/g0orx/pihpsdr/raw/master/release/pihpsdr_%s.tar",new_version);
 
 fprintf(stderr,"load_update: %s\n",command);
   int rc=system(command);

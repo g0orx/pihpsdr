@@ -268,6 +268,7 @@ void configure_gpio(GtkWidget *parent) {
   gtk_widget_show(function);
   gtk_grid_attach(GTK_GRID(grid),function,2,10,1,1);
 
+#ifdef LOCALCW
   GtkWidget *cwl_label=gtk_label_new("CWL");
   gtk_widget_show(cwl_label);
   gtk_grid_attach(GTK_GRID(grid),cwl_label,0,11,1,1);
@@ -293,7 +294,7 @@ void configure_gpio(GtkWidget *parent) {
   gtk_spin_button_set_value (GTK_SPIN_BUTTON(cwr),CWR_BUTTON);
   gtk_widget_show(cwr);
   gtk_grid_attach(GTK_GRID(grid),cwr,2,12,1,1);
-
+#endif
 
 
   gtk_container_add(GTK_CONTAINER(content),grid);
@@ -336,8 +337,10 @@ void configure_gpio(GtkWidget *parent) {
   MOX_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(mox));
   ENABLE_FUNCTION_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_function))?1:0;
   FUNCTION_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(function));
+#ifdef LOCALCW
   CWL_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(cwl));
   CWR_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(cwr));
+#endif
 
   gtk_widget_destroy(dialog);
 

@@ -68,11 +68,11 @@
 #define DISPLAY_INCREMENT (display_height/32)
 #define VFO_HEIGHT (DISPLAY_INCREMENT*4)
 //#define VFO_HEIGHT (DISPLAY_INCREMENT*8)
-#define VFO_WIDTH ((display_width/32)*16)
+#define VFO_WIDTH ((display_width/32)*21)
 #define MENU_HEIGHT VFO_HEIGHT
 //#define MENU_HEIGHT (DISPLAY_INCREMENT*4)
-#define MENU_WIDTH ((display_width/32)*8)
-#define RIT_WIDTH ((MENU_WIDTH/3)*2)
+#define MENU_WIDTH ((display_width/32)*3)
+//#define RIT_WIDTH ((MENU_WIDTH/3)*2)
 #define METER_HEIGHT VFO_HEIGHT
 //#define METER_HEIGHT (DISPLAY_INCREMENT*4)
 #define METER_WIDTH ((display_width/32)*8)
@@ -632,19 +632,19 @@ fprintf(stderr,"start: selected radio=%p device=%d\n",radio,radio->device);
 
 
 
-  rit_control = rit_init(RIT_WIDTH,MENU_HEIGHT,window);
-  gtk_fixed_put(GTK_FIXED(fixed),rit_control,VFO_WIDTH,y);
+  //rit_control = rit_init(RIT_WIDTH,MENU_HEIGHT,window);
+  //gtk_fixed_put(GTK_FIXED(fixed),rit_control,VFO_WIDTH,y);
 
   GtkWidget *minimize_b=gtk_button_new_with_label("Hide");
   gtk_widget_override_font(minimize_b, pango_font_description_from_string("FreeMono Bold 10"));
-  gtk_widget_set_size_request (minimize_b, MENU_WIDTH-RIT_WIDTH, MENU_HEIGHT/2);
+  gtk_widget_set_size_request (minimize_b, MENU_WIDTH, MENU_HEIGHT/2);
   g_signal_connect (minimize_b, "button-press-event", G_CALLBACK(minimize_cb), NULL);
   gtk_widget_show(minimize_b);
-  gtk_fixed_put(GTK_FIXED(fixed),minimize_b,VFO_WIDTH+((MENU_WIDTH/3)*2),y);
+  gtk_fixed_put(GTK_FIXED(fixed),minimize_b,VFO_WIDTH,y);
 
   //menu = menu_init(MENU_WIDTH,MENU_HEIGHT,window);
-  menu = new_menu_init(MENU_WIDTH-RIT_WIDTH,MENU_HEIGHT/2,window);
-  gtk_fixed_put(GTK_FIXED(fixed),menu,VFO_WIDTH+((MENU_WIDTH/3)*2),y+(MENU_HEIGHT/2));
+  menu = new_menu_init(MENU_WIDTH,MENU_HEIGHT/2,window);
+  gtk_fixed_put(GTK_FIXED(fixed),menu,VFO_WIDTH,y+(MENU_HEIGHT/2));
 
   meter = meter_init(METER_WIDTH,METER_HEIGHT,window);
   gtk_fixed_put(GTK_FIXED(fixed),meter,VFO_WIDTH+MENU_WIDTH,y);

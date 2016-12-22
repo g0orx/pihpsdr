@@ -28,8 +28,10 @@ void lock_cb(GtkWidget *widget, gpointer data);
 
 
 void sim_mox_cb(GtkWidget *widget, gpointer data);
-void sim_band_cb(GtkWidget *widget, gpointer data);
-void sim_bandstack_cb(GtkWidget *widget, gpointer data);
+void sim_band_pressed_cb(GtkWidget *widget, gpointer data);
+void sim_band_released_cb(GtkWidget *widget, gpointer data);
+void sim_bandstack_pressed_cb(GtkWidget *widget, gpointer data);
+void sim_bandstack_released_cb(GtkWidget *widget, gpointer data);
 void sim_mode_cb(GtkWidget *widget, gpointer data);
 void sim_filter_cb(GtkWidget *widget, gpointer data);
 void sim_noise_cb(GtkWidget *widget, gpointer data);

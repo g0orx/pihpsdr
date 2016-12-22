@@ -348,6 +348,7 @@ static void* beep_thread(void *arg) {
                 printf("Setting of hwparams failed: %s\n", snd_strerror(err));
                 exit(EXIT_FAILURE);
         }
+
         if ((err = set_swparams(handle, swparams)) < 0) {
                 printf("Setting of swparams failed: %s\n", snd_strerror(err));
                 exit(EXIT_FAILURE);
@@ -375,6 +376,7 @@ static void* beep_thread(void *arg) {
         free(areas);
         free(samples);
         snd_pcm_close(handle);
+
         return 0;
 }
 
