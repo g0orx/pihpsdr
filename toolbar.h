@@ -28,14 +28,14 @@ void lock_cb(GtkWidget *widget, gpointer data);
 
 
 void sim_mox_cb(GtkWidget *widget, gpointer data);
-void sim_band_pressed_cb(GtkWidget *widget, gpointer data);
-void sim_band_released_cb(GtkWidget *widget, gpointer data);
-void sim_bandstack_pressed_cb(GtkWidget *widget, gpointer data);
-void sim_bandstack_released_cb(GtkWidget *widget, gpointer data);
-void sim_mode_cb(GtkWidget *widget, gpointer data);
-void sim_filter_cb(GtkWidget *widget, gpointer data);
-void sim_noise_cb(GtkWidget *widget, gpointer data);
-void sim_agc_cb(GtkWidget *widget, gpointer data);
+void sim_s1_pressed_cb(GtkWidget *widget, gpointer data);
+void sim_s1_released_cb(GtkWidget *widget, gpointer data);
+void sim_s2_pressed_cb(GtkWidget *widget, gpointer data);
+void sim_s2_released_cb(GtkWidget *widget, gpointer data);
+void sim_s3_cb(GtkWidget *widget, gpointer data);
+void sim_s4_cb(GtkWidget *widget, gpointer data);
+void sim_s5_cb(GtkWidget *widget, gpointer data);
+void sim_s6_cb(GtkWidget *widget, gpointer data);
 void sim_function_cb(GtkWidget *widget, gpointer data);
 
 GtkWidget *toolbar_init(int my_width, int my_height, GtkWidget* parent);

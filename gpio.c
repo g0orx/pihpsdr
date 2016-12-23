@@ -1058,22 +1058,22 @@ static int agc_encoder_changed(void *data) {
 }
 
 static int band_pressed(void *data) {
-  sim_band_pressed_cb(NULL,NULL);
+  sim_s1_pressed_cb(NULL,NULL);
   return 0;
 }
 
 static int band_released(void *data) {
-  sim_band_released_cb(NULL,NULL);
+  sim_s1_released_cb(NULL,NULL);
   return 0;
 }
 
 static int bandstack_pressed(void *data) {
-  sim_bandstack_pressed_cb(NULL,NULL);
+  sim_s2_pressed_cb(NULL,NULL);
   return 0;
 }
 
 static int bandstack_released(void *data) {
-  sim_bandstack_released_cb(NULL,NULL);
+  sim_s2_released_cb(NULL,NULL);
   return 0;
 }
 
@@ -1093,22 +1093,22 @@ static int lock_pressed(void *data) {
 }
 
 static int mode_pressed(void *data) {
-  sim_mode_cb(NULL,NULL);
+  sim_s3_cb(NULL,NULL);
   return 0;
 }
 
 static int filter_pressed(void *data) {
-  sim_filter_cb(NULL,NULL);
+  sim_s4_cb(NULL,NULL);
   return 0;
 }
 
 static int noise_pressed(void *data) {
-  sim_noise_cb(NULL,NULL);
+  sim_s5_cb(NULL,NULL);
   return 0;
 }
 
 static int agc_pressed(void *data) {
-  sim_agc_cb(NULL,NULL);
+  sim_s6_cb(NULL,NULL);
   return 0;
 }
 
