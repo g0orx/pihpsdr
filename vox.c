@@ -35,7 +35,7 @@ static int vox_timeout_cb(gpointer data) {
 
 
 double vox_get_peak() {
-  return peak;
+  return peak*10.0;
 }
 
 void update_vox(double *in,int length) {
