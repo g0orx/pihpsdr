@@ -51,11 +51,10 @@ int ENABLE_E1_ENCODER=1;
 int ENABLE_E1_PULLUP=0;
 int E1_ENCODER_A=20;
 int E1_ENCODER_B=26;
-#ifdef sx1509
+#ifndef sx1509
 int E1_FUNCTION=25;
 #else
 int E1_FUNCTION=2; //RRK, was 25 now taken by waveshare LCD TS, disable i2c
-int LOCK_BUTTON=2; //temporarily in flux upstream
 #endif
 int ENABLE_E2_ENCODER=1;
 int ENABLE_E2_PULLUP=0;
@@ -87,7 +86,7 @@ int ENABLE_MOX_BUTTON=1;
 int MOX_BUTTON=27;
 int ENABLE_FUNCTION_BUTTON=1;
 int FUNCTION_BUTTON=22;
-int ENABLE_LOCK_BUTTON=1;
+int ENABLE_E1_BUTTON=1;
 int ENABLE_CW_BUTTONS=1;
 // make sure to disable UART0 for next 2 gpios
 int CWL_BUTTON=9;
@@ -478,11 +477,11 @@ void gpio_restore_state() {
   if(value) ENABLE_MOX_BUTTON=atoi(value);
   value=getProperty("MOX_BUTTON");
   if(value) MOX_BUTTON=atoi(value);
-  value=getProperty("ENABLE_LOCK_BUTTON");
-  if(value) ENABLE_LOCK_BUTTON=atoi(value);
+  value=getProperty("ENABLE_E1_BUTTON");
+  if(value) ENABLE_E1_BUTTON=atoi(value);
 #ifndef sx1509
-  value=getProperty("LOCK_BUTTON");
-  if(value) LOCK_BUTTON=atoi(value);
+  value=getProperty("E1_FUNCTION");
+  if(value) E1_FUNCTION=atoi(value);
 #endif
   value=getProperty("ENABLE_CW_BUTTONS");
   if(value) ENABLE_CW_BUTTONS=atoi(value);
@@ -565,11 +564,11 @@ void gpio_save_state() {
   setProperty("ENABLE_MOX_BUTTON",value);
   sprintf(value,"%d",MOX_BUTTON);
   setProperty("MOX_BUTTON",value);
-  sprintf(value,"%d",ENABLE_LOCK_BUTTON);
-  setProperty("ENABLE_LOCK_BUTTON",value);
+  sprintf(value,"%d",ENABLE_E1_BUTTON);
+  setProperty("ENABLE_E1_BUTTON",value);
 #ifndef sx1509
-  sprintf(value,"%d",LOCK_BUTTON);
-  setProperty("LOCK_BUTTON",value);
+  sprintf(value,"%d",E1_FUNCTION);
+  setProperty("E1_FUNCTION",value);
 #endif
   sprintf(value,"%d",ENABLE_CW_BUTTONS);
   setProperty("ENABLE_CW_BUTTONS",value);
@@ -724,8 +723,8 @@ fprintf(stderr,"encoder_init\n");
   }
 
 #ifndef sx1509
-  if(ENABLE_LOCK_BUTTON) {
-    setup_button(LOCK_BUTTON, lockAlert);
+  if(ENABLE_E1_BUTTON) {
+    setup_button(E1_FUNCTION, lockAlert);
   }
 #endif
 

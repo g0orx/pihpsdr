@@ -85,6 +85,13 @@ static void set_button_text_color(GtkWidget *widget,char *color) {
 void update_toolbar_labels() {
   if(toolbar_dialog_buttons) {
       if(function) {
+        gtk_button_set_label(GTK_BUTTON(sim_mox),"Tune");
+        gtk_button_set_label(GTK_BUTTON(sim_s1),"RIT+");
+        gtk_button_set_label(GTK_BUTTON(sim_s2),"RIT-");
+        gtk_button_set_label(GTK_BUTTON(sim_s3),"CTUN");
+        gtk_button_set_label(GTK_BUTTON(sim_s4),"");
+        gtk_button_set_label(GTK_BUTTON(sim_s5),"");
+        gtk_button_set_label(GTK_BUTTON(sim_s6),"Lock");
       } else {
         gtk_button_set_label(GTK_BUTTON(sim_mox),"Mox");
         gtk_button_set_label(GTK_BUTTON(sim_s1),"Band");
@@ -93,16 +100,6 @@ void update_toolbar_labels() {
         gtk_button_set_label(GTK_BUTTON(sim_s4),"Filter");
         gtk_button_set_label(GTK_BUTTON(sim_s5),"Noise");
         gtk_button_set_label(GTK_BUTTON(sim_s6),"AGC");
-      }
-      if(function) {
-        gtk_button_set_label(GTK_BUTTON(sim_mox),"Tune");
-        gtk_button_set_label(GTK_BUTTON(sim_s1),"RIT+");
-        gtk_button_set_label(GTK_BUTTON(sim_s2),"RIT-");
-        gtk_button_set_label(GTK_BUTTON(sim_s3),"CTUN");
-        gtk_button_set_label(GTK_BUTTON(sim_s4),"Filter");
-        gtk_button_set_label(GTK_BUTTON(sim_s5),"Noise");
-        gtk_button_set_label(GTK_BUTTON(sim_s6),"AGC");
-      } else {
       }
   } else {
     if(function) {
@@ -1175,7 +1172,10 @@ void sim_s4_cb(GtkWidget *widget, gpointer data) {
   BANDSTACK_ENTRY *entry;
 
   if(toolbar_dialog_buttons) {
-    filter_cb(widget,data);
+    if(function) {
+    } else {
+      filter_cb(widget,data);
+    }
   } else {
     band=band_get_current_band();
     entry=bandstack_entry_get_current();
@@ -1201,29 +1201,12 @@ void sim_s4_cb(GtkWidget *widget, gpointer data) {
 
 }
 
-void sim_s6_cb(GtkWidget *widget, gpointer data) {
-  if(toolbar_dialog_buttons) {
-    agc_cb(widget,data);
-  } else {
-    if(function) {
-      agc--;
-      if(agc<0) {
-        agc=3;
-      }
-    } else {
-      agc++;
-      if(agc>=4) {
-        agc=0;
-      }
-    }
-    SetRXAAGCMode(CHANNEL_RX0, agc);
-    vfo_update(NULL);
-  }
-}
-
 void sim_s5_cb(GtkWidget *widget, gpointer data) {
   if(toolbar_dialog_buttons) {
-    noise_cb(widget,data);
+    if(function) {
+    } else {
+      noise_cb(widget,data);
+    }
   } else {
     if(function) {
       if(nr) {
@@ -1260,6 +1243,30 @@ void sim_s5_cb(GtkWidget *widget, gpointer data) {
     SetRXAEMNRRun(CHANNEL_RX0, nr2);
     SetRXAANFRun(CHANNEL_RX0, anf);
     SetRXASNBARun(CHANNEL_RX0, snb);
+    vfo_update(NULL);
+  }
+}
+
+void sim_s6_cb(GtkWidget *widget, gpointer data) {
+  if(toolbar_dialog_buttons) {
+    if(function) {
+      lock_cb(widget,data);
+    } else {
+      agc_cb(widget,data);
+    }
+  } else {
+    if(function) {
+      agc--;
+      if(agc<0) {
+        agc=3;
+      }
+    } else {
+      agc++;
+      if(agc>=4) {
+        agc=0;
+      }
+    }
+    SetRXAAGCMode(CHANNEL_RX0, agc);
     vfo_update(NULL);
   }
 }
