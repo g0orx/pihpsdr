@@ -47,42 +47,42 @@ int VFO_ENCODER_B=18;
 int VFO_ENCODER_A_PIN=0;
 int VFO_ENCODER_B_PIN=1;
 #endif
-int ENABLE_AF_ENCODER=1;
-int ENABLE_AF_PULLUP=0;
-int AF_ENCODER_A=20;
-int AF_ENCODER_B=26;
+int ENABLE_E1_ENCODER=1;
+int ENABLE_E1_PULLUP=0;
+int E1_ENCODER_A=20;
+int E1_ENCODER_B=26;
 #ifdef sx1509
-int AF_FUNCTION=25;
+int E1_FUNCTION=25;
 #else
-int AF_FUNCTION=2; //RRK, was 25 now taken by waveshare LCD TS, disable i2c
+int E1_FUNCTION=2; //RRK, was 25 now taken by waveshare LCD TS, disable i2c
 int LOCK_BUTTON=2; //temporarily in flux upstream
 #endif
-int ENABLE_RF_ENCODER=1;
-int ENABLE_RF_PULLUP=0;
-int RF_ENCODER_A=16;
-int RF_ENCODER_B=19;
-int RF_FUNCTION=8;
-int ENABLE_AGC_ENCODER=1;
-int ENABLE_AGC_PULLUP=0;
-int AGC_ENCODER_A=4;
-int AGC_ENCODER_B=21;
+int ENABLE_E2_ENCODER=1;
+int ENABLE_E2_PULLUP=0;
+int E2_ENCODER_A=16;
+int E2_ENCODER_B=19;
+int E2_FUNCTION=8;
+int ENABLE_E3_ENCODER=1;
+int ENABLE_E3_PULLUP=0;
+int E3_ENCODER_A=4;
+int E3_ENCODER_B=21;
 #if defined sx1509
-int AGC_FUNCTION=7;
+int E3_FUNCTION=7;
 #else
-int AGC_FUNCTION=3; //RRK, was 7 now taken by waveshare LCD TS, disable i2c
+int E3_FUNCTION=3; //RRK, was 7 now taken by waveshare LCD TS, disable i2c
 #endif
-int ENABLE_BAND_BUTTON=1;
-int BAND_BUTTON=13;
-int ENABLE_BANDSTACK_BUTTON=1;
-int BANDSTACK_BUTTON=12;
-int ENABLE_MODE_BUTTON=1;
-int MODE_BUTTON=6;
-int ENABLE_FILTER_BUTTON=1;
-int FILTER_BUTTON=5;
-int ENABLE_NOISE_BUTTON=1;
-int NOISE_BUTTON=24;
-int ENABLE_AGC_BUTTON=1;
-int AGC_BUTTON=23;
+int ENABLE_S1_BUTTON=1;
+int S1_BUTTON=13;
+int ENABLE_S2_BUTTON=1;
+int S2_BUTTON=12;
+int ENABLE_S3_BUTTON=1;
+int S3_BUTTON=6;
+int ENABLE_S4_BUTTON=1;
+int S4_BUTTON=5;
+int ENABLE_S5_BUTTON=1;
+int S5_BUTTON=24;
+int ENABLE_S6_BUTTON=1;
+int S6_BUTTON=23;
 int ENABLE_MOX_BUTTON=1;
 int MOX_BUTTON=27;
 int ENABLE_FUNCTION_BUTTON=1;
@@ -110,15 +110,15 @@ SX1509 Breakout ------ Odroid ------------ Component
        3 --------------------------------- S6 FN x1 (row 4)
        4 --------------------------------- VFO_ENCODER_A
        5 --------------------------------- VFO_ENCODER_B
-       6 --------------------------------- AF_ENCODER_A
-       7 --------------------------------- AF_ENCODER_B
+       6 --------------------------------- E1_ENCODER_A
+       7 --------------------------------- E1_ENCODER_B
        8 --------------------------------- TN S2 S4 S6 (col 1)
        9 --------------------------------- S1 S3 S5 FN (col 2)
        10 -------------------------------- E1 E2 E3 x1 (col 3)
-       11 -------------------------------- RF_ENCODER_A
-       12 -------------------------------- RF_ENCODER_B
-       13 -------------------------------- AGC_ENCODER_A
-       14 -------------------------------- AGC_ENCODER_B
+       11 -------------------------------- E2_ENCODER_A
+       12 -------------------------------- E2_ENCODER_B
+       13 -------------------------------- E3_ENCODER_A
+       14 -------------------------------- E3_ENCODER_B
        15 -------------------------------- spare_gpio
 
 Alternate to allow 5 extra buttons
@@ -129,16 +129,16 @@ Alternate to allow 5 extra buttons
        3 --------------------------------- S6 x3 E3 FN (row 4)
        4 --------------------------------- VFO_ENCODER_A
        5 --------------------------------- VFO_ENCODER_B
-       6 --------------------------------- AF_ENCODER_A
-       7 --------------------------------- AF_ENCODER_B
+       6 --------------------------------- E1_ENCODER_A
+       7 --------------------------------- E1_ENCODER_B
        8 --------------------------------- TN S2 S4 S6 (col 1)
        9 --------------------------------- S1 S3 S5 x3 (col 2)
        10 -------------------------------- x1 E1 E2 E3 (col 3)
        11 -------------------------------- x2 x4 x5 FN (col 4)
-       12 -------------------------------- RF_ENCODER_A
-       13 -------------------------------- RF_ENCODER_B
-       14 -------------------------------- AGC_ENCODER_A
-       15 -------------------------------- AGC_ENCODER_B
+       12 -------------------------------- E2_ENCODER_A
+       13 -------------------------------- E2_ENCODER_B
+       14 -------------------------------- E3_ENCODER_A
+       15 -------------------------------- E3_ENCODER_B
 
 x1-x5 (spare buttons)
 
@@ -152,12 +152,12 @@ int SX1509_INT_PIN=0;
 #endif
 
 static volatile int vfoEncoderPos;
-static volatile int afEncoderPos;
-static volatile int afFunction;
-static volatile int rfEncoderPos;
-static volatile int rfFunction;
-static volatile int agcEncoderPos;
-static volatile int agcFunction;
+static volatile int e1EncoderPos;
+static volatile int e1Function;
+static volatile int e2EncoderPos;
+static volatile int e2Function;
+static volatile int e3EncoderPos;
+static volatile int e3Function;
 static volatile int function_state;
 static volatile int band_state;
 static volatile int bandstack_state;
@@ -171,10 +171,10 @@ static volatile int lock_state;
 static void* rotary_encoder_thread(void *arg);
 static pthread_t rotary_encoder_thread_id;
 static int previous_function_button=0;
-static int af_function=0;
-static int previous_af_function=0;
-static int rf_function=0;
-static int previous_rf_function=0;
+static int e1_function=0;
+static int previous_e1_function=0;
+static int e2_function=0;
+static int previous_e2_function=0;
 static int band_button=0;
 static int previous_band_button=0;
 static int bandstack_button=0;
@@ -194,18 +194,18 @@ static int previous_lock_button=0;
 
 static int running=1;
 
-static void afFunctionAlert(int gpio, int level, uint32_t tick) {
-    afFunction=(level==0);
+static void e1FunctionAlert(int gpio, int level, uint32_t tick) {
+    e1Function=(level==0);
 }
 
-static void agcFunctionAlert(int gpio, int level, uint32_t tick) {
+static void e3FunctionAlert(int gpio, int level, uint32_t tick) {
     if(level==0) {
-      agcFunction=agcFunction==0?1:0;
+      e3Function=e3Function==0?1:0;
     }
 }
 
-static void rfFunctionAlert(int gpio, int level, uint32_t tick) {
-    rfFunction=(level==0);
+static void e2FunctionAlert(int gpio, int level, uint32_t tick) {
+    e2Function=(level==0);
 }
 
 static void functionAlert(int gpio, int level, uint32_t tick) {
@@ -272,65 +272,65 @@ static void vfoEncoderPulse(int gpio, int level, unsigned int tick) {
    }
 }
 
-static void afEncoderPulse(int gpio, int level, uint32_t tick)
+static void e1EncoderPulse(int gpio, int level, uint32_t tick)
 {
    static int levA=0, levB=0, lastGpio = -1;
 
-   if (gpio == AF_ENCODER_A) levA = level; else levB = level;
+   if (gpio == E1_ENCODER_A) levA = level; else levB = level;
 
    if (gpio != lastGpio) /* debounce */
    {
       lastGpio = gpio;
 
-      if ((gpio == AF_ENCODER_A) && (level == 0))
+      if ((gpio == E1_ENCODER_A) && (level == 0))
       {
-         if (!levB) ++afEncoderPos;
+         if (!levB) ++e1EncoderPos;
       }
-      else if ((gpio == AF_ENCODER_B) && (level == 1))
+      else if ((gpio == E1_ENCODER_B) && (level == 1))
       {
-         if (levA) --afEncoderPos;
+         if (levA) --e1EncoderPos;
       }
    }
 }
 
-static void rfEncoderPulse(int gpio, int level, uint32_t tick)
+static void e2EncoderPulse(int gpio, int level, uint32_t tick)
 {
    static int levA=0, levB=0, lastGpio = -1;
 
-   if (gpio == RF_ENCODER_A) levA = level; else levB = level;
+   if (gpio == E2_ENCODER_A) levA = level; else levB = level;
 
    if (gpio != lastGpio) /* debounce */
    {
       lastGpio = gpio;
 
-      if ((gpio == RF_ENCODER_A) && (level == 0))
+      if ((gpio == E2_ENCODER_A) && (level == 0))
       {
-         if (!levB) ++rfEncoderPos;
+         if (!levB) ++e2EncoderPos;
       }
-      else if ((gpio == RF_ENCODER_B) && (level == 1))
+      else if ((gpio == E2_ENCODER_B) && (level == 1))
       {
-         if (levA) --rfEncoderPos;
+         if (levA) --e2EncoderPos;
       }
    }
 }
 
-static void agcEncoderPulse(int gpio, int level, uint32_t tick)
+static void e3EncoderPulse(int gpio, int level, uint32_t tick)
 {
    static int levA=0, levB=0, lastGpio = -1;
 
-   if (gpio == AGC_ENCODER_A) levA = level; else levB = level;
+   if (gpio == E3_ENCODER_A) levA = level; else levB = level;
 
    if (gpio != lastGpio) /* debounce */
    {
       lastGpio = gpio;
 
-      if ((gpio == AGC_ENCODER_A) && (level == 0))
+      if ((gpio == E3_ENCODER_A) && (level == 0))
       {
-         if (!levB) ++agcEncoderPos;
+         if (!levB) ++e3EncoderPos;
       }
-      else if ((gpio == AGC_ENCODER_B) && (level == 1))
+      else if ((gpio == E3_ENCODER_B) && (level == 1))
       {
-         if (levA) --agcEncoderPos;
+         if (levA) --e3EncoderPos;
       }
    }
 }
@@ -344,9 +344,9 @@ static void agcEncoderPulse(int gpio, int level, uint32_t tick)
 // btnMap maps row/column combinations to button states:
 volatile int *btnArray[BTN_ROWS][BTN_COLS] = {
   { &mox_state, &band_state, NULL, NULL},
-  { &bandstack_state, &mode_state, &afFunction, NULL},
-  { &filter_state, &noise_state, &rfFunction, NULL},
-  { &agc_state, NULL, &agcFunction, &function_state}
+  { &bandstack_state, &mode_state, &e1Function, NULL},
+  { &filter_state, &noise_state, &e2Function, NULL},
+  { &agc_state, NULL, &e3Function, &function_state}
 };
 
 void sx1509_interrupt(void) {
@@ -363,18 +363,18 @@ void sx1509_interrupt(void) {
         vfoEncoderPulse(VFO_ENCODER_A, SX1509_digitalRead(pSX1509, VFO_ENCODER_A), 0);
       if (encInterrupt & (1<<VFO_ENCODER_B))
         vfoEncoderPulse(VFO_ENCODER_B, SX1509_digitalRead(pSX1509, VFO_ENCODER_B), 0);
-      if (encInterrupt & (1<<AF_ENCODER_A))
-        afEncoderPulse(AF_ENCODER_A, SX1509_digitalRead(pSX1509, AF_ENCODER_A), 0);
-      if (encInterrupt & (1<<AF_ENCODER_B))
-        afEncoderPulse(AF_ENCODER_B, SX1509_digitalRead(pSX1509, AF_ENCODER_B), 0);
-      if (encInterrupt & (1<<RF_ENCODER_A))
-        rfEncoderPulse(RF_ENCODER_A, SX1509_digitalRead(pSX1509, RF_ENCODER_A), 0);
-      if (encInterrupt & (1<<RF_ENCODER_B))
-        rfEncoderPulse(RF_ENCODER_B, SX1509_digitalRead(pSX1509, RF_ENCODER_B), 0);
-      if (encInterrupt & (1<<AGC_ENCODER_A))
-        agcEncoderPulse(AGC_ENCODER_A, SX1509_digitalRead(pSX1509, AGC_ENCODER_A), 0);
-      if (encInterrupt & (1<<AGC_ENCODER_B))
-        agcEncoderPulse(AGC_ENCODER_B, SX1509_digitalRead(pSX1509, AGC_ENCODER_B), 0);
+      if (encInterrupt & (1<<E1_ENCODER_A))
+        e1EncoderPulse(E1_ENCODER_A, SX1509_digitalRead(pSX1509, E1_ENCODER_A), 0);
+      if (encInterrupt & (1<<E1_ENCODER_B))
+        e1EncoderPulse(E1_ENCODER_B, SX1509_digitalRead(pSX1509, E1_ENCODER_B), 0);
+      if (encInterrupt & (1<<E2_ENCODER_A))
+        e2EncoderPulse(E2_ENCODER_A, SX1509_digitalRead(pSX1509, E2_ENCODER_A), 0);
+      if (encInterrupt & (1<<E2_ENCODER_B))
+        e2EncoderPulse(E2_ENCODER_B, SX1509_digitalRead(pSX1509, E2_ENCODER_B), 0);
+      if (encInterrupt & (1<<E3_ENCODER_A))
+        e3EncoderPulse(E3_ENCODER_A, SX1509_digitalRead(pSX1509, E3_ENCODER_A), 0);
+      if (encInterrupt & (1<<E3_ENCODER_B))
+        e3EncoderPulse(E3_ENCODER_B, SX1509_digitalRead(pSX1509, E3_ENCODER_B), 0);
    }
 
    uint16_t btnData = SX1509_readKeypad(pSX1509);
@@ -422,54 +422,54 @@ void gpio_restore_state() {
   value=getProperty("VFO_ENCODER_B_PIN");
   if(value) VFO_ENCODER_B_PIN=atoi(value);
 #endif
-  value=getProperty("ENABLE_AF_ENCODER");
-  if(value) ENABLE_AF_ENCODER=atoi(value);
-  value=getProperty("ENABLE_AF_PULLUP");
-  if(value) ENABLE_AF_PULLUP=atoi(value);
-  value=getProperty("AF_ENCODER_A");
-  if(value) AF_ENCODER_A=atoi(value);
-  value=getProperty("AF_ENCODER_B");
-  if(value) AF_ENCODER_B=atoi(value);
-  value=getProperty("ENABLE_RF_ENCODER");
-  if(value) ENABLE_RF_ENCODER=atoi(value);
-  value=getProperty("ENABLE_RF_PULLUP");
-  if(value) ENABLE_RF_PULLUP=atoi(value);
-  value=getProperty("RF_ENCODER_A");
-  if(value) RF_ENCODER_A=atoi(value);
-  value=getProperty("RF_ENCODER_B");
-  if(value) RF_ENCODER_B=atoi(value);
-  value=getProperty("ENABLE_AGC_ENCODER");
-  if(value) ENABLE_AGC_ENCODER=atoi(value);
-  value=getProperty("ENABLE_AGC_PULLUP");
-  if(value) ENABLE_AGC_PULLUP=atoi(value);
-  value=getProperty("AGC_ENCODER_A");
-  if(value) AGC_ENCODER_A=atoi(value);
-  value=getProperty("AGC_ENCODER_B");
-  if(value) AGC_ENCODER_B=atoi(value);
-  value=getProperty("ENABLE_BAND_BUTTON");
-  if(value) ENABLE_BAND_BUTTON=atoi(value);
-  value=getProperty("BAND_BUTTON");
-  if(value) BAND_BUTTON=atoi(value);
-  value=getProperty("ENABLE_BANDSTACK_BUTTON");
-  if(value) ENABLE_BANDSTACK_BUTTON=atoi(value);
-  value=getProperty("BANDSTACK_BUTTON");
-  if(value) BANDSTACK_BUTTON=atoi(value);
-  value=getProperty("ENABLE_MODE_BUTTON");
-  if(value) ENABLE_MODE_BUTTON=atoi(value);
-  value=getProperty("MODE_BUTTON");
-  if(value) MODE_BUTTON=atoi(value);
-  value=getProperty("ENABLE_FILTER_BUTTON");
-  if(value) ENABLE_FILTER_BUTTON=atoi(value);
-  value=getProperty("FILTER_BUTTON");
-  if(value) FILTER_BUTTON=atoi(value);
-  value=getProperty("ENABLE_NOISE_BUTTON");
-  if(value) ENABLE_NOISE_BUTTON=atoi(value);
-  value=getProperty("NOISE_BUTTON");
-  if(value) NOISE_BUTTON=atoi(value);
-  value=getProperty("ENABLE_AGC_BUTTON");
-  if(value) ENABLE_AGC_BUTTON=atoi(value);
-  value=getProperty("AGC_BUTTON");
-  if(value) AGC_BUTTON=atoi(value);
+  value=getProperty("ENABLE_E1_ENCODER");
+  if(value) ENABLE_E1_ENCODER=atoi(value);
+  value=getProperty("ENABLE_E1_PULLUP");
+  if(value) ENABLE_E1_PULLUP=atoi(value);
+  value=getProperty("E1_ENCODER_A");
+  if(value) E1_ENCODER_A=atoi(value);
+  value=getProperty("E1_ENCODER_B");
+  if(value) E1_ENCODER_B=atoi(value);
+  value=getProperty("ENABLE_E2_ENCODER");
+  if(value) ENABLE_E2_ENCODER=atoi(value);
+  value=getProperty("ENABLE_E2_PULLUP");
+  if(value) ENABLE_E2_PULLUP=atoi(value);
+  value=getProperty("E2_ENCODER_A");
+  if(value) E2_ENCODER_A=atoi(value);
+  value=getProperty("E2_ENCODER_B");
+  if(value) E2_ENCODER_B=atoi(value);
+  value=getProperty("ENABLE_E3_ENCODER");
+  if(value) ENABLE_E3_ENCODER=atoi(value);
+  value=getProperty("ENABLE_E3_PULLUP");
+  if(value) ENABLE_E3_PULLUP=atoi(value);
+  value=getProperty("E3_ENCODER_A");
+  if(value) E3_ENCODER_A=atoi(value);
+  value=getProperty("E3_ENCODER_B");
+  if(value) E3_ENCODER_B=atoi(value);
+  value=getProperty("ENABLE_S1_BUTTON");
+  if(value) ENABLE_S1_BUTTON=atoi(value);
+  value=getProperty("S1_BUTTON");
+  if(value) S1_BUTTON=atoi(value);
+  value=getProperty("ENABLE_S2_BUTTON");
+  if(value) ENABLE_S2_BUTTON=atoi(value);
+  value=getProperty("S2_BUTTON");
+  if(value) S2_BUTTON=atoi(value);
+  value=getProperty("ENABLE_S3_BUTTON");
+  if(value) ENABLE_S3_BUTTON=atoi(value);
+  value=getProperty("S3_BUTTON");
+  if(value) S3_BUTTON=atoi(value);
+  value=getProperty("ENABLE_S4_BUTTON");
+  if(value) ENABLE_S4_BUTTON=atoi(value);
+  value=getProperty("S4_BUTTON");
+  if(value) S4_BUTTON=atoi(value);
+  value=getProperty("ENABLE_S5_BUTTON");
+  if(value) ENABLE_S5_BUTTON=atoi(value);
+  value=getProperty("S5_BUTTON");
+  if(value) S5_BUTTON=atoi(value);
+  value=getProperty("ENABLE_S6_BUTTON");
+  if(value) ENABLE_S6_BUTTON=atoi(value);
+  value=getProperty("S6_BUTTON");
+  if(value) S6_BUTTON=atoi(value);
   value=getProperty("ENABLE_FUNCTION_BUTTON");
   if(value) ENABLE_FUNCTION_BUTTON=atoi(value);
   value=getProperty("FUNCTION_BUTTON");
@@ -509,54 +509,54 @@ void gpio_save_state() {
   sprintf(value,"%d",VFO_ENCODER_B_PIN);
   setProperty("VFO_ENCODER_B_PIN",value);
 #endif
-  sprintf(value,"%d",ENABLE_AF_ENCODER);
-  setProperty("ENABLE_AF_ENCODER",value);
-  sprintf(value,"%d",ENABLE_AF_PULLUP);
-  setProperty("ENABLE_AF_PULLUP",value);
-  sprintf(value,"%d",AF_ENCODER_A);
-  setProperty("AF_ENCODER_A",value);
-  sprintf(value,"%d",AF_ENCODER_B);
-  setProperty("AF_ENCODER_B",value);
-  sprintf(value,"%d",ENABLE_RF_ENCODER);
-  setProperty("ENABLE_RF_ENCODER",value);
-  sprintf(value,"%d",ENABLE_RF_PULLUP);
-  setProperty("ENABLE_RF_PULLUP",value);
-  sprintf(value,"%d",RF_ENCODER_A);
-  setProperty("RF_ENCODER_A",value);
-  sprintf(value,"%d",RF_ENCODER_B);
-  setProperty("RF_ENCODER_B",value);
-  sprintf(value,"%d",ENABLE_AGC_ENCODER);
-  setProperty("ENABLE_AGC_ENCODER",value);
-  sprintf(value,"%d",ENABLE_AGC_PULLUP);
-  setProperty("ENABLE_AGC_PULLUP",value);
-  sprintf(value,"%d",AGC_ENCODER_A);
-  setProperty("AGC_ENCODER_A",value);
-  sprintf(value,"%d",AGC_ENCODER_B);
-  setProperty("AGC_ENCODER_B",value);
-  sprintf(value,"%d",ENABLE_BAND_BUTTON);
-  setProperty("ENABLE_BAND_BUTTON",value);
-  sprintf(value,"%d",BAND_BUTTON);
-  setProperty("BAND_BUTTON",value);
-  sprintf(value,"%d",ENABLE_BANDSTACK_BUTTON);
-  setProperty("ENABLE_BANDSTACK_BUTTON",value);
-  sprintf(value,"%d",BANDSTACK_BUTTON);
-  setProperty("BANDSTACK_BUTTON",value);
-  sprintf(value,"%d",ENABLE_MODE_BUTTON);
-  setProperty("ENABLE_MODE_BUTTON",value);
-  sprintf(value,"%d",MODE_BUTTON);
-  setProperty("MODE_BUTTON",value);
-  sprintf(value,"%d",ENABLE_FILTER_BUTTON);
-  setProperty("ENABLE_FILTER_BUTTON",value);
-  sprintf(value,"%d",FILTER_BUTTON);
-  setProperty("FILTER_BUTTON",value);
-  sprintf(value,"%d",ENABLE_NOISE_BUTTON);
-  setProperty("ENABLE_NOISE_BUTTON",value);
-  sprintf(value,"%d",NOISE_BUTTON);
-  setProperty("NOISE_BUTTON",value);
-  sprintf(value,"%d",ENABLE_AGC_BUTTON);
-  setProperty("ENABLE_AGC_BUTTON",value);
-  sprintf(value,"%d",AGC_BUTTON);
-  setProperty("AGC_BUTTON",value);
+  sprintf(value,"%d",ENABLE_E1_ENCODER);
+  setProperty("ENABLE_E1_ENCODER",value);
+  sprintf(value,"%d",ENABLE_E1_PULLUP);
+  setProperty("ENABLE_E1_PULLUP",value);
+  sprintf(value,"%d",E1_ENCODER_A);
+  setProperty("E1_ENCODER_A",value);
+  sprintf(value,"%d",E1_ENCODER_B);
+  setProperty("E1_ENCODER_B",value);
+  sprintf(value,"%d",ENABLE_E2_ENCODER);
+  setProperty("ENABLE_E2_ENCODER",value);
+  sprintf(value,"%d",ENABLE_E2_PULLUP);
+  setProperty("ENABLE_E2_PULLUP",value);
+  sprintf(value,"%d",E2_ENCODER_A);
+  setProperty("E2_ENCODER_A",value);
+  sprintf(value,"%d",E2_ENCODER_B);
+  setProperty("E2_ENCODER_B",value);
+  sprintf(value,"%d",ENABLE_E3_ENCODER);
+  setProperty("ENABLE_E3_ENCODER",value);
+  sprintf(value,"%d",ENABLE_E3_PULLUP);
+  setProperty("ENABLE_E3_PULLUP",value);
+  sprintf(value,"%d",E3_ENCODER_A);
+  setProperty("E3_ENCODER_A",value);
+  sprintf(value,"%d",E3_ENCODER_B);
+  setProperty("E3_ENCODER_B",value);
+  sprintf(value,"%d",ENABLE_S1_BUTTON);
+  setProperty("ENABLE_S1_BUTTON",value);
+  sprintf(value,"%d",S1_BUTTON);
+  setProperty("S1_BUTTON",value);
+  sprintf(value,"%d",ENABLE_S2_BUTTON);
+  setProperty("ENABLE_S2_BUTTON",value);
+  sprintf(value,"%d",S2_BUTTON);
+  setProperty("S2_BUTTON",value);
+  sprintf(value,"%d",ENABLE_S3_BUTTON);
+  setProperty("ENABLE_S3_BUTTON",value);
+  sprintf(value,"%d",S3_BUTTON);
+  setProperty("S3_BUTTON",value);
+  sprintf(value,"%d",ENABLE_S4_BUTTON);
+  setProperty("ENABLE_S4_BUTTON",value);
+  sprintf(value,"%d",S4_BUTTON);
+  setProperty("S4_BUTTON",value);
+  sprintf(value,"%d",ENABLE_S5_BUTTON);
+  setProperty("ENABLE_S5_BUTTON",value);
+  sprintf(value,"%d",S5_BUTTON);
+  setProperty("S5_BUTTON",value);
+  sprintf(value,"%d",ENABLE_S6_BUTTON);
+  setProperty("ENABLE_S6_BUTTON",value);
+  sprintf(value,"%d",S6_BUTTON);
+  setProperty("S6_BUTTON",value);
   sprintf(value,"%d",ENABLE_FUNCTION_BUTTON);
   setProperty("ENABLE_FUNCTION_BUTTON",value);
   sprintf(value,"%d",FUNCTION_BUTTON);
@@ -640,83 +640,83 @@ fprintf(stderr,"encoder_init\n");
   }
 
 
-  setup_button(AF_FUNCTION, afFunctionAlert);
-  afFunction=0;
+  setup_button(E1_FUNCTION, e1FunctionAlert);
+  e1Function=0;
 
-  if(ENABLE_AF_ENCODER) {
-    gpioSetMode(AF_ENCODER_A, PI_INPUT);
-    gpioSetMode(AF_ENCODER_B, PI_INPUT);
-    if(ENABLE_AF_PULLUP) {
-      gpioSetPullUpDown(AF_ENCODER_A, PI_PUD_UP);
-      gpioSetPullUpDown(AF_ENCODER_B, PI_PUD_UP);
+  if(ENABLE_E1_ENCODER) {
+    gpioSetMode(E1_ENCODER_A, PI_INPUT);
+    gpioSetMode(E1_ENCODER_B, PI_INPUT);
+    if(ENABLE_E1_PULLUP) {
+      gpioSetPullUpDown(E1_ENCODER_A, PI_PUD_UP);
+      gpioSetPullUpDown(E1_ENCODER_B, PI_PUD_UP);
     } else {
-      gpioSetPullUpDown(AF_ENCODER_A, PI_PUD_OFF);
-      gpioSetPullUpDown(AF_ENCODER_B, PI_PUD_OFF);
+      gpioSetPullUpDown(E1_ENCODER_A, PI_PUD_OFF);
+      gpioSetPullUpDown(E1_ENCODER_B, PI_PUD_OFF);
     }
-    gpioSetAlertFunc(AF_ENCODER_A, afEncoderPulse);
-    gpioSetAlertFunc(AF_ENCODER_B, afEncoderPulse);
-    afEncoderPos=0;
+    gpioSetAlertFunc(E1_ENCODER_A, e1EncoderPulse);
+    gpioSetAlertFunc(E1_ENCODER_B, e1EncoderPulse);
+    e1EncoderPos=0;
   }
 
-    setup_button(RF_FUNCTION, rfFunctionAlert);
-    rfFunction=0;
+    setup_button(E2_FUNCTION, e2FunctionAlert);
+    e2Function=0;
 
-  if(ENABLE_RF_ENCODER) {
-    gpioSetMode(RF_ENCODER_A, PI_INPUT);
-    gpioSetMode(RF_ENCODER_B, PI_INPUT);
-    if(ENABLE_AF_PULLUP) {
-      gpioSetPullUpDown(RF_ENCODER_A, PI_PUD_UP);
-      gpioSetPullUpDown(RF_ENCODER_B, PI_PUD_UP);
+  if(ENABLE_E2_ENCODER) {
+    gpioSetMode(E2_ENCODER_A, PI_INPUT);
+    gpioSetMode(E2_ENCODER_B, PI_INPUT);
+    if(ENABLE_E1_PULLUP) {
+      gpioSetPullUpDown(E2_ENCODER_A, PI_PUD_UP);
+      gpioSetPullUpDown(E2_ENCODER_B, PI_PUD_UP);
     } else {
-      gpioSetPullUpDown(RF_ENCODER_A, PI_PUD_OFF);
-      gpioSetPullUpDown(RF_ENCODER_B, PI_PUD_OFF);
+      gpioSetPullUpDown(E2_ENCODER_A, PI_PUD_OFF);
+      gpioSetPullUpDown(E2_ENCODER_B, PI_PUD_OFF);
     }
-    gpioSetAlertFunc(RF_ENCODER_A, rfEncoderPulse);
-    gpioSetAlertFunc(RF_ENCODER_B, rfEncoderPulse);
-    rfEncoderPos=0;
+    gpioSetAlertFunc(E2_ENCODER_A, e2EncoderPulse);
+    gpioSetAlertFunc(E2_ENCODER_B, e2EncoderPulse);
+    e2EncoderPos=0;
   }
 
-  setup_button(AGC_FUNCTION, agcFunctionAlert);
-  agcFunction=0;
+  setup_button(E3_FUNCTION, e3FunctionAlert);
+  e3Function=0;
 
-  if(ENABLE_AGC_ENCODER) {
-    gpioSetMode(AGC_ENCODER_A, PI_INPUT);
-    gpioSetMode(AGC_ENCODER_B, PI_INPUT);
-    if(ENABLE_AF_PULLUP) {
-      gpioSetPullUpDown(AGC_ENCODER_A, PI_PUD_UP);
-      gpioSetPullUpDown(AGC_ENCODER_B, PI_PUD_UP);
+  if(ENABLE_E3_ENCODER) {
+    gpioSetMode(E3_ENCODER_A, PI_INPUT);
+    gpioSetMode(E3_ENCODER_B, PI_INPUT);
+    if(ENABLE_E1_PULLUP) {
+      gpioSetPullUpDown(E3_ENCODER_A, PI_PUD_UP);
+      gpioSetPullUpDown(E3_ENCODER_B, PI_PUD_UP);
     } else {
-      gpioSetPullUpDown(AGC_ENCODER_A, PI_PUD_OFF);
-      gpioSetPullUpDown(AGC_ENCODER_B, PI_PUD_OFF);
+      gpioSetPullUpDown(E3_ENCODER_A, PI_PUD_OFF);
+      gpioSetPullUpDown(E3_ENCODER_B, PI_PUD_OFF);
     }
-    gpioSetAlertFunc(AGC_ENCODER_A, agcEncoderPulse);
-    gpioSetAlertFunc(AGC_ENCODER_B, agcEncoderPulse);
-    agcEncoderPos=0;
+    gpioSetAlertFunc(E3_ENCODER_A, e3EncoderPulse);
+    gpioSetAlertFunc(E3_ENCODER_B, e3EncoderPulse);
+    e3EncoderPos=0;
   }
 
 
-  if(ENABLE_BAND_BUTTON) {
-    setup_button(BAND_BUTTON, bandAlert);
+  if(ENABLE_S1_BUTTON) {
+    setup_button(S1_BUTTON, bandAlert);
   }
  
-  if(ENABLE_BANDSTACK_BUTTON) {
-    setup_button(BANDSTACK_BUTTON, bandstackAlert);
+  if(ENABLE_S2_BUTTON) {
+    setup_button(S2_BUTTON, bandstackAlert);
   }
  
-  if(ENABLE_MODE_BUTTON) {
-    setup_button(MODE_BUTTON, modeAlert);
+  if(ENABLE_S3_BUTTON) {
+    setup_button(S3_BUTTON, modeAlert);
   }
  
-  if(ENABLE_FILTER_BUTTON) {
-    setup_button(FILTER_BUTTON, filterAlert);
+  if(ENABLE_S4_BUTTON) {
+    setup_button(S4_BUTTON, filterAlert);
   }
  
-  if(ENABLE_NOISE_BUTTON) {
-    setup_button(NOISE_BUTTON, noiseAlert);
+  if(ENABLE_S5_BUTTON) {
+    setup_button(S5_BUTTON, noiseAlert);
   }
  
-  if(ENABLE_AGC_BUTTON) {
-    setup_button(AGC_BUTTON, agcAlert);
+  if(ENABLE_S6_BUTTON) {
+    setup_button(S6_BUTTON, agcAlert);
   }
  
   if(ENABLE_MOX_BUTTON) {
@@ -749,12 +749,12 @@ fprintf(stderr,"GPIO: ENABLE_CW_BUTTONS=%d  CWL_BUTTON=%d CWR_BUTTON=%d\n",ENABL
   // override default (PI) values
   VFO_ENCODER_A=4;
   VFO_ENCODER_B=5;
-  AF_ENCODER_A=6;
-  AF_ENCODER_B=7;
-  RF_ENCODER_A=12;
-  RF_ENCODER_B=13;
-  AGC_ENCODER_A=14;
-  AGC_ENCODER_B=15;
+  E1_ENCODER_A=6;
+  E1_ENCODER_B=7;
+  E2_ENCODER_A=12;
+  E2_ENCODER_B=13;
+  E3_ENCODER_A=14;
+  E3_ENCODER_B=15;
 
   fprintf(stderr,"sx1509 encoder_init: VFO_ENCODER_A=%d VFO_ENCODER_B=%d\n",VFO_ENCODER_A,VFO_ENCODER_B);
 
@@ -784,25 +784,25 @@ fprintf(stderr,"GPIO: ENABLE_CW_BUTTONS=%d  CWL_BUTTON=%d CWR_BUTTON=%d\n",ENABL
   SX1509_enableInterrupt(pSX1509, VFO_ENCODER_A, CHANGE);
   SX1509_enableInterrupt(pSX1509, VFO_ENCODER_B, CHANGE);
   vfoEncoderPos=0;
-  SX1509_pinMode(pSX1509, AF_ENCODER_A, INPUT_PULLUP);
-  SX1509_pinMode(pSX1509, AF_ENCODER_B, INPUT_PULLUP);
-  SX1509_enableInterrupt(pSX1509, AF_ENCODER_A, CHANGE);
-  SX1509_enableInterrupt(pSX1509, AF_ENCODER_B, CHANGE);
-  afEncoderPos=0;
-  SX1509_pinMode(pSX1509, RF_ENCODER_A, INPUT_PULLUP);
-  SX1509_pinMode(pSX1509, RF_ENCODER_B, INPUT_PULLUP);
-  SX1509_enableInterrupt(pSX1509, RF_ENCODER_A, CHANGE);
-  SX1509_enableInterrupt(pSX1509, RF_ENCODER_B, CHANGE);
-  rfEncoderPos=0;
-  SX1509_pinMode(pSX1509, AGC_ENCODER_A, INPUT_PULLUP);
-  SX1509_pinMode(pSX1509, AGC_ENCODER_B, INPUT_PULLUP);
-  SX1509_enableInterrupt(pSX1509, AGC_ENCODER_A, CHANGE);
-  SX1509_enableInterrupt(pSX1509, AGC_ENCODER_B, CHANGE);
-  agcEncoderPos=0;
+  SX1509_pinMode(pSX1509, E1_ENCODER_A, INPUT_PULLUP);
+  SX1509_pinMode(pSX1509, E1_ENCODER_B, INPUT_PULLUP);
+  SX1509_enableInterrupt(pSX1509, E1_ENCODER_A, CHANGE);
+  SX1509_enableInterrupt(pSX1509, E1_ENCODER_B, CHANGE);
+  e1EncoderPos=0;
+  SX1509_pinMode(pSX1509, E2_ENCODER_A, INPUT_PULLUP);
+  SX1509_pinMode(pSX1509, E2_ENCODER_B, INPUT_PULLUP);
+  SX1509_enableInterrupt(pSX1509, E2_ENCODER_A, CHANGE);
+  SX1509_enableInterrupt(pSX1509, E2_ENCODER_B, CHANGE);
+  e2EncoderPos=0;
+  SX1509_pinMode(pSX1509, E3_ENCODER_A, INPUT_PULLUP);
+  SX1509_pinMode(pSX1509, E3_ENCODER_B, INPUT_PULLUP);
+  SX1509_enableInterrupt(pSX1509, E3_ENCODER_A, CHANGE);
+  SX1509_enableInterrupt(pSX1509, E3_ENCODER_B, CHANGE);
+  e3EncoderPos=0;
 
-  afFunction=0;
-  rfFunction=0;
-  agcFunction=0;
+  e1Function=0;
+  e2Function=0;
+  e3Function=0;
 
   pinMode(SX1509_INT_PIN, INPUT);
   pullUpDnControl(SX1509_INT_PIN, PUD_UP);
@@ -892,34 +892,34 @@ int vfo_encoder_get_pos() {
   return pos;
 }
 
-int af_encoder_get_pos() {
-    int pos=afEncoderPos;
-    afEncoderPos=0;
+int e1_encoder_get_pos() {
+    int pos=e1EncoderPos;
+    e1EncoderPos=0;
     return pos;
 }
 
-int af_function_get_state() {
-    return afFunction;
+int e1_function_get_state() {
+    return e1Function;
 }
 
-int rf_encoder_get_pos() {
-    int pos=rfEncoderPos;
-    rfEncoderPos=0;
+int e2_encoder_get_pos() {
+    int pos=e2EncoderPos;
+    e2EncoderPos=0;
     return pos;
 }
 
-int agc_encoder_get_pos() {
-    int pos=agcEncoderPos;
-    agcEncoderPos=0;
+int e3_encoder_get_pos() {
+    int pos=e3EncoderPos;
+    e3EncoderPos=0;
     return pos;
 }
 
 int agc_function_get_state() {
-    return agcFunction;
+    return e3Function;
 }
 
-int rf_function_get_state() {
-    return rfFunction;
+int e2_function_get_state() {
+    return e2Function;
 }
 
 int function_get_state() {
@@ -972,7 +972,7 @@ static int vfo_encoder_changed(void *data) {
   return 0;
 }
 
-static int af_encoder_changed(void *data) {
+static int e1_encoder_changed(void *data) {
   int pos=*(int*)data;
   if(pos!=0) {
     if(function || isTransmitting()) {
@@ -1002,7 +1002,7 @@ static int af_encoder_changed(void *data) {
   return 0;
 }
 
-static int rf_encoder_changed(void *data) {
+static int e2_encoder_changed(void *data) {
   int pos=*(int*)data;
   if(pos!=0) {
     if(function || tune) {
@@ -1031,7 +1031,7 @@ static int rf_encoder_changed(void *data) {
   return 0;
 }
 
-static int agc_encoder_changed(void *data) {
+static int e3_encoder_changed(void *data) {
   int pos=*(int*)data;
   if(pos!=0) {
     if(function) {
@@ -1133,36 +1133,36 @@ static void* rotary_encoder_thread(void *arg) {
         }
 
 /*
-        af_function=af_function_get_state();
-        if(af_function!=previous_af_function) {
-            previous_af_function=af_function;
+        e1_function=e1_function_get_state();
+        if(e1_function!=previous_e1_function) {
+            previous_e1_function=e1_function;
         }
 */
-        pos=af_encoder_get_pos();
+        pos=e1_encoder_get_pos();
         if(pos!=0) {
             int *p=malloc(sizeof(int));
             *p=pos;
-            g_idle_add(af_encoder_changed,(gpointer)p);
+            g_idle_add(e1_encoder_changed,(gpointer)p);
         }
 
 /*
-        rf_function=rf_function_get_state();
-        if(rf_function!=previous_rf_function) {
-            previous_rf_function=rf_function;
+        e2_function=e2_function_get_state();
+        if(e2_function!=previous_e2_function) {
+            previous_e2_function=e2_function;
         }
 */
-        pos=rf_encoder_get_pos();
+        pos=e2_encoder_get_pos();
         if(pos!=0) {
             int *p=malloc(sizeof(int));
             *p=pos;
-            g_idle_add(rf_encoder_changed,(gpointer)p);
+            g_idle_add(e2_encoder_changed,(gpointer)p);
         }
 
-        pos=agc_encoder_get_pos();
+        pos=e3_encoder_get_pos();
         if(pos!=0) {
             int *p=malloc(sizeof(int));
             *p=pos;
-            g_idle_add(agc_encoder_changed,(gpointer)p);
+            g_idle_add(e3_encoder_changed,(gpointer)p);
         }
 
 

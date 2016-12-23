@@ -74,8 +74,8 @@ void configure_gpio(GtkWidget *parent) {
 
 
 
-  GtkWidget *b_enable_af_encoder=gtk_check_button_new_with_label("Enable AF");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_af_encoder), ENABLE_AF_ENCODER);
+  GtkWidget *b_enable_af_encoder=gtk_check_button_new_with_label("Enable E1");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_af_encoder), ENABLE_E1_ENCODER);
   gtk_widget_show(b_enable_af_encoder);
   gtk_grid_attach(GTK_GRID(grid),b_enable_af_encoder,0,1,1,1);
 
@@ -84,7 +84,7 @@ void configure_gpio(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),af_a_label,1,1,1,1);
 
   GtkWidget *af_a=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(af_a),AF_ENCODER_A);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(af_a),E1_ENCODER_A);
   gtk_widget_show(af_a);
   gtk_grid_attach(GTK_GRID(grid),af_a,2,1,1,1);
 
@@ -93,19 +93,19 @@ void configure_gpio(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),af_b_label,3,1,1,1);
 
   GtkWidget *af_b=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(af_b),AF_ENCODER_B);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(af_b),E1_ENCODER_B);
   gtk_widget_show(af_b);
   gtk_grid_attach(GTK_GRID(grid),af_b,4,1,1,1);
 
   GtkWidget *b_enable_af_pullup=gtk_check_button_new_with_label("Enable Pull-up");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_af_pullup), ENABLE_AF_PULLUP);
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_af_pullup), ENABLE_E1_PULLUP);
   gtk_widget_show(b_enable_af_pullup);
   gtk_grid_attach(GTK_GRID(grid),b_enable_af_pullup,5,1,1,1);
 
 
 
   GtkWidget *b_enable_rf_encoder=gtk_check_button_new_with_label("Enable RF");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_rf_encoder), ENABLE_RF_ENCODER);
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_rf_encoder), ENABLE_E2_ENCODER);
   gtk_widget_show(b_enable_rf_encoder);
   gtk_grid_attach(GTK_GRID(grid),b_enable_rf_encoder,0,2,1,1);
 
@@ -114,7 +114,7 @@ void configure_gpio(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),rf_a_label,1,2,1,1);
 
   GtkWidget *rf_a=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(rf_a),RF_ENCODER_A);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(rf_a),E2_ENCODER_A);
   gtk_widget_show(rf_a);
   gtk_grid_attach(GTK_GRID(grid),rf_a,2,2,1,1);
 
@@ -123,19 +123,19 @@ void configure_gpio(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),rf_b_label,3,2,1,1);
 
   GtkWidget *rf_b=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(rf_b),RF_ENCODER_B);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(rf_b),E2_ENCODER_B);
   gtk_widget_show(rf_b);
   gtk_grid_attach(GTK_GRID(grid),rf_b,4,2,1,1);
 
   GtkWidget *b_enable_rf_pullup=gtk_check_button_new_with_label("Enable Pull-up");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_rf_pullup), ENABLE_RF_PULLUP);
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_rf_pullup), ENABLE_E2_PULLUP);
   gtk_widget_show(b_enable_rf_pullup);
   gtk_grid_attach(GTK_GRID(grid),b_enable_rf_pullup,5,2,1,1);
 
 
 
   GtkWidget *b_enable_agc_encoder=gtk_check_button_new_with_label("Enable AGC");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_agc_encoder), ENABLE_AGC_ENCODER);
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_agc_encoder), ENABLE_E3_ENCODER);
   gtk_widget_show(b_enable_agc_encoder);
   gtk_grid_attach(GTK_GRID(grid),b_enable_agc_encoder,0,3,1,1);
 
@@ -144,7 +144,7 @@ void configure_gpio(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),agc_a_label,1,3,1,1);
 
   GtkWidget *agc_a=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(agc_a),AGC_ENCODER_A);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(agc_a),E3_ENCODER_A);
   gtk_widget_show(agc_a);
   gtk_grid_attach(GTK_GRID(grid),agc_a,2,3,1,1);
 
@@ -153,19 +153,19 @@ void configure_gpio(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),agc_b_label,3,3,1,1);
 
   GtkWidget *agc_b=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(agc_b),AGC_ENCODER_B);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(agc_b),E3_ENCODER_B);
   gtk_widget_show(agc_b);
   gtk_grid_attach(GTK_GRID(grid),agc_b,4,3,1,1);
 
   GtkWidget *b_enable_agc_pullup=gtk_check_button_new_with_label("Enable Pull-up");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_agc_pullup), ENABLE_AGC_PULLUP);
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_agc_pullup), ENABLE_E3_PULLUP);
   gtk_widget_show(b_enable_agc_pullup);
   gtk_grid_attach(GTK_GRID(grid),b_enable_agc_pullup,5,3,1,1);
 
 
 
   GtkWidget *b_enable_band=gtk_check_button_new_with_label("Enable Band");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_band), ENABLE_BAND_BUTTON);
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_band), ENABLE_S1_BUTTON);
   gtk_widget_show(b_enable_band);
   gtk_grid_attach(GTK_GRID(grid),b_enable_band,0,4,1,1);
 
@@ -174,13 +174,13 @@ void configure_gpio(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),band_label,1,4,1,1);
 
   GtkWidget *band=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(band),BAND_BUTTON);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(band),S1_BUTTON);
   gtk_widget_show(band);
   gtk_grid_attach(GTK_GRID(grid),band,2,4,1,1);
 
 
   GtkWidget *b_enable_mode=gtk_check_button_new_with_label("Enable Mode");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_mode), ENABLE_MODE_BUTTON);
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_mode), ENABLE_S3_BUTTON);
   gtk_widget_show(b_enable_mode);
   gtk_grid_attach(GTK_GRID(grid),b_enable_mode,0,5,1,1);
 
@@ -189,13 +189,13 @@ void configure_gpio(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),mode_label,1,5,1,1);
 
   GtkWidget *mode=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(mode),MODE_BUTTON);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(mode),S3_BUTTON);
   gtk_widget_show(mode);
   gtk_grid_attach(GTK_GRID(grid),mode,2,5,1,1);
 
 
   GtkWidget *b_enable_filter=gtk_check_button_new_with_label("Enable Filter");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_filter), ENABLE_FILTER_BUTTON);
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_filter), ENABLE_S4_BUTTON);
   gtk_widget_show(b_enable_filter);
   gtk_grid_attach(GTK_GRID(grid),b_enable_filter,0,6,1,1);
 
@@ -204,13 +204,13 @@ void configure_gpio(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),filter_label,1,6,1,1);
 
   GtkWidget *filter=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(filter),FILTER_BUTTON);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(filter),S4_BUTTON);
   gtk_widget_show(filter);
   gtk_grid_attach(GTK_GRID(grid),filter,2,6,1,1);
 
 
   GtkWidget *b_enable_noise=gtk_check_button_new_with_label("Enable Noise");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_noise), ENABLE_NOISE_BUTTON);
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_noise), ENABLE_S5_BUTTON);
   gtk_widget_show(b_enable_noise);
   gtk_grid_attach(GTK_GRID(grid),b_enable_noise,0,7,1,1);
 
@@ -219,13 +219,13 @@ void configure_gpio(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),noise_label,1,7,1,1);
 
   GtkWidget *noise=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(noise),NOISE_BUTTON);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(noise),S5_BUTTON);
   gtk_widget_show(noise);
   gtk_grid_attach(GTK_GRID(grid),noise,2,7,1,1);
 
 
   GtkWidget *b_enable_agc=gtk_check_button_new_with_label("Enable AGC");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_agc), ENABLE_AGC_BUTTON);
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_agc), ENABLE_S6_BUTTON);
   gtk_widget_show(b_enable_agc);
   gtk_grid_attach(GTK_GRID(grid),b_enable_agc,0,8,1,1);
 
@@ -234,7 +234,7 @@ void configure_gpio(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),agc_label,1,8,1,1);
 
   GtkWidget *agc=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(agc),AGC_BUTTON);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(agc),S6_BUTTON);
   gtk_widget_show(agc);
   gtk_grid_attach(GTK_GRID(grid),agc,2,8,1,1);
 
@@ -311,28 +311,30 @@ void configure_gpio(GtkWidget *parent) {
   VFO_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(vfo_a));
   VFO_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(vfo_b));
   ENABLE_VFO_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_vfo_pullup))?1:0;
-  ENABLE_AF_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_af_encoder))?1:0;
-  AF_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(af_a));
-  AF_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(af_b));
-  ENABLE_AF_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_af_pullup))?1:0;
-  ENABLE_RF_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_rf_encoder))?1:0;
-  RF_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(rf_a));
-  RF_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(rf_b));
-  ENABLE_RF_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_rf_pullup))?1:0;
-  ENABLE_AGC_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_agc_encoder))?1:0;
-  AGC_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(agc_a));
-  AGC_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(agc_b));
-  ENABLE_AGC_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_agc_pullup))?1:0;
-  ENABLE_BAND_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_band))?1:0;
-  BAND_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(band));
-  ENABLE_MODE_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_mode))?1:0;
-  MODE_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(mode));
-  ENABLE_FILTER_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_filter))?1:0;
-  FILTER_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(filter));
-  ENABLE_NOISE_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_noise))?1:0;
-  NOISE_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(noise));
-  ENABLE_AGC_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_agc))?1:0;
-  AGC_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(agc));
+  ENABLE_E1_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_af_encoder))?1:0;
+  E1_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(af_a));
+  E1_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(af_b));
+  ENABLE_E1_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_af_pullup))?1:0;
+  ENABLE_E2_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_rf_encoder))?1:0;
+  E2_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(rf_a));
+  E2_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(rf_b));
+  ENABLE_E2_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_rf_pullup))?1:0;
+  ENABLE_E3_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_agc_encoder))?1:0;
+  E3_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(agc_a));
+  E3_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(agc_b));
+  ENABLE_E3_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_agc_pullup))?1:0;
+  ENABLE_S1_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_band))?1:0;
+  S1_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(band));
+  ENABLE_S2_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_band))?1:0;
+  S2_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(band));
+  ENABLE_S3_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_mode))?1:0;
+  S3_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(mode));
+  ENABLE_S4_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_filter))?1:0;
+  S4_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(filter));
+  ENABLE_S5_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_noise))?1:0;
+  S5_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(noise));
+  ENABLE_S6_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_agc))?1:0;
+  S6_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(agc));
   ENABLE_MOX_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_mox))?1:0;
   MOX_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(mox));
   ENABLE_FUNCTION_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_function))?1:0;
