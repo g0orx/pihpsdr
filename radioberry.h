@@ -21,3 +21,4 @@
 void radioberry_protocol_stop();
 void radioberry_protocol_init(int rx,int pixels);
 void *radioberry_protocol_process_local_mic(unsigned char *buffer,int le);
+void radioberry_new_sample_rate(int rate);

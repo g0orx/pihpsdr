@@ -410,7 +410,7 @@ void wdsp_init(int rx,int pixels,int protocol) {
 
 void wdsp_new_sample_rate(int rate) {
 
-  if(protocol==ORIGINAL_PROTOCOL | protocol==RADIOBERRY_PROTOCOL) {
+  if(protocol==ORIGINAL_PROTOCOL || protocol==RADIOBERRY_PROTOCOL) {
     SetChannelState(CHANNEL_TX,0,0);
     calc_tx_buffer_size();
     initAnalyzer(CHANNEL_TX,tx_buffer_size);

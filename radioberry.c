@@ -115,6 +115,33 @@ float timedifference_msec(struct timeval t0, struct timeval t1)
     return (t1.tv_sec - t0.tv_sec) * 1000.0f + (t1.tv_usec - t0.tv_usec) / 1000.0f;
 }
 
+void radioberry_calc_buffers() {
+  switch(sample_rate) {
+    case 48000:
+      output_buffer_size=OUTPUT_BUFFER_SIZE;
+      break;
+    case 96000:
+      output_buffer_size=OUTPUT_BUFFER_SIZE/2;
+      break;
+    case 192000:
+      output_buffer_size=OUTPUT_BUFFER_SIZE/4;
+      break;
+    case 384000:
+      output_buffer_size=OUTPUT_BUFFER_SIZE/8;
+      break;
+    default:
+      fprintf(stderr,"Invalid sample rate: %d. Defaulting to 48K.\n",sample_rate);
+      break;
+  }
+}
+
+void radioberry_new_sample_rate(int rate){
+  sample_rate=rate;
+  radioberry_calc_buffers();
+  setSampleSpeed();
+  wdsp_new_sample_rate(rate);
+}
+
 void radioberry_protocol_init(int rx,int pixels) {
   int i;
 
@@ -125,23 +152,7 @@ void radioberry_protocol_init(int rx,int pixels) {
   receiver=rx;
   display_width=pixels;
  
-	switch(sample_rate) {
-	case 48000:
-	  output_buffer_size=OUTPUT_BUFFER_SIZE;
-	  break;
-	case 96000:
-	  output_buffer_size=OUTPUT_BUFFER_SIZE/2;
-	  break;
-	case 192000:
-	  output_buffer_size=OUTPUT_BUFFER_SIZE/4;
-	  break;
-	case 384000:
-	  output_buffer_size=OUTPUT_BUFFER_SIZE/8;
-	  break;
-	default:
-	  fprintf(stderr,"Invalid sample rate: %d. Defaulting to 48K.\n",sample_rate);
-	  break;
-	}
+	radioberry_calc_buffers();
 
 	fprintf(stderr,"radioberry_protocol: buffer size: =%d\n", buffer_size);
   
