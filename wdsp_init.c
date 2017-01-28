@@ -81,7 +81,7 @@ static int SPECTRUM_UPDATES_PER_SECOND=10;
 static void initAnalyzer(int channel,int buffer_size);
 
 static void calc_tx_buffer_size() {
-  if(protocol==ORIGINAL_PROTOCOL) {
+  if(protocol==ORIGINAL_PROTOCOL | protocol==RADIOBERRY_PROTOCOL) {
     switch(sample_rate) {
       case 48000:
         tx_buffer_size=BUFFER_SIZE;
@@ -312,7 +312,7 @@ void wdsp_init(int rx,int pixels,int protocol) {
 
     fprintf(stderr,"wdsp_init: rx=%d pixels=%d protocol=%d\n",rx,pixels,protocol);
    
-    if(protocol==ORIGINAL_PROTOCOL) {
+    if(protocol==ORIGINAL_PROTOCOL | protocol==RADIOBERRY_PROTOCOL) {
         micSampleRate=sample_rate;
         micOutputRate=48000;
     } else {
@@ -410,7 +410,7 @@ void wdsp_init(int rx,int pixels,int protocol) {
 
 void wdsp_new_sample_rate(int rate) {
 
-  if(protocol==ORIGINAL_PROTOCOL) {
+  if(protocol==ORIGINAL_PROTOCOL | protocol==RADIOBERRY_PROTOCOL) {
     SetChannelState(CHANNEL_TX,0,0);
     calc_tx_buffer_size();
     initAnalyzer(CHANNEL_TX,tx_buffer_size);

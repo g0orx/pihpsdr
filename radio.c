@@ -357,6 +357,9 @@ void setFrequency(long long f) {
   switch(protocol) {
     case NEW_PROTOCOL:
     case ORIGINAL_PROTOCOL:
+#ifdef RADIOBERRY
+	case RADIOBERRY_PROTOCOL:
+#endif
       if(ctun) {
         long long minf=entry->frequencyA-(long long)(sample_rate/2);
         long long maxf=entry->frequencyA+(long long)(sample_rate/2);
@@ -394,6 +397,9 @@ void setFrequency(long long f) {
       schedule_high_priority(5);
       break;
     case ORIGINAL_PROTOCOL:
+#ifdef RADIOBERRY
+	case RADIOBERRY_PROTOCOL:
+#endif
       schedule_frequency_changed();
       break;
 #ifdef LIMESDR

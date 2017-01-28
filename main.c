@@ -39,10 +39,16 @@
 #ifdef LIMESDR
 #include "lime_discovery.h"
 #endif
+#ifdef RADIOBERRY
+#include "radioberry_discovery.h"
+#endif
 #include "old_protocol.h"
 #include "new_protocol.h"
 #ifdef LIMESDR
 #include "lime_protocol.h"
+#endif
+#ifdef RADIOBERRY
+#include "radioberry.h"
 #endif
 #include "wdsp.h"
 #include "vfo.h"
@@ -318,6 +324,11 @@ gboolean main_delete (GtkWidget *widget) {
       lime_protocol_stop();
       break;
 #endif
+#ifdef RADIOBERRY
+	case RADIOBERRY_PROTOCOL:
+		radioberry_protocol_stop();
+		break;
+#endif
   }
   radioSaveState();
   _exit(0);
@@ -362,6 +373,10 @@ static void discover_devices() {
 #ifdef LIMESDR
       splash_status("LimeSDR ... Discovering Devices");
       lime_discovery();
+#endif
+#ifdef RADIOBERRY
+      splash_status("Radioberry SDR ... Discovering Device");
+      radioberry_discovery();
 #endif
       splash_status("Discovery");
       if(devices==0) {
@@ -495,6 +510,11 @@ fprintf(stderr,"%p protocol=%d name=%s\n",d,d->protocol,d->name);
                         d->name);
                   break;
 #endif
+#ifdef RADIOBERRY
+				case RADIOBERRY_PROTOCOL:
+					sprintf(text,"%s\n",d->name);
+				break;
+#endif
               }
 
               GtkWidget *label=gtk_label_new(text);
@@ -571,7 +591,12 @@ fprintf(stderr,"start: selected radio=%p device=%d\n",radio,radio->device);
       sprintf(property_path,"limesdr.props");
       break;
 #endif
-  }
+#ifdef RADIOBERRY
+	case RADIOBERRY_PROTOCOL:
+		sprintf(property_path,"radioberry.props");
+		break;
+#endif
+ }
 
   radioRestoreState();
 
@@ -602,6 +627,12 @@ fprintf(stderr,"start: selected radio=%p device=%d\n",radio,radio->device);
       splash_status("Initializing lime protocol ...");
       lime_protocol_init(0,display_width);
       break;
+#endif
+#ifdef RADIOBERRY
+	case RADIOBERRY_PROTOCOL:
+		splash_status("Initializing radioberry protocol ...");
+		radioberry_protocol_init(0,display_width);
+		break;
 #endif
   }
 

@@ -40,6 +40,9 @@
 #include "radio.h"
 #include "property.h"
 #include "new_menu.h"
+#ifdef RADIOBERRY
+#include "radioberry.h"	
+#endif
 
 int function=0;
 
@@ -663,6 +666,11 @@ void noise_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void stop() {
+#ifdef RADIOBERRY
+	if(protocol==RADIOBERRY_PROTOCOL) {
+		radioberry_protocol_stop();
+	}
+#endif
   if(protocol==ORIGINAL_PROTOCOL) {
     old_protocol_stop();
   } else {

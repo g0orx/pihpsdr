@@ -7,7 +7,7 @@ GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 PSK_INCLUDE=PSK
 
 # uncomment the line to below include support for FreeDV codec2
-FREEDV_INCLUDE=FREEDV
+#FREEDV_INCLUDE=FREEDV
 
 # uncomment the line to below include support for sx1509 i2c expander
 #SX1509_INCLUDE=sx1509
@@ -30,6 +30,23 @@ LINK=gcc
 
 # uncomment the line below for LimeSDR (uncomment line below)
 #LIMESDR_INCLUDE=LIMESDR
+
+# uncomment the line below when Radioberry radio cape is plugged in
+RADIOBERRY_INCLUDE=RADIOBERRY
+
+ifeq ($(RADIOBERRY_INCLUDE),RADIOBERRY)
+RADIOBERRY_OPTIONS=-D RADIOBERRY
+RADIOBERRY_SOURCES= \
+radioberry_discovery.c \
+radioberry.c
+RADIOBERRY_HEADERS= \
+radioberry_discovery.h \
+radioberry.h
+RADIOBERRY_OBJS= \
+radioberry_discovery.o \
+radioberry.o
+endif
+
 
 ifeq ($(LIMESDR_INCLUDE),LIMESDR)
 LIMESDR_OPTIONS=-D LIMESDR
@@ -102,8 +119,8 @@ ifeq ($(MRAA_INCLUDE),MRAA)
   gpio_mraa.o
 else
   ifeq ($(UNAME_N),raspberrypi)
-  GPIO_OPTIONS=-D GPIO
-  GPIO_LIBS=-lwiringPi -lpigpio
+  #GPIO_OPTIONS=-D GPIO
+  GPIO_LIBS=-lwiringPi -lpigpio  -lbcm2835
   endif
   ifeq ($(UNAME_N),odroid)
   GPIO_LIBS=-lwiringPi
@@ -129,7 +146,7 @@ GTKLIBS=`pkg-config --libs gtk+-3.0`
 
 AUDIO_LIBS=-lasound
 
-OPTIONS=-g -D $(UNAME_N) $(GPIO_OPTIONS) $(LIMESDR_OPTIONS) $(FREEDV_OPTIONS) $(LOCALCW_OPTIONS) $(PSK_OPTIONS) $(SHORT_FRAMES) -D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION) -O3
+OPTIONS=-g -D $(UNAME_N) $(GPIO_OPTIONS) $(LIMESDR_OPTIONS) $(RADIOBERRY_OPTIONS) $(FREEDV_OPTIONS) $(LOCALCW_OPTIONS) $(PSK_OPTIONS) $(SHORT_FRAMES) -D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION) -O3
 
 LIBS=-lrt -lm -lwdsp -lpthread $(AUDIO_LIBS) $(PSKLIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS)
 INCLUDES=$(GTKINCLUDES)
@@ -316,13 +333,13 @@ vox.o \
 update.o \
 memory.o
 
-all: prebuild $(PROGRAM) $(HEADERS) $(LIMESDR_HEADERS) $(FREEDV_HEADERS) $(LOCALCW_HEADERS) $(GPIO_HEADERS) $(PSK_HEADERS) $(SOURCES) $(LIMESDR_SOURCES) $(FREEDV_SOURCES) $(GPIO_SOURCES) $(PSK_SOURCES)
+all: prebuild $(PROGRAM) $(HEADERS) $(LIMESDR_HEADERS) $(RADIOBERRY_HEADERS) $(FREEDV_HEADERS) $(LOCALCW_HEADERS) $(GPIO_HEADERS) $(PSK_HEADERS) $(SOURCES) $(LIMESDR_SOURCES) $(RADIOBERRY_SOURCES) $(FREEDV_SOURCES) $(GPIO_SOURCES) $(PSK_SOURCES)
 
 prebuild:
 	rm -f version.o
 
-$(PROGRAM): $(OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) $(LOCALCW_OBJS) $(GPIO_OBJS) $(PSK_OBJS)
-	$(LINK) -o $(PROGRAM) $(OBJS) $(GPIO_OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) $(LOCALCW_OBJS) $(PSK_OBJS) $(LIBS)
+$(PROGRAM): $(OBJS) $(LIMESDR_OBJS) $(RADIOBERRY_OBJS) $(FREEDV_OBJS) $(LOCALCW_OBJS) $(GPIO_OBJS) $(PSK_OBJS)
+	$(LINK) -o $(PROGRAM) $(OBJS) $(GPIO_OBJS) $(LIMESDR_OBJS) $(RADIOBERRY_OBJS) $(FREEDV_OBJS) $(LOCALCW_OBJS) $(PSK_OBJS) $(LIBS)
 
 .c.o:
 	$(COMPILE) -c -o $@ $<
