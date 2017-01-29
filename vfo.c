@@ -203,17 +203,27 @@ int vfo_update(void *data) {
 
         char version[16];
         char text[128];
-        if(radio->protocol==ORIGINAL_PROTOCOL) {
-            sprintf(version,"%d.%d",
-                radio->software_version/10,
-                radio->software_version%10);
-        } else {
-            sprintf(version,"%d.%d.%d",
+        	
+		switch(radio->protocol) {
+			case ORIGINAL_PROTOCOL:
+#ifdef RADIOBERRY
+			case RADIOBERRY_PROTOCOL:
+#endif
+			sprintf(version,"%d.%d",
+					radio->software_version/10,
+					radio->software_version%10);
+			  break;
+			case NEW_PROTOCOL:
+#ifdef LIMESDR
+			case LIMESDR_PROTOCOL:
+#endif
+			sprintf(version,"%d.%d.%d",
                 radio->software_version/100,
                 (radio->software_version%100)/10,
                 radio->software_version%10);
-        }
-
+			break;
+		}		
+	
         switch(radio->protocol) {
             case ORIGINAL_PROTOCOL:
             case NEW_PROTOCOL:
@@ -227,6 +237,11 @@ int vfo_update(void *data) {
               sprintf(text,"%s\n",
                     radio->name);
               break;
+#endif
+#ifdef RADIOBERRY
+			case RADIOBERRY_PROTOCOL:
+				sprintf(text,"%s\n", radio->name);
+			break;
 #endif
         }
         cairo_set_source_rgb(cr, 0.5, 0.5, 0.5);
