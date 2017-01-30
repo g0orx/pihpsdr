@@ -40,6 +40,9 @@
 #include "toolbar.h"
 #include "vox.h"
 #include <semaphore.h>
+#ifdef PSK
+#include "psk.h"
+#endif
 
 #define PI 3.1415926535897932F
 
@@ -108,6 +111,10 @@ static int txcount =0;
 
 sem_t mutex;
 
+#ifdef PSK
+static int psk_samples=0;
+static int psk_divisor=6;
+#endif
 
 
 float timedifference_msec(struct timeval t0, struct timeval t1)
@@ -340,11 +347,32 @@ static void handleReceiveStream() {
 			for(j=0;j<output_buffer_size;j++) {
 				left_rx_sample=(short)(audiooutputbuffer[j*2]*32767.0*volume);
 				right_rx_sample=(short)(audiooutputbuffer[(j*2)+1]*32767.0*volume);
+				
+#ifdef PSK
+				if(mode==modePSK) {
+						if(psk_samples==0) {
+							psk_demod((double)((left_rx_sample+right_rx_sample)/2));
+						}
+					psk_samples++;
+					if(psk_samples==psk_divisor) {
+						psk_samples=0;
+					}
+				}
+#endif	
 				audio_write(left_rx_sample,right_rx_sample);
 			}
          }
 
-		Spectrum0(1, CHANNEL_RX0, 0, 0, iqinputbuffer);
+		//Spectrum0(1, CHANNEL_RX0, 0, 0, iqinputbuffer);
+		
+#ifdef PSK
+		if(mode!=modePSK) {
+#endif
+			Spectrum0(1, CHANNEL_RX0, 0, 0, iqinputbuffer);
+#ifdef PSK
+		}
+#endif
+		
 		samples=0;
 	}
 }
