@@ -598,6 +598,19 @@ fprintf(stderr,"start: selected radio=%p device=%d\n",radio,radio->device);
 #endif
  }
 
+#ifdef GPIO
+  fprintf(stderr,"gpio_init\n");
+  splash_status("Initializing GPIO ...");
+  if(gpio_init()<0) {
+  }
+#ifdef LOCALCW
+  // init local keyer if enabled
+  else if (cw_keyer_internal == 0)
+    keyer_update();
+#endif
+#endif
+ 
+ 
   radioRestoreState();
 
   fprintf(stderr,"malloc samples\n");
@@ -636,17 +649,7 @@ fprintf(stderr,"start: selected radio=%p device=%d\n",radio,radio->device);
 #endif
   }
 
-#ifdef GPIO
-  fprintf(stderr,"gpio_init\n");
-  splash_status("Initializing GPIO ...");
-  if(gpio_init()<0) {
-  }
-#ifdef LOCALCW
-  // init local keyer if enabled
-  else if (cw_keyer_internal == 0)
-    keyer_update();
-#endif
-#endif
+
 
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   gtk_window_set_title (GTK_WINDOW (window), "pihpsdr");

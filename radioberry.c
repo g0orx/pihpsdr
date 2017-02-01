@@ -17,7 +17,6 @@
 *
 */
 
-#include <bcm2835.h>
 #include <gtk/gtk.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -43,6 +42,9 @@
 #ifdef PSK
 #include "psk.h"
 #endif
+
+#include <pigpio.h>
+
 
 #define PI 3.1415926535897932F
 
@@ -116,6 +118,8 @@ static int psk_samples=0;
 static int psk_divisor=6;
 #endif
 
+static int h;
+
 
 float timedifference_msec(struct timeval t0, struct timeval t1)
 {
@@ -162,24 +166,24 @@ void radioberry_protocol_init(int rx,int pixels) {
 	radioberry_calc_buffers();
 
 	fprintf(stderr,"radioberry_protocol: buffer size: =%d\n", buffer_size);
-  
-  	if (!bcm2835_init()){
+ 
+#ifndef GPIO 
+	if (gpioInitialise() < 0) {
+		fprintf(stderr,"radioberry_protocol: gpio could not be initialized. \n");
+		exit(-1);
+	}
+#endif  
+ 
+	gpioSetMode(13, PI_INPUT); 
+	gpioSetMode(20, PI_INPUT); 
+	gpioSetMode(21, PI_OUTPUT); 
+   
+	h = spiOpen(0, 15625000, 49155); 
+	if (h < 0) {
 		fprintf(stderr,"radioberry_protocol: spi bus could not be initialized. \n");
 		exit(-1);
 	}
 	
-	bcm2835_gpio_fsel(RPI_BPLUS_GPIO_J8_33 , BCM2835_GPIO_FSEL_INPT);	
-	bcm2835_gpio_fsel(RPI_BPLUS_GPIO_J8_38, BCM2835_GPIO_FSEL_INPT);
-	bcm2835_gpio_fsel(RPI_BPLUS_GPIO_J8_40 , BCM2835_GPIO_FSEL_OUTP);
-	bcm2835_gpio_write(RPI_BPLUS_GPIO_J8_40, LOW);	// ptt off
-
-	bcm2835_spi_begin();
-	bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_LSBFIRST);      
-	bcm2835_spi_setDataMode(BCM2835_SPI_MODE3);                   
-	bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_16); 
-	bcm2835_spi_chipSelect(BCM2835_SPI_CS0);                      
-	bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0, LOW); 
-	 
 	printf("init done \n");
   
 	setSampleSpeed();
@@ -219,9 +223,9 @@ static void *radioberry_thread(void* arg) {
 	gettimeofday(&t20, 0);
 	gettimeofday(&t0, 0);
 	
-	bcm2835_gpio_fsel(RPI_BPLUS_GPIO_J8_33 , BCM2835_GPIO_FSEL_INPT);	
-	bcm2835_gpio_fsel(RPI_BPLUS_GPIO_J8_38 , BCM2835_GPIO_FSEL_INPT);	
-	bcm2835_gpio_fsel(RPI_BPLUS_GPIO_J8_40 , BCM2835_GPIO_FSEL_OUTP);
+	gpioSetMode(13, PI_INPUT); 
+	gpioSetMode(20, PI_INPUT); 
+	gpioSetMode(21, PI_OUTPUT); 
 	
 	while(running) {
 	
@@ -233,11 +237,11 @@ static void *radioberry_thread(void* arg) {
 			radiostate = RADIOSTATE_RX;
 		
 		if(radiostate == RADIOSTATE_TX) {
-			bcm2835_gpio_write(RPI_BPLUS_GPIO_J8_40, HIGH);	// ptt on
+			gpioWrite(21, 1); 
 		}
 		else 
 		{
-			bcm2835_gpio_write(RPI_BPLUS_GPIO_J8_40, LOW);	// ptt off
+			gpioWrite(21, 0);
 			spiReader();
 			handleReceiveStream();
 			sem_post(&mutex);
@@ -398,15 +402,21 @@ void radioberry_protocol_stop() {
   
 	running=FALSE;
 
-	bcm2835_spi_end();
-	bcm2835_close();
+	if (h !=0)
+		spiClose(h);
+		
+#ifndef GPIO 
+	gpioTerminate();
+#endif
+	
 	audio_close_input();
 	audio_close_output();
 }
 
 void spiReader() {
-	while ( bcm2835_gpio_lev(RPI_BPLUS_GPIO_J8_33 ) == HIGH) {}; // wait till rxFIFO buffer is filled with at least one element
-
+	// wait till rxFIFO buffer is filled with at least one element
+	while ( gpioRead(13) == 1) {};
+	
 	iqdata[0] = (sampleSpeed & 0x03);
 	iqdata[1] = (((rx_random << 6) & 0x40) | ((rx_dither <<5) & 0x20) |  (attenuation & 0x1F));
 	iqdata[2] = ((ddsFrequency >> 24) & 0xFF);
@@ -414,7 +424,8 @@ void spiReader() {
 	iqdata[4] = ((ddsFrequency >> 8) & 0xFF);
 	iqdata[5] = (ddsFrequency & 0xFF);
 			
-	bcm2835_spi_transfern(iqdata, 6);
+	spiXfer(h, iqdata, iqdata, 6);
+	
 	//firmware: tdata(56'h00010203040506) -> 0-1-2-3-4-5-6 (element 0 contains 0; second element contains 1)
 	rxcount ++;
 	if (rxcount == 48000) {
@@ -427,10 +438,9 @@ void spiReader() {
 }
 
 void spiWriter() {
+	while ( gpioRead(20) == 1) {};
 
-	while ( bcm2835_gpio_lev(RPI_BPLUS_GPIO_J8_38 ) == HIGH) {};
-
-	bcm2835_spi_transfern(tx_iqdata, 6);
+	spiXfer(h, tx_iqdata, tx_iqdata, 6);
 	
 	txcount ++;
 	if (txcount == 48000) {

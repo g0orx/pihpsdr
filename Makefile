@@ -119,7 +119,7 @@ ifeq ($(MRAA_INCLUDE),MRAA)
   gpio_mraa.o
 else
   ifeq ($(UNAME_N),raspberrypi)
-  #GPIO_OPTIONS=-D GPIO
+  GPIO_OPTIONS=-D GPIO
   GPIO_LIBS=-lwiringPi -lpigpio  -lbcm2835
   endif
   ifeq ($(UNAME_N),odroid)
