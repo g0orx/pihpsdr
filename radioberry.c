@@ -417,12 +417,14 @@ void spiReader() {
 	// wait till rxFIFO buffer is filled with at least one element
 	while ( gpioRead(13) == 1) {};
 	
+	long long rxFrequency=ddsFrequency+(long long)rit;
+	
 	iqdata[0] = (sampleSpeed & 0x03);
 	iqdata[1] = (((rx_random << 6) & 0x40) | ((rx_dither <<5) & 0x20) |  (attenuation & 0x1F));
-	iqdata[2] = ((ddsFrequency >> 24) & 0xFF);
-	iqdata[3] = ((ddsFrequency >> 16) & 0xFF);
-	iqdata[4] = ((ddsFrequency >> 8) & 0xFF);
-	iqdata[5] = (ddsFrequency & 0xFF);
+	iqdata[2] = ((rxFrequency >> 24) & 0xFF);
+	iqdata[3] = ((rxFrequency >> 16) & 0xFF);
+	iqdata[4] = ((rxFrequency >> 8) & 0xFF);
+	iqdata[5] = (rxFrequency & 0xFF);
 			
 	spiXfer(h, iqdata, iqdata, 6);
 	
