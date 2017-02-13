@@ -25,11 +25,11 @@ USBOZY_INCLUDE=USBOZY
 #I2C_INCLUDE=I2C
 
 #uncomment the line below for the platform being compiled on
-#UNAME_N=raspberrypi
+UNAME_N=raspberrypi
 #UNAME_N=odroid
 #UNAME_N=up
 #UNAME_N=pine64
-UNAME_N=x86
+#UNAME_N=x86
 
 CC=gcc
 LINK=gcc
