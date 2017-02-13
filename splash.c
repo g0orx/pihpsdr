@@ -20,53 +20,28 @@
 #include <gtk/gtk.h>
 #include "version.h"
 
-GtkWidget *splash_screen;
+GtkWidget *grid;
 GtkWidget *status;
 static cairo_surface_t *splash_surface = NULL;
+
 
 /* Close the splash screen */
 void splash_close()
 {
-  gtk_widget_destroy(splash_screen);
+  gtk_widget_destroy(grid);
 }
 
-static gboolean splash_configure_event_cb (GtkWidget         *widget,
-            GdkEventConfigure *event,
-            gpointer           data)
-{
-  if (splash_surface)
-    cairo_surface_destroy (splash_surface);
-
-  splash_surface = gdk_window_create_similar_surface (gtk_widget_get_window (widget),
-                                       CAIRO_CONTENT_COLOR,
-                                       gtk_widget_get_allocated_width (widget),
-                                       gtk_widget_get_allocated_height (widget));
-
-  return TRUE;
-}
-
-
-void splash_show(char* image_name,int width,int height,int full_screen)
+GtkWidget *splash_create(char* image_name,int width,int height)
 {
   GtkWidget  *image;
-  splash_screen = gtk_window_new (GTK_WINDOW_TOPLEVEL);
-  if(full_screen) {
-    gtk_window_fullscreen(GTK_WINDOW(splash_screen));
-  }
-  gtk_widget_set_size_request(splash_screen, width, height);
-  gtk_window_set_position(GTK_WINDOW(splash_screen),GTK_WIN_POS_CENTER_ALWAYS);
-  gtk_window_set_resizable(GTK_WINDOW(splash_screen), FALSE);
 
-
-  GtkWidget *grid = gtk_grid_new();
+  grid = gtk_grid_new();
+  gtk_widget_set_size_request(grid, width, height);
   gtk_grid_set_row_homogeneous(GTK_GRID(grid),FALSE);
   gtk_grid_set_column_homogeneous(GTK_GRID(grid),FALSE);
 
   image=gtk_image_new_from_file(image_name);
-  //gtk_container_add(GTK_CONTAINER(splash_screen), image);
   gtk_grid_attach(GTK_GRID(grid), image, 0, 0, 1, 4);
-  g_signal_connect (splash_screen,"configure-event",
-            G_CALLBACK (splash_configure_event_cb), NULL);
 
   char build[64];
   sprintf(build,"build: %s %s",build_date, version);
@@ -84,11 +59,9 @@ void splash_show(char* image_name,int width,int height,int full_screen)
   gtk_label_set_justify(GTK_LABEL(status),GTK_JUSTIFY_LEFT);
   gtk_widget_override_font(status, pango_font_description_from_string("FreeMono 18"));
   gtk_widget_show(status);
-  //gtk_container_add(GTK_CONTAINER(splash_screen), status);
   gtk_grid_attach(GTK_GRID(grid), status, 1, 3, 1, 1);
 
-  gtk_container_add(GTK_CONTAINER(splash_screen), grid);
-  gtk_widget_show_all (splash_screen);
+  return grid;
 }
 
 void splash_status(char *text) {

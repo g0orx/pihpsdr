@@ -29,6 +29,7 @@
 #include "vfo.h"
 #include "psk.h"
 #include "psk_waterfall.h"
+#include "receiver.h"
 
 static GtkWidget *waterfall;
 static GdkPixbuf *pixbuf = NULL;
@@ -130,10 +131,10 @@ waterfall_button_release_event_cb (GtkWidget      *widget,
   if (event->button == 1) {
     if(has_moved) {
       // drag
-      vfo_move((int)((float)(x-last_x)*hz_per_pixel));
+      vfo_move((long long)((float)(x-last_x)*hz_per_pixel));
     } else {
       // move to this frequency
-      vfo_move_to((int)((float)(x-(display_width/2))*hz_per_pixel));
+      vfo_move_to((long long)((float)(x-(display_width/2))*hz_per_pixel));
     }
     last_x=x;
     pressed=FALSE;
@@ -157,7 +158,7 @@ waterfall_motion_notify_event_cb (GtkWidget      *widget,
                                 &state);
   if((state & GDK_BUTTON1_MASK == GDK_BUTTON1_MASK) || pressed) {
     int moved=last_x-x;
-    vfo_move((int)((float)moved*hz_per_pixel));
+    vfo_move((long long)((float)moved*hz_per_pixel));
     last_x=x;
     has_moved=TRUE;
   }
@@ -180,7 +181,7 @@ waterfall_scroll_event_cb (GtkWidget      *widget,
   return TRUE;
 }
 
-void psk_waterfall_update(float *data) {
+void psk_waterfall_update(RECEIVER *rx) {
 
   int i;
 

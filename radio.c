@@ -17,37 +17,100 @@
 *
 */
 
+#include <gtk/gtk.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <semaphore.h>
 #include <math.h>
 
+#include <wdsp.h>
+
 #include "audio.h"
 #include "discovered.h"
 //#include "discovery.h"
+#include "filter.h"
+#include "main.h"
 #include "mode.h"
 #include "radio.h"
+#include "receiver.h"
+#include "transmitter.h"
 #include "channel.h"
 #include "agc.h"
 #include "band.h"
 #include "property.h"
 #include "new_protocol.h"
+#include "old_protocol.h"
+#include "store.h"
 #ifdef LIMESDR
 #include "lime_protocol.h"
 #endif
-#include "wdsp.h"
 #ifdef FREEDV
 #include "freedv.h"
 #endif
+#ifdef GPIO
+#include "gpio.h"
+#endif
+#include "vfo.h"
+#include "meter.h"
+#include "rx_panadapter.h"
+#include "tx_panadapter.h"
+#include "waterfall.h"
+#include "sliders.h"
+#include "toolbar.h"
 
 #define min(x,y) (x<y?x:y)
 #define max(x,y) (x<y?y:x)
+
+#define DISPLAY_INCREMENT (display_height/32)
+#define MENU_HEIGHT (DISPLAY_INCREMENT*2)
+#define MENU_WIDTH ((display_width/32)*3)
+#define VFO_HEIGHT (DISPLAY_INCREMENT*4)
+#define VFO_WIDTH (display_width-METER_WIDTH-MENU_WIDTH)
+#define METER_HEIGHT (DISPLAY_INCREMENT*4)
+#define METER_WIDTH ((display_width/32)*8)
+#define PANADAPTER_HEIGHT (DISPLAY_INCREMENT*8)
+#define SLIDERS_HEIGHT (DISPLAY_INCREMENT*6)
+#define TOOLBAR_HEIGHT (DISPLAY_INCREMENT*2)
+#define WATERFALL_HEIGHT (display_height-(VFO_HEIGHT+PANADAPTER_HEIGHT+SLIDERS_HEIGHT+TOOLBAR_HEIGHT))
+#ifdef PSK
+#define PSK_WATERFALL_HEIGHT (DISPLAY_INCREMENT*6)
+#define PSK_HEIGHT (display_height-(VFO_HEIGHT+PSK_WATERFALL_HEIGHT+SLIDERS_HEIGHT+TOOLBAR_HEIGHT))
+#endif
+
+static GtkWidget *fixed;
+static GtkWidget *vfo_panel;
+static GtkWidget *meter;
+static GtkWidget *menu;
+static GtkWidget *sliders;
+static GtkWidget *toolbar;
+static GtkWidget *panadapter;
+static GtkWidget *waterfall;
+#ifdef PSK
+static GtkWidget *psk;
+static GtkWidget *psk_waterfall;
+#endif
+
+#ifdef GPIO
+static GtkWidget *encoders;
+static cairo_surface_t *encoders_surface = NULL;
+#endif
+
+int echo=0;
+
+static gint save_timer_id;
 
 DISCOVERED *radio;
 
 char property_path[128];
 sem_t property_sem;
+
+RECEIVER *receiver[MAX_RECEIVERS];
+RECEIVER *active_receiver;
+TRANSMITTER *transmitter;
+
+int buffer_size=1024; // 64, 128, 256, 512, 1024
+int fft_size=4096; // 1024, 2048, 4096, 8192, 16384
 
 int atlas_penelope=0;
 int atlas_clock_source_10mhz=0;
@@ -65,14 +128,12 @@ int tx_leveler=0;
 
 double tone_level=0.0;
 
-int sample_rate=48000;
 int filter_board=ALEX;
 //int pa=PA_ENABLED;
 //int apollo_tuner=0;
 
 int updates_per_second=10;
 
-int display_panadapter=1;
 int panadapter_high=-40;
 int panadapter_low=-140;
 
@@ -82,22 +143,15 @@ int display_average_mode=AVERAGE_MODE_LOG_RECURSIVE;
 double display_average_time=120.0;
 
 
-int display_waterfall=1;
 int waterfall_high=-100;
 int waterfall_low=-150;
 int waterfall_automatic=1;
 
 int display_sliders=1;
-int display_toolbar=1;
-int toolbar_dialog_buttons=1;
 
-double volume=0.2;
+//double volume=0.2;
 double mic_gain=0.0;
 int binaural=0;
-
-int rx_dither=0;
-int rx_random=0;
-int rx_preamp=0;
 
 int mic_linein=0;
 int linein_gain=16; // 0..31
@@ -106,24 +160,6 @@ int mic_bias_enabled=0;
 int mic_ptt_enabled=0;
 int mic_ptt_tip_bias_ring=0;
 
-int agc=AGC_MEDIUM;
-double agc_gain=80.0;
-double agc_slope=35.0;
-double agc_hang_threshold=0.0;
-
-int nr_none=1;
-int nr=0;
-int nr2=0;
-int nb=0;
-int nb2=0;
-int anf=0;
-int snb=0;
-
-int nr_agc=0; // 0=pre AGC 1=post AGC
-int nr2_gain_method=2; // 0=Linear 1=Log 2=gamma
-int nr2_npe_method=0; // 0=OSMS 1=MMSE
-int nr2_ae=1; // 0=disable 1=enable
-
 double tune_drive=10;
 double drive=50;
 
@@ -131,15 +167,12 @@ int drive_level=0;
 int tune_drive_level=0;
 
 int receivers=RECEIVERS;
-int active_receiver=0;
-
-int adc[2]={0,1};
 
 int locked=0;
 
-int step=100;
+long long step=100;
 
-int rit=0;
+//int rit=0;
 int rit_increment=10;
 
 int lt2208Dither = 0;
@@ -186,10 +219,18 @@ unsigned int IO3;
 int supply_volts;
 int mox;
 int tune;
+int memory_tune=0;
+int full_tune=0;
 
-long long displayFrequency=14250000;
-long long ddsFrequency=14250000;
-long long ddsOffset=0;
+//long long displayFrequency=14250000;
+//long long ddsFrequency=14250000;
+//long long ddsOffset=0;
+
+long long frequencyB=14250000;
+int modeB=modeUSB;
+int filterB=5;
+
+int split=0;
 
 unsigned char OCtune=0;
 int OCfull_tune_time=2800; // ms
@@ -205,16 +246,15 @@ int local_microphone=0;
 int eer_pwm_min=100;
 int eer_pwm_max=800;
 
-int tx_filter_low=200;
-int tx_filter_high=3100;
+int tx_filter_low=150;
+int tx_filter_high=2850;
 
 #ifdef FREEDV
 char freedv_tx_text_data[64];
 #endif
 
-static int pre_tune_mode;
-
-int ctun=0;
+static int pre_tune_filter_low;
+static int pre_tune_filter_high;
 
 int enable_tx_equalizer=0;
 int tx_equalizer[4]={0,0,0,0};
@@ -225,6 +265,7 @@ int rx_equalizer[4]={0,0,0,0};
 int deviation=2500;
 int pre_emphasize=0;
 
+int vox_setting=0;
 int vox_enabled=0;
 double vox_threshold=0.001;
 double vox_gain=10.0;
@@ -235,44 +276,328 @@ int diversity_enabled=0;
 double i_rotate[2]={1.0,1.0};
 double q_rotate[2]={0.0,0.0};
 
-void init_radio() {
+void reconfigure_radio() {
+  int i;
+  int y;
+  int rx_height=display_height-VFO_HEIGHT-TOOLBAR_HEIGHT;
+  if(display_sliders) {
+    rx_height-=SLIDERS_HEIGHT;
+  }
+ 
+  y=VFO_HEIGHT;
+  for(i=0;i<receivers;i++) {
+    reconfigure_receiver(receiver[i],rx_height/receivers);
+    gtk_fixed_move(GTK_FIXED(fixed),receiver[i]->panel,0,y);
+    y+=rx_height/receivers;
+  }
+
+  if(display_sliders) {
+    if(sliders==NULL) {
+      sliders = sliders_init(display_width,SLIDERS_HEIGHT);
+      gtk_fixed_put(GTK_FIXED(fixed),sliders,0,y);
+    } else {
+      gtk_fixed_move(GTK_FIXED(fixed),sliders,0,y);
+    }
+    gtk_widget_show_all(sliders);
+    // force change of sliders for mic or linein
+    g_idle_add(linein_changed,NULL);
+  } else {
+    if(sliders!=NULL) {
+      gtk_container_remove(GTK_CONTAINER(fixed),sliders); 
+      sliders=NULL;
+    }
+  }
+
+  reconfigure_transmitter(transmitter,rx_height);
+
+}
+
+static gboolean save_cb(gpointer data) {
+    radioSaveState();
+    return TRUE;
+}
+
+static gboolean minimize_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  gtk_window_iconify(GTK_WINDOW(top_window));
+  return TRUE;
+}
+
+static gboolean menu_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  new_menu(top_window);
+  return TRUE;
+}
+
+void start_radio() {
+  int i;
+  int x;
+  int y;
+fprintf(stderr,"start_radio: selected radio=%p device=%d\n",radio,radio->device);
+  gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_WATCH));
+
   int rc;
   rc=sem_init(&property_sem, 0, 0);
   if(rc!=0) {
-    fprintf(stderr,"init_radio: sem_init failed for property_sem: %d\n", rc);
+    fprintf(stderr,"start_radio: sem_init failed for property_sem: %d\n", rc);
     exit(-1);
   }
   sem_post(&property_sem);
+
+  status_text("starting radio ...");
+  protocol=radio->protocol;
+  device=radio->device;
+
+  switch(radio->protocol) {
+    case ORIGINAL_PROTOCOL:
+    case NEW_PROTOCOL:
+      switch(radio->device) {
+#ifdef USBOZY
+        case DEVICE_OZY:
+          sprintf(property_path,"ozy.props");
+          break;
+#endif
+        default:
+          sprintf(property_path,"%02X-%02X-%02X-%02X-%02X-%02X.props",
+                        radio->info.network.mac_address[0],
+                        radio->info.network.mac_address[1],
+                        radio->info.network.mac_address[2],
+                        radio->info.network.mac_address[3],
+                        radio->info.network.mac_address[4],
+                        radio->info.network.mac_address[5]);
+          break;
+      }
+      break;
+#ifdef LIMESDR
+    case LIMESDR_PROTOCOL:
+      sprintf(property_path,"limesdr.props");
+      break;
+#endif
+  }
+
+  radioRestoreState();
+
+  y=0;
+
+  fixed=gtk_fixed_new();
+  gtk_container_remove(GTK_CONTAINER(top_window),grid);
+  gtk_container_add(GTK_CONTAINER(top_window), fixed);
+
+fprintf(stderr,"radio: vfo_init\n");
+  vfo_panel = vfo_init(VFO_WIDTH,VFO_HEIGHT,top_window);
+  gtk_fixed_put(GTK_FIXED(fixed),vfo_panel,0,y);
+
+fprintf(stderr,"radio: meter_init\n");
+  meter = meter_init(METER_WIDTH,METER_HEIGHT,top_window);
+  gtk_fixed_put(GTK_FIXED(fixed),meter,VFO_WIDTH,y);
+
+
+  GtkWidget *minimize_b=gtk_button_new_with_label("Hide");
+  gtk_widget_override_font(minimize_b, pango_font_description_from_string("FreeMono Bold 10"));
+  gtk_widget_set_size_request (minimize_b, MENU_WIDTH, MENU_HEIGHT);
+  g_signal_connect (minimize_b, "button-press-event", G_CALLBACK(minimize_cb), NULL) ;
+  gtk_fixed_put(GTK_FIXED(fixed),minimize_b,VFO_WIDTH+METER_WIDTH,y);
+  y+=MENU_HEIGHT;
+
+  GtkWidget *menu_b=gtk_button_new_with_label("Menu");
+  gtk_widget_override_font(menu_b, pango_font_description_from_string("FreeMono Bold 10"));
+  gtk_widget_set_size_request (menu_b, MENU_WIDTH, MENU_HEIGHT);
+  g_signal_connect (menu_b, "button-press-event", G_CALLBACK(menu_cb), NULL) ;
+  gtk_fixed_put(GTK_FIXED(fixed),menu_b,VFO_WIDTH+METER_WIDTH,y);
+  y+=MENU_HEIGHT;
+
+
+  int rx_height=display_height-VFO_HEIGHT-TOOLBAR_HEIGHT;
+  if(display_sliders) {
+    rx_height-=SLIDERS_HEIGHT;
+  }
+  int tx_height=rx_height;
+  rx_height=rx_height/receivers;
+
+
+fprintf(stderr,"Create %d receivers: height=%d\n",receivers,rx_height);
+  for(i=0;i<MAX_RECEIVERS;i++) {
+    receiver[i]=create_receiver(i, buffer_size, fft_size, display_width, updates_per_second, display_width, rx_height);
+    g_object_ref((gpointer)receiver[i]->panel);
+    if(i<receivers) {
+      gtk_fixed_put(GTK_FIXED(fixed),receiver[i]->panel,0,y);
+fprintf(stderr,"receiver %d: height=%d y=%d\n",receiver[i]->id,rx_height,y);
+      set_displaying(receiver[i],1);
+      y+=rx_height;
+    } else {
+      set_displaying(receiver[i],0);
+    }
+  }
+  active_receiver=receiver[0];
+
+  fprintf(stderr,"Create transmitter\n");
+  transmitter=create_transmitter(CHANNEL_TX, buffer_size, fft_size, updates_per_second, display_width, tx_height);
+  g_object_ref((gpointer)transmitter->panel);
+
+  switch(radio->protocol) {
+    case ORIGINAL_PROTOCOL:
+      old_protocol_init(0,display_width,receiver[0]->sample_rate);
+      break;
+    case NEW_PROTOCOL:
+      new_protocol_init(display_width);
+      break;
+#ifdef LIMESDR
+    case LIMESDR_PROTOCOL:
+      lime_protocol_init(0,display_width);
+      break;
+#endif
+  }
+
+#ifdef GPIO
+  if(gpio_init()<0) {
+    fprintf(stderr,"GPIO failed to initialize\n");
+  }
+#ifdef LOCALCW
+  // init local keyer if enabled
+  else if (cw_keyer_internal == 0)
+    keyer_update();
+#endif
+#endif
+
+#ifdef I2C
+  i2c_init();
+#endif
+
+  if(display_sliders) {
+fprintf(stderr,"create sliders\n");
+    sliders = sliders_init(display_width,SLIDERS_HEIGHT);
+    gtk_fixed_put(GTK_FIXED(fixed),sliders,0,y);
+    y+=SLIDERS_HEIGHT;
+  }
+
+  toolbar = toolbar_init(display_width,TOOLBAR_HEIGHT,top_window);
+  gtk_fixed_put(GTK_FIXED(fixed),toolbar,0,y);
+  y+=TOOLBAR_HEIGHT;
+
+  gtk_widget_show_all (fixed);
+
+  // force change of sliders for mic or linein
+  g_idle_add(linein_changed,NULL);
+
+  // save every 30 seconds
+fprintf(stderr,"start save timer\n");
+  save_timer_id=gdk_threads_add_timeout(30000, save_cb, NULL);
+
+#ifdef PSK
+  if(active_receiver->mode==modePSK) {
+    show_psk();
+  } else {
+    show_waterfall();
+  }
+#endif
+
+  launch_rigctl();
+
+  calcDriveLevel();
+  calcTuneDriveLevel();
+
+  if(protocol==NEW_PROTOCOL) {
+    schedule_high_priority();
+  }
+
+  g_idle_add(vfo_update,(gpointer)NULL);
+
+fprintf(stderr,"set cursor\n");
+  gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_ARROW));
+
+for(i=0;i<MAX_VFOS;i++) {
+  fprintf(stderr,"start_radio: vfo %d band=%d bandstack=%d frequency=%lld mode=%d filter=%d rit=%lld lo=%%ld offset=%lld\n",
+    i,
+    vfo[i].band,
+    vfo[i].bandstack,
+    vfo[i].frequency,
+    vfo[i].mode,
+    vfo[i].filter,
+    vfo[i].rit,
+    vfo[i].lo,
+    vfo[i].offset);
+}
 }
 
-void setSampleRate(int rate) {
-    sample_rate=rate;
+
+void radio_change_receivers(int r) {
+  switch(r) {
+    case 1:
+      if(receivers==2) {
+        set_displaying(receiver[1],0);
+        gtk_container_remove(GTK_CONTAINER(fixed),receiver[1]->panel);
+      }
+      receivers=1;
+      break;
+    case 2:
+      gtk_fixed_put(GTK_FIXED(fixed),receiver[1]->panel,0,0);
+      set_displaying(receiver[1],1);
+      receivers=2;
+      break;
+  }
+  reconfigure_radio();
+  active_receiver=receiver[0];
 }
 
-int getSampleRate() {
-    return sample_rate;
+void radio_change_sample_rate(int rate) {
+  int i;
+  switch(protocol) {
+    case ORIGINAL_PROTOCOL:
+      old_protocol_stop();
+      for(i=0;i<receivers;i++) {
+        receiver_change_sample_rate(receiver[i],rate);
+      }
+      old_protocol_set_mic_sample_rate(rate);
+      old_protocol_run();
+      break;
+#ifdef LIMESDR
+    case LIMESDR_PROTOCOL:
+      break;
+#endif
+  }
 }
 
 static void rxtx(int state) {
+  int i;
+  int y=VFO_HEIGHT;
+
   if(state) {
     // switch to tx
-    SetChannelState(CHANNEL_RX0,0,1);
-    if(protocol==NEW_PROTOCOL) {
-      schedule_high_priority(3);
+    for(i=0;i<receivers;i++) {
+      SetChannelState(receiver[i]->id,0,i==(receivers-1));
+      set_displaying(receiver[i],0);
+      if(protocol==NEW_PROTOCOL) {
+        schedule_high_priority();
+      }
+      gtk_container_remove(GTK_CONTAINER(fixed),receiver[i]->panel);
     }
-    SetChannelState(CHANNEL_TX,1,0);
+    gtk_fixed_put(GTK_FIXED(fixed),transmitter->panel,0,y);
+    SetChannelState(transmitter->id,1,0);
+    tx_set_displaying(transmitter,1);
 #ifdef FREEDV
-    if(mode==modeFREEDV) {
+    if(active_receiver->mode==modeFREEDV) {
       freedv_reset_tx_text_index();
     }
 #endif
   } else {
-    SetChannelState(CHANNEL_TX,0,1);
+    SetChannelState(transmitter->id,0,1);
     if(protocol==NEW_PROTOCOL) {
-      schedule_high_priority(3);
+      schedule_high_priority();
     }
-    SetChannelState(CHANNEL_RX0,1,0);
+    tx_set_displaying(transmitter,0);
+    gtk_container_remove(GTK_CONTAINER(fixed),transmitter->panel);
+    int rx_height=display_height-VFO_HEIGHT-TOOLBAR_HEIGHT;
+    if(display_sliders) {
+      rx_height-=SLIDERS_HEIGHT;
+    }
+    for(i=0;i<receivers;i++) {
+      SetChannelState(receiver[i]->id,1,0);
+      set_displaying(receiver[i],1);
+      gtk_fixed_put(GTK_FIXED(fixed),receiver[i]->panel,0,y);
+      y+=(rx_height/receivers);
+    }
   }
+
+  gtk_widget_show_all(fixed);
+  g_idle_add(linein_changed,NULL);
 }
 
 void setMox(int state) {
@@ -298,47 +623,99 @@ void setVox(int state) {
 }
 
 void setTune(int state) {
+  int i;
+
   if(tune!=state) {
     tune=state;
     if(vox_enabled && vox) {
       vox_cancel();
     }
     if(tune) {
-      if(OCmemory_tune_time!=0) {
-        struct timeval te;
-        gettimeofday(&te,NULL);
-        tune_timeout=(te.tv_sec*1000LL+te.tv_usec/1000)+(long long)OCmemory_tune_time;
+      if(full_tune) {
+        if(OCfull_tune_time!=0) {
+          struct timeval te;
+          gettimeofday(&te,NULL);
+          tune_timeout=(te.tv_sec*1000LL+te.tv_usec/1000)+(long long)OCfull_tune_time;
+        }
+      }
+      if(memory_tune) {
+        if(OCmemory_tune_time!=0) {
+          struct timeval te;
+          gettimeofday(&te,NULL);
+          tune_timeout=(te.tv_sec*1000LL+te.tv_usec/1000)+(long long)OCmemory_tune_time;
+        }
       }
     }
     if(protocol==NEW_PROTOCOL) {
-      schedule_high_priority(4);
+      schedule_high_priority();
       //schedule_general();
     }
     if(tune) {
-      SetChannelState(CHANNEL_RX0,0,1);
-      pre_tune_mode = mode;
-      if(mode==modeCWL) {
-        setMode(modeLSB);
-      } else if(mode==modeCWU) {
-        setMode(modeUSB);
+      for(i=0;i<receivers;i++) {
+        SetChannelState(receiver[i]->id,0,i==(receivers-1));
+        set_displaying(receiver[i],0);
+        if(protocol==NEW_PROTOCOL) {
+          schedule_high_priority();
+        }
       }
-      SetTXAPostGenMode(CHANNEL_TX,0);
-      if(mode==modeLSB || mode==modeCWL || mode==modeDIGL) {
-        SetTXAPostGenToneFreq(CHANNEL_TX,-(double)cw_keyer_sidetone_frequency);
-      } else {
-        SetTXAPostGenToneFreq(CHANNEL_TX,(double)cw_keyer_sidetone_frequency);
+
+      int mode=vfo[VFO_A].mode;;
+      if(split) {
+        mode=vfo[VFO_B].mode;
       }
-      SetTXAPostGenToneMag(CHANNEL_TX,0.99999);
-      SetTXAPostGenRun(CHANNEL_TX,1);
-      SetChannelState(CHANNEL_TX,1,0);
+      double freq=(double)cw_keyer_sidetone_frequency;
+      
+      pre_tune_filter_low=transmitter->filter_low;
+      pre_tune_filter_high=transmitter->filter_high;
+
+      switch(mode) {
+        case modeUSB:
+        case modeCWU:
+        case modeDIGU:
+          SetTXAPostGenToneFreq(transmitter->id,(double)cw_keyer_sidetone_frequency);
+          transmitter->filter_low=cw_keyer_sidetone_frequency-100;
+          transmitter->filter_high=cw_keyer_sidetone_frequency+100;
+          freq=(double)(cw_keyer_sidetone_frequency+100);
+          break;
+        case modeLSB:
+        case modeCWL:
+        case modeDIGL:
+          SetTXAPostGenToneFreq(transmitter->id,-(double)cw_keyer_sidetone_frequency);
+          transmitter->filter_low=-cw_keyer_sidetone_frequency-100;
+          transmitter->filter_high=-cw_keyer_sidetone_frequency+100;
+          freq=(double)(-cw_keyer_sidetone_frequency-100);
+          break;
+        case modeDSB:
+          SetTXAPostGenToneFreq(transmitter->id,(double)cw_keyer_sidetone_frequency);
+          transmitter->filter_low=cw_keyer_sidetone_frequency-100;
+          transmitter->filter_high=cw_keyer_sidetone_frequency+100;
+          freq=(double)(cw_keyer_sidetone_frequency+100);
+          break;
+        case modeAM:
+        case modeSAM:
+        case modeFMN:
+          SetTXAPostGenToneFreq(transmitter->id,(double)cw_keyer_sidetone_frequency);
+          transmitter->filter_low=cw_keyer_sidetone_frequency-100;
+          transmitter->filter_high=cw_keyer_sidetone_frequency+100;
+          freq=(double)(cw_keyer_sidetone_frequency+100);
+          break;
+      }
+
+      SetTXABandpassFreqs(transmitter->id,transmitter->filter_low,transmitter->filter_high);
+
+      
+      SetTXAMode(transmitter->id,modeDIGU);
+      SetTXAPostGenMode(transmitter->id,0);
+      SetTXAPostGenToneMag(transmitter->id,0.99999);
+      SetTXAPostGenRun(transmitter->id,1);
     } else {
-      SetChannelState(CHANNEL_TX,0,1);
-      SetTXAPostGenRun(CHANNEL_TX,0);
-      if(pre_tune_mode==modeCWL || pre_tune_mode==modeCWU) {
-        setMode(pre_tune_mode);
-      }
-      SetChannelState(CHANNEL_RX0,1,0);
+      SetTXAPostGenRun(transmitter->id,0);
+      SetTXAMode(transmitter->id,transmitter->mode);
+      transmitter->filter_low=pre_tune_filter_low;
+      transmitter->filter_high=pre_tune_filter_high;
+      SetTXABandpassFreqs(transmitter->id,transmitter->filter_low,transmitter->filter_high);
     }
+    rxtx(tune);
   }
 }
 
@@ -353,30 +730,32 @@ int isTransmitting() {
 void setFrequency(long long f) {
   BAND *band=band_get_current_band();
   BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
+  int v=active_receiver->id;
 
   switch(protocol) {
     case NEW_PROTOCOL:
     case ORIGINAL_PROTOCOL:
-      if(ctun) {
-        long long minf=entry->frequencyA-(long long)(sample_rate/2);
-        long long maxf=entry->frequencyA+(long long)(sample_rate/2);
+      if(vfo[v].ctun) {
+        long long minf=vfo[v].frequency-(long long)(active_receiver->sample_rate/2);
+        long long maxf=vfo[v].frequency+(long long)(active_receiver->sample_rate/2);
         if(f<minf) f=minf;
         if(f>maxf) f=maxf;
-        ddsOffset=f-entry->frequencyA;
-        wdsp_set_offset(ddsOffset);
+        vfo[v].offset=f-vfo[v].frequency;
+        set_offset(active_receiver,vfo[v].offset);
         return;
       } else {
-        entry->frequencyA=f;
+        //entry->frequency=f;
+        vfo[v].frequency=f;
       }
       break;
 #ifdef LIMESDR
     case LIMESDR_PROTOCOL:
       {
-      long long minf=entry->frequencyA-(long long)(sample_rate/2);
-      long long maxf=entry->frequencyA+(long long)(sample_rate/2);
+      long long minf=entry->frequency-(long long)(active_receiver->sample_rate/2);
+      long long maxf=entry->frequency+(long long)(active_receiver->sample_rate/2);
       if(f<minf) f=minf;
       if(f>maxf) f=maxf;
-      ddsOffset=f-entry->frequencyA;
+      ddsOffset=f-entry->frequency;
       wdsp_set_offset(ddsOffset);
       return;
       }
@@ -384,14 +763,9 @@ void setFrequency(long long f) {
 #endif
   }
 
-  displayFrequency=f;
-  ddsFrequency=f;
-  if(band->frequencyLO!=0LL) {
-    ddsFrequency=f-band->frequencyLO;
-  }
   switch(protocol) {
     case NEW_PROTOCOL:
-      schedule_high_priority(5);
+      schedule_high_priority();
       break;
     case ORIGINAL_PROTOCOL:
       schedule_frequency_changed();
@@ -407,7 +781,7 @@ void setFrequency(long long f) {
 }
 
 long long getFrequency() {
-    return ddsFrequency;
+    return vfo[active_receiver->id].frequency;
 }
 
 double getDrive() {
@@ -416,28 +790,31 @@ double getDrive() {
 
 static int calcLevel(double d) {
   int level=0;
-  BAND *band=band_get_current_band();
+  int v=VFO_A;
+  if(split) v=VFO_B;
+
+  BAND *band=band_get_band(vfo[v].band);
   double target_dbm = 10.0 * log10(d * 1000.0);
   double gbb=band->pa_calibration;
   target_dbm-=gbb;
   double target_volts = sqrt(pow(10, target_dbm * 0.1) * 0.05);
   double volts=min((target_volts / 0.8), 1.0);
-  double v=volts*(1.0/0.98);
+  double actual_volts=volts*(1.0/0.98);
 
-  if(v<0.0) {
-    v=0.0;
-  } else if(v>1.0) {
-    v=1.0;
+  if(actual_volts<0.0) {
+    actual_volts=0.0;
+  } else if(actual_volts>1.0) {
+    actual_volts=1.0;
   }
 
-  level=(int)(v*255.0);
+  level=(int)(actual_volts*255.0);
   return level;
 }
 
 void calcDriveLevel() {
     drive_level=calcLevel(drive);
     if(mox && protocol==NEW_PROTOCOL) {
-      schedule_high_priority(6);
+      schedule_high_priority();
     }
 }
 
@@ -453,7 +830,7 @@ double getTuneDrive() {
 void calcTuneDriveLevel() {
     tune_drive_level=calcLevel(tune_drive);
     if(tune  && protocol==NEW_PROTOCOL) {
-      schedule_high_priority(7);
+      schedule_high_priority();
     }
 }
 
@@ -463,10 +840,9 @@ void setTuneDrive(double value) {
 }
 
 void set_attenuation(int value) {
-    //attenuation=value;
     switch(protocol) {
       case NEW_PROTOCOL:
-        schedule_high_priority(8);
+        schedule_high_priority();
         break;
 #ifdef LIMESDR
       case LIMESDR_PROTOCOL:
@@ -477,13 +853,15 @@ void set_attenuation(int value) {
 }
 
 int get_attenuation() {
-    return attenuation;
+    return active_receiver->attenuation;
 }
 
 void set_alex_rx_antenna(int v) {
-    //alex_rx_antenna=v;
-    if(protocol==NEW_PROTOCOL) {
-        schedule_high_priority(1);
+    if(active_receiver->id==0) {
+      active_receiver->alex_antenna=v;
+      if(protocol==NEW_PROTOCOL) {
+          schedule_high_priority();
+      }
     }
 #ifdef LIMESDR
     if(protocol==LIMESDR_PROTOCOL) {
@@ -493,16 +871,18 @@ void set_alex_rx_antenna(int v) {
 }
 
 void set_alex_tx_antenna(int v) {
-    //alex_tx_antenna=v;
+    transmitter->alex_antenna=v;
     if(protocol==NEW_PROTOCOL) {
-        schedule_high_priority(2);
+        schedule_high_priority();
     }
 }
 
 void set_alex_attenuation(int v) {
-    //alex_attenuation=v;
-    if(protocol==NEW_PROTOCOL) {
-        schedule_high_priority(0);
+    if(active_receiver->id==0) {
+      active_receiver->alex_attenuation=v;
+      if(protocol==NEW_PROTOCOL) {
+          schedule_high_priority();
+      }
     }
 }
 
@@ -513,12 +893,14 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     sem_wait(&property_sem);
     loadProperties(property_path);
 
+    value=getProperty("buffer_size");
+    if(value) buffer_size=atoi(value);
+    value=getProperty("fft_size");
+    if(value) fft_size=atoi(value);
     value=getProperty("atlas_penelope");
     if(value) atlas_penelope=atoi(value);
     value=getProperty("tx_out_of_band");
     if(value) tx_out_of_band=atoi(value);
-    value=getProperty("sample_rate");
-    if(value) sample_rate=atoi(value);
     value=getProperty("filter_board");
     if(value) filter_board=atoi(value);
 /*
@@ -529,8 +911,6 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
 */
     value=getProperty("updates_per_second");
     if(value) updates_per_second=atoi(value);
-    value=getProperty("display_panadapter");
-    if(value) display_panadapter=atoi(value);
     value=getProperty("display_filled");
     if(value) display_filled=atoi(value);
     value=getProperty("display_detector_mode");
@@ -543,22 +923,20 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     if(value) panadapter_high=atoi(value);
     value=getProperty("panadapter_low");
     if(value) panadapter_low=atoi(value);
-    value=getProperty("display_waterfall");
-    if(value) display_waterfall=atoi(value);
     value=getProperty("display_sliders");
     if(value) display_sliders=atoi(value);
+/*
     value=getProperty("display_toolbar");
     if(value) display_toolbar=atoi(value);
-    value=getProperty("toolbar_dialog_buttons");
-    if(value) toolbar_dialog_buttons=atoi(value);
+*/
     value=getProperty("waterfall_high");
     if(value) waterfall_high=atoi(value);
     value=getProperty("waterfall_low");
     if(value) waterfall_low=atoi(value);
     value=getProperty("waterfall_automatic");
     if(value) waterfall_automatic=atoi(value);
-    value=getProperty("volume");
-    if(value) volume=atof(value);
+//    value=getProperty("volume");
+//    if(value) volume=atof(value);
     value=getProperty("drive");
     if(value) drive=atof(value);
     value=getProperty("tune_drive");
@@ -577,38 +955,14 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     if(value) mic_bias_enabled=atof(value);
     value=getProperty("mic_ptt_tip_bias_ring");
     if(value) mic_ptt_tip_bias_ring=atof(value);
-    value=getProperty("nr_none");
-    if(value) nr_none=atoi(value);
-    value=getProperty("nr");
-    if(value) nr=atoi(value);
-    value=getProperty("nr2");
-    if(value) nr2=atoi(value);
-    value=getProperty("nb");
-    if(value) nb=atoi(value);
-    value=getProperty("nb2");
-    if(value) nb2=atoi(value);
-    value=getProperty("anf");
-    if(value) anf=atoi(value);
-    value=getProperty("snb");
-    if(value) snb=atoi(value);
-    value=getProperty("nr_agc");
-    if(value) nr_agc=atoi(value);
-    value=getProperty("nr2_gain_method");
-    if(value) nr2_gain_method=atoi(value);
-    value=getProperty("nr2_npe_method");
-    if(value) nr2_npe_method=atoi(value);
-    value=getProperty("nr2_ae");
-    if(value) nr2_ae=atoi(value);
-    value=getProperty("agc");
-    if(value) agc=atoi(value);
-    value=getProperty("agc_gain");
-    if(value) agc_gain=atof(value);
-    value=getProperty("agc_slope");
-    if(value) agc_slope=atof(value);
-    value=getProperty("agc_hang_threshold");
-    if(value) agc_hang_threshold=atof(value);
+
+    value=getProperty("tx_filter_low");
+    if(value) tx_filter_low=atoi(value);
+    value=getProperty("tx_filter_high");
+    if(value) tx_filter_high=atoi(value);
+
     value=getProperty("step");
-    if(value) step=atoi(value);
+    if(value) step=atoll(value);
     value=getProperty("cw_keys_reversed");
     if(value) cw_keys_reversed=atoi(value);
     value=getProperty("cw_keyer_speed");
@@ -643,14 +997,6 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     if(value) OCfull_tune_time=atoi(value);
     value=getProperty("OCmemory_tune_time");
     if(value) OCmemory_tune_time=atoi(value);
-    value=getProperty("attenuation");
-    if(value) attenuation=atoi(value);
-    value=getProperty("rx_dither");
-    if(value) rx_dither=atoi(value);
-    value=getProperty("rx_random");
-    if(value) rx_random=atoi(value);
-    value=getProperty("rx_preamp");
-    if(value) rx_preamp=atoi(value);
 #ifdef FREEDV
     strcpy(freedv_tx_text_data,"NO TEXT DATA");
     value=getProperty("freedv_tx_text_data");
@@ -660,14 +1006,16 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     if(value) smeter=atoi(value);
     value=getProperty("alc");
     if(value) alc=atoi(value);
+#ifdef OLD_AUDIO
     value=getProperty("local_audio");
     if(value) local_audio=atoi(value);
     value=getProperty("n_selected_output_device");
     if(value) n_selected_output_device=atoi(value);
+#endif
     value=getProperty("local_microphone");
     if(value) local_microphone=atoi(value);
-    value=getProperty("n_selected_input_device");
-    if(value) n_selected_input_device=atoi(value);
+//    value=getProperty("n_selected_input_device");
+//    if(value) n_selected_input_device=atoi(value);
     value=getProperty("enable_tx_equalizer");
     if(value) enable_tx_equalizer=atoi(value);
     value=getProperty("tx_equalizer.0");
@@ -709,21 +1057,50 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     value=getProperty("binaural");
     if(value) binaural=atoi(value);
 
+    value=getProperty("frequencyB");
+    if(value) frequencyB=atol(value);
+
+    value=getProperty("modeB");
+    if(value) modeB=atoi(value);
+
+    value=getProperty("filterB");
+    if(value) filterB=atoi(value);
+
+#ifdef GPIO
+    value=getProperty("e1_encoder_action");
+    if(value) e1_encoder_action=atoi(value);
+    value=getProperty("e2_encoder_action");
+    if(value) e2_encoder_action=atoi(value);
+    value=getProperty("e3_encoder_action");
+    if(value) e3_encoder_action=atoi(value);
+#endif
+
+    value=getProperty("receivers");
+    if(value) receivers=atoi(value);
+
+    filterRestoreState();
     bandRestoreState();
+    memRestoreState();
+    vfo_restore_state();
 
     sem_post(&property_sem);
 }
 
 void radioSaveState() {
+    int i;
     char value[80];
 
     sem_wait(&property_sem);
+    sprintf(value,"%d",buffer_size);
+    setProperty("buffer_size",value);
+    sprintf(value,"%d",fft_size);
+    setProperty("fft_size",value);
     sprintf(value,"%d",atlas_penelope);
     setProperty("atlas_penelope",value);
-    sprintf(value,"%d",sample_rate);
-    setProperty("sample_rate",value);
     sprintf(value,"%d",filter_board);
     setProperty("filter_board",value);
+    sprintf(value,"%d",tx_out_of_band);
+    setProperty("tx_out_of_band",value);
 /*
     sprintf(value,"%d",apollo_tuner);
     setProperty("apollo_tuner",value);
@@ -732,8 +1109,6 @@ void radioSaveState() {
 */
     sprintf(value,"%d",updates_per_second);
     setProperty("updates_per_second",value);
-    sprintf(value,"%d",display_panadapter);
-    setProperty("display_panadapter",value);
     sprintf(value,"%d",display_filled);
     setProperty("display_filled",value);
     sprintf(value,"%d",display_detector_mode);
@@ -746,22 +1121,20 @@ void radioSaveState() {
     setProperty("panadapter_high",value);
     sprintf(value,"%d",panadapter_low);
     setProperty("panadapter_low",value);
-    sprintf(value,"%d",display_waterfall);
-    setProperty("display_waterfall",value);
     sprintf(value,"%d",display_sliders);
     setProperty("display_sliders",value);
+/*
     sprintf(value,"%d",display_toolbar);
     setProperty("display_toolbar",value);
-    sprintf(value,"%d",toolbar_dialog_buttons);
-    setProperty("toolbar_dialog_buttons",value);
+*/
     sprintf(value,"%d",waterfall_high);
     setProperty("waterfall_high",value);
     sprintf(value,"%d",waterfall_low);
     setProperty("waterfall_low",value);
     sprintf(value,"%d",waterfall_automatic);
     setProperty("waterfall_automatic",value);
-    sprintf(value,"%f",volume);
-    setProperty("volume",value);
+//    sprintf(value,"%f",volume);
+//    setProperty("volume",value);
     sprintf(value,"%f",mic_gain);
     setProperty("mic_gain",value);
     sprintf(value,"%f",drive);
@@ -780,37 +1153,12 @@ void radioSaveState() {
     setProperty("mic_bias_enabled",value);
     sprintf(value,"%d",mic_ptt_tip_bias_ring);
     setProperty("mic_ptt_tip_bias_ring",value);
-    sprintf(value,"%d",nr_none);
-    setProperty("nr_none",value);
-    sprintf(value,"%d",nr);
-    setProperty("nr",value);
-    sprintf(value,"%d",nr2);
-    setProperty("nr2",value);
-    sprintf(value,"%d",nb);
-    setProperty("nb",value);
-    sprintf(value,"%d",nb2);
-    setProperty("nb2",value);
-    sprintf(value,"%d",anf);
-    setProperty("anf",value);
-    sprintf(value,"%d",snb);
-    setProperty("snb",value);
-    sprintf(value,"%d",nr_agc);
-    setProperty("nr_agc",value);
-    sprintf(value,"%d",nr2_gain_method);
-    setProperty("nr2_gain_method",value);
-    sprintf(value,"%d",nr2_npe_method);
-    setProperty("nr2_npe_method",value);
-    sprintf(value,"%d",nr2_ae);
-    setProperty("nr2_ae",value);
-    sprintf(value,"%d",agc);
-    setProperty("agc",value);
-    sprintf(value,"%f",agc_gain);
-    setProperty("agc_gain",value);
-    sprintf(value,"%f",agc_slope);
-    setProperty("agc_slope",value);
-    sprintf(value,"%f",agc_hang_threshold);
-    setProperty("agc_hang_threshold",value);
-    sprintf(value,"%d",step);
+    sprintf(value,"%d",tx_filter_low);
+    setProperty("tx_filter_low",value);
+    sprintf(value,"%d",tx_filter_high);
+    setProperty("tx_filter_high",value);
+
+    sprintf(value,"%lld",step);
     setProperty("step",value);
     sprintf(value,"%d",cw_keys_reversed);
     setProperty("cw_keys_reversed",value);
@@ -844,14 +1192,6 @@ void radioSaveState() {
     setProperty("OCfull_tune_time",value);
     sprintf(value,"%d",OCmemory_tune_time);
     setProperty("OCmemory_tune_time",value);
-    sprintf(value,"%d",attenuation);
-    setProperty("attenuation",value);
-    sprintf(value,"%d",rx_dither);
-    setProperty("rx_dither",value);
-    sprintf(value,"%d",rx_random);
-    setProperty("rx_random",value);
-    sprintf(value,"%d",rx_preamp);
-    setProperty("rx_preamp",value);
 #ifdef FREEDV
     if(strlen(freedv_tx_text_data)>0) {
       setProperty("freedv_tx_text_data",freedv_tx_text_data);
@@ -861,14 +1201,16 @@ void radioSaveState() {
     setProperty("smeter",value);
     sprintf(value,"%d",alc);
     setProperty("alc",value);
+#ifdef OLD_AUDIO
     sprintf(value,"%d",local_audio);
     setProperty("local_audio",value);
     sprintf(value,"%d",n_selected_output_device);
     setProperty("n_selected_output_device",value);
+#endif
     sprintf(value,"%d",local_microphone);
     setProperty("local_microphone",value);
-    sprintf(value,"%d",n_selected_input_device);
-    setProperty("n_selected_input_device",value);
+//    sprintf(value,"%d",n_selected_input_device);
+//    setProperty("n_selected_input_device",value);
 
     sprintf(value,"%d",enable_tx_equalizer);
     setProperty("enable_tx_equalizer",value);
@@ -911,19 +1253,45 @@ void radioSaveState() {
     sprintf(value,"%d",binaural);
     setProperty("binaural",value);
 
-    bandSaveState();
+    sprintf(value,"%lld",frequencyB);
+    setProperty("frequencyB",value);
+    sprintf(value,"%d",modeB);
+    setProperty("modeB",value);
+    sprintf(value,"%d",filterB);
+    setProperty("filterB",value);
 
+#ifdef GPIO
+    sprintf(value,"%d",e1_encoder_action);
+    setProperty("e1_encoder_action",value);
+    sprintf(value,"%d",e2_encoder_action);
+    setProperty("e2_encoder_action",value);
+    sprintf(value,"%d",e3_encoder_action);
+    setProperty("e3_encoder_action",value);
+#endif
+
+
+    vfo_save_state();
+    sprintf(value,"%d",receivers);
+    setProperty("receivers",value);
+    for(i=0;i<receivers;i++) {
+      receiver_save_state(receiver[i]);
+    }
+    transmitter_save_state(transmitter);
+
+    filterSaveState();
+    bandSaveState();
+    memSaveState();
     saveProperties(property_path);
     sem_post(&property_sem);
 }
 
-void calculate_display_average() {
+void calculate_display_average(RECEIVER *rx) {
   double display_avb;
   int display_average;
 
   double t=0.001*display_average_time;
-  display_avb = exp(-1.0 / ((double)updates_per_second * t));
-  display_average = max(2, (int)min(60, (double)updates_per_second * t));
-  SetDisplayAvBackmult(CHANNEL_RX0, 0, display_avb);
-  SetDisplayNumAverage(CHANNEL_RX0, 0, display_average);
+  display_avb = exp(-1.0 / ((double)rx->fps * t));
+  display_average = max(2, (int)min(60, (double)rx->fps * t));
+  SetDisplayAvBackmult(rx->id, 0, display_avb);
+  SetDisplayNumAverage(rx->id, 0, display_average);
 }

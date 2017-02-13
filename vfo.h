@@ -20,12 +20,48 @@
 #ifndef _VFO_H
 #define _VFO_H
 
+
+enum {
+  VFO_A=0,
+  VFO_B,
+  MAX_VFOS
+};
+
+struct _vfo {
+  int band;
+  int bandstack;
+  long long frequency;
+  int mode;
+  int filter;
+
+  int ctun;
+  long long ctun_frequency;
+  long long rit;
+
+  long long lo;
+  long long offset;
+
+} vfo[MAX_VFOS];
+
+
 extern int steps[];
 extern char *step_labels[];
 
 extern GtkWidget* vfo_init(int width,int height,GtkWidget *parent);
 extern void vfo_step(int steps);
-extern void vfo_move(int hz);
+extern void vfo_move(long long hz);
+extern void vfo_move_to(long long hz);
 extern int vfo_update(void*);
+extern void set_frequency();
 
+extern void vfo_save_state();
+extern void vfo_restore_state();
+
+extern void vfo_band_changed(int b);
+extern void vfo_bandstack_changed(int b);
+extern void vfo_mode_changed(int m);
+extern void vfo_filter_changed(int f);
+extern void vfo_a_to_b();
+extern void vfo_b_to_a();
+extern void vfo_a_swap_b();
 #endif

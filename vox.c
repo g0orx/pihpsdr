@@ -20,6 +20,7 @@
 #include <gtk/gtk.h>
 
 #include "radio.h"
+#include "transmitter.h"
 #include "vox.h"
 #include "vfo.h"
 
@@ -35,17 +36,18 @@ static int vox_timeout_cb(gpointer data) {
 
 
 double vox_get_peak() {
-  return peak*10.0;
+  double result=peak;
+  return result;
 }
 
-void update_vox(double *in,int length) {
+void update_vox(TRANSMITTER *tx) {
   // assumes in is interleaved left and right channel with length samples
   int previous_vox=vox;
   int i;
   double sample;
   peak=0.0;
-  for(i=0;i<length;i++) {
-    sample=in[(i*2)+0];
+  for(i=0;i<tx->buffer_size;i++) {
+    sample=tx->mic_input_buffer[i*2];
     if(sample<0.0) {
       sample=-sample;
     }
@@ -53,22 +55,25 @@ void update_vox(double *in,int length) {
       peak=sample;
     }
   }
-  double threshold=vox_threshold;
-  if(mic_boost && !local_microphone) {
-    threshold=vox_threshold*vox_gain;
-  }
 
-fprintf(stderr,"update_vox: peak=%f threshold=%f\n",peak,threshold);
-  if(peak>threshold) {
-    if(previous_vox) {
-      g_source_remove(vox_timeout);
-    } else {
-      setVox(1);
+//fprintf(stderr,"update_vox: id=%d peak=%f\n",tx->id,peak);
+
+  if(vox_enabled) {
+    double threshold=vox_threshold;
+
+//fprintf(stderr,"update_vox: peak=%f threshold=%f\n",peak,threshold);
+
+    if(peak>threshold) {
+      if(previous_vox) {
+        g_source_remove(vox_timeout);
+      } else {
+        setVox(1);
+      }
+      vox_timeout=g_timeout_add((int)vox_hang,vox_timeout_cb,NULL);
     }
-    vox_timeout=g_timeout_add((int)vox_hang,vox_timeout_cb,NULL);
-  }
-  if(vox!=previous_vox) {
-    g_idle_add(vfo_update,NULL);
+    if(vox!=previous_vox) {
+      g_idle_add(vfo_update,NULL);
+    }
   }
 }
 

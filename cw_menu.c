@@ -28,6 +28,7 @@
 #include "bandstack.h"
 #include "filter.h"
 #include "radio.h"
+#include "receiver.h"
 
 static GtkWidget *parent_window=NULL;
 
@@ -91,12 +92,15 @@ static void cw_keyer_sidetone_level_value_changed_cb(GtkWidget *widget, gpointer
 
 static void cw_keyer_sidetone_frequency_value_changed_cb(GtkWidget *widget, gpointer data) {
   cw_keyer_sidetone_frequency=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
-  if(mode==modeCWL || mode==modeCWU) {
+/*
+  if(transmitter->mode==modeCWL || transmitter->mode==modeCWU) {
     BANDSTACK_ENTRY *entry=bandstack_entry_get_current();
     FILTER* band_filters=filters[entry->mode];
     FILTER* band_filter=&band_filters[entry->filter];
-    setFilter(band_filter->low,band_filter->high);
+    //setFilter(band_filter->low,band_filter->high);
+    set_filter(active_receiver,band_filter->low,band_filter->high);
   }
+*/
   cw_changed();
 }
 

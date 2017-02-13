@@ -48,80 +48,30 @@ static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
 }
 
 static void update_noise() {
-  SetRXAANRRun(CHANNEL_RX0, nr);
-  SetRXAEMNRRun(CHANNEL_RX0, nr2);
-  SetRXAANFRun(CHANNEL_RX0, anf);
-  SetRXASNBARun(CHANNEL_RX0, snb);
+  SetRXAANRRun(active_receiver->id, active_receiver->nr);
+  SetRXAEMNRRun(active_receiver->id, active_receiver->nr2);
+  SetRXAANFRun(active_receiver->id, active_receiver->anf);
+  SetRXASNBARun(active_receiver->id, active_receiver->snb);
   vfo_update(NULL);
 }
 
-static void nr_none_cb(GtkWidget *widget, gpointer data) {
-  nr=0;
-  nr2=0;
-  nb=0;
-  nb2=0;
-  anf=0;
-  snb=0;
-  update_noise();
-}
-
 static void nr_cb(GtkWidget *widget, gpointer data) {
-  nr=1;
-  nr2=0;
-  nb=0;
-  nb2=0;
-  anf=0;
-  snb=0;
+  active_receiver->nr=active_receiver->nr==1?0:1;
   update_noise();
 }
 
 static void nr2_cb(GtkWidget *widget, gpointer data) {
-  nr=0;
-  nr2=1;
-  nb=0;
-  nb2=0;
-  anf=0;
-  snb=0;
-  update_noise();
-}
-
-static void nb_cb(GtkWidget *widget, gpointer data) {
-  nr=0;
-  nr2=0;
-  nb=1;
-  nb2=0;
-  anf=0;
-  snb=0;
-  update_noise();
-}
-
-static void nb2_cb(GtkWidget *widget, gpointer data) {
-  nr=0;
-  nr2=0;
-  nb=0;
-  nb2=1;
-  anf=0;
-  snb=0;
+  active_receiver->nr2=active_receiver->nr2==1?0:1;
   update_noise();
 }
 
 static void anf_cb(GtkWidget *widget, gpointer data) {
-  nr=0;
-  nr2=0;
-  nb=0;
-  nb2=0;
-  anf=1;
-  snb=0;
+  active_receiver->anf=active_receiver->anf==1?0:1;
   update_noise();
 }
 
 static void snb_cb(GtkWidget *widget, gpointer data) {
-  nr=0;
-  nr2=0;
-  nb=0;
-  nb2=0;
-  anf=0;
-  snb=1;
+  active_receiver->snb=active_receiver->snb==1?0:1;
   update_noise();
 }
 
@@ -155,56 +105,35 @@ void noise_menu(GtkWidget *parent) {
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
-  GtkWidget *b_nr_none=gtk_radio_button_new_with_label(NULL,"None");
-  //gtk_widget_override_font(b_none, pango_font_description_from_string("Arial 16"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_nr_none), nr_none==1);
-  gtk_widget_show(b_nr_none);
-  gtk_grid_attach(GTK_GRID(grid),b_nr_none,0,1,2,1);
-  g_signal_connect(b_nr_none,"pressed",G_CALLBACK(nr_none_cb),NULL);
+  char label[32];
+  sprintf(label,"RX %d VFO %s",active_receiver->id,active_receiver->id==0?"A":"B");
+  GtkWidget *rx_label=gtk_label_new(label);
+  gtk_grid_attach(GTK_GRID(grid),rx_label,1,0,1,1);
 
-  GtkWidget *b_nr=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_nr_none),"NR");
-  //gtk_widget_override_font(b_nr, pango_font_description_from_string("Arial 16"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_nr), nr==1);
+  GtkWidget *b_nr=gtk_check_button_new_with_label("NR");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_nr), active_receiver->nr);
   gtk_widget_show(b_nr);
   gtk_grid_attach(GTK_GRID(grid),b_nr,0,2,2,1);
-  g_signal_connect(b_nr,"pressed",G_CALLBACK(nr_cb),NULL);
+  g_signal_connect(b_nr,"toggled",G_CALLBACK(nr_cb),NULL);
 
-  GtkWidget *b_nr2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_nr),"NR2");
-  //gtk_widget_override_font(b_nr2, pango_font_description_from_string("Arial 16"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_nr2), nr2==1);
+  GtkWidget *b_nr2=gtk_check_button_new_with_label("NR2");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_nr2), active_receiver->nr2);
   gtk_widget_show(b_nr2);
   gtk_grid_attach(GTK_GRID(grid),b_nr2,0,3,2,1);
-  g_signal_connect(b_nr2,"pressed",G_CALLBACK(nr2_cb),NULL);
+  g_signal_connect(b_nr2,"toggled",G_CALLBACK(nr2_cb),NULL);
 
-/*
-  GtkWidget *b_nb=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_nr2),"NB");
-  //gtk_widget_override_font(b_nb, pango_font_description_from_string("Arial 16"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_nb), nb==1);
-  gtk_widget_show(b_nb);
-  gtk_grid_attach(GTK_GRID(grid),b_nb,0,4,2,1);
-  g_signal_connect(b_nb,"pressed",G_CALLBACK(nb_cb),NULL);
-
-  GtkWidget *b_nb2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_nb),"NB2");
-  //gtk_widget_override_font(b_nb2, pango_font_description_from_string("Arial 16"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_nb2), nb2==1);
-  gtk_widget_show(b_nb2);
-  gtk_grid_attach(GTK_GRID(grid),b_nb2,0,5,2,1);
-  g_signal_connect(b_nb2,"pressed",G_CALLBACK(nb2_cb),NULL);
-*/
-
-  GtkWidget *b_anf=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_nr2),"ANF");
-  //gtk_widget_override_font(b_anf, pango_font_description_from_string("Arial 16"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_anf), anf==1);
+  GtkWidget *b_anf=gtk_check_button_new_with_label("ANF");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_anf), active_receiver->anf);
   gtk_widget_show(b_anf);
   gtk_grid_attach(GTK_GRID(grid),b_anf,0,4,2,1);
-  g_signal_connect(b_anf,"pressed",G_CALLBACK(anf_cb),NULL);
+  g_signal_connect(b_anf,"toggled",G_CALLBACK(anf_cb),NULL);
  
-  GtkWidget *b_snb=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_anf),"SNB");
+  GtkWidget *b_snb=gtk_check_button_new_with_label("SNB");
   //gtk_widget_override_font(b_snb, pango_font_description_from_string("Arial 16"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_snb), snb==1);
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_snb), active_receiver->snb);
   gtk_widget_show(b_snb);
   gtk_grid_attach(GTK_GRID(grid),b_snb,0,5,2,1);
-  g_signal_connect(b_snb,"pressed",G_CALLBACK(snb_cb),NULL);
+  g_signal_connect(b_snb,"toggled",G_CALLBACK(snb_cb),NULL);
 
   gtk_container_add(GTK_CONTAINER(content),grid);
 

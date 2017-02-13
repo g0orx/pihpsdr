@@ -17,6 +17,7 @@
 *
 */
 
+#include <gtk/gtk.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -44,8 +45,10 @@ static int interface_length;
 static int discovery_socket;
 static struct sockaddr_in discovery_addr;
 
-static pthread_t discover_thread_id;
-static void* discover_receive_thread(void* arg);
+//static pthread_t discover_thread_id;
+//static void* discover_receive_thread(void* arg);
+static GThread *discover_thread_id;
+static gpointer discover_receive_thread(gpointer data);
 
 static void discover(struct ifaddrs* iface) {
     int rc;
@@ -96,11 +99,20 @@ static void discover(struct ifaddrs* iface) {
     to_addr.sin_addr.s_addr=htonl(INADDR_BROADCAST);
 
     // start a receive thread to collect discovery response packets
+/*
     rc=pthread_create(&discover_thread_id,NULL,discover_receive_thread,NULL);
     if(rc != 0) {
         fprintf(stderr,"pthread_create failed on discover_receive_thread: rc=%d\n", rc);
         exit(-1);
     }
+*/
+    discover_thread_id = g_thread_new( "old discover receive", discover_receive_thread, NULL);
+    if( ! discover_thread_id )
+    {
+        fprintf(stderr,"g_thread_new failed on discover_receive_thread\n");
+        exit( -1 );
+    }
+
 
 
     // send discovery packet
@@ -119,8 +131,11 @@ static void discover(struct ifaddrs* iface) {
     }
 
     // wait for receive thread to complete
+/*
     void* status;
     pthread_join(discover_thread_id,&status);
+*/
+    g_thread_join(discover_thread_id);
 
     close(discovery_socket);
 
@@ -128,7 +143,8 @@ static void discover(struct ifaddrs* iface) {
 
 }
 
-static void* discover_receive_thread(void* arg) {
+//static void *discover_receive_thread(void* arg) {
+static gpointer discover_receive_thread(gpointer data) {
     struct sockaddr_in addr;
     int len;
     unsigned char buffer[2048];
@@ -177,6 +193,9 @@ fprintf(stderr,"discover_receive_thread\n");
                         case DEVICE_HERMES_LITE:
                             strcpy(discovered[devices].name,"Hermes Lite");
                             break;
+                        case DEVICE_ORION2:
+                            strcpy(discovered[devices].name,"Orion 2");
+                            break;
                         default:
                             strcpy(discovered[devices].name,"Unknown");
                             break;
@@ -211,7 +230,8 @@ fprintf(stderr,"discover_receive_thread\n");
 
     }
     fprintf(stderr,"discovery: exiting discover_receive_thread\n");
-    pthread_exit(NULL);
+    //pthread_exit(NULL);
+    g_thread_exit(NULL);
 }
 
 void old_discovery() {

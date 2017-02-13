@@ -27,6 +27,7 @@
 #include "band.h"
 #include "channel.h"
 #include "radio.h"
+#include "receiver.h"
 #include "vfo.h"
 #include "button_text.h"
 
@@ -44,8 +45,9 @@ static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
 }
 
 static gboolean agc_select_cb (GtkWidget *widget, gpointer        data) {
-  agc=(int)data;
-  wdsp_set_agc(CHANNEL_RX0, agc);
+  active_receiver->agc=(int)data;
+  //wdsp_set_agc(CHANNEL_RX0, agc);
+  set_agc(active_receiver, active_receiver->agc);
   vfo_update(NULL);
 }
 
@@ -80,37 +82,42 @@ void agc_menu(GtkWidget *parent) {
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
+  char label[32];
+  sprintf(label,"RX %d VFO %s",active_receiver->id,active_receiver->id==0?"A":"B");
+  GtkWidget *rx_label=gtk_label_new(label);
+  gtk_grid_attach(GTK_GRID(grid),rx_label,1,0,1,1);
+
   GtkWidget *b_off=gtk_radio_button_new_with_label(NULL,"Off");
   //gtk_widget_override_font(b_off, pango_font_description_from_string("Arial 16"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_off), agc==AGC_OFF);
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_off), active_receiver->agc==AGC_OFF);
   gtk_widget_show(b_off);
   gtk_grid_attach(GTK_GRID(grid),b_off,0,1,2,1);
   g_signal_connect(b_off,"pressed",G_CALLBACK(agc_select_cb),(gpointer *)AGC_OFF);
 
   GtkWidget *b_long=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_off),"Long");
   //gtk_widget_override_font(b_long, pango_font_description_from_string("Arial 16"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_long), agc==AGC_LONG);
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_long), active_receiver->agc==AGC_LONG);
   gtk_widget_show(b_long);
   gtk_grid_attach(GTK_GRID(grid),b_long,0,2,2,1);
   g_signal_connect(b_long,"pressed",G_CALLBACK(agc_select_cb),(gpointer *)AGC_LONG);
 
   GtkWidget *b_slow=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_long),"Slow");
   //gtk_widget_override_font(b_slow, pango_font_description_from_string("Arial 16"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_slow), agc==AGC_SLOW);
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_slow), active_receiver->agc==AGC_SLOW);
   gtk_widget_show(b_slow);
   gtk_grid_attach(GTK_GRID(grid),b_slow,0,3,2,1);
   g_signal_connect(b_slow,"pressed",G_CALLBACK(agc_select_cb),(gpointer *)AGC_SLOW);
 
   GtkWidget *b_medium=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_slow),"Medium");
   //gtk_widget_override_font(b_medium, pango_font_description_from_string("Arial 16"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_medium), agc==AGC_MEDIUM);
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_medium), active_receiver->agc==AGC_MEDIUM);
   gtk_widget_show(b_medium);
   gtk_grid_attach(GTK_GRID(grid),b_medium,0,4,2,1);
   g_signal_connect(b_medium,"pressed",G_CALLBACK(agc_select_cb),(gpointer *)AGC_MEDIUM);
 
   GtkWidget *b_fast=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_medium),"Fast");
   //gtk_widget_override_font(b_fast, pango_font_description_from_string("Arial 16"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_fast), agc==AGC_FAST);
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_fast), active_receiver->agc==AGC_FAST);
   gtk_widget_show(b_fast);
   gtk_grid_attach(GTK_GRID(grid),b_fast,0,5,2,1);
   g_signal_connect(b_fast,"pressed",G_CALLBACK(agc_select_cb),(gpointer *)AGC_FAST);

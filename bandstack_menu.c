@@ -27,6 +27,7 @@
 #include "bandstack.h"
 #include "filter.h"
 #include "radio.h"
+#include "receiver.h"
 #include "vfo.h"
 #include "button_text.h"
 
@@ -47,31 +48,10 @@ static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
 
 static gboolean bandstack_select_cb (GtkWidget *widget, gpointer        data) {
   int b=(int)data;
-  BAND *band=band_get_current_band();
-  BANDSTACK *bandstack=band->bandstack;
-
-  bandstack->current_entry=b;
-
   set_button_text_color(last_bandstack,"black");
   last_bandstack=widget;
   set_button_text_color(last_bandstack,"orange");
-
-  BANDSTACK_ENTRY *entry;
-  entry=&(bandstack->entry[b]);
-
-  setMode(entry->mode);
-  FILTER* band_filters=filters[entry->mode];
-  FILTER* band_filter=&band_filters[entry->filter];
-  setFilter(band_filter->low,band_filter->high);
-  setFrequency(entry->frequencyA);
-
-  set_alex_rx_antenna(band->alexRxAntenna);
-  set_alex_tx_antenna(band->alexTxAntenna);
-  set_alex_attenuation(band->alexAttenuation);
-
-  vfo_update(NULL);
-
-  setFrequency(entry->frequencyA);
+  vfo_bandstack_changed(b);
 }
 
 void bandstack_menu(GtkWidget *parent) {
@@ -104,18 +84,21 @@ void bandstack_menu(GtkWidget *parent) {
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
-  char label[16];
+  char label[32];
+  sprintf(label,"RX %d VFO %s",active_receiver->id,active_receiver->id==0?"A":"B");
+  GtkWidget *rx_label=gtk_label_new(label);
+  gtk_grid_attach(GTK_GRID(grid),rx_label,1,0,1,1);
 
-  BAND *band=band_get_current_band();
+  BAND *band=band_get_band(vfo[active_receiver->id].band);
   BANDSTACK *bandstack=band->bandstack;
 
   for(i=0;i<bandstack->entries;i++) {
     BANDSTACK_ENTRY *entry=&bandstack->entry[i];
-    sprintf(label,"%lld %s",entry->frequencyA,mode_string[entry->mode]);
+    sprintf(label,"%lld %s",entry->frequency,mode_string[entry->mode]);
     GtkWidget *b=gtk_button_new_with_label(label);
     set_button_text_color(b,"black");
     //gtk_widget_override_font(b, pango_font_description_from_string("Arial 20"));
-    if(i==bandstack->current_entry) {
+    if(i==vfo[active_receiver->id].bandstack) {
       set_button_text_color(b,"orange");
       last_bandstack=b;
     }

@@ -29,73 +29,28 @@
 #include <arpa/inet.h>
 
 #include "audio.h"
+#include "band.h"
+#include "bandstack.h"
 #include "main.h"
 #include "channel.h"
 #include "discovered.h"
 #include "configure.h"
 #include "gpio.h"
-#include "old_discovery.h"
-#include "new_discovery.h"
-#ifdef LIMESDR
-#include "lime_discovery.h"
-#endif
-#include "old_protocol.h"
-#include "new_protocol.h"
-#ifdef LIMESDR
-#include "lime_protocol.h"
-#endif
 #include "wdsp.h"
-#include "vfo.h"
-//#include "menu.h"
 #include "new_menu.h"
-#include "rit.h"
-#include "meter.h"
-#include "panadapter.h"
-#include "splash.h"
-#include "waterfall.h"
-#include "toolbar.h"
-#include "sliders.h"
 #include "radio.h"
-#include "rigctl.h"
-#include "wdsp_init.h"
 #include "version.h"
-#include "mode.h"
-#ifdef PSK
-#include "psk.h"
-#include "psk_waterfall.h"
+#include "button_text.h"
+#ifdef I2C
+#include "i2c.h"
 #endif
-
-#define DISPLAY_INCREMENT (display_height/32)
-#define VFO_HEIGHT (DISPLAY_INCREMENT*4)
-//#define VFO_HEIGHT (DISPLAY_INCREMENT*8)
-#define VFO_WIDTH ((display_width/32)*21)
-#define MENU_HEIGHT VFO_HEIGHT
-//#define MENU_HEIGHT (DISPLAY_INCREMENT*4)
-#define MENU_WIDTH ((display_width/32)*3)
-//#define RIT_WIDTH ((MENU_WIDTH/3)*2)
-#define METER_HEIGHT VFO_HEIGHT
-//#define METER_HEIGHT (DISPLAY_INCREMENT*4)
-#define METER_WIDTH ((display_width/32)*8)
-#define PANADAPTER_HEIGHT (DISPLAY_INCREMENT*8)
-#define SLIDERS_HEIGHT (DISPLAY_INCREMENT*6)
-#define TOOLBAR_HEIGHT (DISPLAY_INCREMENT*2)
-#define WATERFALL_HEIGHT (display_height-(VFO_HEIGHT+PANADAPTER_HEIGHT+SLIDERS_HEIGHT+TOOLBAR_HEIGHT))
-#ifdef PSK
-#define PSK_WATERFALL_HEIGHT (DISPLAY_INCREMENT*6)
-#define PSK_HEIGHT (display_height-(VFO_HEIGHT+PSK_WATERFALL_HEIGHT+SLIDERS_HEIGHT+TOOLBAR_HEIGHT))
-#endif
+#include "discovery.h"
 
 struct utsname unameData;
 
 gint display_width;
 gint display_height;
 gint full_screen=1;
-
-static gint update_timer_id;
-
-static gint save_timer_id;
-
-static float *samples;
 
 static GtkWidget *discovery_dialog;
 
@@ -104,189 +59,21 @@ static sem_t wisdom_sem;
 static GdkCursor *cursor_arrow;
 static GdkCursor *cursor_watch;
 
-static GdkWindow *splash_window;
+static GtkWidget *splash;
 
-static GtkWidget *window;
-static GtkWidget *grid;
-static GtkWidget *fixed;
-static GtkWidget *vfo;
-static GtkWidget *rit_control;
-static GtkWidget *menu;
-static GtkWidget *meter;
-static GtkWidget *sliders;
-static GtkWidget *toolbar;
-static GtkWidget *panadapter;
-static GtkWidget *waterfall;
-#ifdef PSK
-static GtkWidget *psk;
-static GtkWidget *psk_waterfall;
-#endif
+GtkWidget *top_window;
+GtkWidget *grid;
 
 static DISCOVERED* d;
 
-static void start_radio();
-static void discover_devices();
+static GtkWidget *status;
 
-gint update(gpointer data) {
-    int result;
-    double fwd;
-    double rev;
-    double exciter;
-    int channel=CHANNEL_RX0;
-#ifdef PSK
-    if(mode==modePSK) {
-      channel=CHANNEL_PSK;
-    }
-#endif
-    if(isTransmitting()) {
-      channel=CHANNEL_TX;
-    }
-    GetPixels(channel,0,samples,&result);
-    if(result==1) {
-        if(display_panadapter) {
-#ifdef PSK
-          if(mode==modePSK) {
-            psk_waterfall_update(samples);
-          } else {
-#endif
-            panadapter_update(samples,isTransmitting());
-#ifdef PSK
-          }
-#endif
-        }
-        if(!isTransmitting()) {
-#ifdef PSK
-          if(mode!=modePSK) {
-#endif
-            if(display_waterfall) {
-              waterfall_update(samples);
-            }
-#ifdef PSK
-          }
-#endif
-        }
-    }
-
-    if(!isTransmitting()) {
-        double m;
-        switch(mode) {
-#ifdef PSK
-            case modePSK:
-                m=(double)psk_get_signal_level();
-                meter_update(PSKMETER,m,0.0,0.0,0.0);
-                break;
-#endif
-            default:
-                m=GetRXAMeter(CHANNEL_RX0, smeter);
-                meter_update(SMETER,m,0.0,0.0,0.0);
-                break;
-        }
-    } else {
-
-        double alc=GetTXAMeter(CHANNEL_TX, alc);
-
-        DISCOVERED *d=&discovered[selected_device];
-
-        double constant1=3.3;
-        double constant2=0.095;
-
-        if(d->protocol==ORIGINAL_PROTOCOL) {
-            switch(d->device) {
-                case DEVICE_METIS:
-                    constant1=3.3;
-                    constant2=0.09;
-                    break;
-                case DEVICE_HERMES:
-                    constant1=3.3;
-                    constant2=0.095;
-                    break;
-                case DEVICE_ANGELIA:
-                    constant1=3.3;
-                    constant2=0.095;
-                    break;
-                case DEVICE_ORION:
-                    constant1=5.0;
-                    constant2=0.108;
-                    break;
-                case DEVICE_HERMES_LITE:
-                    break;
-            }
-
-            int power=alex_forward_power;
-            if(power==0) {
-                power=exciter_power;
-            }
-            double v1;
-            v1=((double)power/4095.0)*constant1;
-            fwd=(v1*v1)/constant2;
-
-            power=exciter_power;
-            v1=((double)power/4095.0)*constant1;
-            exciter=(v1*v1)/constant2;
-
-            rev=0.0;
-            if(alex_forward_power!=0) {
-                power=alex_reverse_power;
-                v1=((double)power/4095.0)*constant1;
-                rev=(v1*v1)/constant2;
-            }
-         
-        } else {
-            switch(d->device) {
-                case NEW_DEVICE_ATLAS:
-                    constant1=3.3;
-                    constant2=0.09;
-                    break;
-                case NEW_DEVICE_HERMES:
-                    constant1=3.3;
-                    constant2=0.09;
-                    break;
-                case NEW_DEVICE_HERMES2:
-                    constant1=3.3;
-                    constant2=0.095;
-                    break;
-                case NEW_DEVICE_ANGELIA:
-                    constant1=3.3;
-                    constant2=0.095;
-                    break;
-                case NEW_DEVICE_ORION:
-                    constant1=5.0;
-                    constant2=0.108;
-                    break;
-                case NEW_DEVICE_ORION2:
-                    constant1=5.0;
-                    constant2=0.108;
-                    break;
-                case NEW_DEVICE_HERMES_LITE:
-                    constant1=3.3;
-                    constant2=0.09;
-                    break;
-            }
-        
-            int power=alex_forward_power;
-            if(power==0) {
-                power=exciter_power;
-            }
-            double v1;
-            v1=((double)power/4095.0)*constant1;
-            fwd=(v1*v1)/constant2;
-
-            power=exciter_power;
-            v1=((double)power/4095.0)*constant1;
-            exciter=(v1*v1)/constant2;
-
-            rev=0.0;
-            if(alex_forward_power!=0) {
-                power=alex_reverse_power;
-                v1=((double)power/4095.0)*constant1;
-                rev=(v1*v1)/constant2;
-            }
-        }
-
-        meter_update(POWER,fwd,rev,exciter,alc);
-    }
-
-    return TRUE;
+void status_text(char *text) {
+  //fprintf(stderr,"splash_status: %s\n",text);
+  gtk_label_set_text(GTK_LABEL(status),text);
+  usleep(10000);
+  while (gtk_events_pending ())
+    gtk_main_iteration ();
 }
 
 static gint save_cb(gpointer data) {
@@ -297,7 +84,7 @@ static gint save_cb(gpointer data) {
 static pthread_t wisdom_thread_id;
 
 static void* wisdom_thread(void *arg) {
-  splash_status("Creating FFTW Wisdom file ...");
+  status_text("Creating FFTW Wisdom file ...");
   WDSPwisdom ((char *)arg);
   sem_post(&wisdom_sem);
 }
@@ -323,620 +110,45 @@ gboolean main_delete (GtkWidget *widget) {
   _exit(0);
 }
 
-static gboolean start_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-fprintf(stderr,"start_cb: %p\n",data);
-  radio=(DISCOVERED *)data;
-  gtk_widget_destroy(discovery_dialog);
-  start_radio();
-  return TRUE;
-}
-
-#ifdef GPIO
-static gboolean gpio_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  configure_gpio(discovery_dialog);
-  return TRUE;
-}
-#endif
-
-static gboolean discover_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  gtk_widget_destroy(discovery_dialog);
-  discover_devices();
-  return TRUE;
-}
-
-static gboolean exit_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  gtk_widget_destroy(discovery_dialog);
-  _exit(0);
-  return TRUE;
-}
-
-static void discover_devices() {
-
-      gdk_window_set_cursor(splash_window,cursor_watch);
-      selected_device=0;
-      devices=0;
-      splash_status("Old Protocol ... Discovering Devices");
-      old_discovery();
-      splash_status("New Protocol ... Discovering Devices");
-      new_discovery();
-#ifdef LIMESDR
-      splash_status("LimeSDR ... Discovering Devices");
-      lime_discovery();
-#endif
-      splash_status("Discovery");
-      if(devices==0) {
-          gdk_window_set_cursor(splash_window,cursor_arrow);
-          fprintf(stderr,"No devices found!\n");
-          GtkDialogFlags flags = GTK_DIALOG_DESTROY_WITH_PARENT;
-/*
-          discovery_dialog = gtk_message_dialog_new (GTK_WINDOW(splash_screen),
-                                 flags,
-                                 GTK_MESSAGE_ERROR,
-                                 GTK_BUTTONS_OK_CANCEL,
-                                 "No devices found! Retry Discovery?");
-*/
-          discovery_dialog = gtk_dialog_new();
-          gtk_window_set_transient_for(GTK_WINDOW(discovery_dialog),GTK_WINDOW(splash_screen));
-          gtk_window_set_decorated(GTK_WINDOW(discovery_dialog),FALSE);
-
-          gtk_widget_override_font(discovery_dialog, pango_font_description_from_string("FreeMono 16"));
-
-          GdkRGBA color;
-          color.red = 1.0;
-          color.green = 1.0;
-          color.blue = 1.0;
-          color.alpha = 1.0;
-          gtk_widget_override_background_color(discovery_dialog,GTK_STATE_FLAG_NORMAL,&color);
-
-          GtkWidget *content;
-
-          content=gtk_dialog_get_content_area(GTK_DIALOG(discovery_dialog));
-
-          GtkWidget *grid=gtk_grid_new();
-          gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
-          gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
-          gtk_grid_set_row_spacing (GTK_GRID(grid),10);
-
-          GtkWidget *label=gtk_label_new("No devices found!");
-          gtk_grid_attach(GTK_GRID(grid),label,0,0,2,1);
-
-          GtkWidget *exit_b=gtk_button_new_with_label("Exit");
-          g_signal_connect (exit_b, "button-press-event", G_CALLBACK(exit_cb), NULL);
-          gtk_grid_attach(GTK_GRID(grid),exit_b,0,1,1,1);
-
-          GtkWidget *discover_b=gtk_button_new_with_label("Retry Discovery");
-          g_signal_connect (discover_b, "button-press-event", G_CALLBACK(discover_cb), NULL);
-          gtk_grid_attach(GTK_GRID(grid),discover_b,1,1,1,1);
-
-          gtk_container_add (GTK_CONTAINER (content), grid);
-          gtk_widget_show_all(discovery_dialog);
-      } else {
-          //fprintf(stderr,"%s: found %d devices.\n", (char *)arg, devices);
-          gdk_window_set_cursor(splash_window,cursor_arrow);
-/*
-          GtkDialogFlags flags=GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT;
-          discovery_dialog = gtk_dialog_new_with_buttons ("Discovered",
-                                      GTK_WINDOW(splash_window),
-                                      flags,
-#ifdef GPIO
-                                      "Configure GPIO",
-                                      GTK_RESPONSE_YES,
-#endif
-                                      "Discover",
-                                      GTK_RESPONSE_REJECT,
-                                      "Exit",
-                                      GTK_RESPONSE_CLOSE,
-                                      NULL);
-*/
-
-          discovery_dialog = gtk_dialog_new();
-          gtk_window_set_transient_for(GTK_WINDOW(discovery_dialog),GTK_WINDOW(splash_screen));
-          gtk_window_set_decorated(GTK_WINDOW(discovery_dialog),FALSE);
-
-          gtk_widget_override_font(discovery_dialog, pango_font_description_from_string("FreeMono 16"));
-
-          GdkRGBA color;
-          color.red = 1.0;
-          color.green = 1.0;
-          color.blue = 1.0;
-          color.alpha = 1.0;
-          gtk_widget_override_background_color(discovery_dialog,GTK_STATE_FLAG_NORMAL,&color);
-
-          GtkWidget *content;
-
-          content=gtk_dialog_get_content_area(GTK_DIALOG(discovery_dialog));
-
-          GtkWidget *grid=gtk_grid_new();
-          gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
-          gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
-          gtk_grid_set_row_spacing (GTK_GRID(grid),10);
-
-          int i;
-          char version[16];
-          char text[128];
-          for(i=0;i<devices;i++) {
-              d=&discovered[i];
-fprintf(stderr,"%p protocol=%d name=%s\n",d,d->protocol,d->name);
-              if(d->protocol==ORIGINAL_PROTOCOL) {
-                  sprintf(version,"%d.%d",
-                        d->software_version/10,
-                        d->software_version%10);
-              } else {
-                  sprintf(version,"%d.%d.%d",
-                        d->software_version/100,
-                        (d->software_version%100)/10,
-                        d->software_version%10);
-              }
-              switch(d->protocol) {
-                case ORIGINAL_PROTOCOL:
-                case NEW_PROTOCOL:
-                  sprintf(text,"%s (%s %s) %s (%02X:%02X:%02X:%02X:%02X:%02X) on %s\n",
-                        d->name,
-                        d->protocol==ORIGINAL_PROTOCOL?"old":"new",
-                        version,
-                        inet_ntoa(d->info.network.address.sin_addr),
-                        d->info.network.mac_address[0],
-                        d->info.network.mac_address[1],
-                        d->info.network.mac_address[2],
-                        d->info.network.mac_address[3],
-                        d->info.network.mac_address[4],
-                        d->info.network.mac_address[5],
-                        d->info.network.interface_name);
-                  break;
-#ifdef LIMESDR
-                case LIMESDR_PROTOCOL:
-/*
-                  sprintf(text,"%s (%s %s)\n",
-                        d->name,
-                        "lime",
-                        version);
-*/
-                  sprintf(text,"%s\n",
-                        d->name);
-                  break;
-#endif
-              }
-
-              GtkWidget *label=gtk_label_new(text);
-              gtk_widget_override_font(label, pango_font_description_from_string("FreeMono 12"));
-              gtk_widget_show(label);
-              gtk_grid_attach(GTK_GRID(grid),label,0,i,3,1);
-
-              GtkWidget *start_button=gtk_button_new_with_label("Start");
-              gtk_widget_override_font(start_button, pango_font_description_from_string("FreeMono 18"));
-              gtk_widget_show(start_button);
-              gtk_grid_attach(GTK_GRID(grid),start_button,3,i,1,1);
-              g_signal_connect(start_button,"button_press_event",G_CALLBACK(start_cb),(gpointer)d);
-
-              // if not available then cannot start it
-              if(d->status!=STATE_AVAILABLE) {
-                gtk_button_set_label(GTK_BUTTON(start_button),"In Use");
-                gtk_widget_set_sensitive(start_button, FALSE);
-              }
-
-              // if not on the same subnet then cannot start it
-              if((d->info.network.interface_address.sin_addr.s_addr&d->info.network.interface_netmask.sin_addr.s_addr) != (d->info.network.address.sin_addr.s_addr&d->info.network.interface_netmask.sin_addr.s_addr)) {
-                gtk_button_set_label(GTK_BUTTON(start_button),"Subnet!");
-                gtk_widget_set_sensitive(start_button, FALSE);
-              }
-
-          }
-
-#ifdef GPIO
-          GtkWidget *gpio_b=gtk_button_new_with_label("Config GPIO");
-          g_signal_connect (gpio_b, "button-press-event", G_CALLBACK(gpio_cb), NULL);
-          gtk_grid_attach(GTK_GRID(grid),gpio_b,0,i,1,1);
-#endif
-          GtkWidget *discover_b=gtk_button_new_with_label("Discover");
-          g_signal_connect (discover_b, "button-press-event", G_CALLBACK(discover_cb), NULL);
-          gtk_grid_attach(GTK_GRID(grid),discover_b,1,i,1,1);
-
-          GtkWidget *exit_b=gtk_button_new_with_label("Exit");
-          g_signal_connect (exit_b, "button-press-event", G_CALLBACK(exit_cb), NULL);
-          gtk_grid_attach(GTK_GRID(grid),exit_b,2,i,1,1);
-
-
-          gtk_container_add (GTK_CONTAINER (content), grid);
-          gtk_widget_show_all(discovery_dialog);
-      }
-}
-
-static gboolean minimize_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  gtk_window_iconify(GTK_WINDOW(window));
-  return TRUE;
-}
-
-static void start_radio() {
-  int y;
-fprintf(stderr,"start: selected radio=%p device=%d\n",radio,radio->device);
-  gdk_window_set_cursor(splash_window,cursor_watch);
-
-  splash_status("Initializing wdsp ...");
-  protocol=radio->protocol;
-  device=radio->device;
-
-  switch(radio->protocol) {
-    case ORIGINAL_PROTOCOL:
-    case NEW_PROTOCOL:
-      sprintf(property_path,"%02X-%02X-%02X-%02X-%02X-%02X.props",
-                        radio->info.network.mac_address[0],
-                        radio->info.network.mac_address[1],
-                        radio->info.network.mac_address[2],
-                        radio->info.network.mac_address[3],
-                        radio->info.network.mac_address[4],
-                        radio->info.network.mac_address[5]);
-      break;
-#ifdef LIMESDR
-    case LIMESDR_PROTOCOL:
-      sprintf(property_path,"limesdr.props");
-      break;
-#endif
-  }
-
-  radioRestoreState();
-
-  fprintf(stderr,"malloc samples\n");
-  if(radio->protocol==NEW_PROTOCOL) {
-    samples=malloc(display_width*sizeof(float)*2*4); // 192 -> 48
-  } else {
-    samples=malloc(display_width*sizeof(float)*2);
-  }
-
-  //splash_status("Initializing wdsp ...");
-  fprintf(stderr,"wdsp_init\n");
-  wdsp_init(0,display_width,radio->protocol);
-
-  switch(radio->protocol) {
-    case ORIGINAL_PROTOCOL:
-      splash_status("Initializing old protocol ...");
-  fprintf(stderr,"old_protocol_init\n");
-      old_protocol_init(0,display_width);
-      break;
-    case NEW_PROTOCOL:
-      splash_status("Initializing new protocol ...");
-  fprintf(stderr,"new_protocol_init\n");
-      new_protocol_init(display_width);
-      break;
-#ifdef LIMESDR
-    case LIMESDR_PROTOCOL:
-      splash_status("Initializing lime protocol ...");
-      lime_protocol_init(0,display_width);
-      break;
-#endif
-  }
-
-#ifdef GPIO
-  fprintf(stderr,"gpio_init\n");
-  splash_status("Initializing GPIO ...");
-  if(gpio_init()<0) {
-  }
-#ifdef LOCALCW
-  // init local keyer if enabled
-  else if (cw_keyer_internal == 0)
-    keyer_update();
-#endif
-#endif
-
-  window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
-  gtk_window_set_title (GTK_WINDOW (window), "pihpsdr");
-  gtk_window_set_position(GTK_WINDOW(window),GTK_WIN_POS_CENTER_ALWAYS);
-  gtk_window_set_resizable(GTK_WINDOW(window), FALSE);
-  g_signal_connect (window, "delete-event", G_CALLBACK (main_delete), NULL);
-
-  fixed=gtk_fixed_new();
-  gtk_container_add(GTK_CONTAINER(window), fixed);
-  y=0;
-
-  vfo = vfo_init(VFO_WIDTH,VFO_HEIGHT,window);
-  gtk_fixed_put(GTK_FIXED(fixed),vfo,0,0);
-
-
-
-  //rit_control = rit_init(RIT_WIDTH,MENU_HEIGHT,window);
-  //gtk_fixed_put(GTK_FIXED(fixed),rit_control,VFO_WIDTH,y);
-
-  GtkWidget *minimize_b=gtk_button_new_with_label("Hide");
-  gtk_widget_override_font(minimize_b, pango_font_description_from_string("FreeMono Bold 10"));
-  gtk_widget_set_size_request (minimize_b, MENU_WIDTH, MENU_HEIGHT/2);
-  g_signal_connect (minimize_b, "button-press-event", G_CALLBACK(minimize_cb), NULL);
-  gtk_widget_show(minimize_b);
-  gtk_fixed_put(GTK_FIXED(fixed),minimize_b,VFO_WIDTH,y);
-
-  //menu = menu_init(MENU_WIDTH,MENU_HEIGHT,window);
-  menu = new_menu_init(MENU_WIDTH,MENU_HEIGHT/2,window);
-  gtk_fixed_put(GTK_FIXED(fixed),menu,VFO_WIDTH,y+(MENU_HEIGHT/2));
-
-  meter = meter_init(METER_WIDTH,METER_HEIGHT,window);
-  gtk_fixed_put(GTK_FIXED(fixed),meter,VFO_WIDTH+MENU_WIDTH,y);
-  y+=VFO_HEIGHT;
-
-  if(display_panadapter) {
-    int height=PANADAPTER_HEIGHT;
-    if(!display_waterfall) {
-      height+=WATERFALL_HEIGHT;
-      if(!display_sliders) {
-        height+=SLIDERS_HEIGHT;
-      }
-      if(!display_toolbar) {
-        height+=TOOLBAR_HEIGHT;
-      }
-    } else {
-      if(!display_sliders) {
-        height+=SLIDERS_HEIGHT/2;
-      }
-    }
-    panadapter = panadapter_init(display_width,height);
-    gtk_fixed_put(GTK_FIXED(fixed),panadapter,0,VFO_HEIGHT);
-    y+=height;
-  }
-
-  if(display_waterfall) {
-    int height=WATERFALL_HEIGHT;
-    if(!display_panadapter) {
-      height+=PANADAPTER_HEIGHT;
-    }
-    if(!display_sliders) {
-      if(display_panadapter) {
-        height+=SLIDERS_HEIGHT/2;
-      } else {
-        height+=SLIDERS_HEIGHT;
-      }
-    }
-    if(!display_toolbar) {
-      height+=TOOLBAR_HEIGHT;
-    }
-    waterfall = waterfall_init(display_width,height);
-    gtk_fixed_put(GTK_FIXED(fixed),waterfall,0,y);
-    y+=height;
-
-  }
-
-#ifdef PSK
-    int psk_height=PSK_WATERFALL_HEIGHT;
-    if(!display_sliders) {
-      psk_height+=SLIDERS_HEIGHT/2;
-    }
-    if(!display_toolbar) {
-      psk_height+=TOOLBAR_HEIGHT/2;
-    }
-    psk_waterfall = psk_waterfall_init(display_width,psk_height);
-    gtk_fixed_put(GTK_FIXED(fixed),psk_waterfall,0,VFO_HEIGHT);
-    psk = init_psk();
-    gtk_fixed_put(GTK_FIXED(fixed),psk,0,VFO_HEIGHT+psk_height);
-#endif
-
-  if(display_sliders) {
-    sliders = sliders_init(display_width,SLIDERS_HEIGHT,window);
-    gtk_fixed_put(GTK_FIXED(fixed),sliders,0,y);
-    y+=SLIDERS_HEIGHT;
-  }
-
-  if(display_toolbar) {
-    toolbar = toolbar_init(display_width,TOOLBAR_HEIGHT,window);
-    gtk_fixed_put(GTK_FIXED(fixed),toolbar,0,y);
-    y+=TOOLBAR_HEIGHT;
-  }
-
-  splash_close();
-
-  gtk_widget_show_all (window);
-
-  linein_changed();
-
-  if(full_screen) {
-    gtk_window_fullscreen(GTK_WINDOW(window));
-  }
-
-  GdkWindow *gdk_window = gtk_widget_get_window(window);
-  gdk_window_set_cursor(gdk_window,cursor_arrow);
-
-  // start the receiver
-  SetChannelState(CHANNEL_RX0,1,1);
-
-  //update_timer_id=gdk_threads_add_timeout(1000/updates_per_second, update, NULL);
-  update_timer_id=gdk_threads_add_timeout_full(G_PRIORITY_HIGH_IDLE,1000/updates_per_second, update, NULL, NULL);
-
-  // save every 30 seconds
-  save_timer_id=gdk_threads_add_timeout(30000, save_cb, NULL);
-
-
-  if(protocol!=NEW_PROTOCOL) {
-    setFrequency(getFrequency());
-  }
-
-#ifdef PSK
-  if(mode==modePSK) {
-    show_psk();
-  } else {
-    show_waterfall();
-  }
-#endif
-
-  launch_rigctl();
-
-  g_idle_add(vfo_update,(gpointer)NULL);
-
-}
-
-#ifdef PSK
-void show_psk() {
-  if(display_waterfall) {
-    gtk_widget_hide(waterfall);
-  }
-  if(display_panadapter) {
-    gtk_widget_hide(panadapter);
-  }
-  gtk_widget_show(psk);
-  gtk_widget_show(psk_waterfall);
-}
-
-void show_waterfall() {
-  gtk_widget_hide(psk_waterfall);
-  gtk_widget_hide(psk);
-  if(display_panadapter) {
-    gtk_widget_show(panadapter);
-  }
-  if(display_waterfall) {
-    gtk_widget_show(waterfall);
-  }
-}
-#endif
-
-void reconfigure_display() {
-  int y=VFO_HEIGHT;
-
-  // configure panadapter
-  if(display_panadapter) {
-    int height=PANADAPTER_HEIGHT;
-    if(!display_waterfall) {
-      height+=WATERFALL_HEIGHT;
-      if(!display_sliders) {
-        height+=SLIDERS_HEIGHT;
-      }
-      if(!display_toolbar) {
-        height+=TOOLBAR_HEIGHT;
-      }
-    } else {
-      if(!display_sliders) {
-        height+=SLIDERS_HEIGHT/2;
-      }
-      if(!display_toolbar) {
-        height+=TOOLBAR_HEIGHT/2;
-      }
-    }
-fprintf(stderr,"panadapter_height=%d\n",height);
-    if(panadapter==NULL) {
-fprintf(stderr,"reconfigure_display: panadapter_init: width:%d height:%d\n",display_width,height);
-      panadapter = panadapter_init(display_width,height);
-      gtk_fixed_put(GTK_FIXED(fixed),panadapter,0,y);
-    } else {
-      // set the size
-fprintf(stderr,"reconfigure_display: panadapter set_size_request: width:%d height:%d\n",display_width,height);
-      gtk_widget_set_size_request(panadapter, display_width, height);
-      // move the current one
-      gtk_fixed_move(GTK_FIXED(fixed),panadapter,0,y);
-    }
-    gtk_widget_show_all(panadapter);
-    y+=height;
-  } else {
-    gtk_widget_hide(panadapter);
-  }
-
-  // configure waterfall
-  if(display_waterfall) {
-    int height=WATERFALL_HEIGHT;
-
-    if(!display_panadapter) {
-      height+=PANADAPTER_HEIGHT;
-      if(!display_sliders) {
-        height+=SLIDERS_HEIGHT;
-      }
-      if(!display_toolbar) {
-        height+=TOOLBAR_HEIGHT;
-      }
-    } else {
-      if(!display_sliders) {
-        height+=SLIDERS_HEIGHT/2;
-      }
-      if(!display_toolbar) {
-        height+=TOOLBAR_HEIGHT/2;
-      }
-    }
-fprintf(stderr,"waterfall_height=%d\n",height);
-    if(waterfall==NULL) {
-fprintf(stderr,"reconfigure_display: waterfall_init: width:%d height:%d\n",display_width,height);
-      waterfall = waterfall_init(display_width,height);
-      gtk_fixed_put(GTK_FIXED(fixed),waterfall,0,y);
-    } else {
-      // set the size
-fprintf(stderr,"reconfigure_display: waterfall set_size_request: width:%d height:%d\n",display_width,height);
-      gtk_widget_set_size_request (waterfall, display_width, height);
-      // move the current one
-      gtk_fixed_move(GTK_FIXED(fixed),waterfall,0,y);
-    }
-    gtk_widget_show_all(waterfall);
-    y+=height;
-  } else {
-    gtk_widget_hide(waterfall);
-  }
-
-  if(display_sliders) {
-fprintf(stderr,"sliders_height=%d\n",SLIDERS_HEIGHT);
-    if(sliders==NULL) {
-fprintf(stderr,"reconfigure_display: sliders_init: width:%d height:%d\n",display_width,SLIDERS_HEIGHT);
-      sliders = sliders_init(display_width,SLIDERS_HEIGHT,window);
-      gtk_fixed_put(GTK_FIXED(fixed),sliders,0,y);
-    } else {
-      gtk_fixed_move(GTK_FIXED(fixed),sliders,0,y);
-      gtk_widget_show(sliders);
-    }
-    gtk_widget_show_all(sliders);
-    linein_changed();
-    y+=SLIDERS_HEIGHT;
-  } else {
-    gtk_widget_hide(sliders);
-  }
-
-  if(display_toolbar) {
-fprintf(stderr,"toolbar_height=%d\n",TOOLBAR_HEIGHT);
-    if(toolbar==NULL) {
-fprintf(stderr,"reconfigure_display: toolbar_init: width:%d height:%d\n",display_width,TOOLBAR_HEIGHT);
-      toolbar = toolbar_init(display_width,TOOLBAR_HEIGHT,window);
-      gtk_fixed_put(GTK_FIXED(fixed),toolbar,0,y);
-    } else {
-      gtk_fixed_move(GTK_FIXED(fixed),toolbar,0,y);
-      gtk_widget_show(toolbar);
-    }
-    gtk_widget_show_all(toolbar);
-    y+=TOOLBAR_HEIGHT;
-  } else {
-    gtk_widget_hide(toolbar);
-  }
-
-}
-
-gint init(void* arg) {
+static int init(void *data) {
   char *res;
   char wisdom_directory[1024];
   char wisdom_file[1024];
 
   fprintf(stderr,"init\n");
 
-  audio_get_cards(0);
-  audio_get_cards(1);
+  audio_get_cards();
 
   cursor_arrow=gdk_cursor_new(GDK_ARROW);
   cursor_watch=gdk_cursor_new(GDK_WATCH);
 
-  splash_window = gtk_widget_get_window(splash_screen);
-  gdk_window_set_cursor(splash_window,cursor_watch);
-
-  init_radio();
+  gdk_window_set_cursor(gtk_widget_get_window(top_window),cursor_watch);
 
   // check if wisdom file exists
   res=getcwd(wisdom_directory, sizeof(wisdom_directory));
   strcpy(&wisdom_directory[strlen(wisdom_directory)],"/");
   strcpy(wisdom_file,wisdom_directory);
   strcpy(&wisdom_file[strlen(wisdom_file)],"wdspWisdom");
-  splash_status("Checking FFTW Wisdom file ...");
+  status_text("Checking FFTW Wisdom file ...");
   if(access(wisdom_file,F_OK)<0) {
       int rc=sem_init(&wisdom_sem, 0, 0);
       rc=pthread_create(&wisdom_thread_id, NULL, wisdom_thread, (void *)wisdom_directory);
       while(sem_trywait(&wisdom_sem)<0) {
-        splash_status(wisdom_get_status());
+        status_text(wisdom_get_status());
         while (gtk_events_pending ())
           gtk_main_iteration ();
         usleep(100000); // 100ms
       }
   }
 
-  discover_devices();
-
+  g_idle_add(discovery,NULL);
   return 0;
 }
 
-int main (int   argc, char *argv[]) {
-  gtk_init (&argc, &argv);
+static void activate_pihpsdr(GtkApplication *app, gpointer data) {
+
+
+  //gtk_init (&argc, &argv);
 
   fprintf(stderr,"Build: %s %s\n",build_date,version);
 
@@ -964,13 +176,87 @@ fprintf(stderr,"width=%d height=%d\n", display_width, display_height);
     full_screen=0;
   }
 
-  fprintf(stderr,"display_width=%d display_height=%d\n", display_width, display_height);
+fprintf(stderr,"display_width=%d display_height=%d\n", display_width, display_height);
 
-  splash_show("hpsdr.png", display_width, display_height, full_screen);
+  fprintf(stderr,"create top level window\n");
+  top_window = gtk_application_window_new (app);
+  if(full_screen) {
+fprintf(stderr,"full screen\n");
+    gtk_window_fullscreen(GTK_WINDOW(top_window));
+  }
+  gtk_widget_set_size_request(top_window, display_width, display_height);
+  gtk_window_set_title (GTK_WINDOW (top_window), "pihpsdr");
+  gtk_window_set_position(GTK_WINDOW(top_window),GTK_WIN_POS_CENTER_ALWAYS);
+  gtk_window_set_resizable(GTK_WINDOW(top_window), FALSE);
+  g_signal_connect (top_window, "delete-event", G_CALLBACK (main_delete), NULL);
+  //g_signal_connect (top_window,"draw", G_CALLBACK (main_draw_cb), NULL);
 
-  g_idle_add(init,(void *)argv[0]);
+//fprintf(stderr,"create fixed container\n");
+  //fixed=gtk_fixed_new();
+  //gtk_container_add(GTK_CONTAINER(top_window), fixed);
 
-  gtk_main();
+fprintf(stderr,"create grid\n");
+  grid = gtk_grid_new();
+  gtk_widget_set_size_request(grid, display_width, display_height);
+  gtk_grid_set_row_homogeneous(GTK_GRID(grid),FALSE);
+  gtk_grid_set_column_homogeneous(GTK_GRID(grid),FALSE);
+fprintf(stderr,"add grid\n");
+  gtk_container_add (GTK_CONTAINER (top_window), grid);
 
-  return 0;
+fprintf(stderr,"create image\n");
+  GtkWidget  *image=gtk_image_new_from_file("hpsdr.png");
+fprintf(stderr,"add image to grid\n");
+  gtk_grid_attach(GTK_GRID(grid), image, 0, 0, 1, 4);
+
+fprintf(stderr,"create pi label\n");
+  char build[64];
+  sprintf(build,"build: %s %s",build_date, version);
+  GtkWidget *pi_label=gtk_label_new("pihpsdr by John Melton g0orx/n6lyt");
+  gtk_label_set_justify(GTK_LABEL(pi_label),GTK_JUSTIFY_LEFT);
+  gtk_widget_show(pi_label);
+fprintf(stderr,"add pi label to grid\n");
+  gtk_grid_attach(GTK_GRID(grid),pi_label,1,0,1,1);
+
+fprintf(stderr,"create build label\n");
+  GtkWidget *build_date_label=gtk_label_new(build);
+  gtk_label_set_justify(GTK_LABEL(build_date_label),GTK_JUSTIFY_LEFT);
+  gtk_widget_show(build_date_label);
+fprintf(stderr,"add build label to grid\n");
+  gtk_grid_attach(GTK_GRID(grid),build_date_label,1,1,1,1);
+
+fprintf(stderr,"create status\n");
+  status=gtk_label_new("");
+  gtk_label_set_justify(GTK_LABEL(status),GTK_JUSTIFY_LEFT);
+  gtk_widget_override_font(status, pango_font_description_from_string("FreeMono 18"));
+  gtk_widget_show(status);
+fprintf(stderr,"add status to grid\n");
+  gtk_grid_attach(GTK_GRID(grid), status, 1, 3, 1, 1);
+
+/*
+fprintf(stderr,"create exit button\n");
+  GtkWidget *button = gtk_button_new_with_label ("Exit");
+  //g_signal_connect (button, "clicked", G_CALLBACK (print_hello), NULL);
+  g_signal_connect_swapped (button, "clicked", G_CALLBACK (gtk_widget_destroy), top_window);
+fprintf(stderr,"add exit button to grid\n");
+  gtk_grid_attach(GTK_GRID(grid), button, 1, 4, 1, 1);
+*/
+
+  gtk_widget_show_all(top_window);
+
+  g_idle_add(init,NULL);
+  //g_idle_add(discovery,NULL);
+
+
+}
+
+int main(int argc,char **argv) {
+  GtkApplication *pihpsdr;
+  int status;
+
+  pihpsdr=gtk_application_new("org.g0orx.pihpsdr", G_APPLICATION_FLAGS_NONE);
+  g_signal_connect(pihpsdr, "activate", G_CALLBACK(activate_pihpsdr), NULL);
+  status=g_application_run(G_APPLICATION(pihpsdr), argc, argv);
+fprintf(stderr,"exiting ...\n");
+  g_object_unref(pihpsdr);
+  return status;
 }

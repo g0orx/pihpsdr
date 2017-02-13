@@ -83,14 +83,17 @@ typedef struct _BAND BAND;
 int band;
 gboolean displayHF;
 
-int band_get_current();
-BAND *band_get_current_band();
-BAND *band_get_band(int b);
-BAND *band_set_current(int b);
-int get_band_from_frequency(long long f);
+extern int band_get_current();
+extern BAND *band_get_current_band();
+extern BAND *band_get_band(int b);
+extern BAND *band_set_current(int b);
+extern int get_band_from_frequency(long long f);
 
-BANDSTACK_ENTRY *bandstack_entry_next();
-BANDSTACK_ENTRY *bandstack_entry_previous();
-BANDSTACK_ENTRY *bandstack_entry_get_current();
+extern BANDSTACK *bandstack_get_bandstack(int band);
+extern BANDSTACK_ENTRY *bandstack_get_bandstack_entry(int band,int entry);
+
+extern BANDSTACK_ENTRY *bandstack_entry_next();
+extern BANDSTACK_ENTRY *bandstack_entry_previous();
+extern BANDSTACK_ENTRY *bandstack_entry_get_current();
 
 #endif

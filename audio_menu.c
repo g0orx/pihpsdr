@@ -50,7 +50,7 @@ static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
 
 static void binaural_cb(GtkWidget *widget, gpointer data) {
   binaural=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
-  SetRXAPanelBinaural(CHANNEL_RX0, binaural);
+  SetRXAPanelBinaural(active_receiver->id, binaural);
 }
 
 static void micboost_cb(GtkWidget *widget, gpointer data) {
@@ -59,7 +59,7 @@ static void micboost_cb(GtkWidget *widget, gpointer data) {
 
 static void linein_cb(GtkWidget *widget, gpointer data) {
   mic_linein=mic_linein==1?0:1;
-  linein_changed();
+  g_idle_add(linein_changed,NULL);
 }
 
 static void local_audio_cb(GtkWidget *widget, gpointer data) {

@@ -8,7 +8,6 @@
 #include "psk.h"
 #include "radio.h"
 #include "channel.h"
-#include "wdsp_init.h"
 
 static void *detector;
 

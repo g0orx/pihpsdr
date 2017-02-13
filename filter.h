@@ -22,8 +22,7 @@
 
 #include "mode.h"
 
-// disable Var1 and Var2 (change to 12 to enable)
-#define FILTERS 10
+#define FILTERS 12
 
 #define CW_PITCH 600
 
@@ -56,12 +55,8 @@ int filterHigh;
 int txFilterLowCut;
 int txFilterHighCut;
 
-int filterVar1Low;
-int filterVar1High;
-int filterVar2Low;
-int filterVar2High;
-
-
 FILTER *filters[MODES];
 
+void filterSaveState();
+void filterRestoreState();
 #endif

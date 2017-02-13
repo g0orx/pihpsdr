@@ -20,6 +20,7 @@
 #include <gtk/gtk.h>
 #include <semaphore.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "new_menu.h"
@@ -59,10 +60,10 @@ static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
         lof=gtk_entry_get_text(GTK_ENTRY(lo_frequency[i]));
         xvtr->frequencyLO=atoll(lof);
         xvtr->disablePA=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(disable_pa[i]));
-        entry->frequencyA=xvtr->frequencyMin;
-        entry->frequencyB=xvtr->frequencyMin;
+        entry->frequency=xvtr->frequencyMin;
         entry->mode=modeUSB;
         entry->filter=filterF6;
+fprintf(stderr,"min=%s:%lld max=%s:%lld lo=%s:%lld\n",minf,xvtr->frequencyMin,maxf,xvtr->frequencyMax,lof,xvtr->frequencyLO);
       } else {
         xvtr->frequencyMin=0;
         xvtr->frequencyMax=0;

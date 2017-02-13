@@ -30,311 +30,484 @@
 #include "main.h"
 #include "channel.h"
 #include "discovered.h"
-#include "radio.h"
+//#include "radio.h"
 #include "gpio.h"
 
+
 #ifdef GPIO
+
+static GtkWidget *dialog;
+
+static GtkWidget *b_enable_vfo_encoder;
+static   GtkWidget *vfo_a_label;
+static   GtkWidget *vfo_a;
+static   GtkWidget *vfo_b_label;
+static   GtkWidget *vfo_b;
+static   GtkWidget *b_enable_vfo_pullup;
+static GtkWidget *b_enable_E1_encoder;
+static   GtkWidget *E1_a_label;
+static   GtkWidget *E1_a;
+static   GtkWidget *E1_b_label;
+static   GtkWidget *E1_b;
+static   GtkWidget *b_enable_E1_pullup;
+static GtkWidget *b_enable_E2_encoder;
+static   GtkWidget *E2_a_label;
+static   GtkWidget *E2_a;
+static   GtkWidget *E2_b_label;
+static   GtkWidget *E2_b;
+static   GtkWidget *b_enable_E2_pullup;
+static GtkWidget *b_enable_E3_encoder;
+static   GtkWidget *E3_a_label;
+static   GtkWidget *E3_a;
+static   GtkWidget *E3_b_label;
+static   GtkWidget *E3_b;
+static   GtkWidget *b_enable_E3_pullup;
+static GtkWidget *b_enable_mox;
+static   GtkWidget *mox_label;
+static   GtkWidget *mox;
+
+static GtkWidget *b_enable_S1;
+static   GtkWidget *S1_label;
+static   GtkWidget *S1;
+
+static GtkWidget *b_enable_S2;
+static   GtkWidget *S2_label;
+static   GtkWidget *S2;
+
+static GtkWidget *b_enable_S3;
+static   GtkWidget *S3_label;
+static   GtkWidget *S3;
+
+static GtkWidget *b_enable_S4;
+static   GtkWidget *S4_label;
+static   GtkWidget *S4;
+
+static GtkWidget *b_enable_S5;
+static   GtkWidget *S5_label;
+static   GtkWidget *S5;
+
+static GtkWidget *b_enable_S6;
+static   GtkWidget *S6_label;
+static   GtkWidget *S6;
+
+static GtkWidget *b_enable_function;
+static   GtkWidget *function_label;
+static   GtkWidget *function;
+
+#ifdef LOCALCW
+static GtkWidget *cwl_label;
+static GtkWidget *cwl_gpio_label;
+static GtkWidget *cwl;
+static GtkWidget *cwr_label;
+static GtkWidget *cwr_gpio_label;
+static GtkWidget *cwr;
+#endif
+
+static gboolean save_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  if(dialog!=NULL) {
+    ENABLE_VFO_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_vfo_encoder))?1:0;
+    VFO_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(vfo_a));
+    VFO_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(vfo_b));
+    ENABLE_VFO_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_vfo_pullup))?1:0;
+
+    ENABLE_E1_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E1_encoder))?1:0;
+    E1_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E1_a));
+    E1_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E1_b));
+    ENABLE_E1_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E1_pullup))?1:0;
+
+    ENABLE_E2_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E2_encoder))?1:0;
+    E2_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E2_a));
+    E2_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E2_b));
+    ENABLE_E2_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E2_pullup))?1:0;
+
+    ENABLE_E3_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E3_encoder))?1:0;
+    E3_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E3_a));
+    E3_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E3_b));
+    ENABLE_E3_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E3_pullup))?1:0;
+
+    ENABLE_MOX_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_mox))?1:0;
+    MOX_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(mox));
+
+    ENABLE_S1_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_S1))?1:0;
+    S1_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(S1));
+
+    ENABLE_S2_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_S2))?1:0;
+    S2_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(S2));
+
+    ENABLE_S3_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_S3))?1:0;
+    S3_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(S3));
+
+    ENABLE_S4_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_S4))?1:0;
+    S4_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(S4));
+
+    ENABLE_S5_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_S5))?1:0;
+    S5_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(S5));
+
+    ENABLE_S6_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_S6))?1:0;
+    S6_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(S6));
+
+    ENABLE_FUNCTION_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_function))?1:0;
+    FUNCTION_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(function));
+#ifdef LOCALCW
+    CWL_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(cwl));
+    CWR_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(cwr));
+#endif
+
+    gpio_save_state();
+    gtk_widget_destroy(dialog);
+  }
+  return TRUE;
+}
+
+static gboolean cancel_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  if(dialog!=NULL) {
+    gtk_widget_destroy(dialog);
+  }
+  return TRUE;
+}
+
 void configure_gpio(GtkWidget *parent) {
   gpio_restore_state();
 
-  GtkWidget *dialog=gtk_dialog_new_with_buttons("Configure GPIO",GTK_WINDOW(parent),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
+  dialog=gtk_dialog_new_with_buttons("Configure GPIO",GTK_WINDOW(parent),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
   GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
   GtkWidget *grid=gtk_grid_new();
   //gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
   gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
 
+  int y=0;
 
-  GtkWidget *b_enable_vfo_encoder=gtk_check_button_new_with_label("Enable VFO");
+  b_enable_vfo_encoder=gtk_check_button_new_with_label("Enable VFO");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_vfo_encoder), ENABLE_VFO_ENCODER);
   gtk_widget_show(b_enable_vfo_encoder);
-  gtk_grid_attach(GTK_GRID(grid),b_enable_vfo_encoder,0,0,1,1);
+  gtk_grid_attach(GTK_GRID(grid),b_enable_vfo_encoder,0,y,1,1);
 
-  GtkWidget *vfo_a_label=gtk_label_new("GPIO A:");
+  vfo_a_label=gtk_label_new("GPIO A:");
   gtk_widget_show(vfo_a_label);
-  gtk_grid_attach(GTK_GRID(grid),vfo_a_label,1,0,1,1);
+  gtk_grid_attach(GTK_GRID(grid),vfo_a_label,1,y,1,1);
 
-  GtkWidget *vfo_a=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+  vfo_a=gtk_spin_button_new_with_range (0.0,100.0,1.0);
   gtk_spin_button_set_value (GTK_SPIN_BUTTON(vfo_a),VFO_ENCODER_A);
   gtk_widget_show(vfo_a);
-  gtk_grid_attach(GTK_GRID(grid),vfo_a,2,0,1,1);
+  gtk_grid_attach(GTK_GRID(grid),vfo_a,2,y,1,1);
 
-  GtkWidget *vfo_b_label=gtk_label_new("GPIO B:");
+  vfo_b_label=gtk_label_new("GPIO B:");
   gtk_widget_show(vfo_b_label);
-  gtk_grid_attach(GTK_GRID(grid),vfo_b_label,3,0,1,1);
+  gtk_grid_attach(GTK_GRID(grid),vfo_b_label,3,y,1,1);
 
-  GtkWidget *vfo_b=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+  vfo_b=gtk_spin_button_new_with_range (0.0,100.0,1.0);
   gtk_spin_button_set_value (GTK_SPIN_BUTTON(vfo_b),VFO_ENCODER_B);
   gtk_widget_show(vfo_b);
-  gtk_grid_attach(GTK_GRID(grid),vfo_b,4,0,1,1);
+  gtk_grid_attach(GTK_GRID(grid),vfo_b,4,y,1,1);
 
-  GtkWidget *b_enable_vfo_pullup=gtk_check_button_new_with_label("Enable Pull-up");
+  b_enable_vfo_pullup=gtk_check_button_new_with_label("Enable Pull-up");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_vfo_pullup), ENABLE_VFO_PULLUP);
   gtk_widget_show(b_enable_vfo_pullup);
-  gtk_grid_attach(GTK_GRID(grid),b_enable_vfo_pullup,5,0,1,1);
+  gtk_grid_attach(GTK_GRID(grid),b_enable_vfo_pullup,5,y,1,1);
 
 
+  y++;
 
-  GtkWidget *b_enable_af_encoder=gtk_check_button_new_with_label("Enable E1");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_af_encoder), ENABLE_E1_ENCODER);
-  gtk_widget_show(b_enable_af_encoder);
-  gtk_grid_attach(GTK_GRID(grid),b_enable_af_encoder,0,1,1,1);
+  b_enable_E1_encoder=gtk_check_button_new_with_label("Enable E1");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E1_encoder), ENABLE_E1_ENCODER);
+  gtk_widget_show(b_enable_E1_encoder);
+  gtk_grid_attach(GTK_GRID(grid),b_enable_E1_encoder,0,y,1,1);
 
-  GtkWidget *af_a_label=gtk_label_new("GPIO A:");
-  gtk_widget_show(af_a_label);
-  gtk_grid_attach(GTK_GRID(grid),af_a_label,1,1,1,1);
+  E1_a_label=gtk_label_new("GPIO A:");
+  gtk_widget_show(E1_a_label);
+  gtk_grid_attach(GTK_GRID(grid),E1_a_label,1,y,1,1);
 
-  GtkWidget *af_a=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(af_a),E1_ENCODER_A);
-  gtk_widget_show(af_a);
-  gtk_grid_attach(GTK_GRID(grid),af_a,2,1,1,1);
+  E1_a=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(E1_a),E1_ENCODER_A);
+  gtk_widget_show(E1_a);
+  gtk_grid_attach(GTK_GRID(grid),E1_a,2,y,1,1);
 
-  GtkWidget *af_b_label=gtk_label_new("GPIO B:");
-  gtk_widget_show(af_b_label);
-  gtk_grid_attach(GTK_GRID(grid),af_b_label,3,1,1,1);
+  E1_b_label=gtk_label_new("GPIO B:");
+  gtk_widget_show(E1_b_label);
+  gtk_grid_attach(GTK_GRID(grid),E1_b_label,3,y,1,1);
 
-  GtkWidget *af_b=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(af_b),E1_ENCODER_B);
-  gtk_widget_show(af_b);
-  gtk_grid_attach(GTK_GRID(grid),af_b,4,1,1,1);
+  E1_b=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(E1_b),E1_ENCODER_B);
+  gtk_widget_show(E1_b);
+  gtk_grid_attach(GTK_GRID(grid),E1_b,4,y,1,1);
 
-  GtkWidget *b_enable_af_pullup=gtk_check_button_new_with_label("Enable Pull-up");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_af_pullup), ENABLE_E1_PULLUP);
-  gtk_widget_show(b_enable_af_pullup);
-  gtk_grid_attach(GTK_GRID(grid),b_enable_af_pullup,5,1,1,1);
-
-
-
-  GtkWidget *b_enable_rf_encoder=gtk_check_button_new_with_label("Enable RF");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_rf_encoder), ENABLE_E2_ENCODER);
-  gtk_widget_show(b_enable_rf_encoder);
-  gtk_grid_attach(GTK_GRID(grid),b_enable_rf_encoder,0,2,1,1);
-
-  GtkWidget *rf_a_label=gtk_label_new("GPIO A:");
-  gtk_widget_show(rf_a_label);
-  gtk_grid_attach(GTK_GRID(grid),rf_a_label,1,2,1,1);
-
-  GtkWidget *rf_a=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(rf_a),E2_ENCODER_A);
-  gtk_widget_show(rf_a);
-  gtk_grid_attach(GTK_GRID(grid),rf_a,2,2,1,1);
-
-  GtkWidget *rf_b_label=gtk_label_new("GPIO B:");
-  gtk_widget_show(rf_b_label);
-  gtk_grid_attach(GTK_GRID(grid),rf_b_label,3,2,1,1);
-
-  GtkWidget *rf_b=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(rf_b),E2_ENCODER_B);
-  gtk_widget_show(rf_b);
-  gtk_grid_attach(GTK_GRID(grid),rf_b,4,2,1,1);
-
-  GtkWidget *b_enable_rf_pullup=gtk_check_button_new_with_label("Enable Pull-up");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_rf_pullup), ENABLE_E2_PULLUP);
-  gtk_widget_show(b_enable_rf_pullup);
-  gtk_grid_attach(GTK_GRID(grid),b_enable_rf_pullup,5,2,1,1);
+  b_enable_E1_pullup=gtk_check_button_new_with_label("Enable Pull-up");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E1_pullup), ENABLE_E1_PULLUP);
+  gtk_widget_show(b_enable_E1_pullup);
+  gtk_grid_attach(GTK_GRID(grid),b_enable_E1_pullup,5,y,1,1);
 
 
+  y++;
 
-  GtkWidget *b_enable_agc_encoder=gtk_check_button_new_with_label("Enable AGC");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_agc_encoder), ENABLE_E3_ENCODER);
-  gtk_widget_show(b_enable_agc_encoder);
-  gtk_grid_attach(GTK_GRID(grid),b_enable_agc_encoder,0,3,1,1);
+  b_enable_E2_encoder=gtk_check_button_new_with_label("Enable E2");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E2_encoder), ENABLE_E2_ENCODER);
+  gtk_widget_show(b_enable_E2_encoder);
+  gtk_grid_attach(GTK_GRID(grid),b_enable_E2_encoder,0,y,1,1);
 
-  GtkWidget *agc_a_label=gtk_label_new("GPIO A:");
-  gtk_widget_show(agc_a_label);
-  gtk_grid_attach(GTK_GRID(grid),agc_a_label,1,3,1,1);
+  E2_a_label=gtk_label_new("GPIO A:");
+  gtk_widget_show(E2_a_label);
+  gtk_grid_attach(GTK_GRID(grid),E2_a_label,1,y,1,1);
 
-  GtkWidget *agc_a=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(agc_a),E3_ENCODER_A);
-  gtk_widget_show(agc_a);
-  gtk_grid_attach(GTK_GRID(grid),agc_a,2,3,1,1);
+  E2_a=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(E2_a),E2_ENCODER_A);
+  gtk_widget_show(E2_a);
+  gtk_grid_attach(GTK_GRID(grid),E2_a,2,y,1,1);
 
-  GtkWidget *agc_b_label=gtk_label_new("GPIO B:");
-  gtk_widget_show(agc_b_label);
-  gtk_grid_attach(GTK_GRID(grid),agc_b_label,3,3,1,1);
+  E2_b_label=gtk_label_new("GPIO B:");
+  gtk_widget_show(E2_b_label);
+  gtk_grid_attach(GTK_GRID(grid),E2_b_label,3,y,1,1);
 
-  GtkWidget *agc_b=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(agc_b),E3_ENCODER_B);
-  gtk_widget_show(agc_b);
-  gtk_grid_attach(GTK_GRID(grid),agc_b,4,3,1,1);
+  E2_b=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(E2_b),E2_ENCODER_B);
+  gtk_widget_show(E2_b);
+  gtk_grid_attach(GTK_GRID(grid),E2_b,4,y,1,1);
 
-  GtkWidget *b_enable_agc_pullup=gtk_check_button_new_with_label("Enable Pull-up");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_agc_pullup), ENABLE_E3_PULLUP);
-  gtk_widget_show(b_enable_agc_pullup);
-  gtk_grid_attach(GTK_GRID(grid),b_enable_agc_pullup,5,3,1,1);
-
-
-
-  GtkWidget *b_enable_band=gtk_check_button_new_with_label("Enable Band");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_band), ENABLE_S1_BUTTON);
-  gtk_widget_show(b_enable_band);
-  gtk_grid_attach(GTK_GRID(grid),b_enable_band,0,4,1,1);
-
-  GtkWidget *band_label=gtk_label_new("GPIO:");
-  gtk_widget_show(band_label);
-  gtk_grid_attach(GTK_GRID(grid),band_label,1,4,1,1);
-
-  GtkWidget *band=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(band),S1_BUTTON);
-  gtk_widget_show(band);
-  gtk_grid_attach(GTK_GRID(grid),band,2,4,1,1);
+  b_enable_E2_pullup=gtk_check_button_new_with_label("Enable Pull-up");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E2_pullup), ENABLE_E2_PULLUP);
+  gtk_widget_show(b_enable_E2_pullup);
+  gtk_grid_attach(GTK_GRID(grid),b_enable_E2_pullup,5,y,1,1);
 
 
-  GtkWidget *b_enable_mode=gtk_check_button_new_with_label("Enable Mode");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_mode), ENABLE_S3_BUTTON);
-  gtk_widget_show(b_enable_mode);
-  gtk_grid_attach(GTK_GRID(grid),b_enable_mode,0,5,1,1);
+  y++;
 
-  GtkWidget *mode_label=gtk_label_new("GPIO:");
-  gtk_widget_show(mode_label);
-  gtk_grid_attach(GTK_GRID(grid),mode_label,1,5,1,1);
+  b_enable_E3_encoder=gtk_check_button_new_with_label("Enable E3");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E3_encoder), ENABLE_E3_ENCODER);
+  gtk_widget_show(b_enable_E3_encoder);
+  gtk_grid_attach(GTK_GRID(grid),b_enable_E3_encoder,0,y,1,1);
 
-  GtkWidget *mode=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(mode),S3_BUTTON);
-  gtk_widget_show(mode);
-  gtk_grid_attach(GTK_GRID(grid),mode,2,5,1,1);
+  E3_a_label=gtk_label_new("GPIO A:");
+  gtk_widget_show(E3_a_label);
+  gtk_grid_attach(GTK_GRID(grid),E3_a_label,1,y,1,1);
 
+  E3_a=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(E3_a),E3_ENCODER_A);
+  gtk_widget_show(E3_a);
+  gtk_grid_attach(GTK_GRID(grid),E3_a,2,y,1,1);
 
-  GtkWidget *b_enable_filter=gtk_check_button_new_with_label("Enable Filter");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_filter), ENABLE_S4_BUTTON);
-  gtk_widget_show(b_enable_filter);
-  gtk_grid_attach(GTK_GRID(grid),b_enable_filter,0,6,1,1);
+  E3_b_label=gtk_label_new("GPIO B:");
+  gtk_widget_show(E3_b_label);
+  gtk_grid_attach(GTK_GRID(grid),E3_b_label,3,y,1,1);
 
-  GtkWidget *filter_label=gtk_label_new("GPIO:");
-  gtk_widget_show(filter_label);
-  gtk_grid_attach(GTK_GRID(grid),filter_label,1,6,1,1);
+  E3_b=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(E3_b),E3_ENCODER_B);
+  gtk_widget_show(E3_b);
+  gtk_grid_attach(GTK_GRID(grid),E3_b,4,y,1,1);
 
-  GtkWidget *filter=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(filter),S4_BUTTON);
-  gtk_widget_show(filter);
-  gtk_grid_attach(GTK_GRID(grid),filter,2,6,1,1);
-
-
-  GtkWidget *b_enable_noise=gtk_check_button_new_with_label("Enable Noise");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_noise), ENABLE_S5_BUTTON);
-  gtk_widget_show(b_enable_noise);
-  gtk_grid_attach(GTK_GRID(grid),b_enable_noise,0,7,1,1);
-
-  GtkWidget *noise_label=gtk_label_new("GPIO:");
-  gtk_widget_show(noise_label);
-  gtk_grid_attach(GTK_GRID(grid),noise_label,1,7,1,1);
-
-  GtkWidget *noise=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(noise),S5_BUTTON);
-  gtk_widget_show(noise);
-  gtk_grid_attach(GTK_GRID(grid),noise,2,7,1,1);
+  b_enable_E3_pullup=gtk_check_button_new_with_label("Enable Pull-up");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E3_pullup), ENABLE_E3_PULLUP);
+  gtk_widget_show(b_enable_E3_pullup);
+  gtk_grid_attach(GTK_GRID(grid),b_enable_E3_pullup,5,y,1,1);
 
 
-  GtkWidget *b_enable_agc=gtk_check_button_new_with_label("Enable AGC");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_agc), ENABLE_S6_BUTTON);
-  gtk_widget_show(b_enable_agc);
-  gtk_grid_attach(GTK_GRID(grid),b_enable_agc,0,8,1,1);
+  y++;
 
-  GtkWidget *agc_label=gtk_label_new("GPIO:");
-  gtk_widget_show(agc_label);
-  gtk_grid_attach(GTK_GRID(grid),agc_label,1,8,1,1);
-
-  GtkWidget *agc=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(agc),S6_BUTTON);
-  gtk_widget_show(agc);
-  gtk_grid_attach(GTK_GRID(grid),agc,2,8,1,1);
-
-
-  GtkWidget *b_enable_mox=gtk_check_button_new_with_label("Enable MOX");
+  b_enable_mox=gtk_check_button_new_with_label("Enable MOX/TUN");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_mox), ENABLE_MOX_BUTTON);
   gtk_widget_show(b_enable_mox);
-  gtk_grid_attach(GTK_GRID(grid),b_enable_mox,0,9,1,1);
+  gtk_grid_attach(GTK_GRID(grid),b_enable_mox,0,y,1,1);
 
-  GtkWidget *mox_label=gtk_label_new("GPIO:");
+  mox_label=gtk_label_new("GPIO:");
   gtk_widget_show(mox_label);
-  gtk_grid_attach(GTK_GRID(grid),mox_label,1,9,1,1);
+  gtk_grid_attach(GTK_GRID(grid),mox_label,1,y,1,1);
 
-  GtkWidget *mox=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+  mox=gtk_spin_button_new_with_range (0.0,100.0,1.0);
   gtk_spin_button_set_value (GTK_SPIN_BUTTON(mox),MOX_BUTTON);
   gtk_widget_show(mox);
-  gtk_grid_attach(GTK_GRID(grid),mox,2,9,1,1);
+  gtk_grid_attach(GTK_GRID(grid),mox,2,y,1,1);
+
+  y++;
+
+  b_enable_S1=gtk_check_button_new_with_label("Enable S1");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_S1), ENABLE_S1_BUTTON);
+  gtk_widget_show(b_enable_S1);
+  gtk_grid_attach(GTK_GRID(grid),b_enable_S1,0,y,1,1);
+
+  S1_label=gtk_label_new("GPIO:");
+  gtk_widget_show(S1_label);
+  gtk_grid_attach(GTK_GRID(grid),S1_label,1,y,1,1);
+
+  S1=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(S1),S1_BUTTON);
+  gtk_widget_show(S1);
+  gtk_grid_attach(GTK_GRID(grid),S1,2,y,1,1);
 
 
-  GtkWidget *b_enable_function=gtk_check_button_new_with_label("Enable Function");
+  y++;
+
+  b_enable_S2=gtk_check_button_new_with_label("Enable S2");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_S2), ENABLE_S2_BUTTON);
+  gtk_widget_show(b_enable_S2);
+  gtk_grid_attach(GTK_GRID(grid),b_enable_S2,0,y,1,1);
+
+  S2_label=gtk_label_new("GPIO:");
+  gtk_widget_show(S2_label);
+  gtk_grid_attach(GTK_GRID(grid),S2_label,1,y,1,1);
+
+  S2=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(S2),S2_BUTTON);
+  gtk_widget_show(S2);
+  gtk_grid_attach(GTK_GRID(grid),S2,2,y,1,1);
+
+  y++;
+
+  b_enable_S3=gtk_check_button_new_with_label("Enable S3");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_S3), ENABLE_S3_BUTTON);
+  gtk_widget_show(b_enable_S3);
+  gtk_grid_attach(GTK_GRID(grid),b_enable_S3,0,y,1,1);
+
+  S3_label=gtk_label_new("GPIO:");
+  gtk_widget_show(S3_label);
+  gtk_grid_attach(GTK_GRID(grid),S3_label,1,y,1,1);
+
+  S3=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(S3),S3_BUTTON);
+  gtk_widget_show(S3);
+  gtk_grid_attach(GTK_GRID(grid),S3,2,y,1,1);
+
+  y++;
+
+  b_enable_S4=gtk_check_button_new_with_label("Enable S4");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_S4), ENABLE_S4_BUTTON);
+  gtk_widget_show(b_enable_S4);
+  gtk_grid_attach(GTK_GRID(grid),b_enable_S4,0,y,1,1);
+
+  S4_label=gtk_label_new("GPIO:");
+  gtk_widget_show(S4_label);
+  gtk_grid_attach(GTK_GRID(grid),S4_label,1,y,1,1);
+
+  S4=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(S4),S4_BUTTON);
+  gtk_widget_show(S4);
+  gtk_grid_attach(GTK_GRID(grid),S4,2,y,1,1);
+
+  y++;
+
+  b_enable_S5=gtk_check_button_new_with_label("Enable S5");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_S5), ENABLE_S5_BUTTON);
+  gtk_widget_show(b_enable_S5);
+  gtk_grid_attach(GTK_GRID(grid),b_enable_S5,0,y,1,1);
+
+  S5_label=gtk_label_new("GPIO:");
+  gtk_widget_show(S5_label);
+  gtk_grid_attach(GTK_GRID(grid),S5_label,1,y,1,1);
+
+  S5=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(S5),S5_BUTTON);
+  gtk_widget_show(S5);
+  gtk_grid_attach(GTK_GRID(grid),S5,2,y,1,1);
+
+  y++;
+
+  b_enable_S6=gtk_check_button_new_with_label("Enable S6");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_S6), ENABLE_S6_BUTTON);
+  gtk_widget_show(b_enable_S6);
+  gtk_grid_attach(GTK_GRID(grid),b_enable_S6,0,y,1,1);
+
+  S6_label=gtk_label_new("GPIO:");
+  gtk_widget_show(S6_label);
+  gtk_grid_attach(GTK_GRID(grid),S6_label,1,y,1,1);
+
+  S6=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(S6),S6_BUTTON);
+  gtk_widget_show(S6);
+  gtk_grid_attach(GTK_GRID(grid),S6,2,y,1,1);
+
+  y++;
+
+  b_enable_function=gtk_check_button_new_with_label("Enable Function");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_function), ENABLE_FUNCTION_BUTTON);
   gtk_widget_show(b_enable_function);
-  gtk_grid_attach(GTK_GRID(grid),b_enable_function,0,10,1,1);
+  gtk_grid_attach(GTK_GRID(grid),b_enable_function,0,y,1,1);
 
-  GtkWidget *function_label=gtk_label_new("GPIO:");
+  function_label=gtk_label_new("GPIO:");
   gtk_widget_show(function_label);
-  gtk_grid_attach(GTK_GRID(grid),function_label,1,10,1,1);
+  gtk_grid_attach(GTK_GRID(grid),function_label,1,y,1,1);
 
-  GtkWidget *function=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+  function=gtk_spin_button_new_with_range (0.0,100.0,1.0);
   gtk_spin_button_set_value (GTK_SPIN_BUTTON(function),FUNCTION_BUTTON);
   gtk_widget_show(function);
-  gtk_grid_attach(GTK_GRID(grid),function,2,10,1,1);
+  gtk_grid_attach(GTK_GRID(grid),function,2,y,1,1);
+
+  y++;
 
 #ifdef LOCALCW
-  GtkWidget *cwl_label=gtk_label_new("CWL");
+  cwl_label=gtk_label_new("CWL");
   gtk_widget_show(cwl_label);
-  gtk_grid_attach(GTK_GRID(grid),cwl_label,0,11,1,1);
+  gtk_grid_attach(GTK_GRID(grid),cwl_label,0,y,1,1);
 
-  GtkWidget *cwl_gpio_label=gtk_label_new("GPIO:");
+  cwl_gpio_label=gtk_label_new("GPIO:");
   gtk_widget_show(cwl_gpio_label);
-  gtk_grid_attach(GTK_GRID(grid),cwl_gpio_label,1,11,1,1);
+  gtk_grid_attach(GTK_GRID(grid),cwl_gpio_label,1,y,1,1);
 
-  GtkWidget *cwl=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+  cwl=gtk_spin_button_new_with_range (0.0,100.0,1.0);
   gtk_spin_button_set_value (GTK_SPIN_BUTTON(cwl),CWL_BUTTON);
   gtk_widget_show(cwl);
-  gtk_grid_attach(GTK_GRID(grid),cwl,2,11,1,1);
+  gtk_grid_attach(GTK_GRID(grid),cwl,2,y,1,1);
 
-  GtkWidget *cwr_label=gtk_label_new("CWR");
+  y++;
+
+  cwr_label=gtk_label_new("CWR");
   gtk_widget_show(cwr_label);
-  gtk_grid_attach(GTK_GRID(grid),cwr_label,0,12,1,1);
+  gtk_grid_attach(GTK_GRID(grid),cwr_label,0,y,1,1);
 
-  GtkWidget *cwr_gpio_label=gtk_label_new("GPIO:");
+  cwr_gpio_label=gtk_label_new("GPIO:");
   gtk_widget_show(cwr_gpio_label);
-  gtk_grid_attach(GTK_GRID(grid),cwr_gpio_label,1,12,1,1);
+  gtk_grid_attach(GTK_GRID(grid),cwr_gpio_label,1,y,1,1);
 
-  GtkWidget *cwr=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+  cwr=gtk_spin_button_new_with_range (0.0,100.0,1.0);
   gtk_spin_button_set_value (GTK_SPIN_BUTTON(cwr),CWR_BUTTON);
   gtk_widget_show(cwr);
-  gtk_grid_attach(GTK_GRID(grid),cwr,2,12,1,1);
+  gtk_grid_attach(GTK_GRID(grid),cwr,2,y,1,1);
+
+  y++;
 #endif
+  
+  GtkWidget *save_b=gtk_button_new_with_label("Save");
+  g_signal_connect (save_b, "button_press_event", G_CALLBACK(save_cb), NULL);
+  gtk_grid_attach(GTK_GRID(grid),save_b,4,y-1,1,1);
 
+  GtkWidget *cancel_b=gtk_button_new_with_label("Cancel");
+  g_signal_connect (cancel_b, "button_press_event", G_CALLBACK(cancel_cb), NULL);
+  gtk_grid_attach(GTK_GRID(grid),cancel_b,5,y-1,1,1);
 
   gtk_container_add(GTK_CONTAINER(content),grid);
 
-  gtk_container_add(GTK_CONTAINER(content),grid);
-
-  GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close",GTK_RESPONSE_OK);
+/*
+  GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Save",GTK_RESPONSE_OK);
   //gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 20"));
+*/
   gtk_widget_show_all(dialog);
-
   int result=gtk_dialog_run(GTK_DIALOG(dialog));
 
+/*
   ENABLE_VFO_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_vfo_encoder))?1:0;
   VFO_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(vfo_a));
   VFO_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(vfo_b));
   ENABLE_VFO_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_vfo_pullup))?1:0;
-  ENABLE_E1_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_af_encoder))?1:0;
-  E1_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(af_a));
-  E1_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(af_b));
-  ENABLE_E1_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_af_pullup))?1:0;
-  ENABLE_E2_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_rf_encoder))?1:0;
-  E2_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(rf_a));
-  E2_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(rf_b));
-  ENABLE_E2_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_rf_pullup))?1:0;
-  ENABLE_E3_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_agc_encoder))?1:0;
-  E3_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(agc_a));
-  E3_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(agc_b));
-  ENABLE_E3_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_agc_pullup))?1:0;
-  ENABLE_S1_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_band))?1:0;
-  S1_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(band));
-  ENABLE_S2_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_band))?1:0;
-  S2_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(band));
-  ENABLE_S3_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_mode))?1:0;
-  S3_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(mode));
-  ENABLE_S4_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_filter))?1:0;
-  S4_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(filter));
-  ENABLE_S5_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_noise))?1:0;
-  S5_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(noise));
-  ENABLE_S6_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_agc))?1:0;
-  S6_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(agc));
+  ENABLE_E1_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E1_encoder))?1:0;
+  E1_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E1_a));
+  E1_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E1_b));
+  ENABLE_E1_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E1_pullup))?1:0;
+  ENABLE_E2_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E2_encoder))?1:0;
+  E2_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E2_a));
+  E2_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E2_b));
+  ENABLE_E2_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E2_pullup))?1:0;
+  ENABLE_E3_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_S6_encoder))?1:0;
+  E3_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(S6_a));
+  E3_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(S6_b));
+  ENABLE_E3_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_S6_pullup))?1:0;
+  ENABLE_S1_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_S1))?1:0;
+  S1_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(S1));
+  ENABLE_S2_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_S2))?1:0;
+  S2_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(S2));
+  ENABLE_S3_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_S3))?1:0;
+  S3_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(S3));
+  ENABLE_S4_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_S4))?1:0;
+  S4_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(S4));
+  ENABLE_S5_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_S5))?1:0;
+  S5_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(S5));
+  ENABLE_S6_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_S6))?1:0;
+  S6_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(S6));
   ENABLE_MOX_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_mox))?1:0;
   MOX_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(mox));
   ENABLE_FUNCTION_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_function))?1:0;
@@ -343,10 +516,12 @@ void configure_gpio(GtkWidget *parent) {
   CWL_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(cwl));
   CWR_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(cwr));
 #endif
+*/
 
   gtk_widget_destroy(dialog);
 
-  gpio_save_state();
+//  gpio_save_state();
+
 }
 #endif
 

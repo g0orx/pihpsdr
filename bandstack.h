@@ -25,8 +25,7 @@
 * @brief Bandstack definition
 */
 struct _BANDSTACK_ENTRY {
-    long long frequencyA;
-    long long frequencyB;
+    long long frequency;
     int mode;
     int filter;
     int var1Low;

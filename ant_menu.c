@@ -47,14 +47,18 @@ static void rx_ant_cb(GtkWidget *widget, gpointer data) {
   int ant=((int)data)&0xF;
   BAND *band=band_get_band(b);
   band->alexRxAntenna=ant;
-  set_alex_rx_antenna(ant);
+  if(active_receiver->id==0) {
+    set_alex_rx_antenna(ant);
+  }
 }
 
 static void rx_lime_ant_cb(GtkWidget *widget, gpointer data) {
   int ant=((int)data)&0xF;
   BAND *band=band_get_current_band();
   band->alexRxAntenna=ant;
-  set_alex_rx_antenna(ant);
+  if(active_receiver->id==0) {
+    set_alex_rx_antenna(ant);
+  }
 }
 
 static void tx_ant_cb(GtkWidget *widget, gpointer data) {
@@ -62,7 +66,9 @@ static void tx_ant_cb(GtkWidget *widget, gpointer data) {
   int ant=((int)data)&0xF;
   BAND *band=band_get_band(b);
   band->alexTxAntenna=ant;
-  set_alex_tx_antenna(ant);
+  if(active_receiver->id==0) {
+    set_alex_tx_antenna(ant);
+  }
 }
 
 void ant_menu(GtkWidget *parent) {

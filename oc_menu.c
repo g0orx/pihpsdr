@@ -48,11 +48,16 @@ static void oc_rx_cb(GtkWidget *widget, gpointer data) {
   int b=((int)data)>>4;
   int oc=((int)data)&0xF;
   BAND *band=band_get_band(b);
-  int mask=0x01<<oc;
+  int mask=0x01<<(oc-1);
+fprintf(stderr,"oc_rx_cb: band=%d oc=%d mask=%d\n",b,oc,mask);
   if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
     band->OCrx|=mask;
   } else {
     band->OCrx&=~mask;
+  }
+
+  if(protocol==NEW_PROTOCOL) {
+    schedule_high_priority();
   }
 }
 
@@ -60,17 +65,24 @@ static void oc_tx_cb(GtkWidget *widget, gpointer data) {
   int b=((int)data)>>4;
   int oc=((int)data)&0xF;
   BAND *band=band_get_band(b);
-  int mask=0x01<<oc;
+  int mask=0x01<<(oc-1);
+
+fprintf(stderr,"oc_tx_cb: band=%d oc=%d mask=%d\n",b,oc,mask);
+
   if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
     band->OCtx|=mask;
   } else {
     band->OCtx&=~mask;
   }
+  if(protocol==NEW_PROTOCOL) {
+    schedule_high_priority();
+  }
 }
 
 static void oc_tune_cb(GtkWidget *widget, gpointer data) {
   int oc=((int)data)&0xF;
-  int mask=0x01<<oc;
+  int mask=0x01<<(oc-1);
+fprintf(stderr,"oc_tune_cb: oc=%d mask=%d\n",oc,mask);
   if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
     OCtune|=mask;
   } else {
@@ -157,7 +169,7 @@ void oc_menu(GtkWidget *parent) {
 
     int mask;
     for(j=1;j<8;j++) {
-      mask=0x01<<j;
+      mask=0x01<<(j-1);
       GtkWidget *oc_rx_b=gtk_check_button_new();
       //gtk_widget_override_font(oc_rx_b, pango_font_description_from_string("Arial 18"));
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (oc_rx_b), (band->OCrx&mask)==mask);
@@ -184,7 +196,7 @@ void oc_menu(GtkWidget *parent) {
     gtk_widget_show(oc_tune_title);
     gtk_grid_attach(GTK_GRID(grid),oc_tune_title,18,j+1,1,1);
 
-    mask=0x01<<j;
+    mask=0x01<<(j-1);
     GtkWidget *oc_tune_b=gtk_check_button_new();
     //gtk_widget_override_font(oc_tune_b, pango_font_description_from_string("Arial 18"));
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (oc_tune_b), (OCtune&mask)==mask);

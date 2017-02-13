@@ -35,9 +35,10 @@
 #include <net/if_arp.h>
 #include <net/if.h>
 #include <ifaddrs.h>
-#include <pthread.h>
 #include <semaphore.h>
 #include <math.h>
+
+#include <wdsp.h>
 
 #include "alex.h"
 #include "audio.h"
@@ -45,14 +46,14 @@
 #include "new_protocol.h"
 #include "channel.h"
 #include "discovered.h"
-#include "wdsp.h"
 #include "mode.h"
 #include "filter.h"
 #include "radio.h"
+#include "receiver.h"
+#include "transmitter.h"
 #include "signal.h"
 #include "vfo.h"
 #include "toolbar.h"
-#include "wdsp_init.h"
 #ifdef FREEDV
 #include "freedv.h"
 #endif
@@ -89,11 +90,11 @@ static int audio_addr_length;
 static struct sockaddr_in iq_addr;
 static int iq_addr_length;
 
-static struct sockaddr_in data_addr[RECEIVERS];
-static int data_addr_length[RECEIVERS];
+static struct sockaddr_in data_addr[MAX_RECEIVERS];
+static int data_addr_length[MAX_RECEIVERS];
 
-static pthread_t new_protocol_thread_id;
-static pthread_t new_protocol_timer_thread_id;
+static GThread *new_protocol_thread_id;
+static GThread *new_protocol_timer_thread_id;
 
 static long rx_sequence = 0;
 
@@ -102,18 +103,18 @@ static long general_sequence = 0;
 static long rx_specific_sequence = 0;
 static long tx_specific_sequence = 0;
 
-static int buffer_size=BUFFER_SIZE;
-static int fft_size=4096;
+//static int buffer_size=BUFFER_SIZE;
+//static int fft_size=4096;
 static int dspRate=48000;
 static int outputRate=48000;
 
 static int micSampleRate=48000;
 static int micDspRate=48000;
 static int micOutputRate=192000;
-static int micoutputsamples=BUFFER_SIZE*4;  // 48000 in, 192000 out
+static int micoutputsamples;  // 48000 in, 192000 out
 
-static double micinputbuffer[BUFFER_SIZE*2]; // 48000
-static double iqoutputbuffer[BUFFER_SIZE*4*2]; //192000
+static double micinputbuffer[MAX_BUFFER_SIZE*2]; // 48000
+static double iqoutputbuffer[MAX_BUFFER_SIZE*4*2]; //192000
 
 static long tx_iq_sequence;
 static unsigned char iqbuffer[1444];
@@ -133,11 +134,10 @@ static int send_high_priority=0;
 static sem_t send_general_sem;
 static int send_general=0;
 
-static int samples[RECEIVERS];
-static int outputsamples=BUFFER_SIZE;
-
-static double iqinputbuffer[RECEIVERS][BUFFER_SIZE*2];
-static double audiooutputbuffer[BUFFER_SIZE*2];
+static int samples[MAX_RECEIVERS];
+#ifdef INCLUDED
+static int outputsamples;
+#endif
 
 static int leftaudiosample;
 static int rightaudiosample;
@@ -158,40 +158,48 @@ static int psk_samples=0;
 static int psk_resample=6;  // convert from 48000 to 8000
 #endif
 
+static struct sockaddr_in addr;
+static int length;
+static unsigned char buffer[2048];
+static int bytesread;
+
 static void new_protocol_high_priority(int run);
-static void* new_protocol_thread(void* arg);
-static void* new_protocol_timer_thread(void* arg);
-static void  process_iq_data(int rx,unsigned char *buffer);
+//static void* new_protocol_thread(void* arg);
+static gpointer new_protocol_thread(gpointer data);
+//static void* new_protocol_timer_thread(void* arg);
+static gpointer new_protocol_timer_thread(gpointer data);
+static void  process_iq_data(RECEIVER *rx,unsigned char *buffer);
 static void  process_command_response(unsigned char *buffer);
 static void  process_high_priority(unsigned char *buffer);
-static void  process_mic_data(unsigned char *buffer);
-static void full_rx_buffer();
+static void  process_mic_data(unsigned char *buffer,int bytes);
 static void full_tx_buffer();
 
+#ifdef INCLUDED
 static void new_protocol_calc_buffers() {
   switch(sample_rate) {
     case 48000:
-      outputsamples=BUFFER_SIZE;
+      outputsamples=buffer_size;
       break;
     case 96000:
-      outputsamples=BUFFER_SIZE/2;
+      outputsamples=buffer_size/2;
       break;
     case 192000:
-      outputsamples=BUFFER_SIZE/4;
+      outputsamples=buffer_size/4;
       break;
     case 384000:
-      outputsamples=BUFFER_SIZE/8;
+      outputsamples=buffer_size/8;
       break;
     case 768000:
-      outputsamples=BUFFER_SIZE/16;
+      outputsamples=buffer_size/16;
       break;
     case 1536000:
-      outputsamples=BUFFER_SIZE/32;
+      outputsamples=buffer_size/32;
       break;
   }
 }
+#endif
 
-void schedule_high_priority(int source) {
+void schedule_high_priority() {
     sem_wait(&send_high_priority_sem);
     send_high_priority=1;
     sem_post(&send_high_priority_sem);
@@ -229,42 +237,46 @@ void new_protocol_init(int pixels) {
     int rc;
     spectrumWIDTH=pixels;
 
-    fprintf(stderr,"new_protocol_init\n");
+    fprintf(stderr,"new_protocol_init: MIC_SAMPLES=%d\n",MIC_SAMPLES);
 
+#ifdef INCLUDED
+    outputsamples=buffer_size;
+#endif
+    micoutputsamples=buffer_size*4;
+
+#ifdef OLD_AUDIO
     if(local_audio) {
       if(audio_open_output()!=0) {
         fprintf(stderr,"audio_open_output failed\n");
         local_audio=0;
       }
     }
+#endif
 
-    if(local_microphone) {
+    if(transmitter->local_microphone) {
       if(audio_open_input()!=0) {
         fprintf(stderr,"audio_open_input failed\n");
-        local_microphone=0;
+        transmitter->local_microphone=0;
       }
     }
 
+#ifdef INCLUDED
     new_protocol_calc_buffers();
+#endif
 
     rc=sem_init(&response_sem, 0, 0);
     rc=sem_init(&send_high_priority_sem, 0, 1);
     rc=sem_init(&send_general_sem, 0, 1);
 
-    rc=pthread_create(&new_protocol_thread_id,NULL,new_protocol_thread,NULL);
-    if(rc != 0) {
-        fprintf(stderr,"pthread_create failed on new_protocol_thread: rc=%d\n", rc);
-        exit(-1);
+    new_protocol_thread_id = g_thread_new( "new protocol", new_protocol_thread, NULL);
+    if( ! new_protocol_thread_id )
+    {
+        fprintf(stderr,"g_thread_new failed on new_protocol_thread\n");
+        exit( -1 );
     }
+    fprintf(stderr, "new_protocol_thread: id=%p\n",new_protocol_thread_id);
 
-}
 
-void new_protocol_new_sample_rate(int rate) {
-  new_protocol_high_priority(0);
-  sample_rate=rate;
-  new_protocol_calc_buffers();
-  wdsp_new_sample_rate(rate);
-  new_protocol_high_priority(1);
 }
 
 static void new_protocol_general() {
@@ -291,12 +303,18 @@ static void new_protocol_general() {
     }
 
     if(filter_board==APOLLO) {
-        buffer[58]|=0x02; // enable APOLLO tuner
+      buffer[58]|=0x02; // enable APOLLO tuner
     }
 
     if(filter_board==ALEX) {
+      if(device==NEW_DEVICE_ORION2) {
+        buffer[59]=0x03;  // enable Alex 0 and 1
+      } else {
         buffer[59]=0x01;  // enable Alex 0
+      }
     }
+
+fprintf(stderr,"Alex Enable=%02X\n",buffer[59]);
 
     if(sendto(data_socket,buffer,sizeof(buffer),0,(struct sockaddr*)&base_addr,base_addr_length)<0) {
         fprintf(stderr,"sendto socket failed for general\n");
@@ -307,9 +325,13 @@ static void new_protocol_general() {
 }
 
 static void new_protocol_high_priority(int run) {
-    int r;
+    int i, r;
     unsigned char buffer[1444];
-    BAND *band=band_get_current_band();
+    BAND *band;
+    long long rxFrequency;
+    long long txFrequency;
+    long phase;
+    int mode;
 
     memset(buffer, 0, sizeof(buffer));
 
@@ -318,6 +340,11 @@ static void new_protocol_high_priority(int run) {
     buffer[2]=high_priority_sequence>>8;
     buffer[3]=high_priority_sequence;
 
+    if(split) {
+      mode=vfo[1].mode;
+    } else {
+      mode=vfo[0].mode;
+    }
     buffer[4]=run;
     if(mode==modeCWU || mode==modeCWL) {
       if(tune) {
@@ -340,28 +367,38 @@ static void new_protocol_high_priority(int run) {
       }
     }
 
-    long rxFrequency=ddsFrequency;
-    if(mode==modeCWU) {
-      rxFrequency-=cw_keyer_sidetone_frequency;
-    } else if(mode==modeCWL) {
-      rxFrequency+=cw_keyer_sidetone_frequency;
-    }
-    long phase=(long)((4294967296.0*(double)rxFrequency)/122880000.0);
-
 // rx
 
     for(r=0;r<receivers;r++) {
-      buffer[9+(r*4)]=phase>>24;
-      buffer[10+(r*4)]=phase>>16;
-      buffer[11+(r*4)]=phase>>8;
-      buffer[12+(r*4)]=phase;
+      //long long rxFrequency=ddsFrequency;
+      //rxFrequency=receiver[r]->dds_frequency;
+      int v=receiver[r]->id;
+      rxFrequency=vfo[v].frequency-vfo[v].lo+vfo[v].rit;
+
+      if(vfo[v].mode==modeCWU) {
+        rxFrequency-=cw_keyer_sidetone_frequency;
+      } else if(vfo[v].mode==modeCWL) {
+        rxFrequency+=cw_keyer_sidetone_frequency;
+      }
+      phase=(long)((4294967296.0*(double)rxFrequency)/122880000.0);
+
+      i=r;
+      //if(device==NEW_DEVICE_ORION2 && r==1) i=3;
+      buffer[9+(i*4)]=phase>>24;
+      buffer[10+(i*4)]=phase>>16;
+      buffer[11+(i*4)]=phase>>8;
+      buffer[12+(i*4)]=phase;
     }
 
-// tx (no split yet)
-    long long txFrequency=ddsFrequency;
-    if(ctun) {
-      txFrequency+=ddsOffset;
+    // tx
+    band=band_get_band(vfo[VFO_A].band);
+    rxFrequency=vfo[VFO_A].frequency-vfo[VFO_A].lo;
+    txFrequency=vfo[VFO_A].frequency-vfo[VFO_A].lo;
+    if(split) {
+      band=band_get_band(vfo[VFO_B].band);
+      txFrequency=vfo[VFO_B].frequency-vfo[VFO_B].lo;
     }
+
     phase=(long)((4294967296.0*(double)txFrequency)/122880000.0);
 
     buffer[329]=phase>>24;
@@ -381,21 +418,38 @@ static void new_protocol_high_priority(int run) {
     buffer[345]=power&0xFF;
 
     if(isTransmitting()) {
-      buffer[1401]=band->OCtx;
+
+      if(split) {
+        band=band_get_band(vfo[VFO_B].band);
+      } else {
+        band=band_get_band(vfo[VFO_A].band);
+      }
+      buffer[1401]=band->OCtx<<1;
       if(tune) {
         if(OCmemory_tune_time!=0) {
           struct timeval te;
           gettimeofday(&te,NULL);
           long long now=te.tv_sec*1000LL+te.tv_usec/1000;
           if(tune_timeout>now) {
-            buffer[1401]|=OCtune;
+            buffer[1401]|=OCtune<<1;
           }
         } else {
-          buffer[1401]|=OCtune;
+          buffer[1401]|=OCtune<<1;
         }
       }
     } else {
-      buffer[1401]=band->OCrx;
+      band=band_get_band(vfo[VFO_A].band);
+      buffer[1401]=band->OCrx<<1;
+    }
+
+    if((protocol==ORIGINAL_PROTOCOL && device==DEVICE_METIS) ||
+#ifdef USBOZY
+       (protocol==ORIGINAL_PROTOCOL && device==DEVICE_OZY) ||
+#endif
+       (protocol==NEW_PROTOCOL && device==NEW_DEVICE_ATLAS)) {
+      for(r=0;r<receivers;r++) {
+        buffer[1403]|=receiver[i]->preamp;
+      }
     }
 
 
@@ -405,59 +459,41 @@ static void new_protocol_high_priority(int run) {
       filters=0x08000000;
     }
 
-// Alex RX HPF filters
-/*
-if              (frequency <  1800000) HPF <= 6'b100000;        // bypass
-else if (frequency <  6500000) HPF <= 6'b010000;        // 1.5MHz HPF   
-else if (frequency <  9500000) HPF <= 6'b001000;        // 6.5MHz HPF
-else if (frequency < 13000000) HPF <= 6'b000100;        // 9.5MHz HPF
-else if (frequency < 20000000) HPF <= 6'b000001;        // 13MHz HPF
-else                                               HPF <= 6'b000010;    // 20MHz HPF
-*/
-
-    if(ddsFrequency<1800000L) {
+    if(rxFrequency<1800000L) {
         filters|=ALEX_BYPASS_HPF;
-    } else if(ddsFrequency<6500000L) {
+    } else if(rxFrequency<6500000L) {
         filters|=ALEX_1_5MHZ_HPF;
-    } else if(ddsFrequency<9500000L) {
+    } else if(rxFrequency<9500000L) {
         filters|=ALEX_6_5MHZ_HPF;
-    } else if(ddsFrequency<13000000L) {
+    } else if(rxFrequency<13000000L) {
         filters|=ALEX_9_5MHZ_HPF;
-    } else if(ddsFrequency<20000000L) {
+    } else if(rxFrequency<20000000L) {
         filters|=ALEX_13MHZ_HPF;
     } else {
         filters|=ALEX_20MHZ_HPF;
     }
 
-// Alex TX LPF filters
-/*
-if (frequency > 32000000)   LPF <= 7'b0010000;             // > 10m so use 6m LPF^M
-else if (frequency > 22000000) LPF <= 7'b0100000;       // > 15m so use 12/10m LPF^M
-else if (frequency > 15000000) LPF <= 7'b1000000;       // > 20m so use 17/15m LPF^M
-else if (frequency > 8000000)  LPF <= 7'b0000001;       // > 40m so use 30/20m LPF  ^M
-else if (frequency > 4500000)  LPF <= 7'b0000010;       // > 80m so use 60/40m LPF^M
-else if (frequency > 2400000)  LPF <= 7'b0000100;       // > 160m so use 80m LPF  ^M
-else LPF <= 7'b0001000;             // < 2.4MHz so use 160m LPF^M
-*/
+    if(rxFrequency>30000000L) {
+        filters|=ALEX_6M_PREAMP;
+    }
 
-    if(ddsFrequency>32000000) {
+    if(txFrequency>32000000) {
         filters|=ALEX_6_BYPASS_LPF;
-    } else if(ddsFrequency>22000000) {
+    } else if(txFrequency>22000000) {
         filters|=ALEX_12_10_LPF;
-    } else if(ddsFrequency>15000000) {
+    } else if(txFrequency>15000000) {
         filters|=ALEX_17_15_LPF;
-    } else if(ddsFrequency>8000000) {
+    } else if(txFrequency>8000000) {
         filters|=ALEX_30_20_LPF;
-    } else if(ddsFrequency>4500000) {
+    } else if(txFrequency>4500000) {
         filters|=ALEX_60_40_LPF;
-    } else if(ddsFrequency>2400000) {
+    } else if(txFrequency>2400000) {
         filters|=ALEX_80_LPF;
     } else {
         filters|=ALEX_160_LPF;
     }
 
-
-    switch(band->alexRxAntenna) {
+    switch(receiver[0]->alex_antenna) {
         case 0:  // ANT 1
           break;
         case 1:  // ANT 2
@@ -480,7 +516,7 @@ else LPF <= 7'b0001000;             // < 2.4MHz so use 160m LPF^M
     }
 
     if(isTransmitting()) {
-      switch(band->alexTxAntenna) {
+      switch(transmitter->alex_antenna) {
         case 0:  // ANT 1
           filters|=ALEX_TX_ANTENNA_1;
           break;
@@ -498,7 +534,7 @@ else LPF <= 7'b0001000;             // < 2.4MHz so use 160m LPF^M
          
       }
     } else {
-      switch(band->alexRxAntenna) {
+      switch(receiver[0]->alex_antenna) {
         case 0:  // ANT 1
           filters|=ALEX_TX_ANTENNA_1;
           break;
@@ -511,7 +547,7 @@ else LPF <= 7'b0001000;             // < 2.4MHz so use 160m LPF^M
         case 3:  // EXT 1
         case 4:  // EXT 2
         case 5:  // XVTR
-          switch(band->alexTxAntenna) {
+          switch(transmitter->alex_antenna) {
             case 0:  // ANT 1
               filters|=ALEX_TX_ANTENNA_1;
               break;
@@ -530,12 +566,44 @@ else LPF <= 7'b0001000;             // < 2.4MHz so use 160m LPF^M
     buffer[1433]=(filters>>16)&0xFF;
     buffer[1434]=(filters>>8)&0xFF;
     buffer[1435]=filters&0xFF;
+//fprintf(stderr,"HPF: 0: %02X %02X for %lld\n",buffer[1434],buffer[1435],rxFrequency);
 
-    //buffer[1442]=attenuation;
-    buffer[1443]=attenuation;
+    filters=0x00000000;
+    rxFrequency=vfo[VFO_B].frequency-vfo[VFO_B].lo;
+    if(rxFrequency<1800000L) {
+        filters|=ALEX_BYPASS_HPF;
+    } else if(rxFrequency<6500000L) {
+        filters|=ALEX_1_5MHZ_HPF;
+    } else if(rxFrequency<9500000L) {
+        filters|=ALEX_6_5MHZ_HPF;
+    } else if(rxFrequency<13000000L) {
+        filters|=ALEX_9_5MHZ_HPF;
+    } else if(rxFrequency<20000000L) {
+        filters|=ALEX_13MHZ_HPF;
+    } else {
+        filters|=ALEX_20MHZ_HPF;
+    }
 
-//fprintf(stderr,"high_priority[4]=0x%02X\n", buffer[4]);
-//fprintf(stderr,"filters=%04X\n", filters);
+    if(rxFrequency>30000000L) {
+        filters|=ALEX_6M_PREAMP;
+    }
+
+
+    buffer[1428]=(filters>>24)&0xFF;
+    buffer[1429]=(filters>>16)&0xFF;
+    buffer[1430]=(filters>>8)&0xFF;
+    buffer[1431]=filters&0xFF;
+
+//fprintf(stderr,"HPF: 1: %02X %02X for %lld\n",buffer[1430],buffer[1431],rxFrequency);
+// rx_frequency
+
+//fprintf(stderr,"new_protocol_high_priority: OC=%02X filters=%04X for frequency=%lld\n", buffer[1401], filters, rxFrequency);
+
+    for(r=0;r<receivers;r++) {
+      i=r;
+      //if(device==NEW_DEVICE_ORION2 && r==1) i=3;
+      buffer[1443-i]=receiver[r]->attenuation;
+    }
 
     if(sendto(data_socket,buffer,sizeof(buffer),0,(struct sockaddr*)&high_priority_addr,high_priority_addr_length)<0) {
         fprintf(stderr,"sendto socket failed for high priority\n");
@@ -547,6 +615,7 @@ else LPF <= 7'b0001000;             // < 2.4MHz so use 160m LPF^M
 
 static void new_protocol_transmit_specific() {
     unsigned char buffer[60];
+    int mode;
 
     memset(buffer, 0, sizeof(buffer));
 
@@ -555,6 +624,11 @@ static void new_protocol_transmit_specific() {
     buffer[2]=tx_specific_sequence>>8;
     buffer[3]=tx_specific_sequence;
 
+    if(split) {
+      mode=vfo[1].mode;
+    } else {
+      mode=vfo[0].mode;
+    }
     buffer[4]=1; // 1 DAC
     buffer[5]=0; //  default no CW
     // may be using local pihpsdr OR hpsdr CW
@@ -581,10 +655,12 @@ static void new_protocol_transmit_specific() {
     }
 
     buffer[6]=cw_keyer_sidetone_volume; // sidetone off
-    buffer[7]=cw_keyer_sidetone_frequency>>8; buffer[8]=cw_keyer_sidetone_frequency; // sidetone frequency
+    buffer[7]=cw_keyer_sidetone_frequency>>8;
+    buffer[8]=cw_keyer_sidetone_frequency; // sidetone frequency
     buffer[9]=cw_keyer_speed; // cw keyer speed
     buffer[10]=cw_keyer_weight; // cw weight
-    buffer[11]=cw_keyer_hang_time>>8; buffer[12]=cw_keyer_hang_time; // cw hang delay
+    buffer[11]=cw_keyer_hang_time>>8;
+    buffer[12]=cw_keyer_hang_time; // cw hang delay
     buffer[13]=0; // rf delay
     buffer[50]=0;
     if(mic_linein) {
@@ -593,14 +669,14 @@ static void new_protocol_transmit_specific() {
     if(mic_boost) {
       buffer[50]|=0x02;
     }
-    if(mic_ptt_enabled==0) {
+    if(mic_ptt_enabled==0) {  // set if disabled
       buffer[50]|=0x04;
-    }
-    if(mic_bias_enabled) {
-      buffer[50]|=0x10;
     }
     if(mic_ptt_tip_bias_ring) {
       buffer[50]|=0x08;
+    }
+    if(mic_bias_enabled) {
+      buffer[50]|=0x10;
     }
 
     // 0..31
@@ -627,34 +703,19 @@ static void new_protocol_receive_specific() {
     buffer[3]=rx_specific_sequence;
 
     buffer[4]=2; // 2 ADCs
-    buffer[5]=0; // dither off
-    if(lt2208Dither) {
-      for(i=0;i<receivers;i++) {
-        buffer[5]|=0x01<<i;
-      }
-    }
-    buffer[6]=0; // random off
-    if(lt2208Random) {
-      for(i=0;i<receivers;i++) {
-        buffer[6]|=0x01<<i;
-      }
-    }
-    buffer[7]=0x00;
+
     for(i=0;i<receivers;i++) {
-      buffer[7]|=(1<<i);
-    }
-       
-    for(i=0;i<receivers;i++) {
-      buffer[17+(i*6)]=adc[i];
+      int r=i;
+      //if(device==NEW_DEVICE_ORION2 && r==1) r=3;
+      buffer[5]|=receiver[i]->dither<<r; // dither enable
+      buffer[6]|=receiver[i]->random<<r; // random enable
+      buffer[7]|=(1<<r); // DDC enbale
+      buffer[17+(r*6)]=receiver[i]->adc;
+      buffer[18+(r*6)]=((receiver[i]->sample_rate/1000)>>8)&0xFF;
+      buffer[19+(r*6)]=(receiver[i]->sample_rate/1000)&0xFF;
+      buffer[22+(r*6)]=24;
     }
 
-    buffer[18]=((sample_rate/1000)>>8)&0xFF;
-    buffer[19]=(sample_rate/1000)&0xFF;
-    buffer[22]=24;
-
-    buffer[24]=((sample_rate/1000)>>8)&0xFF;
-    buffer[25]=(sample_rate/1000)&0xFF;
-    buffer[28]=24;
 
     if(sendto(data_socket,buffer,sizeof(buffer),0,(struct sockaddr*)&receiver_addr,receiver_addr_length)<0) {
         fprintf(stderr,"sendto socket failed for start\n");
@@ -668,17 +729,23 @@ static void new_protocol_start() {
     running=1;
     new_protocol_transmit_specific();
     new_protocol_receive_specific();
-    int rc=pthread_create(&new_protocol_timer_thread_id,NULL,new_protocol_timer_thread,NULL);
-    if(rc != 0) {
-        fprintf(stderr,"pthread_create failed on new_protocol_timer_thread: %d\n", rc);
-        exit(-1);
+    new_protocol_timer_thread_id = g_thread_new( "new protocol timer", new_protocol_timer_thread, NULL);
+    if( ! new_protocol_timer_thread_id )
+    {
+        fprintf(stderr,"g_thread_new failed on new_protocol_timer_thread\n");
+        exit( -1 );
     }
+    fprintf(stderr, "new_protocol_timer_thread: id=%p\n",new_protocol_timer_thread_id);
+
 }
 
 void new_protocol_stop() {
     new_protocol_high_priority(0);
-    running=0;
-    sleep(1);
+    usleep(100000); // 100 ms
+}
+
+void new_protocol_run() {
+    new_protocol_high_priority(1);
 }
 
 double calibrate(int v) {
@@ -689,13 +756,10 @@ double calibrate(int v) {
     return (v1*v1)/0.095;
 }
 
-void* new_protocol_thread(void* arg) {
+//void* new_protocol_thread(void* arg) {
+static gpointer new_protocol_thread(gpointer data) {
 
     int i;
-    struct sockaddr_in addr;
-    int length;
-    unsigned char buffer[2048];
-    int bytesread;
     short sourceport;
 
 fprintf(stderr,"new_protocol_thread\n");
@@ -704,7 +768,6 @@ fprintf(stderr,"new_protocol_thread\n");
     iqindex=4;
 
 
-fprintf(stderr,"outputsamples=%d\n", outputsamples);
     data_socket=socket(PF_INET,SOCK_DGRAM,IPPROTO_UDP);
     if(data_socket<0) {
         fprintf(stderr,"metis: create socket failed for data_socket\n");
@@ -745,7 +808,7 @@ fprintf(stderr,"outputsamples=%d\n", outputsamples);
     iq_addr.sin_port=htons(TX_IQ_FROM_HOST_PORT);
 
    
-    for(i=0;i<RECEIVERS;i++) {
+    for(i=0;i<MAX_RECEIVERS;i++) {
         memcpy(&data_addr[i],&radio->info.network.address,radio->info.network.address_length);
         data_addr_length[i]=radio->info.network.address_length;
         data_addr[i].sin_port=htons(RX_IQ_TO_HOST_PORT_0+i);
@@ -779,7 +842,11 @@ fprintf(stderr,"outputsamples=%d\n", outputsamples);
             case RX_IQ_TO_HOST_PORT_5:
             case RX_IQ_TO_HOST_PORT_6:
             case RX_IQ_TO_HOST_PORT_7:
-              process_iq_data(sourceport-RX_IQ_TO_HOST_PORT_0,buffer);
+              i=sourceport-RX_IQ_TO_HOST_PORT_0;
+              //if(device==NEW_DEVICE_ORION2 && i==3) {
+              //  i=1;
+              //}
+              process_iq_data(receiver[i],buffer);
               break;
             case COMMAND_RESPONCE_TO_HOST_PORT:
               process_command_response(buffer);
@@ -788,8 +855,8 @@ fprintf(stderr,"outputsamples=%d\n", outputsamples);
               process_high_priority(buffer);
               break;
             case MIC_LINE_TO_HOST_PORT:
-              if(!local_microphone) {
-                process_mic_data(buffer);
+              if(!transmitter->local_microphone) {
+                process_mic_data(buffer,bytesread);
               }
               break;
             default:
@@ -797,19 +864,19 @@ fprintf(stderr,"outputsamples=%d\n", outputsamples);
         }
 
         if(running) {
-           sem_wait(&send_general_sem);
-           if(send_general==1) {
-               new_protocol_general();
-               send_general=0;
-           }
-           sem_post(&send_general_sem);
-
            sem_wait(&send_high_priority_sem);
            if(send_high_priority==1) {
                new_protocol_high_priority(1);
                send_high_priority=0;
            }
            sem_post(&send_high_priority_sem);
+
+           sem_wait(&send_general_sem);
+           if(send_general==1) {
+               new_protocol_general();
+               send_general=0;
+           }
+           sem_post(&send_general_sem);
        }
         
     }
@@ -817,47 +884,39 @@ fprintf(stderr,"outputsamples=%d\n", outputsamples);
     close(data_socket);
 }
 
-static void process_iq_data(int rx,unsigned char *buffer) {
-    long sequence;
-    long long timestamp;
-    int bitspersample;
-    int samplesperframe;
-    int b;
-    int leftsample;
-    int rightsample;
-    double leftsampledouble;
-    double rightsampledouble;
+static void process_iq_data(RECEIVER *rx,unsigned char *buffer) {
+  long sequence;
+  long long timestamp;
+  int bitspersample;
+  int samplesperframe;
+  int b;
+  int leftsample;
+  int rightsample;
+  double leftsampledouble;
+  double rightsampledouble;
 
-    sequence=((buffer[0]&0xFF)<<24)+((buffer[1]&0xFF)<<16)+((buffer[2]&0xFF)<<8)+(buffer[3]&0xFF);
-    timestamp=((long long)(buffer[4]&0xFF)<<56)+((long long)(buffer[5]&0xFF)<<48)+((long long)(buffer[6]&0xFF)<<40)+((long long)(buffer[7]&0xFF)<<32);
-    ((long long)(buffer[8]&0xFF)<<24)+((long long)(buffer[9]&0xFF)<<16)+((long long)(buffer[10]&0xFF)<<8)+(long long)(buffer[11]&0xFF);
-    bitspersample=((buffer[12]&0xFF)<<8)+(buffer[13]&0xFF);
-    samplesperframe=((buffer[14]&0xFF)<<8)+(buffer[15]&0xFF);
+  sequence=((buffer[0]&0xFF)<<24)+((buffer[1]&0xFF)<<16)+((buffer[2]&0xFF)<<8)+(buffer[3]&0xFF);
+  timestamp=((long long)(buffer[4]&0xFF)<<56)+((long long)(buffer[5]&0xFF)<<48)+((long long)(buffer[6]&0xFF)<<40)+((long long)(buffer[7]&0xFF)<<32);
+  ((long long)(buffer[8]&0xFF)<<24)+((long long)(buffer[9]&0xFF)<<16)+((long long)(buffer[10]&0xFF)<<8)+(long long)(buffer[11]&0xFF);
+  bitspersample=((buffer[12]&0xFF)<<8)+(buffer[13]&0xFF);
+  samplesperframe=((buffer[14]&0xFF)<<8)+(buffer[15]&0xFF);
 
-    //if(!isTransmitting()) {
-        b=16;
-        int i;
-        for(i=0;i<samplesperframe;i++) {
-            leftsample   = (int)((signed char) buffer[b++]) << 16;
-            leftsample  += (int)((unsigned char)buffer[b++]) << 8;
-            leftsample  += (int)((unsigned char)buffer[b++]);
-            rightsample  = (int)((signed char) buffer[b++]) << 16;
-            rightsample += (int)((unsigned char)buffer[b++]) << 8;
-            rightsample += (int)((unsigned char)buffer[b++]);
+//fprintf(stderr,"process_iq_data: rx=%d seq=%ld bitspersample=%d samplesperframe=%d\n",rx->id, sequence,bitspersample,samplesperframe);
+  b=16;
+  int i;
+  for(i=0;i<samplesperframe;i++) {
+    leftsample   = (int)((signed char) buffer[b++])<<16;
+    leftsample  |= (int)((((unsigned char)buffer[b++])<<8)&0xFF00);
+    leftsample  |= (int)((unsigned char)buffer[b++]&0xFF);
+    rightsample  = (int)((signed char)buffer[b++]) << 16;
+    rightsample |= (int)((((unsigned char)buffer[b++])<<8)&0xFF00);
+    rightsample |= (int)((unsigned char)buffer[b++]&0xFF);
 
-            leftsampledouble=(double)leftsample/8388607.0; // for 24 bits
-            rightsampledouble=(double)rightsample/8388607.0; // for 24 bits
+    leftsampledouble=(double)leftsample/8388607.0; // for 24 bits
+    rightsampledouble=(double)rightsample/8388607.0; // for 24 bits
 
-            iqinputbuffer[rx][samples[rx]*2]=leftsampledouble;
-            iqinputbuffer[rx][(samples[rx]*2)+1]=rightsampledouble;
-
-            samples[rx]++;
-            if(samples[rx]==BUFFER_SIZE) {
-                full_rx_buffer(rx);
-                samples[rx]=0;
-            }
-       }
-  //}
+    add_iq_samples(rx, leftsampledouble,rightsampledouble);
+  }
 }
 
 static void process_command_response(unsigned char *buffer) {
@@ -907,361 +966,104 @@ if(dash!=previous_dash) {
 
 }
 
-static void process_mic_data(unsigned char *buffer) {
-    long sequence;
-    int b;
-    int micsample;
-    double micsampledouble;
-    double gain=pow(10, mic_gain/20.0);
+static void process_mic_data(unsigned char *buffer,int bytes) {
+  long sequence;
+  int b;
+  short sample;
 
-    sequence=((buffer[0]&0xFF)<<24)+((buffer[1]&0xFF)<<16)+((buffer[2]&0xFF)<<8)+(buffer[3]&0xFF);
-//    if(isTransmitting()) {
-        b=4;
-        int i,j,s;
-        for(i=0;i<MIC_SAMPLES;i++) {
-            micsample  = (int)((signed char) buffer[b++]) << 8;
-            micsample  |= (int)((unsigned char)buffer[b++] & 0xFF);
-            micsampledouble = (1.0 / 2147483648.0) * (double)(micsample<<16);
-#ifdef FREEDV
-            if(mode==modeFREEDV && isTransmitting()) {
-                if(freedv_samples==0) { // 48K to 8K
-                    int sample=(int)((double)micsample*pow(10.0, mic_gain / 20.0));
-                    int modem_samples=mod_sample_freedv(sample);
-                    if(modem_samples!=0) {
-                      for(s=0;s<modem_samples;s++) {
-                        for(j=0;j<freedv_resample;j++) {  // 8K to 48K
-                          micsample=mod_out[s];
-                          micsampledouble = (1.0 / 2147483648.0) * (double)(micsample<<16);
-                          micinputbuffer[micsamples*2]=micsampledouble;
-                          micinputbuffer[(micsamples*2)+1]=micsampledouble;
-                          micsamples++;
-                          if(micsamples==BUFFER_SIZE) {
-                            full_tx_buffer();
-                            micsamples=0;
-                          }
-                        }
-                      }
-                    }
-               }
-               freedv_samples++;
-               if(freedv_samples==freedv_resample) {
-                   freedv_samples=0;
-               }
-            } else {
-#endif
-               if(mode==modeCWL || mode==modeCWU || tune /*|| !isTransmitting()*/) {
-                   micinputbuffer[micsamples*2]=0.0;
-                   micinputbuffer[(micsamples*2)+1]=0.0;
-               } else {
-                   micinputbuffer[micsamples*2]=micsampledouble;
-                   micinputbuffer[(micsamples*2)+1]=micsampledouble;
-               }
-
-               micsamples++;
-
-               if(micsamples==BUFFER_SIZE) {
-                   full_tx_buffer();
-                   micsamples=0;
-               }
-#ifdef FREEDV
-           }
-#endif
-
-        }
-//    }
-
+  sequence=((buffer[0]&0xFF)<<24)+((buffer[1]&0xFF)<<16)+((buffer[2]&0xFF)<<8)+(buffer[3]&0xFF);
+  b=4;
+  int i;
+  for(i=0;i<MIC_SAMPLES;i++) {
+    sample=(short)((buffer[b++]<<8) | (buffer[b++]&0xFF));
+    add_mic_sample(transmitter,sample);
+  }
 }
 
-#ifdef FREEDV
-static void process_freedv_rx_buffer() {
-  int j;
-  int demod_samples;
-  for(j=0;j<outputsamples;j++) {
-    if(freedv_samples==0) {
-      leftaudiosample=(short)(audiooutputbuffer[j*2]*32767.0);
-      rightaudiosample=(short)(audiooutputbuffer[(j*2)+1]*32767.0);
-      demod_samples=demod_sample_freedv(leftaudiosample);
-      if(demod_samples!=0) {
-        int s;
-        int t;
-        for(s=0;s<demod_samples;s++) {
-          if(freedv_sync) {
-            leftaudiosample=rightaudiosample=(short)((double)speech_out[s]);
-          } else {
-            leftaudiosample=rightaudiosample=0;
-          }
-          for(t=0;t<6;t++) { // 8k to 48k
-            if(local_audio) {
-                audio_write(leftaudiosample,rightaudiosample);
-                leftaudiosample=0;
-                rightaudiosample=0;
-            }
+void new_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right_audio_sample) {
+  int rc;
 
-            audiobuffer[audioindex++]=leftaudiosample>>8;
-            audiobuffer[audioindex++]=leftaudiosample;
-            audiobuffer[audioindex++]=rightaudiosample>>8;
-            audiobuffer[audioindex++]=rightaudiosample;
+  // insert the samples
+  audiobuffer[audioindex++]=left_audio_sample>>8;
+  audiobuffer[audioindex++]=left_audio_sample;
+  audiobuffer[audioindex++]=right_audio_sample>>8;
+  audiobuffer[audioindex++]=right_audio_sample;
             
-            if(audioindex>=sizeof(audiobuffer)) {
-                // insert the sequence
-              audiobuffer[0]=audiosequence>>24;
-              audiobuffer[1]=audiosequence>>16;
-              audiobuffer[2]=audiosequence>>8;
-              audiobuffer[3]=audiosequence;
-              // send the buffer
-              if(sendto(data_socket,audiobuffer,sizeof(audiobuffer),0,(struct sockaddr*)&audio_addr,audio_addr_length)<0) {
-                fprintf(stderr,"sendto socket failed for audio\n");
-                exit(1);
-              }
-              audioindex=4;
-              audiosequence++;
-            }
-          }
-        }
-      }
-      freedv_samples++;
-      if(freedv_samples==freedv_resample) {
-        freedv_samples=0;
-      }
+  if(audioindex>=sizeof(audiobuffer)) {
+
+    // insert the sequence
+    audiobuffer[0]=audiosequence>>24;
+    audiobuffer[1]=audiosequence>>16;
+    audiobuffer[2]=audiosequence>>8;
+    audiobuffer[3]=audiosequence;
+
+    // send the buffer
+
+    rc=sendto(data_socket,audiobuffer,sizeof(audiobuffer),0,(struct sockaddr*)&audio_addr,audio_addr_length);
+    if(rc!=sizeof(audiobuffer)) {
+      fprintf(stderr,"sendto socket failed for %d bytes of audio: %d\n",sizeof(audiobuffer),rc);
     }
-  }
-}
-#endif
-
-static void process_rx_buffer() {
-  int j;
-  for(j=0;j<outputsamples;j++) {
-    if(isTransmitting()) {
-      leftaudiosample=0;
-      rightaudiosample=0;
-    } else {
-      leftaudiosample=(short)(audiooutputbuffer[j*2]*32767.0);
-      rightaudiosample=(short)(audiooutputbuffer[(j*2)+1]*32767.0);
-
-#ifdef PSK
-      if(mode==modePSK) {
-        if(psk_samples==0) {
-          psk_demod((double)((leftaudiosample+rightaudiosample)/2));
-        }
-        psk_samples++;
-        if(psk_samples==psk_resample) {
-          psk_samples=0;
-        }
-      }
-#endif
-    }
-
-    if(local_audio) {
-      audio_write(leftaudiosample,rightaudiosample);
-    }
-
-    audiobuffer[audioindex++]=leftaudiosample>>8;
-    audiobuffer[audioindex++]=leftaudiosample;
-    audiobuffer[audioindex++]=rightaudiosample>>8;
-    audiobuffer[audioindex++]=rightaudiosample;
-
-    if(audioindex>=sizeof(audiobuffer)) {
-      // insert the sequence
-      audiobuffer[0]=audiosequence>>24;
-      audiobuffer[1]=audiosequence>>16;
-      audiobuffer[2]=audiosequence>>8;
-      audiobuffer[3]=audiosequence;
-      // send the buffer
-      if(sendto(data_socket,audiobuffer,sizeof(audiobuffer),0,(struct sockaddr*)&audio_addr,audio_addr_length)<0) {
-        fprintf(stderr,"sendto socket failed for audio\n");
-        exit(1);
-      }
-      audioindex=4;
-      audiosequence++;
-    }
+    audioindex=4;
+    audiosequence++;
   }
 }
 
-static void full_rx_buffer(int rx) {
-  int j;
-  int error;
+void new_protocol_iq_samples(int isample,int qsample) {
+  iqbuffer[iqindex++]=isample>>16;
+  iqbuffer[iqindex++]=isample>>8;
+  iqbuffer[iqindex++]=isample;
+  iqbuffer[iqindex++]=qsample>>16;
+  iqbuffer[iqindex++]=qsample>>8;
+  iqbuffer[iqindex++]=qsample;
 
-  Spectrum0(1, CHANNEL_RX0, 0, 0, iqinputbuffer[rx]);
+  if(iqindex==sizeof(iqbuffer)) {
+    iqbuffer[0]=tx_iq_sequence>>24;
+    iqbuffer[1]=tx_iq_sequence>>16;
+    iqbuffer[2]=tx_iq_sequence>>8;
+    iqbuffer[3]=tx_iq_sequence;
 
-  if(rx==active_receiver) {
-    fexchange0(CHANNEL_RX0, iqinputbuffer[rx], audiooutputbuffer, &error);
-    if(error!=0) {
-      fprintf(stderr,"full_rx_buffer: fexchange0: error=%d\n",error);
+    // send the buffer
+    if(sendto(data_socket,iqbuffer,sizeof(iqbuffer),0,(struct sockaddr*)&iq_addr,iq_addr_length)<0) {
+      fprintf(stderr,"sendto socket failed for iq\n");
+      exit(1);
     }
-/*
-    switch(mode) {
-#ifdef PSK
-      case modePSK:
-        break;
-#endif
-      default:
-        Spectrum0(1, CHANNEL_RX0, 0, 0, iqinputbuffer[rx]);
-        break;
-    }
-*/
-    switch(mode) {
-#ifdef FREEDV
-      case modeFREEDV:
-        process_freedv_rx_buffer();
-        break;
-#endif
-      default:
-        process_rx_buffer();
-        break;
-    }
-  }
-}
-
-static void full_tx_buffer() {
-  long isample;
-  long qsample;
-  double gain=8388607.0;
-  int j;
-  int error;
-
-  if(vox_enabled) {
-    switch(mode) {
-      case modeLSB:
-      case modeUSB:
-      case modeDSB:
-      case modeFMN:
-      case modeAM:
-      case modeSAM:
-#ifdef FREEDV
-      case modeFREEDV:
-#endif
-        update_vox(micinputbuffer,BUFFER_SIZE);
-        break;
-    }
-  }
-
-  fexchange0(CHANNEL_TX, micinputbuffer, iqoutputbuffer, &error);
-  Spectrum0(1, CHANNEL_TX, 0, 0, iqoutputbuffer);
-
-#ifdef FREEDV
-  if(mode==modeFREEDV) {
-    gain=8388607.0;
-  }
-#endif
-
-  if(radio->device==NEW_DEVICE_ATLAS && atlas_penelope) {
-    if(tune) {
-      gain=gain*tune_drive;
-    } else {
-      gain=gain*(double)drive;
-    }
-  }
-
-  for(j=0;j<micoutputsamples;j++) {
-    isample=(long)(iqoutputbuffer[j*2]*gain);
-    qsample=(long)(iqoutputbuffer[(j*2)+1]*gain);
-
-    iqbuffer[iqindex++]=isample>>16;
-    iqbuffer[iqindex++]=isample>>8;
-    iqbuffer[iqindex++]=isample;
-    iqbuffer[iqindex++]=qsample>>16;
-    iqbuffer[iqindex++]=qsample>>8;
-    iqbuffer[iqindex++]=qsample;
-
-    if(iqindex>=sizeof(iqbuffer)) {
-      // insert the sequence
-      iqbuffer[0]=tx_iq_sequence>>24;
-      iqbuffer[1]=tx_iq_sequence>>16;
-      iqbuffer[2]=tx_iq_sequence>>8;
-      iqbuffer[3]=tx_iq_sequence;
-
-      // send the buffer
-      if(sendto(data_socket,iqbuffer,sizeof(iqbuffer),0,(struct sockaddr*)&iq_addr,iq_addr_length)<0) {
-        fprintf(stderr,"sendto socket failed for iq\n");
-        exit(1);
-      }
-      iqindex=4;
-      tx_iq_sequence++;
-    }
-
+    iqindex=4;
+    tx_iq_sequence++;
   }
 }
 
 void new_protocol_process_local_mic(unsigned char *buffer,int le) {
-    int b;
-    int micsample;
-    double micsampledouble;
-    double gain=pow(10.0, mic_gain / 20.0);
+  int b;
+  short micsample;
+  double micsampledouble;
+  double gain=pow(10.0, mic_gain / 20.0);
 
-//    if(isTransmitting()) {
-        b=0;
-        int i,j,s;
-        for(i=0;i<MIC_SAMPLES;i++) {
-            if(le) {
-              micsample  = (int)((unsigned char)buffer[b++] & 0xFF);
-              micsample  |= (int)((signed char) buffer[b++]) << 8;
-            } else {
-              micsample  = (int)((signed char) buffer[b++]) << 8;
-              micsample  |= (int)((unsigned char)buffer[b++] & 0xFF);
-            }
-            micsampledouble=(1.0 / 2147483648.0) * (double)(micsample<<16);
-#ifdef FREEDV
-            if(mode==modeFREEDV && isTransmitting()) {
-                if(freedv_samples==0) { // 48K to 8K
-                    int modem_samples=mod_sample_freedv(micsample*gain);
-                    if(modem_samples!=0) {
-                      for(s=0;s<modem_samples;s++) {
-                        for(j=0;j<freedv_resample;j++) {  // 8K to 48K
-                          micsample=mod_out[s];
-                          micsampledouble=(1.0 / 2147483648.0) * (double)(micsample<<16);
-                          micinputbuffer[micsamples*2]=micsampledouble;
-                          micinputbuffer[(micsamples*2)+1]=micsampledouble;
-                          micsamples++;
-                          if(micsamples==BUFFER_SIZE) {
-                            full_tx_buffer();
-                            micsamples=0;
-                          }
-                        }
-                      }
-                    }
-               }
-               freedv_samples++;
-               if(freedv_samples==freedv_resample) {
-                   freedv_samples=0;
-               }
-            } else {
-#endif
-               if(mode==modeCWL || mode==modeCWU || tune /*|| !isTransmitting()*/) {
-                   micinputbuffer[micsamples*2]=0.0;
-                   micinputbuffer[(micsamples*2)+1]=0.0;
-               } else {
-                   micinputbuffer[micsamples*2]=micsampledouble;
-                   micinputbuffer[(micsamples*2)+1]=micsampledouble;
-               }
-
-               micsamples++;
-
-               if(micsamples==BUFFER_SIZE) {
-                   full_tx_buffer();
-                   micsamples=0;
-               }
-#ifdef FREEDV
-           }
-#endif
-
-        }
-//    }
+  b=0;
+  int i,j,s;
+  for(i=0;i<MIC_SAMPLES;i++) {
+    if(le) {
+      micsample = (short)((buffer[b++]&0xFF) | (buffer[b++]<<8));
+    } else {
+      micsample = (short)((buffer[b++]<<8) | (buffer[b++]&0xFF));
+    }
+    add_mic_sample(transmitter,micsample);
+  }
 
 }
 
 void* new_protocol_timer_thread(void* arg) {
-    int count=0;
+  int count=0;
 fprintf(stderr,"new_protocol_timer_thread\n");
-    while(running) {
-        usleep(100000); // 100ms
-        if(running) {
-            if(count==0) {
-                new_protocol_transmit_specific();
-                count=1;
-            } else {
-                new_protocol_receive_specific();
-                count=0;
-            }
-        }
+  while(running) {
+    usleep(100000); // 100ms
+    if(running) {
+      if(count==0) {
+        new_protocol_transmit_specific();
+        count=1;
+      } else {
+        new_protocol_receive_specific();
+        count=0;
+      }
     }
+  }
 }

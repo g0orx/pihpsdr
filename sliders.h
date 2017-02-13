@@ -20,18 +20,19 @@
 #ifndef _SLIDERS_H
 #define _SLIDERS_H
 
-extern void linein_changed();
+extern int linein_changed(void *data);
+extern int active_receiver_changed(void *data);
 extern int update_agc_gain(void *);
 extern int update_af_gain(void *);
 extern int update_mic_gain(void *);
 extern int update_drive(void *);
 
-void set_agc_gain(double value);
-void set_af_gain(double value);
-void set_mic_gain(double value);
-void set_drive(double drive);
-void set_tune(double tune);
-void set_attenuation_value(double attenuation);
-GtkWidget *sliders_init(int my_width, int my_height, GtkWidget* parent);
+extern void set_agc_gain(double value);
+extern void set_af_gain(double value);
+extern void set_mic_gain(double value);
+extern void set_drive(double drive);
+extern void set_tune(double tune);
+extern void set_attenuation_value(double attenuation);
+extern GtkWidget *sliders_init(int my_width, int my_height);
 
 #endif

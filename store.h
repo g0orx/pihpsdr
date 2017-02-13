@@ -1,5 +1,6 @@
 /* Copyright (C)
 * 2015 - John Melton, G0ORX/N6LYT
+* 2016 - Steve Wilson, KA6S
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License
@@ -17,12 +18,28 @@
 *
 */
 
-#ifndef _PANADAPTER_H
-#define _PANADAPTER_H
+#ifndef _STORE_H
+#define _STORE_H
 
-void panadapter_update(float* data,int tx);
+#include <gtk/gtk.h>
+#include "bandstack.h"
 
-GtkWidget* panadapter_init(int width,int height);
 
+/* --------------------------------------------------------------------------*/
+/**
+* @brief Band definition
+*/
+struct _MEM_STORE {
+    char title[16];     // Begin BAND Struct
+    long long frequency; // Begin BANDSTACK_ENTRY
+    int mode;
+    int filter;
+};
+
+typedef struct _MEM_STORE MEM; 
+
+extern MEM mem[];
+void memRestoreState(); 
+void memSaveState(); 
 
 #endif

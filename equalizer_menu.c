@@ -76,10 +76,10 @@ static gboolean rx_rb_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
 static gboolean enable_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   if(tx_menu) {
     enable_tx_equalizer=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-    SetTXAEQRun(CHANNEL_TX, enable_tx_equalizer);
+    SetTXAEQRun(transmitter->id, enable_tx_equalizer);
   } else {
     enable_rx_equalizer=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-    SetRXAEQRun(CHANNEL_RX0, enable_rx_equalizer);
+    SetRXAEQRun(active_receiver->id, enable_rx_equalizer);
   }
 }
 
@@ -87,10 +87,10 @@ static gboolean rx_value_changed_cb (GtkWidget *widget, GdkEventButton *event, g
   int i=(int)data;
   if(tx_menu) {
     tx_equalizer[i]=(int)gtk_range_get_value(GTK_RANGE(widget));
-    SetTXAGrphEQ(CHANNEL_TX, tx_equalizer);
+    SetTXAGrphEQ(transmitter->id, tx_equalizer);
   } else {
     rx_equalizer[i]=(int)gtk_range_get_value(GTK_RANGE(widget));
-    SetRXAGrphEQ(CHANNEL_RX0, rx_equalizer);
+    SetRXAGrphEQ(active_receiver->id, rx_equalizer);
   }
 }
 

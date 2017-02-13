@@ -21,6 +21,8 @@
 #define _RADIO_H
 
 #include "discovered.h"
+#include "receiver.h"
+#include "transmitter.h"
 
 #define NEW_MIC_IN 0x00
 #define NEW_LINE_IN 0x01
@@ -51,8 +53,14 @@ extern char property_path[];
 #define ALEX 1
 #define APOLLO 2
 
-// soecify how many receivers (only 1 or 2 for now)
-#define RECEIVERS 1
+// specify how many receivers (only 1 or 2 for now)
+#define MAX_RECEIVERS 2
+#define RECEIVERS 2
+
+extern RECEIVER *receiver[];
+extern RECEIVER *active_receiver;
+
+extern TRANSMITTER *transmitter;
 
 /*
 #define PA_DISABLED 0
@@ -64,9 +72,12 @@ extern char property_path[];
 #define KEYER_MODE_A 1
 #define KEYER_MODE_B 2
 
-extern int rx_dither;
-extern int rx_random;
-extern int rx_preamp;
+extern int echo;
+
+#define MAX_BUFFER_SIZE 2048
+
+extern int buffer_size;
+extern int fft_size;
 
 extern int atlas_penelope;
 extern int atlas_clock_source_10mhz;
@@ -84,7 +95,6 @@ extern int tx_leveler;
 
 extern double tone_level;
 
-extern int sample_rate;
 extern int filter_board;
 extern int pa;
 extern int apollo_tuner;
@@ -107,28 +117,9 @@ extern int waterfall_automatic;
 
 extern int display_sliders;
 extern int display_toolbar;
-extern int toolbar_dialog_buttons;
 
-extern double volume;
 extern double mic_gain;
 extern int binaural;
-extern int agc;
-extern double agc_gain;
-extern double agc_slope;
-extern double agc_hang_threshold;
-
-extern int nr_none;
-extern int nr;
-extern int nr2;
-extern int nb;
-extern int nb2;
-extern int anf;
-extern int snb;
-
-extern int nr_agc;
-extern int nr2_gain_method;
-extern int nr2_npe_method;
-extern int nr2_ae;
 
 extern int mic_linein;
 extern int linein_gain;
@@ -144,14 +135,13 @@ extern int tune_drive_level;
 extern int drive_level;
 
 int receivers;
-int active_receiver;
 
 int adc[2];
 
 int locked;
 
-extern int step;
-extern int rit;
+extern long long step;
+//extern int rit;
 extern int rit_increment;
 
 extern int lt2208Dither;
@@ -183,6 +173,8 @@ extern int mercury_software_version;
 extern int penelope_software_version;
 extern int mox;
 extern int tune;
+extern int memory_tune;
+extern int full_tune;
 extern int ptt;
 extern int dot;
 extern int dash;
@@ -199,9 +191,15 @@ extern unsigned int AIN4;
 extern unsigned int AIN6;
 extern int supply_volts;
 
-extern long long displayFrequency;
-extern long long ddsFrequency;
-extern long long ddsOffset;
+//extern long long displayFrequency;
+//extern long long ddsFrequency;
+//extern long long ddsOffset;
+
+extern long long frequencyB;
+extern int modeB;
+extern int filterB;
+
+extern int split;
 
 extern unsigned char OCtune;
 extern int OCfull_tune_time;
@@ -215,8 +213,8 @@ extern char freedv_tx_text_data[64];
 extern int smeter;
 extern int alc;
 
-extern int local_audio;
-extern int local_microphone;
+//extern int local_audio;
+//extern int local_microphone;
 
 extern int eer_pwm_min;
 extern int eer_pwm_max;
@@ -235,6 +233,7 @@ extern int rx_equalizer[4];
 extern int deviation;
 extern int pre_emphasize;
 
+extern int vox_setting;
 extern int vox_enabled;
 extern double vox_threshold;
 extern double vox_gain;
@@ -245,9 +244,11 @@ extern int diversity_enabled;
 extern double i_rotate[2];
 extern double q_rotate[2];
 
+extern void reconfigure_radio();
+extern void start_radio();
 extern void init_radio();
-extern void setSampleRate(int rate);
-extern int getSampleRate();
+extern void radio_change_receivers(int r);
+extern void radio_change_sample_rate(int rate);
 extern void setMox(int state);
 extern int getMox();
 extern void setTune(int state);
