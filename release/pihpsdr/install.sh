@@ -15,6 +15,7 @@ cd /usr/local/lib; sudo ln -s libSoapySDR.so.0.5-1 libSoapySDR.so.0.5.0
 cd /usr/local/lib; sudo ln -s libSoapySDR.so.0.5-1 libSoapySDR.so
 sudo ldconfig
 echo "setting up for USB OZY device"
+cd ~/pihpsdr
 sudo cp 90-ozy.rules /etc/udev/rules.d
 sudo udevadm control --reload-rules
 echo "creating desktop icon"
