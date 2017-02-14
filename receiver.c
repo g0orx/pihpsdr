@@ -557,8 +557,8 @@ void set_agc(RECEIVER *rx, int agc) {
 }
 
 void set_offset(RECEIVER *rx,long long offset) {
-fprintf(stderr,"set_offset: id=%d ofset=%lld\n",rx->id,offset);
-fprintf(stderr,"set_offset: frequency=%lld ctun_freqeuncy=%lld offset=%lld\n",vfo[rx->id].frequency,vfo[rx->id].ctun_frequency,vfo[rx->id].offset);
+//fprintf(stderr,"set_offset: id=%d ofset=%lld\n",rx->id,offset);
+//fprintf(stderr,"set_offset: frequency=%lld ctun_freqeuncy=%lld offset=%lld\n",vfo[rx->id].frequency,vfo[rx->id].ctun_frequency,vfo[rx->id].offset);
   if(offset==0) {
     SetRXAShiftFreq(rx->id, (double)offset);
     RXANBPSetShiftFrequency(rx->id, (double)offset);

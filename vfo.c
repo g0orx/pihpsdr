@@ -408,13 +408,18 @@ void vfo_move(long long hz) {
         break;
 #endif
       default:
-        vfo[id].frequency=((vfo[id].frequency+hz)/step)*step;
+        if(vfo[id].ctun) {
+          vfo[id].ctun_frequency=((vfo[id].ctun_frequency-hz)/step)*step;
+        } else {
+          vfo[id].frequency=((vfo[id].frequency+hz)/step)*step;
+        }
         break;
     }
     receiver_frequency_changed(active_receiver);
     vfo_update(NULL);
   }
 }
+
 void vfo_move_to(long long hz) {
   int id=active_receiver->id;
   if(!locked) {
@@ -424,11 +429,20 @@ void vfo_move_to(long long hz) {
         break;
 #endif
       default:
-        vfo[id].frequency=(vfo[id].frequency+hz)/step*step;
-        if(vfo[id].mode==modeCWL) {
-          vfo[id].frequency+=cw_keyer_sidetone_frequency;
-        } else if(vfo[id].mode==modeCWU) {
-          vfo[id].frequency-=cw_keyer_sidetone_frequency;
+        if(vfo[id].ctun) {
+          vfo[id].ctun_frequency=(vfo[id].frequency+hz)/step*step;
+          if(vfo[id].mode==modeCWL) {
+            vfo[id].ctun_frequency+=cw_keyer_sidetone_frequency;
+          } else if(vfo[id].mode==modeCWU) {
+            vfo[id].ctun_frequency-=cw_keyer_sidetone_frequency;
+          }
+        } else {
+          vfo[id].frequency=(vfo[id].frequency+hz)/step*step;
+          if(vfo[id].mode==modeCWL) {
+            vfo[id].frequency+=cw_keyer_sidetone_frequency;
+          } else if(vfo[id].mode==modeCWU) {
+            vfo[id].frequency-=cw_keyer_sidetone_frequency;
+          }
         }
         break;
     }
