@@ -367,7 +367,7 @@ void audio_get_cards() {
   snd_ctl_card_info_alloca(&info);
   snd_pcm_info_alloca(&pcminfo);
   int i;
-  char *device_id=malloc(64);
+  char *device_id;
   int card = -1;
 
 fprintf(stderr,"audio_get_cards\n");
@@ -405,6 +405,7 @@ fprintf(stderr,"audio_get_cards\n");
       // input devices
       snd_pcm_info_set_stream(pcminfo, SND_PCM_STREAM_CAPTURE);
       if ((err = snd_ctl_pcm_info(handle, pcminfo)) == 0) {
+        device_id=malloc(64);
         snprintf(device_id, 64, "plughw:%d,%d %s", card, dev, snd_ctl_card_info_get_name(info));
         input_devices[n_input_devices++]=device_id;
 fprintf(stderr,"input_device: %s\n",device_id);
@@ -413,6 +414,7 @@ fprintf(stderr,"input_device: %s\n",device_id);
       // ouput devices
       snd_pcm_info_set_stream(pcminfo, SND_PCM_STREAM_PLAYBACK);
       if ((err = snd_ctl_pcm_info(handle, pcminfo)) == 0) {
+        device_id=malloc(64);
         snprintf(device_id, 64, "plughw:%d,%d %s", card, dev, snd_ctl_card_info_get_name(info));
         output_devices[n_output_devices++]=device_id;
 fprintf(stderr,"output_device: %s\n",device_id);
@@ -437,8 +439,8 @@ fprintf(stderr,"output_device: %s\n",device_id);
     
     if(strncmp("dmix:", name, 5)==0/* || strncmp("pulse", name, 5)==0*/) {
       fprintf(stderr,"name=%s descr=%s io=%s\n",name, descr, io);
-      char *device_id=malloc(64);
       
+      device_id=malloc(64);
       snprintf(device_id, 64, "%s", name);
       output_devices[n_output_devices++]=device_id;
 fprintf(stderr,"output_device: %s\n",device_id);
