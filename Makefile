@@ -3,8 +3,14 @@
 GIT_DATE := $(firstword $(shell git --no-pager show --date=short --format="%ai" --name-only))
 GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 
+# uncomment the line below to include GPIO
+GPIO_INCLUDE=GPIO
+
+# uncomment the line below to include USB Ozy support
+USBOZY_INCLUDE=USBOZY
+
 # uncomment the line below to include support for psk31
-PSK_INCLUDE=PSK
+#PSK_INCLUDE=PSK
 
 # uncomment the line to below include support for FreeDV codec2
 #FREEDV_INCLUDE=FREEDV
@@ -14,6 +20,9 @@ PSK_INCLUDE=PSK
 
 # uncomment the line to below include support local CW keyer
 #LOCALCW_INCLUDE=LOCALCW
+
+# uncomment the line below to include MCP23017 I2C
+#I2C_INCLUDE=I2C
 
 #uncomment the line below for the platform being compiled on
 UNAME_N=raspberrypi
@@ -27,6 +36,17 @@ LINK=gcc
 
 # uncomment the line below for various debug facilities
 #DEBUG_OPTION=-D DEBUG
+
+ifeq ($(USBOZY_INCLUDE),USBOZY)
+USBOZY_OPTIONS=-D USBOZY
+USBOZY_LIBS=-lusb-1.0
+USBOZY_SOURCES= \
+ozyio.c
+USBOZY_HEADERS= \
+ozyio.h
+USBOZY_OBJS= \
+ozyio.o
+endif
 
 # uncomment the line below for LimeSDR (uncomment line below)
 #LIMESDR_INCLUDE=LIMESDR
@@ -105,50 +125,39 @@ beep.o \
 iambic.o
 endif
 
-#required for MRAA GPIO
-#MRAA_INCLUDE=MRAA
-
-ifeq ($(MRAA_INCLUDE),MRAA)
-  GPIO_OPTIONS=-D GPIO
-  GPIO_LIBS=-lmraa
-  GPIO_SOURCES= \
-  gpio_mraa.c
-  GPIO_HEADERS= \
-  gpio.h
-  GPIO_OBJS= \
-  gpio_mraa.o
-else
-  ifeq ($(UNAME_N),raspberrypi)
+ifeq ($(GPIO_INCLUDE),GPIO)
   GPIO_OPTIONS=-D GPIO
   GPIO_LIBS=-lwiringPi -lpigpio 
-  endif
-  ifeq ($(UNAME_N),odroid)
-  GPIO_LIBS=-lwiringPi
-  endif
-  ifeq ($(SX1509_INCLUDE),sx1509)
-  GPIO_OPTIONS=-D GPIO
-  GPIO_OPTIONS+=-D sx1509
-  GPIO_LIBS+=-lsx1509
-  endif
   GPIO_SOURCES= \
-  gpio.c
+  gpio.c \
+  encoder_menu.c
   GPIO_HEADERS= \
-  gpio.h
+  gpio.h \
+  encoder_menu.h
   GPIO_OBJS= \
-  gpio.o
+  gpio.o \
+  encoder_menu.o
+endif
+
+ifeq ($(I2C_INCLUDE),I2C)
+  I2C_OPTIONS=-D I2C
+  I2C_SOURCES=i2c.c
+  I2C_HEADERS=i2c.h
+  I2C_OBJS=i2c.o
 endif
 
 #uncomment if build for SHORT FRAMES (MIC and Audio)
-SHORT_FRAMES="-D SHORT_FRAMES"
+SHORT_FRAMES=-D SHORT_FRAMES
 
 GTKINCLUDES=`pkg-config --cflags gtk+-3.0`
 GTKLIBS=`pkg-config --libs gtk+-3.0`
 
 AUDIO_LIBS=-lasound
+#AUDIO_LIBS=-lsoundio
 
-OPTIONS=-g -D $(UNAME_N) $(GPIO_OPTIONS) $(LIMESDR_OPTIONS) $(RADIOBERRY_OPTIONS) $(FREEDV_OPTIONS) $(LOCALCW_OPTIONS) $(PSK_OPTIONS) $(SHORT_FRAMES) -D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION) -O3
+OPTIONS=-g -Wno-deprecated-declarations -D $(UNAME_N) $(USBOZY_OPTIONS) $(I2C_OPTIONS) $(GPIO_OPTIONS) $(LIMESDR_OPTIONS) $(FREEDV_OPTIONS) $(LOCALCW_OPTIONS) $(PSK_OPTIONS) $(SHORT_FRAMES) -D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION) -O3
 
-LIBS=-lrt -lm -lwdsp -lpthread $(AUDIO_LIBS) $(PSKLIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS)
+LIBS=-lrt -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(PSKLIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS)
 INCLUDES=$(GTKINCLUDES)
 
 COMPILE=$(CC) $(OPTIONS) $(INCLUDES)
@@ -161,12 +170,13 @@ band.c \
 configure.c \
 frequency.c \
 discovered.c \
+discovery.c \
 filter.c \
 main.c \
 new_menu.c \
 exit_menu.c \
-general_menu.c \
-audio_menu.c \
+radio_menu.c \
+rx_menu.c \
 ant_menu.c \
 display_menu.c \
 dsp_menu.c \
@@ -183,12 +193,12 @@ mode_menu.c \
 filter_menu.c \
 noise_menu.c \
 agc_menu.c \
-fm_menu.c \
 vox_menu.c \
 diversity_menu.c \
 freqent_menu.c \
+tx_menu.c \
+vfo_menu.c \
 test_menu.c \
-rit.c \
 meter.c \
 mode.c \
 old_discovery.c \
@@ -196,21 +206,23 @@ new_discovery.c \
 old_protocol.c \
 new_protocol.c \
 new_protocol_programmer.c \
-panadapter.c \
+rx_panadapter.c \
+tx_panadapter.c \
 property.c \
 radio.c \
+receiver.c \
 rigctl.c \
-signal.c \
-splash.c \
 toolbar.c \
+transmitter.c \
 sliders.c \
 version.c \
 vfo.c \
 waterfall.c \
-wdsp_init.c \
 button_text.c \
 vox.c \
 update.c \
+store.c \
+store_menu.c \
 memory.c
 
 
@@ -224,11 +236,12 @@ frequency.h \
 bandstack.h \
 channel.h \
 discovered.h \
+discovery.h \
 filter.h \
 new_menu.h \
+rx_menu.h \
 exit_menu.h \
-general_menu.h \
-audio_menu.h \
+radio_menu.h \
 ant_menu.h \
 display_menu.h \
 dsp_menu.h \
@@ -245,33 +258,35 @@ mode_menu.h \
 filter_menu.h \
 noise_menu.h \
 agc_menu.h \
-fm_menu.h \
 vox_menu.h \
 diversity_menu.h \
 freqent_menu.h \
+tx_menu.h \
+vfo_menu.h \
 test_menu.h \
-rit.h \
 meter.h \
 mode.h \
 old_discovery.h \
 new_discovery.h \
 old_protocol.h \
 new_protocol.h \
-panadapter.h \
+rx_panadapter.h \
+tx_panadapter.h \
 property.h \
 radio.h \
+receiver.h \
 rigctl.h \
-signal.h \
-splash.h \
 toolbar.h \
+transmitter.h \
 sliders.h \
 version.h \
 vfo.h \
 waterfall.h \
-wdsp_init.h \
 button_text.h \
 vox.h \
 update.h \
+store.h \
+store_menu.h \
 memory.h
 
 
@@ -281,13 +296,14 @@ band.o \
 configure.o \
 frequency.o \
 discovered.o \
+discovery.o \
 filter.o \
 version.o \
 main.o \
 new_menu.o \
+rx_menu.o \
 exit_menu.o \
-general_menu.o \
-audio_menu.o \
+radio_menu.o \
 ant_menu.o \
 display_menu.o \
 dsp_menu.o \
@@ -304,12 +320,12 @@ mode_menu.o \
 filter_menu.o \
 noise_menu.o \
 agc_menu.o \
-fm_menu.o \
 vox_menu.o \
 diversity_menu.o \
 freqent_menu.o \
+tx_menu.o \
+vfo_menu.o \
 test_menu.o \
-rit.o \
 meter.o \
 mode.o \
 old_discovery.o \
@@ -317,29 +333,31 @@ new_discovery.o \
 old_protocol.o \
 new_protocol.o \
 new_protocol_programmer.o \
-panadapter.o \
+rx_panadapter.o \
+tx_panadapter.o \
 property.o \
 radio.o \
+receiver.o \
 rigctl.o \
-signal.o \
-splash.o \
 toolbar.o \
+transmitter.o \
 sliders.o \
 vfo.o \
 waterfall.o \
-wdsp_init.o \
 button_text.o \
 vox.o \
 update.o \
+store.o \
+store_menu.o \
 memory.o
 
-all: prebuild $(PROGRAM) $(HEADERS) $(LIMESDR_HEADERS) $(RADIOBERRY_HEADERS) $(FREEDV_HEADERS) $(LOCALCW_HEADERS) $(GPIO_HEADERS) $(PSK_HEADERS) $(SOURCES) $(LIMESDR_SOURCES) $(RADIOBERRY_SOURCES) $(FREEDV_SOURCES) $(GPIO_SOURCES) $(PSK_SOURCES)
+all: prebuild $(PROGRAM) $(HEADERS) $(USBOZY_HEADERS) $(LIMESDR_HEADERS) $(FREEDV_HEADERS) $(LOCALCW_HEADERS) $(I2C_HEADERS) $(GPIO_HEADERS) $(PSK_HEADERS) $(SOURCES) $(USBOZY_SOURCES) $(LIMESDR_SOURCES) $(FREEDV_SOURCES) $(I2C_SOURCES) $(GPIO_SOURCES) $(PSK_SOURCES)
 
 prebuild:
 	rm -f version.o
 
-$(PROGRAM): $(OBJS) $(LIMESDR_OBJS) $(RADIOBERRY_OBJS) $(FREEDV_OBJS) $(LOCALCW_OBJS) $(GPIO_OBJS) $(PSK_OBJS)
-	$(LINK) -o $(PROGRAM) $(OBJS) $(GPIO_OBJS) $(LIMESDR_OBJS) $(RADIOBERRY_OBJS) $(FREEDV_OBJS) $(LOCALCW_OBJS) $(PSK_OBJS) $(LIBS)
+$(PROGRAM): $(OBJS) $(USBOZY_OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) $(LOCALCW_OBJS) $(I2C_OBJS) $(GPIO_OBJS) $(PSK_OBJS)
+	$(LINK) -o $(PROGRAM) $(OBJS) $(USBOZY_OBJS) $(I2C_OBJS) $(GPIO_OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) $(LOCALCW_OBJS) $(PSK_OBJS) $(LIBS)
 
 .c.o:
 	$(COMPILE) -c -o $@ $<

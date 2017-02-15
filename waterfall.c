@@ -28,8 +28,6 @@
 #include "vfo.h"
 #include "waterfall.h"
 
-static GtkWidget *waterfall;
-static GdkPixbuf *pixbuf = NULL;
 
 static int colorLowR=0; // black
 static int colorLowG=0;
@@ -51,11 +49,13 @@ static gboolean pressed=FALSE;
 
 static gfloat hz_per_pixel;
 
+/*
 #define BANDS 7
 
 static long long frequency[BANDS];
 static gint mode[BANDS];
 static gint band=4;
+*/
 
 static int display_width;
 static int display_height;
@@ -66,11 +66,12 @@ waterfall_configure_event_cb (GtkWidget         *widget,
             GdkEventConfigure *event,
             gpointer           data)
 {
+  RECEIVER *rx=(RECEIVER *)data;
   display_width=gtk_widget_get_allocated_width (widget);
   display_height=gtk_widget_get_allocated_height (widget);
-  pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, FALSE, 8, display_width, display_height);
+  rx->pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, FALSE, 8, display_width, display_height);
 
-  char *pixels = gdk_pixbuf_get_pixels (pixbuf);
+  char *pixels = gdk_pixbuf_get_pixels (rx->pixbuf);
 
   memset(pixels, 0, display_width*display_height*3);
 
@@ -86,7 +87,8 @@ waterfall_draw_cb (GtkWidget *widget,
  cairo_t   *cr,
  gpointer   data)
 {
-  gdk_cairo_set_source_pixbuf (cr, pixbuf, 0, 0);
+  RECEIVER *rx=(RECEIVER *)data;
+  gdk_cairo_set_source_pixbuf (cr, rx->pixbuf, 0, 0);
   cairo_paint (cr);
   return TRUE;
 }
@@ -96,13 +98,7 @@ waterfall_button_press_event_cb (GtkWidget      *widget,
                GdkEventButton *event,
                gpointer        data)
 {
-  int x=(int)event->x;
-  if (event->button == 1) {
-    last_x=(int)event->x;
-    has_moved=FALSE;
-    pressed=TRUE;
-  }
-  return TRUE;
+  return receiver_button_press_event(widget,event,data);
 }
 
 static gboolean
@@ -110,42 +106,14 @@ waterfall_button_release_event_cb (GtkWidget      *widget,
                GdkEventButton *event,
                gpointer        data)
 {
-  if(pressed) {
-    int x=(int)event->x;
-    if (event->button == 1) {
-      if(has_moved) {
-        // drag
-        vfo_move((int)((float)(x-last_x)*hz_per_pixel));
-      } else {
-        // move to this frequency
-        vfo_move_to((int)((float)(x-(display_width/2))*hz_per_pixel));
-      }
-      last_x=x;
-      pressed=FALSE;
-    }
-  }
-  return TRUE;
+  return receiver_button_release_event(widget,event,data);
 }
 
 static gboolean waterfall_motion_notify_event_cb (GtkWidget      *widget,
                 GdkEventMotion *event,
                 gpointer        data)
 {
-  int x, y;
-  GdkModifierType state;
-  gdk_window_get_device_position (event->window,
-                                event->device,
-                                &x,
-                                &y,
-                                &state);
-  if((state & GDK_BUTTON1_MASK == GDK_BUTTON1_MASK) || pressed) {
-    int moved=last_x-x;
-    vfo_move((int)((float)moved*hz_per_pixel));
-    last_x=x;
-    has_moved=TRUE;
-  }
-
-  return TRUE;
+  return receiver_motion_notify_event(widget,event,data);
 }
 
 static gboolean
@@ -153,26 +121,21 @@ waterfall_scroll_event_cb (GtkWidget      *widget,
                GdkEventScroll *event,
                gpointer        data)
 {
-  if(event->direction==GDK_SCROLL_UP) {
-    vfo_move(step);
-  } else {
-    vfo_move(-step);
-  }
+  return receiver_scroll_event(widget,event,data);
 }
 
-void waterfall_update(float *data) {
+void waterfall_update(RECEIVER *rx) {
 
   int i;
 
-  hz_per_pixel=(double)getSampleRate()/(double)display_width;
+  float *samples;
+  if(rx->pixbuf) {
+    char *pixels = gdk_pixbuf_get_pixels (rx->pixbuf);
 
-  if(pixbuf) {
-    char *pixels = gdk_pixbuf_get_pixels (pixbuf);
-
-    int width=gdk_pixbuf_get_width(pixbuf);
-    int height=gdk_pixbuf_get_height(pixbuf);
-    int rowstride=gdk_pixbuf_get_rowstride(pixbuf);
-    int channels=gdk_pixbuf_get_n_channels(pixbuf);
+    int width=gdk_pixbuf_get_width(rx->pixbuf);
+    int height=gdk_pixbuf_get_height(rx->pixbuf);
+    int rowstride=gdk_pixbuf_get_rowstride(rx->pixbuf);
+    int channels=gdk_pixbuf_get_n_channels(rx->pixbuf);
 
     memmove(&pixels[rowstride],pixels,(height-1)*rowstride);
 
@@ -180,20 +143,21 @@ void waterfall_update(float *data) {
     int average=0;
     char *p;
     p=pixels;
+    samples=rx->pixel_samples;
     for(i=0;i<width;i++) {
-            sample=data[i]+get_attenuation();
+            sample=samples[i]+get_attenuation();
             average+=(int)sample;
-            if(sample<(float)waterfall_low) {
+            if(sample<(float)rx->waterfall_low) {
                 *p++=colorLowR;
                 *p++=colorLowG;
                 *p++=colorLowB;
-            } else if(sample>(float)waterfall_high) {
+            } else if(sample>(float)rx->waterfall_high) {
                 *p++=colorHighR;
                 *p++=colorHighG;
                 *p++=colorHighB;
             } else {
-                float range=(float)waterfall_high-(float)waterfall_low;
-                float offset=sample-(float)waterfall_low;
+                float range=(float)rx->waterfall_high-(float)rx->waterfall_low;
+                float offset=sample-(float)rx->waterfall_low;
                 float percent=offset/range;
                 if(percent<(2.0f/9.0f)) {
                     float local_percent = percent / (2.0f/9.0f);
@@ -236,47 +200,52 @@ void waterfall_update(float *data) {
     }
 
     
-    if(waterfall_automatic) {
-      waterfall_low=average/display_width;
-      waterfall_high=waterfall_low+50;
+    if(rx->waterfall_automatic) {
+      rx->waterfall_low=average/display_width;
+      rx->waterfall_high=rx->waterfall_low+50;
     }
 
-    gtk_widget_queue_draw (waterfall);
+    gtk_widget_queue_draw (rx->waterfall);
   }
 }
 
-GtkWidget* waterfall_init(int width,int height) {
+void waterfall_init(RECEIVER *rx,int width,int height) {
   display_width=width;
   display_height=height;
 
-  hz_per_pixel=(double)getSampleRate()/(double)display_width;
+  rx->pixbuf=NULL;
+  rx->waterfall_low=waterfall_low;
+  rx->waterfall_high=waterfall_high;
+  rx->waterfall_automatic=waterfall_automatic;
+
+  hz_per_pixel=(double)rx->sample_rate/(double)display_width;
 
   //waterfall_frame = gtk_frame_new (NULL);
-  waterfall = gtk_drawing_area_new ();
-  gtk_widget_set_size_request (waterfall, width, height);
+  rx->waterfall = gtk_drawing_area_new ();
+  gtk_widget_set_size_request (rx->waterfall, width, height);
 
   /* Signals used to handle the backing surface */
-  g_signal_connect (waterfall, "draw",
-            G_CALLBACK (waterfall_draw_cb), NULL);
-  g_signal_connect (waterfall,"configure-event",
-            G_CALLBACK (waterfall_configure_event_cb), NULL);
+  g_signal_connect (rx->waterfall, "draw",
+            G_CALLBACK (waterfall_draw_cb), rx);
+  g_signal_connect (rx->waterfall,"configure-event",
+            G_CALLBACK (waterfall_configure_event_cb), rx);
 
 
   /* Event signals */
-  g_signal_connect (waterfall, "motion-notify-event",
-            G_CALLBACK (waterfall_motion_notify_event_cb), NULL);
-  g_signal_connect (waterfall, "button-press-event",
-            G_CALLBACK (waterfall_button_press_event_cb), NULL);
-  g_signal_connect (waterfall, "button-release-event",
-            G_CALLBACK (waterfall_button_release_event_cb), NULL);
-  g_signal_connect(waterfall,"scroll_event",
-            G_CALLBACK(waterfall_scroll_event_cb),NULL);
+  g_signal_connect (rx->waterfall, "motion-notify-event",
+            G_CALLBACK (waterfall_motion_notify_event_cb), rx);
+  g_signal_connect (rx->waterfall, "button-press-event",
+            G_CALLBACK (waterfall_button_press_event_cb), rx);
+  g_signal_connect (rx->waterfall, "button-release-event",
+            G_CALLBACK (waterfall_button_release_event_cb), rx);
+  g_signal_connect(rx->waterfall,"scroll_event",
+            G_CALLBACK(waterfall_scroll_event_cb),rx);
 
   /* Ask to receive events the drawing area doesn't normally
    * subscribe to. In particular, we need to ask for the
    * button press and motion notify events that want to handle.
    */
-  gtk_widget_set_events (waterfall, gtk_widget_get_events (waterfall)
+  gtk_widget_set_events (rx->waterfall, gtk_widget_get_events (rx->waterfall)
                      | GDK_BUTTON_PRESS_MASK
                      | GDK_BUTTON_RELEASE_MASK
                      | GDK_BUTTON1_MOTION_MASK
@@ -284,5 +253,4 @@ GtkWidget* waterfall_init(int width,int height) {
                      | GDK_POINTER_MOTION_MASK
                      | GDK_POINTER_MOTION_HINT_MASK);
 
-  return waterfall;
 }

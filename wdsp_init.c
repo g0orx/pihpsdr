@@ -64,9 +64,9 @@
 static int receiver;
 static int running=0;
 
-static int buffer_size=BUFFER_SIZE;
-static int tx_buffer_size=BUFFER_SIZE;
-static int fft_size=4096;
+//static int buffer_size=BUFFER_SIZE;
+//static int tx_buffer_size=BUFFER_SIZE;
+static int tx_buffer_size;
 static int dspRate=48000;
 static int outputRate=48000;
 static int dvOutputRate=8000;
@@ -84,20 +84,20 @@ static void calc_tx_buffer_size() {
   if(protocol==ORIGINAL_PROTOCOL | protocol==RADIOBERRY_PROTOCOL) {
     switch(sample_rate) {
       case 48000:
-        tx_buffer_size=BUFFER_SIZE;
+        tx_buffer_size=buffer_size;
         break;
       case 96000:
-        tx_buffer_size=BUFFER_SIZE/2;
+        tx_buffer_size=buffer_size/2;
         break;
       case 192000:
-        tx_buffer_size=BUFFER_SIZE/4;
+        tx_buffer_size=buffer_size/4;
         break;
       case 384000:
-        tx_buffer_size=BUFFER_SIZE/8;
+        tx_buffer_size=buffer_size/8;
         break;
     }
   } else {
-    tx_buffer_size=BUFFER_SIZE; // input always 192K
+    tx_buffer_size=buffer_size; // input always 192K
   }
 }
 
@@ -253,7 +253,7 @@ static void setupRX(int rx) {
     }
 
     // setup for diversity
-    create_divEXT(0,0,2,BUFFER_SIZE);
+    create_divEXT(0,0,2,buffer_size);
     SetEXTDIVRotate(0, 2, &i_rotate, &q_rotate);
     SetEXTDIVRun(0,diversity_enabled);
 }
@@ -458,7 +458,10 @@ static void initAnalyzer(int channel,int buffer_size) {
 
     int max_w = fft_size + (int) MIN(KEEP_TIME * (double) SPECTRUM_UPDATES_PER_SECOND, KEEP_TIME * (double) fft_size * (double) SPECTRUM_UPDATES_PER_SECOND);
 
-    fprintf(stderr,"SetAnalyzer channel=%d buffer_size=%d\n",channel,buffer_size);
+    overlap = (int)max(0.0, ceil(fft_size - (double)sample_rate / (double)SPECTRUM_UPDATES_PER_SECOND));
+
+    fprintf(stderr,"SetAnalyzer channel=%d buffer_size=%d overlap=%d\n",channel,buffer_size,overlap);
+
 #ifdef PSK
     if(channel==CHANNEL_PSK) {
       data_type=0;

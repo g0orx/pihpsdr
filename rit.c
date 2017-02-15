@@ -57,23 +57,22 @@ static gboolean ctun_pressed_event_cb (GtkWidget *widget, GdkEventButton *event,
     set_button_text_color(ctun_b,"red");
   } else {
     set_button_text_color(ctun_b,"black");
-    if(ddsOffset!=0) {
-      ddsOffset=0;
-      wdsp_set_offset(ddsOffset);
-      vfo_update(NULL);
-    }
+    vfo[active_receiver->id].offset=0;
+    set_offset(active_receiver,0);
+    vfo_update(NULL);
   }
   return TRUE;
 }
 
 static gboolean rit_timer_cb(gpointer data) {
+  int v=active_receiver->id;
   if((GtkWidget*)data==rit_plus_b) {
-    rit+=rit_increment;
+    vfo[v].rit+=rit_increment;
   } else {
-    rit-=rit_increment;
+    vfo[v].rit-=rit_increment;
   }
-  if(rit>1000) rit=1000;
-  if(rit<-1000) rit=-1000;
+  if(vfo[v].rit>1000) vfo[v].rit=1000;
+  if(vfo[v].rit<-1000) vfo[v].rit=-1000;
   vfo_update(NULL);
   return TRUE;
 }
@@ -82,7 +81,7 @@ static gboolean rit_pressed_event_cb (GtkWidget *widget, GdkEventButton *event, 
   if(rit_enabled) {
     rit_enabled=FALSE;
     set_button_text_color(rit_b,"black");
-    rit=0;
+    vfo[active_receiver->id].offset=0;
     gtk_widget_set_sensitive(rit_plus_b,FALSE);
     gtk_widget_set_sensitive(rit_minus_b,FALSE);
   } else {
@@ -95,13 +94,14 @@ static gboolean rit_pressed_event_cb (GtkWidget *widget, GdkEventButton *event, 
 }
 
 static gboolean rit_step_pressed_event_cb (GtkWidget *widget, GdkEventButton *event, gpointer        data) {
+  int v=active_receiver->id;
   if(widget==rit_plus_b) {
-    rit+=rit_increment;
+    vfo[v].rit+=rit_increment;
   } else {
-    rit-=rit_increment;
+    vfo[v].rit-=rit_increment;
   }
-  if(rit>1000) rit=1000;
-  if(rit<-1000) rit=-1000;
+  if(vfo[v].rit>1000) vfo[v].rit=1000;
+  if(vfo[v].rit<-1000) vfo[v].rit=-1000;
   vfo_update(NULL);
   rit_timer=g_timeout_add(200,rit_timer_cb,widget);
   return TRUE;

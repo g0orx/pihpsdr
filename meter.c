@@ -55,7 +55,7 @@ meter_clear_surface (void)
   cr = cairo_create (meter_surface);
 
   cairo_set_source_rgb (cr, 0, 0, 0);
-  cairo_paint (cr);
+  cairo_fill (cr);
 
   cairo_destroy (cr);
 }
@@ -64,9 +64,6 @@ meter_configure_event_cb (GtkWidget         *widget,
             GdkEventConfigure *event,
             gpointer           data)
 {
-fprintf(stderr,"meter_configure_event_cb: width=%d height=%d\n",
-                                       gtk_widget_get_allocated_width (widget),
-                                       gtk_widget_get_allocated_height (widget));
   if (meter_surface)
     cairo_surface_destroy (meter_surface);
 
@@ -76,7 +73,11 @@ fprintf(stderr,"meter_configure_event_cb: width=%d height=%d\n",
                                        gtk_widget_get_allocated_height (widget));
 
   /* Initialize the surface to black */
-  meter_clear_surface ();
+  cairo_t *cr;
+  cr = cairo_create (meter_surface);
+  cairo_set_source_rgb (cr, 0, 0, 0);
+  cairo_paint (cr);
+  cairo_destroy (cr);
 
   return TRUE;
 }
@@ -89,8 +90,7 @@ static gboolean
 meter_draw_cb (GtkWidget *widget, cairo_t   *cr, gpointer   data) {
   cairo_set_source_surface (cr, meter_surface, 0, 0);
   cairo_paint (cr);
-
-  return FALSE;
+  return TRUE;
 }
 
 /*
@@ -225,10 +225,12 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
   cairo_select_font_face(cr, "FreeMono",
                 CAIRO_FONT_SLANT_NORMAL,
                 CAIRO_FONT_WEIGHT_BOLD);
-  cairo_set_source_rgb(cr, 0.5, 0.5, 0.5);
-  cairo_set_font_size(cr, 10);
+
+  cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
+  cairo_set_font_size(cr, 12);
   cairo_move_to(cr, 5, 15);
   cairo_show_text(cr, text);
+
 
   if(last_meter_type!=meter_type) {
     last_meter_type=meter_type;
@@ -321,7 +323,7 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
       cairo_show_text(cr, sf);
 
 #ifdef FREEDV
-      if(mode==modeFREEDV) {
+      if(active_receiver->mode==modeFREEDV) {
         if(freedv_sync) {
           cairo_set_source_rgb(cr, 0, 1, 0);
         } else {

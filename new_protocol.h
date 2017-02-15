@@ -20,6 +20,9 @@
 #ifndef _NEW_PROTOCOL_H
 #define _NEW_PROTOCOL_H
 
+#include <semaphore.h>
+#include "receiver.h"
+
 // port definitions from host
 #define GENERAL_REGISTERS_FROM_HOST_PORT 1024
 #define PROGRAMMING_FROM_HOST_PORT 1024
@@ -43,7 +46,7 @@
 #define RX_IQ_TO_HOST_PORT_6 1041
 #define RX_IQ_TO_HOST_PORT_7 1042
 
-#define BUFFER_SIZE 1024
+//#define BUFFER_SIZE 1024
 
 #ifdef SHORT_FRAMES
 #define MIC_SAMPLES 64
@@ -68,11 +71,12 @@ extern int send_high_priority;
 extern int send_general;
 */
 
-void schedule_high_priority(int source);
+void schedule_high_priority();
 void schedule_general();
 
 void new_protocol_init(int pixels);
 void new_protocol_stop();
+void new_protocol_run();
 
 void filter_board_changed();
 void pa_changed();
@@ -85,5 +89,7 @@ void setTune(int state);
 int getTune();
 int isTransmitting();
 
-void new_protocol_process_local_mic(unsigned char *buffer,int le);
+extern void new_protocol_process_local_mic(unsigned char *buffer,int le);
+extern void new_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right_audio_sample);
+extern void new_protocol_iq_samples(int isample,int qsample);
 #endif

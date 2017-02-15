@@ -26,6 +26,7 @@
 #include "pa_menu.h"
 #include "band.h"
 #include "radio.h"
+#include "vfo.h"
 
 static GtkWidget *parent_window=NULL;
 
@@ -45,8 +46,14 @@ static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
 static void pa_value_changed_cb(GtkWidget *widget, gpointer data) {
   BAND *band=(BAND *)data;
   band->pa_calibration=gtk_spin_button_get_value(GTK_SPIN_BUTTON(widget));
-  calcDriveLevel();
-  calcTuneDriveLevel();
+  int v=VFO_A;
+  if(split) v=VFO_B;
+  int b=vfo[v].band;
+  BAND *current=band_get_band(b);
+  if(band==current) {
+    calcDriveLevel();
+    calcTuneDriveLevel();
+  }
 }
 
 static void tx_out_of_band_cb(GtkWidget *widget, gpointer data) {

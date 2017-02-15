@@ -38,3 +38,4 @@ char *mode_string[]={
 #endif
 };
 
+//int mode;

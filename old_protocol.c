@@ -30,7 +30,6 @@
 #include <net/if_arp.h>
 #include <net/if.h>
 #include <ifaddrs.h>
-#include <pthread.h>
 #include <semaphore.h>
 #include <string.h>
 #include <errno.h>
@@ -45,8 +44,11 @@
 #include "filter.h"
 #include "old_protocol.h"
 #include "radio.h"
+#include "receiver.h"
+#include "transmitter.h"
 #include "signal.h"
 #include "toolbar.h"
+#include "vfo.h"
 #ifdef FREEDV
 #include "freedv.h"
 #endif
@@ -70,7 +72,7 @@
 
 #define SYNC 0x7F
 #define OZY_BUFFER_SIZE 512
-#define OUTPUT_BUFFER_SIZE 1024
+//#define OUTPUT_BUFFER_SIZE 1024
 
 // ozy command and control
 #define MOX_DISABLED    0x00
@@ -104,9 +106,8 @@
 #define LT2208_RANDOM_OFF         0x00
 #define LT2208_RANDOM_ON          0x10
 
-static int buffer_size=BUFFER_SIZE;
+//static int buffer_size=BUFFER_SIZE;
 
-static int receiver;
 static int display_width;
 
 static int speed;
@@ -128,8 +129,11 @@ static double phase=0.0;
 static int running;
 static long ep4_sequence;
 
+static int current_rx=0;
+
 static int samples=0;
 static int mic_samples=0;
+static int mic_sample_divisor=1;
 #ifdef FREEDV
 static int freedv_samples=0;
 static int freedv_divisor=6;
@@ -141,22 +145,22 @@ static int psk_divisor=6;
 
 //static float left_input_buffer[BUFFER_SIZE];
 //static float right_input_buffer[BUFFER_SIZE];
-static double iqinputbuffer[RECEIVERS][BUFFER_SIZE*2];
+//static double iqinputbuffer[MAX_RECEIVERS][MAX_BUFFER_SIZE*2];
 
-//static float mic_left_buffer[BUFFER_SIZE];
-//static float mic_right_buffer[BUFFER_SIZE];
-static double micinputbuffer[BUFFER_SIZE*2];
+//static float mic_left_buffer[MAX_BUFFER_SIZE];
+//static float mic_right_buffer[MAX_BUFFER_SIZE];
+static double micinputbuffer[MAX_BUFFER_SIZE*2];
 
 //static float left_output_buffer[OUTPUT_BUFFER_SIZE];
 //static float right_output_buffer[OUTPUT_BUFFER_SIZE];
-static double audiooutputbuffer[BUFFER_SIZE*2];
+//static double audiooutputbuffer[MAX_BUFFER_SIZE*2];
 
 //static float left_subrx_output_buffer[OUTPUT_BUFFER_SIZE];
 //static float right_subrx_output_buffer[OUTPUT_BUFFER_SIZE];
 
 //static float left_tx_buffer[OUTPUT_BUFFER_SIZE];
 //static float right_tx_buffer[OUTPUT_BUFFER_SIZE];
-static double iqoutputbuffer[BUFFER_SIZE*2];
+//static double iqoutputbuffer[MAX_BUFFER_SIZE*2];
 
 static int left_rx_sample;
 static int right_rx_sample;
@@ -168,9 +172,9 @@ static int output_buffer_index=8;
 
 static int command=0;
 
-static pthread_t receive_thread_id;
+static GThread *receive_thread_id;
 static void start_receive_thread();
-static void *receive_thread(void* arg);
+static gpointer receive_thread(gpointer arg);
 static void process_ozy_input_buffer(char  *buffer);
 static void process_bandscope_buffer(char  *buffer);
 void ozy_send_buffer();
@@ -183,78 +187,76 @@ static int frequencyChanged=0;
 static sem_t frequency_changed_sem;
 
 static int metis_write(unsigned char ep,char* buffer,int length);
-static void metis_restart();
 static void metis_start_stop(int command);
 static void metis_send_buffer(char* buffer,int length);
-static void full_rx_buffer();
-static void full_tx_buffer();
+static void metis_restart();
+
+#define COMMON_MERCURY_FREQUENCY 0x80
+#define PENELOPE_MIC 0x80
+
+#ifdef USBOZY
+//
+// additional defines if we include USB Ozy support
+//
+#include "ozyio.h"
+
+static GThread *ozy_EP4_rx_thread_id;
+static GThread *ozy_EP6_rx_thread_id;
+static gpointer ozy_ep4_rx_thread(gpointer arg);
+static gpointer ozy_ep6_rx_thread(gpointer arg);
+static void start_usb_receive_threads();
+static int ozyusb_write(char* buffer,int length);
+#define EP6_IN_ID  0x86                         // end point = 6, direction toward PC
+#define EP2_OUT_ID  0x02                        // end point = 2, direction from PC
+#define EP6_BUFFER_SIZE 2048
+static unsigned char usb_output_buffer[EP6_BUFFER_SIZE];
+static unsigned char ep6_inbuffer[EP6_BUFFER_SIZE];
+static unsigned char usb_buffer_block = 0;
+#endif
 
 void schedule_frequency_changed() {
-//fprintf(stderr,"old_protocol: schedule_frequency_changed\n");
-    //sem_wait(&frequency_changed_sem);
     frequencyChanged=1;
-    //sem_post(&frequency_changed_sem);
 }
 
 void old_protocol_stop() {
   metis_start_stop(0);
-  running=FALSE;
 }
 
-void old_protocol_calc_buffers() {
-  switch(sample_rate) {
-    case 48000:
-      output_buffer_size=OUTPUT_BUFFER_SIZE;
-      break;
-    case 96000:
-      output_buffer_size=OUTPUT_BUFFER_SIZE/2;
-      break;
-    case 192000:
-      output_buffer_size=OUTPUT_BUFFER_SIZE/4;
-      break;
-    case 384000:
-      output_buffer_size=OUTPUT_BUFFER_SIZE/8;
-      break;
-    default:
-      fprintf(stderr,"Invalid sample rate: %d. Defaulting to 48K.\n",sample_rate);
-      break;
-  }
-}
-
-void old_protocol_new_sample_rate(int rate) {
-  metis_start_stop(0);
-  sample_rate=rate;
-  old_protocol_calc_buffers();
-  wdsp_new_sample_rate(rate);
+void old_protocol_run() {
   metis_restart();
 }
 
-void old_protocol_init(int rx,int pixels) {
+void old_protocol_set_mic_sample_rate(int rate) {
+  mic_sample_divisor=rate/48000;
+}
+
+void old_protocol_init(int rx,int pixels,int rate) {
   int i;
 
   fprintf(stderr,"old_protocol_init\n");
 
-  //int result=sem_init(&frequency_changed_sem, 0, 1);
+  old_protocol_set_mic_sample_rate(rate);
 
-  if(local_audio) {
-    if(audio_open_output()!=0) {
-      fprintf(stderr,"audio_open_output failed\n");
-      local_audio=0;
-    }
-  }
-
-  if(local_microphone) {
+  if(transmitter->local_microphone) {
     if(audio_open_input()!=0) {
       fprintf(stderr,"audio_open_input failed\n");
-      local_microphone=0;
+      transmitter->local_microphone=0;
     }
   }
 
-  receiver=rx;
   display_width=pixels;
  
-  old_protocol_calc_buffers();
-
+#ifdef USBOZY
+//
+// if we have a USB interfaced Ozy device:
+//
+  if (device == DEVICE_OZY) {
+    fprintf(stderr,"old_protocol_init: initialise ozy on USB\n");
+    ozy_initialise();
+    start_usb_receive_threads();
+  }
+  else
+#endif
   start_receive_thread();
 
   fprintf(stderr,"old_protocol_init: prime radio\n");
@@ -266,6 +268,73 @@ void old_protocol_init(int rx,int pixels) {
 
 }
 
+#ifdef USBOZY
+//
+// starts the threads for USB receive
+// EP4 is the bandscope endpoint (not yet used)
+// EP6 is the "normal" USB frame endpoint
+//
+static void start_usb_receive_threads()
+{
+  int rc;
+
+  fprintf(stderr,"old_protocol starting USB receive thread: buffer_size=%d\n",buffer_size);
+
+  ozy_EP6_rx_thread_id = g_thread_new( "OZY EP6 RX", ozy_ep6_rx_thread, NULL);
+  if( ! ozy_EP6_rx_thread_id )
+  {
+    fprintf(stderr,"g_thread_new failed for ozy_ep6_rx_thread\n");
+    exit( -1 );
+  }
+}
+
+//
+// receive threat for USB EP4 (bandscope) not currently used.
+//
+static gpointer ozy_ep4_rx_thread(gpointer arg)
+{
+}
+
+//
+// receive threat for USB EP6 (512 byte USB Ozy frames)
+// this function loops reading 4 frames at a time through USB
+// then processes them one at a time.
+//
+static gpointer ozy_ep6_rx_thread(gpointer arg) {
+  int bytes;
+  unsigned char buffer[2048];
+
+  fprintf(stderr, "old_protocol: USB EP6 receive_thread\n");
+  running=1;
+ 
+  while (running)
+  {
+    bytes = ozy_read(EP6_IN_ID,ep6_inbuffer,EP6_BUFFER_SIZE); // read a 2K buffer at a time
+
+    if (bytes == 0)
+    {
+      fprintf(stderr,"old_protocol_ep6_read: ozy_read returned 0 bytes... retrying\n");
+      continue;
+    }
+    else if (bytes != EP6_BUFFER_SIZE)
+    {
+      fprintf(stderr,"old_protocol_ep6_read: OzyBulkRead failed %d bytes\n",bytes);
+      perror("ozy_read(EP6 read failed");
+      //exit(1);
+    }
+    else
+// process the received data normally
+    {
+      process_ozy_input_buffer(&ep6_inbuffer[0]);
+      process_ozy_input_buffer(&ep6_inbuffer[512]);
+      process_ozy_input_buffer(&ep6_inbuffer[1024]);
+      process_ozy_input_buffer(&ep6_inbuffer[1024+512]);
+    }
+
+  }
+}
+#endif
+
 static void start_receive_thread() {
   int i;
   int rc;
@@ -273,34 +342,44 @@ static void start_receive_thread() {
 
   fprintf(stderr,"old_protocol starting receive thread: buffer_size=%d output_buffer_size=%d\n",buffer_size,output_buffer_size);
 
-  data_socket=socket(PF_INET,SOCK_DGRAM,IPPROTO_UDP);
-  if(data_socket<0) {
-    perror("old_protocol: create socket failed for data_socket\n");
-    exit(-1);
+  switch(device) {
+#ifdef USBOZY
+    case DEVICE_OZY:
+      break;
+#endif
+    default:
+      data_socket=socket(PF_INET,SOCK_DGRAM,IPPROTO_UDP);
+      if(data_socket<0) {
+        perror("old_protocol: create socket failed for data_socket\n");
+        exit(-1);
+      }
+
+      int optval = 1;
+      setsockopt(data_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+
+      // bind to the interface
+      if(bind(data_socket,(struct sockaddr*)&radio->info.network.interface_address,radio->info.network.interface_length)<0) {
+        perror("old_protocol: bind socket failed for data_socket\n");
+        exit(-1);
+      }
+
+      memcpy(&data_addr,&radio->info.network.address,radio->info.network.address_length);
+      data_addr_length=radio->info.network.address_length;
+      data_addr.sin_port=htons(DATA_PORT);
+      break;
   }
 
-  int optval = 1;
-  setsockopt(data_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
-
-  // bind to the interface
-  if(bind(data_socket,(struct sockaddr*)&radio->info.network.interface_address,radio->info.network.interface_length)<0) {
-    perror("old_protocol: bind socket failed for data_socket\n");
-    exit(-1);
+  receive_thread_id = g_thread_new( "old protocol", receive_thread, NULL);
+  if( ! receive_thread_id )
+  {
+    fprintf(stderr,"g_thread_new failed on receive_thread\n");
+    exit( -1 );
   }
-
-  memcpy(&data_addr,&radio->info.network.address,radio->info.network.address_length);
-  data_addr_length=radio->info.network.address_length;
-  data_addr.sin_port=htons(DATA_PORT);
-
-  rc=pthread_create(&receive_thread_id,NULL,receive_thread,NULL);
-  if(rc != 0) {
-    fprintf(stderr,"old_protocol: pthread_create failed on receive_thread: rc=%d\n", rc);
-    exit(-1);
-  }
+  fprintf(stderr, "receive_thread: id=%p\n",receive_thread_id);
 
 }
 
-static void *receive_thread(void* arg) {
+static gpointer receive_thread(gpointer arg) {
   struct sockaddr_in addr;
   int length;
   unsigned char buffer[2048];
@@ -313,56 +392,67 @@ static void *receive_thread(void* arg) {
 
   length=sizeof(addr);
   while(running) {
-    bytes_read=recvfrom(data_socket,buffer,sizeof(buffer),0,(struct sockaddr*)&addr,&length);
-    if(bytes_read<0) {
-      perror("recvfrom socket failed for old_protocol: receive_thread");
-      exit(1);
-    }
 
-    if(buffer[0]==0xEF && buffer[1]==0xFE) {
-      switch(buffer[2]) {
-        case 1:
-          // get the end point
-          ep=buffer[3]&0xFF;
+    switch(device) {
+#ifdef USBOZY
+      case DEVICE_OZY:
+        // should not happen
+        break;
+#endif
 
-          // get the sequence number
-          sequence=((buffer[4]&0xFF)<<24)+((buffer[5]&0xFF)<<16)+((buffer[6]&0xFF)<<8)+(buffer[7]&0xFF);
+      default:
+        bytes_read=recvfrom(data_socket,buffer,sizeof(buffer),0,(struct sockaddr*)&addr,&length);
+        if(bytes_read<0) {
+          perror("recvfrom socket failed for old_protocol: receive_thread");
+          exit(1);
+        }
 
-          switch(ep) {
-            case 6: // EP6
-              // process the data
-              process_ozy_input_buffer(&buffer[8]);
-              process_ozy_input_buffer(&buffer[520]);
-              break;
-            case 4: // EP4
+        if(buffer[0]==0xEF && buffer[1]==0xFE) {
+          switch(buffer[2]) {
+            case 1:
+              // get the end point
+              ep=buffer[3]&0xFF;
+
+              // get the sequence number
+              sequence=((buffer[4]&0xFF)<<24)+((buffer[5]&0xFF)<<16)+((buffer[6]&0xFF)<<8)+(buffer[7]&0xFF);
+
+              switch(ep) {
+                case 6: // EP6
+                  // process the data
+                  process_ozy_input_buffer(&buffer[8]);
+                  process_ozy_input_buffer(&buffer[520]);
+                  break;
+                case 4: // EP4
 /*
-              ep4_sequence++;
-              if(sequence!=ep4_sequence) {
-                ep4_sequence=sequence;
-              } else {
-                int seq=(int)(sequence%32L);
-                if((sequence%32L)==0L) {
-                  reset_bandscope_buffer_index();
-                }
-                process_bandscope_buffer(&buffer[8]);
-                process_bandscope_buffer(&buffer[520]);
-              }
+                  ep4_sequence++;
+                  if(sequence!=ep4_sequence) {
+                    ep4_sequence=sequence;
+                  } else {
+                    int seq=(int)(sequence%32L);
+                    if((sequence%32L)==0L) {
+                      reset_bandscope_buffer_index();
+                    }
+                    process_bandscope_buffer(&buffer[8]);
+                    process_bandscope_buffer(&buffer[520]);
+                  }
 */
+                  break;
+                default:
+                  fprintf(stderr,"unexpected EP %d length=%d\n",ep,bytes_read);
+                  break;
+              }
+              break;
+            case 2:  // response to a discovery packet
+              fprintf(stderr,"unexepected discovery response when not in discovery mode\n");
               break;
             default:
-              fprintf(stderr,"unexpected EP %d length=%d\n",ep,bytes_read);
+              fprintf(stderr,"unexpected packet type: 0x%02X\n",buffer[2]);
               break;
           }
-          break;
-        case 2:  // response to a discovery packet
-          fprintf(stderr,"unexepected discovery response when not in discovery mode\n");
-          break;
-        default:
-          fprintf(stderr,"unexpected packet type: 0x%02X\n",buffer[2]);
-          break;
-      }
-    } else {
-      fprintf(stderr,"received bad header bytes on data port %02X,%02X\n",buffer[0],buffer[1]);
+        } else {
+          fprintf(stderr,"received bad header bytes on data port %02X,%02X\n",buffer[0],buffer[1]);
+        }
+        break;
     }
   }
 }
@@ -378,9 +468,9 @@ static void process_ozy_input_buffer(char  *buffer) {
   int last_dash;
   int left_sample;
   int right_sample;
-  int mic_sample;
-  double left_sample_double[RECEIVERS];
-  double right_sample_double[RECEIVERS];
+  short mic_sample;
+  double left_sample_double;
+  double right_sample_double;
   double mic_sample_double;
   double gain=pow(10.0, mic_gain / 20.0);
 
@@ -437,84 +527,29 @@ static void process_ozy_input_buffer(char  *buffer) {
     }
 
 
-    int iq_samples = (512 -8) / ((RECEIVERS*6)+2);
+    int iq_samples=(512-8)/((RECEIVERS*6)+2);
 
     for(i=0;i<iq_samples;i++) {
-
       for(r=0;r<RECEIVERS;r++) {
-        left_sample   = (int)((signed char) buffer[b++]) << 16;
-        left_sample  += (int)((unsigned char)buffer[b++]) << 8;
-        left_sample  += (int)((unsigned char)buffer[b++]);
-        right_sample  = (int)((signed char) buffer[b++]) << 16;
-        right_sample += (int)((unsigned char)buffer[b++]) << 8;
-        right_sample += (int)((unsigned char)buffer[b++]);
-        left_sample_double[r]=(double)left_sample/8388607.0; // 24 bit sample 2^23-1
-        right_sample_double[r]=(double)right_sample/8388607.0; // 24 bit sample 2^23-1
-      }
-      mic_sample    = (int)((signed char) buffer[b++]) << 8;
-      mic_sample   |= (int)((unsigned char)buffer[b++]);
-      mic_sample_double = (1.0 / 2147483648.0) * (double)(mic_sample<<16);
+        left_sample   = (int)((signed char) buffer[b++])<<16;
+        left_sample  |= (int)((((unsigned char)buffer[b++])<<8)&0xFF00);
+        left_sample  |= (int)((unsigned char)buffer[b++]&0xFF);
+        right_sample  = (int)((signed char)buffer[b++]) << 16;
+        right_sample |= (int)((((unsigned char)buffer[b++])<<8)&0xFF00);
+        right_sample |= (int)((unsigned char)buffer[b++]&0xFF);
 
-      // add to buffer
-      if(isTransmitting() && !local_microphone) {
-#ifdef FREEDV
-        if(mode==modeFREEDV && !tune) {
-          if(freedv_samples==0) {
-            int sample=(int)((double)mic_sample*gain);
-            int modem_samples=mod_sample_freedv(sample);
-            if(modem_samples!=0) {
-              int s;
-              for(s=0;s<modem_samples;s++) {
-                for(j=0;j<freedv_divisor;j++) {
-                  mic_sample=mod_out[s];
-                  mic_sample_double = (1.0 / 2147483648.0) * (double)(mic_sample<<16);
-                  micinputbuffer[samples*2]=mic_sample_double;
-                  micinputbuffer[(samples*2)+1]=mic_sample_double;
-                  iqinputbuffer[0][samples*2]=0.0;
-                  iqinputbuffer[0][(samples*2)+1]=0.0;
-                  samples++;
-                  if(samples==buffer_size) {
-                    full_tx_buffer();
-                    samples=0;
-                  }
-                }
-              }
-            }
-          }
-          freedv_samples++;
-          if(freedv_samples==freedv_divisor) {
-            freedv_samples=0;
-          }
-        } else {
-#endif
-          if(mode==modeCWL || mode==modeCWU || tune) {
-            micinputbuffer[samples*2]=0.0;
-            micinputbuffer[(samples*2)+1]=0.0;
-          } else {
-            micinputbuffer[samples*2]=mic_sample_double;
-            micinputbuffer[(samples*2)+1]=mic_sample_double;
-          }
-          iqinputbuffer[0][samples*2]=0.0;
-          iqinputbuffer[0][(samples*2)+1]=0.0;
-          samples++;
-          if(samples==buffer_size) {
-            full_tx_buffer();
-            samples=0;
-          }
-#ifdef FREEDV
-        }
-#endif
-      } else {
-        if(!isTransmitting()) {
-          micinputbuffer[samples*2]=mic_sample_double;
-          micinputbuffer[(samples*2)+1]=mic_sample_double;
-          iqinputbuffer[0][samples*2]=left_sample_double[0];
-          iqinputbuffer[0][(samples*2)+1]=right_sample_double[0];
-          samples++;
-          if(samples==buffer_size) {
-            full_rx_buffer();
-            samples=0;
-          }
+        left_sample_double=(double)left_sample/8388607.0; // 24 bit sample 2^23-1
+        right_sample_double=(double)right_sample/8388607.0; // 24 bit sample 2^23-1
+
+        add_iq_samples(receiver[r], left_sample_double,right_sample_double);
+      }
+      mic_sample  = (short)(buffer[b++]<<8);
+      mic_sample |= (short)(buffer[b++]&0xFF);
+      if(!transmitter->local_microphone) {
+        mic_samples++;
+        if(mic_samples>=mic_sample_divisor) { // reduce to 48000
+          add_mic_sample(transmitter,mic_sample);
+          mic_samples=0;
         }
       }
     }
@@ -533,84 +568,16 @@ static void process_ozy_input_buffer(char  *buffer) {
   }
 }
 
-#ifdef FREEDV
-static void process_freedv_rx_buffer() {
-  int j;
-
-  int demod_samples;
-  for(j=0;j<output_buffer_size;j++) {
-    if(freedv_samples==0) {
-      left_rx_sample=(short)(audiooutputbuffer[j*2]*32767.0);
-      right_rx_sample=(short)(audiooutputbuffer[(j*2)+1]*32767.0);
-      demod_samples=demod_sample_freedv(left_rx_sample);
-      if(demod_samples!=0) {
-        int s;
-        int t;
-        for(s=0;s<demod_samples;s++) {
-          for(t=0;t<6;t++) { // 8k to 48k
-            if(freedv_sync) {
-              left_rx_sample=right_rx_sample=(short)((double)speech_out[s]);
-            } else {
-              left_rx_sample=right_rx_sample=0;
-            }
-            if(local_audio) {
-              audio_write(left_rx_sample,right_rx_sample);
-            }
-            output_buffer[output_buffer_index++]=left_rx_sample>>8;
-            output_buffer[output_buffer_index++]=left_rx_sample;
-            output_buffer[output_buffer_index++]=right_rx_sample>>8;
-            output_buffer[output_buffer_index++]=right_rx_sample;
-            left_tx_sample=right_tx_sample=0;
-            output_buffer[output_buffer_index++]=left_tx_sample>>8;
-            output_buffer[output_buffer_index++]=left_tx_sample;
-            output_buffer[output_buffer_index++]=right_tx_sample>>8;
-            output_buffer[output_buffer_index++]=right_tx_sample;
-            if(output_buffer_index>=OZY_BUFFER_SIZE) {
-              ozy_send_buffer();
-              output_buffer_index=8;
-            }
-          }
-        }
-      }
-    }
-    freedv_samples++;
-    if(freedv_samples==freedv_divisor) {
-      freedv_samples=0;
-    }
-  }
-}
-#endif
-
-static void process_rx_buffer() {
-  int j;
-
-  for(j=0;j<output_buffer_size;j++) {
-    left_rx_sample=(short)(audiooutputbuffer[j*2]*32767.0);
-    right_rx_sample=(short)(audiooutputbuffer[(j*2)+1]*32767.0);
-#ifdef PSK
-    if(mode==modePSK) {
-      if(psk_samples==0) {
-        psk_demod((double)((left_rx_sample+right_rx_sample)/2));
-      }
-      psk_samples++;
-      if(psk_samples==psk_divisor) {
-        psk_samples=0;
-      }
-    }
-#endif
-    if(local_audio) {
-      audio_write(left_rx_sample,right_rx_sample);
-    }
-    left_tx_sample=0;
-    right_tx_sample=0;
-    output_buffer[output_buffer_index++]=left_rx_sample>>8;
-    output_buffer[output_buffer_index++]=left_rx_sample;
-    output_buffer[output_buffer_index++]=right_rx_sample>>8;
-    output_buffer[output_buffer_index++]=right_rx_sample;
-    output_buffer[output_buffer_index++]=left_tx_sample>>8;
-    output_buffer[output_buffer_index++]=left_tx_sample;
-    output_buffer[output_buffer_index++]=right_tx_sample>>8;
-    output_buffer[output_buffer_index++]=right_tx_sample;
+void old_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right_audio_sample) {
+  if(!isTransmitting()) {
+    output_buffer[output_buffer_index++]=left_audio_sample>>8;
+    output_buffer[output_buffer_index++]=left_audio_sample;
+    output_buffer[output_buffer_index++]=right_audio_sample>>8;
+    output_buffer[output_buffer_index++]=right_audio_sample;
+    output_buffer[output_buffer_index++]=0;
+    output_buffer[output_buffer_index++]=0;
+    output_buffer[output_buffer_index++]=0;
+    output_buffer[output_buffer_index++]=0;
     if(output_buffer_index>=OZY_BUFFER_SIZE) {
       ozy_send_buffer();
       output_buffer_index=8;
@@ -618,164 +585,38 @@ static void process_rx_buffer() {
   }
 }
 
-static void full_rx_buffer() {
-  int j;
-  int error;
-
-  if(vox_enabled && !local_microphone) {
-    switch(mode) {
-      case modeLSB:
-      case modeUSB:
-      case modeDSB:
-      case modeFMN:
-      case modeAM:
-      case modeSAM:
-#ifdef FREEDV
-      case modeFREEDV:
-#endif
-        update_vox(micinputbuffer,BUFFER_SIZE);
-        break;
-    }
-  }
-
-  if(diversity_enabled) {
-    double *pin[2];
-    pin[0]=iqinputbuffer[0];
-    pin[1]=iqinputbuffer[1];
-
-    xdivEXT(0,BUFFER_SIZE,pin,iqinputbuffer[0]);
-  }
-
-  fexchange0(CHANNEL_RX0, iqinputbuffer[0], audiooutputbuffer, &error);
-
-#ifdef PSK
-  if(mode!=modePSK) {
-#endif
-    Spectrum0(1, CHANNEL_RX0, 0, 0, iqinputbuffer[0]);
-#ifdef PSK
-  }
-#endif
-
-#ifdef FREEDV
-  if(mode==modeFREEDV) {
-    process_freedv_rx_buffer();
-    return;
-  }
-#endif
-  process_rx_buffer();
-}
-
-static void full_tx_buffer() {
-  int j;
-  int error;
-  double gain=32767.0; // 2^16-1
-
-  if(vox_enabled && (vox || local_microphone)) {
-    update_vox(micinputbuffer,BUFFER_SIZE);
-  }
-
+void old_protocol_iq_samples(int isample,int qsample) {
   if(isTransmitting()) {
-    fexchange0(CHANNEL_TX, micinputbuffer, iqoutputbuffer, &error);
-    if(error!=0) {
-      fprintf(stderr,"full_tx_buffer: fexchange0: error=%d\n",error);
-    }
-    Spectrum0(1, CHANNEL_TX, 0, 0, iqoutputbuffer);
-
-    if(radio->device==DEVICE_METIS && atlas_penelope) {
-      if(tune) {
-        gain=gain*tune_drive;
-      } else {
-        gain=gain*drive;
-      }
-    }
-    for(j=0;j<output_buffer_size;j++) {
-      left_rx_sample=0;
-      right_rx_sample=0;
-      left_tx_sample=(int)(iqoutputbuffer[j*2]*gain);
-      right_tx_sample=(int)(iqoutputbuffer[(j*2)+1]*gain);
-  
-      output_buffer[output_buffer_index++]=0;
-      output_buffer[output_buffer_index++]=0;
-      output_buffer[output_buffer_index++]=0;
-      output_buffer[output_buffer_index++]=0;
-      output_buffer[output_buffer_index++]=left_tx_sample>>8;
-      output_buffer[output_buffer_index++]=left_tx_sample;
-      output_buffer[output_buffer_index++]=right_tx_sample>>8;
-      output_buffer[output_buffer_index++]=right_tx_sample;
-      if(output_buffer_index>=OZY_BUFFER_SIZE) {
-        ozy_send_buffer();
-        output_buffer_index=8;
-      }
+    output_buffer[output_buffer_index++]=0;
+    output_buffer[output_buffer_index++]=0;
+    output_buffer[output_buffer_index++]=0;
+    output_buffer[output_buffer_index++]=0;
+    output_buffer[output_buffer_index++]=isample>>8;
+    output_buffer[output_buffer_index++]=isample;
+    output_buffer[output_buffer_index++]=qsample>>8;
+    output_buffer[output_buffer_index++]=qsample;
+    if(output_buffer_index>=OZY_BUFFER_SIZE) {
+      ozy_send_buffer();
+      output_buffer_index=8;
     }
   }
 }
+
 
 void old_protocol_process_local_mic(unsigned char *buffer,int le) {
   int b;
-  int mic_sample;
-  double mic_sample_double;
-  double gain=pow(10.0, mic_gain / 20.0);
-
-  //if(isTransmitting()) {
-    b=0;
-    int i,j,s;
-    for(i=0;i<720;i++) {
-      if(le) {
-        mic_sample  = (int)((unsigned char)buffer[b++] & 0xFF);
-        mic_sample  |= (int)((signed char) buffer[b++]) << 8;
-      } else {
-        mic_sample  = (int)((signed char) buffer[b++]) << 8;
-        mic_sample  |= (int)((unsigned char)buffer[b++] & 0xFF);
-      }
-      mic_sample_double=(1.0 / 2147483648.0) * (double)(mic_sample<<16);
-#ifdef FREEDV
-      if(mode==modeFREEDV && !tune) {
-        if(freedv_samples==0) { // 48K to 8K
-          int modem_samples=mod_sample_freedv(mic_sample*gain);
-          if(modem_samples!=0) {
-            for(s=0;s<modem_samples;s++) {
-              for(j=0;j<freedv_divisor;j++) {  // 8K to 48K
-                mic_sample=mod_out[s];
-                mic_sample_double = (1.0 / 2147483648.0) * (double)(mic_sample<<16);
-                micinputbuffer[mic_samples*2]=mic_sample_double;
-                micinputbuffer[(mic_samples*2)+1]=mic_sample_double;
-                //iqinputbuffer[0][samples*2]=0.0;
-                //iqinputbuffer[0][(samples*2)+1]=0.0;
-                mic_samples++;
-                if(mic_samples==buffer_size) {
-                  full_tx_buffer();
-                  mic_samples=0;
-                }
-              }
-            }
-          }
-         }
-         freedv_samples++;
-         if(freedv_samples==freedv_divisor) {
-           freedv_samples=0;
-         }
-      } else {
-#endif
-         if(mode==modeCWL || mode==modeCWU || tune) {
-           micinputbuffer[mic_samples*2]=0.0;
-           micinputbuffer[(mic_samples*2)+1]=0.0;
-         } else {
-           micinputbuffer[mic_samples*2]=mic_sample_double;
-           micinputbuffer[(mic_samples*2)+1]=mic_sample_double;
-         }
-//         iqinputbuffer[0][samples*2]=0.0;
-//         iqinputbuffer[0][(samples*2)+1]=0.0;
-         mic_samples++;
-         if(mic_samples==buffer_size) {
-           full_tx_buffer();
-           mic_samples=0;
-         }
-#ifdef FREEDV
-       }
-#endif
-
+  short mic_sample;
+// always 48000 samples per second
+  b=0;
+  int i,j,s;
+  for(i=0;i<720;i++) {
+    if(le) {
+      mic_sample = (short)((buffer[b++]&0xFF) | (buffer[b++]<<8));
+    } else {
+      mic_sample = (short)((buffer[b++]<<8) | (buffer[b++]&0xFF));
     }
-  //}
+    add_mic_sample(transmitter,mic_sample);
+  }
 }
 
 /*
@@ -784,9 +625,12 @@ static void process_bandscope_buffer(char  *buffer) {
 */
 
 
-int current_rx=0;
 
 void ozy_send_buffer() {
+
+  int mode;
+  int i;
+  BAND *band;
 
   output_buffer[SYNC0]=SYNC;
   output_buffer[SYNC1]=SYNC;
@@ -795,12 +639,11 @@ void ozy_send_buffer() {
   switch(command) {
     case 0:
       {
-      BAND *band=band_get_current_band();
    
       output_buffer[C0]=0x00;
 
       output_buffer[C1]=0x00;
-      switch(sample_rate) {
+      switch(active_receiver->sample_rate) {
         case 48000:
           output_buffer[C1]|=SPEED_48K;
           break;
@@ -814,46 +657,62 @@ void ozy_send_buffer() {
           output_buffer[C1]|=SPEED_384K;
           break;
       }
-      if(radio->device==DEVICE_METIS) {
+
+// set more bits for Atlas based device
+// CONFIG_BOTH seems to be critical to getting ozy to respond
+#ifdef USBOZY
+      if ((device == DEVICE_OZY) || (device == DEVICE_METIS))
+#else
+      if (device == DEVICE_METIS)
+#endif
+      {
+        if (atlas_mic_source)
+          output_buffer[C1] |= PENELOPE_MIC;
+        output_buffer[C1] |= CONFIG_BOTH;
+        if (atlas_clock_source_128mhz)
+          output_buffer[C1] |= MERCURY_122_88MHZ_SOURCE;
+        output_buffer[C1] |= ((atlas_clock_source_10mhz & 3) << 2);
       }
 
       output_buffer[C2]=0x00;
       if(classE) {
         output_buffer[C2]|=0x01;
       }
+      band=band_get_band(vfo[VFO_A].band);
       if(isTransmitting()) {
-        output_buffer[C2]|=band->OCtx;
+        if(split) {
+          band=band_get_band(vfo[VFO_B].band);
+        }
+        output_buffer[C2]|=band->OCtx<<1;
         if(tune) {
           if(OCmemory_tune_time!=0) {
             struct timeval te;
             gettimeofday(&te,NULL);
             long long now=te.tv_sec*1000LL+te.tv_usec/1000;
             if(tune_timeout>now) {
-              output_buffer[C2]|=OCtune;
+              output_buffer[C2]|=OCtune<<1;
             }
           } else {
-            output_buffer[C2]|=OCtune;
+            output_buffer[C2]|=OCtune<<1;
           }
         }
       } else {
-        output_buffer[C2]|=band->OCrx;
+        output_buffer[C2]|=band->OCrx<<1;
       }
 
 // TODO - add Alex Attenuation and Alex Antenna
       output_buffer[C3]=0x00;
-      if(rx_random) {
+      if(active_receiver->random) {
         output_buffer[C3]|=LT2208_RANDOM_ON;
       }
-      if(rx_dither) {
+      if(active_receiver->dither) {
         output_buffer[C3]|=LT2208_DITHER_ON;
       }
-/*
-      if(rx_preamp) {
+      if(active_receiver->preamp) {
         output_buffer[C3]|=LT2208_GAIN_ON;
       }
-*/
 
-      switch(band->alexRxAntenna) {
+      switch(receiver[0]->alex_antenna) {
         case 0:  // ANT 1
           break;
         case 1:  // ANT 2
@@ -872,8 +731,6 @@ void ozy_send_buffer() {
           output_buffer[C3]|=0xE0;
           break;
         default:
-          // invalid - set to 0
-          band->alexRxAntenna=0;
           break;
       }
 
@@ -883,7 +740,7 @@ void ozy_send_buffer() {
       output_buffer[C4]|=(RECEIVERS-1)<<3;
     
       if(isTransmitting()) {
-        switch(band->alexTxAntenna) {
+        switch(transmitter->alex_antenna) {
           case 0:  // ANT 1
             output_buffer[C4]|=0x00;
             break;
@@ -894,12 +751,10 @@ void ozy_send_buffer() {
             output_buffer[C4]|=0x02;
             break;
           default:
-            // invalid - set to 0
-            band->alexRxAntenna=0;
             break;
         }
       } else {
-        switch(band->alexRxAntenna) {
+        switch(receiver[0]->alex_antenna) {
           case 0:  // ANT 1
             output_buffer[C4]|=0x00;
             break;
@@ -912,7 +767,7 @@ void ozy_send_buffer() {
           case 3:  // EXT 1
           case 4:  // EXT 2
           case 5:  // XVTR
-            switch(band->alexTxAntenna) {
+            switch(transmitter->alex_antenna) {
               case 0:  // ANT 1
                 output_buffer[C4]|=0x00;
                 break;
@@ -930,9 +785,11 @@ void ozy_send_buffer() {
       break;
     case 1: // tx frequency
       output_buffer[C0]=0x02;
-      long long txFrequency=ddsFrequency;
-      if(ctun) {
-        txFrequency+=ddsOffset;
+      long long txFrequency;
+      if(split) {
+        txFrequency=vfo[VFO_B].frequency-vfo[VFO_A].lo+vfo[VFO_B].offset;
+      } else {
+        txFrequency=vfo[VFO_A].frequency-vfo[VFO_B].lo+vfo[VFO_A].offset;
       }
       output_buffer[C1]=txFrequency>>24;
       output_buffer[C2]=txFrequency>>16;
@@ -940,19 +797,22 @@ void ozy_send_buffer() {
       output_buffer[C4]=txFrequency;
       break;
     case 2: // rx frequency
-      output_buffer[C0]=0x04+(current_rx*2);
-      long long rxFrequency=ddsFrequency+(long long)rit;
-      if(mode==modeCWU) {
-        rxFrequency-=(long long)cw_keyer_sidetone_frequency;
-      } else if(mode==modeCWL) {
-        rxFrequency+=(long long)cw_keyer_sidetone_frequency;
+      if(current_rx<receivers) {
+        output_buffer[C0]=0x04+(current_rx*2);
+        int v=receiver[current_rx]->id;
+        long long rxFrequency=vfo[v].frequency+vfo[v].rit;
+        if(vfo[active_receiver->id].mode==modeCWU) {
+          rxFrequency-=(long long)cw_keyer_sidetone_frequency;
+        } else if(vfo[active_receiver->id].mode==modeCWL) {
+          rxFrequency+=(long long)cw_keyer_sidetone_frequency;
+        }
+        output_buffer[C1]=rxFrequency>>24;
+        output_buffer[C2]=rxFrequency>>16;
+        output_buffer[C3]=rxFrequency>>8;
+        output_buffer[C4]=rxFrequency;
+        current_rx++;
       }
-      output_buffer[C1]=rxFrequency>>24;
-      output_buffer[C2]=rxFrequency>>16;
-      output_buffer[C3]=rxFrequency>>8;
-      output_buffer[C4]=rxFrequency;
-      current_rx++;
-      if(current_rx==RECEIVERS) {
+      if(current_rx>=receivers) {
         current_rx=0;
       }
       break;
@@ -996,6 +856,9 @@ void ozy_send_buffer() {
     case 4:
       output_buffer[C0]=0x14;
       output_buffer[C1]=0x00;
+      for(i=0;i<receivers;i++) {
+        output_buffer[C1]|=(receiver[i]->preamp<<i);
+      }
       if(mic_ptt_enabled==0) {
         output_buffer[C1]|=0x40;
       }
@@ -1008,8 +871,8 @@ void ozy_send_buffer() {
       output_buffer[C2]=linein_gain;
       output_buffer[C3]=0x00;
 
-      if(radio->device==DEVICE_HERMES || radio->device==DEVICE_ANGELIA || radio->device==DEVICE_ORION) {
-        output_buffer[C4]=0x20|attenuation;
+      if(radio->device==DEVICE_HERMES || radio->device==DEVICE_ANGELIA || radio->device==DEVICE_ORION || radio->device==DEVICE_ORION2) {
+        output_buffer[C4]=0x20|receiver[0]->attenuation;
       } else {
         output_buffer[C4]=0x00;
       }
@@ -1018,6 +881,11 @@ void ozy_send_buffer() {
       // need to add adc 2 and 3 attenuation
       output_buffer[C0]=0x16;
       output_buffer[C1]=0x00;
+      if(receivers==2) {
+        if(radio->device==DEVICE_HERMES || radio->device==DEVICE_ANGELIA || radio->device==DEVICE_ORION || radio->device==DEVICE_ORION2) {
+          output_buffer[C1]=0x20|receiver[1]->attenuation;
+        }
+      }
       output_buffer[C2]=0x00;
       if(cw_keys_reversed!=0) {
         output_buffer[C2]|=0x40;
@@ -1035,6 +903,11 @@ void ozy_send_buffer() {
       break;
     case 7:
       output_buffer[C0]=0x1E;
+      if(split) {
+        mode=vfo[1].mode;
+      } else {
+        mode=vfo[0].mode;
+      }
       if(mode!=modeCWU && mode!=modeCWL) {
         // output_buffer[C1]|=0x00;
       } else {
@@ -1075,6 +948,14 @@ void ozy_send_buffer() {
     }
   }
 
+#ifdef USBOZY
+//
+// if we have a USB interfaced Ozy device:
+//
+  if (device == DEVICE_OZY)
+        ozyusb_write(output_buffer,OZY_BUFFER_SIZE);
+  else
+#endif
   metis_write(0x02,output_buffer,OZY_BUFFER_SIZE);
 
   command++;
@@ -1085,6 +966,41 @@ void ozy_send_buffer() {
   //fprintf(stderr,"C0=%02X C1=%02X C2=%02X C3=%02X C4=%02X\n",
   //                output_buffer[C0],output_buffer[C1],output_buffer[C2],output_buffer[C3],output_buffer[C4]);
 }
+
+#ifdef USBOZY
+static int ozyusb_write(char* buffer,int length)
+{
+  int i;
+
+// batch up 4 USB frames (2048 bytes) then do a USB write
+  switch(usb_buffer_block++)
+  {
+    case 0:
+    default:
+      memcpy(usb_output_buffer, buffer, length);
+      break;
+
+    case 1:
+      memcpy(usb_output_buffer + 512, buffer, length);
+      break;
+
+    case 2:
+      memcpy(usb_output_buffer + 1024, buffer, length);
+      break;
+
+    case 3:
+      memcpy(usb_output_buffer + 1024 + 512, buffer, length);
+      usb_buffer_block = 0;           // reset counter
+// and write the 4 usb frames to the usb in one 2k packet
+      i = ozy_write(EP2_OUT_ID,usb_output_buffer,EP6_BUFFER_SIZE);
+      if(i != EP6_BUFFER_SIZE)
+      {
+        perror("old_protocol: OzyWrite ozy failed");
+      }
+      break;
+  }
+}
+#endif
 
 static int metis_write(unsigned char ep,char* buffer,int length) {
   int i;
@@ -1106,6 +1022,7 @@ static int metis_write(unsigned char ep,char* buffer,int length) {
     metis_buffer[5]=(send_sequence>>16)&0xFF;
     metis_buffer[6]=(send_sequence>>8)&0xFF;
     metis_buffer[7]=(send_sequence)&0xFF;
+
 
     // send the buffer
     metis_send_buffer(&metis_buffer[0],1032);
@@ -1135,6 +1052,11 @@ static void metis_start_stop(int command) {
   int i;
   unsigned char buffer[64];
     
+#ifdef USBOZY
+  if(device!=DEVICE_OZY)
+  {
+#endif
+
   buffer[0]=0xEF;
   buffer[1]=0xFE;
   buffer[2]=0x04;    // start/stop command
@@ -1145,6 +1067,9 @@ static void metis_start_stop(int command) {
   }
 
   metis_send_buffer(buffer,sizeof(buffer));
+#ifdef USBOZY
+  }
+#endif
 }
 
 static void metis_send_buffer(char* buffer,int length) {

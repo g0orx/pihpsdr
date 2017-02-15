@@ -20,6 +20,8 @@
 #ifndef _METER_H
 #define _METER_H
 
+#include <gtk/gtk.h>
+
 #define SMETER 0
 #define POWER 1
 #ifdef PSK

@@ -17,6 +17,7 @@
 *
 */
 
+#include <gtk/gtk.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -48,8 +49,10 @@ static struct sockaddr_in discovery_addr;
 
 void new_discover(struct ifaddrs* iface);
 
-static pthread_t discover_thread_id;
-void* new_discover_receive_thread(void* arg);
+//static pthread_t discover_thread_id;
+static GThread *discover_thread_id;
+//void* new_discover_receive_thread(void* arg);
+gpointer new_discover_receive_thread(gpointer data);
 
 void print_device(int i) {
     fprintf(stderr,"discovery: found protocol=%d device=%d software_version=%d status=%d address=%s (%02X:%02X:%02X:%02X:%02X:%02X) on %s\n", 
@@ -121,7 +124,7 @@ void new_discover(struct ifaddrs* iface) {
     // bind to this interface and the discovery port
     interface_addr.sin_family = AF_INET;
     interface_addr.sin_addr.s_addr = sa->sin_addr.s_addr;
-    interface_addr.sin_port = htons(DISCOVERY_PORT);
+    interface_addr.sin_port = htons(0);
     if(bind(discovery_socket,(struct sockaddr*)&interface_addr,sizeof(interface_addr))<0) {
         perror("new_discover: bind socket failed for discovery_socket\n");
         exit(-1);
@@ -147,11 +150,21 @@ void new_discover(struct ifaddrs* iface) {
     to_addr.sin_addr.s_addr=htonl(INADDR_BROADCAST);
 
     // start a receive thread to collect discovery response packets
+/*
     rc=pthread_create(&discover_thread_id,NULL,new_discover_receive_thread,NULL);
     if(rc != 0) {
         fprintf(stderr,"pthread_create failed on new_discover_receive_thread: rc=%d\n", rc);
         exit(-1);
     }
+*/
+    discover_thread_id = g_thread_new( "new discover receive", new_discover_receive_thread, NULL);
+    if( ! discover_thread_id )
+    {
+        fprintf(stderr,"g_thread_new failed on new_discover_receive_thread\n");
+        exit( -1 );
+    }
+    fprintf(stderr,"new_disovery: thread_id=%p\n",discover_thread_id);
+
 
     // send discovery packet
     unsigned char buffer[60];
@@ -171,15 +184,19 @@ void new_discover(struct ifaddrs* iface) {
     }
 
     // wait for receive thread to complete
+/*
     void* status;
     pthread_join(discover_thread_id,&status);
+*/
+    g_thread_join(discover_thread_id);
 
     close(discovery_socket);
 
     fprintf(stderr,"new_discover: exiting discover for %s\n",iface->ifa_name);
 }
 
-void* new_discover_receive_thread(void* arg) {
+//void* new_discover_receive_thread(void* arg) {
+gpointer new_discover_receive_thread(gpointer data) {
     struct sockaddr_in addr;
     int len;
     unsigned char buffer[2048];
@@ -270,5 +287,6 @@ void* new_discover_receive_thread(void* arg) {
         }
     }
     fprintf(stderr,"new_discover: exiting new_discover_receive_thread\n");
-    pthread_exit(NULL);
+    //pthread_exit(NULL);
+    g_thread_exit(NULL);
 }

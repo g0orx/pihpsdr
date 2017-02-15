@@ -20,7 +20,7 @@
 #ifndef _PSK_WATERFALL_H
 #define _PSK_WATERFALL_H
 
-void psk_waterfall_update(float *data);
+void psk_waterfall_update(RECEIVER *rx);
 GtkWidget* psk_waterfall_init(int width,int height);
 
 #endif

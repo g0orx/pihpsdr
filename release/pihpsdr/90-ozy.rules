@@ -1,0 +1,2 @@
+SUBSYSTEMS=="usb",ATTRS{idVendor}=="fffe",ATTRS{idProduct}=="0007",SYMLINK+="ozy",M
+ODE="666"

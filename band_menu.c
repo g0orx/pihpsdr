@@ -27,6 +27,7 @@
 #include "bandstack.h"
 #include "filter.h"
 #include "radio.h"
+#include "receiver.h"
 #include "vfo.h"
 #include "button_text.h"
 
@@ -48,33 +49,16 @@ static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
 static gboolean band_select_cb (GtkWidget *widget, gpointer        data) {
   GtkWidget *label;
   int b=(int)data;
-  BANDSTACK_ENTRY *entry;
-  if(b==band_get_current()) {
-    entry=bandstack_entry_next();
-  } else {
-    BAND* band=band_set_current(b);
-    entry=bandstack_entry_get_current();
-    set_button_text_color(last_band,"black");
-    last_band=widget;
-    set_button_text_color(last_band,"orange");
-  }
-  setMode(entry->mode);
-  FILTER* band_filters=filters[entry->mode];
-  FILTER* band_filter=&band_filters[entry->filter];
-  setFilter(band_filter->low,band_filter->high);
-  setFrequency(entry->frequencyA);
+  set_button_text_color(last_band,"black");
+  last_band=widget;
+  set_button_text_color(last_band,"orange");
 
-  BAND *band=band_get_current_band();
-  set_alex_rx_antenna(band->alexRxAntenna);
-  set_alex_tx_antenna(band->alexTxAntenna);
-  set_alex_attenuation(band->alexAttenuation);
+  vfo_band_changed(b);
+}
 
-  vfo_update(NULL);
-
-  setFrequency(entry->frequencyA);
-
-  calcDriveLevel();
-  calcTuneDriveLevel();
+int band_update(void *data) {
+  band_select_cb(NULL,(gpointer)data);
+  return 0;
 }
 
 void band_menu(GtkWidget *parent) {
@@ -108,6 +92,11 @@ void band_menu(GtkWidget *parent) {
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
+  char label[32];
+  sprintf(label,"RX %d VFO %s",active_receiver->id,active_receiver->id==0?"A":"B");
+  GtkWidget *rx_label=gtk_label_new(label);
+  gtk_grid_attach(GTK_GRID(grid),rx_label,1,0,1,1);
+
   for(i=0;i<BANDS+XVTRS;i++) {
 #ifdef LIMESDR
     if(protocol!=LIMESDR_PROTOCOL) {
@@ -121,7 +110,8 @@ void band_menu(GtkWidget *parent) {
     if(strlen(band->title)>0) {
       GtkWidget *b=gtk_button_new_with_label(band->title);
       set_button_text_color(b,"black");
-      if(i==band_get_current()) {
+      //if(i==band_get_current()) {
+      if(i==vfo[active_receiver->id].band) {
         set_button_text_color(b,"orange");
         last_band=b;
       }

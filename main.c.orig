@@ -1,0 +1,885 @@
+/* Copyright (C)
+* 2015 - John Melton, G0ORX/N6LYT
+*
+* This program is free software; you can redistribute it and/or
+* modify it under the terms of the GNU General Public License
+* as published by the Free Software Foundation; either version 2
+* of the License, or (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software
+* Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+*
+*/
+
+#include <gtk/gtk.h>
+#include <gdk/gdk.h>
+#include <math.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+#include <semaphore.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+#include "audio.h"
+#include "band.h"
+#include "bandstack.h"
+#include "main.h"
+#include "channel.h"
+#include "discovered.h"
+#include "configure.h"
+#include "gpio.h"
+<<<<<<< HEAD
+#include "old_discovery.h"
+#include "new_discovery.h"
+#ifdef LIMESDR
+#include "lime_discovery.h"
+#endif
+#ifdef RADIOBERRY
+#include "radioberry_discovery.h"
+#endif
+#include "old_protocol.h"
+#include "new_protocol.h"
+#ifdef LIMESDR
+#include "lime_protocol.h"
+#endif
+#ifdef RADIOBERRY
+#include "radioberry.h"
+#endif
+=======
+>>>>>>> upstream/master
+#include "wdsp.h"
+#include "new_menu.h"
+#include "radio.h"
+#include "version.h"
+#include "button_text.h"
+#ifdef I2C
+#include "i2c.h"
+#endif
+#include "discovery.h"
+
+struct utsname unameData;
+
+gint display_width;
+gint display_height;
+gint full_screen=1;
+
+static GtkWidget *discovery_dialog;
+
+static sem_t wisdom_sem;
+
+static GdkCursor *cursor_arrow;
+static GdkCursor *cursor_watch;
+
+static GtkWidget *splash;
+
+GtkWidget *top_window;
+GtkWidget *grid;
+
+static DISCOVERED* d;
+
+static GtkWidget *status;
+
+void status_text(char *text) {
+  //fprintf(stderr,"splash_status: %s\n",text);
+  gtk_label_set_text(GTK_LABEL(status),text);
+  usleep(10000);
+  while (gtk_events_pending ())
+    gtk_main_iteration ();
+}
+
+static gint save_cb(gpointer data) {
+    radioSaveState();
+    return TRUE;
+}
+
+static pthread_t wisdom_thread_id;
+
+static void* wisdom_thread(void *arg) {
+  status_text("Creating FFTW Wisdom file ...");
+  WDSPwisdom ((char *)arg);
+  sem_post(&wisdom_sem);
+}
+
+gboolean main_delete (GtkWidget *widget) {
+#ifdef GPIO
+  gpio_close();
+#endif
+  switch(protocol) {
+    case ORIGINAL_PROTOCOL:
+      old_protocol_stop();
+      break;
+    case NEW_PROTOCOL:
+      new_protocol_stop();
+      break;
+#ifdef LIMESDR
+    case LIMESDR_PROTOCOL:
+      lime_protocol_stop();
+      break;
+#endif
+#ifdef RADIOBERRY
+	case RADIOBERRY_PROTOCOL:
+		radioberry_protocol_stop();
+		break;
+#endif
+  }
+  radioSaveState();
+  _exit(0);
+}
+
+<<<<<<< HEAD
+static gboolean start_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+fprintf(stderr,"start_cb: %p\n",data);
+  radio=(DISCOVERED *)data;
+  gtk_widget_destroy(discovery_dialog);
+  start_radio();
+  return TRUE;
+}
+
+#ifdef GPIO
+static gboolean gpio_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  configure_gpio(discovery_dialog);
+  return TRUE;
+}
+#endif
+
+static gboolean discover_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  gtk_widget_destroy(discovery_dialog);
+  discover_devices();
+  return TRUE;
+}
+
+static gboolean exit_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  gtk_widget_destroy(discovery_dialog);
+  _exit(0);
+  return TRUE;
+}
+
+static void discover_devices() {
+
+      gdk_window_set_cursor(splash_window,cursor_watch);
+      selected_device=0;
+      devices=0;
+      splash_status("Old Protocol ... Discovering Devices");
+      old_discovery();
+      splash_status("New Protocol ... Discovering Devices");
+      new_discovery();
+#ifdef LIMESDR
+      splash_status("LimeSDR ... Discovering Devices");
+      lime_discovery();
+#endif
+#ifdef RADIOBERRY
+      splash_status("Radioberry SDR ... Discovering Device");
+      radioberry_discovery();
+#endif
+      splash_status("Discovery");
+      if(devices==0) {
+          gdk_window_set_cursor(splash_window,cursor_arrow);
+          fprintf(stderr,"No devices found!\n");
+          GtkDialogFlags flags = GTK_DIALOG_DESTROY_WITH_PARENT;
+/*
+          discovery_dialog = gtk_message_dialog_new (GTK_WINDOW(splash_screen),
+                                 flags,
+                                 GTK_MESSAGE_ERROR,
+                                 GTK_BUTTONS_OK_CANCEL,
+                                 "No devices found! Retry Discovery?");
+*/
+          discovery_dialog = gtk_dialog_new();
+          gtk_window_set_transient_for(GTK_WINDOW(discovery_dialog),GTK_WINDOW(splash_screen));
+          gtk_window_set_decorated(GTK_WINDOW(discovery_dialog),FALSE);
+
+          gtk_widget_override_font(discovery_dialog, pango_font_description_from_string("FreeMono 16"));
+
+          GdkRGBA color;
+          color.red = 1.0;
+          color.green = 1.0;
+          color.blue = 1.0;
+          color.alpha = 1.0;
+          gtk_widget_override_background_color(discovery_dialog,GTK_STATE_FLAG_NORMAL,&color);
+
+          GtkWidget *content;
+
+          content=gtk_dialog_get_content_area(GTK_DIALOG(discovery_dialog));
+
+          GtkWidget *grid=gtk_grid_new();
+          gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
+          gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
+          gtk_grid_set_row_spacing (GTK_GRID(grid),10);
+
+          GtkWidget *label=gtk_label_new("No devices found!");
+          gtk_grid_attach(GTK_GRID(grid),label,0,0,2,1);
+
+          GtkWidget *exit_b=gtk_button_new_with_label("Exit");
+          g_signal_connect (exit_b, "button-press-event", G_CALLBACK(exit_cb), NULL);
+          gtk_grid_attach(GTK_GRID(grid),exit_b,0,1,1,1);
+
+          GtkWidget *discover_b=gtk_button_new_with_label("Retry Discovery");
+          g_signal_connect (discover_b, "button-press-event", G_CALLBACK(discover_cb), NULL);
+          gtk_grid_attach(GTK_GRID(grid),discover_b,1,1,1,1);
+
+          gtk_container_add (GTK_CONTAINER (content), grid);
+          gtk_widget_show_all(discovery_dialog);
+      } else {
+          //fprintf(stderr,"%s: found %d devices.\n", (char *)arg, devices);
+          gdk_window_set_cursor(splash_window,cursor_arrow);
+/*
+          GtkDialogFlags flags=GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT;
+          discovery_dialog = gtk_dialog_new_with_buttons ("Discovered",
+                                      GTK_WINDOW(splash_window),
+                                      flags,
+#ifdef GPIO
+                                      "Configure GPIO",
+                                      GTK_RESPONSE_YES,
+#endif
+                                      "Discover",
+                                      GTK_RESPONSE_REJECT,
+                                      "Exit",
+                                      GTK_RESPONSE_CLOSE,
+                                      NULL);
+*/
+
+          discovery_dialog = gtk_dialog_new();
+          gtk_window_set_transient_for(GTK_WINDOW(discovery_dialog),GTK_WINDOW(splash_screen));
+          gtk_window_set_decorated(GTK_WINDOW(discovery_dialog),FALSE);
+
+          gtk_widget_override_font(discovery_dialog, pango_font_description_from_string("FreeMono 16"));
+
+          GdkRGBA color;
+          color.red = 1.0;
+          color.green = 1.0;
+          color.blue = 1.0;
+          color.alpha = 1.0;
+          gtk_widget_override_background_color(discovery_dialog,GTK_STATE_FLAG_NORMAL,&color);
+
+          GtkWidget *content;
+
+          content=gtk_dialog_get_content_area(GTK_DIALOG(discovery_dialog));
+
+          GtkWidget *grid=gtk_grid_new();
+          gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
+          gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
+          gtk_grid_set_row_spacing (GTK_GRID(grid),10);
+
+          int i;
+          char version[16];
+          char text[128];
+          for(i=0;i<devices;i++) {
+              d=&discovered[i];
+fprintf(stderr,"%p protocol=%d name=%s\n",d,d->protocol,d->name);
+              if(d->protocol==ORIGINAL_PROTOCOL) {
+                  sprintf(version,"%d.%d",
+                        d->software_version/10,
+                        d->software_version%10);
+              } else {
+                  sprintf(version,"%d.%d.%d",
+                        d->software_version/100,
+                        (d->software_version%100)/10,
+                        d->software_version%10);
+              }
+              switch(d->protocol) {
+                case ORIGINAL_PROTOCOL:
+                case NEW_PROTOCOL:
+                  sprintf(text,"%s (%s %s) %s (%02X:%02X:%02X:%02X:%02X:%02X) on %s\n",
+                        d->name,
+                        d->protocol==ORIGINAL_PROTOCOL?"old":"new",
+                        version,
+                        inet_ntoa(d->info.network.address.sin_addr),
+                        d->info.network.mac_address[0],
+                        d->info.network.mac_address[1],
+                        d->info.network.mac_address[2],
+                        d->info.network.mac_address[3],
+                        d->info.network.mac_address[4],
+                        d->info.network.mac_address[5],
+                        d->info.network.interface_name);
+                  break;
+#ifdef LIMESDR
+                case LIMESDR_PROTOCOL:
+/*
+                  sprintf(text,"%s (%s %s)\n",
+                        d->name,
+                        "lime",
+                        version);
+*/
+                  sprintf(text,"%s\n",
+                        d->name);
+                  break;
+#endif
+#ifdef RADIOBERRY
+				case RADIOBERRY_PROTOCOL:
+					sprintf(text,"%s\n",d->name);
+				break;
+#endif
+              }
+
+              GtkWidget *label=gtk_label_new(text);
+              gtk_widget_override_font(label, pango_font_description_from_string("FreeMono 12"));
+              gtk_widget_show(label);
+              gtk_grid_attach(GTK_GRID(grid),label,0,i,3,1);
+
+              GtkWidget *start_button=gtk_button_new_with_label("Start");
+              gtk_widget_override_font(start_button, pango_font_description_from_string("FreeMono 18"));
+              gtk_widget_show(start_button);
+              gtk_grid_attach(GTK_GRID(grid),start_button,3,i,1,1);
+              g_signal_connect(start_button,"button_press_event",G_CALLBACK(start_cb),(gpointer)d);
+
+              // if not available then cannot start it
+              if(d->status!=STATE_AVAILABLE) {
+                gtk_button_set_label(GTK_BUTTON(start_button),"In Use");
+                gtk_widget_set_sensitive(start_button, FALSE);
+              }
+
+              // if not on the same subnet then cannot start it
+              if((d->info.network.interface_address.sin_addr.s_addr&d->info.network.interface_netmask.sin_addr.s_addr) != (d->info.network.address.sin_addr.s_addr&d->info.network.interface_netmask.sin_addr.s_addr)) {
+                gtk_button_set_label(GTK_BUTTON(start_button),"Subnet!");
+                gtk_widget_set_sensitive(start_button, FALSE);
+              }
+
+          }
+
+#ifdef GPIO
+          GtkWidget *gpio_b=gtk_button_new_with_label("Config GPIO");
+          g_signal_connect (gpio_b, "button-press-event", G_CALLBACK(gpio_cb), NULL);
+          gtk_grid_attach(GTK_GRID(grid),gpio_b,0,i,1,1);
+#endif
+          GtkWidget *discover_b=gtk_button_new_with_label("Discover");
+          g_signal_connect (discover_b, "button-press-event", G_CALLBACK(discover_cb), NULL);
+          gtk_grid_attach(GTK_GRID(grid),discover_b,1,i,1,1);
+
+          GtkWidget *exit_b=gtk_button_new_with_label("Exit");
+          g_signal_connect (exit_b, "button-press-event", G_CALLBACK(exit_cb), NULL);
+          gtk_grid_attach(GTK_GRID(grid),exit_b,2,i,1,1);
+
+
+          gtk_container_add (GTK_CONTAINER (content), grid);
+          gtk_widget_show_all(discovery_dialog);
+      }
+}
+
+static gboolean minimize_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  gtk_window_iconify(GTK_WINDOW(window));
+  return TRUE;
+}
+
+static void start_radio() {
+  int y;
+fprintf(stderr,"start: selected radio=%p device=%d\n",radio,radio->device);
+  gdk_window_set_cursor(splash_window,cursor_watch);
+
+  splash_status("Initializing wdsp ...");
+  protocol=radio->protocol;
+  device=radio->device;
+
+  switch(radio->protocol) {
+    case ORIGINAL_PROTOCOL:
+    case NEW_PROTOCOL:
+      sprintf(property_path,"%02X-%02X-%02X-%02X-%02X-%02X.props",
+                        radio->info.network.mac_address[0],
+                        radio->info.network.mac_address[1],
+                        radio->info.network.mac_address[2],
+                        radio->info.network.mac_address[3],
+                        radio->info.network.mac_address[4],
+                        radio->info.network.mac_address[5]);
+      break;
+#ifdef LIMESDR
+    case LIMESDR_PROTOCOL:
+      sprintf(property_path,"limesdr.props");
+      break;
+#endif
+#ifdef RADIOBERRY
+	case RADIOBERRY_PROTOCOL:
+		sprintf(property_path,"radioberry.props");
+		break;
+#endif
+ }
+
+#ifdef GPIO
+  fprintf(stderr,"gpio_init\n");
+  splash_status("Initializing GPIO ...");
+  if(gpio_init()<0) {
+  }
+#ifdef LOCALCW
+  // init local keyer if enabled
+  else if (cw_keyer_internal == 0)
+    keyer_update();
+#endif
+#endif
+ 
+ 
+  radioRestoreState();
+
+  fprintf(stderr,"malloc samples\n");
+  if(radio->protocol==NEW_PROTOCOL) {
+    samples=malloc(display_width*sizeof(float)*2*4); // 192 -> 48
+  } else {
+    samples=malloc(display_width*sizeof(float)*2);
+  }
+
+  //splash_status("Initializing wdsp ...");
+  fprintf(stderr,"wdsp_init\n");
+  wdsp_init(0,display_width,radio->protocol);
+
+  switch(radio->protocol) {
+    case ORIGINAL_PROTOCOL:
+      splash_status("Initializing old protocol ...");
+  fprintf(stderr,"old_protocol_init\n");
+      old_protocol_init(0,display_width);
+      break;
+    case NEW_PROTOCOL:
+      splash_status("Initializing new protocol ...");
+  fprintf(stderr,"new_protocol_init\n");
+      new_protocol_init(display_width);
+      break;
+#ifdef LIMESDR
+    case LIMESDR_PROTOCOL:
+      splash_status("Initializing lime protocol ...");
+      lime_protocol_init(0,display_width);
+      break;
+#endif
+#ifdef RADIOBERRY
+	case RADIOBERRY_PROTOCOL:
+		splash_status("Initializing radioberry protocol ...");
+		radioberry_protocol_init(0,display_width);
+		break;
+#endif
+  }
+
+
+
+  window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+  gtk_window_set_title (GTK_WINDOW (window), "pihpsdr");
+  gtk_window_set_position(GTK_WINDOW(window),GTK_WIN_POS_CENTER_ALWAYS);
+  gtk_window_set_resizable(GTK_WINDOW(window), FALSE);
+  g_signal_connect (window, "delete-event", G_CALLBACK (main_delete), NULL);
+
+  fixed=gtk_fixed_new();
+  gtk_container_add(GTK_CONTAINER(window), fixed);
+  y=0;
+
+  vfo = vfo_init(VFO_WIDTH,VFO_HEIGHT,window);
+  gtk_fixed_put(GTK_FIXED(fixed),vfo,0,0);
+
+
+
+  //rit_control = rit_init(RIT_WIDTH,MENU_HEIGHT,window);
+  //gtk_fixed_put(GTK_FIXED(fixed),rit_control,VFO_WIDTH,y);
+
+  GtkWidget *minimize_b=gtk_button_new_with_label("Hide");
+  gtk_widget_override_font(minimize_b, pango_font_description_from_string("FreeMono Bold 10"));
+  gtk_widget_set_size_request (minimize_b, MENU_WIDTH, MENU_HEIGHT/2);
+  g_signal_connect (minimize_b, "button-press-event", G_CALLBACK(minimize_cb), NULL);
+  gtk_widget_show(minimize_b);
+  gtk_fixed_put(GTK_FIXED(fixed),minimize_b,VFO_WIDTH,y);
+
+  //menu = menu_init(MENU_WIDTH,MENU_HEIGHT,window);
+  menu = new_menu_init(MENU_WIDTH,MENU_HEIGHT/2,window);
+  gtk_fixed_put(GTK_FIXED(fixed),menu,VFO_WIDTH,y+(MENU_HEIGHT/2));
+
+  meter = meter_init(METER_WIDTH,METER_HEIGHT,window);
+  gtk_fixed_put(GTK_FIXED(fixed),meter,VFO_WIDTH+MENU_WIDTH,y);
+  y+=VFO_HEIGHT;
+
+  if(display_panadapter) {
+    int height=PANADAPTER_HEIGHT;
+    if(!display_waterfall) {
+      height+=WATERFALL_HEIGHT;
+      if(!display_sliders) {
+        height+=SLIDERS_HEIGHT;
+      }
+      if(!display_toolbar) {
+        height+=TOOLBAR_HEIGHT;
+      }
+    } else {
+      if(!display_sliders) {
+        height+=SLIDERS_HEIGHT/2;
+      }
+    }
+    panadapter = panadapter_init(display_width,height);
+    gtk_fixed_put(GTK_FIXED(fixed),panadapter,0,VFO_HEIGHT);
+    y+=height;
+  }
+
+  if(display_waterfall) {
+    int height=WATERFALL_HEIGHT;
+    if(!display_panadapter) {
+      height+=PANADAPTER_HEIGHT;
+    }
+    if(!display_sliders) {
+      if(display_panadapter) {
+        height+=SLIDERS_HEIGHT/2;
+      } else {
+        height+=SLIDERS_HEIGHT;
+      }
+    }
+    if(!display_toolbar) {
+      height+=TOOLBAR_HEIGHT;
+    }
+    waterfall = waterfall_init(display_width,height);
+    gtk_fixed_put(GTK_FIXED(fixed),waterfall,0,y);
+    y+=height;
+
+  }
+
+#ifdef PSK
+    int psk_height=PSK_WATERFALL_HEIGHT;
+    if(!display_sliders) {
+      psk_height+=SLIDERS_HEIGHT/2;
+    }
+    if(!display_toolbar) {
+      psk_height+=TOOLBAR_HEIGHT/2;
+    }
+    psk_waterfall = psk_waterfall_init(display_width,psk_height);
+    gtk_fixed_put(GTK_FIXED(fixed),psk_waterfall,0,VFO_HEIGHT);
+    psk = init_psk();
+    gtk_fixed_put(GTK_FIXED(fixed),psk,0,VFO_HEIGHT+psk_height);
+#endif
+
+  if(display_sliders) {
+    sliders = sliders_init(display_width,SLIDERS_HEIGHT,window);
+    gtk_fixed_put(GTK_FIXED(fixed),sliders,0,y);
+    y+=SLIDERS_HEIGHT;
+  }
+
+  if(display_toolbar) {
+    toolbar = toolbar_init(display_width,TOOLBAR_HEIGHT,window);
+    gtk_fixed_put(GTK_FIXED(fixed),toolbar,0,y);
+    y+=TOOLBAR_HEIGHT;
+  }
+
+  splash_close();
+
+  gtk_widget_show_all (window);
+
+  linein_changed();
+
+  if(full_screen) {
+    gtk_window_fullscreen(GTK_WINDOW(window));
+  }
+
+  GdkWindow *gdk_window = gtk_widget_get_window(window);
+  gdk_window_set_cursor(gdk_window,cursor_arrow);
+
+  // start the receiver
+  SetChannelState(CHANNEL_RX0,1,1);
+
+  //update_timer_id=gdk_threads_add_timeout(1000/updates_per_second, update, NULL);
+  update_timer_id=gdk_threads_add_timeout_full(G_PRIORITY_HIGH_IDLE,1000/updates_per_second, update, NULL, NULL);
+
+  // save every 30 seconds
+  save_timer_id=gdk_threads_add_timeout(30000, save_cb, NULL);
+
+
+  if(protocol!=NEW_PROTOCOL) {
+    setFrequency(getFrequency());
+  }
+
+#ifdef PSK
+  if(mode==modePSK) {
+    show_psk();
+  } else {
+    show_waterfall();
+  }
+#endif
+
+  launch_rigctl();
+
+  g_idle_add(vfo_update,(gpointer)NULL);
+
+}
+
+#ifdef PSK
+void show_psk() {
+  if(display_waterfall) {
+    gtk_widget_hide(waterfall);
+  }
+  if(display_panadapter) {
+    gtk_widget_hide(panadapter);
+  }
+  gtk_widget_show(psk);
+  gtk_widget_show(psk_waterfall);
+}
+
+void show_waterfall() {
+  gtk_widget_hide(psk_waterfall);
+  gtk_widget_hide(psk);
+  if(display_panadapter) {
+    gtk_widget_show(panadapter);
+  }
+  if(display_waterfall) {
+    gtk_widget_show(waterfall);
+  }
+}
+#endif
+
+void reconfigure_display() {
+  int y=VFO_HEIGHT;
+
+  // configure panadapter
+  if(display_panadapter) {
+    int height=PANADAPTER_HEIGHT;
+    if(!display_waterfall) {
+      height+=WATERFALL_HEIGHT;
+      if(!display_sliders) {
+        height+=SLIDERS_HEIGHT;
+      }
+      if(!display_toolbar) {
+        height+=TOOLBAR_HEIGHT;
+      }
+    } else {
+      if(!display_sliders) {
+        height+=SLIDERS_HEIGHT/2;
+      }
+      if(!display_toolbar) {
+        height+=TOOLBAR_HEIGHT/2;
+      }
+    }
+fprintf(stderr,"panadapter_height=%d\n",height);
+    if(panadapter==NULL) {
+fprintf(stderr,"reconfigure_display: panadapter_init: width:%d height:%d\n",display_width,height);
+      panadapter = panadapter_init(display_width,height);
+      gtk_fixed_put(GTK_FIXED(fixed),panadapter,0,y);
+    } else {
+      // set the size
+fprintf(stderr,"reconfigure_display: panadapter set_size_request: width:%d height:%d\n",display_width,height);
+      gtk_widget_set_size_request(panadapter, display_width, height);
+      // move the current one
+      gtk_fixed_move(GTK_FIXED(fixed),panadapter,0,y);
+    }
+    gtk_widget_show_all(panadapter);
+    y+=height;
+  } else {
+    gtk_widget_hide(panadapter);
+  }
+
+  // configure waterfall
+  if(display_waterfall) {
+    int height=WATERFALL_HEIGHT;
+
+    if(!display_panadapter) {
+      height+=PANADAPTER_HEIGHT;
+      if(!display_sliders) {
+        height+=SLIDERS_HEIGHT;
+      }
+      if(!display_toolbar) {
+        height+=TOOLBAR_HEIGHT;
+      }
+    } else {
+      if(!display_sliders) {
+        height+=SLIDERS_HEIGHT/2;
+      }
+      if(!display_toolbar) {
+        height+=TOOLBAR_HEIGHT/2;
+      }
+    }
+fprintf(stderr,"waterfall_height=%d\n",height);
+    if(waterfall==NULL) {
+fprintf(stderr,"reconfigure_display: waterfall_init: width:%d height:%d\n",display_width,height);
+      waterfall = waterfall_init(display_width,height);
+      gtk_fixed_put(GTK_FIXED(fixed),waterfall,0,y);
+    } else {
+      // set the size
+fprintf(stderr,"reconfigure_display: waterfall set_size_request: width:%d height:%d\n",display_width,height);
+      gtk_widget_set_size_request (waterfall, display_width, height);
+      // move the current one
+      gtk_fixed_move(GTK_FIXED(fixed),waterfall,0,y);
+    }
+    gtk_widget_show_all(waterfall);
+    y+=height;
+  } else {
+    gtk_widget_hide(waterfall);
+  }
+
+  if(display_sliders) {
+fprintf(stderr,"sliders_height=%d\n",SLIDERS_HEIGHT);
+    if(sliders==NULL) {
+fprintf(stderr,"reconfigure_display: sliders_init: width:%d height:%d\n",display_width,SLIDERS_HEIGHT);
+      sliders = sliders_init(display_width,SLIDERS_HEIGHT,window);
+      gtk_fixed_put(GTK_FIXED(fixed),sliders,0,y);
+    } else {
+      gtk_fixed_move(GTK_FIXED(fixed),sliders,0,y);
+      gtk_widget_show(sliders);
+    }
+    gtk_widget_show_all(sliders);
+    linein_changed();
+    y+=SLIDERS_HEIGHT;
+  } else {
+    gtk_widget_hide(sliders);
+  }
+
+  if(display_toolbar) {
+fprintf(stderr,"toolbar_height=%d\n",TOOLBAR_HEIGHT);
+    if(toolbar==NULL) {
+fprintf(stderr,"reconfigure_display: toolbar_init: width:%d height:%d\n",display_width,TOOLBAR_HEIGHT);
+      toolbar = toolbar_init(display_width,TOOLBAR_HEIGHT,window);
+      gtk_fixed_put(GTK_FIXED(fixed),toolbar,0,y);
+    } else {
+      gtk_fixed_move(GTK_FIXED(fixed),toolbar,0,y);
+      gtk_widget_show(toolbar);
+    }
+    gtk_widget_show_all(toolbar);
+    y+=TOOLBAR_HEIGHT;
+  } else {
+    gtk_widget_hide(toolbar);
+  }
+
+}
+
+gint init(void* arg) {
+=======
+static int init(void *data) {
+>>>>>>> upstream/master
+  char *res;
+  char wisdom_directory[1024];
+  char wisdom_file[1024];
+
+  fprintf(stderr,"init\n");
+
+  audio_get_cards();
+
+  cursor_arrow=gdk_cursor_new(GDK_ARROW);
+  cursor_watch=gdk_cursor_new(GDK_WATCH);
+
+  gdk_window_set_cursor(gtk_widget_get_window(top_window),cursor_watch);
+
+  // check if wisdom file exists
+  res=getcwd(wisdom_directory, sizeof(wisdom_directory));
+  strcpy(&wisdom_directory[strlen(wisdom_directory)],"/");
+  strcpy(wisdom_file,wisdom_directory);
+  strcpy(&wisdom_file[strlen(wisdom_file)],"wdspWisdom");
+  status_text("Checking FFTW Wisdom file ...");
+  if(access(wisdom_file,F_OK)<0) {
+      int rc=sem_init(&wisdom_sem, 0, 0);
+      rc=pthread_create(&wisdom_thread_id, NULL, wisdom_thread, (void *)wisdom_directory);
+      while(sem_trywait(&wisdom_sem)<0) {
+        status_text(wisdom_get_status());
+        while (gtk_events_pending ())
+          gtk_main_iteration ();
+        usleep(100000); // 100ms
+      }
+  }
+
+  g_idle_add(discovery,NULL);
+  return 0;
+}
+
+static void activate_pihpsdr(GtkApplication *app, gpointer data) {
+
+
+  //gtk_init (&argc, &argv);
+
+  fprintf(stderr,"Build: %s %s\n",build_date,version);
+
+  uname(&unameData);
+  fprintf(stderr,"sysname: %s\n",unameData.sysname);
+  fprintf(stderr,"nodename: %s\n",unameData.nodename);
+  fprintf(stderr,"release: %s\n",unameData.release);
+  fprintf(stderr,"version: %s\n",unameData.version);
+  fprintf(stderr,"machine: %s\n",unameData.machine);
+
+  GdkScreen *screen=gdk_screen_get_default();
+  if(screen==NULL) {
+    fprintf(stderr,"no default screen!\n");
+    _exit(0);
+  }
+
+
+  display_width=gdk_screen_get_width(screen);
+  display_height=gdk_screen_get_height(screen);
+
+fprintf(stderr,"width=%d height=%d\n", display_width, display_height);
+  if(display_width>800 || display_height>480) {
+    display_width=800;
+    display_height=480;
+    full_screen=0;
+  }
+
+fprintf(stderr,"display_width=%d display_height=%d\n", display_width, display_height);
+
+  fprintf(stderr,"create top level window\n");
+  top_window = gtk_application_window_new (app);
+  if(full_screen) {
+fprintf(stderr,"full screen\n");
+    gtk_window_fullscreen(GTK_WINDOW(top_window));
+  }
+  gtk_widget_set_size_request(top_window, display_width, display_height);
+  gtk_window_set_title (GTK_WINDOW (top_window), "pihpsdr");
+  gtk_window_set_position(GTK_WINDOW(top_window),GTK_WIN_POS_CENTER_ALWAYS);
+  gtk_window_set_resizable(GTK_WINDOW(top_window), FALSE);
+  g_signal_connect (top_window, "delete-event", G_CALLBACK (main_delete), NULL);
+  //g_signal_connect (top_window,"draw", G_CALLBACK (main_draw_cb), NULL);
+
+//fprintf(stderr,"create fixed container\n");
+  //fixed=gtk_fixed_new();
+  //gtk_container_add(GTK_CONTAINER(top_window), fixed);
+
+fprintf(stderr,"create grid\n");
+  grid = gtk_grid_new();
+  gtk_widget_set_size_request(grid, display_width, display_height);
+  gtk_grid_set_row_homogeneous(GTK_GRID(grid),FALSE);
+  gtk_grid_set_column_homogeneous(GTK_GRID(grid),FALSE);
+fprintf(stderr,"add grid\n");
+  gtk_container_add (GTK_CONTAINER (top_window), grid);
+
+fprintf(stderr,"create image\n");
+  GtkWidget  *image=gtk_image_new_from_file("hpsdr.png");
+fprintf(stderr,"add image to grid\n");
+  gtk_grid_attach(GTK_GRID(grid), image, 0, 0, 1, 4);
+
+fprintf(stderr,"create pi label\n");
+  char build[64];
+  sprintf(build,"build: %s %s",build_date, version);
+  GtkWidget *pi_label=gtk_label_new("pihpsdr by John Melton g0orx/n6lyt");
+  gtk_label_set_justify(GTK_LABEL(pi_label),GTK_JUSTIFY_LEFT);
+  gtk_widget_show(pi_label);
+fprintf(stderr,"add pi label to grid\n");
+  gtk_grid_attach(GTK_GRID(grid),pi_label,1,0,1,1);
+
+fprintf(stderr,"create build label\n");
+  GtkWidget *build_date_label=gtk_label_new(build);
+  gtk_label_set_justify(GTK_LABEL(build_date_label),GTK_JUSTIFY_LEFT);
+  gtk_widget_show(build_date_label);
+fprintf(stderr,"add build label to grid\n");
+  gtk_grid_attach(GTK_GRID(grid),build_date_label,1,1,1,1);
+
+fprintf(stderr,"create status\n");
+  status=gtk_label_new("");
+  gtk_label_set_justify(GTK_LABEL(status),GTK_JUSTIFY_LEFT);
+  gtk_widget_override_font(status, pango_font_description_from_string("FreeMono 18"));
+  gtk_widget_show(status);
+fprintf(stderr,"add status to grid\n");
+  gtk_grid_attach(GTK_GRID(grid), status, 1, 3, 1, 1);
+
+/*
+fprintf(stderr,"create exit button\n");
+  GtkWidget *button = gtk_button_new_with_label ("Exit");
+  //g_signal_connect (button, "clicked", G_CALLBACK (print_hello), NULL);
+  g_signal_connect_swapped (button, "clicked", G_CALLBACK (gtk_widget_destroy), top_window);
+fprintf(stderr,"add exit button to grid\n");
+  gtk_grid_attach(GTK_GRID(grid), button, 1, 4, 1, 1);
+*/
+
+  gtk_widget_show_all(top_window);
+
+  g_idle_add(init,NULL);
+  //g_idle_add(discovery,NULL);
+
+
+}
+
+int main(int argc,char **argv) {
+  GtkApplication *pihpsdr;
+  int status;
+
+  pihpsdr=gtk_application_new("org.g0orx.pihpsdr", G_APPLICATION_FLAGS_NONE);
+  g_signal_connect(pihpsdr, "activate", G_CALLBACK(activate_pihpsdr), NULL);
+  status=g_application_run(G_APPLICATION(pihpsdr), argc, argv);
+fprintf(stderr,"exiting ...\n");
+  g_object_unref(pihpsdr);
+  return status;
+}

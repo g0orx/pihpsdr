@@ -24,6 +24,8 @@
 
 PROPERTY* properties;
 
+static double version=0.0;
+
 /* --------------------------------------------------------------------------*/
 /**
 * @brief Load Properties
@@ -52,11 +54,18 @@ void loadProperties(char* filename) {
                 strcpy(property->value,value);
                 property->next_property=properties;
                 properties=property;
+                if(strcmp(name,"property_version")==0) {
+                  version=atof(value);
+                }
             }
         }
         fclose(f);
     }
-    fprintf(stderr,"loadProperties: done\n");
+
+    if(version!=PROPERTY_VERSION) {
+      properties=NULL;
+      fprintf(stderr,"loadProperties: version=%f expected version=%f ignoring\n",version,PROPERTY_VERSION);
+    }
 }
 
 /* --------------------------------------------------------------------------*/
@@ -75,8 +84,8 @@ void saveProperties(char* filename) {
         return;
     }
 
-    sprintf(version,"%0.2f", PROPERTY_VERSION);
-    setProperty("property_version",version);
+    sprintf(line,"%s=%0.2f\n","property_version",PROPERTY_VERSION);
+    fwrite(line,1,strlen(line),f);
     while(property) {
         sprintf(line,"%s=%s\n",property->name,property->value);
         fwrite(line,1,strlen(line),f);

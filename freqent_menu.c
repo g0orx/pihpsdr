@@ -27,6 +27,7 @@
 #include "filter.h"
 #include "mode.h"
 #include "radio.h"
+#include "receiver.h"
 #include "vfo.h"
 
 static GtkWidget *parent_window=NULL;
@@ -117,14 +118,17 @@ static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
             if(b!=band_get_current()) {
               BAND *band=band_set_current(b);
               BANDSTACK_ENTRY *entry=bandstack_entry_get_current();
-              setMode(entry->mode);
+              //setMode(entry->mode);
+              set_mode(active_receiver,entry->mode);
               FILTER* band_filters=filters[entry->mode];
               FILTER* band_filter=&band_filters[entry->filter];
-              setFilter(band_filter->low,band_filter->high);
-              set_alex_rx_antenna(band->alexRxAntenna);
-              set_alex_tx_antenna(band->alexTxAntenna);
-              set_alex_attenuation(band->alexAttenuation);
-
+              //setFilter(band_filter->low,band_filter->high);
+              set_filter(active_receiver,band_filter->low,band_filter->high);
+              if(active_receiver->id==0) {
+                set_alex_rx_antenna(band->alexRxAntenna);
+                set_alex_tx_antenna(band->alexTxAntenna);
+                set_alex_attenuation(band->alexAttenuation);
+              }
             }
             setFrequency(f);
             vfo_update(NULL);
@@ -169,7 +173,12 @@ void freqent_menu(GtkWidget *parent) {
     label = gtk_label_new (NULL);
     gtk_label_set_markup (GTK_LABEL (label), "<big>0</big>");
     gtk_misc_set_alignment (GTK_MISC (label), 1, .5);
-    gtk_grid_attach(GTK_GRID(grid),label,1,0,1,1);
+    gtk_grid_attach(GTK_GRID(grid),label,1,0,2,1);
+
+    char label[32];
+    sprintf(label,"RX %d VFO %s",active_receiver->id,active_receiver->id==0?"A":"B");
+    GtkWidget *rx_label=gtk_label_new(label);
+    gtk_grid_attach(GTK_GRID(grid),rx_label,3,0,1,1);
 
     GtkWidget *step_rb=NULL;
     for (i=0; i<16; i++) {

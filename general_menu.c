@@ -27,6 +27,7 @@
 #include "band.h"
 #include "filter.h"
 #include "radio.h"
+#include "receiver.h"
 
 static GtkWidget *parent_window=NULL;
 
@@ -47,10 +48,12 @@ static void vfo_divisor_value_changed_cb(GtkWidget *widget, gpointer data) {
   vfo_encoder_divisor=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
 }
 
+/*
 static void toolbar_dialog_buttons_cb(GtkWidget *widget, gpointer data) {
   toolbar_dialog_buttons=toolbar_dialog_buttons==1?0:1;
   update_toolbar_labels();
 }
+*/
 
 static void ptt_cb(GtkWidget *widget, gpointer data) {
   mic_ptt_enabled=mic_ptt_enabled==1?0:1;
@@ -88,14 +91,18 @@ static void alex_cb(GtkWidget *widget, gpointer data) {
   if(filter_board==ALEX) {
     BAND *band=band_get_current_band();
     BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
-    setFrequency(entry->frequencyA);
-    setMode(entry->mode);
+    setFrequency(entry->frequency);
+    //setMode(entry->mode);
+    set_mode(active_receiver,entry->mode);
     FILTER* band_filters=filters[entry->mode];
     FILTER* band_filter=&band_filters[entry->filter];
-    setFilter(band_filter->low,band_filter->high);
-    set_alex_rx_antenna(band->alexRxAntenna);
-    set_alex_tx_antenna(band->alexTxAntenna);
-    set_alex_attenuation(band->alexAttenuation);
+    //setFilter(band_filter->low,band_filter->high);
+    set_filter(active_receiver,band_filter->low,band_filter->high);
+    if(active_receiver->id==0) {
+      set_alex_rx_antenna(band->alexRxAntenna);
+      set_alex_tx_antenna(band->alexTxAntenna);
+      set_alex_attenuation(band->alexAttenuation);
+    }
   }
 }
 
@@ -116,62 +123,18 @@ static void apollo_cb(GtkWidget *widget, gpointer data) {
   if(filter_board==APOLLO) {
     BAND *band=band_get_current_band();
     BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
-    setFrequency(entry->frequencyA);
-    setMode(entry->mode);
+    setFrequency(entry->frequency);
+    //setMode(entry->mode);
+    set_mode(active_receiver,entry->mode);
     FILTER* band_filters=filters[entry->mode];
     FILTER* band_filter=&band_filters[entry->filter];
-    setFilter(band_filter->low,band_filter->high);
-  }
-}
-/*
-static void apollo_tuner_cb(GtkWidget *widget, gpointer data) {
-  apollo_tuner=apollo_tuner==1?0:1;
-  if(protocol==NEW_PROTOCOL) {
-    tuner_changed();
-  }
-}
-
-static void pa_cb(GtkWidget *widget, gpointer data) {
-  pa=pa==1?0:1;
-  if(protocol==NEW_PROTOCOL) {
-    pa_changed();
-  }
-}
-*/
-
-static void rx_dither_cb(GtkWidget *widget, gpointer data) {
-  rx_dither=rx_dither==1?0:1;
-  if(protocol==NEW_PROTOCOL) {
-  }
-}
-
-static void rx_random_cb(GtkWidget *widget, gpointer data) {
-  rx_random=rx_random==1?0:1;
-  if(protocol==NEW_PROTOCOL) {
-  }
-}
-
-static void rx_preamp_cb(GtkWidget *widget, gpointer data) {
-  rx_preamp=rx_preamp==1?0:1;
-  if(protocol==NEW_PROTOCOL) {
+    //setFilter(band_filter->low,band_filter->high);
+    set_filter(active_receiver,band_filter->low,band_filter->high);
   }
 }
 
 static void sample_rate_cb(GtkWidget *widget, gpointer data) {
- switch(protocol) {
-    case ORIGINAL_PROTOCOL:
-      old_protocol_new_sample_rate((int)data);
-      break;
-    case NEW_PROTOCOL:
-      new_protocol_new_sample_rate((int)data);
-      break;
-#ifdef RADIOBERRY
-	case RADIOBERRY_PROTOCOL:
-		radioberry_new_sample_rate((int)data);
-		break;
-#endif
-  }  
-  
+  radio_change_sample_rate((int)data);
 }
 
 static void rit_cb(GtkWidget *widget,gpointer data) {
@@ -218,21 +181,11 @@ void general_menu(GtkWidget *parent) {
 #else
 	){
 #endif  
-    GtkWidget *rx_dither_b=gtk_check_button_new_with_label("Dither");
-    //gtk_widget_override_font(rx_dither_b, pango_font_description_from_string("Arial 18"));
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rx_dither_b), rx_dither);
-    gtk_grid_attach(GTK_GRID(grid),rx_dither_b,1,4,1,1);
-    g_signal_connect(rx_dither_b,"toggled",G_CALLBACK(rx_dither_cb),NULL);
-
-    GtkWidget *rx_random_b=gtk_check_button_new_with_label("Random");
-    //gtk_widget_override_font(rx_random_b, pango_font_description_from_string("Arial 18"));
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rx_random_b), rx_random);
-    gtk_grid_attach(GTK_GRID(grid),rx_random_b,1,5,1,1);
-    g_signal_connect(rx_random_b,"toggled",G_CALLBACK(rx_random_cb),NULL);
 
     if((protocol==NEW_PROTOCOL && device==NEW_DEVICE_ORION) ||
        (protocol==NEW_PROTOCOL && device==NEW_DEVICE_ORION2) ||
-       (protocol==ORIGINAL_PROTOCOL && device==DEVICE_ORION)) {
+       (protocol==ORIGINAL_PROTOCOL && device==DEVICE_ORION) ||
+       (protocol==ORIGINAL_PROTOCOL && device==DEVICE_ORION2)) {
 
       GtkWidget *ptt_ring_b=gtk_radio_button_new_with_label(NULL,"PTT On Ring, Mic and Bias on Tip");
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ptt_ring_b), mic_ptt_tip_bias_ring==0);
@@ -313,7 +266,7 @@ void general_menu(GtkWidget *parent) {
         gtk_grid_attach(GTK_GRID(grid),sample_rate_1536,0,7,1,1);
       g_signal_connect(sample_rate_1536,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)1536000);
 
-#ifdef raspberrypi
+#ifdef GPIO
       gtk_widget_set_sensitive(sample_rate_768,FALSE);
       gtk_widget_set_sensitive(sample_rate_1536,FALSE);
 #endif

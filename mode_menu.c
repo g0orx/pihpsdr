@@ -28,6 +28,7 @@
 #include "filter.h"
 #include "mode.h"
 #include "radio.h"
+#include "receiver.h"
 #include "vfo.h"
 #include "button_text.h"
 
@@ -48,17 +49,10 @@ static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
 
 static gboolean mode_select_cb (GtkWidget *widget, gpointer        data) {
   int m=(int)data;
-  BANDSTACK_ENTRY *entry;
-  entry=bandstack_entry_get_current();
-  entry->mode=m;
-  setMode(entry->mode);
-  FILTER* band_filters=filters[entry->mode];
-  FILTER* band_filter=&band_filters[entry->filter];
-  setFilter(band_filter->low,band_filter->high);
   set_button_text_color(last_mode,"black");
   last_mode=widget;
   set_button_text_color(last_mode,"orange");
-  vfo_update(NULL);
+  vfo_mode_changed(m);
 }
 
 void mode_menu(GtkWidget *parent) {
@@ -92,11 +86,16 @@ void mode_menu(GtkWidget *parent) {
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
-  BANDSTACK_ENTRY *entry=bandstack_entry_get_current();
+  char label[32];
+  sprintf(label,"RX %d VFO %s",active_receiver->id,active_receiver->id==0?"A":"B");
+  GtkWidget *rx_label=gtk_label_new(label);
+  gtk_grid_attach(GTK_GRID(grid),rx_label,1,0,1,1);
+
+  int mode=vfo[active_receiver->id].mode;
 
   for(i=0;i<MODES;i++) {
     GtkWidget *b=gtk_button_new_with_label(mode_string[i]);
-    if(i==entry->mode) {
+    if(i==mode) {
       set_button_text_color(b,"orange");
       last_mode=b;
     } else {

@@ -18,3 +18,4 @@
 */
 
 void band_menu(GtkWidget *parent);
+int band_update(void *data);

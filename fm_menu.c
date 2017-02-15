@@ -24,7 +24,7 @@
 #include "new_menu.h"
 #include "fm_menu.h"
 #include "radio.h"
-#include "wdsp_init.h"
+#include "transmitter.h"
 
 static GtkWidget *parent_window=NULL;
 
@@ -47,7 +47,7 @@ static gboolean emp_cb (GtkWidget *widget, gpointer data) {
   } else {
     pre_emphasize=0;
   }  
-  wdsp_set_pre_emphasize(pre_emphasize);
+  tx_set_pre_emphasize(transmitter,pre_emphasize);
 }
 
 void fm_menu(GtkWidget *parent) {

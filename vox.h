@@ -17,6 +17,6 @@
 *
 */
 
-extern void update_vox(double *in,int length);
+extern void update_vox(TRANSMITTER *tx);
 extern void vox_cancel();
 extern double vox_get_peak();

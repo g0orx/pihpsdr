@@ -50,8 +50,7 @@
 #endif
 #endif
 
-int mode;
-
 char *mode_string[MODES];
 
+//extern int mode;
 #endif

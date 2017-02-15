@@ -45,19 +45,17 @@ static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
 
 static void detector_mode_cb(GtkWidget *widget, gpointer data) {
   display_detector_mode=(int)data;
-  SetDisplayDetectorMode(CHANNEL_RX0, 0, display_detector_mode);
+  SetDisplayDetectorMode(active_receiver->id, 0, display_detector_mode);
 }
 
 static void average_mode_cb(GtkWidget *widget, gpointer data) {
   display_average_mode=(int)data;
-  SetDisplayAverageMode(CHANNEL_RX0, 0, display_average_mode);
+  SetDisplayAverageMode(active_receiver->id, 0, display_average_mode);
 }
 
 static void time_value_changed_cb(GtkWidget *widget, gpointer data) {
   display_average_time=gtk_spin_button_get_value(GTK_SPIN_BUTTON(widget));
-  calculate_display_average();
-  //SetDisplayAvBackmult(CHANNEL_RX0, 0, display_avb);
-  //SetDisplayNumAverage(CHANNEL_RX0, 0, display_average);
+  calculate_display_average(active_receiver);
 }
 
 static void filled_cb(GtkWidget *widget, gpointer data) {
@@ -66,54 +64,50 @@ static void filled_cb(GtkWidget *widget, gpointer data) {
 
 static void frames_per_second_value_changed_cb(GtkWidget *widget, gpointer data) {
   updates_per_second=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
-  calculate_display_average();
+  calculate_display_average(active_receiver);
 }
 
 static void panadapter_high_value_changed_cb(GtkWidget *widget, gpointer data) {
-  panadapter_high=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+  active_receiver->panadapter_high=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
 }
 
 static void panadapter_low_value_changed_cb(GtkWidget *widget, gpointer data) {
-  panadapter_low=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+  active_receiver->panadapter_low=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
 }
 
 static void waterfall_high_value_changed_cb(GtkWidget *widget, gpointer data) {
-  waterfall_high=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+  active_receiver->waterfall_high=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
 }
 
 static void waterfall_low_value_changed_cb(GtkWidget *widget, gpointer data) {
-  waterfall_low=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+  active_receiver->waterfall_low=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
 }
 
 static void waterfall_automatic_cb(GtkWidget *widget, gpointer data) {
-  waterfall_automatic=waterfall_automatic==1?0:1;
+  active_receiver->waterfall_automatic=active_receiver->waterfall_automatic==1?0:1;
 }
 
 static void display_panadapter_cb(GtkWidget *widget, gpointer data) {
-  display_panadapter=display_panadapter==1?0:1;
-  reconfigure_display();
+  active_receiver->display_panadapter=active_receiver->display_panadapter==1?0:1;
+  reconfigure_radio();
 }
 
 static void display_waterfall_cb(GtkWidget *widget, gpointer data) {
-  display_waterfall=display_waterfall==1?0:1;
-  reconfigure_display();
+  active_receiver->display_waterfall=active_receiver->display_waterfall==1?0:1;
+  reconfigure_radio();
 }
 
 static void display_sliders_cb(GtkWidget *widget, gpointer data) {
   display_sliders=display_sliders==1?0:1;
-  reconfigure_display();
+  reconfigure_radio();
 }
 
+/*
 static void display_toolbar_cb(GtkWidget *widget, gpointer data) {
   display_toolbar=display_toolbar==1?0:1;
-  reconfigure_display();
+  reconfigure_radio();
 }
-
-static void toolbar_dialog_buttons_cb(GtkWidget *widget, gpointer data) {
-  toolbar_dialog_buttons=toolbar_dialog_buttons==1?0:1;
-  update_toolbar_labels();
-}
-
+*/
 void display_menu(GtkWidget *parent) {
   int i;
 
@@ -169,7 +163,7 @@ void display_menu(GtkWidget *parent) {
 
   GtkWidget *panadapter_high_r=gtk_spin_button_new_with_range(-220.0,100.0,1.0);
   //gtk_widget_override_font(panadapter_high_r, pango_font_description_from_string("Arial 18"));
-  gtk_spin_button_set_value(GTK_SPIN_BUTTON(panadapter_high_r),(double)panadapter_high);
+  gtk_spin_button_set_value(GTK_SPIN_BUTTON(panadapter_high_r),(double)active_receiver->panadapter_high);
   gtk_widget_show(panadapter_high_r);
   gtk_grid_attach(GTK_GRID(grid),panadapter_high_r,1,3,1,1);
   g_signal_connect(panadapter_high_r,"value_changed",G_CALLBACK(panadapter_high_value_changed_cb),NULL);
@@ -181,7 +175,7 @@ void display_menu(GtkWidget *parent) {
 
   GtkWidget *panadapter_low_r=gtk_spin_button_new_with_range(-220.0,100.0,1.0);
   //gtk_widget_override_font(panadapter_low_r, pango_font_description_from_string("Arial 18"));
-  gtk_spin_button_set_value(GTK_SPIN_BUTTON(panadapter_low_r),(double)panadapter_low);
+  gtk_spin_button_set_value(GTK_SPIN_BUTTON(panadapter_low_r),(double)active_receiver->panadapter_low);
   gtk_widget_show(panadapter_low_r);
   gtk_grid_attach(GTK_GRID(grid),panadapter_low_r,1,4,1,1);
   g_signal_connect(panadapter_low_r,"value_changed",G_CALLBACK(panadapter_low_value_changed_cb),NULL);
@@ -193,7 +187,7 @@ void display_menu(GtkWidget *parent) {
 
   GtkWidget *waterfall_automatic_b=gtk_check_button_new();
   //gtk_widget_override_font(waterfall_automatic_b, pango_font_description_from_string("Arial 18"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (waterfall_automatic_b), waterfall_automatic);
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (waterfall_automatic_b), active_receiver->waterfall_automatic);
   gtk_widget_show(waterfall_automatic_b);
   gtk_grid_attach(GTK_GRID(grid),waterfall_automatic_b,1,5,1,1);
   g_signal_connect(waterfall_automatic_b,"toggled",G_CALLBACK(waterfall_automatic_cb),NULL);
@@ -205,7 +199,7 @@ void display_menu(GtkWidget *parent) {
 
   GtkWidget *waterfall_high_r=gtk_spin_button_new_with_range(-220.0,100.0,1.0);
   //gtk_widget_override_font(waterfall_high_r, pango_font_description_from_string("Arial 18"));
-  gtk_spin_button_set_value(GTK_SPIN_BUTTON(waterfall_high_r),(double)waterfall_high);
+  gtk_spin_button_set_value(GTK_SPIN_BUTTON(waterfall_high_r),(double)active_receiver->waterfall_high);
   gtk_widget_show(waterfall_high_r);
   gtk_grid_attach(GTK_GRID(grid),waterfall_high_r,1,6,1,1);
   g_signal_connect(waterfall_high_r,"value_changed",G_CALLBACK(waterfall_high_value_changed_cb),NULL);
@@ -217,7 +211,7 @@ void display_menu(GtkWidget *parent) {
 
   GtkWidget *waterfall_low_r=gtk_spin_button_new_with_range(-220.0,100.0,1.0);
   //gtk_widget_override_font(waterfall_low_r, pango_font_description_from_string("Arial 18"));
-  gtk_spin_button_set_value(GTK_SPIN_BUTTON(waterfall_low_r),(double)waterfall_low);
+  gtk_spin_button_set_value(GTK_SPIN_BUTTON(waterfall_low_r),(double)active_receiver->waterfall_low);
   gtk_widget_show(waterfall_low_r);
   gtk_grid_attach(GTK_GRID(grid),waterfall_low_r,1,7,1,1);
   g_signal_connect(waterfall_low_r,"value_changed",G_CALLBACK(waterfall_low_value_changed_cb),NULL);
@@ -294,16 +288,18 @@ void display_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),time_r,4,6,1,1);
   g_signal_connect(time_r,"value_changed",G_CALLBACK(time_value_changed_cb),NULL);
 
+/*
   GtkWidget *b_display_panadapter=gtk_check_button_new_with_label("Display Panadapter");
   //gtk_widget_override_font(b_display_panadapter, pango_font_description_from_string("Arial 18"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_panadapter), display_panadapter);
   gtk_widget_show(b_display_panadapter);
   gtk_grid_attach(GTK_GRID(grid),b_display_panadapter,0,8,1,1);
   g_signal_connect(b_display_panadapter,"toggled",G_CALLBACK(display_panadapter_cb),(gpointer *)NULL);
+*/
 
   GtkWidget *b_display_waterfall=gtk_check_button_new_with_label("Display Waterfall");
   //gtk_widget_override_font(b_display_waterfall, pango_font_description_from_string("Arial 18"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_waterfall), display_waterfall);
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_waterfall), active_receiver->display_waterfall);
   gtk_widget_show(b_display_waterfall);
   gtk_grid_attach(GTK_GRID(grid),b_display_waterfall,1,8,1,1);
   g_signal_connect(b_display_waterfall,"toggled",G_CALLBACK(display_waterfall_cb),(gpointer *)NULL);
@@ -315,20 +311,14 @@ void display_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),b_display_sliders,2,8,1,1);
   g_signal_connect(b_display_sliders,"toggled",G_CALLBACK(display_sliders_cb),(gpointer *)NULL);
 
+/*
   GtkWidget *b_display_toolbar=gtk_check_button_new_with_label("Display Toolbar");
   //gtk_widget_override_font(b_display_toolbar, pango_font_description_from_string("Arial 18"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_toolbar), display_toolbar);
   gtk_widget_show(b_display_toolbar);
   gtk_grid_attach(GTK_GRID(grid),b_display_toolbar,3,8,1,1);
   g_signal_connect(b_display_toolbar,"toggled",G_CALLBACK(display_toolbar_cb),(gpointer *)NULL);
-
-  GtkWidget *b_toolbar_dialog_buttons=gtk_check_button_new_with_label("Buttons Display Dialog");
-  //gtk_widget_override_font(b_toolbar_dialog_buttons, pango_font_description_from_string("Arial 18"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_toolbar_dialog_buttons), toolbar_dialog_buttons);
-  gtk_widget_show(b_toolbar_dialog_buttons);
-  gtk_grid_attach(GTK_GRID(grid),b_toolbar_dialog_buttons,0,9,1,1);
-  g_signal_connect(b_toolbar_dialog_buttons,"toggled",G_CALLBACK(toolbar_dialog_buttons_cb),(gpointer *)NULL);
-
+*/
   gtk_container_add(GTK_CONTAINER(content),grid);
 
   sub_menu=dialog;

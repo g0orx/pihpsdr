@@ -18,3 +18,5 @@
 */
 
 void vox_menu(GtkWidget *parent);
+gboolean vox_cb (GtkWidget *widget, GdkEventButton *event, gpointer data);
+
