@@ -29,7 +29,6 @@ static guint vox_timeout;
 static double peak=0.0;
 
 static int vox_timeout_cb(gpointer data) {
-fprintf(stderr,"vox timeout\n");
   setVox(0);
   g_idle_add(vfo_update,NULL);
   return FALSE;
@@ -59,7 +58,6 @@ void update_vox(TRANSMITTER *tx) {
 
 
   if(vox_enabled) {
-fprintf(stderr,"update_vox: id=%d peak=%f threshold=%f enabled=%d\n",tx->id,peak,vox_threshold,vox_enabled);
     if(peak>vox_threshold) {
       if(previous_vox) {
         g_source_remove(vox_timeout);

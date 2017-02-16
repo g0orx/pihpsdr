@@ -55,22 +55,23 @@ static int vox_timeout_cb(gpointer data) {
 
 static int level_update(void *data) {
   char title[16];
-fprintf(stderr,"vox peak=%f threshold=%f\n",peak,vox_threshold);
-  gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(level),peak);
+  if(run_level) {
+    gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(level),peak);
 
-  if(peak>vox_threshold) {
-    // red indicator
-    led_set_color(1.0,0.0,0.0); // red
-    if(hold==0) {
-      hold=1;
+    if(peak>vox_threshold) {
+      // red indicator
+      led_set_color(1.0,0.0,0.0); // red
+      if(hold==0) {
+        hold=1;
+      } else {
+        g_source_remove(vox_timeout);
+      }
+      vox_timeout=g_timeout_add((int)vox_hang,vox_timeout_cb,NULL);
     } else {
-      g_source_remove(vox_timeout);
-    }
-    vox_timeout=g_timeout_add((int)vox_hang,vox_timeout_cb,NULL);
-  } else {
-    // green indicator
-    if(hold==0) {
-      led_set_color(0.0,1.0,0.0); // green
+      // green indicator
+      if(hold==0) {
+        led_set_color(0.0,1.0,0.0); // green
+      }
     }
   }
   return 0;
@@ -90,6 +91,13 @@ static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
     dialog=NULL;
     sub_menu=NULL;
   }
+  return TRUE;
+}
+
+static gboolean enable_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  vox_enabled=vox_enabled==1?0:1;
+  gtk_button_set_label(GTK_BUTTON(widget),vox_enabled==0?"VOX On":"VOX Off");
+  vfo_update(NULL);
   return TRUE;
 }
 
@@ -147,6 +155,10 @@ void vox_menu(GtkWidget *parent) {
   led=create_led(10,10);
   gtk_grid_attach(GTK_GRID(grid),led,2,0,1,1);
  
+  GtkWidget *enable_b=gtk_button_new_with_label(vox_enabled==0?"VOX On":"VOX Off");
+  g_signal_connect (enable_b, "pressed", G_CALLBACK(enable_cb), NULL);
+  gtk_grid_attach(GTK_GRID(grid),enable_b,3,0,1,1);
+
   GtkWidget *level_label=gtk_label_new("Mic Level:");
   gtk_misc_set_alignment (GTK_MISC(level_label), 0, 0);
   gtk_widget_show(level_label);

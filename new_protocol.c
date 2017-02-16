@@ -373,8 +373,10 @@ static void new_protocol_high_priority(int run) {
       //long long rxFrequency=ddsFrequency;
       //rxFrequency=receiver[r]->dds_frequency;
       int v=receiver[r]->id;
-      rxFrequency=vfo[v].frequency-vfo[v].lo+vfo[v].rit;
-
+      rxFrequency=vfo[v].frequency-vfo[v].lo;
+      if(vfo[v].rit_enabled) {
+        rxFrequency+=vfo[v].rit;
+      }
       if(vfo[v].mode==modeCWU) {
         rxFrequency-=cw_keyer_sidetone_frequency;
       } else if(vfo[v].mode==modeCWL) {

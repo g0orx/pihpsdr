@@ -90,6 +90,9 @@ void vfo_save_state() {
     sprintf(name,"vfo.%d.ctun",i);
     sprintf(value,"%d",vfo[i].ctun);
     setProperty(name,value);
+    sprintf(name,"vfo.%d.rit_enabled",i);
+    sprintf(value,"%d",vfo[i].rit_enabled);
+    setProperty(name,value);
     sprintf(name,"vfo.%d.rit",i);
     sprintf(value,"%lld",vfo[i].rit);
     setProperty(name,value);
@@ -125,6 +128,7 @@ void vfo_restore_state() {
     vfo[i].filter=6;
     vfo[i].lo=0;
     vfo[i].offset=0;
+    vfo[i].rit_enabled=0;
     vfo[i].rit=0;
     vfo[i].ctun=0;
 
@@ -143,6 +147,9 @@ void vfo_restore_state() {
     sprintf(name,"vfo.%d.rit",i);
     value=getProperty(name);
     if(value) vfo[i].rit=atoll(value);
+    sprintf(name,"vfo.%d.rit_enabled",i);
+    value=getProperty(name);
+    if(value) vfo[i].rit_enabled=atoi(value);
     sprintf(name,"vfo.%d.lo",i);
     value=getProperty(name);
     if(value) vfo[i].lo=atoll(value);
@@ -306,6 +313,7 @@ void vfo_a_to_b() {
   vfo[VFO_B].filter=vfo[VFO_A].filter;
   vfo[VFO_B].lo=vfo[VFO_A].lo;
   vfo[VFO_B].offset=vfo[VFO_A].offset;
+  vfo[VFO_B].rit_enabled=vfo[VFO_A].rit_enabled;
   vfo[VFO_B].rit=vfo[VFO_A].rit;
 
   if(receivers==2) {
@@ -325,6 +333,7 @@ void vfo_b_to_a() {
   vfo[VFO_A].filter=vfo[VFO_B].filter;
   vfo[VFO_A].lo=vfo[VFO_B].lo;
   vfo[VFO_A].offset=vfo[VFO_B].offset;
+  vfo[VFO_A].rit_enabled=vfo[VFO_B].rit_enabled;
   vfo[VFO_A].rit=vfo[VFO_B].rit;
   receiver_vfo_changed(receiver[0]);
   if(!split) {
@@ -341,6 +350,7 @@ void vfo_a_swap_b() {
   int temp_filter;
   int temp_lo;
   int temp_offset;
+  int temp_rit_enabled;
   int temp_rit;
 
   temp_band=vfo[VFO_A].band;
@@ -350,6 +360,7 @@ void vfo_a_swap_b() {
   temp_filter=vfo[VFO_A].filter;
   temp_lo=vfo[VFO_A].lo;
   temp_offset=vfo[VFO_A].offset;
+  temp_rit_enabled=vfo[VFO_A].rit_enabled;
   temp_rit=vfo[VFO_A].rit;
 
   vfo[VFO_A].band=vfo[VFO_B].band;
@@ -359,6 +370,7 @@ void vfo_a_swap_b() {
   vfo[VFO_A].filter=vfo[VFO_B].filter;
   vfo[VFO_A].lo=vfo[VFO_B].lo;
   vfo[VFO_A].offset=vfo[VFO_B].offset;
+  vfo[VFO_A].rit_enabled=vfo[VFO_B].rit_enabled;
   vfo[VFO_A].rit=vfo[VFO_B].rit;
 
   vfo[VFO_B].band=temp_band;
@@ -368,6 +380,7 @@ void vfo_a_swap_b() {
   vfo[VFO_B].filter=temp_filter;
   vfo[VFO_B].lo=temp_lo;
   vfo[VFO_B].offset=temp_offset;
+  vfo[VFO_B].rit_enabled=temp_rit_enabled;
   vfo[VFO_B].rit=temp_rit;
 
   receiver_vfo_changed(receiver[0]);
@@ -624,7 +637,7 @@ int vfo_update(void *data) {
 
         cairo_set_font_size(cr, 12);
 
-        if(vfo[id].rit==0) {
+        if(vfo[id].rit_enabled==0) {
             cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
         } else {
             cairo_set_source_rgb(cr, 1, 1, 0);

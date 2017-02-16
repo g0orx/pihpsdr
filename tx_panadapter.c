@@ -177,6 +177,10 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   int display_width=gtk_widget_get_allocated_width (tx->panadapter);
   int display_height=gtk_widget_get_allocated_height (tx->panadapter);
 
+  int id=0;
+  if(split) {
+    id=1;
+  }
   samples=tx->pixel_samples;
   //hz_per_pixel=(double)tx->output_rate/(double)display_width;
   hz_per_pixel=48000.0/(double)display_width;
@@ -220,38 +224,8 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   long long divisor=20000;
   long long half=24000LL; //(long long)(tx->output_rate/2);
   long long frequency;
-  if(split) {
-    frequency=vfo[VFO_B].frequency+vfo[VFO_B].offset;
-  } else {
-    frequency=vfo[VFO_A].frequency+vfo[VFO_A].offset;
-  }
+  frequency=vfo[id].frequency+vfo[VFO_B].offset;
   divisor=5000LL;
-/*
-  switch(tx->output_rate) {
-    case 48000:
-      divisor=5000L;
-      break;
-    case 96000:
-    case 100000:
-      divisor=10000L;
-      break;
-    case 192000:
-      divisor=20000L;
-      break;
-    case 384000:
-      divisor=25000L;
-      break;
-    case 768000:
-      divisor=50000L;
-      break;
-    case 1048576:
-    case 1536000:
-    case 2097152:
-      divisor=100000L;
-      break;
-  }
-*/
-//fprintf(stderr,"tx_panadapter_update: frequency=%lld divisor=%lld split=%d\n",frequency,divisor,split);
   for(i=0;i<display_width;i++) {
     f = frequency - half + (long) (hz_per_pixel * i);
     if (f > 0) {
@@ -308,8 +282,8 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   cairo_set_source_rgb (cr, 1, 0, 0);
   cairo_set_line_width(cr, 1.0);
 //fprintf(stderr,"cursor: x=%f\n",(double)(display_width/2.0)+(vfo[tx->id].offset/hz_per_pixel));
-  cairo_move_to(cr,(double)(display_width/2.0)+(vfo[tx->id].offset/hz_per_pixel),0.0);
-  cairo_line_to(cr,(double)(display_width/2.0)+(vfo[tx->id].offset/hz_per_pixel),(double)display_height);
+  cairo_move_to(cr,(double)(display_width/2.0)+(vfo[id].offset/hz_per_pixel),0.0);
+  cairo_line_to(cr,(double)(display_width/2.0)+(vfo[id].offset/hz_per_pixel),(double)display_height);
   cairo_stroke(cr);
 
   // signal

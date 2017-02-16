@@ -104,6 +104,7 @@ fprintf(stderr,"discovery\n");
   lime_discovery();
 #endif
 
+  status_text("Discovery");
 
   if(devices==0) {
     gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_ARROW));
