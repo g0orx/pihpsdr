@@ -227,7 +227,7 @@ static void mem_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void vox_cb(GtkWidget *widget, gpointer data) {
-  vox=vox==1?0:1;
+  vox_enabled=vox_enabled==1?0:1;
   vfo_update(NULL);
 }
 

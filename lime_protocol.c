@@ -19,6 +19,7 @@
 
 static double bandwidth=3000000.0;
 
+static int lime_sample_rate=
 static size_t receiver;
 static SoapySDRDevice *lime_device;
 static SoapySDRStream *stream;
@@ -52,14 +53,15 @@ static int rate_samples;
 
 static int running;
 
-void lime_protocol_init(int rx,int pixels) {
+void lime_protocol_init(int rx,int pixels,int sample_rate) {
   SoapySDRKwargs args;
   int rc;
 
-fprintf(stderr,"lime_protocol_init: receiver=%d pixels=%d\n",rx,pixels);
+fprintf(stderr,"lime_protocol_init: receiver=%d pixels=%d sample_rate=%d\n",rx,pixels,sample_rate);
 
   receiver=(size_t)rx;
   display_width=pixels;
+  lime_sample_rate=sample_rate;
 
   outputsamples=BUFFER_SIZE/(sample_rate/48000);
 /*
@@ -112,6 +114,9 @@ fprintf(stderr,"lime_protocol: actual samplerate= %d\n",actual_rate);
 if(sample_rate==768000 && actual_rate==767999) {
   actual_rate=768000;
   fprintf(stderr,"lime_protocol: forced actual_rate\n");
+}
+
+void lime_protocol_change_sample_rate(int rate) {
 }
 
 fprintf(stderr,"lime_protocol: setting bandwidth =%f\n",bandwidth);

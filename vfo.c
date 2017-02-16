@@ -634,7 +634,15 @@ int vfo_update(void *data) {
         cairo_set_font_size(cr, 12);
         cairo_show_text(cr, temp_text);
 
-        cairo_move_to(cr, 210, 15);  
+        cairo_move_to(cr, 190, 15);  
+        if(vox_enabled) {
+          cairo_set_source_rgb(cr, 1, 0, 0);
+        } else {
+          cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
+        }
+        cairo_show_text(cr, "VOX");
+        
+        cairo_move_to(cr, 220, 15);  
         if(locked) {
           cairo_set_source_rgb(cr, 1, 0, 0);
         } else {

@@ -504,7 +504,7 @@ fprintf(stderr,"set cursor\n");
   gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_ARROW));
 
 for(i=0;i<MAX_VFOS;i++) {
-  fprintf(stderr,"start_radio: vfo %d band=%d bandstack=%d frequency=%lld mode=%d filter=%d rit=%lld lo=%%ld offset=%lld\n",
+  fprintf(stderr,"start_radio: vfo %d band=%d bandstack=%d frequency=%lld mode=%d filter=%d rit=%lld lo=%lld offset=%lld\n",
     i,
     vfo[i].band,
     vfo[i].bandstack,
@@ -550,6 +550,7 @@ void radio_change_sample_rate(int rate) {
       break;
 #ifdef LIMESDR
     case LIMESDR_PROTOCOL:
+      lime_protocol_change_sample_rate(rate);
       break;
 #endif
   }
