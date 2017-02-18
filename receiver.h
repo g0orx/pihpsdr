@@ -110,6 +110,7 @@ typedef struct _receiver {
   GdkPixbuf *pixbuf;
 
   int local_audio;
+  int mute_when_not_active;
   int audio_device;
   snd_pcm_t *playback_handle;
   int playback_offset;

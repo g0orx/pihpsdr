@@ -253,6 +253,8 @@ extern void setMox(int state);
 extern int getMox();
 extern void setTune(int state);
 extern int getTune();
+extern void setVox(int state);
+extern int vox_changed(void *data);
 extern double getDrive();
 extern void setDrive(double d);
 extern void calcDriveLevel();

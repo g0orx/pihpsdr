@@ -39,6 +39,8 @@ static GtkWidget *parent_window=NULL;
 
 static GtkWidget *dialog=NULL;
 
+GtkWidget *store_button[NUM_OF_MEMORYS];
+
 static gboolean store_close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   if(dialog!=NULL) {
     gtk_widget_destroy(dialog);
@@ -51,7 +53,7 @@ static gboolean store_close_cb (GtkWidget *widget, GdkEventButton *event, gpoint
 static gboolean store_select_cb (GtkWidget *widget, gpointer data) {
    int index = (int) data;
    fprintf(stderr,"STORE BUTTON PUSHED=%d\n",index);
-   char workstr[16];
+   char workstr[40];
      
    /* Update mem[data] with current info  */
 
@@ -63,6 +65,9 @@ static gboolean store_select_cb (GtkWidget *widget, gpointer data) {
     fprintf(stderr,"store_select_cb: freqA=%11lld\n",mem[index].frequency);
     fprintf(stderr,"store_select_cb: mode=%d\n",mem[index].mode);
     fprintf(stderr,"store_select_cb: filter=%d\n",mem[index].filter);
+
+    sprintf(workstr,"M%d=%8.6f MHz", index,((double) mem[index].frequency)/1000000.0);
+    gtk_button_set_label(GTK_BUTTON(store_button[index]),workstr);
 
    // Save in the file now..
    memSaveState();
@@ -85,14 +90,18 @@ static gboolean recall_select_cb (GtkWidget *widget, gpointer data) {
     vfo[active_receiver->id].band = get_band_from_frequency(new_freq);
     vfo[active_receiver->id].mode = mem[index].mode;
     vfo[active_receiver->id].filter = mem[index].filter;
-    vfo_band_changed(vfo[active_receiver->id].band);
+    //vfo_band_changed(vfo[active_receiver->id].band);
+    vfo_filter_changed(mem[index].filter);
+    vfo_mode_changed(mem[index].mode);
+    g_idle_add(vfo_update,NULL);
+
 }
 
 void store_menu(GtkWidget *parent) {
   GtkWidget *b;
   int i;
   BAND *band;
-  char label_str[20];
+  char label_str[50];
 
   parent_window=parent;
 
@@ -126,8 +135,9 @@ void store_menu(GtkWidget *parent) {
      g_signal_connect(b,"pressed",G_CALLBACK(store_select_cb),(gpointer *) i);
      gtk_grid_attach(GTK_GRID(grid),b,2,i,1,1);
 
-     sprintf(label_str,"Recall M%d",i); 
+     sprintf(label_str,"M%d=%8.6f MHz",i,((double) mem[i].frequency)/1000000.0);
      b=gtk_button_new_with_label(label_str);
+     store_button[i]= b;
      g_signal_connect(b,"pressed",G_CALLBACK(recall_select_cb),(gpointer *) i);
      gtk_grid_attach(GTK_GRID(grid),b,3,i,1,1);
   }
