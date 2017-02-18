@@ -25,11 +25,11 @@ GPIO_INCLUDE=GPIO
 #I2C_INCLUDE=I2C
 
 #uncomment the line below for the platform being compiled on
-UNAME_N=raspberrypi
+#UNAME_N=raspberrypi
 #UNAME_N=odroid
 #UNAME_N=up
 #UNAME_N=pine64
-#UNAME_N=x86
+UNAME_N=x86
 
 CC=gcc
 LINK=gcc
@@ -223,7 +223,8 @@ vox.c \
 update.c \
 store.c \
 store_menu.c \
-memory.c
+memory.c \
+led.c
 
 
 HEADERS= \
@@ -287,7 +288,8 @@ vox.h \
 update.h \
 store.h \
 store_menu.h \
-memory.h
+memory.h \
+led.h
 
 
 OBJS= \
@@ -349,7 +351,8 @@ vox.o \
 update.o \
 store.o \
 store_menu.o \
-memory.o
+memory.o \
+led.o
 
 all: prebuild  $(PROGRAM) $(HEADERS) $(RADIOBERRY_HEADERS) $(USBOZY_HEADERS) $(LIMESDR_HEADERS) $(FREEDV_HEADERS) $(LOCALCW_HEADERS) $(I2C_HEADERS) $(GPIO_HEADERS) $(PSK_HEADERS) $(SOURCES) $(USBOZY_SOURCES) $(LIMESDR_SOURCES) $(FREEDV_SOURCES) $(I2C_SOURCES) $(GPIO_SOURCES) $(PSK_SOURCES) $(RADIOBERRY_SOURCES)
 

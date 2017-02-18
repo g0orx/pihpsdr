@@ -56,14 +56,9 @@ void update_vox(TRANSMITTER *tx) {
     }
   }
 
-//fprintf(stderr,"update_vox: id=%d peak=%f\n",tx->id,peak);
 
   if(vox_enabled) {
-    double threshold=vox_threshold;
-
-//fprintf(stderr,"update_vox: peak=%f threshold=%f\n",peak,threshold);
-
-    if(peak>threshold) {
+    if(peak>vox_threshold) {
       if(previous_vox) {
         g_source_remove(vox_timeout);
       } else {

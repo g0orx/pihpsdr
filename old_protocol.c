@@ -800,7 +800,10 @@ void ozy_send_buffer() {
       if(current_rx<receivers) {
         output_buffer[C0]=0x04+(current_rx*2);
         int v=receiver[current_rx]->id;
-        long long rxFrequency=vfo[v].frequency+vfo[v].rit;
+        long long rxFrequency=vfo[v].frequency-vfo[v].lo;
+        if(vfo[v].rit_enabled) {
+          rxFrequency+=vfo[v].rit;
+        }
         if(vfo[active_receiver->id].mode==modeCWU) {
           rxFrequency-=(long long)cw_keyer_sidetone_frequency;
         } else if(vfo[active_receiver->id].mode==modeCWL) {

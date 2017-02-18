@@ -113,10 +113,12 @@ void update_toolbar_labels() {
       gtk_button_set_label(GTK_BUTTON(sim_mox),"Mox");
       gtk_button_set_label(GTK_BUTTON(sim_s1),"Freq");
       gtk_button_set_label(GTK_BUTTON(sim_s2),"Mem");
-      gtk_button_set_label(GTK_BUTTON(sim_s3),"Vox");
+      //gtk_button_set_label(GTK_BUTTON(sim_s3),"Vox");
+      gtk_button_set_label(GTK_BUTTON(sim_s3),vfo[active_receiver->id].rit_enabled==0?"RIT On":"RIT Off");
+
       gtk_button_set_label(GTK_BUTTON(sim_s4),"RIT+");
       gtk_button_set_label(GTK_BUTTON(sim_s5),"RIT-");
-      gtk_button_set_label(GTK_BUTTON(sim_s6),"");
+      gtk_button_set_label(GTK_BUTTON(sim_s6),"RIT CL");
       if(full_tune) {
         set_button_text_color(sim_s1,"red");
       }
@@ -212,6 +214,12 @@ static void split_cb (GtkWidget *widget, gpointer data) {
   vfo_update(NULL);
 }
 
+static void rit_enable_cb(GtkWidget *widget, gpointer data) {
+  vfo[active_receiver->id].rit_enabled=vfo[active_receiver->id].rit_enabled==1?0:1;
+  gtk_button_set_label(GTK_BUTTON(widget),vfo[active_receiver->id].rit_enabled==0?"RIT On":"RIT Off");
+  vfo_update(NULL);
+}
+
 static void rit_cb(GtkWidget *widget, gpointer data) {
   int i=(int)data;
   vfo[active_receiver->id].rit+=i*rit_increment;
@@ -219,6 +227,11 @@ static void rit_cb(GtkWidget *widget, gpointer data) {
   if(vfo[active_receiver->id].rit<-1000) vfo[active_receiver->id].rit=-1000;
   vfo_update(NULL);
   rit_timer=g_timeout_add(200,rit_timer_cb,(void *)i);
+}
+
+static void rit_clear_cb(GtkWidget *widget, gpointer data) {
+  vfo[active_receiver->id].rit=0;
+  vfo_update(NULL);
 }
 
 static void freq_cb(GtkWidget *widget, gpointer data) {
@@ -230,7 +243,7 @@ static void mem_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void vox_cb(GtkWidget *widget, gpointer data) {
-  vox=vox==1?0:1;
+  vox_enabled=vox_enabled==1?0:1;
   vfo_update(NULL);
 }
 
@@ -667,7 +680,8 @@ void sim_s3_pressed_cb(GtkWidget *widget, gpointer data) {
       atob_cb(widget,data);
       break;
     case 2:
-      vox_cb(widget,data);
+      //vox_cb(widget,data);
+      rit_enable_cb(widget,data);
       break;
     case 3:
       break;
@@ -758,6 +772,7 @@ void sim_s6_pressed_cb(GtkWidget *widget, gpointer data) {
       split_cb(widget,data);
       break;
     case 2:
+      rit_clear_cb(widget,NULL);
       break;
     case 3:
       break;
