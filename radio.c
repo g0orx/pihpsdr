@@ -41,6 +41,9 @@
 #include "property.h"
 #include "new_protocol.h"
 #include "old_protocol.h"
+#ifdef RADIOBERRY
+#include "radioberry.h"
+#endif
 #include "store.h"
 #ifdef LIMESDR
 #include "lime_protocol.h"
@@ -432,6 +435,19 @@ fprintf(stderr,"receiver %d: height=%d y=%d\n",receiver[i]->id,rx_height,y);
   transmitter=create_transmitter(CHANNEL_TX, buffer_size, fft_size, updates_per_second, display_width, tx_height);
   g_object_ref((gpointer)transmitter->panel);
 
+  
+  #ifdef GPIO
+  if(gpio_init()<0) {
+    fprintf(stderr,"GPIO failed to initialize\n");
+  }
+#ifdef LOCALCW
+  // init local keyer if enabled
+  else if (cw_keyer_internal == 0)
+    keyer_update();
+#endif
+#endif
+  
+  
   switch(radio->protocol) {
     case ORIGINAL_PROTOCOL:
       old_protocol_init(0,display_width,receiver[0]->sample_rate);
@@ -444,18 +460,14 @@ fprintf(stderr,"receiver %d: height=%d y=%d\n",receiver[i]->id,rx_height,y);
       lime_protocol_init(0,display_width);
       break;
 #endif
+#ifdef RADIOBERRY
+	case RADIOBERRY_PROTOCOL:
+		radioberry_protocol_init(0,display_width);
+		break;
+#endif
   }
 
-#ifdef GPIO
-  if(gpio_init()<0) {
-    fprintf(stderr,"GPIO failed to initialize\n");
-  }
-#ifdef LOCALCW
-  // init local keyer if enabled
-  else if (cw_keyer_internal == 0)
-    keyer_update();
-#endif
-#endif
+
 
 #ifdef I2C
   i2c_init();

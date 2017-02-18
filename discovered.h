@@ -54,7 +54,7 @@
 #endif
 
 #ifdef RADIOBERRY
-#define RADIOBERRY_SPI_DEVICE 0
+#define RADIOBERRY_SPI_DEVICE 100
 #endif
 
 #define STATE_AVAILABLE 2

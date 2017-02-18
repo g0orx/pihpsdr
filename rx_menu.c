@@ -134,6 +134,9 @@ void rx_menu(GtkWidget *parent) {
   int x=0;
 
   switch(protocol) {
+#ifdef RADIOBERRY
+	case RADIOBERRY_PROTOCOL:
+#endif
     case NEW_PROTOCOL:
       {
       GtkWidget *sample_rate_label=gtk_label_new("Sample Rate");
@@ -196,6 +199,9 @@ void rx_menu(GtkWidget *parent) {
   }
 
   switch(protocol) {
+#ifdef RADIOBERRY
+	case RADIOBERRY_PROTOCOL:
+#endif
     case ORIGINAL_PROTOCOL:
     case NEW_PROTOCOL: 
       {

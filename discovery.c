@@ -111,7 +111,7 @@ fprintf(stderr,"discovery\n");
 #endif
 
 #ifdef RADIOBERRY
-      splash_status("Radioberry SDR ... Discovering Device");
+      status_text("Radioberry SDR ... Discovering Device");
       radioberry_discovery();
 #endif
   status_text("Discovery");

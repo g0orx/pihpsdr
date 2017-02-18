@@ -50,6 +50,9 @@
 #include "wdsp.h"
 #include "new_menu.h"
 #include "rigctl.h"
+#ifdef RADIOBERRY
+#include "radioberry.h"
+#endif
 
 static GtkWidget *parent_window;
 static int my_width;
@@ -552,7 +555,11 @@ int vfo_update(void *data) {
 
         char version[16];
         char text[128];
-        if(radio->protocol==ORIGINAL_PROTOCOL) {
+#ifdef RADIOBERRY
+        if(radio->protocol==ORIGINAL_PROTOCOL || radio->protocol==RADIOBERRY_PROTOCOL ) {
+#else
+		if(radio->protocol==ORIGINAL_PROTOCOL) {
+#endif
           switch(radio->device) {
 #ifdef USBOZY
             case DEVICE_OZY:
@@ -597,6 +604,11 @@ int vfo_update(void *data) {
             case LIMESDR_PROTOCOL:
               sprintf(text,"%s", radio->name);
               break;
+#endif
+#ifdef RADIOBERRY
+			case RADIOBERRY_PROTOCOL:
+				sprintf(text,"%s", radio->name);
+				break;
 #endif
         }
         cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);

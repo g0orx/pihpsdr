@@ -220,6 +220,11 @@ fprintf(stderr,"audio_open_input: %d\n",n_selected_input_device);
   fprintf(stderr,"audio_open_input: selected=%d:%s\n",n_selected_input_device,selected);
   
   switch(protocol) {
+#ifdef RADIOBERRY
+    case RADIOBERRY_PROTOCOL:
+      mic_buffer_size = 1024;
+      break;
+#endif
     case ORIGINAL_PROTOCOL:
       mic_buffer_size = 720;
       break;
@@ -414,6 +419,11 @@ fprintf(stderr,"mic_read_thread: mic_buffer_size=%d\n",mic_buffer_size);
     } else {
       // process the mic input
       switch(protocol) {
+#ifdef RADIOBERRY
+		case RADIOBERRY_PROTOCOL:
+		  radioberry_protocol_iq_samples(mic_buffer,1);
+		  break;
+#endif
         case ORIGINAL_PROTOCOL:
           old_protocol_process_local_mic(mic_buffer,1);
           break;
