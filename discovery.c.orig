@@ -110,12 +110,15 @@ fprintf(stderr,"discovery\n");
   lime_discovery();
 #endif
 
+<<<<<<< HEAD
 #ifdef RADIOBERRY
-      status_text("Radioberry SDR ... Discovering Device");
+      splash_status("Radioberry SDR ... Discovering Device");
       radioberry_discovery();
 #endif
-  status_text("Discovery");
 
+=======
+  status_text("Discovery");
+>>>>>>> upstream/master
 
   if(devices==0) {
     gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_ARROW));

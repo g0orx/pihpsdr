@@ -36,6 +36,9 @@
 #include "discovered.h"
 #include "configure.h"
 #include "gpio.h"
+#ifdef RADIOBERRY
+#include "radioberry.h"
+#endif
 #include "wdsp.h"
 #include "new_menu.h"
 #include "radio.h"
@@ -104,6 +107,11 @@ gboolean main_delete (GtkWidget *widget) {
     case LIMESDR_PROTOCOL:
       lime_protocol_stop();
       break;
+#endif
+#ifdef RADIOBERRY
+	case RADIOBERRY_PROTOCOL:
+		radioberry_protocol_stop();
+		break;
 #endif
   }
   radioSaveState();

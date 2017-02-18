@@ -41,9 +41,6 @@
 #include "property.h"
 #include "new_protocol.h"
 #include "old_protocol.h"
-#ifdef RADIOBERRY
-#include "radioberry.h"
-#endif
 #include "store.h"
 #ifdef LIMESDR
 #include "lime_protocol.h"
@@ -435,19 +432,6 @@ fprintf(stderr,"receiver %d: height=%d y=%d\n",receiver[i]->id,rx_height,y);
   transmitter=create_transmitter(CHANNEL_TX, buffer_size, fft_size, updates_per_second, display_width, tx_height);
   g_object_ref((gpointer)transmitter->panel);
 
-  
-  #ifdef GPIO
-  if(gpio_init()<0) {
-    fprintf(stderr,"GPIO failed to initialize\n");
-  }
-#ifdef LOCALCW
-  // init local keyer if enabled
-  else if (cw_keyer_internal == 0)
-    keyer_update();
-#endif
-#endif
-  
-  
   switch(radio->protocol) {
     case ORIGINAL_PROTOCOL:
       old_protocol_init(0,display_width,receiver[0]->sample_rate);
@@ -457,17 +441,21 @@ fprintf(stderr,"receiver %d: height=%d y=%d\n",receiver[i]->id,rx_height,y);
       break;
 #ifdef LIMESDR
     case LIMESDR_PROTOCOL:
-      lime_protocol_init(0,display_width,receiver[0]->sample_rate);
+      lime_protocol_init(0,display_width);
       break;
-#endif
-#ifdef RADIOBERRY
-	case RADIOBERRY_PROTOCOL:
-		radioberry_protocol_init(0,display_width);
-		break;
 #endif
   }
 
-
+#ifdef GPIO
+  if(gpio_init()<0) {
+    fprintf(stderr,"GPIO failed to initialize\n");
+  }
+#ifdef LOCALCW
+  // init local keyer if enabled
+  else if (cw_keyer_internal == 0)
+    keyer_update();
+#endif
+#endif
 
 #ifdef I2C
   i2c_init();
@@ -494,7 +482,7 @@ fprintf(stderr,"start save timer\n");
   save_timer_id=gdk_threads_add_timeout(30000, save_cb, NULL);
 
 #ifdef PSK
-  if(vfo[active_receiver->id].mode==modePSK) {
+  if(active_receiver->mode==modePSK) {
     show_psk();
   } else {
     show_waterfall();
@@ -516,7 +504,7 @@ fprintf(stderr,"set cursor\n");
   gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_ARROW));
 
 for(i=0;i<MAX_VFOS;i++) {
-  fprintf(stderr,"start_radio: vfo %d band=%d bandstack=%d frequency=%lld mode=%d filter=%d rit=%lld lo=%lld offset=%lld\n",
+  fprintf(stderr,"start_radio: vfo %d band=%d bandstack=%d frequency=%lld mode=%d filter=%d rit=%lld lo=%%ld offset=%lld\n",
     i,
     vfo[i].band,
     vfo[i].bandstack,
@@ -562,7 +550,6 @@ void radio_change_sample_rate(int rate) {
       break;
 #ifdef LIMESDR
     case LIMESDR_PROTOCOL:
-      lime_protocol_change_sample_rate(rate);
       break;
 #endif
   }
@@ -571,8 +558,6 @@ void radio_change_sample_rate(int rate) {
 static void rxtx(int state) {
   int i;
   int y=VFO_HEIGHT;
-
-fprintf(stderr,"rxtx: state=%d\n",state);
 
   if(state) {
     // switch to tx
@@ -631,18 +616,11 @@ int getMox() {
 }
 
 void setVox(int state) {
-fprintf(stderr,"setVox: vox=%d state=%d\n",vox,state);
   if(vox!=state && !tune) {
     vox=state;
     rxtx(state);
   }
 }
-
-int vox_changed(void *data) {
-  setVox((int)data);
-  return 0;
-}
-
 
 void setTune(int state) {
   int i;
@@ -757,12 +735,18 @@ void setFrequency(long long f) {
   switch(protocol) {
     case NEW_PROTOCOL:
     case ORIGINAL_PROTOCOL:
+<<<<<<< HEAD
 #ifdef RADIOBERRY
 	case RADIOBERRY_PROTOCOL:
 #endif
+      if(ctun) {
+        long long minf=entry->frequencyA-(long long)(sample_rate/2);
+        long long maxf=entry->frequencyA+(long long)(sample_rate/2);
+=======
       if(vfo[v].ctun) {
         long long minf=vfo[v].frequency-(long long)(active_receiver->sample_rate/2);
         long long maxf=vfo[v].frequency+(long long)(active_receiver->sample_rate/2);
+>>>>>>> upstream/master
         if(f<minf) f=minf;
         if(f>maxf) f=maxf;
         vfo[v].offset=f-vfo[v].frequency;
@@ -776,13 +760,12 @@ void setFrequency(long long f) {
 #ifdef LIMESDR
     case LIMESDR_PROTOCOL:
       {
-fprintf(stderr,"setFrequency: %lld\n",f);
-      long long minf=vfo[v].frequency-(long long)(active_receiver->sample_rate/2);
-      long long maxf=vfo[v].frequency+(long long)(active_receiver->sample_rate/2);
+      long long minf=entry->frequency-(long long)(active_receiver->sample_rate/2);
+      long long maxf=entry->frequency+(long long)(active_receiver->sample_rate/2);
       if(f<minf) f=minf;
       if(f>maxf) f=maxf;
-      vfo[v].offset=f-vfo[v].frequency;
-      set_offset(active_receiver,vfo[v].offset);
+      ddsOffset=f-entry->frequency;
+      wdsp_set_offset(ddsOffset);
       return;
       }
       break;
@@ -802,8 +785,8 @@ fprintf(stderr,"setFrequency: %lld\n",f);
 #ifdef LIMESDR
     case LIMESDR_PROTOCOL:
       lime_protocol_set_frequency(f);
-      vfo[v].offset=0;
-      set_offset(active_receiver,vfo[v].offset);
+      ddsOffset=0;
+      wdsp_set_offset(ddsOffset);
       break;
 #endif
   }

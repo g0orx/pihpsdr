@@ -53,6 +53,10 @@
 #define LIMESDR_USB_DEVICE 0
 #endif
 
+#ifdef RADIOBERRY
+#define RADIOBERRY_SPI_DEVICE 100
+#endif
+
 #define STATE_AVAILABLE 2
 #define STATE_SENDING 3
 
@@ -60,6 +64,9 @@
 #define NEW_PROTOCOL 1
 #ifdef LIMESDR
 #define LIMESDR_PROTOCOL 2
+#endif
+#ifdef RADIOBERRY
+#define RADIOBERRY_PROTOCOL 3
 #endif
 
 struct _DISCOVERED {

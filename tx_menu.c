@@ -163,8 +163,11 @@ void tx_menu(GtkWidget *parent) {
   row++;
   col=0;
 
-
-  if(protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL) {
+#ifdef RADIOBERRY
+	if(protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL || protocol==RADIOBERRY_PROTOCOL) {
+#else
+	if(protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL)) {
+#endif
     linein_b=gtk_check_button_new_with_label("Mic Line In (ACC connector)");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (linein_b), mic_linein);
     gtk_grid_attach(GTK_GRID(grid),linein_b,col,++row,3,1);
@@ -215,7 +218,11 @@ void tx_menu(GtkWidget *parent) {
 
   gtk_widget_show_all(dialog);
 
-  if(transmitter->local_microphone && (protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL)) {
+#ifdef RADIOBERRY
+	if(transmitter->local_microphone && (protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL || protocol==RADIOBERRY_PROTOCOL)) {
+#else
+	if(transmitter->local_microphone && (protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL)) {
+#endif
     gtk_widget_hide(linein_b);
     gtk_widget_hide(micboost_b);
   }

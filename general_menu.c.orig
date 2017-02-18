@@ -134,7 +134,24 @@ static void apollo_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void sample_rate_cb(GtkWidget *widget, gpointer data) {
+<<<<<<< HEAD
+ switch(protocol) {
+    case ORIGINAL_PROTOCOL:
+      old_protocol_new_sample_rate((int)data);
+      break;
+    case NEW_PROTOCOL:
+      new_protocol_new_sample_rate((int)data);
+      break;
+#ifdef RADIOBERRY
+	case RADIOBERRY_PROTOCOL:
+		radioberry_new_sample_rate((int)data);
+		break;
+#endif
+  }  
+  
+=======
   radio_change_sample_rate((int)data);
+>>>>>>> upstream/master
 }
 
 static void rit_cb(GtkWidget *widget,gpointer data) {
@@ -175,12 +192,27 @@ void general_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),vfo_divisor,4,2,1,1);
   g_signal_connect(vfo_divisor,"value_changed",G_CALLBACK(vfo_divisor_value_changed_cb),NULL);
 
+<<<<<<< HEAD
   if(protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL
 #ifdef RADIOBERRY
   || protocol==RADIOBERRY_PROTOCOL) {
 #else
 	){
 #endif  
+    GtkWidget *rx_dither_b=gtk_check_button_new_with_label("Dither");
+    //gtk_widget_override_font(rx_dither_b, pango_font_description_from_string("Arial 18"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rx_dither_b), rx_dither);
+    gtk_grid_attach(GTK_GRID(grid),rx_dither_b,1,4,1,1);
+    g_signal_connect(rx_dither_b,"toggled",G_CALLBACK(rx_dither_cb),NULL);
+
+    GtkWidget *rx_random_b=gtk_check_button_new_with_label("Random");
+    //gtk_widget_override_font(rx_random_b, pango_font_description_from_string("Arial 18"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rx_random_b), rx_random);
+    gtk_grid_attach(GTK_GRID(grid),rx_random_b,1,5,1,1);
+    g_signal_connect(rx_random_b,"toggled",G_CALLBACK(rx_random_cb),NULL);
+=======
+  if(protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL) {
+>>>>>>> upstream/master
 
     if((protocol==NEW_PROTOCOL && device==NEW_DEVICE_ORION) ||
        (protocol==NEW_PROTOCOL && device==NEW_DEVICE_ORION2) ||
