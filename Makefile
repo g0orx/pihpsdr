@@ -29,7 +29,7 @@ USBOZY_INCLUDE=USBOZY
 #UNAME_N=odroid
 #UNAME_N=up
 #UNAME_N=pine64
-UNAME_N=x86
+UNAME_N=jetsen
 
 CC=gcc
 LINK=gcc

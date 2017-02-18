@@ -29,7 +29,8 @@ static guint vox_timeout;
 static double peak=0.0;
 
 static int vox_timeout_cb(gpointer data) {
-  setVox(0);
+  //setVox(0);
+  g_idle_add(vox_changed,(gpointer)0);
   g_idle_add(vfo_update,NULL);
   return FALSE;
 }
@@ -62,7 +63,8 @@ void update_vox(TRANSMITTER *tx) {
       if(previous_vox) {
         g_source_remove(vox_timeout);
       } else {
-        setVox(1);
+        //setVox(1);
+        g_idle_add(vox_changed,(gpointer)1);
       }
       vox_timeout=g_timeout_add((int)vox_hang,vox_timeout_cb,NULL);
     }
@@ -75,6 +77,8 @@ void update_vox(TRANSMITTER *tx) {
 void vox_cancel() {
   if(vox) {
     g_source_remove(vox_timeout);
-    setVox(0);
+    //setVox(0);
+    g_idle_add(vox_changed,(gpointer)0);
+    g_idle_add(vfo_update,NULL);
   }
 }

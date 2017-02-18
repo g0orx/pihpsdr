@@ -439,8 +439,8 @@ fprintf(stderr,"output_device: %s\n",device_id);
     
     if(strncmp("dmix:", name, 5)==0/* || strncmp("pulse", name, 5)==0*/) {
       fprintf(stderr,"name=%s descr=%s io=%s\n",name, descr, io);
-      
       device_id=malloc(64);
+      
       snprintf(device_id, 64, "%s", name);
       output_devices[n_output_devices++]=device_id;
 fprintf(stderr,"output_device: %s\n",device_id);

@@ -441,7 +441,7 @@ fprintf(stderr,"receiver %d: height=%d y=%d\n",receiver[i]->id,rx_height,y);
       break;
 #ifdef LIMESDR
     case LIMESDR_PROTOCOL:
-      lime_protocol_init(0,display_width);
+      lime_protocol_init(0,display_width,receiver[0]->sample_rate);
       break;
 #endif
   }
@@ -560,6 +560,8 @@ static void rxtx(int state) {
   int i;
   int y=VFO_HEIGHT;
 
+fprintf(stderr,"rxtx: state=%d\n",state);
+
   if(state) {
     // switch to tx
     for(i=0;i<receivers;i++) {
@@ -617,11 +619,18 @@ int getMox() {
 }
 
 void setVox(int state) {
+fprintf(stderr,"setVox: vox=%d state=%d\n",vox,state);
   if(vox!=state && !tune) {
     vox=state;
     rxtx(state);
   }
 }
+
+int vox_changed(void *data) {
+  setVox((int)data);
+  return 0;
+}
+
 
 void setTune(int state) {
   int i;
@@ -752,12 +761,13 @@ void setFrequency(long long f) {
 #ifdef LIMESDR
     case LIMESDR_PROTOCOL:
       {
-      long long minf=entry->frequency-(long long)(active_receiver->sample_rate/2);
-      long long maxf=entry->frequency+(long long)(active_receiver->sample_rate/2);
+fprintf(stderr,"setFrequency: %lld\n",f);
+      long long minf=vfo[v].frequency-(long long)(active_receiver->sample_rate/2);
+      long long maxf=vfo[v].frequency+(long long)(active_receiver->sample_rate/2);
       if(f<minf) f=minf;
       if(f>maxf) f=maxf;
-      ddsOffset=f-entry->frequency;
-      wdsp_set_offset(ddsOffset);
+      vfo[v].offset=f-vfo[v].frequency;
+      set_offset(active_receiver,vfo[v].offset);
       return;
       }
       break;
@@ -774,8 +784,8 @@ void setFrequency(long long f) {
 #ifdef LIMESDR
     case LIMESDR_PROTOCOL:
       lime_protocol_set_frequency(f);
-      ddsOffset=0;
-      wdsp_set_offset(ddsOffset);
+      vfo[v].offset=0;
+      set_offset(active_receiver,vfo[v].offset);
       break;
 #endif
   }

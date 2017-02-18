@@ -418,6 +418,7 @@ void vfo_move(long long hz) {
     switch(protocol) {
 #ifdef LIMESDR
       case LIMESDR_PROTOCOL:
+        vfo[id].ctun_frequency=((vfo[id].ctun_frequency-hz)/step)*step;
         break;
 #endif
       default:
@@ -439,6 +440,7 @@ void vfo_move_to(long long hz) {
     switch(protocol) {
 #ifdef LIMESDR
       case LIMESDR_PROTOCOL:
+        vfo[id].ctun_frequency=(vfo[id].frequency+hz)/step*step;
         break;
 #endif
       default:
@@ -642,7 +644,7 @@ int vfo_update(void *data) {
         } else {
             cairo_set_source_rgb(cr, 1, 1, 0);
         }
-        sprintf(temp_text,"RIT: %d Hz",vfo[id].rit);
+        sprintf(temp_text,"RIT: %lld Hz",vfo[id].rit);
         cairo_move_to(cr, 5, 50);  
         cairo_set_font_size(cr, 12);
         cairo_show_text(cr, temp_text);

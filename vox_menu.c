@@ -96,7 +96,7 @@ static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
 
 static gboolean enable_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   vox_enabled=vox_enabled==1?0:1;
-  gtk_button_set_label(GTK_BUTTON(widget),vox_enabled==0?"VOX On":"VOX Off");
+  gtk_button_set_label(GTK_BUTTON(widget),vox_enabled==0?"VOX Enable":"VOX Disable");
   vfo_update(NULL);
   return TRUE;
 }
@@ -155,7 +155,7 @@ void vox_menu(GtkWidget *parent) {
   led=create_led(10,10);
   gtk_grid_attach(GTK_GRID(grid),led,2,0,1,1);
  
-  GtkWidget *enable_b=gtk_button_new_with_label(vox_enabled==0?"VOX On":"VOX Off");
+  GtkWidget *enable_b=gtk_button_new_with_label(vox_enabled==0?"VOX Enable":"VOX Disable");
   g_signal_connect (enable_b, "pressed", G_CALLBACK(enable_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),enable_b,3,0,1,1);
 

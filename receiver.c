@@ -34,6 +34,9 @@
 #include "mode.h"
 #include "new_protocol.h"
 #include "old_protocol.h"
+#ifdef LIME_PROTOOCL
+#include "lime_protocol.h"
+#endif
 #include "property.h"
 #include "radio.h"
 #include "receiver.h"
@@ -248,6 +251,9 @@ void receiver_save_state(RECEIVER *rx) {
   sprintf(name,"receiver.%d.local_audio",rx->id);
   sprintf(value,"%d",rx->local_audio);
   setProperty(name,value);
+  sprintf(name,"receiver.%d.mute_when_not_active",rx->id);
+  sprintf(value,"%d",rx->mute_when_not_active);
+  setProperty(name,value);
   sprintf(name,"receiver.%d.audio_device",rx->id);
   sprintf(value,"%d",rx->audio_device);
   setProperty(name,value);
@@ -375,6 +381,9 @@ fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
   sprintf(name,"receiver.%d.local_audio",rx->id);
   value=getProperty(name);
   if(value) rx->local_audio=atoi(value);
+  sprintf(name,"receiver.%d.mute_when_not_active",rx->id);
+  value=getProperty(name);
+  if(value) rx->mute_when_not_active=atoi(value);
   sprintf(name,"receiver.%d.audio_device",rx->id);
   value=getProperty(name);
   if(value) rx->audio_device=atoi(value);
@@ -742,6 +751,7 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
   
   rx->playback_handle=NULL;
   rx->local_audio=0;
+  rx->mute_when_not_active=0;
   rx->audio_channel=STEREO;
   rx->audio_device=-1;
 
@@ -960,16 +970,20 @@ static void process_rx_buffer(RECEIVER *rx) {
     }
 
     if(rx->local_audio) {
-      switch(rx->audio_channel) {
-        case STEREO:
-          audio_write(rx,left_audio_sample,right_audio_sample);
-          break;
-        case LEFT:
-          audio_write(rx,left_audio_sample,0);
-          break;
-        case RIGHT:
-          audio_write(rx,0,right_audio_sample);
-          break;
+      if(rx!=active_receiver && rx->mute_when_not_active) {
+        audio_write(rx,0,0);
+      } else {
+        switch(rx->audio_channel) {
+          case STEREO:
+            audio_write(rx,left_audio_sample,right_audio_sample);
+            break;
+          case LEFT:
+            audio_write(rx,left_audio_sample,0);
+            break;
+          case RIGHT:
+            audio_write(rx,0,right_audio_sample);
+            break;
+        }
       }
     }
 

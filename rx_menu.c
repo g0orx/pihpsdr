@@ -82,6 +82,10 @@ static void local_audio_cb(GtkWidget *widget, gpointer data) {
   }
 }
 
+static void mute_audio_cb(GtkWidget *widget, gpointer data) {
+  active_receiver->mute_when_not_active=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
+}
+
 static void local_output_changed_cb(GtkWidget *widget, gpointer data) {
   active_receiver->audio_device=(int)(long)data;
   if(active_receiver->local_audio) {
@@ -322,6 +326,12 @@ void rx_menu(GtkWidget *parent) {
     gtk_grid_attach(GTK_GRID(grid),right_b,x,++row,1,1);
     g_signal_connect(right_b,"toggled",G_CALLBACK(audio_channel_cb),(gpointer)RIGHT);
   }
+
+  GtkWidget *mute_audio_b=gtk_check_button_new_with_label("Mute when not active");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (mute_audio_b), active_receiver->mute_when_not_active);
+  gtk_widget_show(mute_audio_b);
+  gtk_grid_attach(GTK_GRID(grid),mute_audio_b,x,++row,1,1);
+  g_signal_connect(mute_audio_b,"toggled",G_CALLBACK(mute_audio_cb),NULL);
   
   gtk_container_add(GTK_CONTAINER(content),grid);
 
