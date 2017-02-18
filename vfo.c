@@ -556,27 +556,8 @@ int vfo_update(void *data) {
             sprintf(version,"%d.%d",
                 radio->software_version/10,
                 radio->software_version%10);
-        	
-		switch(radio->protocol) {
-			case ORIGINAL_PROTOCOL:
-#ifdef RADIOBERRY
-			case RADIOBERRY_PROTOCOL:
-#endif
-			sprintf(version,"%d.%d",
-					radio->software_version/10,
-					radio->software_version%10);
-			  break;
-			case NEW_PROTOCOL:
-#ifdef LIMESDR
-			case LIMESDR_PROTOCOL:
-#endif
-			sprintf(version,"%d.%d.%d",
-                radio->software_version/100,
-                (radio->software_version%100)/10,
-                radio->software_version%10);
-			break;
-		}		
-	
+        }
+
         switch(radio->protocol) {
             case ORIGINAL_PROTOCOL:
               switch(radio->device) {
@@ -603,11 +584,6 @@ int vfo_update(void *data) {
             case LIMESDR_PROTOCOL:
               sprintf(text,"%s", radio->name);
               break;
-#endif
-#ifdef RADIOBERRY
-			case RADIOBERRY_PROTOCOL:
-				sprintf(text,"%s\n", radio->name);
-			break;
 #endif
         }
         cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
@@ -658,7 +634,15 @@ int vfo_update(void *data) {
         cairo_set_font_size(cr, 12);
         cairo_show_text(cr, temp_text);
 
-        cairo_move_to(cr, 210, 15);  
+        cairo_move_to(cr, 190, 15);  
+        if(vox_enabled) {
+          cairo_set_source_rgb(cr, 1, 0, 0);
+        } else {
+          cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
+        }
+        cairo_show_text(cr, "VOX");
+        
+        cairo_move_to(cr, 220, 15);  
         if(locked) {
           cairo_set_source_rgb(cr, 1, 0, 0);
         } else {

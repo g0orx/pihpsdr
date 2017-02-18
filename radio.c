@@ -738,9 +738,9 @@ void setFrequency(long long f) {
 #ifdef RADIOBERRY
 	case RADIOBERRY_PROTOCOL:
 #endif
-      if(ctun) {
-        long long minf=entry->frequencyA-(long long)(sample_rate/2);
-        long long maxf=entry->frequencyA+(long long)(sample_rate/2);
+      if(vfo[v].ctun) {
+        long long minf=vfo[v].frequency-(long long)(active_receiver->sample_rate/2);
+        long long maxf=vfo[v].frequency+(long long)(active_receiver->sample_rate/2);
         if(f<minf) f=minf;
         if(f>maxf) f=maxf;
         vfo[v].offset=f-vfo[v].frequency;

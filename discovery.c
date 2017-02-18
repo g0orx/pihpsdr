@@ -35,6 +35,12 @@
 #ifdef USBOZY
 #include "ozyio.h"
 #endif
+#ifdef RADIOBERRY
+#include "radioberry_discovery.h"
+#endif
+#ifdef RADIOBERRY
+#include "radioberry.h"
+#endif
 
 static GtkWidget *discovery_dialog;
 static DISCOVERED *d;
@@ -102,6 +108,11 @@ fprintf(stderr,"discovery\n");
 #ifdef LIMESDR
   status_text("LimeSDR ... Discovering Devices");
   lime_discovery();
+#endif
+
+#ifdef RADIOBERRY
+      splash_status("Radioberry SDR ... Discovering Device");
+      radioberry_discovery();
 #endif
 
 
@@ -211,6 +222,11 @@ fprintf(stderr,"%p protocol=%d name=%s\n",d,d->protocol,d->name);
           sprintf(text,"%s\n",
                         d->name);
           break;
+#endif
+#ifdef RADIOBERRY
+				case RADIOBERRY_PROTOCOL:
+					sprintf(text,"%s\n",d->name);
+				break;
 #endif
       }
 
