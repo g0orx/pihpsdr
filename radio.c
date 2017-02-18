@@ -494,7 +494,7 @@ fprintf(stderr,"start save timer\n");
   save_timer_id=gdk_threads_add_timeout(30000, save_cb, NULL);
 
 #ifdef PSK
-  if(active_receiver->mode==modePSK) {
+  if(vfo[active_receiver->id].mode==modePSK) {
     show_psk();
   } else {
     show_waterfall();
