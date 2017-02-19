@@ -337,7 +337,7 @@ fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
   sprintf(name,"receiver.%d.agc_slope",rx->id);
   value=getProperty(name);
   if(value) rx->agc_slope=atof(value);
-  sprintf(name,"receiver.%d.hang_threshold",rx->id);
+  sprintf(name,"receiver.%d.agc_hang_threshold",rx->id);
   value=getProperty(name);
   if(value) rx->agc_hang_threshold=atof(value);
   sprintf(name,"receiver.%d.attenuation",rx->id);
