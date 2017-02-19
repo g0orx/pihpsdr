@@ -45,6 +45,18 @@
 static int filterLow;
 static int filterHigh;
 
+static gint update_out_of_band(gpointer data) {
+  TRANSMITTER *tx=(TRANSMITTER *)data;
+  tx->out_of_band=0;
+  vfo_update(NULL);
+  return FALSE;
+}
+
+void transmitter_set_out_of_band(TRANSMITTER *tx) {
+  tx->out_of_band=1;
+  tx->out_of_band_timer_id=gdk_threads_add_timeout_full(G_PRIORITY_HIGH_IDLE,1000,update_out_of_band, tx, NULL);
+}
+
 void reconfigure_transmitter(TRANSMITTER *tx,int height) {
   gtk_widget_set_size_request(tx->panadapter, tx->width, height);
 }
@@ -360,6 +372,8 @@ fprintf(stderr,"create_transmitter: id=%d buffer_size=%d mic_sample_rate=%d mic_
 
   tx->filter_low=tx_filter_low;
   tx->filter_high=tx_filter_high;
+
+  tx->out_of_band=0;
 
   transmitter_restore_state(tx);
 

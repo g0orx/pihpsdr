@@ -616,6 +616,7 @@ fprintf(stderr,"rxtx: state=%d\n",state);
 }
 
 void setMox(int state) {
+fprintf(stderr,"setMox: %d\n",state);
   if(mox!=state) {
     mox=state;
     if(vox_enabled && vox) {

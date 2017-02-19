@@ -39,6 +39,7 @@
 #include "wdsp.h"
 #include "radio.h"
 #include "receiver.h"
+#include "transmitter.h"
 #include "property.h"
 #include "new_menu.h"
 #include "button_text.h"
@@ -550,6 +551,8 @@ void lock_cb(GtkWidget *widget, gpointer data) {
 }
 
 void mox_cb(GtkWidget *widget, gpointer data) {
+
+fprintf(stderr,"mox_cb: mox=%d\n",mox);
   if(getTune()==1) {
     setTune(0);
   }
@@ -560,15 +563,27 @@ void mox_cb(GtkWidget *widget, gpointer data) {
     }
   } else if(canTransmit() || tx_out_of_band) {
     setMox(1);
+  } else {
+    transmitter_set_out_of_band(transmitter);
   }
   g_idle_add(vfo_update,NULL);
 }
 
 int mox_update(void *data) {
+  int state=(int)data;
   if(getTune()==1) {
     setTune(0);
   }
-  setMox((int)data);
+  if(state) {
+    if(canTransmit() || tx_out_of_band) {
+      setMox(state);
+    } else {
+      transmitter_set_out_of_band(transmitter);
+    }
+  } else {
+    setMox(state);
+  }
+  g_idle_add(vfo_update,NULL);
   return 0;
 }
 
@@ -582,6 +597,7 @@ int ptt_update(void *data) {
   if(protocol==NEW_PROTOCOL || (mode!=modeCWU && mode!=modeCWL)) {
     mox_cb(NULL,NULL);
   }
+  g_idle_add(vfo_update,NULL);
   return 0;
 }
 
@@ -593,6 +609,8 @@ void tune_cb(GtkWidget *widget, gpointer data) {
     setTune(0);
   } else if(canTransmit() || tx_out_of_band) {
     setTune(1);
+  } else {
+    transmitter_set_out_of_band(transmitter);
   }
   vfo_update(NULL);
 }
