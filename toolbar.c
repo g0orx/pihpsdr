@@ -76,7 +76,8 @@ static GtkWidget *last_filter;
 static GdkRGBA white;
 static GdkRGBA gray;
 
-static gint rit_timer;
+static gint rit_plus_timer=-1;
+static gint rit_minus_timer=-1;
 
 static gboolean rit_timer_cb(gpointer data) {
   int i=(int)data;
@@ -227,7 +228,11 @@ static void rit_cb(GtkWidget *widget, gpointer data) {
   if(vfo[active_receiver->id].rit>1000) vfo[active_receiver->id].rit=1000;
   if(vfo[active_receiver->id].rit<-1000) vfo[active_receiver->id].rit=-1000;
   vfo_update(NULL);
-  rit_timer=g_timeout_add(200,rit_timer_cb,(void *)i);
+  if(i<0) {
+    rit_minus_timer=g_timeout_add(200,rit_timer_cb,(void *)i);
+  } else {
+    rit_plus_timer=g_timeout_add(200,rit_timer_cb,(void *)i);
+  }
 }
 
 static void rit_clear_cb(GtkWidget *widget, gpointer data) {
@@ -729,7 +734,9 @@ void sim_s4_pressed_cb(GtkWidget *widget, gpointer data) {
       btoa_cb(widget,data);
       break;
     case 2:
-      rit_cb(widget,(void *)1);
+      if(rit_minus_timer==-1 && rit_plus_timer==-1) {
+        rit_cb(widget,(void *)1);
+      }
       break;
     case 3:
       break;
@@ -743,7 +750,10 @@ void sim_s4_released_cb(GtkWidget *widget, gpointer data) {
     case 1:
       break;
     case 2:
-      g_source_remove(rit_timer);
+      if(rit_plus_timer!=-1) {
+        g_source_remove(rit_plus_timer);
+        rit_plus_timer=-1;
+      }
       break;
     case 3:
       break;
@@ -760,7 +770,9 @@ void sim_s5_pressed_cb(GtkWidget *widget, gpointer data) {
       aswapb_cb(widget,data);
       break;
     case 2:
-      rit_cb(widget,(void *)-1);
+      if(rit_minus_timer==-1 && rit_plus_timer==-1) {
+        rit_cb(widget,(void *)-1);
+      }
       break;
     case 3:
       break;
@@ -774,7 +786,10 @@ void sim_s5_released_cb(GtkWidget *widget, gpointer data) {
     case 1:
       break;
     case 2:
-      g_source_remove(rit_timer);
+      if(rit_minus_timer!=-1) {
+        g_source_remove(rit_minus_timer);
+        rit_minus_timer=-1;
+      }
       break;
     case 3:
       break;

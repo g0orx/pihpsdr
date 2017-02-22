@@ -87,7 +87,6 @@ void setMox(int state);
 int getMox();
 void setTune(int state);
 int getTune();
-int isTransmitting();
 
 extern void new_protocol_process_local_mic(unsigned char *buffer,int le);
 extern void new_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right_audio_sample);

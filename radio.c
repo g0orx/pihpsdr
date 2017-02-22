@@ -632,11 +632,11 @@ int getMox() {
 }
 
 void setVox(int state) {
-fprintf(stderr,"setVox: vox=%d state=%d\n",vox,state);
   if(vox!=state && !tune) {
     vox=state;
     rxtx(state);
   }
+  g_idle_add(vfo_update,(gpointer)NULL);
 }
 
 int vox_changed(void *data) {
