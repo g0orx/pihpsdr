@@ -70,6 +70,9 @@ typedef struct _transmitter {
   int local_microphone;
   int input_device;
 
+  int out_of_band;
+  gint out_of_band_timer_id;
+
 } TRANSMITTER;
 
 extern TRANSMITTER *create_transmitter(int id, int buffer_size, int fft_size, int fps, int width, int height);
@@ -83,4 +86,5 @@ extern void tx_set_pre_emphasize(TRANSMITTER *tx,int state);
 extern void add_mic_sample(TRANSMITTER *tx,short mic_sample);
 
 extern void transmitter_save_state(TRANSMITTER *tx);
+extern void transmitter_set_out_of_band(TRANSMITTER *tx);
 #endif

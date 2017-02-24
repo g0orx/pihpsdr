@@ -39,6 +39,7 @@
 #include "wdsp.h"
 #include "radio.h"
 #include "receiver.h"
+#include "transmitter.h"
 #include "property.h"
 #include "new_menu.h"
 #include "button_text.h"
@@ -75,7 +76,8 @@ static GtkWidget *last_filter;
 static GdkRGBA white;
 static GdkRGBA gray;
 
-static gint rit_timer;
+static gint rit_plus_timer=-1;
+static gint rit_minus_timer=-1;
 
 static gboolean rit_timer_cb(gpointer data) {
   int i=(int)data;
@@ -226,7 +228,11 @@ static void rit_cb(GtkWidget *widget, gpointer data) {
   if(vfo[active_receiver->id].rit>1000) vfo[active_receiver->id].rit=1000;
   if(vfo[active_receiver->id].rit<-1000) vfo[active_receiver->id].rit=-1000;
   vfo_update(NULL);
-  rit_timer=g_timeout_add(200,rit_timer_cb,(void *)i);
+  if(i<0) {
+    rit_minus_timer=g_timeout_add(200,rit_timer_cb,(void *)i);
+  } else {
+    rit_plus_timer=g_timeout_add(200,rit_timer_cb,(void *)i);
+  }
 }
 
 static void rit_clear_cb(GtkWidget *widget, gpointer data) {
@@ -550,6 +556,8 @@ void lock_cb(GtkWidget *widget, gpointer data) {
 }
 
 void mox_cb(GtkWidget *widget, gpointer data) {
+
+fprintf(stderr,"mox_cb: mox=%d\n",mox);
   if(getTune()==1) {
     setTune(0);
   }
@@ -560,15 +568,27 @@ void mox_cb(GtkWidget *widget, gpointer data) {
     }
   } else if(canTransmit() || tx_out_of_band) {
     setMox(1);
+  } else {
+    transmitter_set_out_of_band(transmitter);
   }
   g_idle_add(vfo_update,NULL);
 }
 
 int mox_update(void *data) {
+  int state=(int)data;
   if(getTune()==1) {
     setTune(0);
   }
-  setMox((int)data);
+  if(state) {
+    if(canTransmit() || tx_out_of_band) {
+      setMox(state);
+    } else {
+      transmitter_set_out_of_band(transmitter);
+    }
+  } else {
+    setMox(state);
+  }
+  g_idle_add(vfo_update,NULL);
   return 0;
 }
 
@@ -582,6 +602,7 @@ int ptt_update(void *data) {
   if(protocol==NEW_PROTOCOL || (mode!=modeCWU && mode!=modeCWL)) {
     mox_cb(NULL,NULL);
   }
+  g_idle_add(vfo_update,NULL);
   return 0;
 }
 
@@ -593,6 +614,8 @@ void tune_cb(GtkWidget *widget, gpointer data) {
     setTune(0);
   } else if(canTransmit() || tx_out_of_band) {
     setTune(1);
+  } else {
+    transmitter_set_out_of_band(transmitter);
   }
   vfo_update(NULL);
 }
@@ -711,7 +734,9 @@ void sim_s4_pressed_cb(GtkWidget *widget, gpointer data) {
       btoa_cb(widget,data);
       break;
     case 2:
-      rit_cb(widget,(void *)1);
+      if(rit_minus_timer==-1 && rit_plus_timer==-1) {
+        rit_cb(widget,(void *)1);
+      }
       break;
     case 3:
       break;
@@ -725,7 +750,10 @@ void sim_s4_released_cb(GtkWidget *widget, gpointer data) {
     case 1:
       break;
     case 2:
-      g_source_remove(rit_timer);
+      if(rit_plus_timer!=-1) {
+        g_source_remove(rit_plus_timer);
+        rit_plus_timer=-1;
+      }
       break;
     case 3:
       break;
@@ -742,7 +770,9 @@ void sim_s5_pressed_cb(GtkWidget *widget, gpointer data) {
       aswapb_cb(widget,data);
       break;
     case 2:
-      rit_cb(widget,(void *)-1);
+      if(rit_minus_timer==-1 && rit_plus_timer==-1) {
+        rit_cb(widget,(void *)-1);
+      }
       break;
     case 3:
       break;
@@ -756,7 +786,10 @@ void sim_s5_released_cb(GtkWidget *widget, gpointer data) {
     case 1:
       break;
     case 2:
-      g_source_remove(rit_timer);
+      if(rit_minus_timer!=-1) {
+        g_source_remove(rit_minus_timer);
+        rit_minus_timer=-1;
+      }
       break;
     case 3:
       break;

@@ -25,11 +25,11 @@ GPIO_INCLUDE=GPIO
 #I2C_INCLUDE=I2C
 
 #uncomment the line below for the platform being compiled on
-#UNAME_N=raspberrypi
+UNAME_N=raspberrypi
 #UNAME_N=odroid
 #UNAME_N=up
 #UNAME_N=pine64
-UNAME_N=jetsen
+#UNAME_N=jetsen
 
 CC=gcc
 LINK=gcc
@@ -52,7 +52,7 @@ endif
 #LIMESDR_INCLUDE=LIMESDR
 
 # uncomment the line below when Radioberry radio cape is plugged in
-RADIOBERRY_INCLUDE=RADIOBERRY
+#RADIOBERRY_INCLUDE=RADIOBERRY
 
 ifeq ($(RADIOBERRY_INCLUDE),RADIOBERRY)
 RADIOBERRY_OPTIONS=-D RADIOBERRY

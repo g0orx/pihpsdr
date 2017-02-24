@@ -166,7 +166,7 @@ void tx_menu(GtkWidget *parent) {
 #ifdef RADIOBERRY
 	if(protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL || protocol==RADIOBERRY_PROTOCOL) {
 #else
-	if(protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL)) {
+	if(protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL) {
 #endif
     linein_b=gtk_check_button_new_with_label("Mic Line In (ACC connector)");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (linein_b), mic_linein);

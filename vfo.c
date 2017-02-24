@@ -618,33 +618,42 @@ int vfo_update(void *data) {
         cairo_move_to(cr, 5, 15);  
         cairo_show_text(cr, text);
 
-        //long long af=active_receiver->frequency+active_receiver->dds_offset;
         long long af=vfo[0].frequency+vfo[0].offset;
-        sprintf(temp_text,"VFO A: %0lld.%06lld",af/(long long)1000000,af%(long long)1000000);
-        if(isTransmitting() && !split) {
-            cairo_set_source_rgb(cr, 1, 0, 0);
+        if(transmitter->out_of_band && !split) {
+          cairo_set_source_rgb(cr, 1, 0, 0);
+          sprintf(temp_text,"VFO A: Out of band");
         } else {
-            if(active_receiver->id==0) {
-              cairo_set_source_rgb(cr, 0, 1, 0);
-            } else {
-              cairo_set_source_rgb(cr, 0, 0.65, 0);
-            }
+          sprintf(temp_text,"VFO A: %0lld.%06lld",af/(long long)1000000,af%(long long)1000000);
+          if(isTransmitting() && !split) {
+              cairo_set_source_rgb(cr, 1, 0, 0);
+          } else {
+              if(active_receiver->id==0) {
+                cairo_set_source_rgb(cr, 0, 1, 0);
+              } else {
+                cairo_set_source_rgb(cr, 0, 0.65, 0);
+              }
+          }
         }
         cairo_move_to(cr, 5, 38);  
         cairo_set_font_size(cr, 22); 
         cairo_show_text(cr, temp_text);
 
-        //long long bf=frequencyB;
+
         long long bf=vfo[1].frequency+vfo[1].offset;
-        sprintf(temp_text,"VFO B: %0lld.%06lld",bf/(long long)1000000,bf%(long long)1000000);
-        if(isTransmitting() && split) {
-            cairo_set_source_rgb(cr, 1, 0, 0);
+        if(transmitter->out_of_band && split) {
+          cairo_set_source_rgb(cr, 1, 0, 0);
+          sprintf(temp_text,"VFO B: Out of band");
         } else {
-            if(active_receiver->id==1) {
-              cairo_set_source_rgb(cr, 0, 1, 0);
-            } else {
-              cairo_set_source_rgb(cr, 0, 0.65, 0);
-            }
+          sprintf(temp_text,"VFO B: %0lld.%06lld",bf/(long long)1000000,bf%(long long)1000000);
+          if(isTransmitting() && split) {
+              cairo_set_source_rgb(cr, 1, 0, 0);
+          } else {
+              if(active_receiver->id==1) {
+                cairo_set_source_rgb(cr, 0, 1, 0);
+              } else {
+                cairo_set_source_rgb(cr, 0, 0.65, 0);
+              }
+          }
         }
         cairo_move_to(cr, 260, 38);  
         cairo_show_text(cr, temp_text);
