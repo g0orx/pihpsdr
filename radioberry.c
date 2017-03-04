@@ -397,6 +397,21 @@ void spiWriter() {
 
 	spiXfer(rx1_spi_handler, tx_iqdata, tx_iqdata, 6);
 	
+	long long txFrequency;
+	if(split) {
+		txFrequency=vfo[VFO_B].frequency-vfo[VFO_A].lo+vfo[VFO_B].offset;
+	} else {
+		txFrequency=vfo[VFO_A].frequency-vfo[VFO_B].lo+vfo[VFO_A].offset;
+	}
+	tx_iqdata[0] = 0x00;
+	tx_iqdata[1] = 0x00;
+	tx_iqdata[2] = ((txFrequency >> 24) & 0xFF);
+	tx_iqdata[3] = ((txFrequency >> 16) & 0xFF);
+	tx_iqdata[4] = ((txFrequency >> 8) & 0xFF);
+	tx_iqdata[5] = (txFrequency & 0xFF);
+				
+	spiXfer(rx2_spi_handler, tx_iqdata, tx_iqdata, 6);
+	
 	txcount ++;
 	if (txcount == 48000) {
 		txcount = 0;

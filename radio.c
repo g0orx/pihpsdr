@@ -374,6 +374,11 @@ fprintf(stderr,"start_radio: selected radio=%p device=%d\n",radio,radio->device)
       sprintf(property_path,"limesdr.props");
       break;
 #endif
+#ifdef RADIOBERRY
+    case RADIOBERRY_PROTOCOL:
+      sprintf(property_path,"radioberry.props");
+      break;
+#endif
   }
 
   radioRestoreState();
