@@ -76,10 +76,6 @@ struct timeval t20;
 struct timeval t21;
 float elapsed;
 
-#define RADIOSTATE_RX   0
-#define RADIOSTATE_TX   1
-static int radiostate = RADIOSTATE_RX;
-
 void spiWriter();
 void rx1_spiReader();
 void rx2_spiReader();
@@ -177,20 +173,10 @@ static void *radioberry_thread(void* arg) {
 	
 	while(running) {
 	
-		sem_wait(&mutex); 
-		
-		if (isTransmitting()) 
-			radiostate = RADIOSTATE_TX;
-		else
-			radiostate = RADIOSTATE_RX;
-		
-		if(radiostate == RADIOSTATE_TX) {
-			gpioWrite(21, 1); 
-			
-			sem_post(&mutex);
-		}
-		else 
+		if (!isTransmitting()) 
 		{
+			sem_wait(&mutex);
+			
 			gpioWrite(21, 0);
 			
 			//possible to use different sample rates per receiver... 
@@ -220,9 +206,9 @@ static void *radioberry_thread(void* arg) {
 }
 
 void radioberry_protocol_iq_samples(int isample,int qsample) {
-
-	if(radiostate == RADIOSTATE_TX) {
 	
+		sem_wait(&mutex);
+		
 		tx_iqdata[0] = 0;
 		tx_iqdata[1] = drive / 6.4;  // convert drive level from 0-255 to 0-39 )
 		if (prev_drive_level != drive) {
@@ -235,8 +221,8 @@ void radioberry_protocol_iq_samples(int isample,int qsample) {
 		tx_iqdata[5] = qsample;
 
 		spiWriter();
-	}
 
+		sem_post(&mutex);
 }
 
 void *radioberry_protocol_process_local_mic(unsigned char *buffer,int le) {
@@ -393,6 +379,9 @@ void rx2_spiReader() {
 
 
 void spiWriter() {
+
+	gpioWrite(21, 1); 
+
 	while ( gpioRead(20) == 1) {};
 
 	spiXfer(rx1_spi_handler, tx_iqdata, tx_iqdata, 6);
