@@ -794,6 +794,8 @@ fprintf(stderr,"create_receiver: OpenChannel id=%d buffer_size=%d fft_size=%d sa
   FILTER *band_filter=&band_filters[vfo[rx->id].filter];
   set_filter(rx,band_filter->low,band_filter->high);
   
+  RXASetNC(rx->id, rx->fft_size);
+
   SetRXAFMDeviation(rx->id,(double)deviation);
 
   set_agc(rx, rx->agc);
