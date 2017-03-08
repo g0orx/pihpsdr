@@ -85,6 +85,9 @@ void transmitter_save_state(TRANSMITTER *tx) {
   sprintf(value,"%d",tx->input_device);
   setProperty(name,value);
 
+  sprintf(name,"transmitter.%d.low_latency",tx->id);
+  sprintf(value,"%d",tx->low_latency);
+  setProperty(name,value);
 }
 
 void transmitter_restore_state(TRANSMITTER *tx) {
@@ -110,6 +113,9 @@ void transmitter_restore_state(TRANSMITTER *tx) {
   sprintf(name,"transmitter.%d.input_device",tx->id);
   value=getProperty(name);
   if(value) tx->input_device=atoi(value);
+  sprintf(name,"transmitter.%d.low_latency",tx->id);
+  value=getProperty(name);
+  if(value) tx->low_latency=atoi(value);
 }
 
 static gint update_display(gpointer data) {
@@ -375,6 +381,8 @@ fprintf(stderr,"create_transmitter: id=%d buffer_size=%d mic_sample_rate=%d mic_
 
   tx->out_of_band=0;
 
+  tx->low_latency=0;
+
   transmitter_restore_state(tx);
 
   if(split) {
@@ -407,6 +415,9 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%d iq_output_buf
               1, // transmit
               0, // run
               0.010, 0.025, 0.0, 0.010, 0);
+
+  TXASetNC(tx->id, tx->fft_size);
+  TXASetMP(tx->id, tx->low_latency);
 
   SetTXAMode(tx->id, tx->mode);
   tx_set_filter(tx,tx_filter_low,tx_filter_high);

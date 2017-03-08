@@ -116,6 +116,8 @@ typedef struct _receiver {
   int playback_offset;
   unsigned char *playback_buffer;
 
+  int low_latency;
+
 } RECEIVER;
 
 extern RECEIVER *create_receiver(int id, int buffer_size, int fft_size, int pixels, int fps, int width, int height);

@@ -73,6 +73,8 @@ typedef struct _transmitter {
   int out_of_band;
   gint out_of_band_timer_id;
 
+  int low_latency;
+
 } TRANSMITTER;
 
 extern TRANSMITTER *create_transmitter(int id, int buffer_size, int fft_size, int fps, int width, int height);

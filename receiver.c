@@ -261,6 +261,9 @@ void receiver_save_state(RECEIVER *rx) {
   sprintf(value,"%d",rx->audio_device);
   setProperty(name,value);
 
+  sprintf(name,"receiver.%d.low_latency",rx->id);
+  sprintf(value,"%d",rx->low_latency);
+  setProperty(name,value);
 }
 
 void receiver_restore_state(RECEIVER *rx) {
@@ -390,6 +393,9 @@ fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
   sprintf(name,"receiver.%d.audio_device",rx->id);
   value=getProperty(name);
   if(value) rx->audio_device=atoi(value);
+  sprintf(name,"receiver.%d.low_latency",rx->id);
+  value=getProperty(name);
+  if(value) rx->low_latency=atoi(value);
 }
 
 void reconfigure_receiver(RECEIVER *rx,int height) {
@@ -764,6 +770,8 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
   rx->audio_channel=STEREO;
   rx->audio_device=-1;
 
+  rx->low_latency=0;
+
   receiver_restore_state(rx);
 
   int scale=rx->sample_rate/48000;
@@ -795,6 +803,7 @@ fprintf(stderr,"create_receiver: OpenChannel id=%d buffer_size=%d fft_size=%d sa
   set_filter(rx,band_filter->low,band_filter->high);
   
   RXASetNC(rx->id, rx->fft_size);
+  RXASetMP(rx->id, rx->low_latency);
 
   SetRXAFMDeviation(rx->id,(double)deviation);
 
