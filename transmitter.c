@@ -416,6 +416,7 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%d iq_output_buf
               0, // run
               0.010, 0.025, 0.0, 0.010, 0);
 
+fprintf(stderr,"TXASetNC\n");
   TXASetNC(tx->id, tx->fft_size);
   TXASetMP(tx->id, tx->low_latency);
 
@@ -461,6 +462,7 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%d iq_output_buf
   double gain=pow(10.0, mic_gain / 20.0);
   SetTXAPanelGain1(tx->id,gain);
   SetTXAPanelRun(tx->id, 1);
+
 
   XCreateAnalyzer(tx->id, &rc, 262144, 1, 1, "");
   if (rc != 0) {

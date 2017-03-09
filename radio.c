@@ -113,7 +113,7 @@ RECEIVER *active_receiver;
 TRANSMITTER *transmitter;
 
 int buffer_size=1024; // 64, 128, 256, 512, 1024
-int fft_size=4096; // 1024, 2048, 4096, 8192, 16384
+int fft_size=2048; // 1024, 2048, 4096, 8192, 16384
 
 int atlas_penelope=0;
 int atlas_clock_source_10mhz=0;
