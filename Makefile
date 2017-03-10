@@ -146,16 +146,13 @@ ifeq ($(I2C_INCLUDE),I2C)
   I2C_OBJS=i2c.o
 endif
 
-#uncomment if build for SHORT FRAMES (MIC and Audio)
-SHORT_FRAMES=-D SHORT_FRAMES
-
 GTKINCLUDES=`pkg-config --cflags gtk+-3.0`
 GTKLIBS=`pkg-config --libs gtk+-3.0`
 
 AUDIO_LIBS=-lasound
 #AUDIO_LIBS=-lsoundio
 
-OPTIONS=-g -Wno-deprecated-declarations -D $(UNAME_N) $(RADIOBERRY_OPTIONS) $(USBOZY_OPTIONS) $(I2C_OPTIONS) $(GPIO_OPTIONS) $(LIMESDR_OPTIONS) $(FREEDV_OPTIONS) $(LOCALCW_OPTIONS) $(PSK_OPTIONS) $(SHORT_FRAMES) -D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION) -O3
+OPTIONS=-g -Wno-deprecated-declarations -D $(UNAME_N) $(RADIOBERRY_OPTIONS) $(USBOZY_OPTIONS) $(I2C_OPTIONS) $(GPIO_OPTIONS) $(LIMESDR_OPTIONS) $(FREEDV_OPTIONS) $(LOCALCW_OPTIONS) $(PSK_OPTIONS) -D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION) -O3
 
 LIBS=-lrt -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(PSKLIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS)
 INCLUDES=$(GTKINCLUDES)
@@ -194,6 +191,7 @@ filter_menu.c \
 noise_menu.c \
 agc_menu.c \
 vox_menu.c \
+fft_menu.c \
 diversity_menu.c \
 freqent_menu.c \
 tx_menu.c \
@@ -260,6 +258,7 @@ filter_menu.h \
 noise_menu.h \
 agc_menu.h \
 vox_menu.h \
+fft_menu.h \
 diversity_menu.h \
 freqent_menu.h \
 tx_menu.h \
@@ -323,6 +322,7 @@ filter_menu.o \
 noise_menu.o \
 agc_menu.o \
 vox_menu.o \
+fft_menu.o \
 diversity_menu.o \
 freqent_menu.o \
 tx_menu.o \
@@ -371,9 +371,17 @@ clean:
 	-rm -f $(PROGRAM)
 
 install:
-	cp pihpsdr ../pihpsdr
-	cp pihpsdr ./release/pihpsdr
-	cd release; echo $(GIT_VERSION) > pihpsdr/latest
-	cd release; tar cvf pihpsdr_$(GIT_VERSION).tar pihpsdr
-	cd release; tar cvf pihpsdr.tar pihpsdr
+	if [ ! -d ~/pihpsdr ];then \
+		mkdir ~/pihpsdr; \
+		if [ -d "./release/pihpsdr" ];then  \
+			cp ./release/pihpsdr/* ~/pihpsdr; \
+		fi \
+	fi
+	cp pihpsdr ~/pihpsdr
+	if [ -d "./release" ];then  \
+		cp pihpsdr ./release/pihpsdr; \
+		cd release; echo $(GIT_VERSION) > pihpsdr/latest; \
+		cd release; tar cvf pihpsdr_$(GIT_VERSION).tar pihpsdr; \
+		cd release; tar cvf pihpsdr.tar pihpsdr; \
+	fi
 

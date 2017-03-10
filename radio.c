@@ -1325,3 +1325,27 @@ void calculate_display_average(RECEIVER *rx) {
   SetDisplayAvBackmult(rx->id, 0, display_avb);
   SetDisplayNumAverage(rx->id, 0, display_average);
 }
+
+void set_filter_type(int filter_type) {
+  int i;
+
+  fprintf(stderr,"set_filter_type: %d\n",filter_type);
+  for(i=0;i<RECEIVERS;i++) {
+    receiver[i]->low_latency=filter_type;
+    RXASetMP(receiver[i]->id, filter_type);
+  }
+  transmitter->low_latency=filter_type;
+  TXASetMP(transmitter->id, filter_type);
+}
+
+void set_filter_size(int filter_size) {
+  int i;
+
+  fprintf(stderr,"set_filter_size: %d\n",filter_size);
+  for(i=0;i<RECEIVERS;i++) {
+    receiver[i]->fft_size=filter_size;
+    RXASetNC(receiver[i]->id, filter_size);
+  }
+  transmitter->fft_size=filter_size;
+  TXASetNC(transmitter->id, filter_size);
+}

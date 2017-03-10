@@ -784,16 +784,25 @@ fprintf(stderr,"create_receiver: id=%d output_samples=%d\n",rx->id,rx->output_sa
 
 fprintf(stderr,"create_receiver: id=%d after restore adc=%d\n",rx->id, rx->adc);
 
-fprintf(stderr,"create_receiver: OpenChannel id=%d buffer_size=%d fft_size=%d sample_rate=%d\n",rx->id,rx->buffer_size, rx->fft_size, rx->sample_rate);
+fprintf(stderr,"create_receiver: OpenChannel id=%d buffer_size=%d fft_size=%d sample_rate=%d\n",
+        rx->id,
+        rx->buffer_size,
+        2048, // rx->fft_size,
+        rx->sample_rate);
   OpenChannel(rx->id,
               rx->buffer_size,
-              rx->fft_size,
+              2048, // rx->fft_size,
               rx->sample_rate,
               48000, // dsp rate
               48000, // output rate
               0, // receive
               1, // run
               0.010, 0.025, 0.0, 0.010, 0);
+
+fprintf(stderr,"RXASetNC %d\n",rx->fft_size);
+  RXASetNC(rx->id, rx->fft_size);
+fprintf(stderr,"RXASetMP %d\n",rx->low_latency);
+  RXASetMP(rx->id, rx->low_latency);
 
   b=band_get_band(vfo[rx->id].band);
   BANDSTACK *bs=b->bandstack;
@@ -802,8 +811,6 @@ fprintf(stderr,"create_receiver: OpenChannel id=%d buffer_size=%d fft_size=%d sa
   FILTER *band_filter=&band_filters[vfo[rx->id].filter];
   set_filter(rx,band_filter->low,band_filter->high);
   
-  RXASetNC(rx->id, rx->fft_size);
-  RXASetMP(rx->id, rx->low_latency);
 
   SetRXAFMDeviation(rx->id,(double)deviation);
 

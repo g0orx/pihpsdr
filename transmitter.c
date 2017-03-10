@@ -401,14 +401,14 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%d iq_output_buf
   fprintf(stderr,"create_transmitter: OpenChannel id=%d buffer_size=%d fft_size=%d sample_rate=%d dspRate=%d outputRate=%d\n",
               tx->id,
               tx->buffer_size,
-              tx->fft_size,
+              2048, // tx->fft_size,
               tx->mic_sample_rate,
               tx->mic_dsp_rate,
               tx->iq_output_rate);
 
   OpenChannel(tx->id,
               tx->buffer_size,
-              tx->fft_size,
+              2048, // tx->fft_size,
               tx->mic_sample_rate,
               tx->mic_dsp_rate,
               tx->iq_output_rate,
@@ -416,8 +416,9 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%d iq_output_buf
               0, // run
               0.010, 0.025, 0.0, 0.010, 0);
 
-fprintf(stderr,"TXASetNC\n");
+fprintf(stderr,"TXASetNC: %d\n",tx->fft_size);
   TXASetNC(tx->id, tx->fft_size);
+fprintf(stderr,"TXASetMP: %d\n",tx->low_latency);
   TXASetMP(tx->id, tx->low_latency);
 
   SetTXAMode(tx->id, tx->mode);

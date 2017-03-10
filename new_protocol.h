@@ -46,13 +46,8 @@
 #define RX_IQ_TO_HOST_PORT_6 1041
 #define RX_IQ_TO_HOST_PORT_7 1042
 
-//#define BUFFER_SIZE 1024
 
-#ifdef SHORT_FRAMES
 #define MIC_SAMPLES 64
-#else
-#define MIC_SAMPLES 720
-#endif
 
 extern int data_socket;
 extern sem_t response_sem;

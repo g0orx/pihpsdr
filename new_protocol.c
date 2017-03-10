@@ -142,11 +142,7 @@ static int outputsamples;
 static int leftaudiosample;
 static int rightaudiosample;
 static long audiosequence;
-#ifdef SHORT_FRAMES
 static unsigned char audiobuffer[260]; // was 1444
-#else
-static unsigned char audiobuffer[1444]; // was 1444
-#endif
 static int audioindex;
 
 #ifdef FREEDV

@@ -463,9 +463,9 @@ static void process_ozy_input_buffer(char  *buffer) {
   int b=0;
   unsigned char ozy_samples[8*8];
   int bytes;
-  int last_ptt;
-  int last_dot;
-  int last_dash;
+  int previous_ptt;
+  int previous_dot;
+  int previous_dash;
   int left_sample;
   int right_sample;
   short mic_sample;
@@ -482,15 +482,25 @@ static void process_ozy_input_buffer(char  *buffer) {
     control_in[3]=buffer[b++];
     control_in[4]=buffer[b++];
 
-    last_ptt=ptt;
-    last_dot=dot;
-    last_dash=dash;
+    previous_ptt=ptt;
+    previous_dot=dot;
+    previous_dash=dash;
     ptt=(control_in[0]&0x01)==0x01;
     dash=(control_in[0]&0x02)==0x02;
     dot=(control_in[0]&0x04)==0x04;
 
-    if(last_ptt!=ptt) {
-      g_idle_add(ptt_update,(gpointer)ptt);
+if(ptt!=previous_ptt) {
+  fprintf(stderr,"ptt=%d\n",ptt);
+}
+if(dot!=previous_dot) {
+  fprintf(stderr,"dot=%d\n",dot);
+}
+if(dash!=previous_dash) {
+  fprintf(stderr,"dash=%d\n",dash);
+}
+
+    if(previous_ptt!=ptt || dot!=previous_dot || dash!=previous_dash) {
+      g_idle_add(ptt_update,(gpointer)(ptt | dot | dash));
     }
 
     switch((control_in[0]>>3)&0x1F) {
@@ -914,9 +924,9 @@ void ozy_send_buffer() {
       if(mode!=modeCWU && mode!=modeCWL) {
         // output_buffer[C1]|=0x00;
       } else {
-        if((tune==1) || (mox==1) || (vox==1) || (cw_keyer_internal==0)) {
+        if((tune==1) || (vox==1) || (cw_keyer_internal==0)) {
           output_buffer[C1]|=0x00;
-        } else {
+        } else if(mox==1) {
           output_buffer[C1]|=0x01;
         }
       }
@@ -941,6 +951,11 @@ void ozy_send_buffer() {
   }
 
   // set mox
+  if(split) {
+    mode=vfo[1].mode;
+  } else {
+    mode=vfo[0].mode;
+  }
   if(mode==modeCWU || mode==modeCWL) {
     if(tune) {
       output_buffer[C0]|=0x01;

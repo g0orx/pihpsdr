@@ -593,17 +593,21 @@ int mox_update(void *data) {
 }
 
 int ptt_update(void *data) {
+
+  return mox_update(data);
+/*
   int mode;
   if(split) {
     mode=vfo[1].mode;
   } else {
     mode=vfo[0].mode;
   }
-  if(protocol==NEW_PROTOCOL || (mode!=modeCWU && mode!=modeCWL)) {
+  if(protocol==NEW_PROTOCOL || protocol==ORIGINAL_PROTOCOL || (mode!=modeCWU && mode!=modeCWL)) {
     mox_cb(NULL,NULL);
   }
   g_idle_add(vfo_update,NULL);
   return 0;
+*/
 }
 
 void tune_cb(GtkWidget *widget, gpointer data) {

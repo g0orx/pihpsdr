@@ -55,6 +55,7 @@
 #include "encoder_menu.h"
 #endif
 #include "vfo_menu.h"
+#include "fft_menu.h"
 #include "main.h"
 
 
@@ -272,6 +273,16 @@ static gboolean vox_b_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
   return TRUE;
 }
 
+void start_fft() {
+  cleanup();
+  fft_menu(top_window);
+}
+
+static gboolean fft_b_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  start_fft();
+  return TRUE;
+}
+
 void start_diversity() {
   cleanup();
   diversity_menu(top_window);
@@ -481,6 +492,11 @@ void new_menu()
     GtkWidget *vox_b=gtk_button_new_with_label("VOX");
     g_signal_connect (vox_b, "button-press-event", G_CALLBACK(vox_b_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),vox_b,(i%5),i/5,1,1);
+    i++;
+
+    GtkWidget *fft_b=gtk_button_new_with_label("FFT");
+    g_signal_connect (fft_b, "button-press-event", G_CALLBACK(fft_b_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),fft_b,(i%5),i/5,1,1);
     i++;
 
 #ifdef DIVERSITY
