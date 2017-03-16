@@ -38,7 +38,6 @@ static GtkWidget *level;
 
 static GtkWidget *led;
 
-static GdkRGBA white={1.0,1.0,1.0,1.0};
 static GdkRGBA red={1.0,0.0,0.0,1.0};
 static GdkRGBA green={0.0,1.0,0.1,1.0};
 
@@ -138,7 +137,10 @@ void vox_menu(GtkWidget *parent) {
   gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent_window));
   gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
 
+#ifdef FORCE_WHITE_MENU
+  GdkRGBA white={1.0,1.0,1.0,1.0};
   gtk_widget_override_background_color(dialog,GTK_STATE_FLAG_NORMAL,&white);
+#endif
 
   GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
 
