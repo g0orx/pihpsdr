@@ -6,6 +6,9 @@ GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 # uncomment the line below to include GPIO
 GPIO_INCLUDE=GPIO
 
+# uncomment the line below to include MCP23017 I2C
+#I2C_INCLUDE=I2C
+
 # uncomment the line below to include USB Ozy support
 # USBOZY_INCLUDE=USBOZY
 
@@ -13,29 +16,17 @@ GPIO_INCLUDE=GPIO
 #PSK_INCLUDE=PSK
 
 # uncomment the line to below include support for FreeDV codec2
-#FREEDV_INCLUDE=FREEDV
+FREEDV_INCLUDE=FREEDV
 
-# uncomment the line to below include support for sx1509 i2c expander
-#SX1509_INCLUDE=sx1509
+# uncomment the line below for LimeSDR (uncomment line below)
+#LIMESDR_INCLUDE=LIMESDR
 
-# uncomment the line to below include support local CW keyer
-#LOCALCW_INCLUDE=LOCALCW
+# uncomment the line below when Radioberry radio cape is plugged in
+#RADIOBERRY_INCLUDE=RADIOBERRY
 
-# uncomment the line below to include MCP23017 I2C
-#I2C_INCLUDE=I2C
-
-#uncomment the line below for the platform being compiled on
-UNAME_N=raspberrypi
-#UNAME_N=odroid
-#UNAME_N=up
-#UNAME_N=pine64
-#UNAME_N=jetsen
 
 CC=gcc
 LINK=gcc
-
-# uncomment the line below for various debug facilities
-#DEBUG_OPTION=-D DEBUG
 
 ifeq ($(USBOZY_INCLUDE),USBOZY)
 USBOZY_OPTIONS=-D USBOZY
@@ -48,11 +39,6 @@ USBOZY_OBJS= \
 ozyio.o
 endif
 
-# uncomment the line below for LimeSDR (uncomment line below)
-#LIMESDR_INCLUDE=LIMESDR
-
-# uncomment the line below when Radioberry radio cape is plugged in
-#RADIOBERRY_INCLUDE=RADIOBERRY
 
 ifeq ($(RADIOBERRY_INCLUDE),RADIOBERRY)
 RADIOBERRY_OPTIONS=-D RADIOBERRY
@@ -127,7 +113,7 @@ endif
 
 ifeq ($(GPIO_INCLUDE),GPIO)
   GPIO_OPTIONS=-D GPIO
-  GPIO_LIBS=-lwiringPi -lpigpio 
+  GPIO_LIBS=-lwiringPi
   GPIO_SOURCES= \
   gpio.c \
   encoder_menu.c
@@ -152,7 +138,7 @@ GTKLIBS=`pkg-config --libs gtk+-3.0`
 AUDIO_LIBS=-lasound
 #AUDIO_LIBS=-lsoundio
 
-OPTIONS=-g -Wno-deprecated-declarations -D $(UNAME_N) $(RADIOBERRY_OPTIONS) $(USBOZY_OPTIONS) $(I2C_OPTIONS) $(GPIO_OPTIONS) $(LIMESDR_OPTIONS) $(FREEDV_OPTIONS) $(LOCALCW_OPTIONS) $(PSK_OPTIONS) -D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION) -O3
+OPTIONS=-g -Wno-deprecated-declarations $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(RADIOBERRY_OPTIONS) $(USBOZY_OPTIONS) $(I2C_OPTIONS) $(GPIO_OPTIONS) $(LIMESDR_OPTIONS) $(FREEDV_OPTIONS) $(LOCALCW_OPTIONS) $(PSK_OPTIONS) -D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION) -O3
 
 LIBS=-lrt -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(PSKLIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS)
 INCLUDES=$(GTKINCLUDES)
@@ -163,6 +149,7 @@ PROGRAM=pihpsdr
 
 SOURCES= \
 audio.c \
+audio_waterfall.c \
 band.c \
 configure.c \
 frequency.c \
@@ -171,6 +158,7 @@ discovery.c \
 filter.c \
 main.c \
 new_menu.c \
+about_menu.c \
 exit_menu.c \
 radio_menu.c \
 rx_menu.c \
@@ -195,6 +183,7 @@ fft_menu.c \
 diversity_menu.c \
 freqent_menu.c \
 tx_menu.c \
+ps_menu.c \
 vfo_menu.c \
 test_menu.c \
 meter.c \
@@ -210,6 +199,7 @@ property.c \
 radio.c \
 receiver.c \
 rigctl.c \
+rigctl_menu.c \
 toolbar.c \
 transmitter.c \
 sliders.c \
@@ -222,11 +212,14 @@ update.c \
 store.c \
 store_menu.c \
 memory.c \
-led.c
+led.c \
+ext.c \
+error_handler.c
 
 
 HEADERS= \
 audio.h \
+audio_waterfall.h \
 agc.h \
 alex.h \
 band.h \
@@ -238,6 +231,7 @@ discovered.h \
 discovery.h \
 filter.h \
 new_menu.h \
+about_menu.h \
 rx_menu.h \
 exit_menu.h \
 radio_menu.h \
@@ -262,6 +256,7 @@ fft_menu.h \
 diversity_menu.h \
 freqent_menu.h \
 tx_menu.h \
+ps_menu.h \
 vfo_menu.h \
 test_menu.h \
 meter.h \
@@ -276,6 +271,7 @@ property.h \
 radio.h \
 receiver.h \
 rigctl.h \
+rigctl_menu.h \
 toolbar.h \
 transmitter.h \
 sliders.h \
@@ -288,11 +284,14 @@ update.h \
 store.h \
 store_menu.h \
 memory.h \
-led.h
+led.h \
+ext.h \
+error_handler.h
 
 
 OBJS= \
 audio.o \
+audio_waterfall.o \
 band.o \
 configure.o \
 frequency.o \
@@ -302,6 +301,7 @@ filter.o \
 version.o \
 main.o \
 new_menu.o \
+about_menu.o \
 rx_menu.o \
 exit_menu.o \
 radio_menu.o \
@@ -326,6 +326,7 @@ fft_menu.o \
 diversity_menu.o \
 freqent_menu.o \
 tx_menu.o \
+ps_menu.o \
 vfo_menu.o \
 test_menu.o \
 meter.o \
@@ -341,6 +342,7 @@ property.o \
 radio.o \
 receiver.o \
 rigctl.o \
+rigctl_menu.o \
 toolbar.o \
 transmitter.o \
 sliders.o \
@@ -352,15 +354,17 @@ update.o \
 store.o \
 store_menu.o \
 memory.o \
-led.o
+led.o \
+ext.o \
+error_handler.o
 
-all: prebuild  $(PROGRAM) $(HEADERS) $(RADIOBERRY_HEADERS) $(USBOZY_HEADERS) $(LIMESDR_HEADERS) $(FREEDV_HEADERS) $(LOCALCW_HEADERS) $(I2C_HEADERS) $(GPIO_HEADERS) $(PSK_HEADERS) $(SOURCES) $(USBOZY_SOURCES) $(LIMESDR_SOURCES) $(FREEDV_SOURCES) $(I2C_SOURCES) $(GPIO_SOURCES) $(PSK_SOURCES) $(RADIOBERRY_SOURCES)
+all: prebuild  $(PROGRAM) $(HEADERS) $(REMOTE_HEADERS) $(RADIOBERRY_HEADERS) $(USBOZY_HEADERS) $(LIMESDR_HEADERS) $(FREEDV_HEADERS) $(LOCALCW_HEADERS) $(I2C_HEADERS) $(GPIO_HEADERS) $(PSK_HEADERS) $(SOURCES) $(REMOTE_SOURCES) $(USBOZY_SOURCES) $(LIMESDR_SOURCES) $(FREEDV_SOURCES) $(I2C_SOURCES) $(GPIO_SOURCES) $(PSK_SOURCES) $(RADIOBERRY_SOURCES)
 
 prebuild:
 	rm -f version.o
 
-$(PROGRAM):  $(OBJS) $(USBOZY_OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) $(LOCALCW_OBJS) $(I2C_OBJS) $(GPIO_OBJS) $(PSK_OBJS) $(RADIOBERRY_OBJS)
-	$(LINK) -o $(PROGRAM) $(OBJS) $(USBOZY_OBJS) $(I2C_OBJS) $(GPIO_OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) $(LOCALCW_OBJS) $(PSK_OBJS) $(LIBS) $(RADIOBERRY_OBJS)
+$(PROGRAM):  $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) $(LOCALCW_OBJS) $(I2C_OBJS) $(GPIO_OBJS) $(PSK_OBJS) $(RADIOBERRY_OBJS)
+	$(LINK) -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(I2C_OBJS) $(GPIO_OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) $(LOCALCW_OBJS) $(PSK_OBJS) $(LIBS) $(RADIOBERRY_OBJS)
 
 .c.o:
 	$(COMPILE) -c -o $@ $<
@@ -371,17 +375,4 @@ clean:
 	-rm -f $(PROGRAM)
 
 install:
-	if [ ! -d ~/pihpsdr ];then \
-		mkdir ~/pihpsdr; \
-		if [ -d "./release/pihpsdr" ];then  \
-			cp ./release/pihpsdr/* ~/pihpsdr; \
-		fi \
-	fi
-	cp pihpsdr ~/pihpsdr
-	if [ -d "./release" ];then  \
-		cp pihpsdr ./release/pihpsdr; \
-		cd release; echo $(GIT_VERSION) > pihpsdr/latest; \
-		cd release; tar cvf pihpsdr_$(GIT_VERSION).tar pihpsdr; \
-		cd release; tar cvf pihpsdr.tar pihpsdr; \
-	fi
-
+	cp pihpsdr /usr/local/bin/pihpsdr

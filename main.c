@@ -48,6 +48,9 @@
 #include "i2c.h"
 #endif
 #include "discovery.h"
+#include "new_protocol.h"
+#include "old_protocol.h"
+#include "ext.h"
 
 struct utsname unameData;
 
@@ -93,28 +96,30 @@ static void* wisdom_thread(void *arg) {
 }
 
 gboolean main_delete (GtkWidget *widget) {
+  if(radio!=NULL) {
 #ifdef GPIO
-  gpio_close();
+    gpio_close();
 #endif
-  switch(protocol) {
-    case ORIGINAL_PROTOCOL:
-      old_protocol_stop();
-      break;
-    case NEW_PROTOCOL:
-      new_protocol_stop();
-      break;
+    switch(protocol) {
+      case ORIGINAL_PROTOCOL:
+        old_protocol_stop();
+        break;
+      case NEW_PROTOCOL:
+        new_protocol_stop();
+        break;
 #ifdef LIMESDR
-    case LIMESDR_PROTOCOL:
-      lime_protocol_stop();
-      break;
+      case LIMESDR_PROTOCOL:
+        lime_protocol_stop();
+        break;
 #endif
 #ifdef RADIOBERRY
-	case RADIOBERRY_PROTOCOL:
-		radioberry_protocol_stop();
-		break;
+      case RADIOBERRY_PROTOCOL:
+        radioberry_protocol_stop();
+        break;
 #endif
+    }
+    radioSaveState();
   }
-  radioSaveState();
   _exit(0);
 }
 
@@ -149,7 +154,7 @@ static int init(void *data) {
       }
   }
 
-  g_idle_add(discovery,NULL);
+  g_idle_add(ext_discovery,NULL);
   return 0;
 }
 
@@ -179,6 +184,18 @@ static void activate_pihpsdr(GtkApplication *app, gpointer data) {
 
 fprintf(stderr,"width=%d height=%d\n", display_width, display_height);
   if(display_width>800 || display_height>480) {
+/*
+    if(display_width>1600) {
+      display_width=1600;
+    } else {
+      display_width=800;
+    }
+    if(display_height>960) {
+      display_height=960;
+    } else {
+      display_height=480;
+    }
+*/
     display_width=800;
     display_height=480;
     full_screen=0;
@@ -196,6 +213,14 @@ fprintf(stderr,"full screen\n");
   gtk_window_set_title (GTK_WINDOW (top_window), "pihpsdr");
   gtk_window_set_position(GTK_WINDOW(top_window),GTK_WIN_POS_CENTER_ALWAYS);
   gtk_window_set_resizable(GTK_WINDOW(top_window), FALSE);
+  fprintf(stderr,"setting top window icon\n");
+  GError *error;
+  if(!gtk_window_set_icon_from_file (GTK_WINDOW(top_window), "hpsdr.png", &error)) {
+    fprintf(stderr,"Warning: failed to set icon for top_window\n");
+    if(error!=NULL) {
+      fprintf(stderr,"%s\n",error->message);
+    }
+  }
   g_signal_connect (top_window, "delete-event", G_CALLBACK (main_delete), NULL);
   //g_signal_connect (top_window,"draw", G_CALLBACK (main_draw_cb), NULL);
 
@@ -219,7 +244,7 @@ fprintf(stderr,"add image to grid\n");
 fprintf(stderr,"create pi label\n");
   char build[64];
   sprintf(build,"build: %s %s",build_date, version);
-  GtkWidget *pi_label=gtk_label_new("pihpsdr by John Melton g0orx/n6lyt");
+  GtkWidget *pi_label=gtk_label_new("piHPSDR by John Melton g0orx/n6lyt");
   gtk_label_set_justify(GTK_LABEL(pi_label),GTK_JUSTIFY_LEFT);
   gtk_widget_show(pi_label);
 fprintf(stderr,"add pi label to grid\n");
@@ -235,7 +260,7 @@ fprintf(stderr,"add build label to grid\n");
 fprintf(stderr,"create status\n");
   status=gtk_label_new("");
   gtk_label_set_justify(GTK_LABEL(status),GTK_JUSTIFY_LEFT);
-  gtk_widget_override_font(status, pango_font_description_from_string("FreeMono 18"));
+  //gtk_widget_override_font(status, pango_font_description_from_string("FreeMono 18"));
   gtk_widget_show(status);
 fprintf(stderr,"add status to grid\n");
   gtk_grid_attach(GTK_GRID(grid), status, 1, 3, 1, 1);

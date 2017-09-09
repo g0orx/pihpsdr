@@ -19,6 +19,7 @@
 
 #include <gtk/gtk.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "new_menu.h"
@@ -29,18 +30,27 @@ static GtkWidget *parent_window=NULL;
 
 static GtkWidget *dialog=NULL;
 
-static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+static void cleanup() {
   if(dialog!=NULL) {
     gtk_widget_destroy(dialog);
     dialog=NULL;
     sub_menu=NULL;
   }
+}
+
+static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  cleanup();
   return TRUE;
 }
 
+static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_data) {
+  cleanup();
+  return FALSE;
+}
+
 static gboolean step_select_cb (GtkWidget *widget, gpointer        data) {
-  step=steps[(int)data];
-  vfo_update(NULL);
+  step=steps[(uintptr_t)data];
+  vfo_update();
 }
 
 void step_menu(GtkWidget *parent) {
@@ -49,7 +59,9 @@ void step_menu(GtkWidget *parent) {
 
   dialog=gtk_dialog_new();
   gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent_window));
-  gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  //gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  gtk_window_set_title(GTK_WINDOW(dialog),"piHPSDR - VFO Step");
+  g_signal_connect (dialog, "delete_event", G_CALLBACK (delete_event), NULL);
 
   GdkRGBA color;
   color.red = 1.0;
@@ -65,7 +77,7 @@ void step_menu(GtkWidget *parent) {
   gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
   gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
 
-  GtkWidget *close_b=gtk_button_new_with_label("Close Step");
+  GtkWidget *close_b=gtk_button_new_with_label("Close");
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
@@ -81,7 +93,7 @@ void step_menu(GtkWidget *parent) {
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (step_rb), steps[i]==step);
     gtk_widget_show(step_rb);
     gtk_grid_attach(GTK_GRID(grid),step_rb,i%5,1+(i/5),1,1);
-    g_signal_connect(step_rb,"pressed",G_CALLBACK(step_select_cb),(gpointer *)i);
+    g_signal_connect(step_rb,"pressed",G_CALLBACK(step_select_cb),(gpointer)(long)i);
     i++;
   }
 

@@ -17,5 +17,6 @@
 *
 */
 
-void band_menu(GtkWidget *parent);
-int band_update(void *data);
+extern void band_menu(GtkWidget *parent);
+extern gboolean band_select_cb (GtkWidget *widget, gpointer        data);
+

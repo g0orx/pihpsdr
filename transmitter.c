@@ -34,10 +34,18 @@
 #include "property.h"
 #include "radio.h"
 #include "vfo.h"
+#include "vox.h"
 #include "meter.h"
+#include "toolbar.h"
 #include "tx_panadapter.h"
 #include "waterfall.h"
 #include "transmitter.h"
+#include "new_protocol.h"
+#include "old_protocol.h"
+#ifdef FREEDV
+#include "freedv.h"
+#endif
+#include "audio_waterfall.h"
 
 #define min(x,y) (x<y?x:y)
 #define max(x,y) (x<y?y:x)
@@ -45,16 +53,45 @@
 static int filterLow;
 static int filterHigh;
 
+static int waterfall_samples=0;
+static int waterfall_resample=8;
+
 static gint update_out_of_band(gpointer data) {
   TRANSMITTER *tx=(TRANSMITTER *)data;
   tx->out_of_band=0;
-  vfo_update(NULL);
+  vfo_update();
   return FALSE;
 }
 
 void transmitter_set_out_of_band(TRANSMITTER *tx) {
   tx->out_of_band=1;
   tx->out_of_band_timer_id=gdk_threads_add_timeout_full(G_PRIORITY_HIGH_IDLE,1000,update_out_of_band, tx, NULL);
+}
+
+void transmitter_set_deviation(TRANSMITTER *tx) {
+  SetTXAFMDeviation(tx->id, (double)tx->deviation);
+}
+
+void transmitter_set_am_carrier_level(TRANSMITTER *tx) {
+  SetTXAAMCarrierLevel(tx->id, tx->am_carrier_level);
+}
+
+void transmitter_set_ctcss(TRANSMITTER *tx,int run,double frequency) {
+  tx->ctcss=run;
+  tx->ctcss_frequency=frequency;
+fprintf(stderr,"transmitter_set_ctcss: ctcss_frequency=%f run=%d\n",tx->ctcss_frequency,tx->ctcss);
+  SetTXACTCSSFreq(tx->id, tx->ctcss_frequency);
+  SetTXACTCSSRun(tx->id, tx->ctcss);
+}
+
+void transmitter_set_compressor_level(TRANSMITTER *tx,double level) {
+  tx->compressor_level=level;
+  SetTXACompressorGain(tx->id, tx->compressor_level);
+}
+
+void transmitter_set_compressor(TRANSMITTER *tx,int state) {
+  tx->compressor=state;
+  SetTXACompressorRun(tx->id, tx->compressor);
 }
 
 void reconfigure_transmitter(TRANSMITTER *tx,int height) {
@@ -78,6 +115,13 @@ void transmitter_save_state(TRANSMITTER *tx) {
   sprintf(value,"%d",tx->alex_antenna);
   setProperty(name,value);
 
+  sprintf(name,"transmitter.%d.panadapter_low",tx->id);
+  sprintf(value,"%d",tx->panadapter_low);
+  setProperty(name,value);
+  sprintf(name,"transmitter.%d.panadapter_high",tx->id);
+  sprintf(value,"%d",tx->panadapter_high);
+  setProperty(name,value);
+
   sprintf(name,"transmitter.%d.local_microphone",tx->id);
   sprintf(value,"%d",tx->local_microphone);
   setProperty(name,value);
@@ -87,6 +131,52 @@ void transmitter_save_state(TRANSMITTER *tx) {
 
   sprintf(name,"transmitter.%d.low_latency",tx->id);
   sprintf(value,"%d",tx->low_latency);
+  setProperty(name,value);
+  sprintf(name,"transmitter.%d.puresignal",tx->id);
+  sprintf(value,"%d",tx->puresignal);
+  setProperty(name,value);
+  sprintf(name,"transmitter.%d.auto_on",tx->id);
+  sprintf(value,"%d",tx->auto_on);
+  setProperty(name,value);
+  sprintf(name,"transmitter.%d.single_on",tx->id);
+  sprintf(value,"%d",tx->single_on);
+  setProperty(name,value);
+  sprintf(name,"transmitter.%d.ctcss",tx->id);
+  sprintf(value,"%d",tx->ctcss);
+  setProperty(name,value);
+  sprintf(name,"transmitter.%d.ctcss_frequency",tx->id);
+  sprintf(value,"%f",tx->ctcss_frequency);
+  setProperty(name,value);
+  sprintf(name,"transmitter.%d.deviation",tx->id);
+  sprintf(value,"%d",tx->deviation);
+  setProperty(name,value);
+  sprintf(name,"transmitter.%d.am_carrier_level",tx->id);
+  sprintf(value,"%f",tx->am_carrier_level);
+  setProperty(name,value);
+#ifdef FREEDV
+  if(strlen(tx->freedv_text_data)>0) {
+    sprintf(name,"transmitter.%d.freedv_text_data",tx->id);
+    sprintf(value,"%s",tx->freedv_text_data);
+    setProperty(name,value);
+  }
+#endif
+  sprintf(name,"transmitter.%d.drive",tx->id);
+  sprintf(value,"%d",tx->drive);
+  setProperty(name,value);
+  sprintf(name,"transmitter.%d.tune_percent",tx->id);
+  sprintf(value,"%d",tx->tune_percent);
+  setProperty(name,value);
+  sprintf(name,"transmitter.%d.tune_use_drive",tx->id);
+  sprintf(value,"%d",tx->tune_use_drive);
+  setProperty(name,value);
+  sprintf(name,"transmitter.%d.drive_level",tx->id);
+  sprintf(value,"%d",tx->drive_level);
+  setProperty(name,value);
+  sprintf(name,"transmitter.%d.compressor",tx->id);
+  sprintf(value,"%d",tx->compressor);
+  setProperty(name,value);
+  sprintf(name,"transmitter.%d.compressor_level",tx->id);
+  sprintf(value,"%f",tx->compressor_level);
   setProperty(name,value);
 }
 
@@ -107,6 +197,13 @@ void transmitter_restore_state(TRANSMITTER *tx) {
   value=getProperty(name);
   if(value) tx->alex_antenna=atoi(value);
 
+  sprintf(name,"transmitter.%d.panadapter_low",tx->id);
+  value=getProperty(name);
+  if(value) tx->panadapter_low=atoi(value);
+  sprintf(name,"transmitter.%d.panadapter_high",tx->id);
+  value=getProperty(name);
+  if(value) tx->panadapter_high=atoi(value);
+
   sprintf(name,"transmitter.%d.local_microphone",tx->id);
   value=getProperty(name);
   if(value) tx->local_microphone=atoi(value);
@@ -116,21 +213,74 @@ void transmitter_restore_state(TRANSMITTER *tx) {
   sprintf(name,"transmitter.%d.low_latency",tx->id);
   value=getProperty(name);
   if(value) tx->low_latency=atoi(value);
+  sprintf(name,"transmitter.%d.puresignal",tx->id);
+  value=getProperty(name);
+  if(value) tx->puresignal=atoi(value);
+  sprintf(name,"transmitter.%d.auto_on",tx->id);
+  value=getProperty(name);
+  if(value) tx->auto_on=atoi(value);
+  sprintf(name,"transmitter.%d.single_on",tx->id);
+  value=getProperty(name);
+  if(value) tx->single_on=atoi(value);
+  sprintf(name,"transmitter.%d.ctcss",tx->id);
+  value=getProperty(name);
+  if(value) tx->ctcss=atoi(value);
+  sprintf(name,"transmitter.%d.ctcss_frequency",tx->id);
+  value=getProperty(name);
+  if(value) tx->ctcss_frequency=atof(value);
+  sprintf(name,"transmitter.%d.deviation",tx->id);
+  value=getProperty(name);
+  if(value) tx->deviation=atoi(value);
+  sprintf(name,"transmitter.%d.am_carrier_level",tx->id);
+  value=getProperty(name);
+  if(value) tx->am_carrier_level=atof(value);
+#ifdef FREEDV
+  sprintf(name,"transmitter.%d.freedv_text_data",tx->id);
+  value=getProperty(name);
+  if(value) strcpy(tx->freedv_text_data,value);
+#endif
+  sprintf(name,"transmitter.%d.drive",tx->id);
+  value=getProperty(name);
+  if(value) tx->drive=atoi(value);
+  sprintf(name,"transmitter.%d.tune_percent",tx->id);
+  value=getProperty(name);
+  if(value) tx->tune_percent=atoi(value);
+  sprintf(name,"transmitter.%d.tune_use_drive",tx->id);
+  value=getProperty(name);
+  if(value) tx->tune_use_drive=atoi(value);
+  sprintf(name,"transmitter.%d.drive_level",tx->id);
+  value=getProperty(name);
+  if(value) tx->drive_level=atoi(value);
+  sprintf(name,"transmitter.%d.compressor",tx->id);
+  value=getProperty(name);
+  if(value) tx->compressor=atoi(value);
+  sprintf(name,"transmitter.%d.compressor_level",tx->id);
+  value=getProperty(name);
+  if(value) tx->compressor_level=atof(value);
 }
 
-static gint update_display(gpointer data) {
+static gboolean update_display(gpointer data) {
   TRANSMITTER *tx=(TRANSMITTER *)data;
   int rc;
   double fwd;
   double rev;
   double exciter;
 
+  int i;
+
+//fprintf(stderr,"update_display: tx id=%d\n",tx->id);
   if(tx->displaying) {
+#ifdef AUDIO_SAMPLES
+    if(audio_samples!=NULL) {
+      GetPixels(CHANNEL_AUDIO,0,audio_samples,&rc);
+      if(rc) {
+        audio_waterfall_update();
+      }
+    }
+#endif
     GetPixels(tx->id,0,tx->pixel_samples,&rc);
     if(rc) {
       tx_panadapter_update(tx);
-    } else {
-//fprintf(stderr,"tx: update_display: GetPixels: id=%d returned %d\n",tx->id,rc);
     }
 
     double alc=GetTXAMeter(tx->id, alc);
@@ -306,19 +456,6 @@ static void init_analyzer(TRANSMITTER *tx) {
 
 }
 
-#ifdef INCLUDED
-void transmitter_change_sample_rate(TRANSMITTER *tx,int sample_rate) {
-  SetChannelState(tx->id,0,1);
-  tx->mic_sample_rate=sample_rate;
-  tx->output_samples=tx->buffer_size/(tx->mic_sample_rate/48000);
-  free(tx->mic_input_buffer);
-  tx->mic_input_buffer=malloc(sizeof(double)*2*tx->buffer_size);
-  init_analyzer(tx);
-fprintf(stderr,"transmitter_change_sample_rate: id=%d rate=%d output_samples=%d\n",tx->id, tx->mic_sample_rate, tx->output_samples);
-  SetChannelState(tx->id,1,0);
-}
-#endif
-
 static void create_visual(TRANSMITTER *tx) {
  
   fprintf(stderr,"transmitter: create_visual: id=%d\n",tx->id);
@@ -348,18 +485,16 @@ TRANSMITTER *create_transmitter(int id, int buffer_size, int fft_size, int fps, 
 	if(protocol==ORIGINAL_PROTOCOL) {
 #endif
     tx->mic_sample_rate=48000;
-//    tx->mic_sample_rate=receiver[0]->sample_rate;
     tx->mic_dsp_rate=48000;
     tx->iq_output_rate=48000;
-//    tx->output_samples=tx->buffer_size/(tx->mic_sample_rate/48000);
     tx->output_samples=tx->buffer_size;
-    tx->pixels=width;
+    tx->pixels=width; // to allow 48k to 24k conversion
   } else {
     tx->mic_sample_rate=48000;
-    tx->mic_dsp_rate=48000;
+    tx->mic_dsp_rate=96000;
     tx->iq_output_rate=192000;
     tx->output_samples=tx->buffer_size*4;
-    tx->pixels=width*4; // to allow 192k to 48k conversion
+    tx->pixels=width*4; // to allow 192k to 24k conversion
   }
 
   tx->width=width;
@@ -367,8 +502,8 @@ TRANSMITTER *create_transmitter(int id, int buffer_size, int fft_size, int fps, 
   tx->display_panadapter=1;
   tx->display_waterfall=0;
 
-  tx->panadapter_high=20;
-  tx->panadapter_low=-80;
+  tx->panadapter_high=0;
+  tx->panadapter_low=-60;
 
   tx->displaying=0;
   
@@ -383,13 +518,32 @@ fprintf(stderr,"create_transmitter: id=%d buffer_size=%d mic_sample_rate=%d mic_
 
   tx->low_latency=0;
 
+  tx->puresignal=0;
+  tx->feedback=0;
+  tx->twotone=0;
+  tx->auto_on=0;
+  tx->single_on=0;
+
+  tx->ctcss=0;
+  tx->ctcss_frequency=100.0;
+
+  tx->deviation=2500;
+  tx->am_carrier_level=0.5;
+
+#ifdef FREEDV
+  strcpy(tx->freedv_text_data,"Call, Name and Location");
+  tx->freedv_samples=0;
+#endif
+
+  tx->drive=50;
+  tx->tune_percent=10;
+  tx->tune_use_drive=0;
+
+  tx->compressor=0;
+  tx->compressor_level=0.0;
+
   transmitter_restore_state(tx);
 
-  if(split) {
-    tx->mode=vfo[VFO_B].mode;
-  } else {
-    tx->mode=vfo[VFO_A].mode;
-  }
 
   // allocate buffers
 fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%d iq_output_buffer=%d pixels=%d\n",tx->buffer_size,tx->output_samples,tx->pixels);
@@ -397,6 +551,7 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%d iq_output_buf
   tx->iq_output_buffer=malloc(sizeof(double)*2*tx->output_samples);
   tx->samples=0;
   tx->pixel_samples=malloc(sizeof(float)*tx->pixels);
+fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%p iq_output_buffer=%p pixels=%p\n",tx->mic_input_buffer,tx->iq_output_buffer,tx->pixel_samples);
 
   fprintf(stderr,"create_transmitter: OpenChannel id=%d buffer_size=%d fft_size=%d sample_rate=%d dspRate=%d outputRate=%d\n",
               tx->id,
@@ -416,17 +571,18 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%d iq_output_buf
               0, // run
               0.010, 0.025, 0.0, 0.010, 0);
 
-fprintf(stderr,"TXASetNC: %d\n",tx->fft_size);
   TXASetNC(tx->id, tx->fft_size);
-fprintf(stderr,"TXASetMP: %d\n",tx->low_latency);
   TXASetMP(tx->id, tx->low_latency);
 
-  SetTXAMode(tx->id, tx->mode);
-  tx_set_filter(tx,tx_filter_low,tx_filter_high);
+
+  int mode=vfo[VFO_A].mode;
+  if(split) {
+    mode=vfo[VFO_B].mode;
+  }
+
   SetTXABandpassWindow(tx->id, 1);
   SetTXABandpassRun(tx->id, 1);
 
-  SetTXAFMDeviation(tx->id,(double)deviation);
   SetTXAFMEmphPosition(tx->id,pre_emphasize);
 
   SetTXACFIRRun(tx->id, protocol==NEW_PROTOCOL?1:0); // turned on if new protocol
@@ -436,9 +592,9 @@ fprintf(stderr,"TXASetMP: %d\n",tx->low_latency);
   } else {
     SetTXAEQRun(tx->id, 0);
   }
-  SetTXACTCSSRun(tx->id, 0);
+
+  transmitter_set_ctcss(tx,tx->ctcss,tx->ctcss_frequency);
   SetTXAAMSQRun(tx->id, 0);
-  SetTXACompressorRun(tx->id, 0);
   SetTXAosctrlRun(tx->id, 0);
 
   SetTXAALCAttack(tx->id, 1);
@@ -464,6 +620,13 @@ fprintf(stderr,"TXASetMP: %d\n",tx->low_latency);
   SetTXAPanelGain1(tx->id,gain);
   SetTXAPanelRun(tx->id, 1);
 
+  SetTXAFMDeviation(tx->id, (double)tx->deviation);
+  SetTXAAMCarrierLevel(tx->id, tx->am_carrier_level);
+
+  SetTXACompressorGain(tx->id, tx->compressor_level);
+  SetTXACompressorRun(tx->id, tx->compressor);
+
+  tx_set_mode(tx,mode);
 
   XCreateAnalyzer(tx->id, &rc, 262144, 1, 1, "");
   if (rc != 0) {
@@ -492,6 +655,7 @@ void tx_set_filter(TRANSMITTER *tx,int low,int high) {
   } else {
     mode=vfo[0].mode;
   }
+//fprintf(stderr,"tx_set_filter: tx=%p mode=%d low=%d high=%d\n",tx,mode,low,high);
   switch(mode) {
     case modeLSB:
     case modeCWL:
@@ -512,7 +676,7 @@ void tx_set_filter(TRANSMITTER *tx,int low,int high) {
       tx->filter_high=high;
       break;
     case modeFMN:
-      if(deviation==2500) {
+      if(tx->deviation==2500) {
         tx->filter_low=-4000;
         tx->filter_high=4000;
       } else {
@@ -553,7 +717,7 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 
   switch(protocol) {
 #ifdef RADIOBERRY
-	case RADIOBERRY_PROTOCOL:
+    case RADIOBERRY_PROTOCOL:
 #endif
     case ORIGINAL_PROTOCOL:
       gain=32767.0;  // 16 bit
@@ -563,6 +727,7 @@ static void full_tx_buffer(TRANSMITTER *tx) {
       break;
   }
 
+/*
   if(vox_enabled || vox_setting) {
     if(split) {
       mode=vfo[1].mode;
@@ -576,70 +741,62 @@ static void full_tx_buffer(TRANSMITTER *tx) {
       case modeFMN:
       case modeAM:
       case modeSAM:
-#ifdef FREEDV
-      case modeFREEDV:
-#endif
         update_vox(tx);
         break;
     }
   }
+*/
+  update_vox(tx);
 
   fexchange0(tx->id, tx->mic_input_buffer, tx->iq_output_buffer, &error);
   if(error!=0) {
     fprintf(stderr,"full_tx_buffer: id=%d fexchange0: error=%d\n",tx->id,error);
   }
 
-  if(tx->displaying) {
+  if(tx->displaying && !(tx->puresignal && tx->feedback)) {
     Spectrum0(1, tx->id, 0, 0, tx->iq_output_buffer);
   }
 
-if(isTransmitting()) {
-#ifdef FREEDV
-  int mode;
-  if(split) {
-    mode=vfo[VFO_B].mode;
-  } else {
-    mode=vfo[VFO_A].mode;
-  }
+  if(isTransmitting()) {
 
-  if(mode==modeFREEDV) {
-    gain=8388607.0;
-  }
-#endif
-
-  if(radio->device==NEW_DEVICE_ATLAS && atlas_penelope) {
-    if(tune) {
-      gain=gain*tune_drive;
-    } else {
-      gain=gain*(double)drive;
+    if(radio->device==NEW_DEVICE_ATLAS && atlas_penelope) {
+      if(tune && !transmitter->tune_use_drive) {
+        gain=gain*((double)transmitter->drive_level*100.0/(double)transmitter->tune_percent);
+      } else {
+        gain=gain*(double)transmitter->drive_level;
+      }
     }
-  }
 
-  for(j=0;j<tx->output_samples;j++) {
-    isample=(long)(tx->iq_output_buffer[j*2]*gain);
-    qsample=(long)(tx->iq_output_buffer[(j*2)+1]*gain);
-    switch(protocol) {
-      case ORIGINAL_PROTOCOL:
-        old_protocol_iq_samples(isample,qsample);
-        break;
-      case NEW_PROTOCOL:
-        new_protocol_iq_samples(isample,qsample);
-        break;
+    for(j=0;j<tx->output_samples;j++) {
+      //isample=(long)(tx->iq_output_buffer[j*2]*gain);
+      //qsample=(long)(tx->iq_output_buffer[(j*2)+1]*gain);
+      double is=tx->iq_output_buffer[j*2];
+      double qs=tx->iq_output_buffer[(j*2)+1];
+      isample=is>=0.0?(long)floor(is*gain+0.5):(long)ceil(is*gain-0.5);
+      qsample=qs>=0.0?(long)floor(qs*gain+0.5):(long)ceil(qs*gain-0.5);
+      switch(protocol) {
+        case ORIGINAL_PROTOCOL:
+          old_protocol_iq_samples(isample,qsample);
+          break;
+        case NEW_PROTOCOL:
+          new_protocol_iq_samples(isample,qsample);
+          break;
 #ifdef RADIOBERRY
-     case RADIOBERRY_PROTOCOL:
-        radioberry_protocol_iq_samples(isample,qsample);
-        break;
+        case RADIOBERRY_PROTOCOL:
+          radioberry_protocol_iq_samples(isample,qsample);
+          break;
 #endif
+      }
     }
-  }
   }
 
 }
 
 void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
-  double mic_sample_double;
   int mode;
-  long sample;
+  double sample;
+  double mic_sample_double;
+  int i,s;
 
   if(split) {
     mode=vfo[1].mode;
@@ -647,35 +804,95 @@ void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
     mode=vfo[0].mode;
   }
 
-  switch(mode) {
-#ifdef FREEDV
-    case modeFREEDV:
-      break;
+  if(mode==modeCWL || mode==modeCWU || tune) {
+    mic_sample_double=0.0;
+  } else {
+    //long sam=mic_sample<<16;
+    //sample=(double)sam;
+    //mic_sample_double=(1.0 / 2147483648.0) * sample;
+    mic_sample_double=(double)mic_sample/32768.0;
+  }
+  tx->mic_input_buffer[tx->samples*2]=mic_sample_double;
+  tx->mic_input_buffer[(tx->samples*2)+1]=0.0; //mic_sample_double;
+  tx->samples++;
+  if(tx->samples==tx->buffer_size) {
+    full_tx_buffer(tx);
+    tx->samples=0;
+  }
+  
+#ifdef AUDIO_WATERFALL
+  if(audio_samples!=NULL && isTransmitting()) {
+    if(waterfall_samples==0) {
+       audio_samples[audio_samples_index]=(float)mic_sample;
+       audio_samples_index++;
+       if(audio_samples_index>=AUDIO_WATERFALL_SAMPLES) {
+         //Spectrum(CHANNEL_AUDIO,0,0,audio_samples,audio_samples);
+         audio_samples_index=0;
+     }
+     }
+     waterfall_samples++;
+     if(waterfall_samples==waterfall_resample) {
+       waterfall_samples=0;
+     }
+   }
 #endif
-    default:
-      if(mode==modeCWL || mode==modeCWU || tune) {
-        mic_sample_double=0.0;
-      } else {
-        sample=mic_sample<<16;
-        mic_sample_double=(1.0 / 2147483648.0) * (double)(sample);
+}
+
+#ifdef FREEDV
+void add_freedv_mic_sample(TRANSMITTER *tx, short mic_sample) {
+  int i,s;
+
+  //if(active_receiver->freedv && isTransmitting() && !tune) {
+  if(!tune) {
+    if(tx->freedv_samples==0) {
+      //int modem_samples=mod_sample_freedv(mic_sample);
+      short vs=(short)((double)mic_sample*pow(10.0, mic_gain / 20.0));
+      int modem_samples=mod_sample_freedv(vs);
+      if(modem_samples!=0) {
+        for(s=0;s<modem_samples;s++) {
+          for(i=0;i<freedv_resample;i++) { // 8K to 48K
+            add_mic_sample(tx,mod_out[s]);
+          }
+        }
       }
-//fprintf(stderr,"add_mic_sample: id=%d sample=%f (%d,%ld)\n",tx->id,mic_sample_double,mic_sample,sample);
-      tx->mic_input_buffer[tx->samples*2]=mic_sample_double;
-      tx->mic_input_buffer[(tx->samples*2)+1]=mic_sample_double;
-      tx->samples++;
-      if(tx->samples==tx->buffer_size) {
-        full_tx_buffer(tx);
-        tx->samples=0;
-      }
-      break;
+    }
+    tx->freedv_samples++;
+    if(tx->freedv_samples>=freedv_resample) {
+      tx->freedv_samples=0;
+    }
   }
 }
+#endif
 
 void tx_set_displaying(TRANSMITTER *tx,int state) {
   tx->displaying=state;
   if(state) {
-fprintf(stderr,"start tx display update timer: %d\n", 1000/tx->fps);
-    tx->update_timer_id=gdk_threads_add_timeout_full(G_PRIORITY_HIGH_IDLE,1000/tx->fps, update_display, tx, NULL);
+    tx->update_timer_id=gdk_threads_add_timeout_full(G_PRIORITY_HIGH_IDLE,1000/tx->fps, update_display, (gpointer)tx, NULL);
   }
 }
 
+void tx_set_ps(TRANSMITTER *tx,int state) {
+  tx->puresignal=state;
+  if(state) {
+    SetPSControl(tx->id, 0, 0, 1, 0);
+  } else {
+    SetPSControl(tx->id, 1, 0, 0, 0);
+  }
+  vfo_update();
+}
+
+void tx_set_twotone(TRANSMITTER *tx,int state) {
+  transmitter->twotone=state;
+  if(state) {
+    SetTXAPostGenMode(transmitter->id, 1);
+    SetTXAPostGenRun(transmitter->id, 1);
+    mox_update(1);
+  } else {
+    SetTXAPostGenRun(transmitter->id, 0);
+    mox_update(0);
+  }
+}
+
+void tx_set_ps_sample_rate(TRANSMITTER *tx,int rate) {
+  SetPSFeedbackRate (tx->id,rate);
+}

@@ -56,6 +56,8 @@
 #include "psk.h"
 #endif
 #include "vox.h"
+#include "ext.h"
+#include "error_handler.h"
 
 #define min(x,y) (x<y?x:y)
 
@@ -135,7 +137,6 @@ static int samples=0;
 static int mic_samples=0;
 static int mic_sample_divisor=1;
 #ifdef FREEDV
-static int freedv_samples=0;
 static int freedv_divisor=6;
 #endif
 #ifdef PSK
@@ -143,24 +144,7 @@ static int psk_samples=0;
 static int psk_divisor=6;
 #endif
 
-//static float left_input_buffer[BUFFER_SIZE];
-//static float right_input_buffer[BUFFER_SIZE];
-//static double iqinputbuffer[MAX_RECEIVERS][MAX_BUFFER_SIZE*2];
-
-//static float mic_left_buffer[MAX_BUFFER_SIZE];
-//static float mic_right_buffer[MAX_BUFFER_SIZE];
 static double micinputbuffer[MAX_BUFFER_SIZE*2];
-
-//static float left_output_buffer[OUTPUT_BUFFER_SIZE];
-//static float right_output_buffer[OUTPUT_BUFFER_SIZE];
-//static double audiooutputbuffer[MAX_BUFFER_SIZE*2];
-
-//static float left_subrx_output_buffer[OUTPUT_BUFFER_SIZE];
-//static float right_subrx_output_buffer[OUTPUT_BUFFER_SIZE];
-
-//static float left_tx_buffer[OUTPUT_BUFFER_SIZE];
-//static float right_tx_buffer[OUTPUT_BUFFER_SIZE];
-//static double iqoutputbuffer[MAX_BUFFER_SIZE*2];
 
 static int left_rx_sample;
 static int right_rx_sample;
@@ -355,8 +339,22 @@ static void start_receive_thread() {
       }
 
       int optval = 1;
-      setsockopt(data_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+      if(setsockopt(data_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval))<0) {
+        perror("data_socket: SO_REUSEADDR");
+      }
+      if(setsockopt(data_socket, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval))<0) {
+        perror("data_socket: SO_REUSEPORT");
+      }
 
+/*
+      // set a timeout for receive
+      struct timeval tv;
+      tv.tv_sec=1;
+      tv.tv_usec=0;
+      if(setsockopt(data_socket, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv))<0) {
+        perror("data_socket: SO_RCVTIMEO");
+      }
+*/
       // bind to the interface
       if(bind(data_socket,(struct sockaddr*)&radio->info.network.interface_address,radio->info.network.interface_length)<0) {
         perror("old_protocol: bind socket failed for data_socket\n");
@@ -403,8 +401,13 @@ static gpointer receive_thread(gpointer arg) {
       default:
         bytes_read=recvfrom(data_socket,buffer,sizeof(buffer),0,(struct sockaddr*)&addr,&length);
         if(bytes_read<0) {
-          perror("recvfrom socket failed for old_protocol: receive_thread");
-          exit(1);
+          if(errno==EAGAIN) {
+            error_handler("old_protocol: receiver_thread: recvfrom socket failed","Radio not sending data");
+          } else {
+            error_handler("old_protocol: receiver_thread: recvfrom socket failed",strerror(errno));
+          }
+          running=0;
+          continue;
         }
 
         if(buffer[0]==0xEF && buffer[1]==0xFE) {
@@ -473,6 +476,11 @@ static void process_ozy_input_buffer(char  *buffer) {
   double right_sample_double;
   double mic_sample_double;
   double gain=pow(10.0, mic_gain / 20.0);
+  int left_sample_1;
+  int right_sample_1;
+  double left_sample_double_1;
+  double right_sample_double_1;
+  int nreceivers;
 
   if(buffer[b++]==SYNC && buffer[b++]==SYNC && buffer[b++]==SYNC) {
     // extract control bytes
@@ -489,6 +497,7 @@ static void process_ozy_input_buffer(char  *buffer) {
     dash=(control_in[0]&0x02)==0x02;
     dot=(control_in[0]&0x04)==0x04;
 
+/*
 if(ptt!=previous_ptt) {
   fprintf(stderr,"ptt=%d\n",ptt);
 }
@@ -498,9 +507,9 @@ if(dot!=previous_dot) {
 if(dash!=previous_dash) {
   fprintf(stderr,"dash=%d\n",dash);
 }
-
+*/
     if(previous_ptt!=ptt || dot!=previous_dot || dash!=previous_dash) {
-      g_idle_add(ptt_update,(gpointer)(ptt | dot | dash));
+      g_idle_add(ext_ptt_update,(gpointer)(long)(ptt | dot | dash));
     }
 
     switch((control_in[0]>>3)&0x1F) {
@@ -537,7 +546,11 @@ if(dash!=previous_dash) {
     }
 
 
-    int iq_samples=(512-8)/((RECEIVERS*6)+2);
+    nreceivers=RECEIVERS+2;
+    //if(transmitter->puresignal) {
+    //  receivers+=2;
+    //}
+    int iq_samples=(512-8)/((nreceivers*6)+2);
 
     for(i=0;i<iq_samples;i++) {
       for(r=0;r<RECEIVERS;r++) {
@@ -550,20 +563,52 @@ if(dash!=previous_dash) {
 
         left_sample_double=(double)left_sample/8388607.0; // 24 bit sample 2^23-1
         right_sample_double=(double)right_sample/8388607.0; // 24 bit sample 2^23-1
-
-        add_iq_samples(receiver[r], left_sample_double,right_sample_double);
-      }
-      mic_sample  = (short)(buffer[b++]<<8);
-      mic_sample |= (short)(buffer[b++]&0xFF);
-      if(!transmitter->local_microphone) {
-        mic_samples++;
-        if(mic_samples>=mic_sample_divisor) { // reduce to 48000
-          add_mic_sample(transmitter,mic_sample);
-          mic_samples=0;
+        if(transmitter->puresignal && isTransmitting()) {
+          add_ps_iq_samples(receiver[RECEIVERS], left_sample_double,right_sample_double,left_sample_double_1,right_sample_double_1);
+        } else {
+          add_iq_samples(receiver[r], left_sample_double,right_sample_double);
         }
       }
-    }
-  } else {
+      //if(transmitter->puresignal && isTransmitting()) {
+        left_sample   = (int)((signed char) buffer[b++])<<16;
+        left_sample  |= (int)((((unsigned char)buffer[b++])<<8)&0xFF00);
+        left_sample  |= (int)((unsigned char)buffer[b++]&0xFF);
+        right_sample  = (int)((signed char)buffer[b++]) << 16;
+        right_sample |= (int)((((unsigned char)buffer[b++])<<8)&0xFF00);
+        right_sample |= (int)((unsigned char)buffer[b++]&0xFF);
+        left_sample_double=(double)left_sample/8388607.0; // 24 bit sample 2^23-1
+        right_sample_double=(double)right_sample/8388607.0; // 24 bit sample 2^23-1
+
+        left_sample_1   = (int)((signed char) buffer[b++])<<16;
+        left_sample_1  |= (int)((((unsigned char)buffer[b++])<<8)&0xFF00);
+        left_sample_1  |= (int)((unsigned char)buffer[b++]&0xFF);
+        right_sample_1  = (int)((signed char)buffer[b++]) << 16;
+        right_sample_1 |= (int)((((unsigned char)buffer[b++])<<8)&0xFF00);
+        right_sample_1 |= (int)((unsigned char)buffer[b++]&0xFF);
+        left_sample_double_1=(double)left_sample_1/8388607.0; // 24 bit sample 2^23-1
+        right_sample_double_1=(double)right_sample_1/8388607.0; // 24 bit sample 2^23-1
+        //if(transmitter->puresignal && isTransmitting()) {
+        //  add_ps_iq_samples(receiver[RECEIVERS], left_sample_double,right_sample_double,left_sample_double_1,right_sample_double_1);
+        //}
+        mic_sample  = (short)(buffer[b++]<<8);
+        mic_sample |= (short)(buffer[b++]&0xFF);
+        if(!transmitter->local_microphone) {
+          mic_samples++;
+          if(mic_samples>=mic_sample_divisor) { // reduce to 48000
+#ifdef FREEDV
+            if(active_receiver->freedv) {
+              add_freedv_mic_sample(transmitter,mic_sample);
+            } else {
+#endif
+              add_mic_sample(transmitter,mic_sample);
+#ifdef FREEDV
+            }
+#endif
+            mic_samples=0;
+          }
+        }
+      }
+   } else {
     time_t t;
     struct tm* gmt;
     time(&t);
@@ -615,17 +660,26 @@ void old_protocol_iq_samples(int isample,int qsample) {
 
 void old_protocol_process_local_mic(unsigned char *buffer,int le) {
   int b;
-  short mic_sample;
+  int i;
+  short sample;
+
 // always 48000 samples per second
   b=0;
-  int i,j,s;
   for(i=0;i<720;i++) {
     if(le) {
-      mic_sample = (short)((buffer[b++]&0xFF) | (buffer[b++]<<8));
+      sample = (short)((buffer[b++]&0xFF) | (buffer[b++]<<8));
     } else {
-      mic_sample = (short)((buffer[b++]<<8) | (buffer[b++]&0xFF));
+      sample = (short)((buffer[b++]<<8) | (buffer[b++]&0xFF));
     }
-    add_mic_sample(transmitter,mic_sample);
+#ifdef FREEDV
+    if(active_receiver->freedv) {
+      add_freedv_mic_sample(transmitter,sample);
+    } else {
+#endif
+      add_mic_sample(transmitter,sample);
+#ifdef FREEDV
+    }
+#endif
   }
 }
 
@@ -641,6 +695,7 @@ void ozy_send_buffer() {
   int mode;
   int i;
   BAND *band;
+  int nreceivers;
 
   output_buffer[SYNC0]=SYNC;
   output_buffer[SYNC1]=SYNC;
@@ -747,7 +802,11 @@ void ozy_send_buffer() {
 
 // TODO - add Alex TX relay, duplex, receivers Mercury board frequency
       output_buffer[C4]=0x04;  // duplex
-      output_buffer[C4]|=(RECEIVERS-1)<<3;
+      nreceivers=RECEIVERS-1;
+      //if(transmitter->puresignal && isTransmitting()) {
+        nreceivers+=2;
+      //}
+      output_buffer[C4]|=nreceivers<<3;
     
       if(isTransmitting()) {
         switch(transmitter->alex_antenna) {
@@ -796,10 +855,18 @@ void ozy_send_buffer() {
     case 1: // tx frequency
       output_buffer[C0]=0x02;
       long long txFrequency;
-      if(split) {
-        txFrequency=vfo[VFO_B].frequency-vfo[VFO_A].lo+vfo[VFO_B].offset;
+      if(active_receiver->id==VFO_A) {
+        if(split) {
+          txFrequency=vfo[VFO_B].frequency-vfo[VFO_B].lo+vfo[VFO_B].offset;
+        } else {
+          txFrequency=vfo[VFO_A].frequency-vfo[VFO_A].lo+vfo[VFO_A].offset;
+        }
       } else {
-        txFrequency=vfo[VFO_A].frequency-vfo[VFO_B].lo+vfo[VFO_A].offset;
+        if(split) {
+          txFrequency=vfo[VFO_A].frequency-vfo[VFO_A].lo+vfo[VFO_A].offset;
+        } else {
+          txFrequency=vfo[VFO_B].frequency-vfo[VFO_B].lo+vfo[VFO_B].offset;
+        }
       }
       output_buffer[C1]=txFrequency>>24;
       output_buffer[C2]=txFrequency>>16;
@@ -807,25 +874,47 @@ void ozy_send_buffer() {
       output_buffer[C4]=txFrequency;
       break;
     case 2: // rx frequency
-      if(current_rx<receivers) {
+      nreceivers=RECEIVERS+2;
+      if(current_rx<nreceivers) {
         output_buffer[C0]=0x04+(current_rx*2);
         int v=receiver[current_rx]->id;
-        long long rxFrequency=vfo[v].frequency-vfo[v].lo;
-        if(vfo[v].rit_enabled) {
-          rxFrequency+=vfo[v].rit;
+        if(current_rx<RECEIVERS) {
+          long long rxFrequency=vfo[v].frequency-vfo[v].lo;
+          if(vfo[v].rit_enabled) {
+            rxFrequency+=vfo[v].rit;
+          }
+          if(vfo[active_receiver->id].mode==modeCWU) {
+            rxFrequency-=(long long)cw_keyer_sidetone_frequency;
+          } else if(vfo[active_receiver->id].mode==modeCWL) {
+            rxFrequency+=(long long)cw_keyer_sidetone_frequency;
+          }
+          output_buffer[C1]=rxFrequency>>24;
+          output_buffer[C2]=rxFrequency>>16;
+          output_buffer[C3]=rxFrequency>>8;
+          output_buffer[C4]=rxFrequency;
+        } else {
+          long long txFrequency;
+          if(active_receiver->id==VFO_A) {
+            if(split) {
+              txFrequency=vfo[VFO_B].frequency-vfo[VFO_B].lo+vfo[VFO_B].offset;
+            } else {
+              txFrequency=vfo[VFO_A].frequency-vfo[VFO_A].lo+vfo[VFO_A].offset;
+            }
+          } else {
+            if(split) {
+              txFrequency=vfo[VFO_A].frequency-vfo[VFO_A].lo+vfo[VFO_A].offset;
+            } else {
+              txFrequency=vfo[VFO_B].frequency-vfo[VFO_B].lo+vfo[VFO_B].offset;
+            }
+          }
+          output_buffer[C1]=txFrequency>>24;
+          output_buffer[C2]=txFrequency>>16;
+          output_buffer[C3]=txFrequency>>8;
+          output_buffer[C4]=txFrequency;
         }
-        if(vfo[active_receiver->id].mode==modeCWU) {
-          rxFrequency-=(long long)cw_keyer_sidetone_frequency;
-        } else if(vfo[active_receiver->id].mode==modeCWL) {
-          rxFrequency+=(long long)cw_keyer_sidetone_frequency;
-        }
-        output_buffer[C1]=rxFrequency>>24;
-        output_buffer[C2]=rxFrequency>>16;
-        output_buffer[C3]=rxFrequency>>8;
-        output_buffer[C4]=rxFrequency;
         current_rx++;
       }
-      if(current_rx>=receivers) {
+      if(current_rx>=nreceivers) {
         current_rx=0;
       }
       break;
@@ -834,10 +923,10 @@ void ozy_send_buffer() {
       BAND *band=band_get_current_band();
       int power=0;
       if(isTransmitting()) {
-        if(tune) {
-          power=tune_drive_level;
+        if(tune && !transmitter->tune_use_drive) {
+          power=(int)((double)transmitter->drive_level/100.0*(double)transmitter->tune_percent);
         } else {
-          power=drive_level;
+          power=transmitter->drive_level;
         }
       }
 
@@ -881,7 +970,11 @@ void ozy_send_buffer() {
       if(mic_ptt_tip_bias_ring) {
         output_buffer[C1]|=0x10;
       }
-      output_buffer[C2]=linein_gain;
+      output_buffer[C2]=0x00;
+      output_buffer[C2]|=linein_gain;
+      if(transmitter->puresignal) {
+        output_buffer[C2]|=0x40;
+      }
       output_buffer[C3]=0x00;
 
       if(radio->device==DEVICE_HERMES || radio->device==DEVICE_ANGELIA || radio->device==DEVICE_ORION || radio->device==DEVICE_ORION2) {
@@ -910,8 +1003,31 @@ void ozy_send_buffer() {
       // need to add tx attenuation and rx ADC selection
       output_buffer[C0]=0x1C;
       output_buffer[C1]=0x00;
+      if(receivers>0) {
+        output_buffer[C1]|=receiver[0]->adc;
+      }
+      if(receivers>1) {
+        output_buffer[C1]|=(receiver[1]->adc<<2);
+      }
+      if(receivers>2) {
+        output_buffer[C1]|=(receiver[2]->adc<<4);
+      }
+      if(receivers>3) {
+        output_buffer[C1]|=(receiver[3]->adc<<6);
+      }
       output_buffer[C2]=0x00;
+      if(receivers>4) {
+        output_buffer[C2]|=receiver[4]->adc;
+      }
+      if(receivers>5) {
+        output_buffer[C2]|=(receiver[5]->adc<<2);
+      }
+      if(receivers>6) {
+        output_buffer[C2]|=(receiver[6]->adc<<4);
+      }
+
       output_buffer[C3]=0x00;
+      output_buffer[C3]|=transmitter->attenuation;
       output_buffer[C4]=0x00;
       break;
     case 7:
@@ -926,7 +1042,7 @@ void ozy_send_buffer() {
       } else {
         if((tune==1) || (vox==1) || (cw_keyer_internal==0)) {
           output_buffer[C1]|=0x00;
-        } else if(mox==1) {
+        } else /*if(mox==1)*/ {
           output_buffer[C1]|=0x01;
         }
       }
@@ -947,6 +1063,19 @@ void ozy_send_buffer() {
       output_buffer[C2]=eer_pwm_min & 0x03;
       output_buffer[C3]=(eer_pwm_max>>3) & 0xFF;
       output_buffer[C4]=eer_pwm_max & 0x03;
+      break;
+    case 10:
+      output_buffer[C0]=0x24;
+      output_buffer[C1]=0x00;
+      if(isTransmitting()) {
+        output_buffer[C1]|=0x80; // ground RX1 on transmit
+      }
+      output_buffer[C2]=0x00;
+      if(receiver[0]->alex_antenna==5) { // XVTR
+        output_buffer[C2]=0x02;
+      }
+      output_buffer[C3]=0x00;
+      output_buffer[C4]=0x00;
       break;
   }
 
@@ -976,9 +1105,11 @@ void ozy_send_buffer() {
 #endif
   metis_write(0x02,output_buffer,OZY_BUFFER_SIZE);
 
-  command++;
-  if(command>9) {
-    command=0;
+  if(current_rx==0) {
+    command++;
+    if(command>10) {
+      command=0;
+    }
   }
 
   //fprintf(stderr,"C0=%02X C1=%02X C2=%02X C3=%02X C4=%02X\n",
@@ -1061,6 +1192,8 @@ static void metis_restart() {
   do {
     ozy_send_buffer();
   } while (command!=0);
+
+  sleep(1);
 
   // start the data flowing
   metis_start_stop(1);

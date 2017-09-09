@@ -28,8 +28,10 @@
 #include "radio.h"
 #include "version.h"
 #include "mode.h"
+#include "vox.h"
 #ifdef FREEDV
 #include "freedv.h"
+#include "vfo.h"
 #endif
 #ifdef PSK
 #include "psk.h"
@@ -54,12 +56,13 @@ meter_clear_surface (void)
   cairo_t *cr;
   cr = cairo_create (meter_surface);
 
-  cairo_set_source_rgb (cr, 0, 0, 0);
+  cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
   cairo_fill (cr);
 
   cairo_destroy (cr);
 }
 
+static gboolean
 meter_configure_event_cb (GtkWidget         *widget,
             GdkEventConfigure *event,
             gpointer           data)
@@ -75,7 +78,7 @@ meter_configure_event_cb (GtkWidget         *widget,
   /* Initialize the surface to black */
   cairo_t *cr;
   cr = cairo_create (meter_surface);
-  cairo_set_source_rgb (cr, 0, 0, 0);
+  cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
   cairo_paint (cr);
   cairo_destroy (cr);
 
@@ -88,7 +91,7 @@ meter_configure_event_cb (GtkWidget         *widget,
  */
 static gboolean
 meter_draw_cb (GtkWidget *widget, cairo_t   *cr, gpointer   data) {
-  cairo_set_source_surface (cr, meter_surface, 0, 0);
+  cairo_set_source_surface (cr, meter_surface, 0.0, 0.0);
   cairo_paint (cr);
   return TRUE;
 }
@@ -217,9 +220,10 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
   cr = cairo_create (meter_surface);
 
   // clear the meter
-  cairo_set_source_rgb (cr, 0, 0, 0);
+  cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
   cairo_paint (cr);
 
+/*
   //sprintf(text,"Version: %s %s", build_date, version);
   sprintf(text,"Version: %s", version);
   cairo_select_font_face(cr, "FreeMono",
@@ -230,7 +234,44 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
   cairo_set_font_size(cr, 12);
   cairo_move_to(cr, 5, 15);
   cairo_show_text(cr, text);
+*/
 
+  cairo_select_font_face(cr, "FreeMono",
+                CAIRO_FONT_SLANT_NORMAL,
+                CAIRO_FONT_WEIGHT_BOLD);
+  cairo_set_font_size(cr, 12);
+
+  cairo_set_line_width(cr, 1.0);
+
+  cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
+  cairo_move_to(cr, 5.0, 15.0);
+  cairo_line_to(cr, 5.0, 5.0);
+  cairo_move_to(cr, 5.0+25.0, 15.0);
+  cairo_line_to(cr, 5.0+25.0, 10.0);
+  cairo_move_to(cr, 5.0+50.0, 15.0);
+  cairo_line_to(cr, 5.0+50.0, 5.0);
+  cairo_move_to(cr, 5.0+75.0, 15.0);
+  cairo_line_to(cr, 5.0+75.0, 10.0);
+  cairo_move_to(cr, 5.0+100.0, 15.0);
+  cairo_line_to(cr, 5.0+100.0, 5.0);
+  cairo_stroke(cr);
+
+  double peak=vox_get_peak();
+  peak=peak*100.0;
+  cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
+  cairo_rectangle(cr, 5.0, 5.0, peak, 5.0);
+  cairo_fill(cr);
+
+  if(vox_enabled) {
+    cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
+    cairo_move_to(cr,5.0+(vox_threshold*100.0),5.0);
+    cairo_line_to(cr,5.0+(vox_threshold*100.0),15.0);
+    cairo_stroke(cr);
+  }
+
+  cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
+  cairo_move_to(cr, 115.0, 15.0);
+  cairo_show_text(cr, "Mic Level");
 
   if(last_meter_type!=meter_type) {
     last_meter_type=meter_type;
@@ -243,7 +284,7 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
     }
   }
 
-  cairo_set_source_rgb(cr, 1, 1, 1);
+  cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
   switch(meter_type) {
     case SMETER:
       // value is dBm
@@ -256,7 +297,7 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
         int db=1;
         int i;
         cairo_set_line_width(cr, 1.0);
-        cairo_set_source_rgb(cr, 1, 1, 1);
+        cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
         for(i=0;i<54;i++) {
           cairo_move_to(cr,offset+(double)(i*db),(double)meter_height-10);
           if(i%18==0) {
@@ -267,13 +308,13 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
         }
         cairo_stroke(cr);
 
-        cairo_set_font_size(cr, 12);
-        cairo_move_to(cr, offset+(double)(18*db)-3.0, (double)meter_height);
+        cairo_set_font_size(cr, 10);
+        cairo_move_to(cr, offset+(double)(18*db)-3.0, (double)meter_height-1);
         cairo_show_text(cr, "3");
-        cairo_move_to(cr, offset+(double)(36*db)-3.0, (double)meter_height);
+        cairo_move_to(cr, offset+(double)(36*db)-3.0, (double)meter_height-1);
         cairo_show_text(cr, "6");
 
-        cairo_set_source_rgb(cr, 1, 0, 0);
+        cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
         cairo_move_to(cr,offset+(double)(54*db),(double)meter_height-10);
         cairo_line_to(cr,offset+(double)(54*db),(double)(meter_height-20));
         cairo_move_to(cr,offset+(double)(74*db),(double)meter_height-10);
@@ -284,16 +325,16 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
         cairo_line_to(cr,offset+(double)(114*db),(double)(meter_height-20));
         cairo_stroke(cr);
 
-        cairo_move_to(cr, offset+(double)(54*db)-3.0, (double)meter_height);
+        cairo_move_to(cr, offset+(double)(54*db)-3.0, (double)meter_height-1);
         cairo_show_text(cr, "9");
-        cairo_move_to(cr, offset+(double)(74*db)-12.0, (double)meter_height);
+        cairo_move_to(cr, offset+(double)(74*db)-12.0, (double)meter_height-1);
         cairo_show_text(cr, "+20");
-        cairo_move_to(cr, offset+(double)(94*db)-9.0, (double)meter_height);
+        cairo_move_to(cr, offset+(double)(94*db)-9.0, (double)meter_height-1);
         cairo_show_text(cr, "+40");
-        cairo_move_to(cr, offset+(double)(114*db)-6.0, (double)meter_height);
+        cairo_move_to(cr, offset+(double)(114*db)-6.0, (double)meter_height-1);
         cairo_show_text(cr, "+60");
 
-        cairo_set_source_rgb(cr, 0, 1, 0);
+        cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
         cairo_rectangle(cr, offset+0.0, (double)(meter_height-40), (double)((level+127.0)*db), 20.0);
         cairo_fill(cr);
 
@@ -303,7 +344,7 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
         }
 
         if(max_level!=0) {
-          cairo_set_source_rgb(cr, 1, 1, 0);
+          cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
           cairo_move_to(cr,offset+(double)((max_level+127.0)*db),(double)meter_height-20);
           cairo_line_to(cr,offset+(double)((max_level+127.0)*db),(double)(meter_height-40));
         }
@@ -323,15 +364,15 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
       cairo_show_text(cr, sf);
 
 #ifdef FREEDV
-      if(active_receiver->mode==modeFREEDV) {
+      if(active_receiver->freedv) {
         if(freedv_sync) {
-          cairo_set_source_rgb(cr, 0, 1, 0);
+          cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
         } else {
-          cairo_set_source_rgb(cr, 1, 0, 0);
+          cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
         }
         cairo_set_font_size(cr, 12);
         sprintf(sf,"SNR: %3.2f",freedv_snr);
-        cairo_move_to(cr, text_location, 30);
+        cairo_move_to(cr, text_location, meter_height-10);
         cairo_show_text(cr, sf);
       }
 #endif
@@ -342,7 +383,7 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
       int i;
       offset=5.0;
       cairo_set_line_width(cr, 1.0);
-      cairo_set_source_rgb(cr, 1, 1, 1);
+      cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
       for(i=0;i<11;i++) {
         cairo_move_to(cr,offset+(double)(i*20),(double)meter_height-10);
         if((i%2)==0) {
@@ -356,11 +397,11 @@ void meter_update(int meter_type,double value,double reverse,double exciter,doub
       }
       cairo_stroke(cr);
 
-      cairo_set_source_rgb(cr, 0, 1, 0);
+      cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
       cairo_rectangle(cr, offset+0.0, (double)(meter_height-40), value*2, 20.0);
       cairo_fill(cr);
 
-      cairo_set_source_rgb(cr, 0, 1, 0);
+      cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
       cairo_set_font_size(cr, 12);
       sprintf(sf,"Level: %d",(int)value);
       cairo_move_to(cr, 210, 45);

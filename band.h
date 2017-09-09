@@ -75,6 +75,7 @@ struct _BAND {
     long long frequencyMin;
     long long frequencyMax;
     long long frequencyLO;
+    long long errorLO;
     int disablePA;
 };
 
@@ -95,5 +96,8 @@ extern BANDSTACK_ENTRY *bandstack_get_bandstack_entry(int band,int entry);
 extern BANDSTACK_ENTRY *bandstack_entry_next();
 extern BANDSTACK_ENTRY *bandstack_entry_previous();
 extern BANDSTACK_ENTRY *bandstack_entry_get_current();
+
+extern void bandSaveState();
+extern void bandRestoreState();
 
 #endif

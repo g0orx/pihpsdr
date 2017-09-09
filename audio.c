@@ -26,7 +26,6 @@
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <pthread.h>
 #include <sched.h>
 #include <semaphore.h>
 
@@ -83,6 +82,7 @@ int audio_open_output(RECEIVER *rx) {
   int dir=0;
 
 
+fprintf(stderr,"audio_open_output: rx=%d audio_device=%d\n",rx->id,rx->audio_device);
   if(rx->audio_device<0 || rx->audio_device>=n_output_devices) {
     rx->audio_device=-1;
     return -1;
@@ -108,28 +108,33 @@ fprintf(stderr,"audio_open_output: selected=%d:%s\n",rx->audio_device,selected);
     return -1;
   }
 
+fprintf(stderr,"audio_open_output: handle=%p\n",rx->playback_handle);
 
   if ((err = snd_pcm_hw_params_malloc (&hw_params)) < 0) {
     fprintf (stderr, "audio_open_output: cannot allocate hardware parameter structure (%s)\n",
             snd_strerror (err));
+    audio_close_output(rx);
     return -1;
   }
 
   if ((err = snd_pcm_hw_params_any (rx->playback_handle, hw_params)) < 0) {
     fprintf (stderr, "audio_open_output: cannot initialize hardware parameter structure (%s)\n",
             snd_strerror (err));
+    audio_close_output(rx);
     return -1;
   }
 
   if ((err = snd_pcm_hw_params_set_access (rx->playback_handle, hw_params, SND_PCM_ACCESS_RW_INTERLEAVED)) < 0) {
     fprintf (stderr, "audio_open_output: cannot set access type (%s)\n",
             snd_strerror (err));
+    audio_close_output(rx);
     return -1;
 }
 	
   if ((err = snd_pcm_hw_params_set_format (rx->playback_handle, hw_params, SND_PCM_FORMAT_S16_LE)) < 0) {
     fprintf (stderr, "audio_open_output: cannot set sample format (%s)\n",
             snd_strerror (err));
+    audio_close_output(rx);
     return -1;
   }
 	
@@ -137,18 +142,21 @@ fprintf(stderr,"audio_open_output: selected=%d:%s\n",rx->audio_device,selected);
   if ((err = snd_pcm_hw_params_set_rate_near (rx->playback_handle, hw_params, &rate, &dir)) < 0) {
     fprintf (stderr, "audio_open_output: cannot set sample rate (%s)\n",
             snd_strerror (err));
+    audio_close_output(rx);
     return -1;
   }
 	
   if ((err = snd_pcm_hw_params_set_channels (rx->playback_handle, hw_params, 2)) < 0) {
     fprintf (stderr, "audio_open_output: cannot set channel count (%s)\n",
             snd_strerror (err));
+    audio_close_output(rx);
     return -1;
   }
 	
   if ((err = snd_pcm_hw_params (rx->playback_handle, hw_params)) < 0) {
     fprintf (stderr, "audio_open_output: cannot set parameters (%s)\n",
             snd_strerror (err));
+    audio_close_output(rx);
     return -1;
   }
 	
@@ -157,6 +165,7 @@ fprintf(stderr,"audio_open_output: selected=%d:%s\n",rx->audio_device,selected);
   rx->playback_offset=0;
   rx->playback_buffer=(unsigned char *)malloc(OUTPUT_BUFFER_SIZE);
 
+fprintf(stderr,"audio_open_output: rx=%d audio_device=%d handle=%p buffer=%p\n",rx->id,rx->audio_device,rx->playback_handle,rx->playback_buffer);
   return 0;
 }
 	
@@ -213,42 +222,49 @@ fprintf(stderr,"audio_open_input: %d\n",transmitter->input_device);
   if ((err = snd_pcm_hw_params_malloc (&hw_params)) < 0) {
     fprintf (stderr, "audio_open_input: cannot allocate hardware parameter structure (%s)\n",
             snd_strerror (err));
+    audio_close_input();
     return -1;
   }
 
   if ((err = snd_pcm_hw_params_any (record_handle, hw_params)) < 0) {
     fprintf (stderr, "audio_open_input: cannot initialize hardware parameter structure (%s)\n",
             snd_strerror (err));
+    audio_close_input();
     return -1;
   }
 
   if ((err = snd_pcm_hw_params_set_access (record_handle, hw_params, SND_PCM_ACCESS_RW_INTERLEAVED)) < 0) {
     fprintf (stderr, "audio_open_input: cannot set access type (%s)\n",
             snd_strerror (err));
+    audio_close_input();
     return -1;
 }
 
   if ((err = snd_pcm_hw_params_set_format (record_handle, hw_params, SND_PCM_FORMAT_S16_LE)) < 0) {
     fprintf (stderr, "audio_open_input: cannot set sample format (%s)\n",
             snd_strerror (err));
+    audio_close_input();
     return -1;
   }
 
   if ((err = snd_pcm_hw_params_set_rate_near (record_handle, hw_params, &rate, &dir)) < 0) {
     fprintf (stderr, "audio_open_input: cannot set sample rate (%s)\n",
             snd_strerror (err));
+    audio_close_input();
     return -1;
   }
 
   if ((err = snd_pcm_hw_params_set_channels (record_handle, hw_params, 1)) < 0) {
     fprintf (stderr, "audio_open_input: cannot set channel count (%s)\n",
             snd_strerror (err));
+    audio_close_input();
     return -1;
   }
 
   if ((err = snd_pcm_hw_params (record_handle, hw_params)) < 0) {
     fprintf (stderr, "audio_open_input: cannot set parameters (%s)\n",
             snd_strerror (err));
+    audio_close_input();
     return -1;
   }
 
@@ -268,6 +284,7 @@ fprintf(stderr,"audio_open_input: %d\n",transmitter->input_device);
 }
 
 void audio_close_output(RECEIVER *rx) {
+fprintf(stderr,"audio_close_output: rx=%d handle=%p buffer=%p\n",rx->id,rx->playback_handle,rx->playback_buffer);
   if(rx->playback_handle!=NULL) {
     snd_pcm_close (rx->playback_handle);
     rx->playback_handle=NULL;
@@ -332,12 +349,12 @@ int audio_write(RECEIVER *rx,short left_sample,short right_sample) {
   return 0;
 }
 
-static gpointer mic_read_thread(gpointer arg) {
+static void *mic_read_thread(gpointer arg) {
   int rc;
   if ((rc = snd_pcm_prepare (record_handle)) < 0) {
     fprintf (stderr, "mic_read_thread: cannot prepare audio interface for use (%s)\n",
             snd_strerror (rc));
-    return;
+    return NULL;
   }
 fprintf(stderr,"mic_read_thread: mic_buffer_size=%d\n",mic_buffer_size);
   while(running) {
@@ -371,7 +388,7 @@ fprintf(stderr,"mic_read_thread: mic_buffer_size=%d\n",mic_buffer_size);
     }
   }
 fprintf(stderr,"mic_read_thread: exiting\n");
-
+  return NULL;
 }
 
 void audio_get_cards() {

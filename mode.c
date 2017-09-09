@@ -30,12 +30,8 @@ char *mode_string[]={
   ,"DIGL"
   ,"SAM"
   ,"DRM"
-#ifdef FREEDV
-  ,"FREEDV"
-#endif
 #ifdef PSK
   ,"PSK"
 #endif
 };
 
-//int mode;

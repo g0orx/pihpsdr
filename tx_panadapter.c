@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <semaphore.h>
+#include <wdsp.h>
 #include "agc.h"
 #include "band.h"
 #include "channel.h"
@@ -68,7 +69,7 @@ panadapter_configure_event_cb (GtkWidget         *widget,
                                        display_height);
 
   cairo_t *cr=cairo_create(tx->panadapter_surface);
-  cairo_set_source_rgb(cr, 0, 0, 0);
+  cairo_set_source_rgb(cr, 0.0, 0.0, 0.0);
   cairo_paint(cr);
   cairo_destroy(cr);
   return TRUE;
@@ -85,7 +86,7 @@ panadapter_draw_cb (GtkWidget *widget,
 {
   TRANSMITTER *tx=(TRANSMITTER *)data;
   if(tx->panadapter_surface) {
-    cairo_set_source_surface (cr, tx->panadapter_surface, 0, 0);
+    cairo_set_source_surface (cr, tx->panadapter_surface, 0.0, 0.0);
     cairo_paint (cr);
   }
   return TRUE;
@@ -174,6 +175,8 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   gfloat saved_hz_per_pixel;
   cairo_text_extents_t extents;
 
+  if(tx->panadapter_surface) {
+
   int display_width=gtk_widget_get_allocated_width (tx->panadapter);
   int display_height=gtk_widget_get_allocated_height (tx->panadapter);
 
@@ -182,13 +185,15 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     id=1;
   }
   samples=tx->pixel_samples;
+
   //hz_per_pixel=(double)tx->output_rate/(double)display_width;
+  //hz_per_pixel=24000.0/(double)display_width;
   hz_per_pixel=48000.0/(double)display_width;
 
   //clear_panadater_surface();
   cairo_t *cr;
   cr = cairo_create (tx->panadapter_surface);
-  cairo_set_source_rgb (cr, 0, 0, 0);
+  cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
   cairo_paint (cr);
 
   // filter
@@ -204,12 +209,12 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   for (i = 1; i < numSteps; i++) {
     int num = tx->panadapter_high - i * 20;
     int y = (int)floor((tx->panadapter_high - num) * display_height / V);
-    cairo_set_source_rgb (cr, 0, 1, 1);
+    cairo_set_source_rgb (cr, 0.0, 1.0, 1.0);
     cairo_set_line_width(cr, 1.0);
     cairo_move_to(cr,0.0,(double)y);
     cairo_line_to(cr,(double)display_width,(double)y);
 
-    cairo_set_source_rgb (cr, 0, 1, 1);
+    cairo_set_source_rgb (cr, 0.0, 1.0, 1.0);
     cairo_select_font_face(cr, "FreeMono", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
     cairo_set_font_size(cr, 12);
     char v[32];
@@ -222,6 +227,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   // plot frequency markers
   long long f;
   long long divisor=20000;
+  //long long half=12000LL; //(long long)(tx->output_rate/2);
   long long half=24000LL; //(long long)(tx->output_rate/2);
   long long frequency;
   frequency=vfo[id].frequency+vfo[VFO_B].offset;
@@ -230,12 +236,12 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     f = frequency - half + (long) (hz_per_pixel * i);
     if (f > 0) {
       if ((f % divisor) < (long) hz_per_pixel) {
-        cairo_set_source_rgb (cr, 0, 1, 1);
+        cairo_set_source_rgb (cr, 0.0, 1.0, 1.0);
         cairo_set_line_width(cr, 1.0);
         cairo_move_to(cr,(double)i,10.0);
         cairo_line_to(cr,(double)i,(double)display_height);
 
-        cairo_set_source_rgb (cr, 0, 1, 1);
+        cairo_set_source_rgb (cr, 0.0, 1.0, 1.0);
         cairo_select_font_face(cr, "FreeMono",
                             CAIRO_FONT_SLANT_NORMAL,
                             CAIRO_FONT_WEIGHT_BOLD);
@@ -262,7 +268,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   }
   BAND *band=band_get_band(b);
   if(band->frequencyMin!=0LL) {
-    cairo_set_source_rgb (cr, 1, 0, 0);
+    cairo_set_source_rgb (cr, 1.0, 0.0, 0.0);
     cairo_set_line_width(cr, 2.0);
     if((min_display<band->frequencyMin)&&(max_display>band->frequencyMin)) {
       i=(band->frequencyMin-min_display)/(long long)hz_per_pixel;
@@ -279,7 +285,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   }
             
   // cursor
-  cairo_set_source_rgb (cr, 1, 0, 0);
+  cairo_set_source_rgb (cr, 1.0, 0.0, 0.0);
   cairo_set_line_width(cr, 1.0);
 //fprintf(stderr,"cursor: x=%f\n",(double)(display_width/2.0)+(vfo[tx->id].offset/hz_per_pixel));
   cairo_move_to(cr,(double)(display_width/2.0)+(vfo[id].offset/hz_per_pixel),0.0);
@@ -293,16 +299,24 @@ void tx_panadapter_update(TRANSMITTER *tx) {
 
   int offset=0;
 
-  if(protocol==NEW_PROTOCOL) {
-    offset=1200;
+  switch(protocol) {
+    case ORIGINAL_PROTOCOL:
+      //offset=(tx->pixels/4)*1;
+      offset=0;
+      break;
+    case NEW_PROTOCOL:
+      //offset=(tx->pixels/16)*7;
+      offset=(tx->pixels/8)*3;
+      break;
   }
-  s1=(double)samples[0+offset]+(double)get_attenuation();
+
+  s1=(double)samples[0+offset]/*+(double)get_attenuation()*/;
   s1 = floor((tx->panadapter_high - s1)
                         * (double) display_height
                         / (tx->panadapter_high - tx->panadapter_low));
   cairo_move_to(cr, 0.0, s1);
   for(i=1;i<display_width;i++) {
-    s2=(double)samples[i+offset]+(double)get_attenuation();
+    s2=(double)samples[i+offset]/*+(double)get_attenuation()*/;
     s2 = floor((tx->panadapter_high - s2)
                             * (double) display_height
                             / (tx->panadapter_high - tx->panadapter_low));
@@ -311,53 +325,70 @@ void tx_panadapter_update(TRANSMITTER *tx) {
 
   if(display_filled) {
     cairo_close_path (cr);
-    cairo_set_source_rgba(cr, 1, 1, 1,0.5);
+    cairo_set_source_rgba(cr, 1.0, 1.0, 1.0,0.5);
     cairo_fill_preserve (cr);
   }
-  cairo_set_source_rgb(cr, 1, 1, 1);
+  cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
   cairo_set_line_width(cr, 1.0);
   cairo_stroke(cr);
 
 #ifdef FREEDV
-  int mode;
-  mode=tx->mode;
-  if(mode==modeFREEDV) {
-    cairo_set_source_rgb(cr, 1, 0, 0);
+  if(active_receiver->freedv) {
+    cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
     cairo_set_font_size(cr, 16);
-    cairo_text_extents(cr, freedv_text_data, &extents);
+    cairo_text_extents(cr, transmitter->freedv_text_data, &extents);
     cairo_move_to(cr, (double)display_width/2.0-(extents.width/2.0),(double)display_height-2.0);
-    cairo_show_text(cr, freedv_text_data);
+    cairo_show_text(cr, transmitter->freedv_text_data);
   }
 #endif
 
 #ifdef GPIO
-  cairo_set_source_rgb(cr,1,1,0);
+  cairo_set_source_rgb(cr,1.0,1.0,0.0);
   cairo_set_font_size(cr,12);
   if(ENABLE_E1_ENCODER) {
-    cairo_move_to(cr, display_width-100,30);
+    cairo_move_to(cr, display_width-100,20);
     cairo_show_text(cr, encoder_string[e1_encoder_action]);
   }
 
   if(ENABLE_E2_ENCODER) {
-    cairo_move_to(cr, display_width-100,50);
+    cairo_move_to(cr, display_width-100,40);
     cairo_show_text(cr, encoder_string[e2_encoder_action]);
   }
 
   if(ENABLE_E3_ENCODER) {
-    cairo_move_to(cr, display_width-100,70);
+    cairo_move_to(cr, display_width-100,60);
     cairo_show_text(cr, encoder_string[e3_encoder_action]);
   }
 #endif
 
+  if(tx->puresignal) {
+    cairo_set_source_rgb(cr,0.0,1.0,0.0);
+    cairo_move_to(cr,display_width/2,display_height-10);
+    cairo_show_text(cr, "PureSignal");
+
+    int info[16];
+    GetPSInfo(tx->id,&info[0]);
+    if(info[14]==0) {
+      cairo_set_source_rgb(cr,1.0,0.0,0.0);
+    } else {
+      cairo_set_source_rgb(cr,0.0,1.0,0.0);
+    }
+    cairo_move_to(cr,(display_width/2)+100,display_height-10);
+    cairo_show_text(cr, "Correcting");
+  }
+
   cairo_destroy (cr);
   gtk_widget_queue_draw (tx->panadapter);
 
+  }
 }
 
 void tx_panadapter_init(TRANSMITTER *tx, int width,int height) {
 
   int display_width=width;
   int display_height=height;
+
+fprintf(stderr,"tx_panadapter_init: %d x %d\n",display_width,display_height);
 
   tx->panadapter_surface=NULL;
   tx->panadapter=gtk_drawing_area_new ();

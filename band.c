@@ -79,7 +79,7 @@ BANDSTACK_ENTRY bandstack_entries20[] =
      {14230000LL,modeUSB,filterF5,200,2800,200,2800},
      {14336000LL,modeUSB,filterF5,200,2800,200,2800}};
 
-BANDSTACK_ENTRY bandstack_entries18[] =
+BANDSTACK_ENTRY bandstack_entries17[] =
     {{18068600LL,modeCWU,filterF6,200,2800,200,2800},
      {18125000LL,modeUSB,filterF5,200,2800,200,2800},
      {18140000LL,modeUSB,filterF5,200,2800,200,2800}};
@@ -99,7 +99,7 @@ BANDSTACK_ENTRY bandstack_entries10[] =
      {28300000LL,modeUSB,filterF5,200,2800,200,2800},
      {28400000LL,modeUSB,filterF5,200,2800,200,2800}};
 
-BANDSTACK_ENTRY bandstack_entries50[] =
+BANDSTACK_ENTRY bandstack_entries6[] =
     {{50010000LL,modeCWU,filterF6,200,2800,200,2800},
      {50125000LL,modeUSB,filterF5,200,2800,200,2800},
      {50200000LL,modeUSB,filterF5,200,2800,200,2800}};
@@ -175,11 +175,11 @@ BANDSTACK bandstack60={5,1,bandstack_entries60};
 BANDSTACK bandstack40={3,1,bandstack_entries40};
 BANDSTACK bandstack30={3,1,bandstack_entries30};
 BANDSTACK bandstack20={4,1,bandstack_entries20};
-BANDSTACK bandstack18={3,1,bandstack_entries18};
+BANDSTACK bandstack17={3,1,bandstack_entries17};
 BANDSTACK bandstack15={3,1,bandstack_entries15};
 BANDSTACK bandstack12={3,1,bandstack_entries12};
 BANDSTACK bandstack10={3,1,bandstack_entries10};
-BANDSTACK bandstack50={3,1,bandstack_entries50};
+BANDSTACK bandstack6={3,1,bandstack_entries6};
 #ifdef LIMESDR
 BANDSTACK bandstack70={3,1,bandstack_entries70};
 BANDSTACK bandstack144={6,1,bandstack_entries144};
@@ -203,30 +203,46 @@ BANDSTACK bandstack472={2,0,bandstack_entries472};
 /* ----------------------------------------------------------------------------*/
 
 BANDSTACK_ENTRY bandstack_entries_xvtr_0[] =
-    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
+    {{0LL,modeUSB,filterF6,150,2550,150,2550},
+     {0LL,modeUSB,filterF6,150,2550,150,2550},
+     {0LL,modeUSB,filterF6,150,2550,150,2550}};
 BANDSTACK_ENTRY bandstack_entries_xvtr_1[] =
-    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
+    {{0LL,modeUSB,filterF6,150,2550,150,2550},
+     {0LL,modeUSB,filterF6,150,2550,150,2550},
+     {0LL,modeUSB,filterF6,150,2550,150,2550}};
 BANDSTACK_ENTRY bandstack_entries_xvtr_2[] =
-    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
+    {{0LL,modeUSB,filterF6,150,2550,150,2550},
+     {0LL,modeUSB,filterF6,150,2550,150,2550},
+     {0LL,modeUSB,filterF6,150,2550,150,2550}};
 BANDSTACK_ENTRY bandstack_entries_xvtr_3[] =
-    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
+    {{0LL,modeUSB,filterF6,150,2550,150,2550},
+     {0LL,modeUSB,filterF6,150,2550,150,2550},
+     {0LL,modeUSB,filterF6,150,2550,150,2550}};
 BANDSTACK_ENTRY bandstack_entries_xvtr_4[] =
-    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
+    {{0LL,modeUSB,filterF6,150,2550,150,2550},
+     {0LL,modeUSB,filterF6,150,2550,150,2550},
+     {0LL,modeUSB,filterF6,150,2550,150,2550}};
 BANDSTACK_ENTRY bandstack_entries_xvtr_5[] =
-    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
+    {{0LL,modeUSB,filterF6,150,2550,150,2550},
+     {0LL,modeUSB,filterF6,150,2550,150,2550},
+     {0LL,modeUSB,filterF6,150,2550,150,2550}};
 BANDSTACK_ENTRY bandstack_entries_xvtr_6[] =
-    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
+    {{0LL,modeUSB,filterF6,150,2550,150,2550},
+     {0LL,modeUSB,filterF6,150,2550,150,2550},
+     {0LL,modeUSB,filterF6,150,2550,150,2550}};
 BANDSTACK_ENTRY bandstack_entries_xvtr_7[] =
-    {{0LL,modeUSB,filterF6,150,2550,150,2550}};
+    {{0LL,modeUSB,filterF6,150,2550,150,2550},
+     {0LL,modeUSB,filterF6,150,2550,150,2550},
+     {0LL,modeUSB,filterF6,150,2550,150,2550}};
 
-BANDSTACK bandstack_xvtr_0={1,0,bandstack_entries_xvtr_0};
-BANDSTACK bandstack_xvtr_1={1,0,bandstack_entries_xvtr_1};
-BANDSTACK bandstack_xvtr_2={1,0,bandstack_entries_xvtr_2};
-BANDSTACK bandstack_xvtr_3={1,0,bandstack_entries_xvtr_3};
-BANDSTACK bandstack_xvtr_4={1,0,bandstack_entries_xvtr_4};
-BANDSTACK bandstack_xvtr_5={1,0,bandstack_entries_xvtr_5};
-BANDSTACK bandstack_xvtr_6={1,0,bandstack_entries_xvtr_6};
-BANDSTACK bandstack_xvtr_7={1,0,bandstack_entries_xvtr_7};
+BANDSTACK bandstack_xvtr_0={3,0,bandstack_entries_xvtr_0};
+BANDSTACK bandstack_xvtr_1={3,0,bandstack_entries_xvtr_1};
+BANDSTACK bandstack_xvtr_2={3,0,bandstack_entries_xvtr_2};
+BANDSTACK bandstack_xvtr_3={3,0,bandstack_entries_xvtr_3};
+BANDSTACK bandstack_xvtr_4={3,0,bandstack_entries_xvtr_4};
+BANDSTACK bandstack_xvtr_5={3,0,bandstack_entries_xvtr_5};
+BANDSTACK bandstack_xvtr_6={3,0,bandstack_entries_xvtr_6};
+BANDSTACK bandstack_xvtr_7={3,0,bandstack_entries_xvtr_7};
 
 
 
@@ -237,11 +253,11 @@ BAND bands[BANDS+XVTRS] =
      {"40",&bandstack40,0,0,0,0,0,ALEX_ATTENUATION_0dB,53.0,7000000LL,7300000LL,0LL,0},
      {"30",&bandstack30,0,0,0,0,0,ALEX_ATTENUATION_0dB,53.0,10100000LL,10150000LL,0LL,0},
      {"20",&bandstack20,0,0,0,0,0,ALEX_ATTENUATION_0dB,53.0,14000000LL,14350000LL,0LL,0},
-     {"18",&bandstack18,0,0,0,0,0,ALEX_ATTENUATION_0dB,53.0,18068000LL,18168000LL,0LL,0},
+     {"17",&bandstack17,0,0,0,0,0,ALEX_ATTENUATION_0dB,53.0,18068000LL,18168000LL,0LL,0},
      {"15",&bandstack15,0,0,0,0,0,ALEX_ATTENUATION_0dB,53.0,21000000LL,21450000LL,0LL,0},
      {"12",&bandstack12,0,0,0,0,0,ALEX_ATTENUATION_0dB,53.0,24890000LL,24990000LL,0LL,0},
      {"10",&bandstack10,0,0,0,0,0,ALEX_ATTENUATION_0dB,53.0,28000000LL,29700000LL,0LL,0},
-     {"50",&bandstack50,0,0,0,0,0,ALEX_ATTENUATION_0dB,53.0,50000000LL,54000000LL,0LL,0},
+     {"6",&bandstack6,0,0,0,0,0,ALEX_ATTENUATION_0dB,53.0,50000000LL,54000000LL,0LL,0},
 #ifdef LIMESDR
      {"70",&bandstack70,0,0,0,0,0,ALEX_ATTENUATION_0dB,53.0,0LL,0LL,0LL,0},
      {"144",&bandstack144,0,0,0,0,0,ALEX_ATTENUATION_0dB,53.0,144000000LL,148000000LL,0LL,0},
@@ -386,6 +402,10 @@ void bandSaveState() {
         sprintf(name,"band.%d.frequencyLO",b);
         setProperty(name,value);
 
+        sprintf(value,"%lld",bands[b].errorLO);
+        sprintf(name,"band.%d.errorLO",b);
+        setProperty(name,value);
+
         sprintf(value,"%d",bands[b].disablePA);
         sprintf(name,"band.%d.disablePA",b);
         setProperty(name,value);
@@ -437,8 +457,6 @@ void bandRestoreState() {
     char name[128];
     BANDSTACK_ENTRY* entry;
     int current;
-
-fprintf(stderr,"bandRestoreState: restore bands\n");
 
     for(b=0;b<BANDS+XVTRS;b++) {
         sprintf(name,"band.%d.title",b);
@@ -500,6 +518,10 @@ fprintf(stderr,"bandRestoreState: restore bands\n");
         sprintf(name,"band.%d.frequencyLO",b);
         value=getProperty(name);
         if(value) bands[b].frequencyLO=atoll(value);
+
+        sprintf(name,"band.%d.errorLO",b);
+        value=getProperty(name);
+        if(value) bands[b].errorLO=atoll(value);
 
         sprintf(name,"band.%d.disablePA",b);
         value=getProperty(name);

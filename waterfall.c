@@ -49,14 +49,6 @@ static gboolean pressed=FALSE;
 
 static gfloat hz_per_pixel;
 
-/*
-#define BANDS 7
-
-static long long frequency[BANDS];
-static gint mode[BANDS];
-static gint band=4;
-*/
-
 static int display_width;
 static int display_height;
 
@@ -137,6 +129,42 @@ void waterfall_update(RECEIVER *rx) {
     int rowstride=gdk_pixbuf_get_rowstride(rx->pixbuf);
     int channels=gdk_pixbuf_get_n_channels(rx->pixbuf);
 
+    hz_per_pixel=(double)rx->sample_rate/(double)display_width;
+
+    if(rx->waterfall_frequency!=0 && (rx->sample_rate==rx->waterfall_sample_rate)) {
+      if(rx->waterfall_frequency!=vfo[rx->id].frequency) {
+        // scrolled or band change
+        long long half=(long long)(rx->sample_rate/2);
+        if(rx->waterfall_frequency<(vfo[rx->id].frequency-half) || rx->waterfall_frequency>(vfo[rx->id].frequency+half)) {
+          // outside of the range - blank waterfall
+//fprintf(stderr,"waterfall_update: clear waterfall from %lld to %lld\n",rx->waterfall_frequency,vfo[rx->id].frequency);
+          memset(pixels, 0, display_width*display_height*3);
+        } else {
+          // rotate waterfall
+          int rotate_pixels=(int)((double)(rx->waterfall_frequency-vfo[rx->id].frequency)/hz_per_pixel);
+//fprintf(stderr,"waterfall_update: rotate waterfall from %lld to %lld pixels=%d\n",rx->waterfall_frequency,vfo[rx->id].frequency,rotate_pixels);
+          if(rotate_pixels<0) {
+            memmove(pixels,&pixels[-rotate_pixels*3],((display_width*display_height)+rotate_pixels)*3);
+            //now clear the right hand side
+            for(i=0;i<display_height;i++) {
+              memset(&pixels[((i*display_width)+(width+rotate_pixels))*3], 0, -rotate_pixels*3);
+            }
+          } else {
+            memmove(&pixels[rotate_pixels*3],pixels,((display_width*display_height)-rotate_pixels)*3);
+            //now clear the left hand side
+            for(i=0;i<display_height;i++) {
+              memset(&pixels[(i*display_width)*3], 0, rotate_pixels*3);
+            }
+          }
+        }
+      }
+    } else {
+      memset(pixels, 0, display_width*display_height*3);
+    }
+
+    rx->waterfall_frequency=vfo[rx->id].frequency;
+    rx->waterfall_sample_rate=rx->sample_rate;
+
     memmove(&pixels[rowstride],pixels,(height-1)*rowstride);
 
     float sample;
@@ -214,11 +242,8 @@ void waterfall_init(RECEIVER *rx,int width,int height) {
   display_height=height;
 
   rx->pixbuf=NULL;
-  rx->waterfall_low=waterfall_low;
-  rx->waterfall_high=waterfall_high;
-  rx->waterfall_automatic=waterfall_automatic;
-
-  hz_per_pixel=(double)rx->sample_rate/(double)display_width;
+  rx->waterfall_frequency=0;
+  rx->waterfall_sample_rate=0;
 
   //waterfall_frame = gtk_frame_new (NULL);
   rx->waterfall = gtk_drawing_area_new ();

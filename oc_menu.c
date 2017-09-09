@@ -20,6 +20,7 @@
 #include <gtk/gtk.h>
 #include <semaphore.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "new_menu.h"
@@ -28,6 +29,7 @@
 #include "bandstack.h"
 #include "filter.h"
 #include "radio.h"
+#include "new_protocol.h"
 
 static GtkWidget *parent_window=NULL;
 
@@ -35,18 +37,27 @@ static GtkWidget *menu_b=NULL;
 
 static GtkWidget *dialog=NULL;
 
-static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+static void cleanup() {
   if(dialog!=NULL) {
     gtk_widget_destroy(dialog);
     dialog=NULL;
     sub_menu=NULL;
   }
+}
+
+static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  cleanup();
   return TRUE;
 }
 
+static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_data) {
+  cleanup();
+  return FALSE;
+}
+
 static void oc_rx_cb(GtkWidget *widget, gpointer data) {
-  int b=((int)data)>>4;
-  int oc=((int)data)&0xF;
+  int b=((uintptr_t)data)>>4;
+  int oc=((uintptr_t)data)&0xF;
   BAND *band=band_get_band(b);
   int mask=0x01<<(oc-1);
 fprintf(stderr,"oc_rx_cb: band=%d oc=%d mask=%d\n",b,oc,mask);
@@ -62,8 +73,8 @@ fprintf(stderr,"oc_rx_cb: band=%d oc=%d mask=%d\n",b,oc,mask);
 }
 
 static void oc_tx_cb(GtkWidget *widget, gpointer data) {
-  int b=((int)data)>>4;
-  int oc=((int)data)&0xF;
+  int b=((uintptr_t)data)>>4;
+  int oc=((uintptr_t)data)&0xF;
   BAND *band=band_get_band(b);
   int mask=0x01<<(oc-1);
 
@@ -80,7 +91,7 @@ fprintf(stderr,"oc_tx_cb: band=%d oc=%d mask=%d\n",b,oc,mask);
 }
 
 static void oc_tune_cb(GtkWidget *widget, gpointer data) {
-  int oc=((int)data)&0xF;
+  int oc=((uintptr_t)data)&0xF;
   int mask=0x01<<(oc-1);
 fprintf(stderr,"oc_tune_cb: oc=%d mask=%d\n",oc,mask);
   if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
@@ -105,7 +116,9 @@ void oc_menu(GtkWidget *parent) {
 
   dialog=gtk_dialog_new();
   gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent_window));
-  gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  //gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  gtk_window_set_title(GTK_WINDOW(dialog),"piHPSDR - Open Collector Output");
+  g_signal_connect (dialog, "delete_event", G_CALLBACK (delete_event), NULL);
 
   GdkRGBA color;
   color.red = 1.0;
@@ -122,7 +135,7 @@ void oc_menu(GtkWidget *parent) {
   //gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
   //gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
 
-  GtkWidget *close_b=gtk_button_new_with_label("Close OC");
+  GtkWidget *close_b=gtk_button_new_with_label("Close");
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
@@ -159,9 +172,9 @@ void oc_menu(GtkWidget *parent) {
     gtk_grid_attach(GTK_GRID(grid),oc_tx_title,i+7,2,1,1);
   }
 
-  for(i=0;i<BANDS;i++) {
+  for(i=0;i<BANDS+XVTRS;i++) {
     BAND *band=band_get_band(i);
-
+    if(strlen(band->title)>0) {
     GtkWidget *band_label=gtk_label_new(band->title);
     //gtk_widget_override_font(band_label, pango_font_description_from_string("Arial 18"));
     gtk_widget_show(band_label);
@@ -175,16 +188,17 @@ void oc_menu(GtkWidget *parent) {
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (oc_rx_b), (band->OCrx&mask)==mask);
       gtk_widget_show(oc_rx_b);
       gtk_grid_attach(GTK_GRID(grid),oc_rx_b,j,i+3,1,1);
-      g_signal_connect(oc_rx_b,"toggled",G_CALLBACK(oc_rx_cb),(gpointer)(j+(i<<4)));
+      g_signal_connect(oc_rx_b,"toggled",G_CALLBACK(oc_rx_cb),(gpointer)(long)(j+(i<<4)));
 
       GtkWidget *oc_tx_b=gtk_check_button_new();
       //gtk_widget_override_font(oc_tx_b, pango_font_description_from_string("Arial 18"));
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (oc_tx_b), (band->OCtx&mask)==mask);
       gtk_widget_show(oc_tx_b);
       gtk_grid_attach(GTK_GRID(grid),oc_tx_b,j+7,i+3,1,1);
-      g_signal_connect(oc_tx_b,"toggled",G_CALLBACK(oc_tx_cb),(gpointer)(j+(i<<4)));
+      g_signal_connect(oc_tx_b,"toggled",G_CALLBACK(oc_tx_cb),(gpointer)(long)(j+(i<<4)));
 
     }
+  }
   }
 
   int mask;
@@ -202,7 +216,7 @@ void oc_menu(GtkWidget *parent) {
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (oc_tune_b), (OCtune&mask)==mask);
     gtk_widget_show(oc_tune_b);
     gtk_grid_attach(GTK_GRID(grid),oc_tune_b,19,j+1,1,1);
-    g_signal_connect(oc_tune_b,"toggled",G_CALLBACK(oc_tune_cb),(gpointer)j);
+    g_signal_connect(oc_tune_b,"toggled",G_CALLBACK(oc_tune_cb),(gpointer)(long)j);
   }
 
   GtkWidget *oc_full_tune_time_title=gtk_label_new("Full Tune(ms):");

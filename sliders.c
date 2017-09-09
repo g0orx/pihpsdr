@@ -38,8 +38,10 @@
 #include "wdsp.h"
 #include "radio.h"
 #include "receiver.h"
+#include "transmitter.h"
 #include "property.h"
 #include "main.h"
+#include "ext.h"
 
 static int width;
 static int height;
@@ -52,8 +54,9 @@ static GtkWidget *sliders;
 #define LINEIN_GAIN 3
 #define AGC_GAIN 4
 #define DRIVE 5
-#define TUNE_DRIVE 6
-#define ATTENUATION 7
+#define ATTENUATION 6
+#define SQUELCH 7
+#define COMP 8
 
 static gint scale_timer;
 static int scale_status=NONE;
@@ -70,15 +73,20 @@ static GtkWidget *linein_gain_label;
 static GtkWidget *linein_gain_scale;
 static GtkWidget *drive_label;
 static GtkWidget *drive_scale;
-static GtkWidget *tune_label;
-static GtkWidget *tune_scale;
+static GtkWidget *squelch_label;
+static GtkWidget *squelch_scale;
+static GtkWidget *squelch_enable;
+static GtkWidget *comp_label;
+static GtkWidget *comp_scale;
+static GtkWidget *comp_enable;
 static GtkWidget *dummy_label;
 
 static GdkRGBA white;
 static GdkRGBA gray;
 
-int linein_changed(void *data) {
+void sliders_update() {
   if(display_sliders) {
+    // update mic/linein
     if(mic_linein) {
       gtk_widget_hide(mic_gain_label);
       gtk_widget_hide(mic_gain_scale);
@@ -91,15 +99,16 @@ int linein_changed(void *data) {
       gtk_widget_show(mic_gain_scale);
     }
   }
-  return 0;
 }
 
-int active_receiver_changed(void *data) {
+int sliders_active_receiver_changed(void *data) {
   if(display_sliders) {
     gtk_range_set_value(GTK_RANGE(af_gain_scale),active_receiver->volume*100.0);
     gtk_range_set_value (GTK_RANGE(agc_scale),active_receiver->agc_gain);
     gtk_range_set_value (GTK_RANGE(attenuation_scale),active_receiver->attenuation);
+    sliders_update();
   }
+  return FALSE;
 }
 
 int scale_timeout_cb(gpointer data) {
@@ -184,20 +193,23 @@ void set_agc_gain(double value) {
   }
 }
 
-int update_agc_gain(void *data) {
-  set_agc_gain(*(double*)data);
-  free(data);
-  return 0;
+void update_agc_gain(double gain) {
+  set_agc_gain(gain);
 }
 
 static void afgain_value_changed_cb(GtkWidget *widget, gpointer data) {
     active_receiver->volume=gtk_range_get_value(GTK_RANGE(af_gain_scale))/100.0;
-    SetRXAPanelGain1 (active_receiver->id, active_receiver->volume);
+#ifdef FREEDV
+    if(!active_receiver->freedv) {
+#endif
+      SetRXAPanelGain1 (active_receiver->id, active_receiver->volume);
+#ifdef FREEDV
+    }
+#endif
 }
 
-int update_af_gain(void *data) {
+void update_af_gain() {
   set_af_gain(active_receiver->volume);
-  return 0;
 }
 
 void set_af_gain(double value) {
@@ -365,12 +377,30 @@ int update_drive(void *data) {
   return 0;
 }
 
-void set_tune(double value) {
-  setTuneDrive(value);
+static void squelch_value_changed_cb(GtkWidget *widget, gpointer data) {
+  active_receiver->squelch=gtk_range_get_value(GTK_RANGE(widget));
+  setSquelch(active_receiver);
+}
+
+static void squelch_enable_cb(GtkWidget *widget, gpointer data) {
+  active_receiver->squelch_enable=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
+  setSquelch(active_receiver);
+}
+
+static void compressor_value_changed_cb(GtkWidget *widget, gpointer data) {
+  transmitter_set_compressor_level(transmitter,gtk_range_get_value(GTK_RANGE(widget)));
+}
+
+static void compressor_enable_cb(GtkWidget *widget, gpointer data) {
+  transmitter_set_compressor(transmitter,gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)));
+}
+
+void set_squelch(RECEIVER* rx) {
+  setSquelch(active_receiver);
   if(display_sliders) {
-    gtk_range_set_value (GTK_RANGE(tune_scale),value);
+    gtk_range_set_value (GTK_RANGE(squelch_scale),active_receiver->squelch);
   } else {
-    if(scale_status!=TUNE_DRIVE) {
+    if(scale_status!=SQUELCH) {
       if(scale_status!=NONE) {
         g_source_remove(scale_timer);
         gtk_widget_destroy(scale_dialog);
@@ -378,27 +408,52 @@ void set_tune(double value) {
       }
     }
     if(scale_status==NONE) {
-      scale_status=TUNE_DRIVE;
-      scale_dialog=gtk_dialog_new_with_buttons("Tune Drive",GTK_WINDOW(top_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
+      scale_status=SQUELCH;
+      scale_dialog=gtk_dialog_new_with_buttons("Squelch",GTK_WINDOW(top_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
       GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
-      tune_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.00);
-      gtk_widget_set_size_request (tune_scale, 400, 30);
-      gtk_range_set_value (GTK_RANGE(tune_scale),value);
-      gtk_widget_show(tune_scale);
-      gtk_container_add(GTK_CONTAINER(content),tune_scale);
+      squelch_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.00);
+      gtk_range_set_value (GTK_RANGE(squelch_scale),active_receiver->squelch);
+      gtk_widget_set_size_request (squelch_scale, 400, 30);
+      gtk_widget_show(squelch_scale);
+      gtk_container_add(GTK_CONTAINER(content),squelch_scale);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
-      //gtk_widget_show_all(scale_dialog);
       int result=gtk_dialog_run(GTK_DIALOG(scale_dialog));
     } else {
       g_source_remove(scale_timer);
-      gtk_range_set_value (GTK_RANGE(tune_scale),value);
+      gtk_range_set_value (GTK_RANGE(squelch_scale),active_receiver->squelch);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
     }
   }
 }
 
-static void tune_value_changed_cb(GtkWidget *widget, gpointer data) {
-  setTuneDrive(gtk_range_get_value(GTK_RANGE(tune_scale)));
+void set_compression(TRANSMITTER* tx) {
+//  if(display_sliders) {
+//    gtk_range_set_value (GTK_RANGE(comp_scale),tx->compressor_level);
+//  } else {
+    if(scale_status!=COMP) {
+      if(scale_status!=NONE) {
+        g_source_remove(scale_timer);
+        gtk_widget_destroy(scale_dialog);
+        scale_status=NONE;
+      }
+    }
+    if(scale_status==NONE) {
+      scale_status=COMP;
+      scale_dialog=gtk_dialog_new_with_buttons("COMP",GTK_WINDOW(top_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
+      GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
+      comp_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 20.0, 1.00);
+      gtk_range_set_value (GTK_RANGE(comp_scale),tx->compressor_level);
+      gtk_widget_set_size_request (comp_scale, 400, 30);
+      gtk_widget_show(comp_scale);
+      gtk_container_add(GTK_CONTAINER(content),comp_scale);
+      scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
+      int result=gtk_dialog_run(GTK_DIALOG(scale_dialog));
+    } else {
+      g_source_remove(scale_timer);
+      gtk_range_set_value (GTK_RANGE(comp_scale),tx->compressor_level);
+      scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
+    }
+  //}
 }
 
 GtkWidget *sliders_init(int my_width, int my_height) {
@@ -476,21 +531,22 @@ GtkWidget *sliders_init(int my_width, int my_height) {
   gtk_grid_attach(GTK_GRID(sliders),drive_scale,4,1,2,1);
   g_signal_connect(G_OBJECT(drive_scale),"value_changed",G_CALLBACK(drive_value_changed_cb),NULL);
 
-  tune_label=gtk_label_new("Tune:");
-  //gtk_widget_override_font(tune_label, pango_font_description_from_string("Arial 16"));
-  gtk_widget_show(tune_label);
-  gtk_grid_attach(GTK_GRID(sliders),tune_label,6,1,1,1);
+  squelch_label=gtk_label_new("Squelch:");
+  //gtk_widget_override_font(squelch_label, pango_font_description_from_string("Arial 16"));
+  gtk_widget_show(squelch_label);
+  gtk_grid_attach(GTK_GRID(sliders),squelch_label,6,1,1,1);
 
-  tune_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.0);
-  gtk_range_set_value (GTK_RANGE(tune_scale),getTuneDrive());
-  gtk_widget_show(tune_scale);
-  gtk_grid_attach(GTK_GRID(sliders),tune_scale,7,1,2,1);
-  g_signal_connect(G_OBJECT(tune_scale),"value_changed",G_CALLBACK(tune_value_changed_cb),NULL);
+  squelch_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.0);
+  gtk_range_set_value (GTK_RANGE(squelch_scale),active_receiver->squelch);
+  gtk_widget_show(squelch_scale);
+  gtk_grid_attach(GTK_GRID(sliders),squelch_scale,7,1,2,1);
+  g_signal_connect(G_OBJECT(squelch_scale),"value_changed",G_CALLBACK(squelch_value_changed_cb),NULL);
 
-  dummy_label=gtk_label_new(" ");
-  //gtk_widget_override_font(dummy_label, pango_font_description_from_string("Arial 16"));
-  gtk_widget_show(dummy_label);
-  gtk_grid_attach(GTK_GRID(sliders),dummy_label,9,1,1,1);
+  squelch_enable=gtk_check_button_new();
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(squelch_enable),active_receiver->squelch_enable);
+  gtk_widget_show(squelch_enable);
+  gtk_grid_attach(GTK_GRID(sliders),squelch_enable,9,1,1,1);
+  g_signal_connect(squelch_enable,"toggled",G_CALLBACK(squelch_enable_cb),NULL);
 
   return sliders;
 }

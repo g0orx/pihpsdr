@@ -24,6 +24,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <semaphore.h>
+
+#include <wdsp.h>
+
 #include "agc.h"
 #include "band.h"
 #include "channel.h"
@@ -37,13 +40,16 @@
 #ifdef FREEDV
 #include "freedv.h"
 #endif
+#ifdef GPIO
 #include "gpio.h"
+#endif
 
 //static float panadapter_max=-60.0;
 //static float panadapter_min=-160.0;
 
 static gfloat filter_left;
 static gfloat filter_right;
+static gfloat cw_frequency;
 
 /* Create a new surface of the appropriate size to store our scribbles */
 static gboolean
@@ -66,7 +72,7 @@ panadapter_configure_event_cb (GtkWidget         *widget,
                                        display_height);
 
   cairo_t *cr=cairo_create(rx->panadapter_surface);
-  cairo_set_source_rgb(cr, 0, 0, 0);
+  cairo_set_source_rgb(cr, 0.0, 0.0, 0.0);
   cairo_paint(cr);
   cairo_destroy(cr);
   return TRUE;
@@ -83,7 +89,7 @@ panadapter_draw_cb (GtkWidget *widget,
 {
   RECEIVER *rx=(RECEIVER *)data;
   if(rx->panadapter_surface) {
-    cairo_set_source_surface (cr, rx->panadapter_surface, 0, 0);
+    cairo_set_source_surface (cr, rx->panadapter_surface, 0.0, 0.0);
     cairo_paint (cr);
   }
 
@@ -119,12 +125,17 @@ void rx_panadapter_update(RECEIVER *rx) {
   int display_width=gtk_widget_get_allocated_width (rx->panadapter);
   int display_height=gtk_widget_get_allocated_height (rx->panadapter);
 
+#ifdef FREEDV
+  if(rx->freedv) {
+    display_height=display_height-20;
+  }
+#endif
   samples=rx->pixel_samples;
 
   //clear_panadater_surface();
   cairo_t *cr;
   cr = cairo_create (rx->panadapter_surface);
-  cairo_set_source_rgb (cr, 0, 0, 0);
+  cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
   cairo_rectangle(cr,0,0,display_width,display_height);
   cairo_fill(cr);
   //cairo_paint (cr);
@@ -136,11 +147,23 @@ void rx_panadapter_update(RECEIVER *rx) {
   cairo_rectangle(cr, filter_left, 0.0, filter_right-filter_left, (double)display_height);
   cairo_fill(cr);
 
+  if(vfo[rx->id].mode==modeCWU || vfo[rx->id].mode==modeCWL) {
+    if(active) {
+      cairo_set_source_rgb (cr, 1.0, 1.0, 0.0);
+    } else {
+      cairo_set_source_rgb (cr, 0.25, 0.25, 0.0);
+    }
+    cw_frequency=filter_left+((filter_right-filter_left)/2.0);
+    cairo_move_to(cr,cw_frequency,10.0);
+    cairo_line_to(cr,cw_frequency,(double)display_height);
+    cairo_stroke(cr);
+  }
+
   // plot the levels
   if(active) {
-    cairo_set_source_rgb (cr, 0, 1, 1);
+    cairo_set_source_rgb (cr, 0.0, 1.0, 1.0);
   } else {
-    cairo_set_source_rgb (cr, 0, 0.5, 0.5);
+    cairo_set_source_rgb (cr, 0.0, 0.5, 0.5);
   }
 
   double dbm_per_line=(double)display_height/((double)rx->panadapter_high-(double)rx->panadapter_low);
@@ -180,7 +203,7 @@ void rx_panadapter_update(RECEIVER *rx) {
       divisor=20000L;
       break;
     case 384000:
-      divisor=25000L;
+      divisor=50000L;
       break;
     case 768000:
       divisor=50000L;
@@ -220,7 +243,7 @@ void rx_panadapter_update(RECEIVER *rx) {
   long long max_display=frequency+half;
   BAND *band=band_get_band(vfo[rx->id].band);
   if(band->frequencyMin!=0LL) {
-    cairo_set_source_rgb (cr, 1, 0, 0);
+    cairo_set_source_rgb (cr, 1.0, 0.0, 0.0);
     cairo_set_line_width(cr, 2.0);
     if((min_display<band->frequencyMin)&&(max_display>band->frequencyMin)) {
       i=(band->frequencyMin-min_display)/(long long)rx->hz_per_pixel;
@@ -289,9 +312,9 @@ void rx_panadapter_update(RECEIVER *rx) {
 
   // cursor
   if(active) {
-    cairo_set_source_rgb (cr, 1, 0, 0);
+    cairo_set_source_rgb (cr, 1.0, 0.0, 0.0);
   } else {
-    cairo_set_source_rgb (cr, 0.5, 0, 0);
+    cairo_set_source_rgb (cr, 0.5, 0.0, 0.0);
   }
   cairo_set_line_width(cr, 1.0);
   cairo_move_to(cr,(double)(display_width/2.0)+(vfo[rx->id].offset/rx->hz_per_pixel),0.0);
@@ -319,14 +342,14 @@ void rx_panadapter_update(RECEIVER *rx) {
   if(display_filled) {
     cairo_close_path (cr);
     if(active) {
-      cairo_set_source_rgba(cr, 1, 1, 1,0.5);
+      cairo_set_source_rgba(cr, 1.0, 1.0, 1.0,0.5);
     } else {
       cairo_set_source_rgba(cr, 0.5, 0.5, 0.5,0.5);
     }
     cairo_fill_preserve (cr);
   }
   if(active) {
-    cairo_set_source_rgb(cr, 1, 1, 1);
+    cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
   } else {
     cairo_set_source_rgb(cr, 0.5, 0.5, 0.5);
   }
@@ -334,19 +357,21 @@ void rx_panadapter_update(RECEIVER *rx) {
   cairo_stroke(cr);
 
 #ifdef FREEDV
-  int mode=rx->mode;
-  if(mode==modeFREEDV) {
-    cairo_set_source_rgb(cr, 0, 1, 0);
-    cairo_set_font_size(cr, 16);
-    cairo_text_extents(cr, freedv_text_data, &extents);
-    cairo_move_to(cr, (double)display_width/2.0-(extents.width/2.0),(double)display_height-2.0);
-    cairo_show_text(cr, freedv_text_data);
+  if(rx->freedv) {
+    cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
+    cairo_rectangle(cr,0,display_height,display_width,display_height+20);
+    cairo_fill(cr);
+
+    cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
+    cairo_set_font_size(cr, 18);
+    cairo_move_to(cr, 0.0, (double)display_height+20.0-2.0);
+    cairo_show_text(cr, rx->freedv_text_data);
   }
 #endif
 
 #ifdef GPIO
   if(active) {
-    cairo_set_source_rgb(cr,1,1,0);
+    cairo_set_source_rgb(cr,1.0,1.0,0.0);
     cairo_set_font_size(cr,12);
     if(ENABLE_E1_ENCODER) {
       cairo_move_to(cr, display_width-100,20);
@@ -364,6 +389,7 @@ void rx_panadapter_update(RECEIVER *rx) {
     }
   }
 #endif
+
 
   cairo_destroy (cr);
   gtk_widget_queue_draw (rx->panadapter);

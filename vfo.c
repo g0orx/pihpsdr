@@ -20,7 +20,6 @@
 #include <gtk/gtk.h>
 #include <gdk/gdk.h>
 #include <math.h>
-#include <pthread.h>
 #include <semaphore.h>
 #include <string.h>
 #include <stdlib.h>
@@ -52,6 +51,10 @@
 #include "rigctl.h"
 #ifdef RADIOBERRY
 #include "radioberry.h"
+#endif
+#include "ext.h"
+#ifdef FREEDV
+#include "freedv.h"
 #endif
 
 static GtkWidget *parent_window;
@@ -169,6 +172,17 @@ void vfo_restore_state() {
   }
 }
 
+void vfo_xvtr_changed() {
+  if(vfo[0].band>=BANDS) {
+    BAND *band=band_get_band(vfo[0].band);
+    vfo[0].lo=band->frequencyLO+band->errorLO;
+  }
+  if(vfo[1].band>=BANDS) {
+    BAND *band=band_get_band(vfo[1].band);
+    vfo[1].lo=band->frequencyLO+band->errorLO;
+  }
+}
+
 void vfo_band_changed(int b) {
   BANDSTACK *bandstack;
 
@@ -196,7 +210,7 @@ void vfo_band_changed(int b) {
   vfo[id].frequency=entry->frequency;
   vfo[id].mode=entry->mode;
   vfo[id].filter=entry->filter;
-  vfo[id].lo=band->frequencyLO;
+  vfo[id].lo=band->frequencyLO+band->errorLO;
 
   switch(id) {
     case 0:
@@ -221,7 +235,6 @@ void vfo_band_changed(int b) {
     tx_set_mode(transmitter,vfo[VFO_A].mode);
   }
   calcDriveLevel();
-  calcTuneDriveLevel();
   vfo_update(NULL);
 }
 
@@ -261,7 +274,6 @@ void vfo_bandstack_changed(int b) {
     tx_set_mode(transmitter,vfo[VFO_A].mode);
   }
   calcDriveLevel();
-  calcTuneDriveLevel();
   vfo_update(NULL);
 
 }
@@ -523,10 +535,10 @@ static gboolean vfo_configure_event_cb (GtkWidget         *widget,
   /* Initialize the surface to black */
   cairo_t *cr;
   cr = cairo_create (vfo_surface);
-  cairo_set_source_rgb (cr, 0, 0, 0);
+  cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
   cairo_paint (cr);
   cairo_destroy(cr);
-  g_idle_add(vfo_update,NULL);
+  g_idle_add(ext_vfo_update,NULL);
   return TRUE;
 }
 
@@ -534,12 +546,12 @@ static gboolean vfo_draw_cb (GtkWidget *widget,
  cairo_t   *cr,
  gpointer   data)
 {
-  cairo_set_source_surface (cr, vfo_surface, 0, 0);
+  cairo_set_source_surface (cr, vfo_surface, 0.0, 0.0);
   cairo_paint (cr);
   return TRUE;
 }
 
-int vfo_update(void *data) {
+void vfo_update() {
     
     int id=active_receiver->id;
     FILTER* band_filters=filters[vfo[id].mode];
@@ -548,89 +560,62 @@ int vfo_update(void *data) {
         char temp_text[32];
         cairo_t *cr;
         cr = cairo_create (vfo_surface);
-        cairo_set_source_rgb (cr, 0, 0, 0);
+        cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
         cairo_paint (cr);
 
         cairo_select_font_face(cr, "FreeMono",
             CAIRO_FONT_SLANT_NORMAL,
             CAIRO_FONT_WEIGHT_BOLD);
 
-        char version[16];
-        char text[128];
-#ifdef RADIOBERRY
-        if(radio->protocol==ORIGINAL_PROTOCOL || radio->protocol==RADIOBERRY_PROTOCOL ) {
-#else
-		if(radio->protocol==ORIGINAL_PROTOCOL) {
-#endif
-          switch(radio->device) {
-#ifdef USBOZY
-            case DEVICE_OZY:
-              strcpy(version,"");
-              break;
-#endif
-            default:
-              sprintf(version,"%d.%d",
-                  radio->software_version/10,
-                  radio->software_version%10);
-              break;
-          }
-        } else {
-            sprintf(version,"%d.%d",
-                radio->software_version/10,
-                radio->software_version%10);
+        char dv[32];
+        strcpy(dv,"");
+#ifdef FREEDV
+        if(active_receiver->freedv) {
+          sprintf(dv,"FreeDV %s", freedv_get_mode_string());
         }
-
-        switch(radio->protocol) {
-            case ORIGINAL_PROTOCOL:
-              switch(radio->device) {
-#ifdef USBOZY
-                case DEVICE_OZY:
-                  sprintf(text,"%s", radio->name);
-                  break;
 #endif
-                default:
-                  sprintf(text,"%s %s %s",
-                    radio->name,
-                    version,
-                    inet_ntoa(radio->info.network.address.sin_addr));
-                  break;
-              }
-              break;
-            case NEW_PROTOCOL:
-              sprintf(text,"%s %s %s",
-                    radio->name,
-                    version,
-                    inet_ntoa(radio->info.network.address.sin_addr));
-              break;
-#ifdef LIMESDR
-            case LIMESDR_PROTOCOL:
-              sprintf(text,"%s", radio->name);
-              break;
-#endif
-#ifdef RADIOBERRY
-			case RADIOBERRY_PROTOCOL:
-				sprintf(text,"%s", radio->name);
-				break;
-#endif
-        }
-        cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
         cairo_set_font_size(cr, 12);
-        cairo_move_to(cr, 5, 15);  
-        cairo_show_text(cr, text);
+        cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
+        cairo_move_to(cr, 5, 15);
+        
+        switch(vfo[id].mode) {
+          case modeFMN:
+            if(active_receiver->deviation==2500) {
+              sprintf(temp_text,"%s 8k %s",mode_string[vfo[id].mode],dv);
+            } else {
+              sprintf(temp_text,"%s 16k %s",mode_string[vfo[id].mode],dv);
+            }
+            break;
+          case modeCWL:
+          case modeCWU:
+            sprintf(temp_text,"%s %s %d wpm %d Hz",mode_string[vfo[id].mode],band_filter->title,cw_keyer_speed,cw_keyer_sidetone_frequency);
+            break;
+          case modeLSB:
+          case modeUSB:
+          case modeDSB:
+          case modeAM:
+            sprintf(temp_text,"%s %s %s",mode_string[vfo[id].mode],band_filter->title,dv);
+            break;
+          default:
+            sprintf(temp_text,"%s %s",mode_string[vfo[id].mode],band_filter->title);
+            break;
+        }
+        cairo_show_text(cr, temp_text);
+
 
         long long af=vfo[0].frequency+vfo[0].offset;
         if(transmitter->out_of_band && !split) {
-          cairo_set_source_rgb(cr, 1, 0, 0);
+          cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
           sprintf(temp_text,"VFO A: Out of band");
         } else {
           sprintf(temp_text,"VFO A: %0lld.%06lld",af/(long long)1000000,af%(long long)1000000);
           if(isTransmitting() && !split) {
-              cairo_set_source_rgb(cr, 1, 0, 0);
+              cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
           } else {
               if(active_receiver->id==0) {
-                cairo_set_source_rgb(cr, 0, 1, 0);
+                cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
               } else {
-                cairo_set_source_rgb(cr, 0, 0.65, 0);
+                cairo_set_source_rgb(cr, 0.0, 0.65, 0.0);
               }
           }
         }
@@ -641,65 +626,50 @@ int vfo_update(void *data) {
 
         long long bf=vfo[1].frequency+vfo[1].offset;
         if(transmitter->out_of_band && split) {
-          cairo_set_source_rgb(cr, 1, 0, 0);
+          cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
           sprintf(temp_text,"VFO B: Out of band");
         } else {
           sprintf(temp_text,"VFO B: %0lld.%06lld",bf/(long long)1000000,bf%(long long)1000000);
           if(isTransmitting() && split) {
-              cairo_set_source_rgb(cr, 1, 0, 0);
+              cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
           } else {
               if(active_receiver->id==1) {
-                cairo_set_source_rgb(cr, 0, 1, 0);
+                cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
               } else {
-                cairo_set_source_rgb(cr, 0, 0.65, 0);
+                cairo_set_source_rgb(cr, 0.0, 0.65, 0.0);
               }
           }
         }
         cairo_move_to(cr, 260, 38);  
         cairo_show_text(cr, temp_text);
 
-        cairo_set_font_size(cr, 12);
-
         if(vfo[id].rit_enabled==0) {
             cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
         } else {
-            cairo_set_source_rgb(cr, 1, 1, 0);
+            cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         }
         sprintf(temp_text,"RIT: %lld Hz",vfo[id].rit);
-        cairo_move_to(cr, 5, 50);  
+        cairo_move_to(cr, 210, 15);
         cairo_set_font_size(cr, 12);
         cairo_show_text(cr, temp_text);
 
-        cairo_move_to(cr, 190, 15);  
-        if(vox_enabled) {
-          cairo_set_source_rgb(cr, 1, 0, 0);
+        cairo_move_to(cr, 150, 50);
+        if(active_receiver->nb) {
+          cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         } else {
           cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
         }
-        cairo_show_text(cr, "VOX");
-        
-        cairo_move_to(cr, 220, 15);  
-        if(locked) {
-          cairo_set_source_rgb(cr, 1, 0, 0);
-        } else {
-          cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
-        }
-        cairo_show_text(cr, "Locked");
-        
-        cairo_set_source_rgb(cr, 1, 1, 0);
-        cairo_move_to(cr, 100, 50);  
-        if(vfo[id].mode==modeFMN) {
-          if(deviation==2500) {
-            sprintf(temp_text,"%s 8k",mode_string[vfo[id].mode]); 
-          } else {
-            sprintf(temp_text,"%s 16k",mode_string[vfo[id].mode]); 
-          }
-        } else {
-          sprintf(temp_text,"%s %s",mode_string[vfo[id].mode],band_filter->title); 
-        }
-        cairo_show_text(cr, temp_text);
+        cairo_show_text(cr, "NB");
 
-        cairo_move_to(cr, 170, 50);  
+        cairo_move_to(cr, 175, 50);
+        if(active_receiver->nb2) {
+          cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
+        } else {
+          cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
+        }
+        cairo_show_text(cr, "NB2");
+
+        cairo_move_to(cr, 200, 50);  
         if(active_receiver->nr) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         } else {
@@ -707,7 +677,7 @@ int vfo_update(void *data) {
         }
         cairo_show_text(cr, "NR");
 
-        cairo_move_to(cr, 200, 50);  
+        cairo_move_to(cr, 225, 50);  
         if(active_receiver->nr2) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         } else {
@@ -715,7 +685,7 @@ int vfo_update(void *data) {
         }
         cairo_show_text(cr, "NR2");
 
-        cairo_move_to(cr, 230, 50);  
+        cairo_move_to(cr, 250, 50);  
         if(active_receiver->anf) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         } else {
@@ -723,7 +693,7 @@ int vfo_update(void *data) {
         }
         cairo_show_text(cr, "ANF");
 
-        cairo_move_to(cr, 260, 50);  
+        cairo_move_to(cr, 275, 50);  
         if(active_receiver->snb) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         } else {
@@ -731,26 +701,26 @@ int vfo_update(void *data) {
         }
         cairo_show_text(cr, "SNB");
 
-        cairo_move_to(cr, 290, 50);  
+        cairo_move_to(cr, 350, 50);  
         switch(active_receiver->agc) {
           case AGC_OFF:
             cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
             cairo_show_text(cr, "AGC OFF");
             break;
           case AGC_LONG:
-            cairo_set_source_rgb(cr, 1, 1, 0);
+            cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
             cairo_show_text(cr, "AGC LONG");
             break;
           case AGC_SLOW:
-            cairo_set_source_rgb(cr, 1, 1, 0);
+            cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
             cairo_show_text(cr, "AGC SLOW");
             break;
           case AGC_MEDIUM:
-            cairo_set_source_rgb(cr, 1, 1, 0);
+            cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
             cairo_show_text(cr, "AGC MEDIUM");
             break;
           case AGC_FAST:
-            cairo_set_source_rgb(cr, 1, 1, 0);
+            cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
             cairo_show_text(cr, "AGC FAST");
             break;
         }
@@ -760,8 +730,8 @@ int vfo_update(void *data) {
           s++;
         }
         sprintf(temp_text,"Step %s",step_labels[s]);
-        cairo_move_to(cr, 375, 50);
-        cairo_set_source_rgb(cr, 1, 1, 0);
+        cairo_move_to(cr, 300, 15);
+        cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         cairo_show_text(cr, temp_text);
 
         char *info=getFrequencyInfo(af);
@@ -770,9 +740,9 @@ int vfo_update(void *data) {
         cairo_show_text(cr, getFrequencyInfo(af));
 */
          
-        cairo_move_to(cr, 460, 50);  
+        cairo_move_to(cr, 400, 15);  
         if(vfo[id].ctun) {
-          cairo_set_source_rgb(cr, 1, 1, 0);
+          cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         } else {
           cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
         }
@@ -780,35 +750,51 @@ int vfo_update(void *data) {
 
         cairo_move_to(cr, 500, 50);  
         if(cat_control>0) {
-          cairo_set_source_rgb(cr, 1, 1, 0);
+          cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         } else {
           cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
         }
         cairo_show_text(cr, "CAT");
 
-        cairo_move_to(cr, 270, 15);
+        cairo_move_to(cr, 500, 15);  
+        if(vox_enabled) {
+          cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
+        } else {
+          cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
+        }
+        cairo_show_text(cr, "VOX");
+
+        cairo_move_to(cr, 5, 50);
+        if(locked) {
+          cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
+        } else {
+          cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
+        }
+        cairo_show_text(cr, "Locked");
+
+        cairo_move_to(cr, 55, 50);
         if(split) {
-          cairo_set_source_rgb(cr, 1, 0, 0);
+          cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
         } else {
           cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
         }
         cairo_show_text(cr, "Split");
-       
-        cairo_move_to(cr, 310, 15);
-        if(vfo[id].mode==modeCWL || vfo[id].mode==modeCWU) {
-          cairo_set_source_rgb(cr, 1, 1, 0);
+
+        cairo_move_to(cr, 105, 50);
+        if(transmitter->puresignal) {
+          cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         } else {
           cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
         }
-        sprintf(temp_text,"CW %d wpm, sidetone %d Hz",cw_keyer_speed,cw_keyer_sidetone_frequency);
-        cairo_show_text(cr, temp_text);
+        cairo_show_text(cr, "PS");
+
+
 
         cairo_destroy (cr);
         gtk_widget_queue_draw (vfo_panel);
     } else {
 fprintf(stderr,"vfo_update: no surface!\n");
     }
-    return 0;
 }
 
 /*
@@ -826,15 +812,6 @@ vfo_press_event_cb (GtkWidget *widget,
                GdkEventButton *event,
                gpointer        data)
 {
-/*
-  if((int)event->x < (my_width/4)) {
-    //lock_cb(NULL,NULL);
-  } else if((int)event->x < (my_width/2) && (int)event->x > (my_width/4)) {
-    start_freqent();
-  } else {
-    start_step();
-  }
-*/
   start_vfo();
   return TRUE;
 }

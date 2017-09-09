@@ -75,18 +75,62 @@ typedef struct _transmitter {
 
   int low_latency;
 
+  int puresignal;
+  int twotone;
+  int feedback;
+  int auto_on;
+  int single_on;
+
+  double ctcss_frequency;
+  int ctcss;
+
+  int deviation;
+
+  double am_carrier_level;
+
+  int attenuation;
+
+  int drive;
+  int tune_use_drive;
+  int tune_percent;
+
+  int drive_level;
+ 
+#ifdef FREEDV
+  char freedv_text_data[64];
+  int freedv_text_index;
+  int freedv_samples;
+#endif
+
+  int compressor;
+  double compressor_level;
+
 } TRANSMITTER;
 
 extern TRANSMITTER *create_transmitter(int id, int buffer_size, int fft_size, int fps, int width, int height);
 
 void reconfigure_transmitter(TRANSMITTER *tx,int height);
 
+
 extern void tx_set_mode(TRANSMITTER* tx,int m);
 extern void tx_set_filter(TRANSMITTER *tx,int low,int high);
+extern void transmitter_set_deviation(TRANSMITTER *tx);
+extern void transmitter_set_am_carrier_level(TRANSMITTER *tx);
 extern void tx_set_pre_emphasize(TRANSMITTER *tx,int state);
+extern void transmitter_set_ctcss(TRANSMITTER *tx,int run,double frequency);
 
 extern void add_mic_sample(TRANSMITTER *tx,short mic_sample);
+extern void add_freedv_mic_sample(TRANSMITTER *tx,short mic_sample);
 
 extern void transmitter_save_state(TRANSMITTER *tx);
 extern void transmitter_set_out_of_band(TRANSMITTER *tx);
+extern void tx_set_displaying(TRANSMITTER *tx,int state);
+
+extern void tx_set_ps(TRANSMITTER *tx,int state);
+extern void tx_set_twotone(TRANSMITTER *tx,int state);
+
+extern void transmitter_set_compressor_level(TRANSMITTER *tx,double level);
+extern void transmitter_set_compressor(TRANSMITTER *tx,int state);
+
+extern void tx_set_ps_sample_rate(TRANSMITTER *tx,int rate);
 #endif

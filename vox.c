@@ -23,6 +23,7 @@
 #include "transmitter.h"
 #include "vox.h"
 #include "vfo.h"
+#include "ext.h"
 
 static guint vox_timeout;
 
@@ -30,8 +31,8 @@ static double peak=0.0;
 
 static int vox_timeout_cb(gpointer data) {
   //setVox(0);
-  g_idle_add(vox_changed,(gpointer)0);
-  g_idle_add(vfo_update,NULL);
+  g_idle_add(ext_vox_changed,(gpointer)0);
+  g_idle_add(ext_vfo_update,NULL);
   return FALSE;
 }
 
@@ -42,7 +43,8 @@ double vox_get_peak() {
 }
 
 void update_vox(TRANSMITTER *tx) {
-  // assumes in is interleaved left and right channel with length samples
+  // calculate peak microphone input
+  // assumes it is interleaved left and right channel with length samples
   int previous_vox=vox;
   int i;
   double sample;
@@ -57,19 +59,17 @@ void update_vox(TRANSMITTER *tx) {
     }
   }
 
-
   if(vox_enabled) {
     if(peak>vox_threshold) {
       if(previous_vox) {
         g_source_remove(vox_timeout);
       } else {
-        //setVox(1);
-        g_idle_add(vox_changed,(gpointer)1);
+        g_idle_add(ext_vox_changed,(gpointer)1);
       }
       vox_timeout=g_timeout_add((int)vox_hang,vox_timeout_cb,NULL);
     }
     if(vox!=previous_vox) {
-      g_idle_add(vfo_update,NULL);
+      g_idle_add(ext_vfo_update,NULL);
     }
   }
 }
@@ -78,7 +78,7 @@ void vox_cancel() {
   if(vox) {
     g_source_remove(vox_timeout);
     //setVox(0);
-    g_idle_add(vox_changed,(gpointer)0);
-    g_idle_add(vfo_update,NULL);
+    g_idle_add(ext_vox_changed,(gpointer)0);
+    g_idle_add(ext_vfo_update,NULL);
   }
 }

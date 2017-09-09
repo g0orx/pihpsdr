@@ -18,9 +18,11 @@
 */
 
 #include <gtk/gtk.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <wdsp.h>
 
 #include "new_menu.h"
 #include "band.h"
@@ -28,7 +30,13 @@
 #include "mode.h"
 #include "radio.h"
 #include "receiver.h"
+#include "transmitter.h"
 #include "vfo.h"
+#include "button_text.h"
+#include "ext.h"
+#ifdef FREEDV
+#include "freedv.h"
+#endif
 
 static GtkWidget *parent_window=NULL;
 static GtkWidget *dialog=NULL;
@@ -44,13 +52,22 @@ static char *btn_labels[] = {"1","2","3",
                ,"CL"
               };
 
-static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+static void cleanup() {
   if(dialog!=NULL) {
     gtk_widget_destroy(dialog);
     dialog=NULL;
     sub_menu=NULL;
   }
+}
+
+static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  cleanup();
   return TRUE;
+}
+
+static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_data) {
+  cleanup();
+  return FALSE;
 }
 
 static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
@@ -161,6 +178,16 @@ static void vfo_cb(GtkComboBox *widget,gpointer data) {
   vfo_update(NULL);
 }
 
+#ifdef FREEDV
+static void enable_freedv_cb(GtkWidget *widget, gpointer data) {
+  set_freedv(gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)));
+}
+#endif
+
+static void enable_ps_cb(GtkWidget *widget, gpointer data) {
+  tx_set_ps(transmitter,gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)));
+}
+
 static GtkWidget *last_mode;
 
 void vfo_menu(GtkWidget *parent) {
@@ -170,7 +197,11 @@ void vfo_menu(GtkWidget *parent) {
 
   dialog=gtk_dialog_new();
   gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent_window));
-  gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  //gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  char title[64];
+  sprintf(title,"piHPSDR - VFO (RX %d VFO %s)",active_receiver->id,active_receiver->id==0?"A":"B");
+  gtk_window_set_title(GTK_WINDOW(dialog),title);
+  g_signal_connect (dialog, "delete_event", G_CALLBACK (delete_event), NULL);
 
   GdkRGBA color;
   color.red = 1.0;
@@ -192,11 +223,6 @@ void vfo_menu(GtkWidget *parent) {
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
-  char rx_id[32];
-  sprintf(rx_id,"RX %d VFO %s",active_receiver->id,active_receiver->id==0?"A":"B");
-  GtkWidget *rx_label=gtk_label_new(rx_id);
-  gtk_grid_attach(GTK_GRID(grid),rx_label,1,0,1,1);
-
   label = gtk_label_new (NULL);
   gtk_label_set_markup (GTK_LABEL (label), "<big>0</big>");
   gtk_misc_set_alignment (GTK_MISC (label), 1, .5);
@@ -212,7 +238,7 @@ void vfo_menu(GtkWidget *parent) {
   }
 
   GtkWidget *rit_label=gtk_label_new("RIT step: ");
-  gtk_grid_attach(GTK_GRID(grid),rit_label,3,1,1,1);
+  gtk_grid_attach(GTK_GRID(grid),rit_label,3,2,1,1);
 
   GtkWidget *rit_b=gtk_combo_box_text_new();
   gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(rit_b),NULL,"1 Hz");
@@ -230,7 +256,7 @@ void vfo_menu(GtkWidget *parent) {
       break;
   }
   g_signal_connect(rit_b,"changed",G_CALLBACK(rit_cb),NULL);
-  gtk_grid_attach(GTK_GRID(grid),rit_b,3,2,1,1);
+  gtk_grid_attach(GTK_GRID(grid),rit_b,4,2,1,1);
 
   GtkWidget *vfo_label=gtk_label_new("VFO step: ");
   gtk_grid_attach(GTK_GRID(grid),vfo_label,3,3,1,1);
@@ -245,7 +271,22 @@ void vfo_menu(GtkWidget *parent) {
     i++;
   }
   g_signal_connect(vfo_b,"changed",G_CALLBACK(vfo_cb),NULL);
-  gtk_grid_attach(GTK_GRID(grid),vfo_b,3,4,1,1);
+  gtk_grid_attach(GTK_GRID(grid),vfo_b,4,3,1,1);
+
+
+#ifdef FREEDV
+  GtkWidget *enable_freedv=gtk_check_button_new_with_label("Enable FreeDV");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (enable_freedv), active_receiver->freedv);
+  gtk_grid_attach(GTK_GRID(grid),enable_freedv,3,4,1,1);
+  g_signal_connect(enable_freedv,"toggled",G_CALLBACK(enable_freedv_cb),NULL);
+#endif
+
+  if(protocol==NEW_PROTOCOL) {
+    GtkWidget *enable_ps=gtk_check_button_new_with_label("Enable Pure Signal");
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (enable_ps), transmitter->puresignal);
+    gtk_grid_attach(GTK_GRID(grid),enable_ps,3,5,1,1);
+    g_signal_connect(enable_ps,"toggled",G_CALLBACK(enable_ps_cb),NULL);
+  }
 
   gtk_container_add(GTK_CONTAINER(content),grid);
 

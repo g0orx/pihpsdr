@@ -20,6 +20,7 @@
 #include <gtk/gtk.h>
 #include <semaphore.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "new_menu.h"
@@ -36,13 +37,22 @@ static GtkWidget *menu_b=NULL;
 
 static GtkWidget *dialog=NULL;
 
-static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+static void cleanup() {
   if(dialog!=NULL) {
     gtk_widget_destroy(dialog);
     dialog=NULL;
     sub_menu=NULL;
   }
+}
+
+static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  cleanup();
   return TRUE;
+}
+
+static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_data) {
+  cleanup();
+  return FALSE;
 }
 
 static void agc_hang_threshold_value_changed_cb(GtkWidget *widget, gpointer data) {
@@ -53,18 +63,18 @@ static void agc_hang_threshold_value_changed_cb(GtkWidget *widget, gpointer data
 }
 
 static void pre_post_agc_cb(GtkWidget *widget, gpointer data) {
-  active_receiver->nr_agc=(int)data;
+  active_receiver->nr_agc=(uintptr_t)data;
   SetRXAEMNRPosition(active_receiver->id, active_receiver->nr_agc);
 
 }
 
 static void nr2_gain_cb(GtkWidget *widget, gpointer data) {
-  active_receiver->nr2_gain_method==(int)data;
+  active_receiver->nr2_gain_method==(uintptr_t)data;
   SetRXAEMNRgainMethod(active_receiver->id, active_receiver->nr2_gain_method);
 }
 
 static void nr2_npe_method_cb(GtkWidget *widget, gpointer data) {
-  active_receiver->nr2_npe_method=(int)data;
+  active_receiver->nr2_npe_method=(uintptr_t)data;
   SetRXAEMNRnpeMethod(active_receiver->id, active_receiver->nr2_npe_method);
 }
 
@@ -84,7 +94,9 @@ void dsp_menu(GtkWidget *parent) {
 
   dialog=gtk_dialog_new();
   gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent_window));
-  gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  //gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  gtk_window_set_title(GTK_WINDOW(dialog),"piHPSDR - DSP");
+  g_signal_connect (dialog, "delete_event", G_CALLBACK (delete_event), NULL);
 
   GdkRGBA color;
   color.red = 1.0;
@@ -101,7 +113,7 @@ void dsp_menu(GtkWidget *parent) {
   //gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
   //gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
 
-  GtkWidget *close_b=gtk_button_new_with_label("Close DSP");
+  GtkWidget *close_b=gtk_button_new_with_label("Close");
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 

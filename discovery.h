@@ -17,4 +17,4 @@
 *
 */
 
-int discovery(void *data);
+extern void discovery();
