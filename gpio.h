@@ -17,8 +17,8 @@
 *
 */
 
-#ifndef _GPIO_H
-#define _GPIO_H
+#ifndef GPIO_H
+#define GPIO_H
 
 enum {
   ENCODER_AF_GAIN=0,

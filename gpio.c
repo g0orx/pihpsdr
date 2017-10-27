@@ -1,6 +1,24 @@
+/* Copyright (C)
+* 2015 - John Melton, G0ORX/N6LYT
+*
+* This program is free software; you can redistribute it and/or
+* modify it under the terms of the GNU General Public License
+* as published by the Free Software Foundation; either version 2
+* of the License, or (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software
+* Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+*
+*/
+
 #include <gtk/gtk.h>
 
-#ifdef GPIO
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,15 +28,8 @@
 #include <fcntl.h>
 #include <poll.h>
 #include <sched.h>
-//#include <pthread.h>
 #include <wiringPi.h>
 #include <semaphore.h>
-#ifdef GPIO
-#include <pigpio.h>
-#endif
-#ifdef sx1509
-#include <SparkFunSX1509_C.h>
-#endif
 
 #include "band.h"
 #include "channel.h"
@@ -39,9 +50,61 @@
 #endif
 #include "new_menu.h"
 #include "encoder_menu.h"
+#include "gpio.h"
+#ifdef I2C
+#include "i2c.h"
+#endif
 
-#define SYSFS_GPIO_DIR  "/sys/class/gpio"
+// debounce settle time in us
+#define SETTLE_TIME 100000
 
+// uses wiringpi pin numbers
+int ENABLE_VFO_ENCODER=1;
+int ENABLE_VFO_PULLUP=1;
+int VFO_ENCODER_A=1;
+int VFO_ENCODER_B=0;
+int ENABLE_E1_ENCODER=1;
+int ENABLE_E1_PULLUP=0;
+int E1_ENCODER_A=28;
+int E1_ENCODER_B=25;
+int E1_FUNCTION=6;
+int ENABLE_E2_ENCODER=1;
+int ENABLE_E2_PULLUP=0;
+int E2_ENCODER_A=27;
+int E2_ENCODER_B=24;
+int E2_FUNCTION=10;
+int ENABLE_E3_ENCODER=1;
+int ENABLE_E3_PULLUP=0;
+int E3_ENCODER_A=7;
+int E3_ENCODER_B=29;
+int E3_FUNCTION=11;
+int ENABLE_S1_BUTTON=1;
+int S1_BUTTON=23;
+int ENABLE_S2_BUTTON=1;
+int S2_BUTTON=26;
+int ENABLE_S3_BUTTON=1;
+int S3_BUTTON=22;
+int ENABLE_S4_BUTTON=1;
+int S4_BUTTON=21;
+int ENABLE_S5_BUTTON=1;
+int S5_BUTTON=5;
+int ENABLE_S6_BUTTON=1;
+int S6_BUTTON=4;
+int ENABLE_MOX_BUTTON=1;
+int MOX_BUTTON=2;
+int ENABLE_FUNCTION_BUTTON=1;
+int FUNCTION_BUTTON=3;
+int ENABLE_E1_BUTTON=1;
+int ENABLE_E2_BUTTON=1;
+int ENABLE_E3_BUTTON=1;
+int ENABLE_CW_BUTTONS=1;
+
+#ifdef I2C
+int I2C_INTERRUPT=15;
+#endif
+
+/*
+// uses broadcom pin numbers -- not working on Tinker board
 int ENABLE_VFO_ENCODER=1;
 int ENABLE_VFO_PULLUP=1;
 int VFO_ENCODER_A=18;
@@ -98,64 +161,7 @@ int ENABLE_CW_BUTTONS=1;
 int CWL_BUTTON=9;
 int CWR_BUTTON=10;
 #endif
-
-#ifdef sx1509
-/* Hardware Hookup:
-
-Leaves a spare gpio and an extra unused button (x1)
-
-SX1509 Breakout ------ Odroid ------------ Component
-      GND -------------- GND (1)
-      3V3 -------------- 3.3V(6)
-      SDA -------------- SDA (3)
-      SCL -------------- SCL (5)
-      INT -------------- #88 (11)
-       0 --------------------------------- TN S1 E1 (row 1)
-       1 --------------------------------- S2 S3 E2 (row 2)
-       2 --------------------------------- S4 S5 E3 (row 3)
-       3 --------------------------------- S6 FN x1 (row 4)
-       4 --------------------------------- VFO_ENCODER_A
-       5 --------------------------------- VFO_ENCODER_B
-       6 --------------------------------- E1_ENCODER_A
-       7 --------------------------------- E1_ENCODER_B
-       8 --------------------------------- TN S2 S4 S6 (col 1)
-       9 --------------------------------- S1 S3 S5 FN (col 2)
-       10 -------------------------------- E1 E2 E3 x1 (col 3)
-       11 -------------------------------- E2_ENCODER_A
-       12 -------------------------------- E2_ENCODER_B
-       13 -------------------------------- E3_ENCODER_A
-       14 -------------------------------- E3_ENCODER_B
-       15 -------------------------------- spare_gpio
-
-Alternate to allow 5 extra buttons
-
-       0 --------------------------------- TN S1 x1 x2 (row 1)
-       1 --------------------------------- S2 S3 E1 x4 (row 2)
-       2 --------------------------------- S4 S5 E2 x5 (row 3)
-       3 --------------------------------- S6 x3 E3 FN (row 4)
-       4 --------------------------------- VFO_ENCODER_A
-       5 --------------------------------- VFO_ENCODER_B
-       6 --------------------------------- E1_ENCODER_A
-       7 --------------------------------- E1_ENCODER_B
-       8 --------------------------------- TN S2 S4 S6 (col 1)
-       9 --------------------------------- S1 S3 S5 x3 (col 2)
-       10 -------------------------------- x1 E1 E2 E3 (col 3)
-       11 -------------------------------- x2 x4 x5 FN (col 4)
-       12 -------------------------------- E2_ENCODER_A
-       13 -------------------------------- E2_ENCODER_B
-       14 -------------------------------- E3_ENCODER_A
-       15 -------------------------------- E3_ENCODER_B
-
-x1-x5 (spare buttons)
-
 */
-const uint8_t SX1509_ADDRESS=0x3E;
-struct SX1509* pSX1509;
-
-//#ifdef odroid
-int SX1509_INT_PIN=0;
-//#endif
-#endif
 
 static volatile int vfoEncoderPos;
 static volatile int e1EncoderPos;
@@ -177,10 +183,9 @@ static volatile int agc_state;
 static volatile int mox_state;
 static volatile int lock_state;
 
-//static void* rotary_encoder_thread(void *arg);
 static gpointer rotary_encoder_thread(gpointer data);
-//static pthread_t rotary_encoder_thread_id;
 static GThread *rotary_encoder_thread_id;
+
 static int previous_function_button=0;
 static int e1_function=0;
 static int previous_e1_function=0;
@@ -203,7 +208,6 @@ static int previous_agc_button=0;
 static int mox_button=0;
 static int previous_mox_button=0;
 
-//static GMutex m_running;
 static int running=0;
 
 char *encoder_string[] = {
@@ -212,12 +216,11 @@ char *encoder_string[] = {
 "ATTENUATION",
 "MIC GAIN",
 "DRIVE",
-"TUNE DRIVE",
 "RIT",
 "CW SPEED",
 "CW FREQUENCY",
 "PANADAPTER HIGH",
-"PANADAPTER LOW",
+"PANADAPTER LOW"
 };
 
 static int mox_pressed(void *data) {
@@ -296,96 +299,110 @@ static int e_function_pressed(void *data) {
   return 0;
 }
 
-static void e1FunctionAlert(int gpio, int level, uint32_t tick) {
+static void e1FunctionAlert() {
+    int level=digitalRead(E1_FUNCTION);
     if(level==0) {
       if(running) g_idle_add(e_function_pressed,(gpointer)1);
     }
+    usleep(SETTLE_TIME);
 }
 
-static void e2FunctionAlert(int gpio, int level, uint32_t tick) {
+static void e2FunctionAlert() {
+    int level=digitalRead(E2_FUNCTION);
     if(level==0) {
       if(running) g_idle_add(e_function_pressed,(gpointer)2);
     }
+    usleep(SETTLE_TIME);
 }
 
-static void e3FunctionAlert(int gpio, int level, uint32_t tick) {
+static void e3FunctionAlert() {
+    int level=digitalRead(E3_FUNCTION);
     if(level==0) {
       if(running) g_idle_add(e_function_pressed,(gpointer)3);
     }
+    usleep(SETTLE_TIME);
 }
 
-static void functionAlert(int gpio, int level, uint32_t tick) {
+static void functionAlert() {
+    int level=digitalRead(FUNCTION_BUTTON);
     if(level==0) {
       if(running) g_idle_add(function_pressed,NULL);
     }
+    usleep(SETTLE_TIME);
 }
 
-
-static void s1Alert(int gpio, int level, uint32_t tick) {
+static void s1Alert() {
+    int level=digitalRead(S1_BUTTON);
     if(level==0) {
       g_idle_add(s1_pressed,NULL);
     } else {
       g_idle_add(s1_released,NULL);
     }
+    usleep(SETTLE_TIME);
 }
 
-static void s2Alert(int gpio, int level, uint32_t tick) {
+static void s2Alert() {
+    int level=digitalRead(S2_BUTTON);
     if(level==0) {
       g_idle_add(s2_pressed,NULL);
     } else {
       g_idle_add(s2_released,NULL);
     }
+    usleep(SETTLE_TIME);
 }
 
-static void s3Alert(int gpio, int level, uint32_t tick) {
+static void s3Alert() {
+    int level=digitalRead(S3_BUTTON);
     if(level==0) {
       g_idle_add(s3_pressed,NULL);
     } else {
       g_idle_add(s3_released,NULL);
     }
+    usleep(SETTLE_TIME);
 }
 
-static void s4Alert(int gpio, int level, uint32_t tick) {
+static void s4Alert() {
+    int level=digitalRead(S4_BUTTON);
     if(level==0) {
       g_idle_add(s4_pressed,NULL);
     } else {
       g_idle_add(s4_released,NULL);
     }
+    usleep(SETTLE_TIME);
 }
 
-static void s5Alert(int gpio, int level, uint32_t tick) {
+static void s5Alert() {
+    int level=digitalRead(S5_BUTTON);
     if(level==0) {
       g_idle_add(s5_pressed,NULL);
     } else {
       g_idle_add(s5_released,NULL);
     }
+    usleep(SETTLE_TIME);
 }
 
-static void s6Alert(int gpio, int level, uint32_t tick) {
+static void s6Alert() {
+    int level=digitalRead(S6_BUTTON);
     if(level==0) {
       g_idle_add(s6_pressed,NULL);
     } else {
       g_idle_add(s6_released,NULL);
     }
+    usleep(SETTLE_TIME);
 }
 
-static void moxAlert(int gpio, int level, uint32_t tick) {
-    if(level==0) {
+static unsigned long moxdebounce=0;
+
+static void moxAlert() {
+    int level1=digitalRead(MOX_BUTTON);
+    usleep(20000);
+    int level2=digitalRead(MOX_BUTTON);
+fprintf(stderr,"moxAlert: level1=%d level2=%d\n",level1,level2);
+    if(level1==0 && level2==0) {
       g_idle_add(mox_pressed,(gpointer)NULL);
-    } else {
     }
+    usleep(SETTLE_TIME);
 }
-
-static void lockAlert(int gpio, int level, uint32_t tick) {
-    lock_state=(level==0);
-}
-
-#ifdef LOCALCW
-static void cwAlert(int gpio, int level, uint32_t tick) {
-    if (cw_keyer_internal == 0 && (mode==modeCWL || mode==modeCWU))
-       keyer_event(gpio, cw_active_level == 0 ? level : (level==0));
-}
-#endif
 
 static void vfoEncoderPulse(int gpio, int level, unsigned int tick) {
    static int levA=0, levB=0, lastGpio = -1;
@@ -407,136 +424,113 @@ static void vfoEncoderPulse(int gpio, int level, unsigned int tick) {
    }
 }
 
-static void e1EncoderPulse(int gpio, int level, uint32_t tick)
-{
-   static int levA=0, levB=0, lastGpio = -1;
-
-   if (gpio == E1_ENCODER_A) levA = level; else levB = level;
-
-   if (gpio != lastGpio) /* debounce */
-   {
-      lastGpio = gpio;
-
-      if ((gpio == E1_ENCODER_A) && (level == 0))
-      {
-         if (!levB) ++e1EncoderPos;
-      }
-      else if ((gpio == E1_ENCODER_B) && (level == 1))
-      {
-         if (levA) --e1EncoderPos;
-      }
-   }
+static void vfoEncoderA() {
+    int level=digitalRead(VFO_ENCODER_A);
+    vfoEncoderPulse(VFO_ENCODER_A,level,0);
 }
 
-static void e2EncoderPulse(int gpio, int level, uint32_t tick)
-{
-   static int levA=0, levB=0, lastGpio = -1;
-
-   if (gpio == E2_ENCODER_A) levA = level; else levB = level;
-
-   if (gpio != lastGpio) /* debounce */
-   {
-      lastGpio = gpio;
-
-      if ((gpio == E2_ENCODER_A) && (level == 0))
-      {
-         if (!levB) ++e2EncoderPos;
-      }
-      else if ((gpio == E2_ENCODER_B) && (level == 1))
-      {
-         if (levA) --e2EncoderPos;
-      }
-   }
+static void vfoEncoderB() {
+    int level=digitalRead(VFO_ENCODER_B);
+    vfoEncoderPulse(VFO_ENCODER_B,level,0);
 }
 
-static void e3EncoderPulse(int gpio, int level, uint32_t tick)
-{
-   static int levA=0, levB=0, lastGpio = -1;
+static void e1EncoderInterrupt(int gpio) {
+  static int e1CurrentA=1, e1CurrentB=1;
 
-   if (gpio == E3_ENCODER_A) levA = level; else levB = level;
+  int levelA=digitalRead(E1_ENCODER_A);
+  int levelB=digitalRead(E1_ENCODER_B);
 
-   if (gpio != lastGpio) /* debounce */
-   {
-      lastGpio = gpio;
+  if(e1CurrentA==levelA && e1CurrentB==levelB) {
+    return;
+  }
 
-      if ((gpio == E3_ENCODER_A) && (level == 0))
-      {
-         if (!levB) ++e3EncoderPos;
-      }
-      else if ((gpio == E3_ENCODER_B) && (level == 1))
-      {
-         if (levA) --e3EncoderPos;
-      }
-   }
+  e1CurrentA=levelA;
+  e1CurrentB=levelB;
+
+  if(levelA && levelB) {
+    if(gpio==E1_ENCODER_B) {
+      --e1EncoderPos;
+    } else {
+      ++e1EncoderPos;
+    }
+  }
 }
 
-#ifdef sx1509
-#define SX1509_ENCODER_MASK 0xF0F0
-
-#define BTN_ROWS 4 // Number of rows in the button matrix
-#define BTN_COLS 4 // Number of columns in the button matrix
-
-// btnMap maps row/column combinations to button states:
-volatile int *btnArray[BTN_ROWS][BTN_COLS] = {
-  { &mox_state, &band_state, NULL, NULL},
-  { &bandstack_state, &mode_state, &e1Function, NULL},
-  { &filter_state, &noise_state, &e2Function, NULL},
-  { &agc_state, NULL, &e3Function, &function_state}
-};
-
-void sx1509_interrupt(void) {
-
-   static int lastBtnPress = 255;
-   static uint64_t lastBtnPressTime = 0;
-
-   // read and clear encoder interrupts
-   uint16_t encInterrupt = SX1509_interruptSource(pSX1509, true);
-
-
-   if (encInterrupt & SX1509_ENCODER_MASK) {
-      if (encInterrupt & (1<<VFO_ENCODER_A))
-        vfoEncoderPulse(VFO_ENCODER_A, SX1509_digitalRead(pSX1509, VFO_ENCODER_A), 0);
-      if (encInterrupt & (1<<VFO_ENCODER_B))
-        vfoEncoderPulse(VFO_ENCODER_B, SX1509_digitalRead(pSX1509, VFO_ENCODER_B), 0);
-      if (encInterrupt & (1<<E1_ENCODER_A))
-        e1EncoderPulse(E1_ENCODER_A, SX1509_digitalRead(pSX1509, E1_ENCODER_A), 0);
-      if (encInterrupt & (1<<E1_ENCODER_B))
-        e1EncoderPulse(E1_ENCODER_B, SX1509_digitalRead(pSX1509, E1_ENCODER_B), 0);
-      if (encInterrupt & (1<<E2_ENCODER_A))
-        e2EncoderPulse(E2_ENCODER_A, SX1509_digitalRead(pSX1509, E2_ENCODER_A), 0);
-      if (encInterrupt & (1<<E2_ENCODER_B))
-        e2EncoderPulse(E2_ENCODER_B, SX1509_digitalRead(pSX1509, E2_ENCODER_B), 0);
-      if (encInterrupt & (1<<E3_ENCODER_A))
-        e3EncoderPulse(E3_ENCODER_A, SX1509_digitalRead(pSX1509, E3_ENCODER_A), 0);
-      if (encInterrupt & (1<<E3_ENCODER_B))
-        e3EncoderPulse(E3_ENCODER_B, SX1509_digitalRead(pSX1509, E3_ENCODER_B), 0);
-   }
-
-   uint16_t btnData = SX1509_readKeypad(pSX1509);
-
-   if (btnData) {
-      uint8_t row = SX1509_getRow(pSX1509, btnData);
-      uint8_t col = SX1509_getCol(pSX1509, btnData);
-
-      if ((btnData != lastBtnPress) ||
-          (lastBtnPressTime < millis() - 100)) //100ms
-      {
-         lastBtnPress = btnData;
-         lastBtnPressTime = millis();
-         if (btnArray[row][col] != NULL)
-            *btnArray[row][col] = 1;
-      }
-   }
-}
-#endif
-
-#if defined odroid && !defined sx1509
-void interruptB(void) {
-   vfoEncoderPulse(VFO_ENCODER_B,digitalRead(VFO_ENCODER_B_PIN),0);
+static void e1EncoderA() {
+  e1EncoderInterrupt(E1_ENCODER_A);
 }
 
-void interruptA(void) {
-   vfoEncoderPulse(VFO_ENCODER_A,digitalRead(VFO_ENCODER_A_PIN),0);
+static void e1EncoderB() {
+  e1EncoderInterrupt(E1_ENCODER_B);
+}
+
+static void e2EncoderInterrupt(int gpio) {
+  static int e2CurrentA=1, e2CurrentB=1;
+
+  int levelA=digitalRead(E2_ENCODER_A);
+  int levelB=digitalRead(E2_ENCODER_B);
+
+  if(e2CurrentA==levelA && e2CurrentB==levelB) {
+    return;
+  }
+
+  e2CurrentA=levelA;
+  e2CurrentB=levelB;
+
+  if(levelA && levelB) {
+    if(gpio==E2_ENCODER_B) {
+      --e2EncoderPos;
+    } else {
+      ++e2EncoderPos;
+    }
+  }
+}
+
+static void e2EncoderA() {
+  e2EncoderInterrupt(E2_ENCODER_A);
+}
+
+static void e2EncoderB() {
+  e2EncoderInterrupt(E2_ENCODER_B);
+}
+
+static void e3EncoderInterrupt(int gpio) {
+  static int e3CurrentA=1, e3CurrentB=1;
+
+  int levelA=digitalRead(E3_ENCODER_A);
+  int levelB=digitalRead(E3_ENCODER_B);
+
+  if(e3CurrentA==levelA && e3CurrentB==levelB) {
+    return;
+  }
+
+  e3CurrentA=levelA;
+  e3CurrentB=levelB;
+
+  if(levelA && levelB) {
+    if(gpio==E3_ENCODER_B) {
+      --e3EncoderPos;
+    } else {
+      ++e3EncoderPos;
+    }
+  }
+}
+
+static void e3EncoderA() {
+  e3EncoderInterrupt(E3_ENCODER_A);
+}
+
+static void e3EncoderB() {
+  e3EncoderInterrupt(E3_ENCODER_B);
+}
+
+#ifdef I2C
+static void pI2CInterrupt() {
+    int level=digitalRead(I2C_INTERRUPT);
+    if(level==0) {
+      fprintf(stderr,"I2CInterrupt: %d\n",level);
+      i2c_interrupt();
+    }
 }
 #endif
 
@@ -551,12 +545,6 @@ void gpio_restore_state() {
   if(value) VFO_ENCODER_A=atoi(value);
   value=getProperty("VFO_ENCODER_B");
   if(value) VFO_ENCODER_B=atoi(value);
-#if defined odroid && !defined sx1509
-  value=getProperty("VFO_ENCODER_A_PIN");
-  if(value) VFO_ENCODER_A_PIN=atoi(value);
-  value=getProperty("VFO_ENCODER_B_PIN");
-  if(value) VFO_ENCODER_B_PIN=atoi(value);
-#endif
   value=getProperty("ENABLE_E1_ENCODER");
   if(value) ENABLE_E1_ENCODER=atoi(value);
   value=getProperty("ENABLE_E1_PULLUP");
@@ -615,33 +603,13 @@ void gpio_restore_state() {
   if(value) MOX_BUTTON=atoi(value);
   value=getProperty("ENABLE_E1_BUTTON");
   if(value) ENABLE_E1_BUTTON=atoi(value);
-#ifndef sx1509
-  value=getProperty("E1_FUNCTION");
-  if(value) E1_FUNCTION=atoi(value);
-#endif
 
   value=getProperty("ENABLE_E2_BUTTON");
   if(value) ENABLE_E2_BUTTON=atoi(value);
-#ifndef sx1509
-  value=getProperty("E2_FUNCTION");
-  if(value) E2_FUNCTION=atoi(value);
-#endif
 
   value=getProperty("ENABLE_E3_BUTTON");
   if(value) ENABLE_E3_BUTTON=atoi(value);
-#ifndef sx1509
-  value=getProperty("E3_FUNCTION");
-  if(value) E3_FUNCTION=atoi(value);
-#endif
 
-#ifdef LOCALCW
-  value=getProperty("ENABLE_CW_BUTTONS");
-  if(value) ENABLE_CW_BUTTONS=atoi(value);
-  value=getProperty("CWL_BUTTON");
-  if(value) CWL_BUTTON=atoi(value);
-  value=getProperty("CWR_BUTTON");
-  if(value) CWR_BUTTON=atoi(value);
-#endif
 }
 
 void gpio_save_state() {
@@ -655,12 +623,6 @@ void gpio_save_state() {
   setProperty("VFO_ENCODER_A",value);
   sprintf(value,"%d",VFO_ENCODER_B);
   setProperty("VFO_ENCODER_B",value);
-#if defined odroid && !defined sx1509
-  sprintf(value,"%d",VFO_ENCODER_A_PIN);
-  setProperty("VFO_ENCODER_A_PIN",value);
-  sprintf(value,"%d",VFO_ENCODER_B_PIN);
-  setProperty("VFO_ENCODER_B_PIN",value);
-#endif
   sprintf(value,"%d",ENABLE_E1_ENCODER);
   setProperty("ENABLE_E1_ENCODER",value);
   sprintf(value,"%d",ENABLE_E1_PULLUP);
@@ -720,317 +682,107 @@ void gpio_save_state() {
 
   sprintf(value,"%d",ENABLE_E1_BUTTON);
   setProperty("ENABLE_E1_BUTTON",value);
-#ifndef sx1509
-  sprintf(value,"%d",E1_FUNCTION);
-  setProperty("E1_FUNCTION",value);
-#endif
 
   sprintf(value,"%d",ENABLE_E2_BUTTON);
   setProperty("ENABLE_E2_BUTTON",value);
-#ifndef sx1509
-  sprintf(value,"%d",E2_FUNCTION);
-  setProperty("E2_FUNCTION",value);
-#endif
 
   sprintf(value,"%d",ENABLE_E3_BUTTON);
   setProperty("ENABLE_E3_BUTTON",value);
-#ifndef sx1509
-  sprintf(value,"%d",E3_FUNCTION);
-  setProperty("E3_FUNCTION",value);
-#endif
-
-#ifdef LOCALCW
-  sprintf(value,"%d",ENABLE_CW_BUTTONS);
-  setProperty("ENABLE_CW_BUTTONS",value);
-  sprintf(value,"%d",CWL_BUTTON);
-  setProperty("CWL_BUTTON",value);
-  sprintf(value,"%d",CWR_BUTTON);
-  setProperty("CWR_BUTTON",value);
-#endif
 
   saveProperties("gpio.props");
 }
 
-#define BUTTON_STEADY_TIME_US 5000
-static void setup_button(int button, gpioAlertFunc_t pAlert) {
-  gpioSetMode(button, PI_INPUT);
-  gpioSetPullUpDown(button,PI_PUD_UP);
-  // give time to settle to avoid false triggers
+static void setup_pin(int pin, int up_down, void(*pAlert)(void)) {
+
+fprintf(stderr,"setup_pin: pin=%d updown=%d\n",pin,up_down);
+  pinMode(pin,INPUT);
+  pullUpDnControl(pin,up_down);
   usleep(10000);
-  gpioSetAlertFunc(button, pAlert);
-  gpioGlitchFilter(button, BUTTON_STEADY_TIME_US);
+  wiringPiISR(pin,INT_EDGE_BOTH,pAlert);
+}
+
+
+static void setup_encoder_pin(int pin, int up_down, void(*pAlert)(void)) {
+    pinMode(pin,INPUT);
+    pullUpDnControl(pin,up_down);
+    usleep(10000);
+    wiringPiISR(pin,INT_EDGE_RISING,pAlert);
 }
 
 int gpio_init() {
-  fprintf(stderr,"gpio_init\n");
+  int i;
 
-  //g_mutex_init(&m_running);
-
-#if defined odroid && !defined sx1509
-  VFO_ENCODER_A=88;
-  VFO_ENCODER_B=87;
-#endif
+  fprintf(stderr,"gpio_wiringpi: gpio_init\n");
 
   gpio_restore_state();
-#ifdef GPIO
 
-    fprintf(stderr,"gpio_init: VFO_ENCODER_A=%d VFO_ENCODER_B=%d\n",VFO_ENCODER_A,VFO_ENCODER_B);
-
-    fprintf(stderr,"gpioInitialise\n");
-    if(gpioInitialise()<0) {
-        fprintf(stderr,"Cannot initialize GPIO\n");
-        return -1;
-    }
-
-  if(ENABLE_FUNCTION_BUTTON) {
-    setup_button(FUNCTION_BUTTON, functionAlert);
-  }
+  wiringPiSetup(); // use WiringPi pin numbers
 
   if(ENABLE_VFO_ENCODER) {
-    if(gpioSetMode(VFO_ENCODER_A, PI_INPUT)!=0) {
-      fprintf(stderr,"gpioSetMode for VFO_ENCODER_A failed\n");
-    }
-    if(gpioSetMode(VFO_ENCODER_B, PI_INPUT)!=0) {
-      fprintf(stderr,"gpioSetMode for VFO_ENCODER_B failed\n");
-    }
-    if(ENABLE_VFO_PULLUP) {
-      gpioSetPullUpDown(VFO_ENCODER_A, PI_PUD_UP);
-      gpioSetPullUpDown(VFO_ENCODER_B, PI_PUD_UP);
-    } else {
-      gpioSetPullUpDown(VFO_ENCODER_A, PI_PUD_OFF);
-      gpioSetPullUpDown(VFO_ENCODER_B, PI_PUD_OFF);
-    }
-    if(gpioSetAlertFunc(VFO_ENCODER_A, vfoEncoderPulse)!=0) {
-      fprintf(stderr,"gpioSetAlertFunc for VFO_ENCODER_A failed\n");
-    }
-    if(gpioSetAlertFunc(VFO_ENCODER_B, vfoEncoderPulse)!=0) {
-      fprintf(stderr,"gpioSetAlertFunc for VFO_ENCODER_B failed\n");
-    }
+    setup_pin(VFO_ENCODER_A,ENABLE_VFO_PULLUP?PUD_UP:PUD_OFF,&vfoEncoderA);
+    setup_pin(VFO_ENCODER_B,ENABLE_VFO_PULLUP?PUD_UP:PUD_OFF,&vfoEncoderB);
     vfoEncoderPos=0;
   }
 
-
-fprintf(stderr,"setup_button: E1 %d\n",E1_FUNCTION);
-  setup_button(E1_FUNCTION, e1FunctionAlert);
+  setup_pin(E1_FUNCTION, PUD_UP, &e1FunctionAlert);
   e1Function=0;
 
   if(ENABLE_E1_ENCODER) {
-    gpioSetMode(E1_ENCODER_A, PI_INPUT);
-    gpioSetMode(E1_ENCODER_B, PI_INPUT);
-    if(ENABLE_E1_PULLUP) {
-      gpioSetPullUpDown(E1_ENCODER_A, PI_PUD_UP);
-      gpioSetPullUpDown(E1_ENCODER_B, PI_PUD_UP);
-    } else {
-      gpioSetPullUpDown(E1_ENCODER_A, PI_PUD_OFF);
-      gpioSetPullUpDown(E1_ENCODER_B, PI_PUD_OFF);
-    }
-    gpioSetAlertFunc(E1_ENCODER_A, e1EncoderPulse);
-    gpioSetAlertFunc(E1_ENCODER_B, e1EncoderPulse);
+    setup_encoder_pin(E1_ENCODER_A,ENABLE_E1_PULLUP?PUD_UP:PUD_OFF,&e1EncoderA);
+    setup_encoder_pin(E1_ENCODER_B,ENABLE_E1_PULLUP?PUD_UP:PUD_OFF,&e1EncoderB);
     e1EncoderPos=0;
   }
 
-fprintf(stderr,"setup_button: E2 %d\n",E2_FUNCTION);
-  setup_button(E2_FUNCTION, e2FunctionAlert);
+  setup_pin(E2_FUNCTION, PUD_UP, &e2FunctionAlert);
   e2Function=0;
 
   if(ENABLE_E2_ENCODER) {
-    gpioSetMode(E2_ENCODER_A, PI_INPUT);
-    gpioSetMode(E2_ENCODER_B, PI_INPUT);
-    if(ENABLE_E2_PULLUP) {
-      gpioSetPullUpDown(E2_ENCODER_A, PI_PUD_UP);
-      gpioSetPullUpDown(E2_ENCODER_B, PI_PUD_UP);
-    } else {
-      gpioSetPullUpDown(E2_ENCODER_A, PI_PUD_OFF);
-      gpioSetPullUpDown(E2_ENCODER_B, PI_PUD_OFF);
-    }
-    gpioSetAlertFunc(E2_ENCODER_A, e2EncoderPulse);
-    gpioSetAlertFunc(E2_ENCODER_B, e2EncoderPulse);
+    setup_encoder_pin(E2_ENCODER_A,ENABLE_E2_PULLUP?PUD_UP:PUD_OFF,&e2EncoderA);
+    setup_encoder_pin(E2_ENCODER_B,ENABLE_E2_PULLUP?PUD_UP:PUD_OFF,&e2EncoderB);
     e2EncoderPos=0;
   }
 
-fprintf(stderr,"setup_button: E3 %d\n",E3_FUNCTION);
-  setup_button(E3_FUNCTION, e3FunctionAlert);
+  setup_pin(E3_FUNCTION, PUD_UP, &e3FunctionAlert);
   e3Function=0;
 
   if(ENABLE_E3_ENCODER) {
-    gpioSetMode(E3_ENCODER_A, PI_INPUT);
-    gpioSetMode(E3_ENCODER_B, PI_INPUT);
-    if(ENABLE_E3_PULLUP) {
-      gpioSetPullUpDown(E3_ENCODER_A, PI_PUD_UP);
-      gpioSetPullUpDown(E3_ENCODER_B, PI_PUD_UP);
-    } else {
-      gpioSetPullUpDown(E3_ENCODER_A, PI_PUD_OFF);
-      gpioSetPullUpDown(E3_ENCODER_B, PI_PUD_OFF);
-    }
-    gpioSetAlertFunc(E3_ENCODER_A, e3EncoderPulse);
-    gpioSetAlertFunc(E3_ENCODER_B, e3EncoderPulse);
+    setup_encoder_pin(E3_ENCODER_A,ENABLE_E3_PULLUP?PUD_UP:PUD_OFF,&e3EncoderA);
+    setup_encoder_pin(E3_ENCODER_B,ENABLE_E3_PULLUP?PUD_UP:PUD_OFF,&e3EncoderB);
     e3EncoderPos=0;
   }
 
 
-  if(ENABLE_S1_BUTTON) {
-    setup_button(S1_BUTTON, s1Alert);
+  if(ENABLE_FUNCTION_BUTTON) {
+    setup_pin(FUNCTION_BUTTON, PUD_UP, &functionAlert);
   }
- 
-  if(ENABLE_S2_BUTTON) {
-    setup_button(S2_BUTTON, s2Alert);
-  }
- 
-  if(ENABLE_S3_BUTTON) {
-    setup_button(S3_BUTTON, s3Alert);
-  }
- 
-  if(ENABLE_S4_BUTTON) {
-    setup_button(S4_BUTTON, s4Alert);
-  }
- 
-  if(ENABLE_S5_BUTTON) {
-    setup_button(S5_BUTTON, s5Alert);
-  }
- 
-  if(ENABLE_S6_BUTTON) {
-    setup_button(S6_BUTTON, s6Alert);
-  }
- 
+
   if(ENABLE_MOX_BUTTON) {
-    setup_button(MOX_BUTTON, moxAlert);
+    setup_pin(MOX_BUTTON, PUD_UP, &moxAlert);
   }
 
-/*
-#ifndef sx1509
-  if(ENABLE_E1_BUTTON) {
-    setup_button(E1_FUNCTION, lockAlert);
-  }
-#endif
-*/
-
-#ifdef LOCALCW
-fprintf(stderr,"GPIO: ENABLE_CW_BUTTONS=%d  CWL_BUTTON=%d CWR_BUTTON=%d\n",ENABLE_CW_BUTTONS, CWL_BUTTON, CWR_BUTTON);
-  if(ENABLE_CW_BUTTONS) {
-    setup_button(CWL_BUTTON, cwAlert);
-    setup_button(CWR_BUTTON, cwAlert);
-/*
-    gpioSetMode(CWL_BUTTON, PI_INPUT);
-    gpioSetAlertFunc(CWL_BUTTON, cwAlert);
-    gpioSetMode(CWR_BUTTON, PI_INPUT);
-    gpioSetAlertFunc(CWR_BUTTON, cwAlert);
-    gpioGlitchFilter(CWL_BUTTON, 5000);
-    gpioGlitchFilter(CWR_BUTTON, 5000);
-*/
-  }
-#endif
- 
-#endif
-
-#ifdef sx1509
-  // override default (PI) values
-  VFO_ENCODER_A=4;
-  VFO_ENCODER_B=5;
-  E1_ENCODER_A=6;
-  E1_ENCODER_B=7;
-  E2_ENCODER_A=12;
-  E2_ENCODER_B=13;
-  E3_ENCODER_A=14;
-  E3_ENCODER_B=15;
-
-  fprintf(stderr,"sx1509 gpio_init: VFO_ENCODER_A=%d VFO_ENCODER_B=%d\n",VFO_ENCODER_A,VFO_ENCODER_B);
-
-  pSX1509 = newSX1509();
-
-  // Call SX1509_begin(<address>) to initialize the SX1509. If it
-  // successfully communicates, it'll return 1. 255 for soft reset
-  if (!SX1509_begin(pSX1509, SX1509_ADDRESS, 255))
-  {
-    printf("Failed to communicate to sx1509 at %x.\n", SX1509_ADDRESS);
-    return 1;
+  if(ENABLE_S1_BUTTON) {
+    setup_pin(S1_BUTTON, PUD_UP, &s1Alert);
   }
 
-  fprintf(stderr,"wiringPiSetup\n");
-  if (wiringPiSetup () < 0) {
-    printf ("Unable to setup wiringPi: %s\n", strerror (errno));
-    return 1;
+  if(ENABLE_S2_BUTTON) {
+    setup_pin(S2_BUTTON, PUD_UP, &s2Alert);
   }
 
-  // Initialize the buttons
-  // Sleep time off (0). 16ms scan time, 8ms debounce:
-  SX1509_keypad(pSX1509, BTN_ROWS, BTN_COLS, 0, 16, 8);
-
-  // Initialize the encoders
-  SX1509_pinMode(pSX1509, VFO_ENCODER_A, INPUT_PULLUP);
-  SX1509_pinMode(pSX1509, VFO_ENCODER_B, INPUT_PULLUP);
-  SX1509_enableInterrupt(pSX1509, VFO_ENCODER_A, CHANGE);
-  SX1509_enableInterrupt(pSX1509, VFO_ENCODER_B, CHANGE);
-  vfoEncoderPos=0;
-  SX1509_pinMode(pSX1509, E1_ENCODER_A, INPUT_PULLUP);
-  SX1509_pinMode(pSX1509, E1_ENCODER_B, INPUT_PULLUP);
-  SX1509_enableInterrupt(pSX1509, E1_ENCODER_A, CHANGE);
-  SX1509_enableInterrupt(pSX1509, E1_ENCODER_B, CHANGE);
-  e1EncoderPos=0;
-  SX1509_pinMode(pSX1509, E2_ENCODER_A, INPUT_PULLUP);
-  SX1509_pinMode(pSX1509, E2_ENCODER_B, INPUT_PULLUP);
-  SX1509_enableInterrupt(pSX1509, E2_ENCODER_A, CHANGE);
-  SX1509_enableInterrupt(pSX1509, E2_ENCODER_B, CHANGE);
-  e2EncoderPos=0;
-  SX1509_pinMode(pSX1509, E3_ENCODER_A, INPUT_PULLUP);
-  SX1509_pinMode(pSX1509, E3_ENCODER_B, INPUT_PULLUP);
-  SX1509_enableInterrupt(pSX1509, E3_ENCODER_A, CHANGE);
-  SX1509_enableInterrupt(pSX1509, E3_ENCODER_B, CHANGE);
-  e3EncoderPos=0;
-
-  e1Function=0;
-  e2Function=0;
-  e3Function=0;
-
-  pinMode(SX1509_INT_PIN, INPUT);
-  pullUpDnControl(SX1509_INT_PIN, PUD_UP);
-
-  if ( wiringPiISR (SX1509_INT_PIN, INT_EDGE_FALLING, &sx1509_interrupt) < 0 ) {
-    printf ("Unable to setup ISR: %s\n", strerror (errno));
-    return 1;
+  if(ENABLE_S3_BUTTON) {
+    setup_pin(S3_BUTTON, PUD_UP, &s3Alert);
   }
-#endif
 
-#if defined odroid && !defined sx1509
+  if(ENABLE_S4_BUTTON) {
+    setup_pin(S4_BUTTON, PUD_UP, &s4Alert);
+  }
 
-    //VFO_ENCODER_A=ODROID_VFO_ENCODER_A;
-    //VFO_ENCODER_B=ODROID_VFO_ENCODER_B;
-    //VFO_ENCODER_A_PIN=ODROID_VFO_ENCODER_A_PIN;
-    //VFO_ENCODER_B_PIN=ODROID_VFO_ENCODER_B_PIN;
- 
-    fprintf(stderr,"gpio_init: VFO_ENCODER_A=%d VFO_ENCODER_B=%d\n",VFO_ENCODER_A,VFO_ENCODER_B);
+  if(ENABLE_S5_BUTTON) {
+    setup_pin(S5_BUTTON, PUD_UP, &s5Alert);
+  }
 
-    fprintf(stderr,"wiringPiSetup\n");
-    if (wiringPiSetup () < 0) {
-      printf ("Unable to setup wiringPi: %s\n", strerror (errno));
-      return -1;
-    }
-
-    FILE *fp;
-
-    fp = popen("echo 88 > /sys/class/gpio/export\n", "r");
-    pclose(fp);
-    fp = popen("echo \"in\" > /sys/class/gpio/gpio88/direction\n", "r");
-    pclose(fp);
-    fp = popen("chmod 0666 /sys/class/gpio/gpio88/value\n", "r");
-    pclose(fp);
-
-    fp = popen("echo 87 > /sys/class/gpio/export\n", "r");
-    pclose(fp);
-    fp = popen("echo \"in\" > /sys/class/gpio/gpio87/direction\n", "r");
-    pclose(fp);
-    fp = popen("chmod 0666 /sys/class/gpio/gpio87/value\n", "r");
-    pclose(fp);
-
-    if ( wiringPiISR (0, INT_EDGE_BOTH, &interruptB) < 0 ) {
-      printf ("Unable to setup ISR: %s\n", strerror (errno));
-      return -1;
-    }
-
-    if ( wiringPiISR (1, INT_EDGE_BOTH, &interruptA) < 0 ) {
-      printf ("Unable to setup ISR: %s\n", strerror (errno));
-      return -1;
-    }
-#endif
+  if(ENABLE_S6_BUTTON) {
+    setup_pin(S6_BUTTON, PUD_UP, &s6Alert);
+  }
 
   rotary_encoder_thread_id = g_thread_new( "rotary encoder", rotary_encoder_thread, NULL);
   if( ! rotary_encoder_thread_id )
@@ -1040,27 +792,24 @@ fprintf(stderr,"GPIO: ENABLE_CW_BUTTONS=%d  CWL_BUTTON=%d CWR_BUTTON=%d\n",ENABL
   }
   fprintf(stderr, "rotary_encoder_thread: id=%p\n",rotary_encoder_thread_id);
 
+#ifdef I2C
+  // setup i2c
+  i2c_init();
+
+  // setup interrupt pin
+  fprintf(stderr,"setup i2c interrupt: pin=%d\n",I2C_INTERRUPT);
+  digitalWrite(I2C_INTERRUPT,0); // clear pin
+  pinMode(I2C_INTERRUPT,INPUT);
+  pullUpDnControl(I2C_INTERRUPT,PUD_UP);
+  usleep(10000);
+  wiringPiISR(I2C_INTERRUPT,INT_EDGE_FALLING,pI2CInterrupt);
+#endif
 
   return 0;
 }
 
 void gpio_close() {
-fprintf(stderr,"gpio_close: lock\n");
-    //g_mutex_lock(&m_running);
     running=0;
-#ifdef GPIO
-fprintf(stderr,"gpioTerminate\n");
-    gpioTerminate();
-#endif
-fprintf(stderr,"gpio_close: unlock\n");
-    //g_mutex_unlock(&m_running);
-#if defined odroid && !defined sx1509
-    FILE *fp;
-    fp = popen("echo 87 > /sys/class/gpio/unexport\n", "r");
-    pclose(fp);
-    fp = popen("echo 88 > /sys/class/gpio/unexport\n", "r");
-    pclose(fp);
-#endif
 }
 
 int vfo_encoder_get_pos() {
@@ -1201,16 +950,6 @@ static encoder_changed(int action,int pos) {
       }
       set_drive(value);
       break;
-    case ENCODER_TUNE_DRIVE:
-      value=getTuneDrive();
-      value+=(double)pos;
-      if(value<0.0) {
-        value=0.0;
-      } else if(value>100.0) {
-        value=100.0;
-      }
-      set_tune(value);
-      break;
     case ENCODER_RIT:
       value=(double)vfo[active_receiver->id].rit;
       value+=(double)(pos*rit_increment);
@@ -1220,6 +959,9 @@ static encoder_changed(int action,int pos) {
         value=1000.0;
       }
       vfo[active_receiver->id].rit=(int)value;
+      if(protocol==NEW_PROTOCOL) {
+        schedule_high_priority();
+      }
       vfo_update(NULL);
       break;
     case ENCODER_CW_SPEED:
@@ -1341,16 +1083,10 @@ fprintf(stderr,"gpio_thread: unlock (running==0)\n");
           //g_mutex_unlock(&m_running);
           g_thread_exit(NULL);
         }
-#ifdef GPIO
         usleep(100000);
-        //gpioDelay(100000); // 10 per second
-#endif
-#ifdef odroid
-        usleep(100000);
-#endif
+
 //fprintf(stderr,"gpio_thread: unlock (running==1)\n");
         //g_mutex_unlock(&m_running);
     }
     return NULL;
 }
-#endif

@@ -144,13 +144,19 @@ fprintf(stderr,"discovery\n");
     GtkWidget *label=gtk_label_new("No devices found!");
     gtk_grid_attach(GTK_GRID(grid),label,0,0,2,1);
 
-    GtkWidget *exit_b=gtk_button_new_with_label("Exit");
-    g_signal_connect (exit_b, "button-press-event", G_CALLBACK(exit_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),exit_b,0,1,1,1);
+#ifdef GPIO
+    GtkWidget *gpio_b=gtk_button_new_with_label("Config GPIO");
+    g_signal_connect (gpio_b, "button-press-event", G_CALLBACK(gpio_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),gpio_b,0,1,1,1);
+#endif
 
     GtkWidget *discover_b=gtk_button_new_with_label("Retry Discovery");
     g_signal_connect (discover_b, "button-press-event", G_CALLBACK(discover_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),discover_b,1,1,1,1);
+
+    GtkWidget *exit_b=gtk_button_new_with_label("Exit");
+    g_signal_connect (exit_b, "button-press-event", G_CALLBACK(exit_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),exit_b,2,1,1,1);
 
     gtk_container_add (GTK_CONTAINER (content), grid);
     gtk_widget_show_all(discovery_dialog);
