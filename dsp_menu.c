@@ -86,12 +86,14 @@ void dsp_menu(GtkWidget *parent) {
   gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent_window));
   gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
 
+#ifdef FORCE_WHITE_MENU
   GdkRGBA color;
   color.red = 1.0;
   color.green = 1.0;
   color.blue = 1.0;
   color.alpha = 1.0;
   gtk_widget_override_background_color(dialog,GTK_STATE_FLAG_NORMAL,&color);
+#endif
 
   GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
 

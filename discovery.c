@@ -125,12 +125,14 @@ fprintf(stderr,"discovery\n");
 
     gtk_widget_override_font(discovery_dialog, pango_font_description_from_string("FreeMono 16"));
 
+#ifdef FORCE_WHITE_MENU
     GdkRGBA color;
     color.red = 1.0;
     color.green = 1.0;
     color.blue = 1.0;
     color.alpha = 1.0;
     gtk_widget_override_background_color(discovery_dialog,GTK_STATE_FLAG_NORMAL,&color);
+#endif
 
     GtkWidget *content;
 
@@ -169,12 +171,14 @@ fprintf(stderr,"discovery\n");
 
     gtk_widget_override_font(discovery_dialog, pango_font_description_from_string("FreeMono 16"));
 
+#ifdef FORCE_WHITE_MENU
     GdkRGBA color;
     color.red = 1.0;
     color.green = 1.0;
     color.blue = 1.0;
     color.alpha = 1.0;
     gtk_widget_override_background_color(discovery_dialog,GTK_STATE_FLAG_NORMAL,&color);
+#endif
 
     GtkWidget *content;
 
