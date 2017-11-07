@@ -42,8 +42,12 @@
 #define min(x,y) (x<y?x:y)
 #define max(x,y) (x<y?y:x)
 
+double getNextSideToneSample();
+
 static int filterLow;
 static int filterHigh;
+
+int key = 0;
 
 static gint update_out_of_band(gpointer data) {
   TRANSMITTER *tx=(TRANSMITTER *)data;
@@ -639,13 +643,21 @@ void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
       break;
 #endif
     default:
-      if(mode==modeCWL || mode==modeCWU || tune) {
-        mic_sample_double=0.0;
+	  if (tune) {
+		  mic_sample_double=0.0;
+	  }
+      else if(mode==modeCWL || mode==modeCWU) {
+		if (isTransmitting()) {
+			if (key == 1) {
+				mic_sample_double = getNextSideToneSample();
+				cw_audio_write(mic_sample_double * cw_keyer_sidetone_volume/ 127.0);
+				mic_sample_double = mic_sample_double * 200000; //* amplitude 
+			} else mic_sample_double=0.0;
+		}
       } else {
         sample=mic_sample<<16;
         mic_sample_double=(1.0 / 2147483648.0) * (double)(sample);
       }
-//fprintf(stderr,"add_mic_sample: id=%d sample=%f (%d,%ld)\n",tx->id,mic_sample_double,mic_sample,sample);
       tx->mic_input_buffer[tx->samples*2]=mic_sample_double;
       tx->mic_input_buffer[(tx->samples*2)+1]=mic_sample_double;
       tx->samples++;
@@ -664,4 +676,25 @@ fprintf(stderr,"start tx display update timer: %d\n", 1000/tx->fps);
     tx->update_timer_id=gdk_threads_add_timeout_full(G_PRIORITY_HIGH_IDLE,1000/tx->fps, update_display, tx, NULL);
   }
 }
+
+void cw_sidetone_mute(int mute){
+	key = mute;
+}
+
+int asteps = 0;
+double timebase = 0.0;
+#define TIMESTEP (1.0 / 48000)
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+double getNextSideToneSample() {
+	double angle = cw_keyer_sidetone_frequency * 2 * M_PI * timebase;
+	timebase += TIMESTEP;
+	asteps++;
+	if (asteps == 48000) {
+		timebase = 0.0;
+		asteps = 0;
+	}
+	return sin(angle);
+}	
 

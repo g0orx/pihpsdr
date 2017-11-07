@@ -77,13 +77,13 @@
 #include "radio.h"
 #include "new_protocol.h"
 #include "iambic.h"
-#include "beep.h"
+#include "transmitter.h"
 
 static void* keyer_thread(void *arg);
 static pthread_t keyer_thread_id;
 
 // set to 0 to use the PI's hw:0 audio out for sidetone
-#define SIDETONE_GPIO 0 // this is in wiringPi notation
+#define SIDETONE_GPIO 0 // this is in wiringPi notation // tried 4 working great.
 
 #define MY_PRIORITY (90)
 #define MAX_SAFE_STACK (8*1024)
@@ -147,8 +147,7 @@ void keyer_update() {
         kdot = &kcwl;
         kdash = &kcwr;
     }
-    beep_vol(cw_keyer_sidetone_volume);
-    beep_freq = cw_keyer_sidetone_frequency;
+
 }
 
 void keyer_event(int gpio, int level) {
@@ -173,17 +172,18 @@ void set_keyer_out(int state) {
     if (keyer_out != state) {
         keyer_out = state;
         if(protocol==NEW_PROTOCOL) schedule_high_priority(9);
+		fprintf(stderr,"set_keyer_out keyer_out= %d\n", keyer_out);
         if (state)
             if (SIDETONE_GPIO)
                 softToneWrite (SIDETONE_GPIO, cw_keyer_sidetone_frequency);
             else {
-                beep_mute(1);
+				cw_sidetone_mute(1);
             }
         else
             if (SIDETONE_GPIO)
                 softToneWrite (SIDETONE_GPIO, 0);
             else  {
-                beep_mute(0);
+				cw_sidetone_mute(0);
             }
     }
 }
@@ -193,7 +193,7 @@ static void* keyer_thread(void *arg) {
     struct timespec loop_delay;
     int interval = 1000000; // 1 ms
 
-fprintf(stderr,"keyer_thread\n");
+fprintf(stderr,"keyer_thread  state running= %d\n", running);
     while(running) {
         sem_wait(&cw_event);
 
@@ -367,7 +367,6 @@ fprintf(stderr,"keyer_thread: EXIT\n");
 
 void keyer_close() {
     running=0;
-    beep_close();
 }
 
 int keyer_init() {
@@ -385,21 +384,8 @@ int keyer_init() {
             running = 0;
     }
 
-    //stack_prefault();
-
-
-/*
-    if (wiringPiSetup () < 0) {
-        fprintf(stderr,"pthread_create for keyer_thread failed %d\n", rc);
-        exit(-1);
-    }
-*/
-
-    if (SIDETONE_GPIO)
+    if (SIDETONE_GPIO){
         softToneCreate(SIDETONE_GPIO);
-    else {
-        beep_init();
-        beep_vol(cw_keyer_sidetone_volume);
     }
 
     rc = sem_init(&cw_event, 0, 0);

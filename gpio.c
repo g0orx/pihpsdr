@@ -382,8 +382,11 @@ static void lockAlert(int gpio, int level, uint32_t tick) {
 
 #ifdef LOCALCW
 static void cwAlert(int gpio, int level, uint32_t tick) {
-    if (cw_keyer_internal == 0 && (mode==modeCWL || mode==modeCWU))
+	fprintf(stderr,"init cwAlert\n");
+    if (cw_keyer_internal == 0 ){
+		fprintf(stderr,"call keyer_event...\n");
        keyer_event(gpio, cw_active_level == 0 ? level : (level==0));
+	}
 }
 #endif
 
@@ -781,6 +784,13 @@ int gpio_init() {
         fprintf(stderr,"Cannot initialize GPIO\n");
         return -1;
     }
+	
+// required for softtone in iambic.c 	
+//	if (wiringPiSetup () < 0) {
+//		printf ("Unable to setup wiringPi: %s\n", strerror (errno));
+//		return -1;
+//	}
+	
 
   if(ENABLE_FUNCTION_BUTTON) {
     setup_button(FUNCTION_BUTTON, functionAlert);

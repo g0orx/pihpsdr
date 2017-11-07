@@ -442,13 +442,16 @@ fprintf(stderr,"receiver %d: height=%d y=%d\n",receiver[i]->id,rx_height,y);
 
   
   #ifdef GPIO
+  fprintf(stderr,"keyer.....\n");
   if(gpio_init()<0) {
     fprintf(stderr,"GPIO failed to initialize\n");
   }
 #ifdef LOCALCW
   // init local keyer if enabled
-  else if (cw_keyer_internal == 0)
+  else if (cw_keyer_internal == 0) {
+	fprintf(stderr,"Initialize keyer.....\n");
     keyer_update();
+  }
 #endif
 #endif
   

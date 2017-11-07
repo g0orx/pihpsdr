@@ -339,6 +339,7 @@ static void* beep_thread(void *arg) {
                 return 0;
         }
 
+		
         if ((err = snd_pcm_open(&handle, device, SND_PCM_STREAM_PLAYBACK, 0)) < 0) {
                 printf("Playback open error: %s\n", snd_strerror(err));
                 return 0;
@@ -353,7 +354,7 @@ static void* beep_thread(void *arg) {
                 printf("Setting of swparams failed: %s\n", snd_strerror(err));
                 exit(EXIT_FAILURE);
         }
-
+		
         samples = malloc((period_size * channels * snd_pcm_format_physical_width(format)) / 8);
         if (samples == NULL) {
                 printf("No enough memory\n");
