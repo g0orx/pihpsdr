@@ -19,6 +19,7 @@
 
 #include <gtk/gtk.h>
 #include <semaphore.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
