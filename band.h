@@ -75,13 +75,36 @@ struct _BAND {
     long long frequencyMin;
     long long frequencyMax;
     long long frequencyLO;
+    long long errorLO;
     int disablePA;
 };
 
 typedef struct _BAND BAND;
 
+struct _CHANNEL {
+    long long frequency;
+    long long width;
+};
+
+typedef struct _CHANNEL CHANNEL;
+
+
+
 int band;
 gboolean displayHF;
+
+#define UK_CHANNEL_ENTRIES 11
+#define OTHER_CHANNEL_ENTRIES 5
+
+extern int channel_entries;
+extern CHANNEL *band_channels_60m;
+
+extern CHANNEL band_channels_60m_UK[UK_CHANNEL_ENTRIES];
+extern CHANNEL band_channels_60m_OTHER[OTHER_CHANNEL_ENTRIES];
+
+extern BANDSTACK bandstack60;
+extern BANDSTACK_ENTRY bandstack_entries60_OTHER[];
+extern BANDSTACK_ENTRY bandstack_entries60_UK[];
 
 extern int band_get_current();
 extern BAND *band_get_current_band();
@@ -95,5 +118,8 @@ extern BANDSTACK_ENTRY *bandstack_get_bandstack_entry(int band,int entry);
 extern BANDSTACK_ENTRY *bandstack_entry_next();
 extern BANDSTACK_ENTRY *bandstack_entry_previous();
 extern BANDSTACK_ENTRY *bandstack_entry_get_current();
+
+extern void bandSaveState();
+extern void bandRestoreState();
 
 #endif

@@ -20,6 +20,8 @@
 #ifndef _FREEDV_H
 #define _FREEDV_H
 
+#include "receiver.h"
+
 extern int n_speech_samples;
 extern int n_max_modem_samples;
 extern short *demod_in;
@@ -30,12 +32,37 @@ extern short *mod_out;
 extern int freedv_sync;
 extern float freedv_snr;
 
+extern int freedv_rate;
+extern int freedv_resample;
+
+extern int freedv_mode;
+
 extern char freedv_text_data[64];
 
-void init_freedv();
-void close_freedv();
-int demod_sample_freedv(short sample);
-int mod_sample_freedv(short sample);
-void reset_freedv_tx_text_index();
+extern int freedv_sq_enable;
+extern double freedv_snr_sq_threshold;
+
+extern double freedv_audio_gain;
+
+extern float *freedv_samples;
+
+extern void freedv_save_state();
+extern void freedv_restore_state();
+extern void init_freedv(RECEIVER *rx);
+extern void close_freedv(RECEIVER *rx);
+extern int demod_sample_freedv(short sample);
+extern int mod_sample_freedv(short sample);
+extern void freedv_reset_tx_text_index();
+extern void freedv_set_mode(RECEIVER *rx,int m);
+extern void init_freedv(RECEIVER *rx);
+extern void close_freedv(RECEIVER *rx);
+extern int demod_sample_freedv(short sample);
+extern int mod_sample_freedv(short sample);
+extern void freedv_reset_tx_text_index();
+extern void freedv_set_mode(RECEIVER *rx,int m);
+extern void freedv_set_sq_enable(int state);
+extern void freedv_set_sq_threshold(double threshold);
+extern void freedv_set_audio_gain(double gain);
+extern char* freedv_get_mode_string();
 
 #endif

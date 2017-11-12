@@ -1,4 +1,4 @@
-/* Copyright (C)
+/* Copyrieht (C)
 * 2015 - John Melton, G0ORX/N6LYT
 *
 * This program is free software; you can redistribute it and/or
@@ -23,6 +23,9 @@
 #include <string.h>
 #include <semaphore.h>
 #include <math.h>
+#include <sys/time.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include <wdsp.h>
 
@@ -39,6 +42,7 @@
 #include "agc.h"
 #include "band.h"
 #include "property.h"
+#include "new_menu.h"
 #include "new_protocol.h"
 #include "old_protocol.h"
 #ifdef RADIOBERRY
@@ -51,34 +55,41 @@
 #ifdef FREEDV
 #include "freedv.h"
 #endif
+#include "audio_waterfall.h"
 #ifdef GPIO
 #include "gpio.h"
 #endif
 #include "vfo.h"
+#include "vox.h"
 #include "meter.h"
 #include "rx_panadapter.h"
 #include "tx_panadapter.h"
 #include "waterfall.h"
 #include "sliders.h"
 #include "toolbar.h"
+#include "rigctl.h"
+#include "ext.h"
 
 #define min(x,y) (x<y?x:y)
 #define max(x,y) (x<y?y:x)
 
-#define DISPLAY_INCREMENT (display_height/32)
-#define MENU_HEIGHT (DISPLAY_INCREMENT*2)
-#define MENU_WIDTH ((display_width/32)*3)
-#define VFO_HEIGHT (DISPLAY_INCREMENT*4)
+#define MENU_HEIGHT (30)
+#define MENU_WIDTH (64)
+#define VFO_HEIGHT (60)
 #define VFO_WIDTH (display_width-METER_WIDTH-MENU_WIDTH)
-#define METER_HEIGHT (DISPLAY_INCREMENT*4)
-#define METER_WIDTH ((display_width/32)*8)
-#define PANADAPTER_HEIGHT (DISPLAY_INCREMENT*8)
-#define SLIDERS_HEIGHT (DISPLAY_INCREMENT*6)
-#define TOOLBAR_HEIGHT (DISPLAY_INCREMENT*2)
-#define WATERFALL_HEIGHT (display_height-(VFO_HEIGHT+PANADAPTER_HEIGHT+SLIDERS_HEIGHT+TOOLBAR_HEIGHT))
+#define METER_HEIGHT (60)
+#define METER_WIDTH (200)
+#define PANADAPTER_HEIGHT (105)
+#define SLIDERS_HEIGHT (90)
+#define TOOLBAR_HEIGHT (30)
+#define WATERFALL_HEIGHT (105)
 #ifdef PSK
-#define PSK_WATERFALL_HEIGHT (DISPLAY_INCREMENT*6)
+#define PSK_WATERFALL_HEIGHT (90)
 #define PSK_HEIGHT (display_height-(VFO_HEIGHT+PSK_WATERFALL_HEIGHT+SLIDERS_HEIGHT+TOOLBAR_HEIGHT))
+#endif
+
+#ifdef FREEDV
+#define FREEDV_WATERFALL_HEIGHT (105)
 #endif
 
 static GtkWidget *fixed;
@@ -93,17 +104,24 @@ static GtkWidget *waterfall;
 static GtkWidget *psk;
 static GtkWidget *psk_waterfall;
 #endif
+static GtkWidget *audio_waterfall;
 
 #ifdef GPIO
 static GtkWidget *encoders;
 static cairo_surface_t *encoders_surface = NULL;
 #endif
+#ifdef WIRIINGPI
+static GtkWidget *encoders;
+static cairo_surface_t *encoders_surface = NULL;
+#endif
+
+int region=REGION_OTHER;
 
 int echo=0;
 
 static gint save_timer_id;
 
-DISCOVERED *radio;
+DISCOVERED *radio=NULL;
 
 char property_path[128];
 sem_t property_sem;
@@ -126,10 +144,10 @@ int classE=0;
 int tx_out_of_band=0;
 
 int tx_cfir=0;
-int tx_alc=1;
 int tx_leveler=0;
+int alc=TXA_ALC_AV;
 
-double tone_level=0.0;
+double tone_level=0.2;
 
 int filter_board=ALEX;
 //int pa=PA_ENABLED;
@@ -148,7 +166,6 @@ double display_average_time=120.0;
 
 int waterfall_high=-100;
 int waterfall_low=-150;
-int waterfall_automatic=1;
 
 int display_sliders=1;
 
@@ -163,11 +180,11 @@ int mic_bias_enabled=0;
 int mic_ptt_enabled=0;
 int mic_ptt_tip_bias_ring=0;
 
-double tune_drive=10;
-double drive=50;
+//double tune_drive=10;
+//double drive=50;
 
-int drive_level=0;
-int tune_drive_level=0;
+//int drive_level=0;
+//int tune_drive_level=0;
 
 int receivers=RECEIVERS;
 
@@ -240,8 +257,8 @@ int OCfull_tune_time=2800; // ms
 int OCmemory_tune_time=550; // ms
 long long tune_timeout;
 
+int analog_meter=0;
 int smeter=RXA_S_AV;
-int alc=TXA_ALC_PK;
 
 int local_audio=0;
 int local_microphone=0;
@@ -252,10 +269,7 @@ int eer_pwm_max=800;
 int tx_filter_low=150;
 int tx_filter_high=2850;
 
-#ifdef FREEDV
-char freedv_tx_text_data[64];
-#endif
-
+static int pre_tune_mode;
 static int pre_tune_filter_low;
 static int pre_tune_filter_high;
 
@@ -265,7 +279,6 @@ int tx_equalizer[4]={0,0,0,0};
 int enable_rx_equalizer=0;
 int rx_equalizer[4]={0,0,0,0};
 
-int deviation=2500;
 int pre_emphasize=0;
 
 int vox_setting=0;
@@ -279,9 +292,13 @@ int diversity_enabled=0;
 double i_rotate[2]={1.0,1.0};
 double q_rotate[2]={0.0,0.0};
 
+double meter_calibration=0.0;
+double display_calibration=0.0;
+
 void reconfigure_radio() {
   int i;
   int y;
+//fprintf(stderr,"reconfigure_radio: receivers=%d\n",receivers);
   int rx_height=display_height-VFO_HEIGHT-TOOLBAR_HEIGHT;
   if(display_sliders) {
     rx_height-=SLIDERS_HEIGHT;
@@ -291,6 +308,8 @@ void reconfigure_radio() {
   for(i=0;i<receivers;i++) {
     reconfigure_receiver(receiver[i],rx_height/receivers);
     gtk_fixed_move(GTK_FIXED(fixed),receiver[i]->panel,0,y);
+    receiver[i]->x=0;
+    receiver[i]->y=y;
     y+=rx_height/receivers;
   }
 
@@ -302,8 +321,6 @@ void reconfigure_radio() {
       gtk_fixed_move(GTK_FIXED(fixed),sliders,0,y);
     }
     gtk_widget_show_all(sliders);
-    // force change of sliders for mic or linein
-    g_idle_add(linein_changed,NULL);
   } else {
     if(sliders!=NULL) {
       gtk_container_remove(GTK_CONTAINER(fixed),sliders); 
@@ -334,7 +351,7 @@ void start_radio() {
   int i;
   int x;
   int y;
-fprintf(stderr,"start_radio: selected radio=%p device=%d\n",radio,radio->device);
+//fprintf(stderr,"start_radio: selected radio=%p device=%d\n",radio,radio->device);
   gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_WATCH));
 
   int rc;
@@ -345,7 +362,47 @@ fprintf(stderr,"start_radio: selected radio=%p device=%d\n",radio,radio->device)
   }
   sem_post(&property_sem);
 
-  status_text("starting radio ...");
+  char text[256];
+  //for(i=0;i<devices;i++) {
+    switch(radio->protocol) {
+      case ORIGINAL_PROTOCOL:
+      case NEW_PROTOCOL:
+#ifdef USBOZY
+        if(radio->device==DEVICE_OZY) {
+          sprintf(text,"%s (%s) on USB /dev/ozy\n", radio->name, radio->protocol==ORIGINAL_PROTOCOL?"Protocol 1":"Protocol 2");
+        } else {
+#endif
+          sprintf(text,"Starting %s (%s v%d.%d)",
+                        radio->name,
+                        radio->protocol==ORIGINAL_PROTOCOL?"Protocol 1":"Protocol 2",
+                        radio->software_version/10,
+                        radio->software_version%10);
+        break;
+    }
+  //}
+
+
+
+  status_text(text);
+
+  sprintf(text,"piHPSDR: %s (%s v%d.%d) %s (%02X:%02X:%02X:%02X:%02X:%02X) on %s",
+                          radio->name,
+                          radio->protocol==ORIGINAL_PROTOCOL?"Protocol 1":"Protocol 2",
+                          radio->software_version/10,
+                          radio->software_version%10,
+                          inet_ntoa(radio->info.network.address.sin_addr),
+                          radio->info.network.mac_address[0],
+                          radio->info.network.mac_address[1],
+                          radio->info.network.mac_address[2],
+                          radio->info.network.mac_address[3],
+                          radio->info.network.mac_address[4],
+                          radio->info.network.mac_address[5],
+                          radio->info.network.interface_name);
+
+fprintf(stderr,"title: length=%d\n", (int)strlen(text));
+
+  gtk_window_set_title (GTK_WINDOW (top_window), text);
+
   protocol=radio->protocol;
   device=radio->device;
 
@@ -381,7 +438,38 @@ fprintf(stderr,"start_radio: selected radio=%p device=%d\n",radio,radio->device)
 #endif
   }
 
+  switch(radio->protocol) {
+    case ORIGINAL_PROTOCOL:
+      switch(radio->device) {
+        case DEVICE_ORION2:
+          //meter_calibration=3.0;
+          //display_calibration=3.36;
+          break;
+        default:
+          //meter_calibration=-2.44;
+          //display_calibration=-2.1;
+          break;
+      }
+      break;
+    case NEW_PROTOCOL:
+      switch(radio->device) {
+        case NEW_DEVICE_ORION2:
+          //meter_calibration=3.0;
+          //display_calibration=3.36;
+          break;
+        default:
+          //meter_calibration=-2.44;
+          //display_calibration=-2.1;
+          break;
+      }
+      break;
+  }
+ 
+
+//fprintf(stderr,"meter_calibration=%f display_calibration=%f\n", meter_calibration, display_calibration);
   radioRestoreState();
+
+  radio_change_region(region);
 
   y=0;
 
@@ -389,11 +477,11 @@ fprintf(stderr,"start_radio: selected radio=%p device=%d\n",radio,radio->device)
   gtk_container_remove(GTK_CONTAINER(top_window),grid);
   gtk_container_add(GTK_CONTAINER(top_window), fixed);
 
-fprintf(stderr,"radio: vfo_init\n");
+//fprintf(stderr,"radio: vfo_init\n");
   vfo_panel = vfo_init(VFO_WIDTH,VFO_HEIGHT,top_window);
   gtk_fixed_put(GTK_FIXED(fixed),vfo_panel,0,y);
 
-fprintf(stderr,"radio: meter_init\n");
+//fprintf(stderr,"radio: meter_init\n");
   meter = meter_init(METER_WIDTH,METER_HEIGHT,top_window);
   gtk_fixed_put(GTK_FIXED(fixed),meter,VFO_WIDTH,y);
 
@@ -422,36 +510,51 @@ fprintf(stderr,"radio: meter_init\n");
 
 
 fprintf(stderr,"Create %d receivers: height=%d\n",receivers,rx_height);
-  for(i=0;i<MAX_RECEIVERS;i++) {
+  for(i=0;i<RECEIVERS;i++) {
     receiver[i]=create_receiver(i, buffer_size, fft_size, display_width, updates_per_second, display_width, rx_height);
-    g_object_ref((gpointer)receiver[i]->panel);
+    setSquelch(receiver[i]);
     if(i<receivers) {
+      receiver[i]->x=0;
+      receiver[i]->y=y;
       gtk_fixed_put(GTK_FIXED(fixed),receiver[i]->panel,0,y);
-fprintf(stderr,"receiver %d: height=%d y=%d\n",receiver[i]->id,rx_height,y);
+      g_object_ref((gpointer)receiver[i]->panel);
       set_displaying(receiver[i],1);
       y+=rx_height;
     } else {
       set_displaying(receiver[i],0);
     }
   }
+
+  if((protocol==ORIGINAL_PROTOCOL) && (RECEIVERS==2) && (receiver[0]->sample_rate!=receiver[1]->sample_rate)) {
+    receiver[1]->sample_rate=receiver[0]->sample_rate;
+  }
+
   active_receiver=receiver[0];
 
   fprintf(stderr,"Create transmitter\n");
   transmitter=create_transmitter(CHANNEL_TX, buffer_size, fft_size, updates_per_second, display_width, tx_height);
-  g_object_ref((gpointer)transmitter->panel);
+  transmitter->x=0;
+  transmitter->y=VFO_HEIGHT;
+  //gtk_fixed_put(GTK_FIXED(fixed),transmitter->panel,0,VFO_HEIGHT);
 
+#ifdef PURESIGNAL
+  tx_set_ps_sample_rate(transmitter,protocol==NEW_PROTOCOL?192000:active_receiver->sample_rate);
+  if(((protocol==ORIGINAL_PROTOCOL) && (device!=DEVICE_METIS)) || ((protocol==NEW_PROTOCOL) && (device!=NEW_DEVICE_ATLAS))) {
+    receiver[PS_TX_FEEDBACK]=create_pure_signal_receiver(PS_TX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
+    receiver[PS_RX_FEEDBACK]=create_pure_signal_receiver(PS_RX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
+  }
+#endif
+
+#ifdef AUDIO_WATERFALL
+  audio_waterfall=audio_waterfall_init(200,100);
+  gtk_fixed_put(GTK_FIXED(fixed),audio_waterfall,0,VFO_HEIGHT+20);
+#endif
   
-  #ifdef GPIO
+#ifdef GPIO
   if(gpio_init()<0) {
     fprintf(stderr,"GPIO failed to initialize\n");
   }
-#ifdef LOCALCW
-  // init local keyer if enabled
-  else if (cw_keyer_internal == 0)
-    keyer_update();
 #endif
-#endif
-  
   
   switch(radio->protocol) {
     case ORIGINAL_PROTOCOL:
@@ -474,9 +577,9 @@ fprintf(stderr,"receiver %d: height=%d y=%d\n",receiver[i]->id,rx_height,y);
 
 
 
-#ifdef I2C
-  i2c_init();
-#endif
+//#ifdef I2C
+//  i2c_init();
+//#endif
 
   if(display_sliders) {
 fprintf(stderr,"create sliders\n");
@@ -485,17 +588,21 @@ fprintf(stderr,"create sliders\n");
     y+=SLIDERS_HEIGHT;
   }
 
+
   toolbar = toolbar_init(display_width,TOOLBAR_HEIGHT,top_window);
   gtk_fixed_put(GTK_FIXED(fixed),toolbar,0,y);
   y+=TOOLBAR_HEIGHT;
 
   gtk_widget_show_all (fixed);
+//#ifdef FREEDV
+//  if(!active_receiver->freedv) {
+//    gtk_widget_hide(audio_waterfall);
+//  }
+//#endif
 
-  // force change of sliders for mic or linein
-  g_idle_add(linein_changed,NULL);
+  
 
   // save every 30 seconds
-fprintf(stderr,"start save timer\n");
   save_timer_id=gdk_threads_add_timeout(30000, save_cb, NULL);
 
 #ifdef PSK
@@ -506,36 +613,36 @@ fprintf(stderr,"start save timer\n");
   }
 #endif
 
-  launch_rigctl();
+  if(rigctl_enable) {
+    launch_rigctl();
+  }
 
   calcDriveLevel();
-  calcTuneDriveLevel();
+
+#ifdef PURESIGNAL
+  if(transmitter->puresignal) {
+    tx_set_ps(transmitter,transmitter->puresignal);
+  }
+#endif
 
   if(protocol==NEW_PROTOCOL) {
     schedule_high_priority();
   }
 
-  g_idle_add(vfo_update,(gpointer)NULL);
+  g_idle_add(ext_vfo_update,(gpointer)NULL);
 
-fprintf(stderr,"set cursor\n");
   gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_ARROW));
 
-for(i=0;i<MAX_VFOS;i++) {
-  fprintf(stderr,"start_radio: vfo %d band=%d bandstack=%d frequency=%lld mode=%d filter=%d rit=%lld lo=%lld offset=%lld\n",
-    i,
-    vfo[i].band,
-    vfo[i].bandstack,
-    vfo[i].frequency,
-    vfo[i].mode,
-    vfo[i].filter,
-    vfo[i].rit,
-    vfo[i].lo,
-    vfo[i].offset);
-}
 }
 
+void disable_rigctl() {
+   fprintf(stderr,"RIGCTL: disable_rigctl()\n");
+   close_rigctl_ports();
+}
+ 
 
 void radio_change_receivers(int r) {
+  fprintf(stderr,"radio_change_receivers: from %d to %d\n",receivers,r);
   switch(r) {
     case 1:
       if(receivers==2) {
@@ -552,6 +659,9 @@ void radio_change_receivers(int r) {
   }
   reconfigure_radio();
   active_receiver=receiver[0];
+  if(protocol==NEW_PROTOCOL) {
+    schedule_high_priority();
+  }
 }
 
 void radio_change_sample_rate(int rate) {
@@ -564,6 +674,9 @@ void radio_change_sample_rate(int rate) {
       }
       old_protocol_set_mic_sample_rate(rate);
       old_protocol_run();
+#ifdef PURESIGNAL
+      tx_set_ps_sample_rate(transmitter,rate);
+#endif
       break;
 #ifdef LIMESDR
     case LIMESDR_PROTOCOL:
@@ -575,53 +688,79 @@ void radio_change_sample_rate(int rate) {
 
 static void rxtx(int state) {
   int i;
-  int y=VFO_HEIGHT;
-
-fprintf(stderr,"rxtx: state=%d\n",state);
 
   if(state) {
     // switch to tx
+#ifdef FREEDV
+    if(active_receiver->freedv) {
+      freedv_reset_tx_text_index();
+    }
+#endif
+#ifdef PURESIGNAL
+    RECEIVER *rx_feedback=receiver[PS_RX_FEEDBACK];
+    RECEIVER *tx_feedback=receiver[PS_TX_FEEDBACK];
+
+    rx_feedback->samples=0;
+    tx_feedback->samples=0;
+#endif
+
     for(i=0;i<receivers;i++) {
       SetChannelState(receiver[i]->id,0,i==(receivers-1));
       set_displaying(receiver[i],0);
       if(protocol==NEW_PROTOCOL) {
         schedule_high_priority();
+        schedule_receive_specific();
+      }
+      g_object_ref((gpointer)receiver[i]->panel);
+      g_object_ref((gpointer)receiver[i]->panadapter);
+      if(receiver[i]->waterfall!=NULL) {
+        g_object_ref((gpointer)receiver[i]->waterfall);
       }
       gtk_container_remove(GTK_CONTAINER(fixed),receiver[i]->panel);
     }
-    gtk_fixed_put(GTK_FIXED(fixed),transmitter->panel,0,y);
+//#ifdef FREEDV
+//    if(active_receiver->freedv) {
+//      gtk_widget_show(audio_waterfall);
+//    }
+//#endif
+    gtk_fixed_put(GTK_FIXED(fixed),transmitter->panel,transmitter->x,transmitter->y);
     SetChannelState(transmitter->id,1,0);
     tx_set_displaying(transmitter,1);
-#ifdef FREEDV
-    if(active_receiver->mode==modeFREEDV) {
-      freedv_reset_tx_text_index();
-    }
-#endif
   } else {
     SetChannelState(transmitter->id,0,1);
     if(protocol==NEW_PROTOCOL) {
       schedule_high_priority();
+      schedule_receive_specific();
     }
     tx_set_displaying(transmitter,0);
+    g_object_ref((gpointer)transmitter->panel);
+    g_object_ref((gpointer)transmitter->panadapter);
     gtk_container_remove(GTK_CONTAINER(fixed),transmitter->panel);
-    int rx_height=display_height-VFO_HEIGHT-TOOLBAR_HEIGHT;
-    if(display_sliders) {
-      rx_height-=SLIDERS_HEIGHT;
-    }
+//#ifdef FREEDV
+//    if(active_receiver->freedv) {
+//      gtk_widget_hide(audio_waterfall);
+//    }
+//#endif
     for(i=0;i<receivers;i++) {
+      gtk_fixed_put(GTK_FIXED(fixed),receiver[i]->panel,receiver[i]->x,receiver[i]->y);
       SetChannelState(receiver[i]->id,1,0);
       set_displaying(receiver[i],1);
-      gtk_fixed_put(GTK_FIXED(fixed),receiver[i]->panel,0,y);
-      y+=(rx_height/receivers);
     }
+//#ifdef FREEDV
+//    if(active_receiver->freedv) {
+//      gtk_widget_show(audio_waterfall);
+//    }
+//#endif
   }
 
-  gtk_widget_show_all(fixed);
-  g_idle_add(linein_changed,NULL);
+#ifdef PURESIGNAL
+  if(transmitter->puresignal) {
+    SetPSMox(transmitter->id,state);
+  }
+#endif
 }
 
 void setMox(int state) {
-fprintf(stderr,"setMox: %d\n",state);
   if(mox!=state) {
     mox=state;
     if(vox_enabled && vox) {
@@ -641,12 +780,11 @@ void setVox(int state) {
     vox=state;
     rxtx(state);
   }
-  g_idle_add(vfo_update,(gpointer)NULL);
+  g_idle_add(ext_vfo_update,(gpointer)NULL);
 }
 
-int vox_changed(void *data) {
-  setVox((int)data);
-  return 0;
+void vox_changed(int state) {
+  setVox(state);
 }
 
 
@@ -687,63 +825,50 @@ void setTune(int state) {
         }
       }
 
-      int mode=vfo[VFO_A].mode;;
+      int mode=vfo[VFO_A].mode;
       if(split) {
         mode=vfo[VFO_B].mode;
       }
-      double freq=(double)cw_keyer_sidetone_frequency;
-      
-      pre_tune_filter_low=transmitter->filter_low;
-      pre_tune_filter_high=transmitter->filter_high;
+      pre_tune_mode=mode;
 
       switch(mode) {
-        case modeUSB:
-        case modeCWU:
-        case modeDIGU:
-          SetTXAPostGenToneFreq(transmitter->id,(double)cw_keyer_sidetone_frequency);
-          transmitter->filter_low=cw_keyer_sidetone_frequency-100;
-          transmitter->filter_high=cw_keyer_sidetone_frequency+100;
-          freq=(double)(cw_keyer_sidetone_frequency+100);
-          break;
         case modeLSB:
         case modeCWL:
         case modeDIGL:
           SetTXAPostGenToneFreq(transmitter->id,-(double)cw_keyer_sidetone_frequency);
-          transmitter->filter_low=-cw_keyer_sidetone_frequency-100;
-          transmitter->filter_high=-cw_keyer_sidetone_frequency+100;
-          freq=(double)(-cw_keyer_sidetone_frequency-100);
           break;
-        case modeDSB:
+        default:
           SetTXAPostGenToneFreq(transmitter->id,(double)cw_keyer_sidetone_frequency);
-          transmitter->filter_low=cw_keyer_sidetone_frequency-100;
-          transmitter->filter_high=cw_keyer_sidetone_frequency+100;
-          freq=(double)(cw_keyer_sidetone_frequency+100);
-          break;
-        case modeAM:
-        case modeSAM:
-        case modeFMN:
-          SetTXAPostGenToneFreq(transmitter->id,(double)cw_keyer_sidetone_frequency);
-          transmitter->filter_low=cw_keyer_sidetone_frequency-100;
-          transmitter->filter_high=cw_keyer_sidetone_frequency+100;
-          freq=(double)(cw_keyer_sidetone_frequency+100);
           break;
       }
 
-      SetTXABandpassFreqs(transmitter->id,transmitter->filter_low,transmitter->filter_high);
-
-      
-      SetTXAMode(transmitter->id,modeDIGU);
-      SetTXAPostGenMode(transmitter->id,0);
       SetTXAPostGenToneMag(transmitter->id,0.99999);
+      SetTXAPostGenMode(transmitter->id,0);
       SetTXAPostGenRun(transmitter->id,1);
+
+      switch(mode) {
+        case modeCWL:
+          cw_keyer_internal=0;
+          tx_set_mode(transmitter,modeLSB);
+          break;
+        case modeCWU:
+          cw_keyer_internal=0;
+          tx_set_mode(transmitter,modeUSB);
+          break;
+      }
+      rxtx(tune);
     } else {
+      rxtx(tune);
       SetTXAPostGenRun(transmitter->id,0);
-      SetTXAMode(transmitter->id,transmitter->mode);
-      transmitter->filter_low=pre_tune_filter_low;
-      transmitter->filter_high=pre_tune_filter_high;
-      SetTXABandpassFreqs(transmitter->id,transmitter->filter_low,transmitter->filter_high);
+      switch(pre_tune_mode) {
+        case modeCWL:
+        case modeCWU:
+          tx_set_mode(transmitter,pre_tune_mode);
+          cw_keyer_internal=1;
+          break;
+      }
+
     }
-    rxtx(tune);
   }
 }
 
@@ -751,8 +876,31 @@ int getTune() {
   return tune;
 }
 
+void radio_cw_setup() {
+  int mode=vfo[VFO_A].mode;;
+  if(split) {
+    mode=vfo[VFO_B].mode;
+  }
+
+  double freq=(double)cw_keyer_sidetone_frequency;
+  switch(mode) {
+    case modeCWU:
+      SetTXAPostGenToneFreq(transmitter->id,(double)cw_keyer_sidetone_frequency);
+      break;
+    case modeLSB:
+      SetTXAPostGenToneFreq(transmitter->id,-(double)cw_keyer_sidetone_frequency);
+      break;
+  }
+  SetTXAPostGenMode(transmitter->id,0);
+  SetTXAPostGenToneMag(transmitter->id,0.99999);
+}
+
+void radio_cw_key(int state) {
+  SetTXAPostGenRun(transmitter->id,state);
+}
+
 int isTransmitting() {
-  return ptt || mox || vox || tune;
+  return ptt | mox | vox | tune;
 }
 
 void setFrequency(long long f) {
@@ -803,7 +951,6 @@ fprintf(stderr,"setFrequency: %lld\n",f);
 #ifdef RADIOBERRY
 	case RADIOBERRY_PROTOCOL:
 #endif
-      schedule_frequency_changed();
       break;
 #ifdef LIMESDR
     case LIMESDR_PROTOCOL:
@@ -820,7 +967,7 @@ long long getFrequency() {
 }
 
 double getDrive() {
-    return drive;
+    return transmitter->drive;
 }
 
 static int calcLevel(double d) {
@@ -843,35 +990,36 @@ static int calcLevel(double d) {
   }
 
   level=(int)(actual_volts*255.0);
+
+//fprintf(stderr,"calcLevel: %f calib=%f level=%d\n",d, gbb, level);
   return level;
 }
 
 void calcDriveLevel() {
-    drive_level=calcLevel(drive);
+    transmitter->drive_level=calcLevel(transmitter->drive);
     if(mox && protocol==NEW_PROTOCOL) {
       schedule_high_priority();
     }
+//fprintf(stderr,"calcDriveLevel: drive=%d drive_level=%d\n",transmitter->drive,transmitter->drive_level);
 }
 
 void setDrive(double value) {
-    drive=value;
+    transmitter->drive=value;
     calcDriveLevel();
 }
 
 double getTuneDrive() {
-    return tune_drive;
+    return transmitter->tune_percent;
 }
 
-void calcTuneDriveLevel() {
-    tune_drive_level=calcLevel(tune_drive);
-    if(tune  && protocol==NEW_PROTOCOL) {
-      schedule_high_priority();
-    }
-}
+void setSquelch(RECEIVER *rx) {
+  double am_sq=((rx->squelch/100.0)*160.0)-160.0;
+  SetRXAAMSQThreshold(rx->id, am_sq);
+  SetRXAAMSQRun(rx->id, rx->squelch_enable);
 
-void setTuneDrive(double value) {
-    tune_drive=value;
-    calcTuneDriveLevel();
+  double fm_sq=pow(10.0, -2.0*rx->squelch/100.0);
+  SetRXAFMSQThreshold(rx->id, fm_sq);
+  SetRXAFMSQRun(rx->id, rx->squelch_enable);
 }
 
 void set_attenuation(int value) {
@@ -928,6 +1076,8 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     sem_wait(&property_sem);
     loadProperties(property_path);
 
+    value=getProperty("region");
+    if(value) region=atoi(value);
     value=getProperty("buffer_size");
     if(value) buffer_size=atoi(value);
     value=getProperty("fft_size");
@@ -968,14 +1118,6 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     if(value) waterfall_high=atoi(value);
     value=getProperty("waterfall_low");
     if(value) waterfall_low=atoi(value);
-    value=getProperty("waterfall_automatic");
-    if(value) waterfall_automatic=atoi(value);
-//    value=getProperty("volume");
-//    if(value) volume=atof(value);
-    value=getProperty("drive");
-    if(value) drive=atof(value);
-    value=getProperty("tune_drive");
-    if(value) tune_drive=atof(value);
     value=getProperty("mic_gain");
     if(value) mic_gain=atof(value);
     value=getProperty("mic_boost");
@@ -1032,11 +1174,8 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     if(value) OCfull_tune_time=atoi(value);
     value=getProperty("OCmemory_tune_time");
     if(value) OCmemory_tune_time=atoi(value);
-#ifdef FREEDV
-    strcpy(freedv_tx_text_data,"NO TEXT DATA");
-    value=getProperty("freedv_tx_text_data");
-    if(value) strcpy(freedv_tx_text_data,value);
-#endif
+    value=getProperty("analog_meter");
+    if(value) analog_meter=atoi(value);
     value=getProperty("smeter");
     if(value) smeter=atoi(value);
     value=getProperty("alc");
@@ -1073,8 +1212,6 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     if(value) rx_equalizer[3]=atoi(value);
     value=getProperty("rit_increment");
     if(value) rit_increment=atoi(value);
-    value=getProperty("deviation");
-    if(value) deviation=atoi(value);
     value=getProperty("pre_emphasize");
     if(value) pre_emphasize=atoi(value);
 
@@ -1101,6 +1238,9 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     value=getProperty("filterB");
     if(value) filterB=atoi(value);
 
+    value=getProperty("tone_level");
+    if(value) tone_level=atof(value);
+
 #ifdef GPIO
     value=getProperty("e1_encoder_action");
     if(value) e1_encoder_action=atoi(value);
@@ -1117,6 +1257,13 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     bandRestoreState();
     memRestoreState();
     vfo_restore_state();
+#ifdef FREEDV
+    freedv_restore_state();
+#endif
+    value=getProperty("rigctl_enable");
+    if(value) rigctl_enable=atoi(value);
+    value=getProperty("rigctl_port_base");
+    if(value) rigctl_port_base=atoi(value);
 
     sem_post(&property_sem);
 }
@@ -1126,6 +1273,8 @@ void radioSaveState() {
     char value[80];
 
     sem_wait(&property_sem);
+    sprintf(value,"%d",region);
+    setProperty("region",value);
     sprintf(value,"%d",buffer_size);
     setProperty("buffer_size",value);
     sprintf(value,"%d",fft_size);
@@ -1136,12 +1285,6 @@ void radioSaveState() {
     setProperty("filter_board",value);
     sprintf(value,"%d",tx_out_of_band);
     setProperty("tx_out_of_band",value);
-/*
-    sprintf(value,"%d",apollo_tuner);
-    setProperty("apollo_tuner",value);
-    sprintf(value,"%d",pa);
-    setProperty("pa",value);
-*/
     sprintf(value,"%d",updates_per_second);
     setProperty("updates_per_second",value);
     sprintf(value,"%d",display_filled);
@@ -1158,24 +1301,12 @@ void radioSaveState() {
     setProperty("panadapter_low",value);
     sprintf(value,"%d",display_sliders);
     setProperty("display_sliders",value);
-/*
-    sprintf(value,"%d",display_toolbar);
-    setProperty("display_toolbar",value);
-*/
     sprintf(value,"%d",waterfall_high);
     setProperty("waterfall_high",value);
     sprintf(value,"%d",waterfall_low);
     setProperty("waterfall_low",value);
-    sprintf(value,"%d",waterfall_automatic);
-    setProperty("waterfall_automatic",value);
-//    sprintf(value,"%f",volume);
-//    setProperty("volume",value);
     sprintf(value,"%f",mic_gain);
     setProperty("mic_gain",value);
-    sprintf(value,"%f",drive);
-    setProperty("drive",value);
-    sprintf(value,"%f",tune_drive);
-    setProperty("tune_drive",value);
     sprintf(value,"%d",mic_boost);
     setProperty("mic_boost",value);
     sprintf(value,"%d",mic_linein);
@@ -1227,11 +1358,8 @@ void radioSaveState() {
     setProperty("OCfull_tune_time",value);
     sprintf(value,"%d",OCmemory_tune_time);
     setProperty("OCmemory_tune_time",value);
-#ifdef FREEDV
-    if(strlen(freedv_tx_text_data)>0) {
-      setProperty("freedv_tx_text_data",freedv_tx_text_data);
-    }
-#endif
+    sprintf(value,"%d",analog_meter);
+    setProperty("analog_meter",value);
     sprintf(value,"%d",smeter);
     setProperty("smeter",value);
     sprintf(value,"%d",alc);
@@ -1244,8 +1372,6 @@ void radioSaveState() {
 #endif
     sprintf(value,"%d",local_microphone);
     setProperty("local_microphone",value);
-//    sprintf(value,"%d",n_selected_input_device);
-//    setProperty("n_selected_input_device",value);
 
     sprintf(value,"%d",enable_tx_equalizer);
     setProperty("enable_tx_equalizer",value);
@@ -1269,8 +1395,6 @@ void radioSaveState() {
     setProperty("rx_equalizer.3",value);
     sprintf(value,"%d",rit_increment);
     setProperty("rit_increment",value);
-    sprintf(value,"%d",deviation);
-    setProperty("deviation",value);
     sprintf(value,"%d",pre_emphasize);
     setProperty("pre_emphasize",value);
 
@@ -1278,10 +1402,6 @@ void radioSaveState() {
     setProperty("vox_enabled",value);
     sprintf(value,"%f",vox_threshold);
     setProperty("vox_threshold",value);
-/*
-    sprintf(value,"%f",vox_gain);
-    setProperty("vox_gain",value);
-*/
     sprintf(value,"%f",vox_hang);
     setProperty("vox_hang",value);
 
@@ -1294,6 +1414,9 @@ void radioSaveState() {
     setProperty("modeB",value);
     sprintf(value,"%d",filterB);
     setProperty("filterB",value);
+
+    sprintf(value,"%f",tone_level);
+    setProperty("tone_level",value);
 
 #ifdef GPIO
     sprintf(value,"%d",e1_encoder_action);
@@ -1312,10 +1435,19 @@ void radioSaveState() {
       receiver_save_state(receiver[i]);
     }
     transmitter_save_state(transmitter);
+#ifdef FREEDV
+    freedv_save_state();
+#endif
 
     filterSaveState();
     bandSaveState();
     memSaveState();
+
+    sprintf(value,"%d",rigctl_enable);
+    setProperty("rigctl_enable",value);
+    sprintf(value,"%d",rigctl_port_base);
+    setProperty("rigctl_port_base",value);
+
     saveProperties(property_path);
     sem_post(&property_sem);
 }
@@ -1353,4 +1485,39 @@ void set_filter_size(int filter_size) {
   }
   transmitter->fft_size=filter_size;
   TXASetNC(transmitter->id, filter_size);
+}
+
+#ifdef FREEDV
+void set_freedv(int state) {
+fprintf(stderr,"set_freedv: rx=%p state=%d\n",active_receiver,state);
+  g_mutex_lock(&active_receiver->freedv_mutex);
+  active_receiver->freedv=state;
+  if(active_receiver->freedv) {
+    SetRXAPanelRun(active_receiver->id, 0);
+    init_freedv(active_receiver);
+    transmitter->freedv_samples=0;
+  } else {
+    SetRXAPanelRun(active_receiver->id, 1);
+    close_freedv(active_receiver);
+  }
+  g_mutex_unlock(&active_receiver->freedv_mutex);
+  g_idle_add(ext_vfo_update,NULL);
+}
+#endif
+
+void radio_change_region(int r) {
+  region=r;
+  if(region==REGION_UK) {
+    channel_entries=UK_CHANNEL_ENTRIES;
+    band_channels_60m=&band_channels_60m_UK[0];
+    bandstack60.entries=UK_CHANNEL_ENTRIES;
+    bandstack60.current_entry=0;
+    bandstack60.entry=bandstack_entries60_UK;
+  } else {
+    channel_entries=OTHER_CHANNEL_ENTRIES;
+    band_channels_60m=&band_channels_60m_OTHER[0];
+    bandstack60.entries=OTHER_CHANNEL_ENTRIES;
+    bandstack60.current_entry=0;
+    bandstack60.entry=bandstack_entries60_OTHER;
+  }
 }

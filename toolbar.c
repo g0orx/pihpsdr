@@ -20,6 +20,8 @@
 #include <gtk/gtk.h>
 #include <semaphore.h>
 #include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #ifdef GPIO
 #include "gpio.h"
@@ -32,6 +34,7 @@
 #include "band.h"
 #include "discovered.h"
 #include "new_protocol.h"
+#include "old_protocol.h"
 #include "vfo.h"
 #include "alex.h"
 #include "agc.h"
@@ -46,6 +49,7 @@
 #ifdef RADIOBERRY
 #include "radioberry.h"	
 #endif
+#include "ext.h"	
 
 #define MAX_FUNCTION 3
 int function=0;
@@ -80,11 +84,14 @@ static gint rit_plus_timer=-1;
 static gint rit_minus_timer=-1;
 
 static gboolean rit_timer_cb(gpointer data) {
-  int i=(int)data;
+  int i=(uintptr_t)data;
   vfo[active_receiver->id].rit+=(i*rit_increment);
   if(vfo[active_receiver->id].rit>1000) vfo[active_receiver->id].rit=1000;
   if(vfo[active_receiver->id].rit<-1000) vfo[active_receiver->id].rit=-1000;
-  vfo_update(NULL);
+  if(protocol==NEW_PROTOCOL) {
+    schedule_high_priority();
+  }
+  vfo_update();
   return TRUE;
 }
 
@@ -116,7 +123,7 @@ void update_toolbar_labels() {
       gtk_button_set_label(GTK_BUTTON(sim_s1),"Freq");
       gtk_button_set_label(GTK_BUTTON(sim_s2),"Mem");
       //gtk_button_set_label(GTK_BUTTON(sim_s3),"Vox");
-      gtk_button_set_label(GTK_BUTTON(sim_s3),vfo[active_receiver->id].rit_enabled==0?"RIT On":"RIT Off");
+      gtk_button_set_label(GTK_BUTTON(sim_s3),"RIT");
 
       gtk_button_set_label(GTK_BUTTON(sim_s4),"RIT+");
       gtk_button_set_label(GTK_BUTTON(sim_s5),"RIT-");
@@ -140,10 +147,10 @@ void update_toolbar_labels() {
       } else {
         gtk_button_set_label(GTK_BUTTON(sim_s2),"");
       }
-      gtk_button_set_label(GTK_BUTTON(sim_s3),"");
-      gtk_button_set_label(GTK_BUTTON(sim_s4),"");
-      gtk_button_set_label(GTK_BUTTON(sim_s5),"");
-      gtk_button_set_label(GTK_BUTTON(sim_s6),"");
+      gtk_button_set_label(GTK_BUTTON(sim_s3),"Band");
+      gtk_button_set_label(GTK_BUTTON(sim_s4),"Mode");
+      gtk_button_set_label(GTK_BUTTON(sim_s5),"Filter");
+      gtk_button_set_label(GTK_BUTTON(sim_s6),"Mox");
       if(full_tune) {
         set_button_text_color(sim_s1,"red");
       }
@@ -191,7 +198,7 @@ void ctun_cb (GtkWidget *widget, gpointer data) {
   }
   vfo[id].ctun_frequency=vfo[id].frequency;
   set_offset(active_receiver,vfo[id].offset);
-  vfo_update(NULL);
+  vfo_update();
 }
 
 static void atob_cb (GtkWidget *widget, gpointer data) {
@@ -213,31 +220,36 @@ static void split_cb (GtkWidget *widget, gpointer data) {
   } else {
     tx_set_mode(transmitter,vfo[VFO_A].mode);
   }
-  vfo_update(NULL);
+  vfo_update();
 }
 
 static void rit_enable_cb(GtkWidget *widget, gpointer data) {
   vfo[active_receiver->id].rit_enabled=vfo[active_receiver->id].rit_enabled==1?0:1;
-  gtk_button_set_label(GTK_BUTTON(widget),vfo[active_receiver->id].rit_enabled==0?"RIT On":"RIT Off");
-  vfo_update(NULL);
+  if(protocol==NEW_PROTOCOL) {
+    schedule_high_priority();
+  }
+  vfo_update();
 }
 
 static void rit_cb(GtkWidget *widget, gpointer data) {
-  int i=(int)data;
+  int i=(uintptr_t)data;
   vfo[active_receiver->id].rit+=i*rit_increment;
   if(vfo[active_receiver->id].rit>1000) vfo[active_receiver->id].rit=1000;
   if(vfo[active_receiver->id].rit<-1000) vfo[active_receiver->id].rit=-1000;
-  vfo_update(NULL);
+  if(protocol==NEW_PROTOCOL) {
+    schedule_high_priority();
+  }
+  vfo_update();
   if(i<0) {
-    rit_minus_timer=g_timeout_add(200,rit_timer_cb,(void *)i);
+    rit_minus_timer=g_timeout_add(200,rit_timer_cb,(gpointer)(long)i);
   } else {
-    rit_plus_timer=g_timeout_add(200,rit_timer_cb,(void *)i);
+    rit_plus_timer=g_timeout_add(200,rit_timer_cb,(gpointer)(long)i);
   }
 }
 
 static void rit_clear_cb(GtkWidget *widget, gpointer data) {
   vfo[active_receiver->id].rit=0;
-  vfo_update(NULL);
+  vfo_update();
 }
 
 static void freq_cb(GtkWidget *widget, gpointer data) {
@@ -250,7 +262,7 @@ static void mem_cb(GtkWidget *widget, gpointer data) {
 
 static void vox_cb(GtkWidget *widget, gpointer data) {
   vox_enabled=vox_enabled==1?0:1;
-  vfo_update(NULL);
+  vfo_update();
 }
 
 static void stop() {
@@ -265,6 +277,9 @@ static void stop() {
     new_protocol_stop();
   }
 #ifdef GPIO
+  gpio_close();
+#endif
+#ifdef WIRIINGPI
   gpio_close();
 #endif
 }
@@ -323,241 +338,13 @@ static void exit_cb(GtkWidget *widget, gpointer data) {
 
 }
 
-static void cw_keyer_internal_cb(GtkWidget *widget, gpointer data) {
-  cw_keyer_internal=cw_keyer_internal==1?0:1;
-  cw_changed();
-}
-
-static void cw_keyer_speed_value_changed_cb(GtkWidget *widget, gpointer data) {
-  cw_keyer_speed=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
-  cw_changed();
-}
-
-static void cw_breakin_cb(GtkWidget *widget, gpointer data) {
-  cw_breakin=cw_breakin==1?0:1;
-  cw_changed();
-}
-
-static void cw_keyer_hang_time_value_changed_cb(GtkWidget *widget, gpointer data) {
-  cw_keyer_hang_time=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
-  cw_changed();
-}
-
-static void cw_keys_reversed_cb(GtkWidget *widget, gpointer data) {
-  cw_keys_reversed=cw_keys_reversed==1?0:1;
-  cw_changed();
-}
-
-static void cw_keyer_mode_cb(GtkWidget *widget, gpointer data) {
-  cw_keyer_mode=(int)data;
-  cw_changed();
-}
-
-static void vfo_divisor_value_changed_cb(GtkWidget *widget, gpointer data) {
-  vfo_encoder_divisor=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
-}
-
-static void panadapter_high_value_changed_cb(GtkWidget *widget, gpointer data) {
-  panadapter_high=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
-}
-
-static void panadapter_low_value_changed_cb(GtkWidget *widget, gpointer data) {
-  panadapter_low=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
-}
-
-static void waterfall_high_value_changed_cb(GtkWidget *widget, gpointer data) {
-  waterfall_high=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
-}
-
-static void waterfall_low_value_changed_cb(GtkWidget *widget, gpointer data) {
-  waterfall_low=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
-}
-
-static void waterfall_automatic_cb(GtkWidget *widget, gpointer data) {
-  waterfall_automatic=waterfall_automatic==1?0:1;
-}
-
-static void config_cb(GtkWidget *widget, gpointer data) {
-  GtkWidget *dialog=gtk_dialog_new_with_buttons("Audio",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
-  GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-  GtkWidget *grid=gtk_grid_new();
-  gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
-  gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
-
-  GtkWidget *display_label=gtk_label_new("Display: ");
-  //gtk_widget_override_font(display_label, pango_font_description_from_string("Arial 18"));
-  gtk_widget_show(display_label);
-  gtk_grid_attach(GTK_GRID(grid),display_label,0,0,1,1);
-
-  GtkWidget *panadapter_high_label=gtk_label_new("Panadapter High: ");
-  //gtk_widget_override_font(panadapter_high_label, pango_font_description_from_string("Arial 18"));
-  gtk_widget_show(panadapter_high_label);
-  gtk_grid_attach(GTK_GRID(grid),panadapter_high_label,0,1,1,1);
-
-  GtkWidget *panadapter_high_r=gtk_spin_button_new_with_range(-220.0,100.0,1.0);
-  //gtk_widget_override_font(panadapter_high_r, pango_font_description_from_string("Arial 18"));
-  gtk_spin_button_set_value(GTK_SPIN_BUTTON(panadapter_high_r),(double)panadapter_high);
-  gtk_widget_show(panadapter_high_r);
-  gtk_grid_attach(GTK_GRID(grid),panadapter_high_r,1,1,1,1);
-  g_signal_connect(panadapter_high_r,"value_changed",G_CALLBACK(panadapter_high_value_changed_cb),NULL);
-
-  GtkWidget *panadapter_low_label=gtk_label_new("Panadapter Low: ");
-  //gtk_widget_override_font(panadapter_low_label, pango_font_description_from_string("Arial 18"));
-  gtk_widget_show(panadapter_low_label);
-  gtk_grid_attach(GTK_GRID(grid),panadapter_low_label,0,2,1,1);
-
-  GtkWidget *panadapter_low_r=gtk_spin_button_new_with_range(-220.0,100.0,1.0);
-  //gtk_widget_override_font(panadapter_low_r, pango_font_description_from_string("Arial 18"));
-  gtk_spin_button_set_value(GTK_SPIN_BUTTON(panadapter_low_r),(double)panadapter_low);
-  gtk_widget_show(panadapter_low_r);
-  gtk_grid_attach(GTK_GRID(grid),panadapter_low_r,1,2,1,1);
-  g_signal_connect(panadapter_low_r,"value_changed",G_CALLBACK(panadapter_low_value_changed_cb),NULL);
-
-  GtkWidget *waterfall_automatic_label=gtk_label_new("Waterfall Automatic: ");
-  //gtk_widget_override_font(waterfall_automatic_label, pango_font_description_from_string("Arial 18"));
-  gtk_widget_show(waterfall_automatic_label);
-  gtk_grid_attach(GTK_GRID(grid),waterfall_automatic_label,0,3,1,1);
-
-  GtkWidget *waterfall_automatic_b=gtk_check_button_new();
-  ////gtk_widget_override_font(waterfall_automatic_b, pango_font_description_from_string("Arial 18"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (waterfall_automatic_b), waterfall_automatic);
-  gtk_widget_show(waterfall_automatic_b);
-  gtk_grid_attach(GTK_GRID(grid),waterfall_automatic_b,1,3,1,1);
-  g_signal_connect(waterfall_automatic_b,"toggled",G_CALLBACK(waterfall_automatic_cb),NULL);
-
-  GtkWidget *waterfall_high_label=gtk_label_new("Waterfall High: ");
-  //gtk_widget_override_font(waterfall_high_label, pango_font_description_from_string("Arial 18"));
-  gtk_widget_show(waterfall_high_label);
-  gtk_grid_attach(GTK_GRID(grid),waterfall_high_label,0,4,1,1);
-
-  GtkWidget *waterfall_high_r=gtk_spin_button_new_with_range(-220.0,100.0,1.0);
-  //gtk_widget_override_font(waterfall_high_r, pango_font_description_from_string("Arial 18"));
-  gtk_spin_button_set_value(GTK_SPIN_BUTTON(waterfall_high_r),(double)waterfall_high);
-  gtk_widget_show(waterfall_high_r);
-  gtk_grid_attach(GTK_GRID(grid),waterfall_high_r,1,4,1,1);
-  g_signal_connect(waterfall_high_r,"value_changed",G_CALLBACK(waterfall_high_value_changed_cb),NULL);
-
-  GtkWidget *waterfall_low_label=gtk_label_new("Waterfall Low: ");
-  //gtk_widget_override_font(waterfall_low_label, pango_font_description_from_string("Arial 18"));
-  gtk_widget_show(waterfall_low_label);
-  gtk_grid_attach(GTK_GRID(grid),waterfall_low_label,0,5,1,1);
-
-  GtkWidget *waterfall_low_r=gtk_spin_button_new_with_range(-220.0,100.0,1.0);
-  //gtk_widget_override_font(waterfall_low_r, pango_font_description_from_string("Arial 18"));
-  gtk_spin_button_set_value(GTK_SPIN_BUTTON(waterfall_low_r),(double)waterfall_low);
-  gtk_widget_show(waterfall_low_r);
-  gtk_grid_attach(GTK_GRID(grid),waterfall_low_r,1,5,1,1);
-  g_signal_connect(waterfall_low_r,"value_changed",G_CALLBACK(waterfall_low_value_changed_cb),NULL);
-
-
-  GtkWidget *vfo_encoder_label=gtk_label_new("VFO Encoder: ");
-  //gtk_widget_override_font(vfo_encoder_label, pango_font_description_from_string("Arial 18"));
-  gtk_widget_show(vfo_encoder_label);
-  gtk_grid_attach(GTK_GRID(grid),vfo_encoder_label,0,6,1,1);
-
-  GtkWidget *vfo_divisor_label=gtk_label_new("Divisor: ");
-  //gtk_widget_override_font(vfo_divisor_label, pango_font_description_from_string("Arial 18"));
-  gtk_widget_show(vfo_divisor_label);
-  gtk_grid_attach(GTK_GRID(grid),vfo_divisor_label,0,7,1,1);
-
-  GtkWidget *vfo_divisor=gtk_spin_button_new_with_range(1.0,60.0,1.0);
-  //gtk_widget_override_font(vfo_divisor, pango_font_description_from_string("Arial 18"));
-  gtk_spin_button_set_value(GTK_SPIN_BUTTON(vfo_divisor),(double)vfo_encoder_divisor);
-  gtk_widget_show(vfo_divisor);
-  gtk_grid_attach(GTK_GRID(grid),vfo_divisor,1,7,1,1);
-  g_signal_connect(vfo_divisor,"value_changed",G_CALLBACK(vfo_divisor_value_changed_cb),NULL);
-
-  gtk_container_add(GTK_CONTAINER(content),grid);
-  GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close",GTK_RESPONSE_OK);
-  //gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 18"));
-  gtk_widget_show_all(dialog);
-
-  g_signal_connect_swapped (dialog,
-                           "response",
-                           G_CALLBACK (gtk_widget_destroy),
-                           dialog);
-
-  int result=gtk_dialog_run(GTK_DIALOG(dialog));
-}
-
-static void cw_cb(GtkWidget *widget, gpointer data) {
-  GtkWidget *dialog=gtk_dialog_new_with_buttons("CW",GTK_WINDOW(parent_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
-  GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-  GtkWidget *grid=gtk_grid_new();
-  //gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
-  gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
-
-
-  GtkWidget *cw_keyer_internal_b=gtk_check_button_new_with_label("CW Internal - Speed (WPM)");
-  //gtk_widget_override_font(cw_keyer_internal_b, pango_font_description_from_string("Arial 18"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (cw_keyer_internal_b), cw_keyer_internal);
-  gtk_widget_show(cw_keyer_internal_b);
-  gtk_grid_attach(GTK_GRID(grid),cw_keyer_internal_b,0,0,1,1);
-  g_signal_connect(cw_keyer_internal_b,"toggled",G_CALLBACK(cw_keyer_internal_cb),NULL);
-
-  GtkWidget *cw_keyer_speed_b=gtk_spin_button_new_with_range(1.0,60.0,1.0);
-  //gtk_widget_override_font(cw_keyer_speed_b, pango_font_description_from_string("Arial 18"));
-  gtk_spin_button_set_value(GTK_SPIN_BUTTON(cw_keyer_speed_b),(double)cw_keyer_speed);
-  gtk_widget_show(cw_keyer_speed_b);
-  gtk_grid_attach(GTK_GRID(grid),cw_keyer_speed_b,1,0,1,1);
-  g_signal_connect(cw_keyer_speed_b,"value_changed",G_CALLBACK(cw_keyer_speed_value_changed_cb),NULL);
-
-  GtkWidget *cw_breakin_b=gtk_check_button_new_with_label("CW Break In - Delay (ms)");
-  //gtk_widget_override_font(cw_breakin_b, pango_font_description_from_string("Arial 18"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (cw_breakin_b), cw_breakin);
-  gtk_widget_show(cw_breakin_b);
-  gtk_grid_attach(GTK_GRID(grid),cw_breakin_b,0,1,1,1);
-  g_signal_connect(cw_breakin_b,"toggled",G_CALLBACK(cw_breakin_cb),NULL);
-
-  GtkWidget *cw_keyer_hang_time_b=gtk_spin_button_new_with_range(0.0,1000.0,1.0);
-  //gtk_widget_override_font(cw_keyer_hang_time_b, pango_font_description_from_string("Arial 18"));
-  gtk_spin_button_set_value(GTK_SPIN_BUTTON(cw_keyer_hang_time_b),(double)cw_keyer_hang_time);
-  gtk_widget_show(cw_keyer_hang_time_b);
-  gtk_grid_attach(GTK_GRID(grid),cw_keyer_hang_time_b,1,1,1,1);
-  g_signal_connect(cw_keyer_hang_time_b,"value_changed",G_CALLBACK(cw_keyer_hang_time_value_changed_cb),NULL);
-  
-  GtkWidget *cw_keyer_straight=gtk_radio_button_new_with_label(NULL,"CW KEYER STRAIGHT");
-  //gtk_widget_override_font(cw_keyer_straight, pango_font_description_from_string("Arial 18"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (cw_keyer_straight), cw_keyer_mode==KEYER_STRAIGHT);
-  gtk_widget_show(cw_keyer_straight);
-  gtk_grid_attach(GTK_GRID(grid),cw_keyer_straight,0,2,1,1);
-  g_signal_connect(cw_keyer_straight,"pressed",G_CALLBACK(cw_keyer_mode_cb),(gpointer *)KEYER_STRAIGHT);
-
-  GtkWidget *cw_keyer_mode_a=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(cw_keyer_straight),"CW KEYER MODE A");
-  //gtk_widget_override_font(cw_keyer_mode_a, pango_font_description_from_string("Arial 18"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (cw_keyer_mode_a), cw_keyer_mode==KEYER_MODE_A);
-  gtk_widget_show(cw_keyer_mode_a);
-  gtk_grid_attach(GTK_GRID(grid),cw_keyer_mode_a,0,3,1,1);
-  g_signal_connect(cw_keyer_mode_a,"pressed",G_CALLBACK(cw_keyer_mode_cb),(gpointer *)KEYER_MODE_A);
-
-  GtkWidget *cw_keyer_mode_b=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(cw_keyer_mode_a),"CW KEYER MODE B");
-  //gtk_widget_override_font(cw_keyer_mode_b, pango_font_description_from_string("Arial 18"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (cw_keyer_mode_b), cw_keyer_mode==KEYER_MODE_B);
-  gtk_widget_show(cw_keyer_mode_b);
-  gtk_grid_attach(GTK_GRID(grid),cw_keyer_mode_b,0,4,1,1);
-  g_signal_connect(cw_keyer_mode_b,"pressed",G_CALLBACK(cw_keyer_mode_cb),(gpointer *)KEYER_MODE_B);
-
-  gtk_container_add(GTK_CONTAINER(content),grid);
-  GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Close",GTK_RESPONSE_OK);
-  //gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 18"));
-  gtk_widget_show_all(dialog);
-
-  g_signal_connect_swapped (dialog,
-                           "response",
-                           G_CALLBACK (gtk_widget_destroy),
-                           dialog);
-
-  int result=gtk_dialog_run(GTK_DIALOG(dialog));
-}
-
 void lock_cb(GtkWidget *widget, gpointer data) {
   locked=locked==1?0:1;
-  vfo_update(NULL);
+  vfo_update();
 }
 
 void mox_cb(GtkWidget *widget, gpointer data) {
 
-fprintf(stderr,"mox_cb: mox=%d\n",mox);
   if(getTune()==1) {
     setTune(0);
   }
@@ -571,11 +358,10 @@ fprintf(stderr,"mox_cb: mox=%d\n",mox);
   } else {
     transmitter_set_out_of_band(transmitter);
   }
-  g_idle_add(vfo_update,NULL);
+  g_idle_add(ext_vfo_update,NULL);
 }
 
-int mox_update(void *data) {
-  int state=(int)data;
+void mox_update(int state) {
   if(getTune()==1) {
     setTune(0);
   }
@@ -588,26 +374,11 @@ int mox_update(void *data) {
   } else {
     setMox(state);
   }
-  g_idle_add(vfo_update,NULL);
-  return 0;
+  g_idle_add(ext_vfo_update,NULL);
 }
 
-int ptt_update(void *data) {
-
-  return mox_update(data);
-/*
-  int mode;
-  if(split) {
-    mode=vfo[1].mode;
-  } else {
-    mode=vfo[0].mode;
-  }
-  if(protocol==NEW_PROTOCOL || protocol==ORIGINAL_PROTOCOL || (mode!=modeCWU && mode!=modeCWL)) {
-    mox_cb(NULL,NULL);
-  }
-  g_idle_add(vfo_update,NULL);
-  return 0;
-*/
+void ptt_update(int state) {
+  mox_update(state);
 }
 
 void tune_cb(GtkWidget *widget, gpointer data) {
@@ -621,7 +392,24 @@ void tune_cb(GtkWidget *widget, gpointer data) {
   } else {
     transmitter_set_out_of_band(transmitter);
   }
-  vfo_update(NULL);
+  g_idle_add(ext_vfo_update,NULL);
+}
+
+void tune_update(int state) {
+  if(getMox()==1) {
+    setMox(0);
+  }
+  if(state) {
+    setTune(0);
+    if(canTransmit() || tx_out_of_band) {
+      setTune(1);
+    } else {
+      transmitter_set_out_of_band(transmitter);
+    }
+  } else {
+    setTune(state);
+  }
+  g_idle_add(ext_vfo_update,NULL);
 }
 
 void sim_s1_pressed_cb(GtkWidget *widget, gpointer data) {
@@ -711,6 +499,7 @@ void sim_s3_pressed_cb(GtkWidget *widget, gpointer data) {
       rit_enable_cb(widget,data);
       break;
     case 3:
+      band_cb(widget,data);
       break;
   }
 }
@@ -743,6 +532,7 @@ void sim_s4_pressed_cb(GtkWidget *widget, gpointer data) {
       }
       break;
     case 3:
+      mode_cb(widget,data);
       break;
   }
 }
@@ -779,6 +569,7 @@ void sim_s5_pressed_cb(GtkWidget *widget, gpointer data) {
       }
       break;
     case 3:
+      filter_cb(widget,data);
       break;
   }
 }
@@ -825,6 +616,7 @@ void sim_s6_released_cb(GtkWidget *widget, gpointer data) {
     case 2:
       break;
     case 3:
+      mox_cb((GtkWidget *)NULL, (gpointer)NULL);
       break;
   }
 }
@@ -848,7 +640,7 @@ void sim_function_cb(GtkWidget *widget, gpointer data) {
     function=0;
   }
   update_toolbar_labels();
-  vfo_update(NULL);
+  vfo_update();
 }
 
 GtkWidget *toolbar_init(int my_width, int my_height, GtkWidget* parent) {

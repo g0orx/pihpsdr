@@ -774,7 +774,7 @@ static int vfo_encoder_changed(void *data) {
     //entry->frequency=entry->frequency+(pos*step);
     //setFrequency(entry->frequency);
     setFrequency(entry->frequency+ddsOffset+(pos*step));
-    vfo_update(NULL);
+    vfo_update();
   }
   free(data);
   return 0;

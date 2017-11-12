@@ -20,6 +20,8 @@
 #include <gtk/gtk.h>
 #include <semaphore.h>
 #include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <wdsp.h>
@@ -40,13 +42,22 @@ static GtkWidget *high_scale;
 
 static gboolean tx_menu=TRUE;
 
-static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+static void cleanup() {
   if(dialog!=NULL) {
     gtk_widget_destroy(dialog);
     dialog=NULL;
     sub_menu=NULL;
   }
+}
+
+static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  cleanup();
   return TRUE;
+}
+
+static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_data) {
+  cleanup();
+  return FALSE;
 }
 
 static gboolean tx_rb_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
@@ -83,8 +94,8 @@ static gboolean enable_cb (GtkWidget *widget, GdkEventButton *event, gpointer da
   }
 }
 
-static gboolean rx_value_changed_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  int i=(int)data;
+static void value_changed_cb (GtkWidget *widget, gpointer data) {
+  int i=(uintptr_t)data;
   if(tx_menu) {
     tx_equalizer[i]=(int)gtk_range_get_value(GTK_RANGE(widget));
     SetTXAGrphEQ(transmitter->id, tx_equalizer);
@@ -101,7 +112,9 @@ void equalizer_menu(GtkWidget *parent) {
 
   dialog=gtk_dialog_new();
   gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent_window));
-  gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  //gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  gtk_window_set_title(GTK_WINDOW(dialog),"piHPSDR - Equalizer");
+  g_signal_connect (dialog, "delete_event", G_CALLBACK (delete_event), NULL);
 
   GdkRGBA color;
   color.red = 1.0;
@@ -118,7 +131,7 @@ void equalizer_menu(GtkWidget *parent) {
   gtk_grid_set_row_homogeneous(GTK_GRID(grid),FALSE);
   gtk_grid_set_column_homogeneous(GTK_GRID(grid),FALSE);
 
-  GtkWidget *close_b=gtk_button_new_with_label("Close Equalizer");
+  GtkWidget *close_b=gtk_button_new_with_label("Close");
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
@@ -153,7 +166,7 @@ void equalizer_menu(GtkWidget *parent) {
 
   preamp_scale=gtk_scale_new_with_range(GTK_ORIENTATION_VERTICAL,-12.0,15.0,1.0);
   gtk_range_set_value(GTK_RANGE(preamp_scale),(double)tx_equalizer[0]);
-  g_signal_connect(preamp_scale,"value-changed",G_CALLBACK(rx_value_changed_cb),(gpointer)0);
+  g_signal_connect(preamp_scale,"value-changed",G_CALLBACK(value_changed_cb),(gpointer)0);
   gtk_grid_attach(GTK_GRID(grid),preamp_scale,0,3,1,10);
   gtk_widget_set_size_request(preamp_scale,10,270);
   gtk_scale_add_mark(GTK_SCALE(preamp_scale),-12.0,GTK_POS_LEFT,"-12dB");
@@ -169,7 +182,7 @@ void equalizer_menu(GtkWidget *parent) {
 
   low_scale=gtk_scale_new_with_range(GTK_ORIENTATION_VERTICAL,-12.0,15.0,1.0);
   gtk_range_set_value(GTK_RANGE(low_scale),(double)tx_equalizer[1]);
-  g_signal_connect(low_scale,"value-changed",G_CALLBACK(rx_value_changed_cb),(gpointer)1);
+  g_signal_connect(low_scale,"value-changed",G_CALLBACK(value_changed_cb),(gpointer)1);
   gtk_grid_attach(GTK_GRID(grid),low_scale,1,3,1,10);
   gtk_scale_add_mark(GTK_SCALE(low_scale),-12.0,GTK_POS_LEFT,"-12dB");
   gtk_scale_add_mark(GTK_SCALE(low_scale),-9.0,GTK_POS_LEFT,NULL);
@@ -184,7 +197,7 @@ void equalizer_menu(GtkWidget *parent) {
 
   mid_scale=gtk_scale_new_with_range(GTK_ORIENTATION_VERTICAL,-12.0,15.0,1.0);
   gtk_range_set_value(GTK_RANGE(mid_scale),(double)tx_equalizer[2]);
-  g_signal_connect(mid_scale,"value-changed",G_CALLBACK(rx_value_changed_cb),(gpointer)2);
+  g_signal_connect(mid_scale,"value-changed",G_CALLBACK(value_changed_cb),(gpointer)2);
   gtk_grid_attach(GTK_GRID(grid),mid_scale,2,3,1,10);
   gtk_scale_add_mark(GTK_SCALE(mid_scale),-12.0,GTK_POS_LEFT,"-12dB");
   gtk_scale_add_mark(GTK_SCALE(mid_scale),-9.0,GTK_POS_LEFT,NULL);
@@ -199,7 +212,7 @@ void equalizer_menu(GtkWidget *parent) {
 
   high_scale=gtk_scale_new_with_range(GTK_ORIENTATION_VERTICAL,-12.0,15.0,1.0);
   gtk_range_set_value(GTK_RANGE(high_scale),(double)tx_equalizer[3]);
-  g_signal_connect(high_scale,"value-changed",G_CALLBACK(rx_value_changed_cb),(gpointer)3);
+  g_signal_connect(high_scale,"value-changed",G_CALLBACK(value_changed_cb),(gpointer)3);
   gtk_grid_attach(GTK_GRID(grid),high_scale,3,3,1,10);
   gtk_scale_add_mark(GTK_SCALE(high_scale),-12.0,GTK_POS_LEFT,"-12dB");
   gtk_scale_add_mark(GTK_SCALE(high_scale),-9.0,GTK_POS_LEFT,NULL);

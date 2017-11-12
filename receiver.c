@@ -25,8 +25,10 @@
 #include <wdsp.h>
 
 #include "agc.h"
+#include "audio.h"
 #include "band.h"
 #include "bandstack.h"
+#include "channel.h"
 #include "discovered.h"
 #include "filter.h"
 #include "main.h"
@@ -40,6 +42,7 @@
 #include "property.h"
 #include "radio.h"
 #include "receiver.h"
+#include "transmitter.h"
 #include "vfo.h"
 #include "meter.h"
 #include "rx_panadapter.h"
@@ -48,18 +51,17 @@
 #ifdef FREEDV
 #include "freedv.h"
 #endif
+#include "audio_waterfall.h"
 #ifdef RADIOBERRY
 #include "radioberry.h"
 #endif
+#include "ext.h"
+#include "new_menu.h"
 
 
 #define min(x,y) (x<y?x:y)
 #define max(x,y) (x<y?y:x)
 
-#ifdef FREEDV
-static int freedv_samples=0;
-static int freedv_resample=6;  // convert from 48000 to 8000
-#endif
 #ifdef PSK
 static int psk_samples=0;
 static int psk_resample=6;  // convert from 48000 to 8000
@@ -69,6 +71,14 @@ static gint last_x;
 static gboolean has_moved=FALSE;
 static gboolean pressed=FALSE;
 static gboolean making_active=FALSE;
+
+static int waterfall_samples=0;
+static int waterfall_resample=6;
+
+void receiver_weak_notify(gpointer data,GObject  *obj) {
+  RECEIVER *rx=(RECEIVER *)data;
+  fprintf(stderr,"receiver_weak_notify: id=%d obj=%p\n",rx->id, obj);
+}
 
 gboolean receiver_button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data) {
   RECEIVER *rx=(RECEIVER *)data;
@@ -90,8 +100,9 @@ gboolean receiver_button_release_event(GtkWidget *widget, GdkEventButton *event,
   if(making_active) {
     active_receiver=rx;
     making_active=FALSE;
-    g_idle_add(vfo_update,NULL);
-    g_idle_add(active_receiver_changed,NULL);
+    g_idle_add(menu_active_receiver_changed,NULL);
+    g_idle_add(ext_vfo_update,NULL);
+    g_idle_add(sliders_active_receiver_changed,NULL);
   } else {
     int display_width=gtk_widget_get_allocated_width (rx->panadapter);
     int display_height=gtk_widget_get_allocated_height (rx->panadapter);
@@ -223,6 +234,12 @@ void receiver_save_state(RECEIVER *rx) {
   sprintf(name,"receiver.%d.preamp",rx->id);
   sprintf(value,"%d",rx->preamp);
   setProperty(name,value);
+  sprintf(name,"receiver.%d.nb",rx->id);
+  sprintf(value,"%d",rx->nb);
+  setProperty(name,value);
+  sprintf(name,"receiver.%d.nb2",rx->id);
+  sprintf(value,"%d",rx->nb2);
+  setProperty(name,value);
   sprintf(name,"receiver.%d.nr",rx->id);
   sprintf(value,"%d",rx->nr);
   setProperty(name,value);
@@ -260,10 +277,30 @@ void receiver_save_state(RECEIVER *rx) {
   sprintf(name,"receiver.%d.audio_device",rx->id);
   sprintf(value,"%d",rx->audio_device);
   setProperty(name,value);
+  sprintf(name,"receiver.%d.mute_radio",rx->id);
+  sprintf(value,"%d",rx->mute_radio);
+  setProperty(name,value);
 
   sprintf(name,"receiver.%d.low_latency",rx->id);
   sprintf(value,"%d",rx->low_latency);
   setProperty(name,value);
+
+  sprintf(name,"receiver.%d.deviation",rx->id);
+  sprintf(value,"%d",rx->deviation);
+  setProperty(name,value);
+
+  sprintf(name,"receiver.%d.squelch_enable",rx->id);
+  sprintf(value,"%d",rx->squelch_enable);
+  setProperty(name,value);
+  sprintf(name,"receiver.%d.squelch",rx->id);
+  sprintf(value,"%f",rx->squelch);
+  setProperty(name,value);
+
+#ifdef FREEDV
+  sprintf(name,"receiver.%d.freedv",rx->id);
+  sprintf(value,"%d",rx->freedv);
+  setProperty(name,value);
+#endif
 }
 
 void receiver_restore_state(RECEIVER *rx) {
@@ -356,6 +393,12 @@ fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
   sprintf(name,"receiver.%d.preamp",rx->id);
   value=getProperty(name);
   if(value) rx->preamp=atoi(value);
+  sprintf(name,"receiver.%d.nb",rx->id);
+  value=getProperty(name);
+  if(value) rx->nb=atoi(value);
+  sprintf(name,"receiver.%d.nb2",rx->id);
+  value=getProperty(name);
+  if(value) rx->nb2=atoi(value);
   sprintf(name,"receiver.%d.nr",rx->id);
   value=getProperty(name);
   if(value) rx->nr=atoi(value);
@@ -393,9 +436,29 @@ fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
   sprintf(name,"receiver.%d.audio_device",rx->id);
   value=getProperty(name);
   if(value) rx->audio_device=atoi(value);
+  sprintf(name,"receiver.%d.mute_radio",rx->id);
+  value=getProperty(name);
+  if(value) rx->mute_radio=atoi(value);
   sprintf(name,"receiver.%d.low_latency",rx->id);
   value=getProperty(name);
   if(value) rx->low_latency=atoi(value);
+
+  sprintf(name,"receiver.%d.deviation",rx->id);
+  value=getProperty(name);
+  if(value) rx->deviation=atoi(value);
+
+  sprintf(name,"receiver.%d.squelch_enable",rx->id);
+  value=getProperty(name);
+  if(value) rx->squelch_enable=atoi(value);
+  sprintf(name,"receiver.%d.squelch",rx->id);
+  value=getProperty(name);
+  if(value) rx->squelch=atof(value);
+
+#ifdef FREEDV
+  sprintf(name,"receiver.%d.freedv",rx->id);
+  value=getProperty(name);
+  if(value) rx->freedv=atoi(value);
+#endif
 }
 
 void reconfigure_receiver(RECEIVER *rx,int height) {
@@ -459,6 +522,8 @@ static gint update_display(gpointer data) {
   RECEIVER *rx=(RECEIVER *)data;
   int rc;
 
+//fprintf(stderr,"update_display: %d displaying=%d\n",rx->id,rx->displaying);
+
   if(rx->displaying) {
     GetPixels(rx->id,0,rx->pixel_samples,&rc);
     if(rc) {
@@ -479,8 +544,18 @@ static gint update_display(gpointer data) {
       }
     }
 
+#ifdef AUDIO_SAMPLES
+    if(audio_samples!=NULL) {
+      GetPixels(CHANNEL_AUDIO,0,audio_samples,&rc);
+      if(rc) {
+        //audio_waterfall_update();
+      }
+    }
+#endif
+
+
     if(active_receiver==rx) {
-      double m=GetRXAMeter(rx->id,smeter);
+      double m=GetRXAMeter(rx->id,smeter)+meter_calibration;
       meter_update(SMETER,m,0.0,0.0,0.0);
     }
     return TRUE;
@@ -497,14 +572,6 @@ void set_displaying(RECEIVER *rx,int state) {
 
 void set_mode(RECEIVER *rx,int m) {
   int local_mode=m;
-#ifdef FREEDV
-  if(vfo[rx->d].mode!=modeFREEDV && m==modeFREEDV) {
-    local_mode=modeUSB;
-    init_freedv();
-  } else if(vfo[rx->id].mode==modeFREEDV && m!=modeFREEDV) {
-    close_freedv();
-  }
-#endif
 #ifdef PSK
   if(vfo[rx->id].mode!=modePSK && m==modePSK) {
     local_mode=modeUSB;
@@ -534,8 +601,8 @@ void set_filter(RECEIVER *rx,int low,int high) {
   RXASetPassband(rx->id,(double)rx->filter_low,(double)rx->filter_high);
 }
 
-void set_deviation(RECEIVER *rx,double deviation) {
-  SetRXAFMDeviation(rx->id, deviation);
+void set_deviation(RECEIVER *rx) {
+  SetRXAFMDeviation(rx->id, (double)rx->deviation);
 }
 
 void set_agc(RECEIVER *rx, int agc) {
@@ -643,8 +710,9 @@ static void init_analyzer(RECEIVER *rx) {
 static void create_visual(RECEIVER *rx) {
   int y=0;
 
-fprintf(stderr,"receiver: create_visual: id=%d width=%d height=%d\n",rx->id, rx->width, rx->height);
   rx->panel=gtk_fixed_new();
+fprintf(stderr,"receiver: create_visual: id=%d width=%d height=%d %p\n",rx->id, rx->width, rx->height, rx->panel);
+  g_object_weak_ref(G_OBJECT(rx->panel),receiver_weak_notify,(gpointer)rx);
   gtk_widget_set_size_request (rx->panel, rx->width, rx->height);
 
   rx->panadapter=NULL;
@@ -655,17 +723,108 @@ fprintf(stderr,"receiver: create_visual: id=%d width=%d height=%d\n",rx->id, rx-
     height=height/2;
   }
 
-fprintf(stderr,"receiver: panadapter_init: height=%d y=%d\n",height,y);
   rx_panadapter_init(rx, rx->width,height);
+fprintf(stderr,"receiver: panadapter_init: height=%d y=%d %p\n",height,y,rx->panadapter);
+  g_object_weak_ref(G_OBJECT(rx->panadapter),receiver_weak_notify,(gpointer)rx);
   gtk_fixed_put(GTK_FIXED(rx->panel),rx->panadapter,0,y);
   y+=height;
 
   if(rx->display_waterfall) {
-fprintf(stderr,"receiver: waterfall_init: height=%d y=%d\n",height,y);
     waterfall_init(rx,rx->width,height);
+fprintf(stderr,"receiver: waterfall_init: height=%d y=%d %p\n",height,y,rx->waterfall);
+    g_object_weak_ref(G_OBJECT(rx->waterfall),receiver_weak_notify,(gpointer)rx);
     gtk_fixed_put(GTK_FIXED(rx->panel),rx->waterfall,0,y);
   }
+
+  gtk_widget_show_all(rx->panel);
 }
+
+#ifdef PURESIGNAL
+RECEIVER *create_pure_signal_receiver(int id, int buffer_size,int sample_rate,int pixels) {
+fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_size);
+  RECEIVER *rx=malloc(sizeof(RECEIVER));
+  rx->id=id;
+
+  rx->ddc=4;
+  rx->adc=0;  // one more than actual adc
+
+  rx->sample_rate=sample_rate;
+  rx->buffer_size=buffer_size;
+  rx->fft_size=fft_size;
+  rx->pixels=0;
+  rx->fps=0;
+
+  rx->width=0;
+  rx->height=0;
+  rx->display_panadapter=0;
+  rx->display_waterfall=0;
+
+  // allocate buffers
+  rx->iq_sequence=0;
+  rx->iq_input_buffer=malloc(sizeof(double)*2*rx->buffer_size);
+  rx->audio_buffer=NULL;
+  rx->audio_sequence=0L;
+  rx->pixel_samples=malloc(sizeof(float)*pixels);
+
+  rx->samples=0;
+  rx->displaying=0;
+  rx->display_panadapter=0;
+  rx->display_waterfall=0;
+
+  rx->panadapter_high=-40;
+  rx->panadapter_low=-140;
+
+  rx->volume=0.0;
+  rx->attenuation=0;
+
+  rx->dither=0;
+  rx->random=0;
+  rx->preamp=0;
+
+  rx->nb=0;
+  rx->nb2=0;
+  rx->nr=0;
+  rx->nr2=0;
+  rx->anf=0;
+  rx->snb=0;
+
+  rx->nr_agc=0;
+  rx->nr2_gain_method=2;
+  rx->nr2_npe_method=0;
+  rx->nr2_ae=1;
+  
+  rx->alex_antenna=0;
+  rx->alex_attenuation=0;
+
+  rx->agc=AGC_MEDIUM;
+  rx->agc_gain=80.0;
+  rx->agc_slope=35.0;
+  rx->agc_hang_threshold=0.0;
+  
+  rx->playback_handle=NULL;
+  rx->playback_buffer=NULL;
+  rx->local_audio=0;
+  rx->mute_when_not_active=0;
+  rx->audio_channel=STEREO;
+  rx->audio_device=-1;
+  rx->mute_radio=0;
+
+  rx->low_latency=0;
+
+  int result;
+  XCreateAnalyzer(rx->id, &result, 262144, 1, 1, "");
+  if(result != 0) {
+    fprintf(stderr, "XCreateAnalyzer id=%d failed: %d\n", rx->id, result);
+  } else {
+    init_analyzer(rx);
+  }
+
+  SetDisplayDetectorMode(rx->id, 0, display_detector_mode);
+  SetDisplayAverageMode(rx->id, 0,  display_average_mode);
+
+  return rx;
+}
+#endif
 
 RECEIVER *create_receiver(int id, int buffer_size, int fft_size, int pixels, int fps, int width, int height) {
 fprintf(stderr,"create_receiver: id=%d buffer_size=%d fft_size=%d pixels=%d fps=%d\n",id,buffer_size, fft_size, pixels, fps);
@@ -673,9 +832,19 @@ fprintf(stderr,"create_receiver: id=%d buffer_size=%d fft_size=%d pixels=%d fps=
   rx->id=id;
   switch(id) {
     case 0:
+      if(protocol==NEW_PROTOCOL && device==NEW_DEVICE_HERMES) {
+        rx->ddc=0;
+      } else {
+        rx->ddc=2;
+      }
       rx->adc=0;
       break;
     default:
+      if(protocol==NEW_PROTOCOL && device==NEW_DEVICE_HERMES) {
+        rx->ddc=1;
+      } else {
+        rx->ddc=3;
+      }
       switch(protocol) {
         case ORIGINAL_PROTOCOL:
 #ifdef RADIOBERRY
@@ -708,24 +877,22 @@ fprintf(stderr,"create_receiver: id=%d buffer_size=%d fft_size=%d pixels=%d fps=
           break;
       }
   }
-fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
+fprintf(stderr,"create_receiver: id=%d default ddc=%d adc=%d\n",rx->id, rx->ddc, rx->adc);
   rx->sample_rate=48000;
   rx->buffer_size=buffer_size;
   rx->fft_size=fft_size;
   rx->pixels=pixels;
   rx->fps=fps;
 
-  BAND *b=band_get_band(vfo[rx->id].band);
 
 //  rx->dds_offset=0;
 //  rx->rit=0;
 
   rx->width=width;
   rx->height=height;
-  rx->display_panadapter=1;
-  rx->display_waterfall=1;
 
   // allocate buffers
+  rx->iq_sequence=0;
   rx->iq_input_buffer=malloc(sizeof(double)*2*rx->buffer_size);
   rx->audio_buffer=malloc(AUDIO_BUFFER_SIZE);
   rx->audio_sequence=0L;
@@ -739,13 +906,19 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
   rx->panadapter_high=-40;
   rx->panadapter_low=-140;
 
-  rx->volume=0.2;
+  rx->waterfall_high=-40;
+  rx->waterfall_low=-140;
+  rx->waterfall_automatic=1;
+
+  rx->volume=0.1;
   rx->attenuation=0;
 
   rx->dither=0;
   rx->random=0;
   rx->preamp=0;
 
+  rx->nb=0;
+  rx->nb2=0;
   rx->nr=0;
   rx->nr2=0;
   rx->anf=0;
@@ -756,6 +929,7 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
   rx->nr2_npe_method=0;
   rx->nr2_ae=1;
   
+  BAND *b=band_get_band(vfo[rx->id].band);
   rx->alex_antenna=b->alexRxAntenna;
   rx->alex_attenuation=b->alexAttenuation;
 
@@ -772,17 +946,36 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
 
   rx->low_latency=0;
 
+  rx->squelch_enable=0;
+  rx->squelch=0;
+
+  rx->filter_high=525;
+  rx->filter_low=275;
+#ifdef FREEDV
+  g_mutex_init(&rx->freedv_mutex);
+  rx->freedv=0;
+  rx->freedv_samples=0;
+  strcpy(rx->freedv_text_data,"");
+  rx->freedv_text_index=0;
+#endif
+
+  rx->deviation=2500;
+
+  rx->mute_radio=0;
+
   receiver_restore_state(rx);
 
   int scale=rx->sample_rate/48000;
   rx->output_samples=rx->buffer_size/scale;
   rx->audio_output_buffer=malloc(sizeof(double)*2*rx->output_samples);
+
 fprintf(stderr,"create_receiver: id=%d output_samples=%d\n",rx->id,rx->output_samples);
 
   rx->hz_per_pixel=(double)rx->sample_rate/(double)rx->width;
+
   // setup wdsp for this receiver
 
-fprintf(stderr,"create_receiver: id=%d after restore adc=%d\n",rx->id, rx->adc);
+fprintf(stderr,"create_receiver: id=%d after restore ddc=%d adc=%d\n",rx->id, rx->ddc, rx->adc);
 
 fprintf(stderr,"create_receiver: OpenChannel id=%d buffer_size=%d fft_size=%d sample_rate=%d\n",
         rx->id,
@@ -799,25 +992,21 @@ fprintf(stderr,"create_receiver: OpenChannel id=%d buffer_size=%d fft_size=%d sa
               1, // run
               0.010, 0.025, 0.0, 0.010, 0);
 
+  create_anbEXT(rx->id,1,rx->buffer_size,rx->sample_rate,0.0001,0.0001,0.0001,0.05,20);
+  create_nobEXT(rx->id,1,0,rx->buffer_size,rx->sample_rate,0.0001,0.0001,0.0001,0.05,20);
+  
 fprintf(stderr,"RXASetNC %d\n",rx->fft_size);
   RXASetNC(rx->id, rx->fft_size);
 fprintf(stderr,"RXASetMP %d\n",rx->low_latency);
   RXASetMP(rx->id, rx->low_latency);
 
-  b=band_get_band(vfo[rx->id].band);
-  BANDSTACK *bs=b->bandstack;
-  BANDSTACK_ENTRY *entry=&bs->entry[vfo[rx->id].bandstack];
-  FILTER *band_filters=filters[vfo[rx->id].mode];
-  FILTER *band_filter=&band_filters[vfo[rx->id].filter];
-  set_filter(rx,band_filter->low,band_filter->high);
-  
-
-  SetRXAFMDeviation(rx->id,(double)deviation);
-
   set_agc(rx, rx->agc);
 
   SetRXAAMDSBMode(rx->id, 0);
   SetRXAShiftRun(rx->id, 0);
+
+  SetEXTANBRun(rx->id, rx->nb);
+  SetEXTNOBRun(rx->id, rx->nb2);
 
   SetRXAEMNRPosition(rx->id, rx->nr_agc);
   SetRXAEMNRgainMethod(rx->id, rx->nr2_gain_method);
@@ -830,9 +1019,18 @@ fprintf(stderr,"RXASetMP %d\n",rx->low_latency);
   SetRXAANFRun(rx->id, rx->anf);
   SetRXASNBARun(rx->id, rx->snb);
 
+
   SetRXAPanelGain1(rx->id, rx->volume);
   SetRXAPanelBinaural(rx->id, binaural);
-  SetRXAPanelRun(rx->id, 1);
+#ifdef FREEDV
+  if(rx->freedv) {
+    SetRXAPanelRun(rx->id, 0);
+  } else {
+#endif
+    SetRXAPanelRun(rx->id, 1);
+#ifdef FREEDV
+  }
+#endif
 
   if(enable_rx_equalizer) {
     SetRXAGrphEQ(rx->id, rx_equalizer);
@@ -843,9 +1041,12 @@ fprintf(stderr,"RXASetMP %d\n",rx->low_latency);
 
   // setup for diversity
   create_divEXT(0,0,2,rx->buffer_size);
-  SetEXTDIVRotate(0, 2, &i_rotate, &q_rotate);
+  SetEXTDIVRotate(0, 2, &i_rotate[0], &q_rotate[0]);
   SetEXTDIVRun(0,diversity_enabled);
   
+  receiver_mode_changed(rx);
+  //set_mode(rx,vfo[rx->id].mode);
+  //set_filter(rx,rx->filter_low,rx->filter_high);
 
   int result;
   XCreateAnalyzer(rx->id, &result, 262144, 1, 1, "");
@@ -858,6 +1059,12 @@ fprintf(stderr,"RXASetMP %d\n",rx->low_latency);
   SetDisplayDetectorMode(rx->id, 0, display_detector_mode);
   SetDisplayAverageMode(rx->id, 0,  display_average_mode);
    
+#ifdef FREEDV
+  if(rx->freedv) {
+    init_freedv(rx);
+  }
+#endif
+
   calculate_display_average(rx);
 
   create_visual(rx);
@@ -875,21 +1082,19 @@ void receiver_change_adc(RECEIVER *rx,int adc) {
 
 void receiver_change_sample_rate(RECEIVER *rx,int sample_rate) {
 
-  rx->sample_rate=sample_rate;
-
   SetChannelState(rx->id,0,1);
 
+  rx->sample_rate=sample_rate;
   int scale=rx->sample_rate/48000;
   rx->output_samples=rx->buffer_size/scale;
   free(rx->audio_output_buffer);
   rx->audio_output_buffer=malloc(sizeof(double)*2*rx->output_samples);
   rx->audio_buffer=malloc(AUDIO_BUFFER_SIZE);
   rx->hz_per_pixel=(double)rx->sample_rate/(double)rx->width;
-
   SetInputSamplerate(rx->id, sample_rate);
-
   init_analyzer(rx);
-
+  SetEXTANBSamplerate (rx->id, sample_rate);
+  SetEXTNOBSamplerate (rx->id, sample_rate);
 fprintf(stderr,"receiver_change_sample_rate: id=%d rate=%d buffer_size=%d output_samples=%d\n",rx->id, rx->sample_rate, rx->buffer_size, rx->output_samples);
   SetChannelState(rx->id,1,0);
 }
@@ -905,20 +1110,31 @@ void receiver_frequency_changed(RECEIVER *rx) {
   }
 }
 
-void receiver_mode_changed(RECEIVER *rx) {
-  set_mode(rx,vfo[rx->id].mode);
+void receiver_filter_changed(RECEIVER *rx) {
+  int m=vfo[rx->id].mode;
+  if(m==modeFMN) {
+    if(rx->deviation==2500) {
+      set_filter(rx,-4000,4000);
+    } else {
+      set_filter(rx,-8000,8000);
+    }
+    set_deviation(rx);
+  } else {
+    FILTER *mode_filters=filters[m];
+    FILTER *filter=&mode_filters[vfo[rx->id].filter];
+    set_filter(rx,filter->low,filter->high);
+  }
 }
 
-void receiver_filter_changed(RECEIVER *rx) {
-  FILTER *mode_filters=filters[vfo[rx->id].mode];
-  FILTER *filter=&mode_filters[vfo[rx->id].filter];
-  set_filter(rx,filter->low,filter->high);
+void receiver_mode_changed(RECEIVER *rx) {
+  set_mode(rx,vfo[rx->id].mode);
+  receiver_filter_changed(rx);
 }
 
 void receiver_vfo_changed(RECEIVER *rx) {
   receiver_frequency_changed(rx);
   receiver_mode_changed(rx);
-  receiver_filter_changed(rx);
+  //receiver_filter_changed(rx);
 }
 
 #ifdef FREEDV
@@ -928,50 +1144,71 @@ static void process_freedv_rx_buffer(RECEIVER *rx) {
   int i;
   int demod_samples;
   for(i=0;i<rx->output_samples;i++) {
-    if(freedv_samples==0) {
-      left_audio_sample=(short)(rx->audio_output_buffer[i*2]*32767.0);
-      right_audio_sample=(short)(rx->audio_output_buffer[(i*2)+1]*32767.0);
-      demod_samples=demod_sample_freedv(left_audio_sample);
+    if(rx->freedv_samples==0) {
+      if(isTransmitting()) {
+        left_audio_sample=0;
+        right_audio_sample=0;
+      } else {
+        left_audio_sample=(short)(rx->audio_output_buffer[i*2]*32767.0);
+        right_audio_sample=(short)(rx->audio_output_buffer[(i*2)+1]*32767.0);
+      }
+      demod_samples=demod_sample_freedv((left_audio_sample+right_audio_sample)/2);
       if(demod_samples!=0) {
         int s;
         int t;
         for(s=0;s<demod_samples;s++) {
           if(freedv_sync) {
-            left_audio_sample=right_audio_sample=(short)((double)speech_out[s]);
+            left_audio_sample=right_audio_sample=(short)((double)speech_out[s]*rx->volume);
           } else {
-            left_audio_sample=right_audio_sample=0;
+            left_audio_sample=right_audio_sample=(short)((double)speech_out[s]*rx->volume);
+            //left_audio_sample=right_audio_sample=0;
           }
-          for(t=0;t<6;t++) { // 8k to 48k
-            if(local_audio) {
-                audio_write(left_audio_sample,right_audio_sample);
-                left_audio_sample=0;
-                right_audio_sample=0;
+          for(t=0;t<freedv_resample;t++) { // 8k to 48k
+
+            if(rx->local_audio) {
+              if(rx!=active_receiver && rx->mute_when_not_active) {
+                audio_write(rx,0,0);
+              } else {
+                switch(rx->audio_channel) {
+                  case STEREO:
+                    audio_write(rx,left_audio_sample,right_audio_sample);
+                    break;
+                  case LEFT:
+                    audio_write(rx,left_audio_sample,0);
+                    break;
+                  case RIGHT:
+                    audio_write(rx,0,right_audio_sample);
+                    break;
+                }
+              }
             }
 
-            switch(protocol) {
-              case ORIGINAL_PROTOCOL:
-                old_protocol_audio_samples(left_audio_sample,right_audio_sample);
-                break;
-              case NEW_PROTOCOL:
-                new_protocol_audio_samples(left_audio_sample,right_audio_sample);
-                break;
+            if(rx==active_receiver) {
+              switch(protocol) {
+                case ORIGINAL_PROTOCOL:
+                  old_protocol_audio_samples(rx,left_audio_sample,right_audio_sample);
+                  break;
+                case NEW_PROTOCOL:
+                  new_protocol_audio_samples(rx,left_audio_sample,right_audio_sample);
+                  break;
 #ifdef LIMESDR
-              case LIMESDR_PROTOCOL:
-                break;
+                case LIMESDR_PROTOCOL:
+                  break;
 #endif
 #ifdef RADIOBERRY
-			case RADIOBERRY_PROTOCOL:
-				//no audio stream to radioberry hardware, using local audio of rpi.
-				break;
+                case RADIOBERRY_PROTOCOL:
+                  //no audio stream to radioberry hardware, using local audio of rpi.
+                  break;
 #endif
+              }
             }
           }
         }
       }
-      freedv_samples++;
-      if(freedv_samples==freedv_resample) {
-        freedv_samples=0;
-      }
+    }
+    rx->freedv_samples++;
+    if(rx->freedv_samples>=freedv_resample) {
+      rx->freedv_samples=0;
     }
   }
 }
@@ -1022,11 +1259,19 @@ static void process_rx_buffer(RECEIVER *rx) {
     if(rx==active_receiver) {
       switch(protocol) {
         case ORIGINAL_PROTOCOL:
-          old_protocol_audio_samples(rx,left_audio_sample,right_audio_sample);
+          if(rx->mute_radio) {
+            old_protocol_audio_samples(rx,(short)0,(short)0);
+          } else {
+            old_protocol_audio_samples(rx,left_audio_sample,right_audio_sample);
+          }
           break;
         case NEW_PROTOCOL:
           if(!(echo&&isTransmitting())) {
-            new_protocol_audio_samples(rx,left_audio_sample,right_audio_sample);
+            if(rx->mute_radio) {
+              new_protocol_audio_samples(rx,(short)0,(short)0);
+            } else {
+              new_protocol_audio_samples(rx,left_audio_sample,right_audio_sample);
+            }
           }
           break;
 #ifdef LIMESDR
@@ -1039,6 +1284,24 @@ static void process_rx_buffer(RECEIVER *rx) {
 		break;
 #endif
       }
+
+#ifdef AUDIO_WATERFALL
+      if(audio_samples!=NULL) {
+        if(waterfall_samples==0) {
+          audio_samples[audio_samples_index]=(float)left_audio_sample;
+          audio_samples_index++;
+          if(audio_samples_index>=AUDIO_WATERFALL_SAMPLES) {
+            //Spectrum(CHANNEL_AUDIO,0,0,audio_samples,audio_samples);
+            audio_samples_index=0;
+          }
+        }
+        waterfall_samples++;
+        if(waterfall_samples==waterfall_resample) {
+          waterfall_samples=0;
+        }
+      }
+#endif
+
     }
 
   }
@@ -1047,6 +1310,14 @@ static void process_rx_buffer(RECEIVER *rx) {
 void full_rx_buffer(RECEIVER *rx) {
   int j;
   int error;
+
+  // noise blanker works on origianl IQ samples
+  if(rx->nb) {
+     xanbEXT (rx->id, rx->iq_input_buffer, rx->iq_input_buffer);
+  }
+  if(rx->nb2) {
+     xnobEXT (rx->id, rx->iq_input_buffer, rx->iq_input_buffer);
+  }
 
   fexchange0(rx->id, rx->iq_input_buffer, rx->audio_output_buffer, &error);
   if(error!=0) {
@@ -1057,23 +1328,27 @@ void full_rx_buffer(RECEIVER *rx) {
     Spectrum0(1, rx->id, 0, 0, rx->iq_input_buffer);
   }
 
-  switch(vfo[rx->id].mode) {
 #ifdef FREEDV
-    case modeFREEDV:
-      process_freedv_rx_buffer(rx);
-      break;
+  g_mutex_lock(&rx->freedv_mutex);
+  if(rx->freedv) {
+    process_freedv_rx_buffer(rx);
+  } else {
 #endif
-    default:
-      process_rx_buffer(rx);
-      break;
+    process_rx_buffer(rx);
+#ifdef FREEDV
   }
+  g_mutex_unlock(&rx->freedv_mutex);
+#endif
 }
+
+static int rx_buffer_seen=0;
+static int tx_buffer_seen=0;
 
 void add_iq_samples(RECEIVER *rx, double i_sample,double q_sample) {
   rx->iq_input_buffer[rx->samples*2]=i_sample;
   rx->iq_input_buffer[(rx->samples*2)+1]=q_sample;
   rx->samples=rx->samples+1;
-  if(rx->samples==rx->buffer_size) {
+  if(rx->samples>=rx->buffer_size) {
     full_rx_buffer(rx);
     rx->samples=0;
   }

@@ -48,18 +48,27 @@ static GtkWidget *b_cw_speed;
 static GtkWidget *b_cw_frequency;
 static GtkWidget *b_panadapter_high;
 static GtkWidget *b_panadapter_low;
+static GtkWidget *b_squelch;
+static GtkWidget *b_compression;
 
 static int encoder;
 
-
-static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+static void cleanup() {
   if(dialog!=NULL) {
     gtk_widget_destroy(dialog);
     dialog=NULL;
     sub_menu=NULL;
   }
-  active_menu=NO_MENU;
+}
+
+static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  cleanup();
   return TRUE;
+}
+
+static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_data) {
+  cleanup();
+  return FALSE;
 }
 
 void encoder_select(int pos) {
@@ -70,11 +79,11 @@ void encoder_select(int pos) {
       if(pos>0) {
         e1_encoder_action--;
         if(e1_encoder_action<0) {
-          e1_encoder_action=ENCODER_LAST;
+          e1_encoder_action=ENCODER_LAST-1;
         }
       } if(pos<0) {
         e1_encoder_action++;
-        if(e1_encoder_action>ENCODER_LAST) {
+        if(e1_encoder_action>=ENCODER_LAST) {
           e1_encoder_action=0;
         }
       }
@@ -84,11 +93,11 @@ void encoder_select(int pos) {
       if(pos>0) {
         e2_encoder_action--;
         if(e2_encoder_action<0) {
-          e2_encoder_action=ENCODER_LAST;
+          e2_encoder_action=ENCODER_LAST-1;
         }
       } if(pos<0) {
         e2_encoder_action++;
-        if(e2_encoder_action>ENCODER_LAST) {
+        if(e2_encoder_action>=ENCODER_LAST) {
           e2_encoder_action=0;
         }
       }
@@ -98,11 +107,11 @@ void encoder_select(int pos) {
       if(pos>0) {
         e3_encoder_action--;
         if(e3_encoder_action<0) {
-          e3_encoder_action=ENCODER_LAST;
+          e3_encoder_action=ENCODER_LAST-1;
         }
       } if(pos<0) {
         e3_encoder_action++;
-        if(e3_encoder_action>ENCODER_LAST) {
+        if(e3_encoder_action>=ENCODER_LAST) {
           e3_encoder_action=0;
         }
       }
@@ -126,9 +135,11 @@ void encoder_select(int pos) {
     case ENCODER_DRIVE:
       button=b_drive;
       break;
+/*
     case ENCODER_TUNE_DRIVE:
       button=b_tune_drive;
       break;
+*/
     case ENCODER_RIT:
       button=b_rit;
       break;
@@ -143,6 +154,12 @@ void encoder_select(int pos) {
       break;
     case ENCODER_PANADAPTER_LOW:
       button=b_panadapter_low;
+      break;
+    case ENCODER_SQUELCH:
+      button=b_squelch;
+      break;
+    case ENCODER_COMP:
+      button=b_compression;
       break;
   }
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (button), TRUE);
@@ -187,7 +204,11 @@ void encoder_menu(GtkWidget *parent,int e) {
 
   dialog=gtk_dialog_new();
   gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent_window));
-  gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  //gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  char title[32];
+  sprintf(title,"piHPSDR - Encoder E%d Action:",encoder);
+  gtk_window_set_title(GTK_WINDOW(dialog),title);
+  g_signal_connect (dialog, "delete_event", G_CALLBACK (delete_event), NULL);
 
   GdkRGBA color;
   color.red = 1.0;
@@ -205,80 +226,110 @@ void encoder_menu(GtkWidget *parent,int e) {
   gtk_grid_set_column_spacing (GTK_GRID(grid),5);
   gtk_grid_set_row_spacing (GTK_GRID(grid),5);
 
+  int row=0;
+  int col=0;
+
   GtkWidget *close_b=gtk_button_new_with_label("Close");
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
-  gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
+  gtk_grid_attach(GTK_GRID(grid),close_b,col,row,1,1);
 
-  char label_text[32];
-  sprintf(label_text,"Encoder E%d Action:",encoder);
-  GtkWidget *label=gtk_label_new(label_text);
-  gtk_grid_attach(GTK_GRID(grid),label,0,1,2,1);
+  row++;
+  col=0;
 
   b_af_gain=gtk_radio_button_new_with_label(NULL,"AF Gain");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_af_gain), encoder_action==ENCODER_AF_GAIN);
   gtk_widget_show(b_af_gain);
-  gtk_grid_attach(GTK_GRID(grid),b_af_gain,0,2,2,1);
+  gtk_grid_attach(GTK_GRID(grid),b_af_gain,col,row,2,1);
   g_signal_connect(b_af_gain,"pressed",G_CALLBACK(action_select_cb),(gpointer *)ENCODER_AF_GAIN);
+
+  row++;
 
   b_agc_gain=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_af_gain),"AGC Gain");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_agc_gain), encoder_action==ENCODER_AGC_GAIN);
   gtk_widget_show(b_agc_gain);
-  gtk_grid_attach(GTK_GRID(grid),b_agc_gain,0,3,2,1);
+  gtk_grid_attach(GTK_GRID(grid),b_agc_gain,col,row,2,1);
   g_signal_connect(b_agc_gain,"pressed",G_CALLBACK(action_select_cb),(gpointer *)ENCODER_AGC_GAIN);
+
+  row++;
 
   b_attenuation=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_agc_gain),"Attenuation");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_attenuation), encoder_action==ENCODER_ATTENUATION);
   gtk_widget_show(b_attenuation);
-  gtk_grid_attach(GTK_GRID(grid),b_attenuation,0,4,2,1);
+  gtk_grid_attach(GTK_GRID(grid),b_attenuation,col,row,2,1);
   g_signal_connect(b_attenuation,"pressed",G_CALLBACK(action_select_cb),(gpointer *)ENCODER_ATTENUATION);
+
+  row++;
 
   b_mic_gain=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_attenuation),"Mic Gain");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_mic_gain), encoder_action==ENCODER_MIC_GAIN);
   gtk_widget_show(b_mic_gain);
-  gtk_grid_attach(GTK_GRID(grid),b_mic_gain,0,5,2,1);
+  gtk_grid_attach(GTK_GRID(grid),b_mic_gain,col,row,2,1);
   g_signal_connect(b_mic_gain,"pressed",G_CALLBACK(action_select_cb),(gpointer *)ENCODER_MIC_GAIN);
+
+  row++;
 
   b_drive=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_mic_gain),"Drive");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_drive), encoder_action==ENCODER_DRIVE);
   gtk_widget_show(b_drive);
-  gtk_grid_attach(GTK_GRID(grid),b_drive,0,6,2,1);
+  gtk_grid_attach(GTK_GRID(grid),b_drive,col,row,2,1);
   g_signal_connect(b_drive,"pressed",G_CALLBACK(action_select_cb),(gpointer *)ENCODER_DRIVE);
 
-  b_tune_drive=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_drive),"Tune Drive");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_tune_drive), encoder_action==ENCODER_TUNE_DRIVE);
-  gtk_widget_show(b_tune_drive);
-  gtk_grid_attach(GTK_GRID(grid),b_tune_drive,0,7,2,1);
-  g_signal_connect(b_tune_drive,"pressed",G_CALLBACK(action_select_cb),(gpointer *)ENCODER_TUNE_DRIVE);
+  row++;
 
-  b_rit=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_tune_drive),"RIT");
+  b_rit=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_drive),"RIT");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_rit), encoder_action==ENCODER_RIT);
   gtk_widget_show(b_rit);
-  gtk_grid_attach(GTK_GRID(grid),b_rit,2,2,2,1);
+  gtk_grid_attach(GTK_GRID(grid),b_rit,col,row,2,1);
   g_signal_connect(b_rit,"pressed",G_CALLBACK(action_select_cb),(gpointer *)ENCODER_RIT);
+
+  col=2;
+  row=1;
 
   b_cw_speed=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_rit),"CW Speed");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_cw_speed), encoder_action==ENCODER_CW_SPEED);
   gtk_widget_show(b_cw_speed);
-  gtk_grid_attach(GTK_GRID(grid),b_cw_speed,2,3,2,1);
+  gtk_grid_attach(GTK_GRID(grid),b_cw_speed,col,row,2,1);
   g_signal_connect(b_cw_speed,"pressed",G_CALLBACK(action_select_cb),(gpointer *)ENCODER_CW_SPEED);
+
+  row++;
 
   b_cw_frequency=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_cw_speed),"CW Freq");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_cw_frequency), encoder_action==ENCODER_CW_FREQUENCY);
   gtk_widget_show(b_cw_frequency);
-  gtk_grid_attach(GTK_GRID(grid),b_cw_frequency,2,4,2,1);
+  gtk_grid_attach(GTK_GRID(grid),b_cw_frequency,col,row,2,1);
   g_signal_connect(b_cw_frequency,"pressed",G_CALLBACK(action_select_cb),(gpointer *)ENCODER_CW_FREQUENCY);
+
+  row++;
 
   b_panadapter_high=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_cw_frequency),"Panadapter High");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_panadapter_high), encoder_action==ENCODER_PANADAPTER_HIGH);
   gtk_widget_show(b_panadapter_high);
-  gtk_grid_attach(GTK_GRID(grid),b_panadapter_high,2,6,2,1);
+  gtk_grid_attach(GTK_GRID(grid),b_panadapter_high,col,row,2,1);
   g_signal_connect(b_panadapter_high,"pressed",G_CALLBACK(action_select_cb),(gpointer *)ENCODER_PANADAPTER_HIGH);
 
-  b_panadapter_low=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_cw_frequency),"Panadapter Low");
+  row++;
+
+  b_panadapter_low=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_panadapter_high),"Panadapter Low");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_panadapter_low), encoder_action==ENCODER_PANADAPTER_LOW);
   gtk_widget_show(b_panadapter_low);
-  gtk_grid_attach(GTK_GRID(grid),b_panadapter_low,2,7,2,1);
+  gtk_grid_attach(GTK_GRID(grid),b_panadapter_low,col,row,2,1);
   g_signal_connect(b_panadapter_low,"pressed",G_CALLBACK(action_select_cb),(gpointer *)ENCODER_PANADAPTER_LOW);
+
+  row++;
+
+  b_squelch=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_panadapter_low),"Squelch");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_squelch), encoder_action==ENCODER_SQUELCH);
+  gtk_widget_show(b_squelch);
+  gtk_grid_attach(GTK_GRID(grid),b_squelch,col,row,2,1);
+  g_signal_connect(b_squelch,"pressed",G_CALLBACK(action_select_cb),(gpointer *)ENCODER_SQUELCH);
+
+  row++;
+
+  b_compression=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_squelch),"COMP");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_compression), encoder_action==ENCODER_COMP);
+  gtk_widget_show(b_compression);
+  gtk_grid_attach(GTK_GRID(grid),b_compression,col,row,2,1);
+  g_signal_connect(b_compression,"pressed",G_CALLBACK(action_select_cb),(gpointer *)ENCODER_COMP);
 
   gtk_container_add(GTK_CONTAINER(content),grid);
 

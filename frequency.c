@@ -82,11 +82,8 @@ struct frequency_info frequencyInfo[]=
 
         {5000000LL, 5000000LL, "WWV",                              bandWWV,FALSE}, 
 
-        {5330500LL, 5330500LL, "60M Channel 1",                    band60, TRUE},
-        {5346500LL, 5346500LL, "60M Channel 2",                    band60, TRUE},
-        {5366500LL, 5366500LL, "60M Channel 3",                    band60, TRUE},
-        {5371500LL, 5371500LL, "60M Channel 4",                    band60, TRUE},
-        {5403500LL, 5403500LL, "60M Channel 5",                    band60, TRUE},
+        {5261250LL, 5408000LL, "60M",                              band60, TRUE},
+        {5261250LL, 5408000LL, "60M",                              band60, FALSE},
 
         {5900000LL, 6200000LL, "49M Short Wave",                   bandGen,FALSE}, 
 
@@ -396,22 +393,45 @@ struct frequency_info frequencyInfo[]=
 * 
 * @return 
 */
-char* getFrequencyInfo(long long frequency) {
+char* getFrequencyInfo(long long frequency,int filter_low,int filter_high) {
 
     char* result=outOfBand;
+
+    long long flow=frequency+(long long)filter_low;
+    long long fhigh=frequency+(long long)filter_high;
+
+//fprintf(stderr,"getFrequency: frequency=%lld filter_low=%d filter_high=%d flow=%lld fhigh=%lld\n",
+//    frequency,filter_low,filter_high,flow,fhigh);
 
     info=frequencyInfo;
 
     while(info->minFrequency!=0) {
-        if(frequency<info->minFrequency) {
+        if(flow<info->minFrequency) {
             info=0;
             break;
-        } else if(frequency>=info->minFrequency && frequency<=info->maxFrequency) {
-            result=info->info;
+        } else if(flow>=info->minFrequency && fhigh<=info->maxFrequency) {
+            if(info->band==band60) {
+              int i;
+              for(i=0;i<channel_entries;i++) {
+//fprintf(stderr,"channel: %d frequency=%lld width=%lld\n",i,band_channels_60m[i].frequency,band_channels_60m[i].width);
+                if(flow>=band_channels_60m[i].frequency && fhigh<=(band_channels_60m[i].frequency+band_channels_60m[i].width)) {
+                  result=info->info;
+                  break;
+                }
+              }
+              if(i>=channel_entries) {
+                info++;
+              }
+              break;
+            } else {
+              result=info->info;
+            }
             break;
         }
         info++;
     }
+
+//fprintf(stderr,"info: %s tx=%d\n", info->info, info->transmit);
 
     return result;
 }
@@ -425,6 +445,7 @@ char* getFrequencyInfo(long long frequency) {
 * @return 
 */
 int getBand(long long frequency) {
+
     int result=bandGen;
 
     info=frequencyInfo;

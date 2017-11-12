@@ -25,6 +25,8 @@
 #include "new_menu.h"
 #include "exit_menu.h"
 #include "radio.h"
+#include "new_protocol.h"
+#include "old_protocol.h"
 
 static GtkWidget *parent_window=NULL;
 
@@ -32,13 +34,22 @@ static GtkWidget *menu_b=NULL;
 
 static GtkWidget *dialog=NULL;
 
-static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+static void cleanup() {
   if(dialog!=NULL) {
     gtk_widget_destroy(dialog);
     dialog=NULL;
     sub_menu=NULL;
   }
+}
+
+static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  cleanup();
   return TRUE;
+}
+
+static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_data) {
+  cleanup();
+  return FALSE;
 }
 
 static gboolean exit_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
@@ -90,7 +101,7 @@ static gboolean reboot_cb (GtkWidget *widget, GdkEventButton *event, gpointer da
 #endif
   }
   radioSaveState();
-  system("reboot");
+  int rc=system("reboot");
   _exit(0);
 }
 
@@ -117,7 +128,7 @@ static gboolean shutdown_cb (GtkWidget *widget, GdkEventButton *event, gpointer 
 #endif
   }
   radioSaveState();
-  system("shutdown -h -P now");
+  int rc=system("shutdown -h -P now");
   _exit(0);
 }
 
@@ -127,7 +138,9 @@ void exit_menu(GtkWidget *parent) {
 
   dialog=gtk_dialog_new();
   gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent_window));
-  gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  //gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  gtk_window_set_title(GTK_WINDOW(dialog),"piHPSDR - Exit");
+  g_signal_connect (dialog, "delete_event", G_CALLBACK (delete_event), NULL);
 
   GdkRGBA color;
   color.red = 1.0;

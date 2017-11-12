@@ -29,7 +29,7 @@
 #endif
 
 
-GtkWidget* meter_init(int width,int height,GtkWidget *parent);
-void meter_update(int meter_type,double value,double reverse,double exciter,double alc);
+extern GtkWidget* meter_init(int width,int height,GtkWidget *parent);
+extern void meter_update(int meter_type,double value,double reverse,double exciter,double alc);
 
 #endif

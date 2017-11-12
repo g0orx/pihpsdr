@@ -220,7 +220,9 @@ char *encoder_string[] = {
 "CW SPEED",
 "CW FREQUENCY",
 "PANADAPTER HIGH",
-"PANADAPTER LOW"
+"PANADAPTER LOW",
+"SQUELCH",
+"COMP"
 };
 
 static int mox_pressed(void *data) {
@@ -397,7 +399,6 @@ static void moxAlert() {
     int level1=digitalRead(MOX_BUTTON);
     usleep(20000);
     int level2=digitalRead(MOX_BUTTON);
-fprintf(stderr,"moxAlert: level1=%d level2=%d\n",level1,level2);
     if(level1==0 && level2==0) {
       g_idle_add(mox_pressed,(gpointer)NULL);
     }
@@ -962,7 +963,7 @@ static encoder_changed(int action,int pos) {
       if(protocol==NEW_PROTOCOL) {
         schedule_high_priority();
       }
-      vfo_update(NULL);
+      vfo_update();
       break;
     case ENCODER_CW_SPEED:
       value=(double)cw_keyer_speed;
@@ -973,7 +974,7 @@ static encoder_changed(int action,int pos) {
         value=60.0;
       }
       cw_keyer_speed=(int)value;
-      vfo_update(NULL);
+      vfo_update();
       break;
     case ENCODER_CW_FREQUENCY:
       value=(double)cw_keyer_sidetone_frequency;
@@ -984,7 +985,7 @@ static encoder_changed(int action,int pos) {
         value=1000.0;
       }
       cw_keyer_sidetone_frequency=(int)value;
-      vfo_update(NULL);
+      vfo_update();
       break;
     case ENCODER_PANADAPTER_HIGH:
       value=(double)active_receiver->panadapter_high;
@@ -995,6 +996,28 @@ static encoder_changed(int action,int pos) {
       value=(double)active_receiver->panadapter_low;
       value+=(double)pos;
       active_receiver->panadapter_low=(int)value;
+      break;
+    case ENCODER_SQUELCH:
+      value=active_receiver->squelch;
+      value+=(double)pos;
+      if(value<0.0) {
+        value=0.0;
+      } else if(value>100.0) {
+        value=100.0;
+      }
+      active_receiver->squelch=value;
+      set_squelch(active_receiver);
+      break;
+    case ENCODER_COMP:
+      value=(double)transmitter->compressor_level;
+      value+=(double)pos;
+      if(value<0.0) {
+        value=0.0;
+      } else if(value>20.0) {
+        value=20.0;
+      }
+      transmitter->compressor_level=(int)value;
+      set_compression(transmitter);
       break;
   }
 }

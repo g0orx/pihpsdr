@@ -68,6 +68,9 @@
 #ifdef RADIOBERRY
 #define RADIOBERRY_PROTOCOL 3
 #endif
+#ifdef REMOTE
+#define REMOTE_PROTOCOL 4
+#endif
 
 struct _DISCOVERED {
     int protocol;

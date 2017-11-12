@@ -20,6 +20,7 @@
 #include <gtk/gtk.h>
 #include <semaphore.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "audio.h"
@@ -37,13 +38,22 @@ static GtkWidget *menu_b=NULL;
 
 static GtkWidget *dialog=NULL;
 
-static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+static void cleanup() {
   if(dialog!=NULL) {
     gtk_widget_destroy(dialog);
     dialog=NULL;
     sub_menu=NULL;
   }
+}
+
+static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  cleanup();
   return TRUE;
+}
+
+static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_data) {
+  cleanup();
+  return FALSE;
 }
 
 static void dither_cb(GtkWidget *widget, gpointer data) {
@@ -59,18 +69,20 @@ static void preamp_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void sample_rate_cb(GtkWidget *widget, gpointer data) {
-  receiver_change_sample_rate(active_receiver,(int)data);
+  receiver_change_sample_rate(active_receiver,(uintptr_t)data);
 }
 
 static void adc_cb(GtkWidget *widget, gpointer data) {
-  receiver_change_adc(active_receiver,(int)data);
+  receiver_change_adc(active_receiver,(uintptr_t)data);
 }
 
 static void local_audio_cb(GtkWidget *widget, gpointer data) {
+fprintf(stderr,"local_audio_cb: rx=%d\n",active_receiver->id);
   if(gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget))) {
     if(audio_open_output(active_receiver)==0) {
       active_receiver->local_audio=1;
     } else {
+fprintf(stderr,"local_audio_cb: audio_open_output failed\n");
       active_receiver->local_audio=0;
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), FALSE);
     }
@@ -80,25 +92,34 @@ static void local_audio_cb(GtkWidget *widget, gpointer data) {
       audio_close_output(active_receiver);
     }
   }
+fprintf(stderr,"local_audio_cb: local_audio=%d\n",active_receiver->local_audio);
 }
 
 static void mute_audio_cb(GtkWidget *widget, gpointer data) {
   active_receiver->mute_when_not_active=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
 }
 
+static void mute_radio_cb(GtkWidget *widget, gpointer data) {
+  active_receiver->mute_radio=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
+}
+
 static void local_output_changed_cb(GtkWidget *widget, gpointer data) {
   active_receiver->audio_device=(int)(long)data;
+fprintf(stderr,"local_output_changed rx=%d to %d\n",active_receiver->id,active_receiver->audio_device);
   if(active_receiver->local_audio) {
     audio_close_output(active_receiver);
     if(audio_open_output(active_receiver)==0) {
       active_receiver->local_audio=1;
+    } else {
+      active_receiver->local_audio=0;
     }
+fprintf(stderr,"local_output_changed rx=%d local_audio=%d\n",active_receiver->id,active_receiver->local_audio);
   }
 }
 
 static void audio_channel_cb(GtkWidget *widget, gpointer data) {
   if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
-    active_receiver->audio_channel=(int)data;
+    active_receiver->audio_channel=(uintptr_t)data;
   }
 }
 
@@ -110,7 +131,11 @@ void rx_menu(GtkWidget *parent) {
 
   dialog=gtk_dialog_new();
   gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent_window));
-  gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  //gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  char title[64];
+  sprintf(title,"piHPSDR - Receive (RX %d VFO %s)",active_receiver->id,active_receiver->id==0?"A":"B");
+  gtk_window_set_title(GTK_WINDOW(dialog),title);
+  g_signal_connect (dialog, "delete_event", G_CALLBACK (delete_event), NULL);
 
   GdkRGBA color;
   color.red = 1.0;
@@ -127,13 +152,9 @@ void rx_menu(GtkWidget *parent) {
   //gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
   //gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
 
-  GtkWidget *close_b=gtk_button_new_with_label("Close RX");
+  GtkWidget *close_b=gtk_button_new_with_label("Close");
   g_signal_connect (close_b, "button_press_event", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
-
-  sprintf(label,"RX %d VFO %s",active_receiver->id,active_receiver->id==0?"A":"B");
-  GtkWidget *rx_label=gtk_label_new(label);
-  gtk_grid_attach(GTK_GRID(grid),rx_label,1,0,1,1);
 
   int x=0;
 
@@ -166,7 +187,7 @@ void rx_menu(GtkWidget *parent) {
       gtk_grid_attach(GTK_GRID(grid),sample_rate_384,x,5,1,1);
       g_signal_connect(sample_rate_384,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)384000);
 
-#ifndef GPIO
+#ifndef raspberrypi
       GtkWidget *sample_rate_768=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(sample_rate_384),"768000");
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sample_rate_768), active_receiver->sample_rate==768000);
       gtk_grid_attach(GTK_GRID(grid),sample_rate_768,x,6,1,1);
@@ -282,7 +303,7 @@ void rx_menu(GtkWidget *parent) {
       }
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (adc_b), active_receiver->adc==i);
       gtk_grid_attach(GTK_GRID(grid),adc_b,x,2+i,1,1);
-      g_signal_connect(adc_b,"pressed",G_CALLBACK(adc_cb),(gpointer *)i);
+      g_signal_connect(adc_b,"pressed",G_CALLBACK(adc_cb),(gpointer)(long)i);
     }
     x++;
   }
@@ -298,17 +319,13 @@ void rx_menu(GtkWidget *parent) {
 
     if(active_receiver->audio_device==-1) active_receiver->audio_device=0;
 
+    GtkWidget *output=NULL;
     for(i=0;i<n_output_devices;i++) {
-      GtkWidget *output;
-      if(i==0) {
-        output=gtk_radio_button_new_with_label(NULL,output_devices[i]);
-      } else {
-        output=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(output),output_devices[i]);
-      }
+      output=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(output),output_devices[i]);
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (output), active_receiver->audio_device==i);
       gtk_widget_show(output);
       gtk_grid_attach(GTK_GRID(grid),output,x,++row,1,1);
-      g_signal_connect(output,"pressed",G_CALLBACK(local_output_changed_cb),(gpointer *)i);
+      g_signal_connect(output,"pressed",G_CALLBACK(local_output_changed_cb),(gpointer)(long)i);
     }
 
     row=0;
@@ -339,6 +356,14 @@ void rx_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),mute_audio_b,x,++row,1,1);
   g_signal_connect(mute_audio_b,"toggled",G_CALLBACK(mute_audio_cb),NULL);
   
+  row++;
+
+  GtkWidget *mute_radio_b=gtk_check_button_new_with_label("Mute audio to radio");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (mute_radio_b), active_receiver->mute_radio);
+  gtk_widget_show(mute_radio_b);
+  gtk_grid_attach(GTK_GRID(grid),mute_radio_b,x,++row,1,1);
+  g_signal_connect(mute_radio_b,"toggled",G_CALLBACK(mute_radio_cb),NULL);
+
   gtk_container_add(GTK_CONTAINER(content),grid);
 
   sub_menu=dialog;

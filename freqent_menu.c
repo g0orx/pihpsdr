@@ -18,9 +18,10 @@
 */
 
 #include <gtk/gtk.h>
+#include <ctype.h>
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "new_menu.h"
 #include "band.h"
@@ -29,6 +30,7 @@
 #include "radio.h"
 #include "receiver.h"
 #include "vfo.h"
+#include "button_text.h"
 
 static GtkWidget *parent_window=NULL;
 static GtkWidget *dialog=NULL;
@@ -42,13 +44,22 @@ static char *btn_labels[] = {"1","2","3","4",
                              "HZ","KZ","MZ","CR"
                             };
 
+static void cleanup() {
+  if(dialog!=NULL) {
+    gtk_widget_destroy(dialog);
+    dialog=NULL;
+    sub_menu=NULL;
+  }
+}
+
 static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-    if(dialog!=NULL) {
-        gtk_widget_destroy(dialog);
-        dialog=NULL;
-        sub_menu=NULL;
-    }
-    return TRUE;
+  cleanup();
+  return TRUE;
+}
+
+static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_data) {
+  cleanup();
+  return FALSE;
 }
 
 static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
@@ -131,12 +142,12 @@ static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
               }
             }
             setFrequency(f);
-            vfo_update(NULL);
+            vfo_update();
       
             set = 1;
         }
     }
-    vfo_update(NULL);
+    vfo_update();
 }
 
 static GtkWidget *last_mode;
@@ -148,7 +159,11 @@ void freqent_menu(GtkWidget *parent) {
 
     dialog=gtk_dialog_new();
     gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent_window));
-    gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+    //gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+    char title[64];
+    sprintf(title,"piHPSDR - Frequency Entry (RX %d VFO %s)",active_receiver->id,active_receiver->id==0?"A":"B");
+    gtk_window_set_title(GTK_WINDOW(dialog),title);
+    g_signal_connect (dialog, "delete_event", G_CALLBACK (delete_event), NULL);
 
     GdkRGBA color;
     color.red = 1.0;
@@ -166,7 +181,7 @@ void freqent_menu(GtkWidget *parent) {
     gtk_grid_set_column_spacing (GTK_GRID(grid),4);
     gtk_grid_set_row_spacing (GTK_GRID(grid),4);
 
-    GtkWidget *close_b=gtk_button_new_with_label("Close FreqEntry");
+    GtkWidget *close_b=gtk_button_new_with_label("Close");
     g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
@@ -174,11 +189,6 @@ void freqent_menu(GtkWidget *parent) {
     gtk_label_set_markup (GTK_LABEL (label), "<big>0</big>");
     gtk_misc_set_alignment (GTK_MISC (label), 1, .5);
     gtk_grid_attach(GTK_GRID(grid),label,1,0,2,1);
-
-    char label[32];
-    sprintf(label,"RX %d VFO %s",active_receiver->id,active_receiver->id==0?"A":"B");
-    GtkWidget *rx_label=gtk_label_new(label);
-    gtk_grid_attach(GTK_GRID(grid),rx_label,3,0,1,1);
 
     GtkWidget *step_rb=NULL;
     for (i=0; i<16; i++) {

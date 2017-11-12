@@ -20,6 +20,8 @@
 
 #include <gtk/gtk.h>
 #include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "new_menu.h"
@@ -34,6 +36,7 @@
 #include "vfo.h"
 #include "button_text.h"
 #include "store.h"
+#include "ext.h"
 
 static GtkWidget *parent_window=NULL;
 
@@ -41,17 +44,26 @@ static GtkWidget *dialog=NULL;
 
 GtkWidget *store_button[NUM_OF_MEMORYS];
 
-static gboolean store_close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+static void cleanup() {
   if(dialog!=NULL) {
     gtk_widget_destroy(dialog);
     dialog=NULL;
     sub_menu=NULL;
   }
+}
+
+static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  cleanup();
   return TRUE;
 }
 
+static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_data) {
+  cleanup();
+  return FALSE;
+}
+
 static gboolean store_select_cb (GtkWidget *widget, gpointer data) {
-   int index = (int) data;
+   int index = (uintptr_t) data;
    fprintf(stderr,"STORE BUTTON PUSHED=%d\n",index);
    char workstr[40];
      
@@ -74,7 +86,7 @@ static gboolean store_select_cb (GtkWidget *widget, gpointer data) {
 }
 
 static gboolean recall_select_cb (GtkWidget *widget, gpointer data) {
-    int index = (int) data;
+    int index = (uintptr_t) data;
     long long new_freq;
     
     //new_freq = mem[index].frequency;
@@ -93,7 +105,7 @@ static gboolean recall_select_cb (GtkWidget *widget, gpointer data) {
     //vfo_band_changed(vfo[active_receiver->id].band);
     vfo_filter_changed(mem[index].filter);
     vfo_mode_changed(mem[index].mode);
-    g_idle_add(vfo_update,NULL);
+    g_idle_add(ext_vfo_update,NULL);
 
 }
 
@@ -107,7 +119,9 @@ void store_menu(GtkWidget *parent) {
 
   dialog=gtk_dialog_new();
   gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent_window));
-  gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  //gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  gtk_window_set_title(GTK_WINDOW(dialog),"piHPSDR - Store");
+  g_signal_connect (dialog, "delete_event", G_CALLBACK (delete_event), NULL);
 
   GdkRGBA color;
   color.red = 1.0;
@@ -125,20 +139,20 @@ void store_menu(GtkWidget *parent) {
   gtk_grid_set_column_spacing (GTK_GRID(grid),5);
   gtk_grid_set_row_spacing (GTK_GRID(grid),5);
 
-  GtkWidget *close_b=gtk_button_new_with_label("Close Store");
-  g_signal_connect (close_b, "pressed", G_CALLBACK(store_close_cb), NULL);
+  GtkWidget *close_b=gtk_button_new_with_label("Close");
+  g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
   for(i=0;i<NUM_OF_MEMORYS;i++) {
      sprintf(label_str,"Store M%d",i); 
      b=gtk_button_new_with_label(label_str);
-     g_signal_connect(b,"pressed",G_CALLBACK(store_select_cb),(gpointer *) i);
+     g_signal_connect(b,"pressed",G_CALLBACK(store_select_cb),(gpointer)(long)i);
      gtk_grid_attach(GTK_GRID(grid),b,2,i,1,1);
 
      sprintf(label_str,"M%d=%8.6f MHz",i,((double) mem[i].frequency)/1000000.0);
      b=gtk_button_new_with_label(label_str);
      store_button[i]= b;
-     g_signal_connect(b,"pressed",G_CALLBACK(recall_select_cb),(gpointer *) i);
+     g_signal_connect(b,"pressed",G_CALLBACK(recall_select_cb),(gpointer)(long)i);
      gtk_grid_attach(GTK_GRID(grid),b,3,i,1,1);
   }
 

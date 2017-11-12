@@ -17,8 +17,8 @@
 *
 */
 
-#ifndef GPIO_H
-#define GPIO_H
+#ifndef _GPIO_H
+#define _GPIO_H
 
 enum {
   ENCODER_AF_GAIN=0,
@@ -26,18 +26,20 @@ enum {
   ENCODER_ATTENUATION,
   ENCODER_MIC_GAIN,
   ENCODER_DRIVE,
-  ENCODER_TUNE_DRIVE,
+//  ENCODER_TUNE_DRIVE,
   ENCODER_RIT,
   ENCODER_CW_SPEED,
   ENCODER_CW_FREQUENCY,
   ENCODER_PANADAPTER_HIGH,
-  ENCODER_PANADAPTER_LOW
+  ENCODER_PANADAPTER_LOW,
+  ENCODER_SQUELCH,
+  ENCODER_COMP,
+  ENCODER_LAST
 };
 
 
-#define ENCODER_LAST ENCODER_PANADAPTER_LOW
 
-extern char *encoder_string[ENCODER_LAST+1];
+extern char *encoder_string[ENCODER_LAST];
 
 extern int e1_encoder_action;
 extern int e2_encoder_action;

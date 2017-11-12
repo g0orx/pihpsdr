@@ -20,13 +20,14 @@
 #include <gtk/gtk.h>
 #include <semaphore.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <pthread.h>
 
 #include "led.h"
 #include "new_menu.h"
 #include "radio.h"
 #include "transmitter.h"
+#include "vfo.h"
 #include "vox_menu.h"
 #include "vox.h"
 
@@ -37,6 +38,7 @@ static GtkWidget *dialog=NULL;
 static GtkWidget *level;
 
 static GtkWidget *led;
+static GdkRGBA led_color={0.0,0.0,0.0,1.0};
 
 static GdkRGBA white={1.0,1.0,1.0,1.0};
 static GdkRGBA red={1.0,0.0,0.0,1.0};
@@ -60,7 +62,10 @@ static int level_update(void *data) {
 
     if(peak>vox_threshold) {
       // red indicator
-      led_set_color(1.0,0.0,0.0); // red
+      led_color.red=1.0;
+      led_color.green=0.0;
+      led_color.blue=0.0;
+      led_set_color(led); // red
       if(hold==0) {
         hold=1;
       } else {
@@ -70,14 +75,17 @@ static int level_update(void *data) {
     } else {
       // green indicator
       if(hold==0) {
-        led_set_color(0.0,1.0,0.0); // green
+        led_color.red=0.0;
+        led_color.green=1.0;
+        led_color.blue=0.0;
+        led_set_color(led); // green
       }
     }
   }
   return 0;
 }
 
-static void *level_thread(void* arg) {
+static gpointer level_thread(gpointer arg) {
   while(run_level) {
     peak=vox_get_peak();
     g_idle_add(level_update,NULL);
@@ -85,19 +93,28 @@ static void *level_thread(void* arg) {
   }
 }
 
-static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+static void cleanup() {
   if(dialog!=NULL) {
     gtk_widget_destroy(dialog);
     dialog=NULL;
     sub_menu=NULL;
   }
+}
+
+static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  cleanup();
   return TRUE;
+}
+
+static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_data) {
+  cleanup();
+  return FALSE;
 }
 
 static gboolean enable_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   vox_enabled=vox_enabled==1?0:1;
   gtk_button_set_label(GTK_BUTTON(widget),vox_enabled==0?"VOX Enable":"VOX Disable");
-  vfo_update(NULL);
+  vfo_update();
   return TRUE;
 }
 
@@ -136,7 +153,9 @@ void vox_menu(GtkWidget *parent) {
   dialog=gtk_dialog_new();
   g_signal_connect (dialog, "destroy", G_CALLBACK(destroy_cb), NULL);
   gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent_window));
-  gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  //gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  gtk_window_set_title(GTK_WINDOW(dialog),"piHPSDR - VOX");
+  g_signal_connect (dialog, "delete_event", G_CALLBACK (delete_event), NULL);
 
   gtk_widget_override_background_color(dialog,GTK_STATE_FLAG_NORMAL,&white);
 
@@ -148,11 +167,11 @@ void vox_menu(GtkWidget *parent) {
   //gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
   gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
 
-  GtkWidget *close_b=gtk_button_new_with_label("Close VOX");
+  GtkWidget *close_b=gtk_button_new_with_label("Close");
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
-  led=create_led(10,10);
+  led=create_led(10,10,&led_color);
   gtk_grid_attach(GTK_GRID(grid),led,2,0,1,1);
  
   GtkWidget *enable_b=gtk_button_new_with_label(vox_enabled==0?"VOX Enable":"VOX Disable");
