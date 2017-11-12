@@ -7,6 +7,7 @@ cat <<EOT > start_pihpsdr.sh
 cd `pwd`
 sudo /usr/local/bin/pihpsdr
 EOT
+chmod +x start_pihpsdr.sh
 echo "creating desktop shortcut"
 cat <<EOT > pihpsdr.desktop
 #!/usr/bin/env xdg-open
