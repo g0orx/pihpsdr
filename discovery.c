@@ -46,14 +46,29 @@
 #ifdef REMOTE
 #include "remote_radio.h"
 #endif
+#ifdef STEMLAB_DISCOVERY
+#include "stemlab_discovery.h"
+#endif
 #include "ext.h"
 
 static GtkWidget *discovery_dialog;
 static DISCOVERED *d;
 
+#ifdef STEMLAB_DISCOVERY
+static GtkWidget *apps_combobox;
+#endif
+
 static gboolean start_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
 fprintf(stderr,"start_cb: %p\n",data);
   radio=(DISCOVERED *)data;
+#ifdef STEMLAB_DISCOVERY
+  // We need to start the STEMlab app before destroying the dialog, since
+  // we otherwise lose the information about which app has been selected.
+  if (radio->protocol == STEMLAB_PROTOCOL) {
+    stemlab_start_app(gtk_combo_box_get_active_id(GTK_COMBO_BOX(apps_combobox)));
+  }
+  stemlab_cleanup();
+#endif
   gtk_widget_destroy(discovery_dialog);
   start_radio();
   return TRUE;
@@ -102,6 +117,10 @@ fprintf(stderr,"discovery\n");
   }
 #endif
 
+#ifdef STEMLAB_DISCOVERY
+  status_text("STEMlab (Avahi) ... Discovering Devices");
+  stemlab_discovery();
+#endif
 
   status_text("Protocol 1 ... Discovering Devices");
   old_discovery();
@@ -229,6 +248,17 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
 					sprintf(text,"%s\n",d->name);
 				break;
 #endif
+#ifdef STEMLAB_DISCOVERY
+        case STEMLAB_PROTOCOL:
+          sprintf(text, "STEMlab (%02X:%02X:%02X:%02X:%02X:%02X) on %s",
+                         d->info.network.mac_address[0],
+                         d->info.network.mac_address[1],
+                         d->info.network.mac_address[2],
+                         d->info.network.mac_address[3],
+                         d->info.network.mac_address[4],
+                         d->info.network.mac_address[5],
+                         d->info.network.interface_name);
+#endif
       }
 
       GtkWidget *label=gtk_label_new(text);
@@ -253,6 +283,42 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
         gtk_button_set_label(GTK_BUTTON(start_button),"Subnet!");
         gtk_widget_set_sensitive(start_button, FALSE);
       }
+
+#ifdef STEMLAB_DISCOVERY
+      if (d->protocol == STEMLAB_PROTOCOL) {
+        if (d->software_version == 0) {
+          gtk_button_set_label(GTK_BUTTON(start_button), "Not installed");
+          gtk_widget_set_sensitive(start_button, FALSE);
+        } else {
+          apps_combobox = gtk_combo_box_text_new();
+          gtk_widget_override_font(apps_combobox,
+              pango_font_description_from_string("FreeMono 12"));
+          // We want the default selection priority for the STEMlab app to be
+          // RP-Trx > Pavel-Trx > Pavel-Rx, so we add in decreasing order and
+          // always set the newly added entry to be active.
+          if ((d->software_version & STEMLAB_PAVEL_RX) != 0) {
+            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox),
+                "sdr_receiver_hpsdr", "Pavel-Rx");
+            gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox),
+                "sdr_receiver_hpsdr");
+          }
+          if ((d->software_version & STEMLAB_PAVEL_TRX) != 0) {
+            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox),
+                "sdr_transceiver_hpsdr", "Pavel-Trx");
+            gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox),
+                "sdr_transceiver_hpsdr");
+          }
+          if ((d->software_version & STEMLAB_RP_TRX) != 0) {
+            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox),
+                "stemlab_sdr_transceiver_hpsdr", "RedPitaya-Trx");
+            gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox),
+                "stemlab_sdr_transceiver_hpsdr");
+          }
+          gtk_widget_show(apps_combobox);
+          gtk_grid_attach(GTK_GRID(grid), apps_combobox, 4, i, 1, 1);
+        }
+      }
+#endif
 
     }
 #ifdef GPIO
