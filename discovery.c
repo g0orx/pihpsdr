@@ -55,7 +55,7 @@ static GtkWidget *discovery_dialog;
 static DISCOVERED *d;
 
 #ifdef STEMLAB_DISCOVERY
-static GtkWidget *apps_combobox;
+static GtkWidget *apps_combobox[MAX_DEVICES];
 #endif
 
 static gboolean start_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
@@ -65,7 +65,8 @@ fprintf(stderr,"start_cb: %p\n",data);
   // We need to start the STEMlab app before destroying the dialog, since
   // we otherwise lose the information about which app has been selected.
   if (radio->protocol == STEMLAB_PROTOCOL) {
-    stemlab_start_app(gtk_combo_box_get_active_id(GTK_COMBO_BOX(apps_combobox)));
+    const int device_id = radio - discovered;
+    stemlab_start_app(gtk_combo_box_get_active_id(GTK_COMBO_BOX(apps_combobox[device_id])));
   }
   stemlab_cleanup();
 #endif
@@ -290,32 +291,32 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
           gtk_button_set_label(GTK_BUTTON(start_button), "Not installed");
           gtk_widget_set_sensitive(start_button, FALSE);
         } else {
-          apps_combobox = gtk_combo_box_text_new();
-          gtk_widget_override_font(apps_combobox,
+          apps_combobox[i] = gtk_combo_box_text_new();
+          gtk_widget_override_font(apps_combobox[i],
               pango_font_description_from_string("FreeMono 12"));
           // We want the default selection priority for the STEMlab app to be
           // RP-Trx > Pavel-Trx > Pavel-Rx, so we add in decreasing order and
           // always set the newly added entry to be active.
           if ((d->software_version & STEMLAB_PAVEL_RX) != 0) {
-            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox),
+            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox[i]),
                 "sdr_receiver_hpsdr", "Pavel-Rx");
-            gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox),
+            gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox[i]),
                 "sdr_receiver_hpsdr");
           }
           if ((d->software_version & STEMLAB_PAVEL_TRX) != 0) {
-            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox),
+            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox[i]),
                 "sdr_transceiver_hpsdr", "Pavel-Trx");
-            gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox),
+            gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox[i]),
                 "sdr_transceiver_hpsdr");
           }
           if ((d->software_version & STEMLAB_RP_TRX) != 0) {
-            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox),
+            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox[i]),
                 "stemlab_sdr_transceiver_hpsdr", "RedPitaya-Trx");
-            gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox),
+            gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox[i]),
                 "stemlab_sdr_transceiver_hpsdr");
           }
-          gtk_widget_show(apps_combobox);
-          gtk_grid_attach(GTK_GRID(grid), apps_combobox, 4, i, 1, 1);
+          gtk_widget_show(apps_combobox[i]);
+          gtk_grid_attach(GTK_GRID(grid), apps_combobox[i], 4, i, 1, 1);
         }
       }
 #endif
