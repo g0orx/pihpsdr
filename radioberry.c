@@ -98,6 +98,24 @@ static int rx1_spi_handler;
 static int rx2_spi_handler;
 
 
+#define HANDLER_STEADY_TIME_US 5000
+void setup_handler(int pin, gpioAlertFunc_t pAlert) {
+  gpioSetMode(pin, PI_INPUT);
+  gpioSetPullUpDown(pin,PI_PUD_UP);
+  // give time to settle to avoid false triggers
+  usleep(10000);
+  gpioSetAlertFunc(pin, pAlert);
+  gpioGlitchFilter(pin, HANDLER_STEADY_TIME_US);
+}
+
+void cwPTT_Alert(int gpio, int level, uint32_t tick) {
+	fprintf(stderr,"init pttAlert\n");
+	fprintf(stderr,"%d - %d -%d - %d\n", running, cw_breakin, transmitter->mode, level);
+    if (running && cw_breakin && (transmitter->mode==modeCWU || transmitter->mode==modeCWL)){
+		g_idle_add(mox_update,(gpointer)level);
+	}
+}
+
 float timedifference_msec(struct timeval t0, struct timeval t1)
 {
     return (t1.tv_sec - t0.tv_sec) * 1000.0f + (t1.tv_usec - t0.tv_usec) / 1000.0f;
@@ -122,6 +140,9 @@ void radioberry_protocol_init(int rx,int pixels) {
 	gpioSetMode(16, PI_INPUT);	//rx2_FIFOEmpty
 	gpioSetMode(20, PI_INPUT); 
 	gpioSetMode(21, PI_OUTPUT); 
+	
+	setup_handler(17, cwPTT_Alert); 
+	
    
 	rx1_spi_handler = spiOpen(0, 15625000, 49155);  //channel 0
 	if (rx1_spi_handler < 0) {
@@ -392,8 +413,8 @@ void spiWriter() {
 	} else {
 		txFrequency=vfo[VFO_A].frequency-vfo[VFO_B].lo+vfo[VFO_A].offset;
 	}
-	tx_iqdata[0] = 0x00;
-	tx_iqdata[1] = 0x00;
+	tx_iqdata[0] = cw_keyer_speed | (cw_keyer_mode<<6);
+	tx_iqdata[1] = cw_keyer_weight | (cw_keyer_spacing<<7);
 	tx_iqdata[2] = ((txFrequency >> 24) & 0xFF);
 	tx_iqdata[3] = ((txFrequency >> 16) & 0xFF);
 	tx_iqdata[4] = ((txFrequency >> 8) & 0xFF);

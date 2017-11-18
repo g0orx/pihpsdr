@@ -650,8 +650,9 @@ void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
 		if (isTransmitting()) {
 			if (key == 1) {
 				mic_sample_double = getNextSideToneSample();
-				cw_audio_write(mic_sample_double * cw_keyer_sidetone_volume/ 127.0);
-				mic_sample_double = mic_sample_double * 200000; //* amplitude 
+				cw_audio_write(mic_sample_double * ((cw_keyer_sidetone_volume-1)/127.0));
+				mic_sample_double = mic_sample_double * 0.001; //the mic sample is added to make keying visible in tx screen.
+				//keying done at J2 of RPI IO-16 and IO-15; keys via gpio pin BCM18 and BCM19 will give the sidetone.
 			} else mic_sample_double=0.0;
 		}
       } else {
