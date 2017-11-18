@@ -188,6 +188,10 @@ static void new_service_cb(GaServiceBrowser *browser, gint if_index, GaProtocol 
   if (1 != sscanf(name, "rp-%6x HTTP", &mac_buffer)) {
     return;
   }
+  if (devices >= MAX_DEVICES) {
+    fprintf(stderr, ERROR_PREFIX "Maximum number of devices (%d) reached\n",
+        MAX_DEVICES);
+  }
   if (protocol != AVAHI_PROTO_INET) {
     fprintf(stderr, ERROR_PREFIX "found %.9s via IPv6, skipping ...\n", name);
     return;
