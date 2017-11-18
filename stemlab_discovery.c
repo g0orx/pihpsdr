@@ -171,7 +171,6 @@ static void resolver_found_cb(GaServiceResolver *resolver, AvahiIfIndex if_index
   device->info.network.interface_address = * (struct sockaddr_in *) current_if->ifa_addr;
   device->info.network.interface_netmask = * (struct sockaddr_in *) current_if->ifa_netmask;
   strcpy(device->info.network.interface_name, if_name);
-  fprintf(stderr, "|> Added STEMlab %.9s\n", name);
 }
 
 void resolver_failure_cb(GaServiceResolver *resolver, GError *error, gpointer data) {
@@ -277,7 +276,6 @@ void stemlab_discovery(void) {
   while (!discovery_done || pending_callbacks > 0) {
     g_main_context_iteration(NULL, TRUE);
   }
-  fprintf(stderr, "|> STEMlab discovery done\n");
 }
 
 // This is essentially a no-op curl callback
