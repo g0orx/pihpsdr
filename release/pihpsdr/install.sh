@@ -20,14 +20,14 @@ Exec=`pwd`/start_pihpsdr.sh
 Icon=`pwd`/hpsdr_icon.png
 Name=piHPSDR
 EOT
-cp pihpsdr.dshesktop ~/Desktop
-if [ ! -d "~/.local" ]; then
+cp pihpsdr.desktop ~/Desktop
+if [ ! -d ~/.local ]; then
   mkdir ~/.local
 fi
-if [ ! -d "~/.local/share" ]; then
+if [ ! -d ~/.local/share ]; then
 mkdir ~/.local/share
 fi
-if [ ! -d "~/.local/share/applications" ]; then
+if [ ! -d ~/.local/share/applications ]; then
 mkdir ~/.local/share/applications
 fi
 cp pihpsdr.desktop ~/.local/share/applications
