@@ -492,14 +492,13 @@ static void process_ozy_input_buffer(char  *buffer) {
     control_in[4]=buffer[b++];
 
     previous_ptt=local_ptt;
-    //previous_ptt=ptt;
     previous_dot=dot;
     previous_dash=dash;
     ptt=(control_in[0]&0x01)==0x01;
     dash=(control_in[0]&0x02)==0x02;
     dot=(control_in[0]&0x04)==0x04;
 
-    local_ptt=dot;
+    local_ptt=ptt;
     if(vfo[tx_vfo].mode==modeCWL || vfo[tx_vfo].mode==modeCWU) {
       local_ptt=ptt|dot|dash;
     }
