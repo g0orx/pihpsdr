@@ -29,6 +29,7 @@
 #include "bandstack.h"
 #include "channel.h"
 #include "main.h"
+#include "receiver.h"
 #include "meter.h"
 #include "mode.h"
 #include "property.h"
@@ -410,7 +411,7 @@ static gboolean update_display(gpointer data) {
       }
     } 
 
-    meter_update(POWER,transmitter->fwd,transmitter->rev,transmitter->exciter,transmitter->alc);
+    meter_update(active_receiver,POWER,transmitter->fwd,transmitter->rev,transmitter->exciter,transmitter->alc);
 
     return TRUE; // keep going
   }

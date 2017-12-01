@@ -550,7 +550,7 @@ static gint update_display(gpointer data) {
 
     if(active_receiver==rx) {
       double m=GetRXAMeter(rx->id,smeter)+meter_calibration;
-      meter_update(SMETER,m,0.0,0.0,0.0);
+      meter_update(rx,SMETER,m,0.0,0.0,0.0);
     }
     return TRUE;
   }

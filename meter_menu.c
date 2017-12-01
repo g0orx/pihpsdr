@@ -26,6 +26,7 @@
 #include <wdsp.h>
 
 #include "new_menu.h"
+#include "receiver.h"
 #include "meter_menu.h"
 #include "meter.h"
 #include "radio.h"
