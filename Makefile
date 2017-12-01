@@ -422,5 +422,5 @@ install: $(PROGRAM)
 release: $(PROGRAM)
 	cp $(PROGRAM) release/pihpsdr
 	cd release; tar cvf pihpsdr.tar pihpsdr
-	cd release; tar cvf pihpsdr-v1.2.tar pihpsdr
+	cd release; tar cvf pihpsdr-$(GIT_VERSION).tar pihpsdr
 

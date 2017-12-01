@@ -144,6 +144,8 @@ static int psk_samples=0;
 static int psk_divisor=6;
 #endif
 
+static int local_ptt=0;
+
 static double micinputbuffer[MAX_BUFFER_SIZE*2];
 
 static int left_rx_sample;
@@ -489,42 +491,22 @@ static void process_ozy_input_buffer(char  *buffer) {
     control_in[3]=buffer[b++];
     control_in[4]=buffer[b++];
 
-    previous_ptt=ptt;
+    previous_ptt=local_ptt;
+    //previous_ptt=ptt;
     previous_dot=dot;
     previous_dash=dash;
     ptt=(control_in[0]&0x01)==0x01;
     dash=(control_in[0]&0x02)==0x02;
     dot=(control_in[0]&0x04)==0x04;
 
-/*
-if(ptt!=previous_ptt) {
-  fprintf(stderr,"ptt=%d\n",ptt);
-}
-if(dot!=previous_dot) {
-  fprintf(stderr,"dot=%d\n",dot);
-}
-if(dash!=previous_dash) {
-  fprintf(stderr,"dash=%d\n",dash);
-}
-    if(previous_ptt!=ptt && vfo[tx_vfo].mode!=modeCWU && vfo[tx_vfo].mode!=modeCWL) {
-      g_idle_add(ext_ptt_update,(gpointer)(long)(ptt));
-    } else if(previous_dot!=dot && (vfo[tx_vfo].mode==modeCWU || vfo[tx_vfo].mode==modeCWL)) {
-      g_idle_add(ext_ptt_update,(gpointer)(long)(dot));
-    } else if(previous_dash!=dash && (vfo[tx_vfo].mode==modeCWU || vfo[tx_vfo].mode==modeCWL)) {
-      g_idle_add(ext_ptt_update,(gpointer)(long)(dash));
-    }
-*/
-
+    local_ptt=dot;
     if(vfo[tx_vfo].mode==modeCWL || vfo[tx_vfo].mode==modeCWU) {
-      if(dot==0 && dash==0) {
-        ptt=0;
-      }
+      local_ptt=ptt|dot|dash;
     }
-
-    if(previous_ptt!=ptt) {
-//fprintf(stderr,"ptt=%d previous_ptt=%d dot=%d dash=%d vfo=%d mode=%d\n",ptt,previous_ptt,dot,dash,tx_vfo,vfo[tx_vfo].mode);
+    if(previous_ptt!=local_ptt) {
       g_idle_add(ext_ptt_update,(gpointer)(long)(ptt));
     }
+
 
     switch((control_in[0]>>3)&0x1F) {
       case 0:
@@ -1038,7 +1020,7 @@ void ozy_send_buffer() {
         output_buffer[C3]=0x00;
   
         if(radio->device==DEVICE_HERMES || radio->device==DEVICE_ANGELIA || radio->device==DEVICE_ORION || radio->device==DEVICE_ORION2) {
-          output_buffer[C4]=0x20|receiver[0]->attenuation;
+          output_buffer[C4]=0x20|adc_attenuation[receiver[0]->adc];
         } else {
           output_buffer[C4]=0x00;
         }
@@ -1049,7 +1031,7 @@ void ozy_send_buffer() {
         output_buffer[C1]=0x00;
         if(receivers==2) {
           if(radio->device==DEVICE_HERMES || radio->device==DEVICE_ANGELIA || radio->device==DEVICE_ORION || radio->device==DEVICE_ORION2) {
-            output_buffer[C1]=0x20|receiver[1]->attenuation;
+            output_buffer[C1]=0x20|adc_attenuation[receiver[1]->adc];
           }
         }
         output_buffer[C2]=0x00;

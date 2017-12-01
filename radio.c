@@ -466,6 +466,9 @@ fprintf(stderr,"title: length=%d\n", (int)strlen(text));
   }
  
 
+  adc_attenuation[0]=0;
+  adc_attenuation[1]=0;
+
 //fprintf(stderr,"meter_calibration=%f display_calibration=%f\n", meter_calibration, display_calibration);
   radioRestoreState();
 
@@ -1035,10 +1038,6 @@ void set_attenuation(int value) {
     }
 }
 
-int get_attenuation() {
-    return active_receiver->attenuation;
-}
-
 void set_alex_rx_antenna(int v) {
     if(active_receiver->id==0) {
       active_receiver->alex_antenna=v;
@@ -1265,6 +1264,11 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     value=getProperty("rigctl_port_base");
     if(value) rigctl_port_base=atoi(value);
 
+    value=getProperty("adc_0_attenuation");
+    if(value) adc_attenuation[0]=atoi(value);
+    value=getProperty("adc_1_attenuation");
+    if(value) adc_attenuation[1]=atoi(value);
+
     sem_post(&property_sem);
 }
 
@@ -1427,6 +1431,10 @@ void radioSaveState() {
     setProperty("e3_encoder_action",value);
 #endif
 
+    sprintf(value,"%d",adc_attenuation[0]);
+    setProperty("adc_0_attenuation",value);
+    sprintf(value,"%d",adc_attenuation[1]);
+    setProperty("adc_1_attenuation",value);
 
     vfo_save_state();
     sprintf(value,"%d",receivers);

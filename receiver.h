@@ -82,7 +82,7 @@ typedef struct _receiver {
   int nr2_ae;
 
 
-  int attenuation;
+  //int attenuation;
   int alex_antenna;
   int alex_attenuation;
 

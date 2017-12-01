@@ -921,7 +921,7 @@ static encoder_changed(int action,int pos) {
       set_agc_gain(value);
       break;
     case ENCODER_ATTENUATION:
-      value=active_receiver->attenuation;
+      value=adc_attenuation[active_receiver->adc];
       value+=pos;
       if(value<0) {
         value=0;

@@ -854,10 +854,8 @@ static void new_protocol_high_priority() {
     if(isTransmitting()) {
       high_priority_buffer_to_radio[1443]=transmitter->attenuation;
     } else {
-      for(r=0;r<receivers;r++) {
-        i=r;
-        high_priority_buffer_to_radio[1443-i]=receiver[r]->attenuation;
-      }
+      high_priority_buffer_to_radio[1443]=adc_attenuation[0];
+      high_priority_buffer_to_radio[1442]=adc_attenuation[1];
     }
 
     int rc;

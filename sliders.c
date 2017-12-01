@@ -100,7 +100,11 @@ int sliders_active_receiver_changed(void *data) {
   if(display_sliders) {
     gtk_range_set_value(GTK_RANGE(af_gain_scale),active_receiver->volume*100.0);
     gtk_range_set_value (GTK_RANGE(agc_scale),active_receiver->agc_gain);
-    gtk_range_set_value (GTK_RANGE(attenuation_scale),active_receiver->attenuation);
+    gtk_range_set_value (GTK_RANGE(attenuation_scale),adc_attenuation[active_receiver->adc]);
+
+    char title[64];
+    sprintf(title,"ATT (dB)"/*,active_receiver->adc*/);
+    gtk_label_set_text(GTK_LABEL(attenuation_label),title);
     sliders_update();
   }
   return FALSE;
@@ -113,14 +117,14 @@ int scale_timeout_cb(gpointer data) {
 }
 
 static void attenuation_value_changed_cb(GtkWidget *widget, gpointer data) {
-  active_receiver->attenuation=(int)gtk_range_get_value(GTK_RANGE(attenuation_scale));
-  set_attenuation(active_receiver->attenuation);
+  adc_attenuation[active_receiver->adc]=(int)gtk_range_get_value(GTK_RANGE(attenuation_scale));
+  set_attenuation(adc_attenuation[active_receiver->adc]);
 }
 
 void set_attenuation_value(double value) {
-  active_receiver->attenuation=(int)value;
+  adc_attenuation[active_receiver->adc]=(int)value;
   if(display_sliders) {
-    gtk_range_set_value (GTK_RANGE(attenuation_scale),active_receiver->attenuation);
+    gtk_range_set_value (GTK_RANGE(attenuation_scale),adc_attenuation[active_receiver->adc]);
   } else {
     if(scale_status!=ATTENUATION) {
       if(scale_status!=NONE) {
@@ -130,12 +134,14 @@ void set_attenuation_value(double value) {
       }
     }
     if(scale_status==NONE) {
+      char title[64];
+      sprintf(title,"Attenuation - ADC-%d (dB)",active_receiver->adc);
       scale_status=ATTENUATION;
-      scale_dialog=gtk_dialog_new_with_buttons("Attenuation (dB)",GTK_WINDOW(top_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
+      scale_dialog=gtk_dialog_new_with_buttons(title,GTK_WINDOW(top_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
       GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
       attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 31.0, 1.00);
       gtk_widget_set_size_request (attenuation_scale, 400, 30);
-      gtk_range_set_value (GTK_RANGE(attenuation_scale),active_receiver->attenuation);
+      gtk_range_set_value (GTK_RANGE(attenuation_scale),adc_attenuation[active_receiver->adc]);
       gtk_widget_show(attenuation_scale);
       gtk_container_add(GTK_CONTAINER(content),attenuation_scale);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
@@ -143,11 +149,11 @@ void set_attenuation_value(double value) {
       int result=gtk_dialog_run(GTK_DIALOG(scale_dialog));
     } else {
       g_source_remove(scale_timer);
-      gtk_range_set_value (GTK_RANGE(attenuation_scale),active_receiver->attenuation);
+      gtk_range_set_value (GTK_RANGE(attenuation_scale),adc_attenuation[active_receiver->adc]);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
     }
   }
-  set_attenuation(active_receiver->attenuation);
+  set_attenuation(adc_attenuation[active_receiver->adc]);
 }
 
 static void agcgain_value_changed_cb(GtkWidget *widget, gpointer data) {
@@ -481,12 +487,14 @@ fprintf(stderr,"sliders_init: width=%d height=%d\n", width,height);
   gtk_grid_attach(GTK_GRID(sliders),agc_scale,4,0,2,1);
   g_signal_connect(G_OBJECT(agc_scale),"value_changed",G_CALLBACK(agcgain_value_changed_cb),NULL);
 
-  attenuation_label=gtk_label_new("ATT (dB):");
+  char title[64];
+  sprintf(title,"ATT (dB)"/*,active_receiver->adc*/);
+  attenuation_label=gtk_label_new(title);
   gtk_widget_show(attenuation_label);
   gtk_grid_attach(GTK_GRID(sliders),attenuation_label,6,0,1,1);
 
   attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 31.0, 1.0);
-  gtk_range_set_value (GTK_RANGE(attenuation_scale),active_receiver->attenuation);
+  gtk_range_set_value (GTK_RANGE(attenuation_scale),adc_attenuation[active_receiver->adc]);
   gtk_widget_show(attenuation_scale);
   gtk_grid_attach(GTK_GRID(sliders),attenuation_scale,7,0,2,1);
   g_signal_connect(G_OBJECT(attenuation_scale),"value_changed",G_CALLBACK(attenuation_value_changed_cb),NULL);

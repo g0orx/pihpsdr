@@ -142,6 +142,7 @@ extern int mic_ptt_tip_bias_ring;
 int receivers;
 
 int adc[2];
+int adc_attenuation[2];
 
 int locked;
 
@@ -268,7 +269,6 @@ extern void calcTuneDriveLevel();
 extern void setSquelch(RECEIVER *rx);
 
 extern void set_attenuation(int value);
-extern int get_attenuation();
 extern void set_alex_rx_antenna(int v);
 extern void set_alex_tx_antenna(int v);
 extern void set_alex_attenuation(int v);

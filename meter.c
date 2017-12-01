@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <math.h>
 
+#include "receiver.h"
 #include "meter.h"
 #include "wdsp.h"
 #include "radio.h"
@@ -212,7 +213,7 @@ fprintf(stderr,"meter_init: width=%d height=%d\n",width,height);
 }
 
 
-void meter_update(int meter_type,double value,double reverse,double exciter,double alc) {
+void meter_update(RECEIVER *rx,int meter_type,double value,double reverse,double exciter,double alc) {
   
   char text[128];
   char sf[32];
@@ -230,7 +231,7 @@ if(analog_meter) {
   switch(meter_type) {
     case SMETER:
       {
-      double level=value+(double)get_attenuation();
+      double level=value+(double)adc_attenuation[rx->adc];
       offset=210.0;
 
       int i;
@@ -527,7 +528,7 @@ if(analog_meter) {
       // value is dBm
       text_location=10;
       offset=5.0;
-      double level=value+(double)get_attenuation();
+      double level=value+(double)adc_attenuation[rx->adc];
       if(meter_width>=114) {
         //int db=meter_width/114; // S9+60 (9*6)+60
         //if(db>2) db=2;

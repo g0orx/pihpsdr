@@ -30,6 +30,6 @@
 
 
 extern GtkWidget* meter_init(int width,int height,GtkWidget *parent);
-extern void meter_update(int meter_type,double value,double reverse,double exciter,double alc);
+extern void meter_update(RECEIVER *rx,int meter_type,double value,double reverse,double exciter,double alc);
 
 #endif

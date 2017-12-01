@@ -293,12 +293,12 @@ void rx_panadapter_update(RECEIVER *rx) {
     GetRXAAGCHangLevel(rx->id, &hang);
     GetRXAAGCThresh(rx->id, &thresh, 4096.0, (double)rx->sample_rate);
 
-    double knee_y=thresh+(double)get_attenuation();
+    double knee_y=thresh+(double)adc_attenuation[rx->adc];
     knee_y = floor((rx->panadapter_high - knee_y)
                         * (double) display_height
                         / (rx->panadapter_high - rx->panadapter_low));
 
-    double hang_y=hang+(double)get_attenuation();
+    double hang_y=hang+(double)adc_attenuation[rx->adc];
     hang_y = floor((rx->panadapter_high - hang_y)
                         * (double) display_height
                         / (rx->panadapter_high - rx->panadapter_low));
@@ -352,13 +352,13 @@ void rx_panadapter_update(RECEIVER *rx) {
   samples[0]=-200.0;
   samples[display_width-1]=-200.0;
 
-  s1=(double)samples[0]+(double)get_attenuation();
+  s1=(double)samples[0]+(double)adc_attenuation[rx->adc];
   s1 = floor((rx->panadapter_high - s1)
                         * (double) display_height
                         / (rx->panadapter_high - rx->panadapter_low));
   cairo_move_to(cr, 0.0, s1);
   for(i=1;i<display_width;i++) {
-    s2=(double)samples[i]+(double)get_attenuation();
+    s2=(double)samples[i]+(double)adc_attenuation[rx->adc];
     s2 = floor((rx->panadapter_high - s2)
                             * (double) display_height
                             / (rx->panadapter_high - rx->panadapter_low));

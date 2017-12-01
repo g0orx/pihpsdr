@@ -221,9 +221,6 @@ void receiver_save_state(RECEIVER *rx) {
   sprintf(name,"receiver.%d.agc_hang_threshold",rx->id);
   sprintf(value,"%f",rx->agc_hang_threshold);
   setProperty(name,value);
-  sprintf(name,"receiver.%d.attenuation",rx->id);
-  sprintf(value,"%d",rx->attenuation);
-  setProperty(name,value);
 
   sprintf(name,"receiver.%d.dither",rx->id);
   sprintf(value,"%d",rx->dither);
@@ -380,9 +377,6 @@ fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
   sprintf(name,"receiver.%d.agc_hang_threshold",rx->id);
   value=getProperty(name);
   if(value) rx->agc_hang_threshold=atof(value);
-  sprintf(name,"receiver.%d.attenuation",rx->id);
-  value=getProperty(name);
-  if(value) rx->attenuation=atoi(value);
 
   sprintf(name,"receiver.%d.dither",rx->id);
   value=getProperty(name);
@@ -775,7 +769,6 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
   rx->panadapter_low=-140;
 
   rx->volume=0.0;
-  rx->attenuation=0;
 
   rx->dither=0;
   rx->random=0;
@@ -911,7 +904,6 @@ fprintf(stderr,"create_receiver: id=%d default ddc=%d adc=%d\n",rx->id, rx->ddc,
   rx->waterfall_automatic=1;
 
   rx->volume=0.1;
-  rx->attenuation=0;
 
   rx->dither=0;
   rx->random=0;

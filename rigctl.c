@@ -2800,7 +2800,7 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                             float calc_atten;
                                              if(len <=2) {
                                                //send_resp(client_sock,"RA0000;"); 
-                                               calc_atten = round((float)active_receiver->attenuation*99.0/30.0);
+                                               calc_atten = round((float)adc_attenuation[active_receiver->adc]*99.0/30.0);
                                                if(calc_atten > 99.0) {
                                                   calc_atten = 99.0;
                                                } 
@@ -3064,20 +3064,19 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                             //  PowerSDR returns S9=0015 code. 
                                             //  Let's make S9 half scale or a value of 70.  
                                             double level=0.0;
+                                            int r=0;
 
                                             if(cmd_input[2] == '0') { 
-                                              level = GetRXAMeter(receiver[0]->id, smeter); 
+                                              r=0;
                                             } else if(cmd_input[2] == '1') { 
-                                              if(receivers==2) {
-                                                level = GetRXAMeter(receiver[1]->id, smeter); 
-                                              }
+                                              r=1;
                                             }
+                                            level = GetRXAMeter(receiver[r]->id, smeter); 
 
 
-                                            level = GetRXAMeter(active_receiver->id, smeter); 
                                             // Determine how high above 127 we are..making a range of 114 from S0 to S9+60db
                                             // 5 is a fugdge factor that shouldn't be there - but seems to get us to S9=SM015
-                                            level =  abs(127+(level + (double) get_attenuation()))+5;
+                                            level =  abs(127+(level + (double)adc_attenuation[receiver[r]->adc]))+5;
                                          
                                             // Clip the value just in case
                                             if(cmd_input[2] == '0') { 

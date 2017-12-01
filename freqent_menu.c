@@ -41,7 +41,7 @@ static GtkWidget *label;
 static char *btn_labels[] = {"1","2","3","4",
                              "5","6","7","8",
                              "9","0",".","BS",
-                             "HZ","KZ","MZ","CR"
+                             "Hz","kHz","MHz","CR"
                             };
 
 static void cleanup() {
