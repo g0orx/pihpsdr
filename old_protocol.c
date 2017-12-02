@@ -503,7 +503,7 @@ static void process_ozy_input_buffer(char  *buffer) {
       local_ptt=ptt|dot|dash;
     }
     if(previous_ptt!=local_ptt) {
-      g_idle_add(ext_ptt_update,(gpointer)(long)(ptt));
+      g_idle_add(ext_ptt_update,(gpointer)(long)(local_ptt));
     }
 
 

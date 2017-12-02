@@ -182,6 +182,8 @@ static unsigned char high_priority_buffer_to_radio[1444];
 static unsigned char transmit_specific_buffer[60];
 static unsigned char receive_specific_buffer[1444];
 
+static int local_ptt=0;
+
 static void new_protocol_high_priority();
 static void new_protocol_general();
 static void new_protocol_receive_specific();
@@ -1396,35 +1398,21 @@ static void process_high_priority(unsigned char *buffer) {
     ptt=high_priority_buffer[4]&0x01;
     dot=(high_priority_buffer[4]>>1)&0x01;
     dash=(high_priority_buffer[4]>>2)&0x01;
-
-/*
-if(ptt!=previous_ptt) {
-  fprintf(stderr,"ptt=%d\n",ptt);
-}
-if(dot!=previous_dot) {
-  fprintf(stderr,"dot=%d\n",dot);
-}
-if(dash!=previous_dash) {
-  fprintf(stderr,"dash=%d\n",dash);
-}
-*/
     pll_locked=(high_priority_buffer[4]>>3)&0x01;
-
-
     adc_overload=high_priority_buffer[5]&0x01;
     exciter_power=((high_priority_buffer[6]&0xFF)<<8)|(high_priority_buffer[7]&0xFF);
     alex_forward_power=((high_priority_buffer[14]&0xFF)<<8)|(high_priority_buffer[15]&0xFF);
     alex_reverse_power=((high_priority_buffer[22]&0xFF)<<8)|(high_priority_buffer[23]&0xFF);
     supply_volts=((high_priority_buffer[49]&0xFF)<<8)|(high_priority_buffer[50]&0xFF);
 
-    if(previous_ptt!=ptt && vfo[id].mode!=modeCWU && vfo[id].mode!=modeCWL) {
-      g_idle_add(ext_ptt_update,(gpointer)(long)(ptt));
-    } else if(previous_dot!=dot && (vfo[id].mode==modeCWU || vfo[id].mode==modeCWL)) {
-      g_idle_add(ext_ptt_update,(gpointer)(long)(dot));
-    } else if(previous_dash!=dash && (vfo[id].mode==modeCWU || vfo[id].mode==modeCWL)) {
-      g_idle_add(ext_ptt_update,(gpointer)(long)(dash));
+    int tx_vfo=split?VFO_B:VFO_A;
+    local_ptt=ptt;
+    if(vfo[tx_vfo].mode==modeCWL || vfo[tx_vfo].mode==modeCWU) {
+      local_ptt=ptt|dot|dash;
     }
-
+    if(previous_ptt!=local_ptt) {
+      g_idle_add(ext_ptt_update,(gpointer)(long)(local_ptt));
+    }
 }
 
 static void process_mic_data(int bytes) {
