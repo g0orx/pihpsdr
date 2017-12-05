@@ -301,7 +301,7 @@ void stemlab_start_app(const char * const app_id) {
   CURLcode curl_error = CURLE_OK;
 #define check_curl(description) do { \
   if (curl_error != CURLE_OK) { \
-    fprintf(stderr, "stemlab_start: " description "%s\n", \
+    fprintf(stderr, "stemlab_start: " description ": %s\n", \
         curl_easy_strerror(curl_error)); \
     exit(-1); \
   } \
