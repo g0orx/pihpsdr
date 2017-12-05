@@ -310,13 +310,13 @@ void tx_panadapter_update(TRANSMITTER *tx) {
       break;
   }
 
-  s1=(double)samples[0+offset]/*+(double)get_attenuation()*/;
+  s1=(double)samples[0+offset];
   s1 = floor((tx->panadapter_high - s1)
                         * (double) display_height
                         / (tx->panadapter_high - tx->panadapter_low));
   cairo_move_to(cr, 0.0, s1);
   for(i=1;i<display_width;i++) {
-    s2=(double)samples[i+offset]/*+(double)get_attenuation()*/;
+    s2=(double)samples[i+offset];
     s2 = floor((tx->panadapter_high - s2)
                             * (double) display_height
                             / (tx->panadapter_high - tx->panadapter_low));

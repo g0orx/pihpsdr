@@ -154,3 +154,9 @@ int ext_ps_twotone(void *data) {
   return 0;
 }
 #endif
+
+int ext_vfo_step(void *data) {
+  int step=(int)(long)data;
+  vfo_step(step);
+  return 0;
+}

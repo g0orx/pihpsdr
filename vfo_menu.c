@@ -118,21 +118,19 @@ static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
       gtk_label_set_markup (GTK_LABEL (label), output);
 
     /* --- clear? --- */
+    mult=0.0;
     } else if (strcmp (str, "CL") == 0) {
       strcpy (buffer, "0");
       sprintf(output, "<big>%s</big>", buffer);
       gtk_label_set_markup (GTK_LABEL (label), output);
-    } else if (str[1] == 'Z') {
-      switch(str[0]) {
-      case 'M':
-        mult = 10000000.0;
-        break;
-      case 'K':
-        mult = 10000.0;
-        break;
-      default :
-        mult = 10.0;
-      }
+    } else if(strcmp(str,"Hz")==0) {
+      mult = 10.0;
+    } else if(strcmp(str,"kHz")==0) {
+      mult = 10000.0;
+    } else if(strcmp(str,"MHz")==0) {
+      mult = 10000000.0;
+    }
+    if(mult!=0.0) {
       f = ((long long)(atof(buffer)*mult)+5)/10;
       sprintf(output, "<big>%lld</big>", f);
       gtk_label_set_markup (GTK_LABEL (label), output);

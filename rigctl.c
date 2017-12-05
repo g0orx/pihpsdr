@@ -70,8 +70,10 @@ static const int TelnetPortA = 19090;
 static const int TelnetPortB = 19091;
 static const int TelnetPortC = 19092;
 
+#define RIGCTL_TIMER_DELAY  15000
+
 // max number of bytes we can get at once
-#define MAXDATASIZE 300
+#define MAXDATASIZE 2000
 
 void parse_cmd ();
 int cw_busy = 0; // Used to signal that the system is in a busy state for sending CW - assert busy back to the user
@@ -96,7 +98,7 @@ typedef struct {GMutex m; } GT_MUTEX;
 GT_MUTEX * mutex_a;
 GT_MUTEX * mutex_b;
 GT_MUTEX * mutex_c;
-GT_MUTEX * mutex_d;
+GT_MUTEX * mutex_busy;
 
 int mutex_b_exists = 0;
 
@@ -107,6 +109,7 @@ FILTER * band_filter;
 
 #define MAX_CLIENTS 3
 static GThread *rigctl_server_thread_id = NULL;
+static GThread *rigctl_set_timer_thread_id = NULL;
 static int server_running;
 
 static GThread *serial_server_thread_id = NULL;
@@ -114,6 +117,8 @@ static GThread *serial_server_thread_id = NULL;
 static int server_socket=-1;
 static int server_address_length;
 static struct sockaddr_in server_address;
+
+static int rigctl_timer = 0;
 
 typedef struct _client {
   int socket;
@@ -184,6 +189,16 @@ void close_rigctl_ports() {
     server_socket=-1;
   }
 }
+
+// RigCtl Timer - to throttle passes through the parser...
+// Sets rigctl_timer while waiting - clears and exits thread.
+static gpointer set_rigctl_timer (gpointer data) {
+      rigctl_timer = 1;
+      // Wait throttle time
+      usleep(RIGCTL_TIMER_DELAY);
+      rigctl_timer = 0;
+}
+
 //
 // Used to convert transmitter->ctcss_frequency into 1-39 value for TS2000.
 // This COULD be done with a simple table lookup - but I've already written the code
@@ -684,6 +699,28 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
         //char cmd_char = com_head->cmd_string[0]; // Assume the command is first thing!
         char cmd_str[3];
 
+        // Put in throtle check here - we have an issue with issuing to many 
+        // GUI commands - the idea is to create a separate thread that maintains a 200ms clock
+        // and use the Mutex mechanism to wait here till we process the next command
+
+        while(rigctl_timer != 0) {  // Wait here till the timer expires
+            usleep(1000);
+        }
+ 
+        // Start a new timer...
+	
+        rigctl_set_timer_thread_id = g_thread_new( "Rigctl Timer", set_rigctl_timer, NULL);
+
+        while(rigctl_timer != 1) {  // Wait here till the timer sets!
+            usleep(1000);
+        }
+
+        usleep(1000);
+
+	// Clean up the thread
+	g_thread_unref(rigctl_set_timer_thread_id);
+
+        // On with the rest of the show..
         cmd_str[0] = cmd_input[0];
         cmd_str[1] = cmd_input[1];
         cmd_str[2] = '\0';
@@ -795,6 +832,7 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                                               fprintf(stderr,"RIGCTL: ERROR - ZZAC out of range\n");
                                                               send_resp(client_sock,"?;");
                                                           }
+                                                          g_idle_add(ext_vfo_update,NULL);
                                                        }
                                                  } else { // Sets or reads the internal antenna tuner status
                                                       // P1 0:RX-AT Thru, 1: RX-AT IN
@@ -807,7 +845,9 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                           }
         else if((strcmp(cmd_str,"AD")==0) && (zzid_flag==1)) { 
                                             // PiHPSDR - ZZAD - Move VFO A Down by step
-                                              vfo_step(-1);
+                                              //vfo_step(-1);
+                                              int lcl_step = -1;
+                                              g_idle_add(ext_vfo_step,(gpointer)(long)lcl_step);
                                               g_idle_add(ext_vfo_update,NULL);
                                          }
         else if(strcmp(cmd_str,"AG")==0) {  
@@ -954,11 +994,14 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                
                                              } 
                                           }
-        else if((strcmp(cmd_str,"AU")==0) && (zzid_flag==1)) { 
-                                            // PiHPSDR - ZZAU - Move VFO A Up by step
-                                              vfo_step(1);
+        else if((strcmp(cmd_str,"AT")==0) && (zzid_flag==1)) { 
+                                            // PiHPSDR - ZZAT - Move VFO A Up by step
+                                              //vfo_step(1);
+                                              int lcl_step = 1;
+                                              g_idle_add(ext_vfo_step,(gpointer)(long) lcl_step);
                                               g_idle_add(ext_vfo_update,NULL);
                                          }
+                                           // PiHPSDR - ZZAU - Reserved for Audio UDP stream start/stop
         else if((strcmp(cmd_str,"BC")==0) && (zzid_flag == 0))  {  
                                             // TS-2000 - BC - Beat Cancellor OFF - not supported
                                              if(len <=2) {
@@ -1574,7 +1617,7 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                                         sprintf(msg,"ZZFA%011lld;",vfo[VFO_A].frequency);
                                                      }
                                                   }
-                                                  fprintf(stderr,"RIGCTL: FA=%s\n",msg);
+                                                  //fprintf(stderr,"RIGCTL: FA=%s\n",msg);
                                                   send_resp(client_sock,msg);
                                                }
                                             }
@@ -2793,7 +2836,9 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                                send_resp(client_sock,"?;"); 
                                              }
                                          }
+
         else if((strcmp(cmd_str,"RA")==0) && (zzid_flag == 0)) {  
+#ifdef NOTSUPPORTED
                                             // TS-2000 - RA - Sets/reads Attenuator function status
                                             // 00-off, 1-99 -on - Main and sub receivers reported
                                             int lcl_attenuation;
@@ -2817,9 +2862,10 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                                   set_attenuation_value((double) lcl_attenuation);
                                                   g_idle_add(ext_vfo_update,NULL);
                                                 } else {
+#endif
                                                   send_resp(client_sock,"?;"); 
-                                                }
-                                             }
+                                                //}
+                                             //}
                                          }
         else if(strcmp(cmd_str,"RC")==0) {  
                                             // TS-2000 - RC - Clears the RIT offset freq
@@ -3064,19 +3110,20 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                             //  PowerSDR returns S9=0015 code. 
                                             //  Let's make S9 half scale or a value of 70.  
                                             double level=0.0;
-                                            int r=0;
 
+                                            int r=0;
                                             if(cmd_input[2] == '0') { 
                                               r=0;
                                             } else if(cmd_input[2] == '1') { 
-                                              r=1;
+                                              if(receivers==2) {
+                                                r=1;
+                                              }
                                             }
                                             level = GetRXAMeter(receiver[r]->id, smeter); 
 
-
                                             // Determine how high above 127 we are..making a range of 114 from S0 to S9+60db
                                             // 5 is a fugdge factor that shouldn't be there - but seems to get us to S9=SM015
-                                            level =  abs(127+(level + (double)adc_attenuation[receiver[r]->adc]))+5;
+                                            level =  abs(127+(level + (double) adc_attenuation[receiver[r]->adc]))+5;
                                          
                                             // Clip the value just in case
                                             if(cmd_input[2] == '0') { 
@@ -3649,12 +3696,12 @@ static gpointer serial_server(gpointer data) {
      // We're going to Read the Serial port and
      // when we get data we'll send it to parse_cmd
      int num_chars;
-     char ser_buf[100];
-     char work_buf[100];
+     char ser_buf[MAXDATASIZE];
+     char work_buf[MAXDATASIZE];
      const char s[2]=";";
      char *p;
      char *d;
-     char save_buf[100] = "";
+     char save_buf[MAXDATASIZE] = "";
      int str_len = 0;
      cat_control++;
      while(1) {
@@ -3667,18 +3714,18 @@ static gpointer serial_server(gpointer data) {
            while((d=strstr(p,";")) != NULL) {
                  *d = '\0';
                  g_mutex_lock(&mutex_b->m);
-                 parse_cmd(p,strlen(p),-1);
+                 
                  g_mutex_unlock(&mutex_b->m);
                  p = ++d;
                  //fprintf(stderr,"RIGCTL: STRLEFT=%s\n",p);
            }
            strcpy(save_buf,p);
-           for(str_len=0; str_len<=99; str_len++) {
+           for(str_len=0; str_len<=1999; str_len++) {
              ser_buf[str_len] = '\0';
              work_buf[str_len] = '\0';
            }
            strcpy(work_buf,save_buf);
-           for(str_len=0; str_len<=99; str_len++) {
+           for(str_len=0; str_len<=1999; str_len++) {
              save_buf[str_len] = '\0';
            }
 /*
@@ -3777,8 +3824,6 @@ void launch_rigctl () {
    }
 }
 
-
-#define MAXDATASIZE 300
 
 int rigctlGetMode()  {
         switch(vfo[active_receiver->id].mode) {
