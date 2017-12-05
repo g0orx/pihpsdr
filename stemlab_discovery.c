@@ -289,11 +289,9 @@ static size_t app_start_callback(void *buffer, size_t size, size_t nmemb, void *
 
 void stemlab_start_app(const char * const app_id) {
   // Dummy string, using the longest possible app id
-  char app_start_url[] = "http://rp-ff00ff/bazaar?start=stemlab_sdr_transceiver_hpsdr";
-  sprintf(app_start_url, "http://rp-%02hhx%02hhx%02hhx/bazaar?start=%s",
-          radio->info.network.mac_address[3],
-          radio->info.network.mac_address[4],
-          radio->info.network.mac_address[5],
+  char app_start_url[] = "http://123.123.123.123/bazaar?start=stemlab_sdr_transceiver_hpsdr";
+  sprintf(app_start_url, "http://%s/bazaar?start=%s",
+          inet_ntoa(radio->info.network.address.sin_addr),
           app_id);
   CURL *curl_handle = curl_easy_init();
   if (curl_handle == NULL) {
