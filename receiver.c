@@ -480,7 +480,7 @@ fprintf(stderr,"reconfigure_receiver: panadapter set_size_request: width:%d heig
   } else {
     if(rx->panadapter!=NULL) {
       gtk_container_remove(GTK_CONTAINER(rx->panel),rx->panadapter);
-      gtk_widget_destroy(rx->panadapter);
+      //gtk_widget_destroy(rx->panadapter);
       rx->panadapter=NULL;
     }
   }
@@ -504,7 +504,7 @@ fprintf(stderr,"reconfigure_receiver: waterfall set_size_request: width:%d heigh
   } else {
     if(rx->waterfall!=NULL) {
       gtk_container_remove(GTK_CONTAINER(rx->panel),rx->waterfall);
-      gtk_widget_destroy(rx->waterfall);
+      //gtk_widget_destroy(rx->waterfall);
       rx->waterfall=NULL;
     }
   }
