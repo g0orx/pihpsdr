@@ -595,9 +595,9 @@ static void vfoEncoderInt(int A_or_B) {
     vfo_B=switch_B;
     if(switch_A && switch_B) {
       if(A_or_B==VFO_ENCODER_B) {
-        vfoEncoderPos++;
-      } else {
         vfoEncoderPos--;
+      } else {
+        vfoEncoderPos++;
       }
     }
 }
