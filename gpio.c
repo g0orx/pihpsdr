@@ -51,13 +51,53 @@
 #include "new_menu.h"
 #include "encoder_menu.h"
 #include "gpio.h"
-#ifdef I2C
+#ifdef CONTROLLER2
 #include "i2c.h"
 #endif
+#include "ext.h"
+#include "sliders.h"
 
-// debounce settle time in us
-#define SETTLE_TIME 100000
+// debounce settle time in ms
+#define SETTLE_TIME 100
 
+#ifdef CONTROLLER2
+
+int ENABLE_VFO_ENCODER=1;
+int ENABLE_VFO_PULLUP=0;
+int VFO_ENCODER_A=1;
+int VFO_ENCODER_B=0;
+#ifdef VFO_HAS_FUNCTION
+int VFO_FUNCTION=12;
+#endif
+int ENABLE_E1_ENCODER=1;
+int ENABLE_E1_PULLUP=0;
+int E1_ENCODER_A=28;
+int E1_ENCODER_B=25;
+int E1_FUNCTION=3;
+int ENABLE_E2_ENCODER=1;
+int ENABLE_E2_PULLUP=0;
+int E2_ENCODER_A=7;
+int E2_ENCODER_B=29;
+int E2_FUNCTION=2;
+int ENABLE_E3_ENCODER=1;
+int ENABLE_E3_PULLUP=0;
+int E3_ENCODER_A=27;
+int E3_ENCODER_B=24;
+int E3_FUNCTION=4;
+int ENABLE_E4_ENCODER=1;
+int ENABLE_E4_PULLUP=0;
+int E4_ENCODER_A=6;
+int E4_ENCODER_B=10;
+int E4_FUNCTION=5;
+
+int ENABLE_E1_BUTTON=1;
+int ENABLE_E2_BUTTON=1;
+int ENABLE_E3_BUTTON=1;
+int ENABLE_E4_BUTTON=1;
+
+int I2C_INTERRUPT=16;
+
+#else
 // uses wiringpi pin numbers
 int ENABLE_VFO_ENCODER=1;
 int ENABLE_VFO_PULLUP=1;
@@ -98,72 +138,13 @@ int ENABLE_E1_BUTTON=1;
 int ENABLE_E2_BUTTON=1;
 int ENABLE_E3_BUTTON=1;
 int ENABLE_CW_BUTTONS=1;
-
-#ifdef I2C
-int I2C_INTERRUPT=15;
 #endif
 
-/*
-// uses broadcom pin numbers -- not working on Tinker board
-int ENABLE_VFO_ENCODER=1;
-int ENABLE_VFO_PULLUP=1;
-int VFO_ENCODER_A=18;
-int VFO_ENCODER_B=17;
-#if defined odroid && !defined sx1509
-int VFO_ENCODER_A_PIN=0;
-int VFO_ENCODER_B_PIN=1;
-#endif
-int ENABLE_E1_ENCODER=1;
-int ENABLE_E1_PULLUP=0;
-int E1_ENCODER_A=20;
-int E1_ENCODER_B=26;
-//#ifndef sx1509
-int E1_FUNCTION=25;
-//#else
-//int E1_FUNCTION=2; //RRK, was 25 now taken by waveshare LCD TS, disable i2c
-//#endif
-int ENABLE_E2_ENCODER=1;
-int ENABLE_E2_PULLUP=0;
-int E2_ENCODER_A=16;
-int E2_ENCODER_B=19;
-int E2_FUNCTION=8;
-int ENABLE_E3_ENCODER=1;
-int ENABLE_E3_PULLUP=0;
-int E3_ENCODER_A=4;
-int E3_ENCODER_B=21;
-//#if defined sx1509
-int E3_FUNCTION=7;
-//#else
-//int E3_FUNCTION=3; //RRK, was 7 now taken by waveshare LCD TS, disable i2c
-//#endif
-int ENABLE_S1_BUTTON=1;
-int S1_BUTTON=13;
-int ENABLE_S2_BUTTON=1;
-int S2_BUTTON=12;
-int ENABLE_S3_BUTTON=1;
-int S3_BUTTON=6;
-int ENABLE_S4_BUTTON=1;
-int S4_BUTTON=5;
-int ENABLE_S5_BUTTON=1;
-int S5_BUTTON=24;
-int ENABLE_S6_BUTTON=1;
-int S6_BUTTON=23;
-int ENABLE_MOX_BUTTON=1;
-int MOX_BUTTON=27;
-int ENABLE_FUNCTION_BUTTON=1;
-int FUNCTION_BUTTON=22;
-int ENABLE_E1_BUTTON=1;
-int ENABLE_E2_BUTTON=1;
-int ENABLE_E3_BUTTON=1;
-int ENABLE_CW_BUTTONS=1;
-// make sure to disable UART0 for next 2 gpios
-#ifdef LOCALCW
-int CWL_BUTTON=9;
-int CWR_BUTTON=10;
-#endif
-*/
 
 static volatile int vfoEncoderPos;
+static volatile int vfo_A;
+static volatile int vfo_B;
+static volatile int vfoFunction;
 static volatile int e1EncoderPos;
 static volatile int e1Function;
 int e1_encoder_action=ENCODER_AF_GAIN;
@@ -173,6 +154,11 @@ int e2_encoder_action=ENCODER_DRIVE;
 static volatile int e3EncoderPos;
 static volatile int e3Function;
 int e3_encoder_action=ENCODER_ATTENUATION;
+#ifdef CONTROLLER2
+static volatile int e4EncoderPos;
+static volatile int e4Function;
+int e4_encoder_action=ENCODER_MIC_GAIN;
+#endif
 static volatile int function_state;
 static volatile int band_state;
 static volatile int bandstack_state;
@@ -193,6 +179,10 @@ static int e2_function=0;
 static int previous_e2_function=0;
 static int e3_function=0;
 static int previous_e3_function=0;
+#ifdef CONTROLLER2
+static int e4_function=0;
+static int previous_e4_function=0;
+#endif
 static int band_button=0;
 static int previous_band_button=0;
 static int bandstack_button=0;
@@ -295,144 +285,229 @@ static int function_pressed(void *data) {
   return 0;
 }
 
+static int vfo_function_pressed(void *data) {
+  RECEIVER *rx;
+  if(receivers==2) {
+    if(active_receiver==receiver[0]) {
+      rx=receiver[1];
+    } else {
+      rx=receiver[0];
+    }
+    active_receiver=rx;
+    g_idle_add(menu_active_receiver_changed,NULL);
+    g_idle_add(ext_vfo_update,NULL);
+    g_idle_add(sliders_active_receiver_changed,NULL);
+  }
+  return 0;
+}
+
+static int vfo_function_released(void *data) {
+  return 0;
+}
+
 static int e_function_pressed(void *data) {
   int encoder=(int)data;
   start_encoder(encoder);
   return 0;
 }
 
+static unsigned long e1debounce=0;
+
 static void e1FunctionAlert() {
     int level=digitalRead(E1_FUNCTION);
     if(level==0) {
       if(running) g_idle_add(e_function_pressed,(gpointer)1);
     }
-    usleep(SETTLE_TIME);
 }
+
+static unsigned long e2debounce=0;
 
 static void e2FunctionAlert() {
     int level=digitalRead(E2_FUNCTION);
     if(level==0) {
       if(running) g_idle_add(e_function_pressed,(gpointer)2);
     }
-    usleep(SETTLE_TIME);
 }
+
+static unsigned long e3debounce=0;
 
 static void e3FunctionAlert() {
     int level=digitalRead(E3_FUNCTION);
     if(level==0) {
       if(running) g_idle_add(e_function_pressed,(gpointer)3);
     }
-    usleep(SETTLE_TIME);
 }
+
+#ifdef CONTROLLER2
+static unsigned long e4debounce=0;
+
+static void e4FunctionAlert() {
+    int level=digitalRead(E4_FUNCTION);
+    if(level==0) {
+      if(running) g_idle_add(e_function_pressed,(gpointer)4);
+    }
+}
+#endif
+
+#ifndef CONTROLLER2
+static unsigned long function_debounce=0;
 
 static void functionAlert() {
-    int level=digitalRead(FUNCTION_BUTTON);
-    if(level==0) {
-      if(running) g_idle_add(function_pressed,NULL);
+    int t=millis();
+    if(t-function_debounce > SETTLE_TIME) {
+      int level=digitalRead(FUNCTION_BUTTON);
+      if(level==0) {
+        if(running) g_idle_add(function_pressed,NULL);
+      }
+      function_debounce=t;
     }
-    usleep(SETTLE_TIME);
 }
+
+static unsigned long s1_debounce=0;
 
 static void s1Alert() {
-    int level=digitalRead(S1_BUTTON);
-    if(level==0) {
-      g_idle_add(s1_pressed,NULL);
-    } else {
-      g_idle_add(s1_released,NULL);
+    int t=millis();
+    if(t-s1_debounce > SETTLE_TIME) {
+      int level=digitalRead(S1_BUTTON);
+      if(level==0) {
+        g_idle_add(s1_pressed,NULL);
+      } else {
+        g_idle_add(s1_released,NULL);
+      }
+      s1_debounce=t;
     }
-    usleep(SETTLE_TIME);
 }
+
+static unsigned long s2_debounce=0;
 
 static void s2Alert() {
-    int level=digitalRead(S2_BUTTON);
-    if(level==0) {
-      g_idle_add(s2_pressed,NULL);
-    } else {
-      g_idle_add(s2_released,NULL);
+    int t=millis();
+    if(t-s2_debounce > SETTLE_TIME) {
+      int level=digitalRead(S2_BUTTON);
+      if(level==0) {
+        g_idle_add(s2_pressed,NULL);
+      } else {
+        g_idle_add(s2_released,NULL);
+      }
+      s2_debounce=t;
     }
-    usleep(SETTLE_TIME);
 }
+
+static unsigned long s3_debounce=0;
 
 static void s3Alert() {
-    int level=digitalRead(S3_BUTTON);
-    if(level==0) {
-      g_idle_add(s3_pressed,NULL);
-    } else {
-      g_idle_add(s3_released,NULL);
+    int t=millis();
+    if(t-s3_debounce > SETTLE_TIME) {
+      int level=digitalRead(S3_BUTTON);
+      if(level==0) {
+        g_idle_add(s3_pressed,NULL);
+      } else {
+        g_idle_add(s3_released,NULL);
+      }
+      s3_debounce=t;
     }
-    usleep(SETTLE_TIME);
 }
+
+static unsigned long s4_debounce=0;
 
 static void s4Alert() {
-    int level=digitalRead(S4_BUTTON);
-    if(level==0) {
-      g_idle_add(s4_pressed,NULL);
-    } else {
-      g_idle_add(s4_released,NULL);
+    int t=millis();
+    if(t-s4_debounce > SETTLE_TIME) {
+      int level=digitalRead(S4_BUTTON);
+      if(level==0) {
+        g_idle_add(s4_pressed,NULL);
+      } else {
+        g_idle_add(s4_released,NULL);
+      }
+      s4_debounce=t;
     }
-    usleep(SETTLE_TIME);
 }
+
+static unsigned long s5_debounce=0;
 
 static void s5Alert() {
-    int level=digitalRead(S5_BUTTON);
-    if(level==0) {
-      g_idle_add(s5_pressed,NULL);
-    } else {
-      g_idle_add(s5_released,NULL);
+    int t=millis();
+    if(t-s5_debounce > SETTLE_TIME) {
+      int level=digitalRead(S5_BUTTON);
+      if(level==0) {
+        g_idle_add(s5_pressed,NULL);
+      } else {
+        g_idle_add(s5_released,NULL);
+      }
+      s5_debounce=t;
     }
-    usleep(SETTLE_TIME);
 }
+
+static unsigned long s6_debounce=0;
 
 static void s6Alert() {
-    int level=digitalRead(S6_BUTTON);
-    if(level==0) {
-      g_idle_add(s6_pressed,NULL);
-    } else {
-      g_idle_add(s6_released,NULL);
+    int t=millis();
+    if(t-s6_debounce > SETTLE_TIME) {
+      int level=digitalRead(S6_BUTTON);
+      if(level==0) {
+        g_idle_add(s6_pressed,NULL);
+      } else {
+        g_idle_add(s6_released,NULL);
+      }
+      s6_debounce=t;
     }
-    usleep(SETTLE_TIME);
 }
 
-static unsigned long moxdebounce=0;
+static unsigned long mox_debounce=0;
 
 static void moxAlert() {
-    int level1=digitalRead(MOX_BUTTON);
-    usleep(20000);
-    int level2=digitalRead(MOX_BUTTON);
-    if(level1==0 && level2==0) {
-      g_idle_add(mox_pressed,(gpointer)NULL);
+    int t=millis();
+    if(t-mox_debounce > SETTLE_TIME) {
+      int level=digitalRead(MOX_BUTTON);
+      if(level==0) {
+        g_idle_add(mox_pressed,(gpointer)NULL);
+      }
+      mox_debounce=t;
     }
-    usleep(SETTLE_TIME);
 }
+#endif
 
-static void vfoEncoderPulse(int gpio, int level, unsigned int tick) {
-   static int levA=0, levB=0, lastGpio = -1;
 
-   if (gpio == VFO_ENCODER_A) levA = level; else levB = level;
+#ifdef VFO_HAS_FUNCTION
+static unsigned long vfo_debounce=0;
 
-   if (gpio != lastGpio) /* debounce */
-   {
-      lastGpio = gpio;
-
-      if ((gpio == VFO_ENCODER_A) && (level == 0))
-      {
-         if (!levB) ++vfoEncoderPos;
+static void vfoFunctionAlert() {
+    int t=millis();
+    if(t-vfo_debounce > SETTLE_TIME) {
+      int level=digitalRead(VFO_FUNCTION);
+      if(level==0) {
+        if(running) g_idle_add(vfo_function_pressed,NULL);
+      } else {
+        if(running) g_idle_add(vfo_function_released,NULL);
       }
-      else if ((gpio == VFO_ENCODER_B) && (level == 1))
-      {
-         if (levA) --vfoEncoderPos;
+      vfo_debounce=t;
+    }
+}
+#endif
+
+static void vfoEncoderInt(int A_or_B) {
+    int switch_A=digitalRead(VFO_ENCODER_A);
+    int switch_B=digitalRead(VFO_ENCODER_B);
+    if(vfo_A==switch_A && vfo_B==switch_B) {
+      return; // same as last
+    }
+    vfo_A=switch_A;
+    vfo_B=switch_B;
+    if(switch_A && switch_B) {
+      if(A_or_B==VFO_ENCODER_B) {
+        vfoEncoderPos++;
+      } else {
+        vfoEncoderPos--;
       }
-   }
+    }
 }
 
 static void vfoEncoderA() {
-    int level=digitalRead(VFO_ENCODER_A);
-    vfoEncoderPulse(VFO_ENCODER_A,level,0);
+    vfoEncoderInt(VFO_ENCODER_A);
 }
 
 static void vfoEncoderB() {
-    int level=digitalRead(VFO_ENCODER_B);
-    vfoEncoderPulse(VFO_ENCODER_B,level,0);
+    vfoEncoderInt(VFO_ENCODER_B);
 }
 
 static void e1EncoderInterrupt(int gpio) {
@@ -525,11 +600,42 @@ static void e3EncoderB() {
   e3EncoderInterrupt(E3_ENCODER_B);
 }
 
-#ifdef I2C
+#ifdef CONTROLLER2
+static void e4EncoderInterrupt(int gpio) {
+  static int e4CurrentA=1, e4CurrentB=1;
+
+  int levelA=digitalRead(E4_ENCODER_A);
+  int levelB=digitalRead(E4_ENCODER_B);
+
+  if(e4CurrentA==levelA && e4CurrentB==levelB) {
+    return;
+  }
+
+  e4CurrentA=levelA;
+  e4CurrentB=levelB;
+
+  if(levelA && levelB) {
+    if(gpio==E4_ENCODER_B) {
+      --e4EncoderPos;
+    } else {
+      ++e4EncoderPos;
+    }
+  }
+}
+
+static void e4EncoderA() {
+  e4EncoderInterrupt(E4_ENCODER_A);
+}
+
+static void e4EncoderB() {
+  e4EncoderInterrupt(E4_ENCODER_B);
+}
+#endif
+
+#ifdef CONTROLLER2
 static void pI2CInterrupt() {
     int level=digitalRead(I2C_INTERRUPT);
     if(level==0) {
-      fprintf(stderr,"I2CInterrupt: %d\n",level);
       i2c_interrupt();
     }
 }
@@ -570,6 +676,17 @@ void gpio_restore_state() {
   if(value) E3_ENCODER_A=atoi(value);
   value=getProperty("E3_ENCODER_B");
   if(value) E3_ENCODER_B=atoi(value);
+#ifdef CONTROLLER2
+  value=getProperty("ENABLE_E4_ENCODER");
+  if(value) ENABLE_E4_ENCODER=atoi(value);
+  value=getProperty("ENABLE_E4_PULLUP");
+  if(value) ENABLE_E4_PULLUP=atoi(value);
+  value=getProperty("E4_ENCODER_A");
+  if(value) E4_ENCODER_A=atoi(value);
+  value=getProperty("E4_ENCODER_B");
+  if(value) E4_ENCODER_B=atoi(value);
+#endif
+#ifndef CONTROLLER2
   value=getProperty("ENABLE_S1_BUTTON");
   if(value) ENABLE_S1_BUTTON=atoi(value);
   value=getProperty("S1_BUTTON");
@@ -602,14 +719,18 @@ void gpio_restore_state() {
   if(value) ENABLE_MOX_BUTTON=atoi(value);
   value=getProperty("MOX_BUTTON");
   if(value) MOX_BUTTON=atoi(value);
+#endif
+
   value=getProperty("ENABLE_E1_BUTTON");
   if(value) ENABLE_E1_BUTTON=atoi(value);
-
   value=getProperty("ENABLE_E2_BUTTON");
   if(value) ENABLE_E2_BUTTON=atoi(value);
-
   value=getProperty("ENABLE_E3_BUTTON");
   if(value) ENABLE_E3_BUTTON=atoi(value);
+#ifdef CONTROLLER2
+  value=getProperty("ENABLE_E4_BUTTON");
+  if(value) ENABLE_E4_BUTTON=atoi(value);
+#endif
 
 }
 
@@ -648,6 +769,17 @@ void gpio_save_state() {
   setProperty("E3_ENCODER_A",value);
   sprintf(value,"%d",E3_ENCODER_B);
   setProperty("E3_ENCODER_B",value);
+#ifdef CONTROLLER2
+  sprintf(value,"%d",ENABLE_E4_ENCODER);
+  setProperty("ENABLE_E4_ENCODER",value);
+  sprintf(value,"%d",ENABLE_E4_PULLUP);
+  setProperty("ENABLE_E4_PULLUP",value);
+  sprintf(value,"%d",E4_ENCODER_A);
+  setProperty("E4_ENCODER_A",value);
+  sprintf(value,"%d",E4_ENCODER_B);
+  setProperty("E4_ENCODER_B",value);
+#endif
+#ifndef CONTROLLER2
   sprintf(value,"%d",ENABLE_S1_BUTTON);
   setProperty("ENABLE_S1_BUTTON",value);
   sprintf(value,"%d",S1_BUTTON);
@@ -680,22 +812,23 @@ void gpio_save_state() {
   setProperty("ENABLE_MOX_BUTTON",value);
   sprintf(value,"%d",MOX_BUTTON);
   setProperty("MOX_BUTTON",value);
+#endif
 
   sprintf(value,"%d",ENABLE_E1_BUTTON);
   setProperty("ENABLE_E1_BUTTON",value);
-
   sprintf(value,"%d",ENABLE_E2_BUTTON);
   setProperty("ENABLE_E2_BUTTON",value);
-
   sprintf(value,"%d",ENABLE_E3_BUTTON);
   setProperty("ENABLE_E3_BUTTON",value);
-
+#ifdef CONTROLLER2
+  sprintf(value,"%d",ENABLE_E4_BUTTON);
+  setProperty("ENABLE_E4_BUTTON",value);
+#endif
   saveProperties("gpio.props");
 }
 
 static void setup_pin(int pin, int up_down, void(*pAlert)(void)) {
-
-fprintf(stderr,"setup_pin: pin=%d updown=%d\n",pin,up_down);
+fprintf(stderr,"setup_pin: pin=%d mode=%d updown=%d\n",pin,INPUT,up_down);
   pinMode(pin,INPUT);
   pullUpDnControl(pin,up_down);
   usleep(10000);
@@ -704,6 +837,7 @@ fprintf(stderr,"setup_pin: pin=%d updown=%d\n",pin,up_down);
 
 
 static void setup_encoder_pin(int pin, int up_down, void(*pAlert)(void)) {
+fprintf(stderr,"setup_encoder_pin: pin=%d updown=%d\n",pin,up_down);
     pinMode(pin,INPUT);
     pullUpDnControl(pin,up_down);
     usleep(10000);
@@ -720,8 +854,23 @@ int gpio_init() {
   wiringPiSetup(); // use WiringPi pin numbers
 
   if(ENABLE_VFO_ENCODER) {
-    setup_pin(VFO_ENCODER_A,ENABLE_VFO_PULLUP?PUD_UP:PUD_OFF,&vfoEncoderA);
-    setup_pin(VFO_ENCODER_B,ENABLE_VFO_PULLUP?PUD_UP:PUD_OFF,&vfoEncoderB);
+#ifdef CONTROLLER2
+#ifdef VFO_HAS_FUNCTION
+    setup_pin(VFO_FUNCTION, PUD_UP, &vfoFunctionAlert);
+    vfoFunction=0;
+#endif
+    vfo_A=1;
+    vfo_B=1;
+    setup_encoder_pin(VFO_ENCODER_A,ENABLE_VFO_PULLUP?PUD_UP:PUD_DOWN,&vfoEncoderA);
+    setup_encoder_pin(VFO_ENCODER_B,ENABLE_VFO_PULLUP?PUD_UP:PUD_DOWN,&vfoEncoderB);
+#else
+    vfo_A=1;
+    vfo_B=1;
+    setup_encoder_pin(VFO_ENCODER_A,ENABLE_VFO_PULLUP?PUD_UP:PUD_DOWN,&vfoEncoderA);
+    setup_encoder_pin(VFO_ENCODER_B,ENABLE_VFO_PULLUP?PUD_UP:PUD_DOWN,&vfoEncoderB);
+    //setup_pin(VFO_ENCODER_A,ENABLE_VFO_PULLUP?PUD_UP:PUD_OFF,&vfoEncoderA);
+    //setup_pin(VFO_ENCODER_B,ENABLE_VFO_PULLUP?PUD_UP:PUD_OFF,&vfoEncoderB);
+#endif
     vfoEncoderPos=0;
   }
 
@@ -752,7 +901,18 @@ int gpio_init() {
     e3EncoderPos=0;
   }
 
+#ifdef CONTROLLER2
+  setup_pin(E4_FUNCTION, PUD_UP, &e4FunctionAlert);
+  e4Function=0;
 
+  if(ENABLE_E4_ENCODER) {
+    setup_encoder_pin(E4_ENCODER_A,ENABLE_E4_PULLUP?PUD_UP:PUD_OFF,&e4EncoderA);
+    setup_encoder_pin(E4_ENCODER_B,ENABLE_E4_PULLUP?PUD_UP:PUD_OFF,&e4EncoderB);
+    e4EncoderPos=0;
+  }
+#endif
+
+#ifndef CONTROLLER2
   if(ENABLE_FUNCTION_BUTTON) {
     setup_pin(FUNCTION_BUTTON, PUD_UP, &functionAlert);
   }
@@ -784,6 +944,7 @@ int gpio_init() {
   if(ENABLE_S6_BUTTON) {
     setup_pin(S6_BUTTON, PUD_UP, &s6Alert);
   }
+#endif
 
   rotary_encoder_thread_id = g_thread_new( "rotary encoder", rotary_encoder_thread, NULL);
   if( ! rotary_encoder_thread_id )
@@ -793,17 +954,18 @@ int gpio_init() {
   }
   fprintf(stderr, "rotary_encoder_thread: id=%p\n",rotary_encoder_thread_id);
 
-#ifdef I2C
+#ifdef CONTROLLER2
   // setup i2c
   i2c_init();
 
   // setup interrupt pin
   fprintf(stderr,"setup i2c interrupt: pin=%d\n",I2C_INTERRUPT);
-  digitalWrite(I2C_INTERRUPT,0); // clear pin
+  //digitalWrite(I2C_INTERRUPT,0); // clear pin
   pinMode(I2C_INTERRUPT,INPUT);
   pullUpDnControl(I2C_INTERRUPT,PUD_UP);
   usleep(10000);
-  wiringPiISR(I2C_INTERRUPT,INT_EDGE_FALLING,pI2CInterrupt);
+  //wiringPiISR(I2C_INTERRUPT,INT_EDGE_FALLING,pI2CInterrupt);
+  wiringPiISR(I2C_INTERRUPT,INT_EDGE_BOTH,pI2CInterrupt);
 #endif
 
   return 0;
@@ -847,9 +1009,18 @@ int e3_encoder_get_pos() {
     e3EncoderPos=0;
     return pos;
 }
+
 int e3_function_get_state() {
     return e3Function;
 }
+
+#ifdef CONTROLLER2
+int e4_encoder_get_pos() {
+    int pos=e4EncoderPos;
+    e4EncoderPos=0;
+    return pos;
+}
+#endif
 
 int function_get_state() {
     return function_state;
@@ -899,6 +1070,13 @@ static int vfo_encoder_changed(void *data) {
 
 static encoder_changed(int action,int pos) {
   double value;
+  int mode;
+  int id;
+  FILTER * band_filters=filters[vfo[active_receiver->id].mode];
+  FILTER *band_filter;
+  FILTER *filter;
+  int new_val;
+
   switch(action) {
     case ENCODER_AF_GAIN:
       value=active_receiver->volume;
@@ -921,12 +1099,12 @@ static encoder_changed(int action,int pos) {
       set_agc_gain(value);
       break;
     case ENCODER_ATTENUATION:
-      value=adc_attenuation[active_receiver->adc];
-      value+=pos;
-      if(value<0) {
-        value=0;
-      } else if (value>31) {
-        value=31;
+      value=(double)adc_attenuation[active_receiver->adc];
+      value+=(double)pos;
+      if(value<0.0) {
+        value=0.0;
+      } else if (value>31.0) {
+        value=31.0;
       }
       set_attenuation_value(value);
       break;
@@ -1055,6 +1233,19 @@ static int e3_encoder_changed(void *data) {
   return 0;
 }
 
+#ifdef CONTROLLER2
+static int e4_encoder_changed(void *data) {
+  int pos=(int)data;
+  if(active_menu==E4_MENU) {
+    encoder_select(pos);
+  } else {
+    encoder_changed(e4_encoder_action,pos);
+  }
+  //free(data);
+  return 0;
+}
+#endif
+
 static gpointer rotary_encoder_thread(gpointer data) {
     int pos;
 
@@ -1085,6 +1276,13 @@ static gpointer rotary_encoder_thread(gpointer data) {
         if(pos!=0) {
             g_idle_add(e3_encoder_changed,(gpointer)pos);
         }
+
+#ifdef CONTROLLER2
+        pos=e4_encoder_get_pos();
+        if(pos!=0) {
+            g_idle_add(e4_encoder_changed,(gpointer)pos);
+        }
+#endif
 
 #ifdef sx1509
         // buttons only generate interrupt when
