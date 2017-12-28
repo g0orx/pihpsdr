@@ -413,8 +413,10 @@ char* getFrequencyInfo(long long frequency,int filter_low,int filter_high) {
             if(info->band==band60) {
               int i;
               for(i=0;i<channel_entries;i++) {
+                long long low_freq=band_channels_60m[i].frequency-(band_channels_60m[i].width/(long long)2);
+                long long hi_freq=band_channels_60m[i].frequency+(band_channels_60m[i].width/(long long)2);
 //fprintf(stderr,"channel: %d frequency=%lld width=%lld\n",i,band_channels_60m[i].frequency,band_channels_60m[i].width);
-                if(flow>=band_channels_60m[i].frequency && fhigh<=(band_channels_60m[i].frequency+band_channels_60m[i].width)) {
+                if(flow>=low_freq && fhigh<=hi_freq) {
                   result=info->info;
                   break;
                 }
