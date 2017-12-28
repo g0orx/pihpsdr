@@ -58,7 +58,11 @@
 #include "sliders.h"
 
 // debounce settle time in ms
-#define SETTLE_TIME 100
+#define DEFAULT_SETTLE_TIME 150
+
+int settle_time=DEFAULT_SETTLE_TIME;
+static gint release_timer=-1;
+
 
 #ifdef CONTROLLER2
 
@@ -354,7 +358,7 @@ static unsigned long function_debounce=0;
 
 static void functionAlert() {
     int t=millis();
-    if(t-function_debounce > SETTLE_TIME) {
+    if(t-function_debounce > settle_time) {
       int level=digitalRead(FUNCTION_BUTTON);
       if(level==0) {
         if(running) g_idle_add(function_pressed,NULL);
@@ -364,14 +368,30 @@ static void functionAlert() {
 }
 
 static unsigned long s1_debounce=0;
+static gint s1_timer=-1;
+
+static gboolean s1_timer_cb(gpointer data) {
+    int level=digitalRead(S1_BUTTON);
+    if(level==1) {
+      s1_timer=-1;
+      g_idle_add(s1_released,NULL);
+      return FALSE;
+    }
+    return TRUE;
+}
 
 static void s1Alert() {
     int t=millis();
-    if(t-s1_debounce > SETTLE_TIME) {
+    if(t-s1_debounce > settle_time) {
       int level=digitalRead(S1_BUTTON);
       if(level==0) {
         g_idle_add(s1_pressed,NULL);
+        s1_timer=g_timeout_add(settle_time,s1_timer_cb,NULL);
       } else {
+        if(s1_timer!=-1) {
+          g_source_remove(s1_timer);
+          s1_timer==-1;
+        }
         g_idle_add(s1_released,NULL);
       }
       s1_debounce=t;
@@ -379,14 +399,30 @@ static void s1Alert() {
 }
 
 static unsigned long s2_debounce=0;
+static gint s2_timer=-1;
+
+static gboolean s2_timer_cb(gpointer data) {
+    int level=digitalRead(S2_BUTTON);
+    if(level==1) {
+      s2_timer=-1;
+      g_idle_add(s2_released,NULL);
+      return FALSE;
+    }
+    return TRUE;
+}
 
 static void s2Alert() {
     int t=millis();
-    if(t-s2_debounce > SETTLE_TIME) {
+    if(t-s2_debounce > settle_time) {
       int level=digitalRead(S2_BUTTON);
       if(level==0) {
         g_idle_add(s2_pressed,NULL);
+        s2_timer=g_timeout_add(settle_time,s2_timer_cb,NULL);
       } else {
+        if(s2_timer!=-1) {
+          g_source_remove(s2_timer);
+          s2_timer==-1;
+        }
         g_idle_add(s2_released,NULL);
       }
       s2_debounce=t;
@@ -394,14 +430,30 @@ static void s2Alert() {
 }
 
 static unsigned long s3_debounce=0;
+static gint s3_timer=-1;
+
+static gboolean s3_timer_cb(gpointer data) {
+    int level=digitalRead(S3_BUTTON);
+    if(level==1) {
+      s3_timer=-1;
+      g_idle_add(s3_released,NULL);
+      return FALSE;
+    }
+    return TRUE;
+}
 
 static void s3Alert() {
     int t=millis();
-    if(t-s3_debounce > SETTLE_TIME) {
+    if(t-s3_debounce > settle_time) {
       int level=digitalRead(S3_BUTTON);
       if(level==0) {
         g_idle_add(s3_pressed,NULL);
+        s3_timer=g_timeout_add(settle_time,s3_timer_cb,NULL);
       } else {
+        if(s3_timer!=-1) {
+          g_source_remove(s3_timer);
+          s3_timer==-1;
+        }
         g_idle_add(s3_released,NULL);
       }
       s3_debounce=t;
@@ -409,14 +461,30 @@ static void s3Alert() {
 }
 
 static unsigned long s4_debounce=0;
+static gint s4_timer=-1;
+
+static gboolean s4_timer_cb(gpointer data) {
+    int level=digitalRead(S4_BUTTON);
+    if(level==1) {
+      s4_timer=-1;
+      g_idle_add(s4_released,NULL);
+      return FALSE;
+    }
+    return TRUE;
+}
 
 static void s4Alert() {
     int t=millis();
-    if(t-s4_debounce > SETTLE_TIME) {
+    if(t-s4_debounce > settle_time) {
       int level=digitalRead(S4_BUTTON);
       if(level==0) {
         g_idle_add(s4_pressed,NULL);
+        s4_timer=g_timeout_add(settle_time,s4_timer_cb,NULL);
       } else {
+        if(s4_timer!=-1) {
+          g_source_remove(s4_timer);
+          s4_timer==-1;
+        }
         g_idle_add(s4_released,NULL);
       }
       s4_debounce=t;
@@ -424,14 +492,30 @@ static void s4Alert() {
 }
 
 static unsigned long s5_debounce=0;
+static gint s5_timer=-1;
+
+static gboolean s5_timer_cb(gpointer data) {
+    int level=digitalRead(S5_BUTTON);
+    if(level==1) {
+      s5_timer=-1;
+      g_idle_add(s5_released,NULL);
+      return FALSE;
+    }
+    return TRUE;
+}
 
 static void s5Alert() {
     int t=millis();
-    if(t-s5_debounce > SETTLE_TIME) {
+    if(t-s5_debounce > settle_time) {
       int level=digitalRead(S5_BUTTON);
       if(level==0) {
         g_idle_add(s5_pressed,NULL);
+        s5_timer=g_timeout_add(settle_time,s5_timer_cb,NULL);
       } else {
+        if(s5_timer!=-1) {
+          g_source_remove(s5_timer);
+          s5_timer==-1;
+        }
         g_idle_add(s5_released,NULL);
       }
       s5_debounce=t;
@@ -439,14 +523,30 @@ static void s5Alert() {
 }
 
 static unsigned long s6_debounce=0;
+static gint s6_timer=-1;
+
+static gboolean s6_timer_cb(gpointer data) {
+    int level=digitalRead(S6_BUTTON);
+    if(level==1) {
+      s6_timer=-1;
+      g_idle_add(s6_released,NULL);
+      return FALSE;
+    }
+    return TRUE;
+}
 
 static void s6Alert() {
     int t=millis();
-    if(t-s6_debounce > SETTLE_TIME) {
+    if(t-s6_debounce > settle_time) {
       int level=digitalRead(S6_BUTTON);
       if(level==0) {
         g_idle_add(s6_pressed,NULL);
+        s6_timer=g_timeout_add(settle_time,s6_timer_cb,NULL);
       } else {
+        if(s6_timer!=-1) {
+          g_source_remove(s6_timer);
+          s6_timer==-1;
+        }
         g_idle_add(s6_released,NULL);
       }
       s6_debounce=t;
@@ -457,7 +557,7 @@ static unsigned long mox_debounce=0;
 
 static void moxAlert() {
     int t=millis();
-    if(t-mox_debounce > SETTLE_TIME) {
+    if(t-mox_debounce > settle_time) {
       int level=digitalRead(MOX_BUTTON);
       if(level==0) {
         g_idle_add(mox_pressed,(gpointer)NULL);
@@ -473,7 +573,7 @@ static unsigned long vfo_debounce=0;
 
 static void vfoFunctionAlert() {
     int t=millis();
-    if(t-vfo_debounce > SETTLE_TIME) {
+    if(t-vfo_debounce > settle_time) {
       int level=digitalRead(VFO_FUNCTION);
       if(level==0) {
         if(running) g_idle_add(vfo_function_pressed,NULL);

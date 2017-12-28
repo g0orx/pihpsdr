@@ -32,6 +32,7 @@
 #include "receiver.h"
 #include "new_protocol.h"
 #include "old_protocol.h"
+#include "gpio.h"
 
 static GtkWidget *parent_window=NULL;
 
@@ -59,6 +60,10 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 
 static void vfo_divisor_value_changed_cb(GtkWidget *widget, gpointer data) {
   vfo_encoder_divisor=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+}
+
+static void gpio_settle_value_changed_cb(GtkWidget *widget, gpointer data) {
+  settle_time=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
 }
 
 /*
@@ -293,10 +298,10 @@ void radio_menu(GtkWidget *parent) {
           gtk_grid_attach(GTK_GRID(grid),sample_rate_1536,x,7,1,1);
         g_signal_connect(sample_rate_1536,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)1536000);
   
-  #ifdef GPIO
+#ifdef GPIO
         gtk_widget_set_sensitive(sample_rate_768,FALSE);
         gtk_widget_set_sensitive(sample_rate_1536,FALSE);
-  #endif
+#endif
       }
       x++;
       }
@@ -446,4 +451,3 @@ void radio_menu(GtkWidget *parent) {
   gtk_widget_show_all(dialog);
 
 }
-

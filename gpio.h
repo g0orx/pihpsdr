@@ -38,6 +38,7 @@ enum {
 };
 
 
+extern int settle_time;
 
 extern char *encoder_string[ENCODER_LAST];
 
