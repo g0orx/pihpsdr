@@ -24,6 +24,7 @@
 
 #include "audio.h"
 #include "new_menu.h"
+#include "about_menu.h"
 #include "exit_menu.h"
 #include "radio_menu.h"
 #include "rx_menu.h"
@@ -31,7 +32,10 @@
 #include "display_menu.h"
 #include "dsp_menu.h"
 #include "pa_menu.h"
+#include "rigctl_menu.h"
 #include "oc_menu.h"
+#include "cw_menu.h"
+#include "store_menu.h"
 #ifdef FREEDV
 #include "freedv_menu.h"
 #endif
@@ -51,10 +55,10 @@
 #include "diversity_menu.h"
 #include "freqent_menu.h"
 #include "tx_menu.h"
-#ifdef GPIO
+#include "ps_menu.h"
 #include "encoder_menu.h"
-#endif
 #include "vfo_menu.h"
+#include "fft_menu.h"
 #include "main.h"
 
 
@@ -66,7 +70,15 @@ GtkWidget *sub_menu=NULL;
 
 int active_menu=NO_MENU;
 
-static cleanup() {
+int menu_active_receiver_changed(void *data) {
+  if(sub_menu!=NULL) {
+    gtk_widget_destroy(sub_menu);
+    sub_menu=NULL;
+  }
+  return FALSE;
+}
+
+static void cleanup() {
   if(dialog!=NULL) {
     gtk_widget_destroy(dialog);
     dialog=NULL;
@@ -78,11 +90,21 @@ static cleanup() {
   active_menu=NO_MENU;
 }
 
+static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_data) {
+  cleanup();
+  return FALSE;
+}
+
 static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   cleanup();
   return TRUE;
 }
 
+static gboolean about_b_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  cleanup();
+  about_menu(top_window);
+  return TRUE;
+}
 
 static gboolean exit_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   cleanup();
@@ -123,6 +145,13 @@ static gboolean dsp_cb (GtkWidget *widget, GdkEventButton *event, gpointer data)
 static gboolean pa_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   cleanup();
   pa_menu(top_window);
+  return TRUE;
+}
+
+static gboolean rigctl_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  cleanup();
+  fprintf(stderr, "new_menu: calling rigctl_menu\n");
+  rigctl_menu(top_window);
   return TRUE;
 }
 
@@ -272,6 +301,16 @@ static gboolean vox_b_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
   return TRUE;
 }
 
+void start_fft() {
+  cleanup();
+  fft_menu(top_window);
+}
+
+static gboolean fft_b_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  start_fft();
+  return TRUE;
+}
+
 void start_diversity() {
   cleanup();
   diversity_menu(top_window);
@@ -322,10 +361,21 @@ static gboolean tx_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) 
   return TRUE;
 }
 
+#ifdef PURESIGNAL
+void start_ps() {
+  cleanup();
+  ps_menu(top_window);
+}
+
+static gboolean ps_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  start_ps();
+  return TRUE;
+}
+#endif
+
 #ifdef GPIO
 void start_encoder(int encoder) {
   int old_menu=active_menu;
-fprintf(stderr,"start_encoder: encoder=%d active_menu=%d\n",encoder,active_menu);
   cleanup();
   switch(encoder) {
     case 1:
@@ -379,7 +429,9 @@ void new_menu()
 
     dialog=gtk_dialog_new();
     gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(top_window));
-    gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+    //gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+    gtk_window_set_title(GTK_WINDOW(dialog),"piHPSDR - Menu");
+    g_signal_connect (dialog, "delete_event", G_CALLBACK (delete_event), NULL);
 
     GdkRGBA color;
     color.red = 1.0;
@@ -396,7 +448,7 @@ void new_menu()
     gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
     gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
   
-    GtkWidget *close_b=gtk_button_new_with_label("Close Menu");
+    GtkWidget *close_b=gtk_button_new_with_label("Close");
     g_signal_connect (close_b, "button-press-event", G_CALLBACK(close_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),close_b,0,0,2,1);
 
@@ -420,6 +472,13 @@ void new_menu()
     g_signal_connect (tx_b, "button-press-event", G_CALLBACK(tx_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),tx_b,(i%5),i/5,1,1);
     i++;
+
+#ifdef PURESIGNAL
+      GtkWidget *ps_b=gtk_button_new_with_label("PS");
+      g_signal_connect (ps_b, "button-press-event", G_CALLBACK(ps_cb), NULL);
+      gtk_grid_attach(GTK_GRID(grid),ps_b,(i%5),i/5,1,1);
+      i++;
+#endif
 
     GtkWidget *pa_b=gtk_button_new_with_label("PA");
     g_signal_connect (pa_b, "button-press-event", G_CALLBACK(pa_cb), NULL);
@@ -481,6 +540,21 @@ void new_menu()
     GtkWidget *vox_b=gtk_button_new_with_label("VOX");
     g_signal_connect (vox_b, "button-press-event", G_CALLBACK(vox_b_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),vox_b,(i%5),i/5,1,1);
+    i++;
+
+    GtkWidget *fft_b=gtk_button_new_with_label("FFT");
+    g_signal_connect (fft_b, "button-press-event", G_CALLBACK(fft_b_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),fft_b,(i%5),i/5,1,1);
+    i++;
+
+    GtkWidget *rigctl_b=gtk_button_new_with_label("RIGCTL");
+    g_signal_connect (rigctl_b, "button-press-event", G_CALLBACK(rigctl_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),rigctl_b,(i%5),i/5,1,1);
+    i++;
+
+    GtkWidget *about_b=gtk_button_new_with_label("About");
+    g_signal_connect (about_b, "button-press-event", G_CALLBACK(about_b_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),about_b,(i%5),i/5,1,1);
     i++;
 
 #ifdef DIVERSITY

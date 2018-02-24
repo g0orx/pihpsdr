@@ -17,4 +17,4 @@
 *
 */
 
-extern void general_menu(GtkWidget *parent);
+extern void radio_menu(GtkWidget *parent);

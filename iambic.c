@@ -150,6 +150,7 @@ void keyer_update() {
 
 }
 
+#ifdef GPIO
 void keyer_event(int gpio, int level) {
     int state = (level == 0);
 
@@ -162,6 +163,7 @@ void keyer_event(int gpio, int level) {
         sem_post(&cw_event);
     }
 }
+#endif
 
 void clear_memory() {
     dot_memory  = 0;
@@ -398,4 +400,3 @@ int keyer_init() {
 
     return 0;
 }
-

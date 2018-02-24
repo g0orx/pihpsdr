@@ -30,6 +30,8 @@
 
 #include "discovered.h"
 #include "discovery.h"
+#include "old_discovery.h"
+#include "new_discovery.h"
 #include "main.h"
 #include "radio.h"
 #ifdef USBOZY
@@ -41,15 +43,32 @@
 #ifdef RADIOBERRY
 #include "radioberry.h"
 #endif
+#ifdef REMOTE
+#include "remote_radio.h"
+#endif
+#ifdef STEMLAB_DISCOVERY
+#include "stemlab_discovery.h"
+#endif
+#include "ext.h"
 
 static GtkWidget *discovery_dialog;
 static DISCOVERED *d;
 
-int discovery(void *data);
+#ifdef STEMLAB_DISCOVERY
+static GtkWidget *apps_combobox;
+#endif
 
 static gboolean start_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
 fprintf(stderr,"start_cb: %p\n",data);
   radio=(DISCOVERED *)data;
+#ifdef STEMLAB_DISCOVERY
+  // We need to start the STEMlab app before destroying the dialog, since
+  // we otherwise lose the information about which app has been selected.
+  if (radio->protocol == STEMLAB_PROTOCOL) {
+    stemlab_start_app(gtk_combo_box_get_active_id(GTK_COMBO_BOX(apps_combobox)));
+  }
+  stemlab_cleanup();
+#endif
   gtk_widget_destroy(discovery_dialog);
   start_radio();
   return TRUE;
@@ -64,7 +83,7 @@ static gboolean gpio_cb (GtkWidget *widget, GdkEventButton *event, gpointer data
 
 static gboolean discover_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   gtk_widget_destroy(discovery_dialog);
-  g_idle_add(discovery,NULL);
+  g_idle_add(ext_discovery,NULL);
   return TRUE;
 }
 
@@ -74,7 +93,7 @@ static gboolean exit_cb (GtkWidget *widget, GdkEventButton *event, gpointer data
   return TRUE;
 }
 
-int discovery(void *data) {
+void discovery() {
 fprintf(stderr,"discovery\n");
   selected_device=0;
   devices=0;
@@ -98,11 +117,15 @@ fprintf(stderr,"discovery\n");
   }
 #endif
 
+#ifdef STEMLAB_DISCOVERY
+  status_text("STEMlab (Avahi) ... Discovering Devices");
+  stemlab_discovery();
+#endif
 
-  status_text("Old Protocol ... Discovering Devices");
+  status_text("Protocol 1 ... Discovering Devices");
   old_discovery();
 
-  status_text("New Protocol ... Discovering Devices");
+  status_text("Protocol 2 ... Discovering Devices");
   new_discovery();
 
 #ifdef LIMESDR
@@ -121,9 +144,10 @@ fprintf(stderr,"discovery\n");
     gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_ARROW));
     discovery_dialog = gtk_dialog_new();
     gtk_window_set_transient_for(GTK_WINDOW(discovery_dialog),GTK_WINDOW(top_window));
-    gtk_window_set_decorated(GTK_WINDOW(discovery_dialog),FALSE);
+    gtk_window_set_title(GTK_WINDOW(discovery_dialog),"piHPSDR - Discovery");
+    //gtk_window_set_decorated(GTK_WINDOW(discovery_dialog),FALSE);
 
-    gtk_widget_override_font(discovery_dialog, pango_font_description_from_string("FreeMono 16"));
+    //gtk_widget_override_font(discovery_dialog, pango_font_description_from_string("FreeMono 16"));
 
     GdkRGBA color;
     color.red = 1.0;
@@ -159,9 +183,10 @@ fprintf(stderr,"discovery\n");
     gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_ARROW));
     discovery_dialog = gtk_dialog_new();
     gtk_window_set_transient_for(GTK_WINDOW(discovery_dialog),GTK_WINDOW(top_window));
-    gtk_window_set_decorated(GTK_WINDOW(discovery_dialog),FALSE);
+    gtk_window_set_title(GTK_WINDOW(discovery_dialog),"piHPSDR - Discovery");
+    //gtk_window_set_decorated(GTK_WINDOW(discovery_dialog),FALSE);
 
-    gtk_widget_override_font(discovery_dialog, pango_font_description_from_string("FreeMono 16"));
+    //gtk_widget_override_font(discovery_dialog, pango_font_description_from_string("FreeMono 16"));
 
     GdkRGBA color;
     color.red = 1.0;
@@ -176,35 +201,29 @@ fprintf(stderr,"discovery\n");
 
     GtkWidget *grid=gtk_grid_new();
     gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
-    gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
+    //gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
     gtk_grid_set_row_spacing (GTK_GRID(grid),10);
 
     int i;
     char version[16];
-    char text[128];
+    char text[256];
     for(i=0;i<devices;i++) {
       d=&discovered[i];
-fprintf(stderr,"%p protocol=%d name=%s\n",d,d->protocol,d->name);
-      if(d->protocol==ORIGINAL_PROTOCOL) {
-        sprintf(version,"%d.%d",
+fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
+      sprintf(version,"v%d.%d",
                         d->software_version/10,
                         d->software_version%10);
-      } else {
-        sprintf(version,"%d.%d",
-                        d->software_version/10,
-                        d->software_version%10);
-      }
       switch(d->protocol) {
         case ORIGINAL_PROTOCOL:
         case NEW_PROTOCOL:
 #ifdef USBOZY
           if(d->device==DEVICE_OZY) {
-            sprintf(text,"%s (%s) on USB /dev/ozy\n", d->name, d->protocol==ORIGINAL_PROTOCOL?"old":"new");
+            sprintf(text,"%s (%s) on USB /dev/ozy", d->name, d->protocol==ORIGINAL_PROTOCOL?"Protocol 1":"Protocol 2");
           } else {
 #endif
-            sprintf(text,"%s (%s %s) %s (%02X:%02X:%02X:%02X:%02X:%02X) on %s\n",
+            sprintf(text,"%s (%s %s) %s (%02X:%02X:%02X:%02X:%02X:%02X) on %s",
                           d->name,
-                          d->protocol==ORIGINAL_PROTOCOL?"old":"new",
+                          d->protocol==ORIGINAL_PROTOCOL?"Protocol 1":"Protocol 2",
                           version,
                           inet_ntoa(d->info.network.address.sin_addr),
                           d->info.network.mac_address[0],
@@ -220,7 +239,7 @@ fprintf(stderr,"%p protocol=%d name=%s\n",d,d->protocol,d->name);
           break;
 #ifdef LIMESDR
         case LIMESDR_PROTOCOL:
-          sprintf(text,"%s\n",
+          sprintf(text,"%s",
                         d->name);
           break;
 #endif
@@ -228,6 +247,17 @@ fprintf(stderr,"%p protocol=%d name=%s\n",d,d->protocol,d->name);
 				case RADIOBERRY_PROTOCOL:
 					sprintf(text,"%s\n",d->name);
 				break;
+#endif
+#ifdef STEMLAB_DISCOVERY
+        case STEMLAB_PROTOCOL:
+          sprintf(text, "STEMlab (%02X:%02X:%02X:%02X:%02X:%02X) on %s",
+                         d->info.network.mac_address[0],
+                         d->info.network.mac_address[1],
+                         d->info.network.mac_address[2],
+                         d->info.network.mac_address[3],
+                         d->info.network.mac_address[4],
+                         d->info.network.mac_address[5],
+                         d->info.network.interface_name);
 #endif
       }
 
@@ -254,12 +284,49 @@ fprintf(stderr,"%p protocol=%d name=%s\n",d,d->protocol,d->name);
         gtk_widget_set_sensitive(start_button, FALSE);
       }
 
+#ifdef STEMLAB_DISCOVERY
+      if (d->protocol == STEMLAB_PROTOCOL) {
+        if (d->software_version == 0) {
+          gtk_button_set_label(GTK_BUTTON(start_button), "Not installed");
+          gtk_widget_set_sensitive(start_button, FALSE);
+        } else {
+          apps_combobox = gtk_combo_box_text_new();
+          gtk_widget_override_font(apps_combobox,
+              pango_font_description_from_string("FreeMono 12"));
+          // We want the default selection priority for the STEMlab app to be
+          // RP-Trx > Pavel-Trx > Pavel-Rx, so we add in decreasing order and
+          // always set the newly added entry to be active.
+          if ((d->software_version & STEMLAB_PAVEL_RX) != 0) {
+            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox),
+                "sdr_receiver_hpsdr", "Pavel-Rx");
+            gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox),
+                "sdr_receiver_hpsdr");
+          }
+          if ((d->software_version & STEMLAB_PAVEL_TRX) != 0) {
+            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox),
+                "sdr_transceiver_hpsdr", "Pavel-Trx");
+            gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox),
+                "sdr_transceiver_hpsdr");
+          }
+          if ((d->software_version & STEMLAB_RP_TRX) != 0) {
+            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox),
+                "stemlab_sdr_transceiver_hpsdr", "RedPitaya-Trx");
+            gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox),
+                "stemlab_sdr_transceiver_hpsdr");
+          }
+          gtk_widget_show(apps_combobox);
+          gtk_grid_attach(GTK_GRID(grid), apps_combobox, 4, i, 1, 1);
+        }
+      }
+#endif
+
     }
 #ifdef GPIO
     GtkWidget *gpio_b=gtk_button_new_with_label("Config GPIO");
     g_signal_connect (gpio_b, "button-press-event", G_CALLBACK(gpio_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),gpio_b,0,i,1,1);
 #endif
+
     GtkWidget *discover_b=gtk_button_new_with_label("Discover");
     g_signal_connect (discover_b, "button-press-event", G_CALLBACK(discover_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),discover_b,1,i,1,1);
@@ -272,8 +339,6 @@ fprintf(stderr,"%p protocol=%d name=%s\n",d,d->protocol,d->name);
     gtk_widget_show_all(discovery_dialog);
 fprintf(stderr,"showing device dialog\n");
   }
-
-  return 0;
 
 }
 

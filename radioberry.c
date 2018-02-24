@@ -46,6 +46,7 @@
 #include "transmitter.h"
 #include "vfo.h"
 #include <pigpio.h>
+#include "ext.h"
 
 #define SPEED_48K                 0x00
 #define SPEED_96K                 0x01
@@ -109,10 +110,10 @@ void setup_handler(int pin, gpioAlertFunc_t pAlert) {
 }
 
 void cwPTT_Alert(int gpio, int level, uint32_t tick) {
-	fprintf(stderr,"init pttAlert\n");
-	fprintf(stderr,"%d - %d -%d - %d\n", running, cw_breakin, transmitter->mode, level);
+	//fprintf(stderr,"radioberry ptt swith %d  0=ptt off and 1=ptt on\n", level);
+	//fprintf(stderr,"%d - %d -%d - %d\n", running, cw_breakin, transmitter->mode, level);
     if (running && cw_breakin && (transmitter->mode==modeCWU || transmitter->mode==modeCWL)){
-		g_idle_add(mox_update,(gpointer)level);
+		g_idle_add(ext_mox_update,(gpointer)level);
 	}
 }
 
@@ -129,14 +130,14 @@ void radioberry_protocol_init(int rx,int pixels) {
 	display_width=pixels;
 	fprintf(stderr,"radioberry_protocol: buffer size: =%d\n", buffer_size);
 
-#ifndef GPIO 
+/*
 	if (gpioInitialise() < 0) {
 		fprintf(stderr,"radioberry_protocol: gpio could not be initialized. \n");
 		exit(-1);
 	}
-#endif  
- 
-	gpioSetMode(13, PI_INPUT); 	//rx1_FIFOEmpty
+*/
+  
+ 	gpioSetMode(13, PI_INPUT); 	//rx1_FIFOEmpty
 	gpioSetMode(16, PI_INPUT);	//rx2_FIFOEmpty
 	gpioSetMode(20, PI_INPUT); 
 	gpioSetMode(21, PI_OUTPUT); 
@@ -231,10 +232,10 @@ void radioberry_protocol_iq_samples(int isample,int qsample) {
 		sem_wait(&mutex);
 		
 		tx_iqdata[0] = 0;
-		tx_iqdata[1] = drive / 6.4;  // convert drive level from 0-255 to 0-39 )
-		if (prev_drive_level != drive) {
-			printf("drive level %d - corrected drive level %d \n", drive_level, tx_iqdata[1]);
-			prev_drive_level = drive; 
+		tx_iqdata[1] = transmitter->drive / 6.4;  // convert drive level from 0-255 to 0-39 )
+		if (prev_drive_level != transmitter->drive) {
+			printf("drive level %d - corrected drive level %d \n", transmitter->drive_level, tx_iqdata[1]);
+			prev_drive_level = transmitter->drive; 
 		}		
 		tx_iqdata[2] = isample>>8; 
 		tx_iqdata[3] = isample;
@@ -431,4 +432,3 @@ void spiWriter() {
 		gettimeofday(&t20, 0);
 	}
 }
-

@@ -52,7 +52,7 @@ extern GtkWidget* vfo_init(int width,int height,GtkWidget *parent);
 extern void vfo_step(int steps);
 extern void vfo_move(long long hz);
 extern void vfo_move_to(long long hz);
-extern int vfo_update(void*);
+extern void vfo_update();
 extern void set_frequency();
 
 extern void vfo_save_state();
@@ -65,4 +65,6 @@ extern void vfo_filter_changed(int f);
 extern void vfo_a_to_b();
 extern void vfo_b_to_a();
 extern void vfo_a_swap_b();
+
+extern void vfo_xvtr_changed();
 #endif

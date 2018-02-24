@@ -6,6 +6,9 @@ GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 # uncomment the line below to include GPIO
 GPIO_INCLUDE=GPIO
 
+# uncomment the line below to include MCP23017 I2C
+#I2C_INCLUDE=I2C
+
 # uncomment the line below to include USB Ozy support
 # USBOZY_INCLUDE=USBOZY
 
@@ -15,27 +18,46 @@ GPIO_INCLUDE=GPIO
 # uncomment the line to below include support for FreeDV codec2
 #FREEDV_INCLUDE=FREEDV
 
+# uncomment the line below to include Pure Signal support
+#PURESIGNAL_INCLUDE=PURESIGNAL
+
 # uncomment the line to below include support for sx1509 i2c expander
 #SX1509_INCLUDE=sx1509
 
 # uncomment the line to below include support local CW keyer
 LOCALCW_INCLUDE=LOCALCW
 
-# uncomment the line below to include MCP23017 I2C
-#I2C_INCLUDE=I2C
-
-#uncomment the line below for the platform being compiled on
-UNAME_N=raspberrypi
-#UNAME_N=odroid
-#UNAME_N=up
-#UNAME_N=pine64
-#UNAME_N=jetsen
+# uncomment the line below to include support for STEMlab discovery
+#STEMLAB_DISCOVERY=STEMLAB_DISCOVERY
 
 CC=gcc
 LINK=gcc
 
 # uncomment the line below for various debug facilities
 #DEBUG_OPTION=-D DEBUG
+
+ifeq ($(PURESIGNAL_INCLUDE),PURESIGNAL)
+PURESIGNAL_OPTIONS=-D PURESIGNAL
+PURESIGNAL_SOURCES= \
+ps_menu.c
+PURESIGNAL_HEADERS= \
+ps_menu.h
+PURESIGNAL_OBJS= \
+ps_menu.o
+endif
+
+ifeq ($(REMOTE_INCLUDE),REMOTE)
+REMOTE_OPTIONS=-D REMOTE
+REMOTE_SOURCES= \
+remote_radio.c \
+remote_receiver.c
+REMOTE_HEADERS= \
+remote_radio.h \
+remote_receiver.h
+REMOTE_OBJS= \
+remote_radio.o \
+remote_receiver.o
+endif
 
 ifeq ($(USBOZY_INCLUDE),USBOZY)
 USBOZY_OPTIONS=-D USBOZY
@@ -56,6 +78,7 @@ RADIOBERRY_INCLUDE=RADIOBERRY
 
 ifeq ($(RADIOBERRY_INCLUDE),RADIOBERRY)
 RADIOBERRY_OPTIONS=-D RADIOBERRY
+RADIOBERRYLIBS=-lpigpio
 RADIOBERRY_SOURCES= \
 radioberry_discovery.c \
 radioberry.c
@@ -124,7 +147,7 @@ endif
 
 ifeq ($(GPIO_INCLUDE),GPIO)
   GPIO_OPTIONS=-D GPIO
-  GPIO_LIBS=-lwiringPi -lpigpio 
+  GPIO_LIBS=-lwiringPi -lpigpio
   GPIO_SOURCES= \
   gpio.c \
   encoder_menu.c
@@ -143,8 +166,15 @@ ifeq ($(I2C_INCLUDE),I2C)
   I2C_OBJS=i2c.o
 endif
 
-#uncomment if build for SHORT FRAMES (MIC and Audio)
-SHORT_FRAMES=-D SHORT_FRAMES
+ifeq ($(STEMLAB_DISCOVERY), STEMLAB_DISCOVERY)
+STEMLAB_OPTIONS=-D STEMLAB_DISCOVERY \
+  `pkg-config --cflags avahi-gobject` \
+  `pkg-config --cflags libcurl`
+STEMLAB_LIBS=`pkg-config --libs avahi-gobject` `pkg-config --libs libcurl`
+STEMLAB_SOURCES=stemlab_discovery.c
+STEMLAB_HEADERS=stemlab_discovery.h
+STEMLAB_OBJS=stemlab_discovery.o
+endif
 
 GTKINCLUDES=`pkg-config --cflags gtk+-3.0`
 GTKLIBS=`pkg-config --libs gtk+-3.0`
@@ -152,17 +182,21 @@ GTKLIBS=`pkg-config --libs gtk+-3.0`
 AUDIO_LIBS=-lasound
 #AUDIO_LIBS=-lsoundio
 
-OPTIONS=-g -Wno-deprecated-declarations -D $(UNAME_N) $(RADIOBERRY_OPTIONS) $(USBOZY_OPTIONS) $(I2C_OPTIONS) $(GPIO_OPTIONS) $(LIMESDR_OPTIONS) $(FREEDV_OPTIONS) $(LOCALCW_OPTIONS) $(PSK_OPTIONS) $(SHORT_FRAMES) -D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION) -O3
+OPTIONS=-g -Wno-deprecated-declarations $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(RADIOBERRY_OPTIONS) $(USBOZY_OPTIONS) $(I2C_OPTIONS) $(GPIO_OPTIONS) $(LIMESDR_OPTIONS) $(FREEDV_OPTIONS) $(LOCALCW_OPTIONS) $(PSK_OPTIONS) $(STEMLAB_OPTIONS) -D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION) -O3
 
-LIBS=-lrt -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(PSKLIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS)
+LIBS=-lrt -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(PSKLIBS) $(GTKLIBS) $(GPIO_LIBS) $(RADIOBERRYLIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS) $(STEMLAB_LIBS)
 INCLUDES=$(GTKINCLUDES)
 
 COMPILE=$(CC) $(OPTIONS) $(INCLUDES)
+
+.c.o:
+	$(COMPILE) -c -o $@ $<
 
 PROGRAM=pihpsdr
 
 SOURCES= \
 audio.c \
+audio_waterfall.c \
 band.c \
 configure.c \
 frequency.c \
@@ -171,6 +205,7 @@ discovery.c \
 filter.c \
 main.c \
 new_menu.c \
+about_menu.c \
 exit_menu.c \
 radio_menu.c \
 rx_menu.c \
@@ -191,6 +226,7 @@ filter_menu.c \
 noise_menu.c \
 agc_menu.c \
 vox_menu.c \
+fft_menu.c \
 diversity_menu.c \
 freqent_menu.c \
 tx_menu.c \
@@ -209,6 +245,7 @@ property.c \
 radio.c \
 receiver.c \
 rigctl.c \
+rigctl_menu.c \
 toolbar.c \
 transmitter.c \
 sliders.c \
@@ -221,11 +258,14 @@ update.c \
 store.c \
 store_menu.c \
 memory.c \
-led.c
+led.c \
+ext.c \
+error_handler.c
 
 
 HEADERS= \
 audio.h \
+audio_waterfall.h \
 agc.h \
 alex.h \
 band.h \
@@ -237,6 +277,7 @@ discovered.h \
 discovery.h \
 filter.h \
 new_menu.h \
+about_menu.h \
 rx_menu.h \
 exit_menu.h \
 radio_menu.h \
@@ -257,6 +298,7 @@ filter_menu.h \
 noise_menu.h \
 agc_menu.h \
 vox_menu.h \
+fft_menu.h \
 diversity_menu.h \
 freqent_menu.h \
 tx_menu.h \
@@ -274,6 +316,7 @@ property.h \
 radio.h \
 receiver.h \
 rigctl.h \
+rigctl_menu.h \
 toolbar.h \
 transmitter.h \
 sliders.h \
@@ -286,11 +329,14 @@ update.h \
 store.h \
 store_menu.h \
 memory.h \
-led.h
+led.h \
+ext.h \
+error_handler.h
 
 
 OBJS= \
 audio.o \
+audio_waterfall.o \
 band.o \
 configure.o \
 frequency.o \
@@ -300,6 +346,7 @@ filter.o \
 version.o \
 main.o \
 new_menu.o \
+about_menu.o \
 rx_menu.o \
 exit_menu.o \
 radio_menu.o \
@@ -320,6 +367,7 @@ filter_menu.o \
 noise_menu.o \
 agc_menu.o \
 vox_menu.o \
+fft_menu.o \
 diversity_menu.o \
 freqent_menu.o \
 tx_menu.o \
@@ -338,6 +386,7 @@ property.o \
 radio.o \
 receiver.o \
 rigctl.o \
+rigctl_menu.o \
 toolbar.o \
 transmitter.o \
 sliders.o \
@@ -349,28 +398,27 @@ update.o \
 store.o \
 store_menu.o \
 memory.o \
-led.o
+led.o \
+ext.o \
+error_handler.o
 
-all: prebuild  $(PROGRAM) $(HEADERS) $(RADIOBERRY_HEADERS) $(USBOZY_HEADERS) $(LIMESDR_HEADERS) $(FREEDV_HEADERS) $(LOCALCW_HEADERS) $(I2C_HEADERS) $(GPIO_HEADERS) $(PSK_HEADERS) $(SOURCES) $(USBOZY_SOURCES) $(LIMESDR_SOURCES) $(FREEDV_SOURCES) $(I2C_SOURCES) $(GPIO_SOURCES) $(PSK_SOURCES) $(RADIOBERRY_SOURCES)
+$(PROGRAM):  $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) $(LOCALCW_OBJS) $(I2C_OBJS) $(GPIO_OBJS) $(PSK_OBJS) $(RADIOBERRY_OBJS)  $(PURESIGNAL_OBJS) $(STEMLAB_OBJS)
+	$(LINK) -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(I2C_OBJS) $(GPIO_OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) $(LOCALCW_OBJS) $(PSK_OBJS) $(LIBS) $(RADIOBERRY_OBJS) $(PURESIGNAL_OBJS) $(STEMLAB_OBJS)
+
+all: prebuild  $(PROGRAM) $(HEADERS) $(REMOTE_HEADERS) $(RADIOBERRY_HEADERS) $(USBOZY_HEADERS) $(LIMESDR_HEADERS) $(FREEDV_HEADERS) $(LOCALCW_HEADERS) $(I2C_HEADERS) $(GPIO_HEADERS) $(PSK_HEADERS) $(PURESIGNAL_HEADERS) $(STEMLAB_HEADERS) $(SOURCES) $(REMOTE_SOURCES) $(USBOZY_SOURCES) $(LIMESDR_SOURCES) $(FREEDV_SOURCES) $(I2C_SOURCES) $(GPIO_SOURCES) $(PSK_SOURCES) $(RADIOBERRY_SOURCES) $(PURESIGNAL_SOURCES) $(STEMLAB_SOURCES)
 
 prebuild:
 	rm -f version.o
-
-$(PROGRAM):  $(OBJS) $(USBOZY_OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) $(LOCALCW_OBJS) $(I2C_OBJS) $(GPIO_OBJS) $(PSK_OBJS) $(RADIOBERRY_OBJS)
-	$(LINK) -o $(PROGRAM) $(OBJS) $(USBOZY_OBJS) $(I2C_OBJS) $(GPIO_OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) $(LOCALCW_OBJS) $(PSK_OBJS) $(LIBS) $(RADIOBERRY_OBJS)
-
-.c.o:
-	$(COMPILE) -c -o $@ $<
-
 
 clean:
 	-rm -f *.o
 	-rm -f $(PROGRAM)
 
-install:
-	cp pihpsdr ../pihpsdr
-	cp pihpsdr ./release/pihpsdr
-	cd release; echo $(GIT_VERSION) > pihpsdr/latest
-	cd release; tar cvf pihpsdr_$(GIT_VERSION).tar pihpsdr
+install: $(PROGRAM)
+	cp $(PROGRAM) /usr/local/bin
+
+release: $(PROGRAM)
+	cp $(PROGRAM) release/pihpsdr
 	cd release; tar cvf pihpsdr.tar pihpsdr
+	cd release; tar cvf pihpsdr-$(GIT_VERSION).tar pihpsdr
 

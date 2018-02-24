@@ -19,6 +19,8 @@
 
 #include <gtk/gtk.h>
 #include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "new_menu.h"
@@ -37,28 +39,31 @@ static GtkWidget *dialog=NULL;
 
 static GtkWidget *last_band;
 
-static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+static void cleanup() {
   if(dialog!=NULL) {
     gtk_widget_destroy(dialog);
     dialog=NULL;
     sub_menu=NULL;
   }
+}
+
+static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  cleanup();
   return TRUE;
 }
 
-static gboolean band_select_cb (GtkWidget *widget, gpointer        data) {
+static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_data) {
+  cleanup();
+  return FALSE;
+}
+
+gboolean band_select_cb (GtkWidget *widget, gpointer        data) {
   GtkWidget *label;
-  int b=(int)data;
+  int b=(uintptr_t)data;
   set_button_text_color(last_band,"black");
   last_band=widget;
   set_button_text_color(last_band,"orange");
-
   vfo_band_changed(b);
-}
-
-int band_update(void *data) {
-  band_select_cb(NULL,(gpointer)data);
-  return 0;
 }
 
 void band_menu(GtkWidget *parent) {
@@ -70,7 +75,11 @@ void band_menu(GtkWidget *parent) {
 
   dialog=gtk_dialog_new();
   gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent_window));
-  gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  //gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  char title[64];
+  sprintf(title,"piHPSDR - Band (RX %d VFO %s)",active_receiver->id,active_receiver->id==0?"A":"B");
+  gtk_window_set_title(GTK_WINDOW(dialog),title);
+  g_signal_connect (dialog, "delete_event", G_CALLBACK (delete_event), NULL);
 
   GdkRGBA color;
   color.red = 1.0;
@@ -88,14 +97,9 @@ void band_menu(GtkWidget *parent) {
   gtk_grid_set_column_spacing (GTK_GRID(grid),5);
   gtk_grid_set_row_spacing (GTK_GRID(grid),5);
 
-  GtkWidget *close_b=gtk_button_new_with_label("Close Band");
+  GtkWidget *close_b=gtk_button_new_with_label("Close");
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
-
-  char label[32];
-  sprintf(label,"RX %d VFO %s",active_receiver->id,active_receiver->id==0?"A":"B");
-  GtkWidget *rx_label=gtk_label_new(label);
-  gtk_grid_attach(GTK_GRID(grid),rx_label,1,0,1,1);
 
   for(i=0;i<BANDS+XVTRS;i++) {
 #ifdef LIMESDR
@@ -117,7 +121,7 @@ void band_menu(GtkWidget *parent) {
       }
       gtk_widget_show(b);
       gtk_grid_attach(GTK_GRID(grid),b,i%5,1+(i/5),1,1);
-      g_signal_connect(b,"clicked",G_CALLBACK(band_select_cb),(gpointer *)i);
+      g_signal_connect(b,"clicked",G_CALLBACK(band_select_cb),(gpointer)(long)i);
     }
   }
 

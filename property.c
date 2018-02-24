@@ -75,7 +75,7 @@ void loadProperties(char* filename) {
 * @param filename
 */
 void saveProperties(char* filename) {
-    PROPERTY* property=properties;
+    PROPERTY* property;
     FILE* f=fopen(filename,"w+");
     char line[512];
     char version[32];
@@ -84,8 +84,9 @@ void saveProperties(char* filename) {
         return;
     }
 
-    sprintf(line,"%s=%0.2f\n","property_version",PROPERTY_VERSION);
-    fwrite(line,1,strlen(line),f);
+    sprintf(line,"%0.2f",PROPERTY_VERSION);
+    setProperty("property_version",line);
+    property=properties;
     while(property) {
         sprintf(line,"%s=%s\n",property->name,property->value);
         fwrite(line,1,strlen(line),f);

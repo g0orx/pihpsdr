@@ -35,6 +35,7 @@ typedef enum _audio_t audio_t;
 typedef struct _receiver {
   int id;
 
+  int ddc;
   int adc;
 
   double volume;
@@ -51,6 +52,7 @@ typedef struct _receiver {
   int pixels;
   int samples;
   int output_samples;
+  long iq_sequence;
   double *iq_input_buffer;
   double *audio_output_buffer;
   unsigned char *audio_buffer;
@@ -63,17 +65,12 @@ typedef struct _receiver {
 
   double hz_per_pixel;
 
-//  long long frequency;
-//  long long display_frequency;
-//  long long dds_frequency;
-//  long long dds_offset;
-
-//  int rit;
-
   int dither;
   int random;
   int preamp;
 
+  int nb;
+  int nb2;
   int nr;
   int nr2;
   int anf;
@@ -85,7 +82,6 @@ typedef struct _receiver {
   int nr2_ae;
 
 
-  int attenuation;
   int alex_antenna;
   int alex_attenuation;
 
@@ -105,21 +101,42 @@ typedef struct _receiver {
   int waterfall_low;
   int waterfall_high;
   int waterfall_automatic;
-
   cairo_surface_t *panadapter_surface;
   GdkPixbuf *pixbuf;
-
   int local_audio;
   int mute_when_not_active;
   int audio_device;
   snd_pcm_t *playback_handle;
   int playback_offset;
   unsigned char *playback_buffer;
+  int low_latency;
 
+  int squelch_enable;
+  double squelch;
+
+  int deviation;
+
+  long long waterfall_frequency;
+  int waterfall_sample_rate;
+
+  int mute_radio;
+
+#ifdef FREEDV
+  GMutex freedv_mutex;
+  int freedv;
+  int freedv_samples;
+  char freedv_text_data[64];
+  int freedv_text_index;
+#endif
+
+  int x;
+  int y;
 } RECEIVER;
 
+extern RECEIVER *create_pure_signal_receiver(int id, int buffer_size,int sample_rate,int pixels);
 extern RECEIVER *create_receiver(int id, int buffer_size, int fft_size, int pixels, int fps, int width, int height);
 extern void receiver_change_sample_rate(RECEIVER *rx,int sample_rate);
+extern void receiver_change_adc(RECEIVER *rx,int adc);
 extern void receiver_frequency_changed(RECEIVER *rx);
 extern void receiver_mode_changed(RECEIVER *rx);
 extern void receiver_filter_changed(RECEIVER *rx);
@@ -129,7 +146,7 @@ extern void set_mode(RECEIVER* rx,int m);
 extern void set_filter(RECEIVER *rx,int low,int high);
 extern void set_agc(RECEIVER *rx, int agc);
 extern void set_offset(RECEIVER *rx, long long offset);
-extern void set_deviation(RECEIVER *rx, double deviation);
+extern void set_deviation(RECEIVER *rx);
 
 extern void add_iq_samples(RECEIVER *rx, double i_sample,double q_sample);
 
@@ -141,5 +158,7 @@ extern gboolean receiver_button_press_event(GtkWidget *widget, GdkEventButton *e
 extern gboolean receiver_button_release_event(GtkWidget *widget, GdkEventButton *event, gpointer data);
 extern gboolean receiver_motion_notify_event(GtkWidget *widget, GdkEventMotion *event, gpointer data);
 extern gboolean receiver_scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data);
+
+extern void set_displaying(RECEIVER *rx,int state);
 
 #endif

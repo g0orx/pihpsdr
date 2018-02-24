@@ -46,13 +46,8 @@
 #define RX_IQ_TO_HOST_PORT_6 1041
 #define RX_IQ_TO_HOST_PORT_7 1042
 
-//#define BUFFER_SIZE 1024
 
-#ifdef SHORT_FRAMES
 #define MIC_SAMPLES 64
-#else
-#define MIC_SAMPLES 720
-#endif
 
 extern int data_socket;
 extern sem_t response_sem;
@@ -71,22 +66,23 @@ extern int send_high_priority;
 extern int send_general;
 */
 
-void schedule_high_priority();
-void schedule_general();
+extern void schedule_high_priority();
+extern void schedule_general();
+extern void schedule_receive_specific();
 
-void new_protocol_init(int pixels);
-void new_protocol_stop();
-void new_protocol_run();
+extern void new_protocol_init(int pixels);
+extern void new_protocol_stop();
+extern void new_protocol_run();
 
-void filter_board_changed();
-void pa_changed();
-void tuner_changed();
-void cw_changed();
+extern void filter_board_changed();
+extern void pa_changed();
+extern void tuner_changed();
+extern void cw_changed();
 
-void setMox(int state);
-int getMox();
-void setTune(int state);
-int getTune();
+extern void setMox(int state);
+extern int getMox();
+extern void setTune(int state);
+extern int getTune();
 
 extern void new_protocol_process_local_mic(unsigned char *buffer,int le);
 extern void new_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right_audio_sample);

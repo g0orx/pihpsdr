@@ -20,6 +20,7 @@
 #include <gtk/gtk.h>
 #include <semaphore.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
 
@@ -34,13 +35,22 @@ static GtkWidget *dialog=NULL;
 
 static GtkWidget *level;
 
-static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+static void cleanup() {
   if(dialog!=NULL) {
     gtk_widget_destroy(dialog);
     dialog=NULL;
     sub_menu=NULL;
   }
+}
+
+static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  cleanup();
   return TRUE;
+}
+
+static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_data) {
+  cleanup();
+  return FALSE;
 }
 
 static void diversity_cb(GtkWidget *widget, gpointer data) {
@@ -50,12 +60,12 @@ static void diversity_cb(GtkWidget *widget, gpointer data) {
 
 static void i_rotate_value_changed_cb(GtkWidget *widget, gpointer data) {
   i_rotate[1]=gtk_range_get_value(GTK_RANGE(widget));
-  SetEXTDIVRotate (0, 2, &i_rotate, &q_rotate);
+  SetEXTDIVRotate (0, 2, &i_rotate[0], &q_rotate[0]);
 }
 
 static void q_rotate_value_changed_cb(GtkWidget *widget, gpointer data) {
   q_rotate[1]=gtk_range_get_value(GTK_RANGE(widget));
-  SetEXTDIVRotate (0, 2, &i_rotate, &q_rotate);
+  SetEXTDIVRotate (0, 2, &i_rotate[0], &q_rotate[0]);
 }
 
 void diversity_menu(GtkWidget *parent) {
@@ -65,7 +75,9 @@ void diversity_menu(GtkWidget *parent) {
 
   dialog=gtk_dialog_new();
   gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent_window));
-  gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  //gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  gtk_window_set_title(GTK_WINDOW(dialog),"piHPSDR - Diversity");
+  g_signal_connect (dialog, "delete_event", G_CALLBACK (delete_event), NULL);
 
   GdkRGBA color;
   color.red = 1.0;
@@ -82,7 +94,7 @@ void diversity_menu(GtkWidget *parent) {
   //gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
   //gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
 
-  GtkWidget *close_b=gtk_button_new_with_label("Close Diversity");
+  GtkWidget *close_b=gtk_button_new_with_label("Close");
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 

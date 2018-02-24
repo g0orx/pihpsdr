@@ -53,9 +53,18 @@ extern char property_path[];
 #define ALEX 1
 #define APOLLO 2
 
-// specify how many receivers (only 1 or 2 for now)
-#define MAX_RECEIVERS 2
+#define REGION_OTHER 0
+#define REGION_UK 1
+
+extern int region;
+
+// specify how many receivers
+#define MAX_RECEIVERS 8
 #define RECEIVERS 2
+#ifdef PURESIGNAL
+#define PS_TX_FEEDBACK (RECEIVERS)
+#define PS_RX_FEEDBACK (RECEIVERS+1)
+#endif
 
 extern RECEIVER *receiver[];
 extern RECEIVER *active_receiver;
@@ -90,7 +99,6 @@ extern int classE;
 extern int tx_out_of_band;
 
 extern int tx_cfir;
-extern int tx_alc;
 extern int tx_leveler;
 
 extern double tone_level;
@@ -110,10 +118,7 @@ extern int display_average_mode;
 extern double display_average_time;
 
 
-extern int display_waterfall;
-extern int waterfall_high;
-extern int waterfall_low;
-extern int waterfall_automatic;
+//extern int display_waterfall;
 
 extern int display_sliders;
 extern int display_toolbar;
@@ -128,15 +133,16 @@ extern int mic_bias_enabled;
 extern int mic_ptt_enabled;
 extern int mic_ptt_tip_bias_ring;
 
-extern double tune_drive;
-extern double drive;
+//extern double tune_drive;
+//extern double drive;
 
-extern int tune_drive_level;
-extern int drive_level;
+//extern int tune_drive_level;
+//extern int drive_level;
 
 int receivers;
 
 int adc[2];
+int adc_attenuation[2];
 
 int locked;
 
@@ -206,10 +212,7 @@ extern int OCfull_tune_time;
 extern int OCmemory_tune_time;
 extern long long tune_timeout;
 
-#ifdef FREEDV
-extern char freedv_tx_text_data[64];
-#endif
-
+extern int analog_meter;
 extern int smeter;
 extern int alc;
 
@@ -230,7 +233,6 @@ extern int tx_equalizer[4];
 extern int enable_rx_equalizer;
 extern int rx_equalizer[4];
 
-extern int deviation;
 extern int pre_emphasize;
 
 extern int vox_setting;
@@ -244,9 +246,12 @@ extern int diversity_enabled;
 extern double i_rotate[2];
 extern double q_rotate[2];
 
+extern double meter_calibration;
+extern double display_calibration;
+
 extern void reconfigure_radio();
 extern void start_radio();
-extern void init_radio();
+//extern void init_radio();
 extern void radio_change_receivers(int r);
 extern void radio_change_sample_rate(int rate);
 extern void setMox(int state);
@@ -254,16 +259,16 @@ extern int getMox();
 extern void setTune(int state);
 extern int getTune();
 extern void setVox(int state);
-extern int vox_changed(void *data);
+extern void vox_changed(int state);
 extern double getDrive();
 extern void setDrive(double d);
 extern void calcDriveLevel();
 extern double getTuneDrive();
 extern void setTuneDrive(double d);
 extern void calcTuneDriveLevel();
+extern void setSquelch(RECEIVER *rx);
 
 extern void set_attenuation(int value);
-extern int get_attenuation();
 extern void set_alex_rx_antenna(int v);
 extern void set_alex_tx_antenna(int v);
 extern void set_alex_attenuation(int v);
@@ -277,5 +282,20 @@ extern void radioRestoreState();
 extern void radioSaveState();
 
 extern void calculate_display_average();
+
+extern void set_filter_type(int filter_type);
+extern void set_filter_size(int filter_size);
+
+extern void radio_cw_setup();
+
+extern void radio_cw_key(int state);
+
+#ifdef FREEDV
+extern void set_freedv(int state);
+#endif
+
+extern void radio_change_region(int region);
+
+extern void disable_rigctl();
 
 #endif

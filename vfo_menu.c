@@ -18,9 +18,11 @@
 */
 
 #include <gtk/gtk.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <wdsp.h>
 
 #include "new_menu.h"
 #include "band.h"
@@ -28,7 +30,13 @@
 #include "mode.h"
 #include "radio.h"
 #include "receiver.h"
+#include "transmitter.h"
 #include "vfo.h"
+#include "button_text.h"
+#include "ext.h"
+#ifdef FREEDV
+#include "freedv.h"
+#endif
 
 static GtkWidget *parent_window=NULL;
 static GtkWidget *dialog=NULL;
@@ -40,17 +48,33 @@ static char *btn_labels[] = {"1","2","3",
                "4","5","6",
                "7","8","9",
                ".","0","BS",
-               "HZ","KZ","MZ"
+               "Hz","kHz","MHz"
                ,"CL"
               };
 
-static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+static GtkWidget *btn[16];
+
+static void cleanup() {
   if(dialog!=NULL) {
     gtk_widget_destroy(dialog);
     dialog=NULL;
     sub_menu=NULL;
   }
+}
+
+static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  cleanup();
   return TRUE;
+}
+
+static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_data) {
+  cleanup();
+  return FALSE;
+}
+
+static void squelch_enable_cb(GtkWidget *widget, gpointer data) {
+  active_receiver->squelch_enable=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
+  setSquelch(active_receiver);
 }
 
 static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
@@ -94,21 +118,19 @@ static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
       gtk_label_set_markup (GTK_LABEL (label), output);
 
     /* --- clear? --- */
+    mult=0.0;
     } else if (strcmp (str, "CL") == 0) {
       strcpy (buffer, "0");
       sprintf(output, "<big>%s</big>", buffer);
       gtk_label_set_markup (GTK_LABEL (label), output);
-    } else if (str[1] == 'Z') {
-      switch(str[0]) {
-      case 'M':
-        mult = 10000000.0;
-        break;
-      case 'K':
-        mult = 10000.0;
-        break;
-      default :
-        mult = 10.0;
-      }
+    } else if(strcmp(str,"Hz")==0) {
+      mult = 10.0;
+    } else if(strcmp(str,"kHz")==0) {
+      mult = 10000.0;
+    } else if(strcmp(str,"MHz")==0) {
+      mult = 10000000.0;
+    }
+    if(mult!=0.0) {
       f = ((long long)(atof(buffer)*mult)+5)/10;
       sprintf(output, "<big>%lld</big>", f);
       gtk_label_set_markup (GTK_LABEL (label), output);
@@ -133,12 +155,12 @@ static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
         }
       }
       setFrequency(f);
-      vfo_update(NULL);
+      vfo_update();
     
       set = 1;
     }
   }
-  vfo_update(NULL);
+  vfo_update();
 }
 
 static void rit_cb(GtkComboBox *widget,gpointer data) {
@@ -153,12 +175,38 @@ static void rit_cb(GtkComboBox *widget,gpointer data) {
       rit_increment=100;
       break;
   }
-  vfo_update(NULL);
+  vfo_update();
 }
 
 static void vfo_cb(GtkComboBox *widget,gpointer data) {
   step=steps[gtk_combo_box_get_active(widget)];
-  vfo_update(NULL);
+  vfo_update();
+}
+
+#ifdef FREEDV
+static void enable_freedv_cb(GtkWidget *widget, gpointer data) {
+  set_freedv(gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)));
+}
+#endif
+
+#ifdef FREEDV
+static void enable_ps_cb(GtkWidget *widget, gpointer data) {
+  tx_set_ps(transmitter,gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)));
+}
+#endif
+
+static void set_btn_state() {
+  int i;
+
+  for(i=0;i<16;i++) {
+    gtk_widget_set_sensitive(btn[i], locked==0);
+  }
+}
+
+static void lock_cb(GtkWidget *widget, gpointer data) {
+  locked=locked==1?0:1;
+  set_btn_state();
+  vfo_update();
 }
 
 static GtkWidget *last_mode;
@@ -170,7 +218,11 @@ void vfo_menu(GtkWidget *parent) {
 
   dialog=gtk_dialog_new();
   gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent_window));
-  gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  //gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  char title[64];
+  sprintf(title,"piHPSDR - VFO (RX %d VFO %s)",active_receiver->id,active_receiver->id==0?"A":"B");
+  gtk_window_set_title(GTK_WINDOW(dialog),title);
+  g_signal_connect (dialog, "delete_event", G_CALLBACK (delete_event), NULL);
 
   GdkRGBA color;
   color.red = 1.0;
@@ -192,10 +244,10 @@ void vfo_menu(GtkWidget *parent) {
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
-  char rx_id[32];
-  sprintf(rx_id,"RX %d VFO %s",active_receiver->id,active_receiver->id==0?"A":"B");
-  GtkWidget *rx_label=gtk_label_new(rx_id);
-  gtk_grid_attach(GTK_GRID(grid),rx_label,1,0,1,1);
+  GtkWidget *lock_b=gtk_check_button_new_with_label("Lock VFO");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (lock_b), locked);
+  gtk_grid_attach(GTK_GRID(grid),lock_b,1,0,1,1);
+  g_signal_connect(lock_b,"toggled",G_CALLBACK(lock_cb),NULL);
 
   label = gtk_label_new (NULL);
   gtk_label_set_markup (GTK_LABEL (label), "<big>0</big>");
@@ -204,15 +256,16 @@ void vfo_menu(GtkWidget *parent) {
 
   GtkWidget *step_rb=NULL;
   for (i=0; i<16; i++) {
-    GtkWidget *b=gtk_button_new_with_label(btn_labels[i]);
-    set_button_text_color(b,"black");
-    gtk_widget_show(b);
-    gtk_grid_attach(GTK_GRID(grid),b,i%3,2+(i/3),1,1);
-    g_signal_connect(b,"pressed",G_CALLBACK(freqent_select_cb),(gpointer *)btn_labels[i]);
+    btn[i]=gtk_button_new_with_label(btn_labels[i]);
+    set_button_text_color(btn[i],"black");
+    gtk_widget_show(btn[i]);
+    gtk_grid_attach(GTK_GRID(grid),btn[i],i%3,2+(i/3),1,1);
+    g_signal_connect(btn[i],"pressed",G_CALLBACK(freqent_select_cb),(gpointer *)btn_labels[i]);
   }
+  set_btn_state();
 
   GtkWidget *rit_label=gtk_label_new("RIT step: ");
-  gtk_grid_attach(GTK_GRID(grid),rit_label,3,1,1,1);
+  gtk_grid_attach(GTK_GRID(grid),rit_label,3,2,1,1);
 
   GtkWidget *rit_b=gtk_combo_box_text_new();
   gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(rit_b),NULL,"1 Hz");
@@ -230,7 +283,7 @@ void vfo_menu(GtkWidget *parent) {
       break;
   }
   g_signal_connect(rit_b,"changed",G_CALLBACK(rit_cb),NULL);
-  gtk_grid_attach(GTK_GRID(grid),rit_b,3,2,1,1);
+  gtk_grid_attach(GTK_GRID(grid),rit_b,4,2,1,1);
 
   GtkWidget *vfo_label=gtk_label_new("VFO step: ");
   gtk_grid_attach(GTK_GRID(grid),vfo_label,3,3,1,1);
@@ -245,7 +298,27 @@ void vfo_menu(GtkWidget *parent) {
     i++;
   }
   g_signal_connect(vfo_b,"changed",G_CALLBACK(vfo_cb),NULL);
-  gtk_grid_attach(GTK_GRID(grid),vfo_b,3,4,1,1);
+  gtk_grid_attach(GTK_GRID(grid),vfo_b,4,3,1,1);
+
+
+  GtkWidget *enable_squelch=gtk_check_button_new_with_label("Enable Squelch");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (enable_squelch), active_receiver->squelch_enable);
+  gtk_grid_attach(GTK_GRID(grid),enable_squelch,3,5,1,1);
+  g_signal_connect(enable_squelch,"toggled",G_CALLBACK(squelch_enable_cb),NULL);
+
+#ifdef FREEDV
+  GtkWidget *enable_freedv=gtk_check_button_new_with_label("Enable FreeDV");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (enable_freedv), active_receiver->freedv);
+  gtk_grid_attach(GTK_GRID(grid),enable_freedv,3,6,1,1);
+  g_signal_connect(enable_freedv,"toggled",G_CALLBACK(enable_freedv_cb),NULL);
+#endif
+
+#ifdef PURESIGNAL
+  GtkWidget *enable_ps=gtk_check_button_new_with_label("Enable Pure Signal");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (enable_ps), transmitter->puresignal);
+  gtk_grid_attach(GTK_GRID(grid),enable_ps,3,7,1,1);
+  g_signal_connect(enable_ps,"toggled",G_CALLBACK(enable_ps_cb),NULL);
+#endif
 
   gtk_container_add(GTK_CONTAINER(content),grid);
 

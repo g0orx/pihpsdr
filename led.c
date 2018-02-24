@@ -19,31 +19,24 @@
 
 #include <gtk/gtk.h>
 
-static GtkWidget *led;
-
-static double red=0.0;
-static double green=1.0;
-static double blue=0.0;
-
-
-static gboolean draw_cb (GtkWidget *widget, cairo_t *cr, gpointer data) {
-  cairo_set_source_rgb(cr, red, green, blue);
+static gboolean draw_led_cb (GtkWidget *widget, cairo_t *cr, gpointer data) {
+  GdkRGBA *color=(GdkRGBA *)data;
+//fprintf(stderr,"draw_led_cb: %p color=%p r=%f g=%f b=%f\n",widget,color,color->red,color->green,color->blue);
+  cairo_set_source_rgb(cr, color->red, color->green, color->blue);
   cairo_paint(cr);      
   return FALSE;
 }
 
-void led_set_color(double r,double g,double b) {
-  red=r;
-  green=g;
-  blue=b;
+void led_set_color(GtkWidget *led) {
+//fprintf(stderr,"led_set_color: %p\n",led);
   gtk_widget_queue_draw (led);
 }
 
-GtkWidget *create_led(int width,int height) {
-  led=gtk_drawing_area_new();
+GtkWidget *create_led(int width,int height,GdkRGBA *color) {
+  GtkWidget *led=gtk_drawing_area_new();
   gtk_widget_set_size_request(led,width,height);
+  g_signal_connect (led, "draw", G_CALLBACK (draw_led_cb), (gpointer)color);
 
-  g_signal_connect (led, "draw", G_CALLBACK (draw_cb), NULL);
-
+fprintf(stderr,"create_led: %p: color=%p\n",led,color);
   return led;
 }

@@ -29,7 +29,6 @@
 #include <net/if_arp.h>
 #include <net/if.h>
 #include <ifaddrs.h>
-#include <pthread.h>
 #include <string.h>
 #include <errno.h>
 
@@ -45,8 +44,6 @@ static int interface_length;
 static int discovery_socket;
 static struct sockaddr_in discovery_addr;
 
-//static pthread_t discover_thread_id;
-//static void* discover_receive_thread(void* arg);
 static GThread *discover_thread_id;
 static gpointer discover_receive_thread(gpointer data);
 
@@ -67,6 +64,7 @@ static void discover(struct ifaddrs* iface) {
 
     int optval = 1;
     setsockopt(discovery_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+    setsockopt(discovery_socket, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval));
 
     sa = (struct sockaddr_in *) iface->ifa_addr;
     mask = (struct sockaddr_in *) iface->ifa_netmask;
@@ -99,13 +97,6 @@ static void discover(struct ifaddrs* iface) {
     to_addr.sin_addr.s_addr=htonl(INADDR_BROADCAST);
 
     // start a receive thread to collect discovery response packets
-/*
-    rc=pthread_create(&discover_thread_id,NULL,discover_receive_thread,NULL);
-    if(rc != 0) {
-        fprintf(stderr,"pthread_create failed on discover_receive_thread: rc=%d\n", rc);
-        exit(-1);
-    }
-*/
     discover_thread_id = g_thread_new( "old discover receive", discover_receive_thread, NULL);
     if( ! discover_thread_id )
     {
@@ -131,10 +122,6 @@ static void discover(struct ifaddrs* iface) {
     }
 
     // wait for receive thread to complete
-/*
-    void* status;
-    pthread_join(discover_thread_id,&status);
-*/
     g_thread_join(discover_thread_id);
 
     close(discovery_socket);
@@ -230,7 +217,6 @@ fprintf(stderr,"discover_receive_thread\n");
 
     }
     fprintf(stderr,"discovery: exiting discover_receive_thread\n");
-    //pthread_exit(NULL);
     g_thread_exit(NULL);
 }
 

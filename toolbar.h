@@ -24,8 +24,9 @@ extern int function;
 
 
 void update_toolbar_labels();
-int ptt_update(void *data);
-int mox_update(void *data);
+void ptt_update(int state);
+void mox_update(int state);
+void tune_update(int state);
 void tune_cb(GtkWidget *widget, gpointer data);
 
 void sim_mox_cb(GtkWidget *widget, gpointer data);

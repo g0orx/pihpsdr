@@ -68,6 +68,23 @@
 #ifdef RADIOBERRY
 #define RADIOBERRY_PROTOCOL 3
 #endif
+#ifdef REMOTE
+#define REMOTE_PROTOCOL 4
+#endif
+#ifdef STEMLAB_DISCOVERY
+// A STEMlab discovered via Avahi will have this protocol until the SDR
+// application itself is started, at which point it will be changed to the old
+// protocol and proceed to be handled just like a normal HPSDR radio.
+#define STEMLAB_PROTOCOL 5
+// Since there are multiple HPSDR applications for the STEMlab, but not all
+// are always installed, we need to keep track of which are installed, so the
+// user can choose which one should be started.
+// The software version field will be abused for this purpose
+#define STEMLAB_PAVEL_RX 1
+#define STEMLAB_PAVEL_TRX 2
+#define STEMLAB_RP_TRX 4
+#endif
+
 
 struct _DISCOVERED {
     int protocol;

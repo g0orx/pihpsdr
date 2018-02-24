@@ -31,8 +31,9 @@
 #define CHANNEL_TX 8
 #define CHANNEL_BS 9
 #define CHANNEL_SUBRX 10
+#define CHANNEL_AUDIO 11
 #ifdef PSK
-#define CHANNEL_PSK 11
+#define CHANNEL_PSK 12
 #endif
 
 #endif

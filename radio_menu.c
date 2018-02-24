@@ -20,6 +20,8 @@
 #include <gtk/gtk.h>
 #include <semaphore.h>
 #include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "new_menu.h"
@@ -28,6 +30,9 @@
 #include "filter.h"
 #include "radio.h"
 #include "receiver.h"
+#include "new_protocol.h"
+#include "old_protocol.h"
+#include "gpio.h"
 
 static GtkWidget *parent_window=NULL;
 
@@ -35,17 +40,30 @@ static GtkWidget *menu_b=NULL;
 
 static GtkWidget *dialog=NULL;
 
-static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+static void cleanup() {
   if(dialog!=NULL) {
     gtk_widget_destroy(dialog);
     dialog=NULL;
     sub_menu=NULL;
   }
+}
+
+static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  cleanup();
   return TRUE;
+}
+
+static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_data) {
+  cleanup();
+  return FALSE;
 }
 
 static void vfo_divisor_value_changed_cb(GtkWidget *widget, gpointer data) {
   vfo_encoder_divisor=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+}
+
+static void gpio_settle_value_changed_cb(GtkWidget *widget, gpointer data) {
+  settle_time=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
 }
 
 /*
@@ -142,19 +160,26 @@ static void apollo_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void sample_rate_cb(GtkWidget *widget, gpointer data) {
-  radio_change_sample_rate((int)data);
+  radio_change_sample_rate((uintptr_t)data);
 }
 
 static void receivers_cb(GtkWidget *widget, gpointer data) {
-  radio_change_receivers((int)data);
+  radio_change_receivers((uintptr_t)data);
+}
+
+static void region_cb(GtkWidget *widget, gpointer data) {
+  radio_change_region(gtk_combo_box_get_active (GTK_COMBO_BOX(widget)));
+/*
+  radio_change_region((uintptr_t)data);
+*/
 }
 
 static void rit_cb(GtkWidget *widget,gpointer data) {
-  rit_increment=(int)data;
+  rit_increment=(uintptr_t)data;
 }
 
 static void ck10mhz_cb(GtkWidget *widget, gpointer data) {
-  atlas_clock_source_10mhz = (int)data;
+  atlas_clock_source_10mhz = (uintptr_t)data;
 }
 
 static void ck128mhz_cb(GtkWidget *widget, gpointer data) {
@@ -174,7 +199,9 @@ void radio_menu(GtkWidget *parent) {
 
   dialog=gtk_dialog_new();
   gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent_window));
-  gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  //gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  gtk_window_set_title(GTK_WINDOW(dialog),"piHPSDR - Radio");
+  g_signal_connect (dialog, "delete_event", G_CALLBACK (delete_event), NULL);
 
   GdkRGBA color;
   color.red = 1.0;
@@ -194,6 +221,28 @@ void radio_menu(GtkWidget *parent) {
   GtkWidget *close_b=gtk_button_new_with_label("Close");
   g_signal_connect (close_b, "button_press_event", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
+
+  GtkWidget *region_label=gtk_label_new("Region: ");
+  gtk_grid_attach(GTK_GRID(grid),region_label,1,0,1,1);
+  
+  GtkWidget *region_combo=gtk_combo_box_text_new();
+  gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(region_combo),NULL,"Other");
+  gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(region_combo),NULL,"UK");
+  gtk_combo_box_set_active(GTK_COMBO_BOX(region_combo),region);
+  gtk_grid_attach(GTK_GRID(grid),region_combo,2,0,1,1);
+  g_signal_connect(region_combo,"changed",G_CALLBACK(region_cb),NULL);
+
+/*
+  GtkWidget *uk_region=gtk_radio_button_new_with_label(NULL,"UK");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (uk_region), region==REGION_UK);
+  gtk_grid_attach(GTK_GRID(grid),uk_region,2,0,1,1);
+  g_signal_connect(uk_region,"pressed",G_CALLBACK(region_cb),(gpointer)REGION_UK);
+
+  GtkWidget *other_region=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(uk_region),"Other");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (other_region),region==REGION_OTHER);
+  gtk_grid_attach(GTK_GRID(grid),other_region,3,0,1,1);
+  g_signal_connect(other_region,"pressed",G_CALLBACK(region_cb),(gpointer)REGION_OTHER);
+*/
 
   int x=0;
 
@@ -249,10 +298,10 @@ void radio_menu(GtkWidget *parent) {
           gtk_grid_attach(GTK_GRID(grid),sample_rate_1536,x,7,1,1);
         g_signal_connect(sample_rate_1536,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)1536000);
   
-  #ifdef GPIO
+#ifdef GPIO
         gtk_widget_set_sensitive(sample_rate_768,FALSE);
         gtk_widget_set_sensitive(sample_rate_1536,FALSE);
-  #endif
+#endif
       }
       x++;
       }
@@ -277,8 +326,6 @@ void radio_menu(GtkWidget *parent) {
       }
       break;
 #endif
-     
-
   }
 
 
@@ -327,10 +374,10 @@ void radio_menu(GtkWidget *parent) {
   }
 
 
-  GtkWidget *rit_label=gtk_label_new("RIT step: ");
+  GtkWidget *rit_label=gtk_label_new("RIT step (Hz): ");
   gtk_grid_attach(GTK_GRID(grid),rit_label,x,1,1,1);
 
-  GtkWidget *rit_1=gtk_radio_button_new_with_label(NULL,"1 Hz");
+  GtkWidget *rit_1=gtk_radio_button_new_with_label(NULL,"1");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rit_1), rit_increment==1);
   gtk_grid_attach(GTK_GRID(grid),rit_1,x,2,1,1);
   g_signal_connect(rit_1,"pressed",G_CALLBACK(rit_cb),(gpointer *)1);
@@ -404,4 +451,3 @@ void radio_menu(GtkWidget *parent) {
   gtk_widget_show_all(dialog);
 
 }
-

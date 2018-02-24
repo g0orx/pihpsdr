@@ -19,7 +19,10 @@
 
 #include <gtk/gtk.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
+#include <wdsp.h>
 
 #include "new_menu.h"
 #include "noise_menu.h"
@@ -38,40 +41,77 @@ static GtkWidget *dialog=NULL;
 
 static GtkWidget *last_filter;
 
-static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+static void cleanup() {
   if(dialog!=NULL) {
     gtk_widget_destroy(dialog);
     dialog=NULL;
     sub_menu=NULL;
   }
+}
+
+static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  cleanup();
   return TRUE;
 }
 
+static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_data) {
+  cleanup();
+  return FALSE;
+}
+
 static void update_noise() {
+  SetEXTANBRun(active_receiver->id, active_receiver->nb);
+  SetEXTNOBRun(active_receiver->id, active_receiver->nb2);
   SetRXAANRRun(active_receiver->id, active_receiver->nr);
   SetRXAEMNRRun(active_receiver->id, active_receiver->nr2);
   SetRXAANFRun(active_receiver->id, active_receiver->anf);
   SetRXASNBARun(active_receiver->id, active_receiver->snb);
-  vfo_update(NULL);
+  vfo_update();
+}
+
+static void nb_none_cb(GtkWidget *widget, gpointer data) {
+  active_receiver->nb=0;
+  active_receiver->nb2=0;
+  update_noise();
+}
+
+static void nb_cb(GtkWidget *widget, gpointer data) {
+  active_receiver->nb=1;
+  active_receiver->nb2=0;
+  update_noise();
+}
+
+static void nr_none_cb(GtkWidget *widget, gpointer data) {
+  active_receiver->nr=0;
+  active_receiver->nr2=0;
+  update_noise();
 }
 
 static void nr_cb(GtkWidget *widget, gpointer data) {
-  active_receiver->nr=active_receiver->nr==1?0:1;
+  active_receiver->nr=1;
+  active_receiver->nr2=0;
+  update_noise();
+}
+
+static void nb2_cb(GtkWidget *widget, gpointer data) {
+  active_receiver->nb=0;
+  active_receiver->nb2=1;
   update_noise();
 }
 
 static void nr2_cb(GtkWidget *widget, gpointer data) {
-  active_receiver->nr2=active_receiver->nr2==1?0:1;
+  active_receiver->nr=0;
+  active_receiver->nr2=2;
   update_noise();
 }
 
 static void anf_cb(GtkWidget *widget, gpointer data) {
-  active_receiver->anf=active_receiver->anf==1?0:1;
+  active_receiver->anf=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
   update_noise();
 }
 
 static void snb_cb(GtkWidget *widget, gpointer data) {
-  active_receiver->snb=active_receiver->snb==1?0:1;
+  active_receiver->snb=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
   update_noise();
 }
 
@@ -83,7 +123,11 @@ void noise_menu(GtkWidget *parent) {
 
   dialog=gtk_dialog_new();
   gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent_window));
-  gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  //gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
+  char title[64];
+  sprintf(title,"piHPSDR - Noise (RX %d VFO %s)",active_receiver->id,active_receiver->id==0?"A":"B");
+  gtk_window_set_title(GTK_WINDOW(dialog),title);
+  g_signal_connect (dialog, "delete_event", G_CALLBACK (delete_event), NULL);
 
   GdkRGBA color;
   color.red = 1.0;
@@ -101,39 +145,90 @@ void noise_menu(GtkWidget *parent) {
   gtk_grid_set_column_spacing (GTK_GRID(grid),5);
   gtk_grid_set_row_spacing (GTK_GRID(grid),5);
 
-  GtkWidget *close_b=gtk_button_new_with_label("Close Noise");
+  GtkWidget *close_b=gtk_button_new_with_label("Close");
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
-  char label[32];
-  sprintf(label,"RX %d VFO %s",active_receiver->id,active_receiver->id==0?"A":"B");
-  GtkWidget *rx_label=gtk_label_new(label);
-  gtk_grid_attach(GTK_GRID(grid),rx_label,1,0,1,1);
+  int row=1;
+  int col=0;
 
-  GtkWidget *b_nr=gtk_check_button_new_with_label("NR");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_nr), active_receiver->nr);
-  gtk_widget_show(b_nr);
-  gtk_grid_attach(GTK_GRID(grid),b_nr,0,2,2,1);
-  g_signal_connect(b_nr,"toggled",G_CALLBACK(nr_cb),NULL);
+  GtkWidget *nb_title=gtk_label_new("Noise Blanker");
+  gtk_widget_show(nb_title);
+  gtk_grid_attach(GTK_GRID(grid),nb_title,col,row,1,1);
 
-  GtkWidget *b_nr2=gtk_check_button_new_with_label("NR2");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_nr2), active_receiver->nr2);
-  gtk_widget_show(b_nr2);
-  gtk_grid_attach(GTK_GRID(grid),b_nr2,0,3,2,1);
-  g_signal_connect(b_nr2,"toggled",G_CALLBACK(nr2_cb),NULL);
+  col++;
 
-  GtkWidget *b_anf=gtk_check_button_new_with_label("ANF");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_anf), active_receiver->anf);
-  gtk_widget_show(b_anf);
-  gtk_grid_attach(GTK_GRID(grid),b_anf,0,4,2,1);
-  g_signal_connect(b_anf,"toggled",G_CALLBACK(anf_cb),NULL);
- 
+  GtkWidget *nr_title=gtk_label_new("Noise Reduction");
+  gtk_widget_show(nr_title);
+  gtk_grid_attach(GTK_GRID(grid),nr_title,col,row,1,1);
+
+  row++;
+  col=0;
+
+  GtkWidget *b_nb_none=gtk_radio_button_new_with_label(NULL, "None");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_nb_none), active_receiver->nb==0 && active_receiver->nb2==0);
+  gtk_widget_show(b_nb_none);
+  gtk_grid_attach(GTK_GRID(grid),b_nb_none,col,row,1,1);
+  g_signal_connect(b_nb_none,"pressed",G_CALLBACK(nb_none_cb),NULL);
+
+  col++;
+
+  GtkWidget *b_nr_none=gtk_radio_button_new_with_label(NULL, "None");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_nr_none), active_receiver->nr==0 && active_receiver->nr2==0);
+  gtk_widget_show(b_nr_none);
+  gtk_grid_attach(GTK_GRID(grid),b_nr_none,col,row,1,1);
+  g_signal_connect(b_nr_none,"pressed",G_CALLBACK(nr_none_cb),NULL);
+
+  col++;
+
   GtkWidget *b_snb=gtk_check_button_new_with_label("SNB");
   //gtk_widget_override_font(b_snb, pango_font_description_from_string("Arial 16"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_snb), active_receiver->snb);
   gtk_widget_show(b_snb);
-  gtk_grid_attach(GTK_GRID(grid),b_snb,0,5,2,1);
+  gtk_grid_attach(GTK_GRID(grid),b_snb,col,row,1,1);
   g_signal_connect(b_snb,"toggled",G_CALLBACK(snb_cb),NULL);
+
+  row++;
+  col=0;
+
+  GtkWidget *b_nb=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_nb_none),"NB");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_nb), active_receiver->nb);
+  gtk_widget_show(b_nb);
+  gtk_grid_attach(GTK_GRID(grid),b_nb,col,row,1,1);
+  g_signal_connect(b_nb,"pressed",G_CALLBACK(nb_cb),NULL);
+
+  col++;
+
+  GtkWidget *b_nr=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_nr_none),"NR");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_nr), active_receiver->nr);
+  gtk_widget_show(b_nr);
+  gtk_grid_attach(GTK_GRID(grid),b_nr,col,row,1,1);
+  g_signal_connect(b_nr,"pressed",G_CALLBACK(nr_cb),NULL);
+
+  col++;
+
+  GtkWidget *b_anf=gtk_check_button_new_with_label("ANF");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_anf), active_receiver->anf);
+  gtk_widget_show(b_anf);
+  gtk_grid_attach(GTK_GRID(grid),b_anf,col,row,1,1);
+  g_signal_connect(b_anf,"toggled",G_CALLBACK(anf_cb),NULL);
+
+  row++;
+  col=0;
+
+  GtkWidget *b_nb2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_nb),"NB2");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_nb2), active_receiver->nb2);
+  gtk_widget_show(b_nb2);
+  gtk_grid_attach(GTK_GRID(grid),b_nb2,col,row,1,1);
+  g_signal_connect(b_nb2,"pressed",G_CALLBACK(nb2_cb),NULL);
+
+  col++;
+
+  GtkWidget *b_nr2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_nr),"NR2");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_nr2), active_receiver->nr2);
+  gtk_widget_show(b_nr2);
+  gtk_grid_attach(GTK_GRID(grid),b_nr2,col,row,1,1);
+  g_signal_connect(b_nr2,"pressed",G_CALLBACK(nr2_cb),NULL);
 
   gtk_container_add(GTK_CONTAINER(content),grid);
 
