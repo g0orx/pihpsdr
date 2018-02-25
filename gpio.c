@@ -146,8 +146,8 @@ int ENABLE_E3_BUTTON=1;
 int ENABLE_CW_BUTTONS=1;
 #endif
 #ifdef LOCALCW
-int CWL_BUTTON=1;
-int CWR_BUTTON=24;
+int CWL_BUTTON=18;
+int CWR_BUTTON=19;
 #endif
 
 static volatile int vfoEncoderPos;
@@ -836,6 +836,14 @@ void gpio_restore_state() {
   value=getProperty("ENABLE_E4_BUTTON");
   if(value) ENABLE_E4_BUTTON=atoi(value);
 #endif
+#ifdef LOCALCW		
+ value=getProperty("ENABLE_CW_BUTTONS");		
+ if(value) ENABLE_CW_BUTTONS=atoi(value);		
+ value=getProperty("CWL_BUTTON");		
+ if(value) CWL_BUTTON=atoi(value);		
+ value=getProperty("CWR_BUTTON");		
+ if(value) CWR_BUTTON=atoi(value);		
+#endif
 
 
 }
@@ -930,6 +938,15 @@ void gpio_save_state() {
   sprintf(value,"%d",ENABLE_E4_BUTTON);
   setProperty("ENABLE_E4_BUTTON",value);
 #endif
+#ifdef LOCALCW		
+ sprintf(value,"%d",ENABLE_CW_BUTTONS);		
+ setProperty("ENABLE_CW_BUTTONS",value);		
+ sprintf(value,"%d",CWL_BUTTON);		
+ setProperty("CWL_BUTTON",value);		
+ sprintf(value,"%d",CWR_BUTTON);		
+ setProperty("CWR_BUTTON",value);		
+#endif
+
   saveProperties("gpio.props");
 }
 
