@@ -57,16 +57,14 @@
 #include "ext.h"
 #include "sliders.h"
 
-#ifdef RADIOBERRY
-#include <pigpio.h>
-#endif
-
 // debounce settle time in ms
 #define DEFAULT_SETTLE_TIME 150
 
 int settle_time=DEFAULT_SETTLE_TIME;
 static gint release_timer=-1;
-
+#ifdef RADIOBERRY
+#include <pigpio.h>
+#endif
 
 #ifdef CONTROLLER2
 
@@ -839,14 +837,6 @@ void gpio_restore_state() {
   if(value) ENABLE_E4_BUTTON=atoi(value);
 #endif
 
-#ifdef LOCALCW
-  value=getProperty("ENABLE_CW_BUTTONS");
-  if(value) ENABLE_CW_BUTTONS=atoi(value);
-  value=getProperty("CWL_BUTTON");
-  if(value) CWL_BUTTON=atoi(value);
-  value=getProperty("CWR_BUTTON");
-  if(value) CWR_BUTTON=atoi(value);
-#endif
 
 }
 
@@ -940,16 +930,6 @@ void gpio_save_state() {
   sprintf(value,"%d",ENABLE_E4_BUTTON);
   setProperty("ENABLE_E4_BUTTON",value);
 #endif
-
-#ifdef LOCALCW
-  sprintf(value,"%d",ENABLE_CW_BUTTONS);
-  setProperty("ENABLE_CW_BUTTONS",value);
-  sprintf(value,"%d",CWL_BUTTON);
-  setProperty("CWL_BUTTON",value);
-  sprintf(value,"%d",CWR_BUTTON);
-  setProperty("CWR_BUTTON",value);
-#endif
-
   saveProperties("gpio.props");
 }
 
@@ -1003,7 +983,6 @@ static void cwlAlert() {
       cwl_debounce=t;
     }
 }
-
 static unsigned long cwr_debounce=0;
 static void cwrAlert() {
     int t=millis();

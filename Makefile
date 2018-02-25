@@ -30,6 +30,13 @@ LOCALCW_INCLUDE=LOCALCW
 # uncomment the line below to include support for STEMlab discovery
 #STEMLAB_DISCOVERY=STEMLAB_DISCOVERY
 
+#uncomment the line below for the platform being compiled on
+UNAME_N=raspberrypi
+#UNAME_N=odroid
+#UNAME_N=up
+#UNAME_N=pine64
+#UNAME_N=jetsen
+
 CC=gcc
 LINK=gcc
 
@@ -138,8 +145,10 @@ endif
 ifeq ($(LOCALCW_INCLUDE),LOCALCW)
 LOCALCW_OPTIONS=-D LOCALCW
 LOCALCW_SOURCES= \
+beep.c \
 iambic.c
 LOCALCW_HEADERS= \
+beep.h \
 iambic.h
 LOCALCW_OBJS= \
 iambic.o
@@ -147,7 +156,7 @@ endif
 
 ifeq ($(GPIO_INCLUDE),GPIO)
   GPIO_OPTIONS=-D GPIO
-  GPIO_LIBS=-lwiringPi -lpigpio
+  GPIO_LIBS=-lwiringPi -lpigpio 
   GPIO_SOURCES= \
   gpio.c \
   encoder_menu.c
