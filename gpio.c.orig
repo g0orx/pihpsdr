@@ -57,15 +57,27 @@
 #include "ext.h"
 #include "sliders.h"
 
+<<<<<<< HEAD
+#ifdef RADIOBERRY
+#include <pigpio.h>
+#endif
+
 // debounce settle time in ms
 #define DEFAULT_SETTLE_TIME 150
 
 int settle_time=DEFAULT_SETTLE_TIME;
 static gint release_timer=-1;
-#ifdef RADIOBERRY
-#include <pigpio.h>
-#endif
 
+
+=======
+// debounce settle time in ms
+#define DEFAULT_SETTLE_TIME 150
+
+int settle_time=DEFAULT_SETTLE_TIME;
+static gint release_timer=-1;
+
+
+>>>>>>> upstream/master
 #ifdef CONTROLLER2
 
 int ENABLE_VFO_ENCODER=1;
@@ -145,10 +157,14 @@ int ENABLE_E2_BUTTON=1;
 int ENABLE_E3_BUTTON=1;
 int ENABLE_CW_BUTTONS=1;
 #endif
+<<<<<<< HEAD
 #ifdef LOCALCW
-int CWL_BUTTON=18;
-int CWR_BUTTON=19;
+int CWL_BUTTON=1;
+int CWR_BUTTON=24;
 #endif
+=======
+
+>>>>>>> upstream/master
 
 static volatile int vfoEncoderPos;
 static volatile int vfo_A;
@@ -726,6 +742,12 @@ static void e4EncoderInterrupt(int gpio) {
       ++e4EncoderPos;
     }
   }
+<<<<<<< HEAD
+}
+
+static void e4EncoderA() {
+  e4EncoderInterrupt(E4_ENCODER_A);
+=======
 }
 
 static void e4EncoderA() {
@@ -734,9 +756,18 @@ static void e4EncoderA() {
 
 static void e4EncoderB() {
   e4EncoderInterrupt(E4_ENCODER_B);
+>>>>>>> upstream/master
 }
 #endif
 
+<<<<<<< HEAD
+static void e4EncoderB() {
+  e4EncoderInterrupt(E4_ENCODER_B);
+}
+#endif
+
+=======
+>>>>>>> upstream/master
 #ifdef CONTROLLER2
 static void pI2CInterrupt() {
     int level=digitalRead(I2C_INTERRUPT);
@@ -836,16 +867,19 @@ void gpio_restore_state() {
   value=getProperty("ENABLE_E4_BUTTON");
   if(value) ENABLE_E4_BUTTON=atoi(value);
 #endif
-#ifdef LOCALCW		
- value=getProperty("ENABLE_CW_BUTTONS");		
- if(value) ENABLE_CW_BUTTONS=atoi(value);		
- value=getProperty("CWL_BUTTON");		
- if(value) CWL_BUTTON=atoi(value);		
- value=getProperty("CWR_BUTTON");		
- if(value) CWR_BUTTON=atoi(value);		
+
+<<<<<<< HEAD
+#ifdef LOCALCW
+  value=getProperty("ENABLE_CW_BUTTONS");
+  if(value) ENABLE_CW_BUTTONS=atoi(value);
+  value=getProperty("CWL_BUTTON");
+  if(value) CWL_BUTTON=atoi(value);
+  value=getProperty("CWR_BUTTON");
+  if(value) CWR_BUTTON=atoi(value);
 #endif
 
-
+=======
+>>>>>>> upstream/master
 }
 
 void gpio_save_state() {
@@ -937,16 +971,19 @@ void gpio_save_state() {
 #ifdef CONTROLLER2
   sprintf(value,"%d",ENABLE_E4_BUTTON);
   setProperty("ENABLE_E4_BUTTON",value);
-#endif
-#ifdef LOCALCW		
- sprintf(value,"%d",ENABLE_CW_BUTTONS);		
- setProperty("ENABLE_CW_BUTTONS",value);		
- sprintf(value,"%d",CWL_BUTTON);		
- setProperty("CWL_BUTTON",value);		
- sprintf(value,"%d",CWR_BUTTON);		
- setProperty("CWR_BUTTON",value);		
+<<<<<<< HEAD
 #endif
 
+#ifdef LOCALCW
+  sprintf(value,"%d",ENABLE_CW_BUTTONS);
+  setProperty("ENABLE_CW_BUTTONS",value);
+  sprintf(value,"%d",CWL_BUTTON);
+  setProperty("CWL_BUTTON",value);
+  sprintf(value,"%d",CWR_BUTTON);
+  setProperty("CWR_BUTTON",value);
+=======
+>>>>>>> upstream/master
+#endif
   saveProperties("gpio.props");
 }
 
@@ -954,6 +991,7 @@ static void setup_pin(int pin, int up_down, void(*pAlert)(void)) {
 fprintf(stderr,"setup_pin: pin=%d mode=%d updown=%d\n",pin,INPUT,up_down);
   pinMode(pin,INPUT);
   pullUpDnControl(pin,up_down);
+<<<<<<< HEAD
   usleep(10000);
   wiringPiISR(pin,INT_EDGE_BOTH,pAlert);
 }
@@ -974,11 +1012,13 @@ static void setup_button(int button, gpioAlertFunc_t pAlert) {
   gpioSetMode(button, PI_INPUT);
   gpioSetPullUpDown(button,PI_PUD_UP);
   // give time to settle to avoid false triggers
+=======
+>>>>>>> upstream/master
   usleep(10000);
-  gpioSetAlertFunc(button, pAlert);
-  gpioGlitchFilter(button, BUTTON_STEADY_TIME_US);
+  wiringPiISR(pin,INT_EDGE_BOTH,pAlert);
 }
 
+<<<<<<< HEAD
 static void cwAlert(int gpio, int level, uint32_t tick) {
 	//fprintf(stderr,"cw key at pin %d \n", gpio);
     if (cw_keyer_internal == 0 ){
@@ -1000,6 +1040,7 @@ static void cwlAlert() {
       cwl_debounce=t;
     }
 }
+
 static unsigned long cwr_debounce=0;
 static void cwrAlert() {
     int t=millis();
@@ -1015,6 +1056,16 @@ static void cwrAlert() {
 */
 #endif
 #endif
+=======
+
+static void setup_encoder_pin(int pin, int up_down, void(*pAlert)(void)) {
+fprintf(stderr,"setup_encoder_pin: pin=%d updown=%d\n",pin,up_down);
+    pinMode(pin,INPUT);
+    pullUpDnControl(pin,up_down);
+    usleep(10000);
+    wiringPiISR(pin,INT_EDGE_RISING,pAlert);
+}
+>>>>>>> upstream/master
 
 int gpio_init() {
   int i;
@@ -1024,6 +1075,7 @@ int gpio_init() {
   gpio_restore_state();
 
   wiringPiSetup(); // use WiringPi pin numbers
+<<<<<<< HEAD
  
 #ifdef RADIOBERRY 
   	if (gpioInitialise() < 0) {
@@ -1031,6 +1083,8 @@ int gpio_init() {
 		exit(-1);
 	}
 #endif
+=======
+>>>>>>> upstream/master
 
   if(ENABLE_VFO_ENCODER) {
 #ifdef CONTROLLER2
@@ -1093,7 +1147,11 @@ int gpio_init() {
 
 #ifndef CONTROLLER2
   if(ENABLE_FUNCTION_BUTTON) {
+<<<<<<< HEAD
     //setup_pin(FUNCTION_BUTTON, PUD_UP, &functionAlert);
+=======
+    setup_pin(FUNCTION_BUTTON, PUD_UP, &functionAlert);
+>>>>>>> upstream/master
   }
 
   if(ENABLE_MOX_BUTTON) {
@@ -1146,6 +1204,7 @@ int gpio_init() {
   //wiringPiISR(I2C_INTERRUPT,INT_EDGE_FALLING,pI2CInterrupt);
   wiringPiISR(I2C_INTERRUPT,INT_EDGE_BOTH,pI2CInterrupt);
 #endif
+<<<<<<< HEAD
 
 #ifdef LOCALCW
 	fprintf(stderr,"GPIO: ENABLE_CW_BUTTONS=%d  CWL_BUTTON=%d CWR_BUTTON=%d\n",ENABLE_CW_BUTTONS, CWL_BUTTON, CWR_BUTTON);
@@ -1163,6 +1222,8 @@ int gpio_init() {
 		
 	}
 #endif
+=======
+>>>>>>> upstream/master
 
   return 0;
 }

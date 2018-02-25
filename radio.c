@@ -558,6 +558,13 @@ fprintf(stderr,"Create %d receivers: height=%d\n",receivers,rx_height);
     fprintf(stderr,"GPIO failed to initialize\n");
   }
 #endif
+#ifdef LOCALCW
+  // init local keyer if enabled
+  if (cw_keyer_internal == 0) {
+	fprintf(stderr,"Initialize keyer.....\n");
+    keyer_update();
+  }
+#endif
   
   switch(radio->protocol) {
     case ORIGINAL_PROTOCOL:

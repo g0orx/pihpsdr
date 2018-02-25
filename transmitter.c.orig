@@ -49,8 +49,11 @@
 #endif
 #include "audio_waterfall.h"
 #include "ext.h"
+<<<<<<< HEAD
 
 double getNextSideToneSample();
+=======
+>>>>>>> upstream/master
 
 #define min(x,y) (x<y?x:y)
 #define max(x,y) (x<y?y:x)
@@ -61,8 +64,11 @@ static int filterHigh;
 static int waterfall_samples=0;
 static int waterfall_resample=8;
 
+<<<<<<< HEAD
 int key = 0;
 
+=======
+>>>>>>> upstream/master
 static gint update_out_of_band(gpointer data) {
   TRANSMITTER *tx=(TRANSMITTER *)data;
   tx->out_of_band=0;
@@ -812,6 +818,7 @@ void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
     mode=vfo[0].mode;
   }
 
+<<<<<<< HEAD
 	if (tune) {
 		  mic_sample_double=0.0;
 	}
@@ -824,6 +831,14 @@ void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
 			} else mic_sample_double=0.0;
 		}
       } else {
+=======
+  if(mode==modeCWL || mode==modeCWU || tune) {
+    mic_sample_double=0.0;
+  } else {
+    //long sam=mic_sample<<16;
+    //sample=(double)sam;
+    //mic_sample_double=(1.0 / 2147483648.0) * sample;
+>>>>>>> upstream/master
     mic_sample_double=(double)mic_sample/32768.0;
   }
   tx->mic_input_buffer[tx->samples*2]=mic_sample_double;
@@ -914,9 +929,61 @@ void tx_set_displaying(TRANSMITTER *tx,int state) {
   tx->displaying=state;
   if(state) {
     tx->update_timer_id=gdk_threads_add_timeout_full(G_PRIORITY_HIGH_IDLE,1000/tx->fps, update_display, (gpointer)tx, NULL);
+<<<<<<< HEAD
   }
 }
 
+#ifdef PURESIGNAL
+void tx_set_ps(TRANSMITTER *tx,int state) {
+  tx->puresignal=state;
+  if(state) {
+    SetPSControl(tx->id, 0, 0, 1, 0);
+  } else {
+    SetPSControl(tx->id, 1, 0, 0, 0);
+  }
+  vfo_update();
+}
+
+void tx_set_twotone(TRANSMITTER *tx,int state) {
+  transmitter->twotone=state;
+  if(state) {
+    SetTXAPostGenMode(transmitter->id, 1);
+    SetTXAPostGenRun(transmitter->id, 1);
+  } else {
+    SetTXAPostGenRun(transmitter->id, 0);
+=======
+>>>>>>> upstream/master
+  }
+  g_idle_add(ext_mox_update,(gpointer)(long)state);
+}
+
+void tx_set_ps_sample_rate(TRANSMITTER *tx,int rate) {
+  SetPSFeedbackRate (tx->id,rate);
+}
+#endif
+
+void cw_sidetone_mute(int mute){
+	key = mute;
+}
+
+<<<<<<< HEAD
+int asteps = 0;
+double timebase = 0.0;
+#define TIMESTEP (1.0 / 48000)
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+double getNextSideToneSample() {
+	double angle = cw_keyer_sidetone_frequency * 2 * M_PI * timebase;
+	timebase += TIMESTEP;
+	asteps++;
+	if (asteps == 48000) {
+		timebase = 0.0;
+		asteps = 0;
+	}
+	return sin(angle);
+}
+=======
 #ifdef PURESIGNAL
 void tx_set_ps(TRANSMITTER *tx,int state) {
   tx->puresignal=state;
@@ -943,24 +1010,4 @@ void tx_set_ps_sample_rate(TRANSMITTER *tx,int rate) {
   SetPSFeedbackRate (tx->id,rate);
 }
 #endif
-
-void cw_sidetone_mute(int mute){
-	key = mute;
-}
-
-int asteps = 0;
-double timebase = 0.0;
-#define TIMESTEP (1.0 / 48000)
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-double getNextSideToneSample() {
-	double angle = cw_keyer_sidetone_frequency * 2 * M_PI * timebase;
-	timebase += TIMESTEP;
-	asteps++;
-	if (asteps == 48000) {
-		timebase = 0.0;
-		asteps = 0;
-	}
-	return sin(angle);
-}
+>>>>>>> upstream/master

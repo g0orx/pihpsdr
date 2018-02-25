@@ -16,7 +16,7 @@ GPIO_INCLUDE=GPIO
 #PSK_INCLUDE=PSK
 
 # uncomment the line to below include support for FreeDV codec2
-FREEDV_INCLUDE=FREEDV
+#FREEDV_INCLUDE=FREEDV
 
 # uncomment the line below to include Pure Signal support
 #PURESIGNAL_INCLUDE=PURESIGNAL
@@ -25,10 +25,17 @@ FREEDV_INCLUDE=FREEDV
 #SX1509_INCLUDE=sx1509
 
 # uncomment the line to below include support local CW keyer
-#LOCALCW_INCLUDE=LOCALCW
+LOCALCW_INCLUDE=LOCALCW
 
 # uncomment the line below to include support for STEMlab discovery
 #STEMLAB_DISCOVERY=STEMLAB_DISCOVERY
+
+#uncomment the line below for the platform being compiled on
+UNAME_N=raspberrypi
+#UNAME_N=odroid
+#UNAME_N=up
+#UNAME_N=pine64
+#UNAME_N=jetsen
 
 CC=gcc
 LINK=gcc
@@ -74,10 +81,11 @@ endif
 #LIMESDR_INCLUDE=LIMESDR
 
 # uncomment the line below when Radioberry radio cape is plugged in
-#RADIOBERRY_INCLUDE=RADIOBERRY
+RADIOBERRY_INCLUDE=RADIOBERRY
 
 ifeq ($(RADIOBERRY_INCLUDE),RADIOBERRY)
 RADIOBERRY_OPTIONS=-D RADIOBERRY
+RADIOBERRYLIBS=-lpigpio
 RADIOBERRY_SOURCES= \
 radioberry_discovery.c \
 radioberry.c
@@ -143,13 +151,12 @@ LOCALCW_HEADERS= \
 beep.h \
 iambic.h
 LOCALCW_OBJS= \
-beep.o \
 iambic.o
 endif
 
 ifeq ($(GPIO_INCLUDE),GPIO)
   GPIO_OPTIONS=-D GPIO
-  GPIO_LIBS=-lwiringPi
+  GPIO_LIBS=-lwiringPi -lpigpio 
   GPIO_SOURCES= \
   gpio.c \
   encoder_menu.c
@@ -186,7 +193,7 @@ AUDIO_LIBS=-lasound
 
 OPTIONS=-g -Wno-deprecated-declarations $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(RADIOBERRY_OPTIONS) $(USBOZY_OPTIONS) $(I2C_OPTIONS) $(GPIO_OPTIONS) $(LIMESDR_OPTIONS) $(FREEDV_OPTIONS) $(LOCALCW_OPTIONS) $(PSK_OPTIONS) $(STEMLAB_OPTIONS) -D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION) -O3
 
-LIBS=-lrt -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(PSKLIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS) $(STEMLAB_LIBS)
+LIBS=-lrt -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(PSKLIBS) $(GTKLIBS) $(GPIO_LIBS) $(RADIOBERRYLIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS) $(STEMLAB_LIBS)
 INCLUDES=$(GTKINCLUDES)
 
 COMPILE=$(CC) $(OPTIONS) $(INCLUDES)
