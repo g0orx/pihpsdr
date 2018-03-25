@@ -130,12 +130,12 @@ void radioberry_protocol_init(int rx,int pixels) {
 	display_width=pixels;
 	fprintf(stderr,"radioberry_protocol: buffer size: =%d\n", buffer_size);
 
-/*
+#ifndef GPIO
 	if (gpioInitialise() < 0) {
 		fprintf(stderr,"radioberry_protocol: gpio could not be initialized. \n");
 		exit(-1);
 	}
-*/
+#endif
   
  	gpioSetMode(13, PI_INPUT); 	//rx1_FIFOEmpty
 	gpioSetMode(16, PI_INPUT);	//rx2_FIFOEmpty
@@ -231,11 +231,18 @@ void radioberry_protocol_iq_samples(int isample,int qsample) {
 	
 		sem_wait(&mutex);
 		
+		int power=0;
+		 if(tune && !transmitter->tune_use_drive) {
+            power=(int)((double)transmitter->drive_level/100.0*(double)transmitter->tune_percent);
+          } else {
+            power=transmitter->drive_level;
+          }
+		
 		tx_iqdata[0] = 0;
-		tx_iqdata[1] = transmitter->drive / 6.4;  // convert drive level from 0-255 to 0-39 )
-		if (prev_drive_level != transmitter->drive) {
+		tx_iqdata[1] = power / 6.4;  // convert drive level from 0-255 to 0-39 steps of 0.5dB to control AD9866)
+		if (prev_drive_level != transmitter->drive_level) {
 			printf("drive level %d - corrected drive level %d \n", transmitter->drive_level, tx_iqdata[1]);
-			prev_drive_level = transmitter->drive; 
+			prev_drive_level = transmitter->drive_level; 
 		}		
 		tx_iqdata[2] = isample>>8; 
 		tx_iqdata[3] = isample;
@@ -311,10 +318,8 @@ void radioberry_protocol_stop() {
 		spiClose(rx1_spi_handler);
 	if (rx2_spi_handler !=0)
 		spiClose(rx2_spi_handler);
-		
-#ifndef GPIO 
+
 	gpioTerminate();
-#endif
 	
 }
 
