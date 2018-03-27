@@ -25,7 +25,7 @@ GPIO_INCLUDE=GPIO
 #SX1509_INCLUDE=sx1509
 
 # uncomment the line to below include support local CW keyer
-LOCALCW_INCLUDE=LOCALCW
+#LOCALCW_INCLUDE=LOCALCW
 
 # uncomment the line below to include support for STEMlab discovery
 #STEMLAB_DISCOVERY=STEMLAB_DISCOVERY
@@ -81,7 +81,7 @@ endif
 #LIMESDR_INCLUDE=LIMESDR
 
 # uncomment the line below when Radioberry radio cape is plugged in
-RADIOBERRY_INCLUDE=RADIOBERRY
+#RADIOBERRY_INCLUDE=RADIOBERRY
 
 ifeq ($(RADIOBERRY_INCLUDE),RADIOBERRY)
 RADIOBERRY_OPTIONS=-D RADIOBERRY
