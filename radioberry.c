@@ -144,7 +144,6 @@ void radioberry_protocol_init(int rx,int pixels) {
 	
 	setup_handler(17, cwPTT_Alert); 
 	
-   
 	rx1_spi_handler = spiOpen(0, 15625000, 49155);  //channel 0
 	if (rx1_spi_handler < 0) {
 		fprintf(stderr,"radioberry_protocol: spi bus rx1 could not be initialized. \n");
