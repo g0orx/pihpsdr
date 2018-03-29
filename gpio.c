@@ -986,33 +986,6 @@ static void cwAlert(int gpio, int level, uint32_t tick) {
        keyer_event(gpio, cw_active_level == 0 ? level : (level==0));
 	}
 }
-
-/*
-static unsigned long cwl_debounce=0;
-static void cwlAlert() {
-    int t=millis();
-    if(t - cwl_debounce > settle_time) {
-      int level=digitalRead(CWL_BUTTON);
-      if (cw_keyer_internal == 0 ){
-		fprintf(stderr,"call keyer_event CWL Button \n");
-		keyer_event(CWL_BUTTON, cw_active_level == 0 ? level : (level==0));
-		}
-      cwl_debounce=t;
-    }
-}
-static unsigned long cwr_debounce=0;
-static void cwrAlert() {
-    int t=millis();
-    if(t - cwr_debounce > settle_time) {
-      int level=digitalRead(CWR_BUTTON);
-      if (cw_keyer_internal == 0 ){
-		fprintf(stderr,"call keyer_event CWR Button \n");
-		keyer_event(CWR_BUTTON, cw_active_level == 0 ? level : (level==0));
-		}
-      cwr_debounce=t;
-    }
-}
-*/
 #endif
 #endif
 
@@ -1053,28 +1026,28 @@ int gpio_init() {
     vfoEncoderPos=0;
   }
 
-  setup_pin(E1_FUNCTION, PUD_UP, &e1FunctionAlert);
-  e1Function=0;
-
   if(ENABLE_E1_ENCODER) {
+	setup_pin(E1_FUNCTION, PUD_UP, &e1FunctionAlert);
+	e1Function=0;  
+	  
     setup_encoder_pin(E1_ENCODER_A,ENABLE_E1_PULLUP?PUD_UP:PUD_OFF,&e1EncoderA);
     setup_encoder_pin(E1_ENCODER_B,ENABLE_E1_PULLUP?PUD_UP:PUD_OFF,&e1EncoderB);
     e1EncoderPos=0;
   }
 
-  setup_pin(E2_FUNCTION, PUD_UP, &e2FunctionAlert);
-  e2Function=0;
-
   if(ENABLE_E2_ENCODER) {
+	setup_pin(E2_FUNCTION, PUD_UP, &e2FunctionAlert);
+	e2Function=0;
+	
     setup_encoder_pin(E2_ENCODER_A,ENABLE_E2_PULLUP?PUD_UP:PUD_OFF,&e2EncoderA);
     setup_encoder_pin(E2_ENCODER_B,ENABLE_E2_PULLUP?PUD_UP:PUD_OFF,&e2EncoderB);
     e2EncoderPos=0;
   }
 
-  setup_pin(E3_FUNCTION, PUD_UP, &e3FunctionAlert);
-  e3Function=0;
-
   if(ENABLE_E3_ENCODER) {
+	setup_pin(E3_FUNCTION, PUD_UP, &e3FunctionAlert);
+	e3Function=0;  
+	  
     setup_encoder_pin(E3_ENCODER_A,ENABLE_E3_PULLUP?PUD_UP:PUD_OFF,&e3EncoderA);
     setup_encoder_pin(E3_ENCODER_B,ENABLE_E3_PULLUP?PUD_UP:PUD_OFF,&e3EncoderB);
     e3EncoderPos=0;
@@ -1149,18 +1122,11 @@ int gpio_init() {
 
 #ifdef LOCALCW
 	fprintf(stderr,"GPIO: ENABLE_CW_BUTTONS=%d  CWL_BUTTON=%d CWR_BUTTON=%d\n",ENABLE_CW_BUTTONS, CWL_BUTTON, CWR_BUTTON);
-	if(ENABLE_CW_BUTTONS) {
-		/*
-		setup_pin(CWL_BUTTON, PUD_UP, &cwlAlert);
-		setup_pin(CWR_BUTTON, PUD_UP, &cwrAlert);
-		*/
-		
+	if(ENABLE_CW_BUTTONS) {	
 		#ifdef RADIOBERRY
 			setup_button(CWL_BUTTON, cwAlert);
 			setup_button(CWR_BUTTON, cwAlert);
 		#endif
-		
-		
 	}
 #endif
 
