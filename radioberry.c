@@ -60,9 +60,11 @@ static int sampleSpeed =0;
 unsigned char iqdata[6];
 unsigned char tx_iqdata[6];
 
-static pthread_t radioberry_thread_id;
+static GThread *radioberry_thread_id;
+//static pthread_t radioberry_thread_id;
 static void start_radioberry_thread();
-static void *radioberry_thread(void* arg);
+static gpointer radioberry_thread(gpointer arg);
+//static void *radioberry_thread(void* arg);
 
 static void setSampleSpeed(int r);
 static void handleReceiveStream(int r);
@@ -165,9 +167,17 @@ void radioberry_protocol_init(int rx,int pixels) {
 		}
 	 }
 
-	start_radioberry_thread();
+	//start_radioberry_thread();
+	radioberry_thread_id = g_thread_new( "radioberry", radioberry_thread, NULL);
+	if( ! radioberry_thread_id )
+	{
+		fprintf(stderr,"g_thread_new failed on radioberry_thread\n");
+		exit( -1 );
+	}
+	fprintf(stderr, "radioberry_thread: id=%p\n",radioberry_thread_id);
 }
 
+/*
 static void start_radioberry_thread() {
   int rc;
   fprintf(stderr,"radioberry_protocol starting radioberry thread\n");
@@ -176,9 +186,10 @@ static void start_radioberry_thread() {
     fprintf(stderr,"radioberry_protocol: pthread_create failed on radioberry_thread: rc=%d\n", rc);
     exit(-1);
   }
-}
+}*/
 
-static void *radioberry_thread(void* arg) {
+//static void *radioberry_thread(void* arg) {
+static gpointer radioberry_thread(gpointer arg) {
 	fprintf(stderr, "radioberry_protocol: radioberry_thread\n");
  
 	running=1;
@@ -277,11 +288,11 @@ static void handleReceiveStream(int r) {
 	double right_sample_double;
   
 	left_sample   = (int)((signed char) iqdata[0]) << 16;
-	left_sample  += (int)((unsigned char)iqdata[1]) << 8;
-	left_sample  += (int)((unsigned char)iqdata[2]);
+	left_sample  |= (int)((((unsigned char)iqdata[1]) << 8)&0xFF00);
+	left_sample  |= (int)((unsigned char)iqdata[2]&0xFF);
 	right_sample  = (int)((signed char) iqdata[3]) << 16;
-	right_sample += (int)((unsigned char)iqdata[4]) << 8;
-	right_sample += (int)((unsigned char)iqdata[5]);
+	right_sample |= (int)((((unsigned char)iqdata[4]) << 8)&0xFF00);
+	right_sample |= (int)((unsigned char)iqdata[5]&0xFF);
 	
 	left_sample_double=(double)left_sample/8388607.0; // 24 bit sample 2^23-1
     right_sample_double=(double)right_sample/8388607.0; // 24 bit sample 2^23-1
