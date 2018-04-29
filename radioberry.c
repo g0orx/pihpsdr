@@ -95,7 +95,7 @@ GMutex buf_rx2_mutex;
 GMutex mutex_rxtx;
 GMutex mutex_rxstream;
 
-#define MAX_RX_BUFFER (2048 * 6)
+#define MAX_RX_BUFFER (48000)
 
 
 unsigned char buffer_rx1[MAX_RX_BUFFER];
@@ -186,6 +186,7 @@ void radioberry_protocol_init(int rx,int pixels) {
 		exit(-1);
 	}
 
+	running=1;
 	printf("init done \n");
  
 	if(transmitter->local_microphone) {
@@ -203,12 +204,14 @@ void radioberry_protocol_init(int rx,int pixels) {
 	}
 	fprintf(stderr, "radioberry_thread: id=%p\n",radioberry_thread_id);
 	 
-	rx1_stream_thread_id = g_thread_new( "rx-streaming", rx1_stream_thread, NULL);
+	rx1_stream_thread_id = g_thread_new( "rx1-streaming", rx1_stream_thread, NULL);
 	if( ! rx1_stream_thread_id )
 	{
 		fprintf(stderr,"g_thread_new failed on rx_stream_thread\n");
 		exit( -1 );
 	}
+	fprintf(stderr, "rx1-streaming: id=%p\n",rx1_stream_thread_id);
+	
 	
 	rx2_stream_thread_id = g_thread_new( "rx2-streaming", rx2_stream_thread, NULL);
 	if( ! rx2_stream_thread_id )
@@ -216,6 +219,8 @@ void radioberry_protocol_init(int rx,int pixels) {
 		fprintf(stderr,"g_thread_new failed on rx2_stream_thread\n");
 		exit( -1 );
 	}
+	fprintf(stderr, "rx2-streaming: id=%p\n",rx2_stream_thread_id);
+	
 }
 
 static gpointer rx1_stream_thread(gpointer arg) {
@@ -232,22 +237,24 @@ static gpointer rx1_stream_thread(gpointer arg) {
 	while(running) {
 		
 		get_rx1(_iqdata); 
-				
+	
 		left_sample   = (int)((signed char) _iqdata[0]) << 16;
 		left_sample  |= (int)((((unsigned char)_iqdata[1]) << 8)&0xFF00);
 		left_sample  |= (int)((unsigned char)_iqdata[2]&0xFF);
 		right_sample  = (int)((signed char) _iqdata[3]) << 16;
 		right_sample |= (int)((((unsigned char)_iqdata[4]) << 8)&0xFF00);
 		right_sample |= (int)((unsigned char)_iqdata[5]&0xFF);
-	
+		
 		left_sample_double=(double)left_sample/8388607.0; // 24 bit sample 2^23-1
 		right_sample_double=(double)right_sample/8388607.0; // 24 bit sample 2^23-1
-	
+
 		g_mutex_lock(&mutex_rxstream);
 			// add the samples to the receiver..
 			add_iq_samples(receiver[0], left_sample_double,right_sample_double);
 		g_mutex_unlock(&mutex_rxstream);
 	}
+	
+	fprintf(stderr, "radioberry_protocol stop: rx_stream_thread\n");
 }
 
 static gpointer rx2_stream_thread(gpointer arg) {
@@ -259,7 +266,7 @@ static gpointer rx2_stream_thread(gpointer arg) {
 	
 	unsigned char _iqdata[6];
 	
-	fprintf(stderr, "radioberry_protocol: rx_stream_thread\n");
+	fprintf(stderr, "radioberry_protocol: rx2_stream_thread\n");
 	
 	while(running) {
 		
@@ -281,12 +288,12 @@ static gpointer rx2_stream_thread(gpointer arg) {
 		g_mutex_unlock(&mutex_rxstream);
 		
 	}
+	
+	fprintf(stderr, "radioberry_protocol stop: rx2_stream_thread\n");
 }
 
 static gpointer radioberry_thread(gpointer arg) {
 	fprintf(stderr, "radioberry_protocol: radioberry_thread\n");
- 
-	running=1;
 
 	gettimeofday(&t20, 0);
 	gettimeofday(&rx1_t0, 0);
@@ -311,6 +318,8 @@ static gpointer radioberry_thread(gpointer arg) {
 			g_mutex_unlock(&mutex_rxtx);
 		}
 	}
+	
+	fprintf(stderr, "radioberry_protocol stop: radioberry_thread\n");
 }
 
 void radioberry_protocol_iq_samples(int isample,int qsample) {
@@ -416,6 +425,16 @@ void rx1_spiReader() {
 	iqdata[5] = (rxFrequency & 0xFF);
 			
 	spiXfer(rx1_spi_handler, iqdata, iqdata, 6);
+	
+	//48'h0102030405060708
+	//if (iqdata[0] != 1 || iqdata[1] != 2 || iqdata[3] != 3 || iqdata[4] != 4) {
+	//	printf("error");
+	//}
+	//if (iqdata[5] != 0x05 | iqdata[6] != 0x06) {
+	//	printf("error %x %x", iqdata[5], iqdata[6]);
+	//}
+	//printf("waarde %x %x %x %x %x %x \n", iqdata[0], iqdata[1], iqdata[2], iqdata[3], iqdata[4], iqdata[5]);
+	//printf("xxxxxxxxxxxx");
 			
 	put_rx1(iqdata);
 	
