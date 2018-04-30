@@ -62,10 +62,8 @@ unsigned char tx_iqdata[6];
 static GThread *radioberry_thread_id;
 static gpointer radioberry_thread(gpointer arg);
 
-static GThread *rx1_stream_thread_id;
-static gpointer rx1_stream_thread(gpointer arg);
-static GThread *rx2_stream_thread_id;
-static gpointer rx2_stream_thread(gpointer arg);
+static GThread *rx_stream_thread_id;
+static gpointer rx_stream_thread(gpointer arg);
 
 static void setSampleSpeed(int r);
 static void handleReceiveStream(int r);
@@ -93,28 +91,26 @@ static int txcount =0;
 GMutex buf_rx1_mutex;
 GMutex buf_rx2_mutex;
 GMutex mutex_rxtx;
-GMutex mutex_rxstream;
 
-#define MAX_RX_BUFFER (48000)
+#define MAX_RX_BUFFER (24000)
 
-
-unsigned char buffer_rx1[MAX_RX_BUFFER];
+double buffer_rx1[MAX_RX_BUFFER][2];
 int fill_rx1 = 0; 
 int use_rx1  = 0;
 sem_t empty;	
 sem_t full;
 
 void put_rx1(unsigned char[]);
-void get_rx1(unsigned char[]);
+void get_rx1(double buffer[]);
 
-unsigned char buffer_rx2[MAX_RX_BUFFER];
+double buffer_rx2[MAX_RX_BUFFER][2];
 int fill_rx2 = 0; 
 int use_rx2  = 0;
 sem_t empty_rx2;	
 sem_t full_rx2;
 
 void put_rx2(unsigned char[]);
-void get_rx2(unsigned char[]);
+void get_rx2(double buffer[]);
  
 #ifdef PSK
 static int psk_samples=0;
@@ -204,93 +200,38 @@ void radioberry_protocol_init(int rx,int pixels) {
 	}
 	fprintf(stderr, "radioberry_thread: id=%p\n",radioberry_thread_id);
 	 
-	rx1_stream_thread_id = g_thread_new( "rx1-streaming", rx1_stream_thread, NULL);
-	if( ! rx1_stream_thread_id )
+	rx_stream_thread_id = g_thread_new( "rx-streaming", rx_stream_thread, NULL);
+	if( ! rx_stream_thread_id )
 	{
 		fprintf(stderr,"g_thread_new failed on rx_stream_thread\n");
 		exit( -1 );
 	}
-	fprintf(stderr, "rx1-streaming: id=%p\n",rx1_stream_thread_id);
-	
-	
-	rx2_stream_thread_id = g_thread_new( "rx2-streaming", rx2_stream_thread, NULL);
-	if( ! rx2_stream_thread_id )
-	{
-		fprintf(stderr,"g_thread_new failed on rx2_stream_thread\n");
-		exit( -1 );
-	}
-	fprintf(stderr, "rx2-streaming: id=%p\n",rx2_stream_thread_id);
-	
+	fprintf(stderr, "rx1-streaming: id=%p\n",rx_stream_thread_id);
 }
 
-static gpointer rx1_stream_thread(gpointer arg) {
+static gpointer rx_stream_thread(gpointer arg) {
 	
-	int left_sample;
-	int right_sample;
-	double left_sample_double;
-	double right_sample_double;
-	
-	unsigned char _iqdata[6];
+	double _iqdata[2];
 	
 	fprintf(stderr, "radioberry_protocol: rx_stream_thread\n");
 	
 	while(running) {
 		
 		get_rx1(_iqdata); 
-	
-		left_sample   = (int)((signed char) _iqdata[0]) << 16;
-		left_sample  |= (int)((((unsigned char)_iqdata[1]) << 8)&0xFF00);
-		left_sample  |= (int)((unsigned char)_iqdata[2]&0xFF);
-		right_sample  = (int)((signed char) _iqdata[3]) << 16;
-		right_sample |= (int)((((unsigned char)_iqdata[4]) << 8)&0xFF00);
-		right_sample |= (int)((unsigned char)_iqdata[5]&0xFF);
+		// add the samples to the receiver..
+		add_iq_samples(receiver[0], _iqdata[0], _iqdata[1]);
 		
-		left_sample_double=(double)left_sample/8388607.0; // 24 bit sample 2^23-1
-		right_sample_double=(double)right_sample/8388607.0; // 24 bit sample 2^23-1
-
-		g_mutex_lock(&mutex_rxstream);
+		if (receivers==2) {
+			get_rx2(_iqdata); 
 			// add the samples to the receiver..
-			add_iq_samples(receiver[0], left_sample_double,right_sample_double);
-		g_mutex_unlock(&mutex_rxstream);
+			add_iq_samples(receiver[1], _iqdata[0], _iqdata[1]);
+		};
 	}
 	
 	fprintf(stderr, "radioberry_protocol stop: rx_stream_thread\n");
 }
 
-static gpointer rx2_stream_thread(gpointer arg) {
-	
-	int left_sample;
-	int right_sample;
-	double left_sample_double;
-	double right_sample_double;
-	
-	unsigned char _iqdata[6];
-	
-	fprintf(stderr, "radioberry_protocol: rx2_stream_thread\n");
-	
-	while(running) {
-		
-		get_rx2(_iqdata); 
-		
-		left_sample   = (int)((signed char) _iqdata[0]) << 16;
-		left_sample  |= (int)((((unsigned char)_iqdata[1]) << 8)&0xFF00);
-		left_sample  |= (int)((unsigned char)_iqdata[2]&0xFF);
-		right_sample  = (int)((signed char) _iqdata[3]) << 16;
-		right_sample |= (int)((((unsigned char)_iqdata[4]) << 8)&0xFF00);
-		right_sample |= (int)((unsigned char)_iqdata[5]&0xFF);
-	
-		left_sample_double=(double)left_sample/8388607.0; // 24 bit sample 2^23-1
-		right_sample_double=(double)right_sample/8388607.0; // 24 bit sample 2^23-1
-	
-		g_mutex_lock(&mutex_rxstream);
-			// add the samples to the receiver..
-			add_iq_samples(receiver[1], left_sample_double,right_sample_double);
-		g_mutex_unlock(&mutex_rxstream);
-		
-	}
-	
-	fprintf(stderr, "radioberry_protocol stop: rx2_stream_thread\n");
-}
+
 
 static gpointer radioberry_thread(gpointer arg) {
 	fprintf(stderr, "radioberry_protocol: radioberry_thread\n");
@@ -425,16 +366,6 @@ void rx1_spiReader() {
 	iqdata[5] = (rxFrequency & 0xFF);
 			
 	spiXfer(rx1_spi_handler, iqdata, iqdata, 6);
-	
-	//48'h0102030405060708
-	//if (iqdata[0] != 1 || iqdata[1] != 2 || iqdata[3] != 3 || iqdata[4] != 4) {
-	//	printf("error");
-	//}
-	//if (iqdata[5] != 0x05 | iqdata[6] != 0x06) {
-	//	printf("error %x %x", iqdata[5], iqdata[6]);
-	//}
-	//printf("waarde %x %x %x %x %x %x \n", iqdata[0], iqdata[1], iqdata[2], iqdata[3], iqdata[4], iqdata[5]);
-	//printf("xxxxxxxxxxxx");
 			
 	put_rx1(iqdata);
 	
@@ -446,8 +377,6 @@ void rx1_spiReader() {
 		printf("Code rx1 mode spi executed in %f milliseconds.\n", elapsed);
 		gettimeofday(&rx1_t0, 0);
 	}
-
-	
 }
 
 void rx2_spiReader() {
@@ -529,59 +458,87 @@ void spiWriter() {
 }
 
 void put_rx1(unsigned char* value) {
+
+	int left_sample;
+	int right_sample;
+	double left_sample_double;
+	double right_sample_double;
+
 	sem_wait(&empty);
 	
-	g_mutex_lock(&buf_rx1_mutex);
-	int i =0;
-	for (i; i< 6; i++){
-		buffer_rx1[fill_rx1] = value[i];    
-		fill_rx1 = (fill_rx1 + 1) % MAX_RX_BUFFER; 
-	}
+	left_sample   = (int)((signed char) value[0]) << 16;
+	left_sample  |= (int)((((unsigned char)value[1]) << 8)&0xFF00);
+	left_sample  |= (int)((unsigned char)value[2]&0xFF);
+	right_sample  = (int)((signed char) value[3]) << 16;
+	right_sample |= (int)((((unsigned char)value[4]) << 8)&0xFF00);
+	right_sample |= (int)((unsigned char)value[5]&0xFF);
+	
+	left_sample_double=(double)left_sample/8388607.0; // 24 bit sample 2^23-1
+	right_sample_double=(double)right_sample/8388607.0; // 24 bit sample 2^23-1
+	
+	buffer_rx1[fill_rx1][0] = left_sample_double;  
+	buffer_rx1[fill_rx1][1] = right_sample_double;  
+	
+ 	g_mutex_lock(&buf_rx1_mutex);
+	fill_rx1 = (fill_rx1 + 1) % MAX_RX_BUFFER; 
 	g_mutex_unlock(&buf_rx1_mutex);
 	
 	sem_post(&full);
 }
 
-void get_rx1(unsigned char buffer[]) {
+void get_rx1(double buffer[]) {
 	sem_wait(&full);
 	
-	g_mutex_lock(&buf_rx1_mutex);
-	int i =0;
-	for (i; i< 6; i++){
-		buffer[i] = buffer_rx1[use_rx1];   
-		use_rx1 = (use_rx1 + 1) % MAX_RX_BUFFER;   
-	}
+	buffer[0] = buffer_rx1[use_rx1][0];
+	buffer[1] = buffer_rx1[use_rx1][1];	
+	
+	g_mutex_lock(&buf_rx1_mutex);	
+	use_rx1 = (use_rx1 + 1) % MAX_RX_BUFFER;   
 	g_mutex_unlock(&buf_rx1_mutex);
 	
 	sem_post(&empty);
 }
 
 void put_rx2(unsigned char* value) {
+	
+	int left_sample;
+	int right_sample;
+	double left_sample_double;
+	double right_sample_double;
+	
 	sem_wait(&empty_rx2);
 	
-	g_mutex_lock(&buf_rx2_mutex);
-	int i =0;
-	for (i; i< 6; i++){
-		buffer_rx2[fill_rx2] = value[i];    
-		fill_rx2 = (fill_rx2 + 1) % MAX_RX_BUFFER; 
-	}
+	left_sample   = (int)((signed char) value[0]) << 16;
+	left_sample  |= (int)((((unsigned char)value[1]) << 8)&0xFF00);
+	left_sample  |= (int)((unsigned char)value[2]&0xFF);
+	right_sample  = (int)((signed char) value[3]) << 16;
+	right_sample |= (int)((((unsigned char)value[4]) << 8)&0xFF00);
+	right_sample |= (int)((unsigned char)value[5]&0xFF);
+	
+	left_sample_double=(double)left_sample/8388607.0; // 24 bit sample 2^23-1
+	right_sample_double=(double)right_sample/8388607.0; // 24 bit sample 2^23-1
+	
+	buffer_rx2[fill_rx2][0] = left_sample_double;  
+	buffer_rx2[fill_rx2][1] = right_sample_double; 
+	
+ 	g_mutex_lock(&buf_rx2_mutex);
+	fill_rx2 = (fill_rx2 + 1) % MAX_RX_BUFFER; 
 	g_mutex_unlock(&buf_rx2_mutex);
 	
 	sem_post(&full_rx2);
 }
 
-void get_rx2(unsigned char buffer[]) {
-	sem_wait(&full_rx2); 
+void get_rx2(double buffer[]) {
+	sem_wait(&full_rx2);
 	
-	g_mutex_lock(&buf_rx2_mutex);
-	int i =0;
-	for (i; i< 6; i++){
-		buffer[i] = buffer_rx2[use_rx2];   
-		use_rx2 = (use_rx2 + 1) % MAX_RX_BUFFER;   
-	}
+	buffer[0] = buffer_rx2[use_rx2][0];
+	buffer[1] = buffer_rx2[use_rx2][1];	
+
+	g_mutex_lock(&buf_rx2_mutex);	
+	use_rx2 = (use_rx2 + 1) % MAX_RX_BUFFER;   
 	g_mutex_unlock(&buf_rx2_mutex);
 	
-	sem_post(&empty_rx2); 
+	sem_post(&empty_rx2);
 }
 
 // end of source
