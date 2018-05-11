@@ -72,6 +72,7 @@ void spiWriter();
 void rx1_spiReader(unsigned char iqdata[]);
 void rx2_spiReader(unsigned char iqdata[]);
 
+int radioberry_attenuation = 0;
 int prev_drive_level;
 static int txcount =0;
 
@@ -112,7 +113,7 @@ void radioberry_protocol_init(int rx,int pixels) {
 	fprintf(stderr,	"====================================================================\n");
 	fprintf(stderr, "                      Radioberry V2.0 beta 2.\n");
 	fprintf(stderr,	"\n");
-	fprintf(stderr, "                    PIHPSDR plugin version 10-5-2018 \n");
+	fprintf(stderr, "                    PIHPSDR plugin version 11-5-2018 \n");
 	fprintf(stderr,	"\n");
 	fprintf(stderr,	"\n");
 	fprintf(stderr, "                      Have fune Johan PA3GSB\n");
@@ -147,6 +148,7 @@ void radioberry_protocol_init(int rx,int pixels) {
 	}
 
 	running=1;
+	radioberry_attenuation = adc_attenuation[active_receiver->adc];
 	printf("init done \n");
  
 	if(transmitter->local_microphone) {
@@ -293,6 +295,10 @@ void setSampleSpeed(int r) {
       }
 }
 
+void radioberry_set_attenuation(int attenuation) {
+	radioberry_attenuation = attenuation;
+}
+
 void radioberry_protocol_stop() {
   
 	running=FALSE;
@@ -321,7 +327,7 @@ void rx1_spiReader(unsigned char iqdata[]) {
 	}
 	
 	iqdata[0] = (sampleSpeed[0] & 0x03);
-	iqdata[1] = (((active_receiver->random << 6) & 0x40) | ((receiver[0]->dither <<5) & 0x20) |  (attenuation & 0x1F));
+	iqdata[1] = (((active_receiver->random << 6) & 0x40) | ((active_receiver->dither <<5) & 0x20) |  (radioberry_attenuation & 0x1F));
 	iqdata[2] = ((rxFrequency >> 24) & 0xFF);
 	iqdata[3] = ((rxFrequency >> 16) & 0xFF);
 	iqdata[4] = ((rxFrequency >> 8) & 0xFF);

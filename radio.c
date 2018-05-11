@@ -1042,6 +1042,11 @@ void set_attenuation(int value) {
         lime_protocol_set_attenuation(value);
         break;
 #endif
+#ifdef RADIOBERRY
+      case RADIOBERRY_PROTOCOL:
+        radioberry_set_attenuation(value);
+        break;
+#endif
     }
 }
 
