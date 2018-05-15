@@ -30,6 +30,7 @@
 #include "filter.h"
 #include "radio.h"
 #include "receiver.h"
+#include "sliders.h"
 #include "new_protocol.h"
 #include "old_protocol.h"
 #include "gpio.h"
@@ -114,6 +115,7 @@ static void load_filters(void) {
       set_alex_attenuation(band->alexAttenuation);
     }
   }
+  att_type_changed();
 }
 
 static void none_cb(GtkWidget *widget, gpointer data) {
@@ -133,7 +135,14 @@ static void alex_cb(GtkWidget *widget, gpointer data) {
 static void apollo_cb(GtkWidget *widget, gpointer data) {
   if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
     filter_board = APOLLO;
-    load_filters;
+    load_filters();
+  }
+}
+
+static void charly25_cb(GtkWidget *widget, gpointer data) {
+  if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
+    filter_board = CHARLY25;
+    load_filters();
   }
 }
 
@@ -349,9 +358,14 @@ void radio_menu(GtkWidget *parent) {
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(apollo_b), filter_board == APOLLO);
     gtk_grid_attach(GTK_GRID(grid), apollo_b, x, 3, 1, 1);
 
+    GtkWidget *charly25_b = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(none_b), "CHARLY25");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(charly25_b), filter_board == CHARLY25);
+    gtk_grid_attach(GTK_GRID(grid), charly25_b, x, 4, 1, 1);
+
     g_signal_connect(none_b, "toggled", G_CALLBACK(none_cb), NULL);
     g_signal_connect(alex_b, "toggled", G_CALLBACK(alex_cb), NULL);
     g_signal_connect(apollo_b, "toggled", G_CALLBACK(apollo_cb), NULL);
+    g_signal_connect(charly25_b, "toggled", G_CALLBACK(charly25_cb), NULL);
 
     x++;
   }
