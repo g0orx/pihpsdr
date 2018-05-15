@@ -792,8 +792,9 @@ void ozy_send_buffer() {
       output_buffer[C2]|=band->OCrx<<1;
     }
 
-// TODO - add Alex Attenuation and Alex Antenna
+// TODO - add Alex Antenna
     output_buffer[C3]=0x00;
+    output_buffer[C3] = receiver[0]->alex_attenuation;
     if(active_receiver->random) {
       output_buffer[C3]|=LT2208_RANDOM_ON;
     }
