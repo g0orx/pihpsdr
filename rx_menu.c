@@ -68,6 +68,12 @@ static void preamp_cb(GtkWidget *widget, gpointer data) {
   active_receiver->preamp=active_receiver->preamp==1?0:1;
 }
 
+static void alex_att_cb(GtkWidget *widget, gpointer data) {
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
+    set_alex_attenuation((intptr_t) data);
+  }
+}
+
 static void sample_rate_cb(GtkWidget *widget, gpointer data) {
   receiver_change_sample_rate(active_receiver,(uintptr_t)data);
 }
@@ -250,6 +256,18 @@ void rx_menu(GtkWidget *parent) {
         gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (preamp_b), active_receiver->preamp);
         gtk_grid_attach(GTK_GRID(grid),preamp_b,x,4,1,1);
         g_signal_connect(preamp_b,"toggled",G_CALLBACK(preamp_cb),NULL);
+      }
+      GtkWidget *alex_att_label=gtk_label_new("Alex Attenuator");
+      gtk_grid_attach(GTK_GRID(grid), alex_att_label, x, 5, 1, 1);
+      GtkWidget *last_alex_att_b = NULL;
+      for (int i = 0; i <= 3; i++) {
+        gchar button_text[] = "xx dB";
+        sprintf(button_text, "%d dB", i*10);
+        GtkWidget *alex_att_b=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(last_alex_att_b), button_text);
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(alex_att_b), active_receiver->alex_attenuation == i);
+        gtk_grid_attach(GTK_GRID(grid), alex_att_b, x, 6 + i, 1, 1);
+        g_signal_connect(alex_att_b, "toggled", G_CALLBACK(alex_att_cb), (gpointer) (long) i);
+        last_alex_att_b = alex_att_b;
       }
       }
       x++;
