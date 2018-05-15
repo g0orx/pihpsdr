@@ -52,6 +52,7 @@ extern char property_path[];
 
 #define ALEX 1
 #define APOLLO 2
+#define CHARLY25 3
 
 #define REGION_OTHER 0
 #define REGION_UK 1

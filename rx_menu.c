@@ -31,6 +31,7 @@
 #include "filter.h"
 #include "radio.h"
 #include "receiver.h"
+#include "sliders.h"
 
 static GtkWidget *parent_window=NULL;
 
@@ -58,6 +59,7 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 
 static void dither_cb(GtkWidget *widget, gpointer data) {
   active_receiver->dither=active_receiver->dither==1?0:1;
+  update_att_preamp();
 }
 
 static void random_cb(GtkWidget *widget, gpointer data) {
@@ -66,11 +68,13 @@ static void random_cb(GtkWidget *widget, gpointer data) {
 
 static void preamp_cb(GtkWidget *widget, gpointer data) {
   active_receiver->preamp=active_receiver->preamp==1?0:1;
+  update_att_preamp();
 }
 
 static void alex_att_cb(GtkWidget *widget, gpointer data) {
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
     set_alex_attenuation((intptr_t) data);
+    update_att_preamp();
   }
 }
 
@@ -229,51 +233,55 @@ void rx_menu(GtkWidget *parent) {
 #endif
   }
 
-  switch(protocol) {
+  // The CHARLY25 board (with RedPitaya) has no support for dither or random,
+  // so those are left out. PreAmps and Alex Attenuator are controlled via sliders.
+  if (filter_board != CHARLY25) {
+    switch(protocol) {
 #ifdef RADIOBERRY
-	case RADIOBERRY_PROTOCOL:
+      case RADIOBERRY_PROTOCOL:
 #endif
-    case ORIGINAL_PROTOCOL:
-    case NEW_PROTOCOL: 
-      {
-      GtkWidget *dither_b=gtk_check_button_new_with_label("Dither");
-      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (dither_b), active_receiver->dither);
-      gtk_grid_attach(GTK_GRID(grid),dither_b,x,2,1,1);
-      g_signal_connect(dither_b,"toggled",G_CALLBACK(dither_cb),NULL);
+      case ORIGINAL_PROTOCOL:
+      case NEW_PROTOCOL:
+        {
+          GtkWidget *dither_b=gtk_check_button_new_with_label("Dither");
+          gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (dither_b), active_receiver->dither);
+          gtk_grid_attach(GTK_GRID(grid),dither_b,x,2,1,1);
+          g_signal_connect(dither_b,"toggled",G_CALLBACK(dither_cb),NULL);
 
-      GtkWidget *random_b=gtk_check_button_new_with_label("Random");
-      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (random_b), active_receiver->random);
-      gtk_grid_attach(GTK_GRID(grid),random_b,x,3,1,1);
-      g_signal_connect(random_b,"toggled",G_CALLBACK(random_cb),NULL);
+          GtkWidget *random_b=gtk_check_button_new_with_label("Random");
+          gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (random_b), active_receiver->random);
+          gtk_grid_attach(GTK_GRID(grid),random_b,x,3,1,1);
+          g_signal_connect(random_b,"toggled",G_CALLBACK(random_cb),NULL);
 
-      if((protocol==ORIGINAL_PROTOCOL && device==DEVICE_METIS) ||
+          if((protocol==ORIGINAL_PROTOCOL && device==DEVICE_METIS) ||
 #ifdef USBOZY
-         (protocol==ORIGINAL_PROTOCOL && device==DEVICE_OZY) ||
+              (protocol==ORIGINAL_PROTOCOL && device==DEVICE_OZY) ||
 #endif
-         (protocol==NEW_PROTOCOL && device==NEW_DEVICE_ATLAS)) {
+              (protocol==NEW_PROTOCOL && device==NEW_DEVICE_ATLAS)) {
 
-        GtkWidget *preamp_b=gtk_check_button_new_with_label("Preamp");
-        gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (preamp_b), active_receiver->preamp);
-        gtk_grid_attach(GTK_GRID(grid),preamp_b,x,4,1,1);
-        g_signal_connect(preamp_b,"toggled",G_CALLBACK(preamp_cb),NULL);
-      }
-      GtkWidget *alex_att_label=gtk_label_new("Alex Attenuator");
-      gtk_grid_attach(GTK_GRID(grid), alex_att_label, x, 5, 1, 1);
-      GtkWidget *last_alex_att_b = NULL;
-      for (int i = 0; i <= 3; i++) {
-        gchar button_text[] = "xx dB";
-        sprintf(button_text, "%d dB", i*10);
-        GtkWidget *alex_att_b=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(last_alex_att_b), button_text);
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(alex_att_b), active_receiver->alex_attenuation == i);
-        gtk_grid_attach(GTK_GRID(grid), alex_att_b, x, 6 + i, 1, 1);
-        g_signal_connect(alex_att_b, "toggled", G_CALLBACK(alex_att_cb), (gpointer) (long) i);
-        last_alex_att_b = alex_att_b;
-      }
-      }
-      x++;
-      break;
-    default:
-      break;
+            GtkWidget *preamp_b=gtk_check_button_new_with_label("Preamp");
+            gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (preamp_b), active_receiver->preamp);
+            gtk_grid_attach(GTK_GRID(grid),preamp_b,x,4,1,1);
+            g_signal_connect(preamp_b,"toggled",G_CALLBACK(preamp_cb),NULL);
+          }
+          GtkWidget *alex_att_label=gtk_label_new("Alex Attenuator");
+          gtk_grid_attach(GTK_GRID(grid), alex_att_label, x, 5, 1, 1);
+          GtkWidget *last_alex_att_b = NULL;
+          for (int i = 0; i <= 3; i++) {
+            gchar button_text[] = "xx dB";
+            sprintf(button_text, "%d dB", i*10);
+            GtkWidget *alex_att_b=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(last_alex_att_b), button_text);
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(alex_att_b), active_receiver->alex_attenuation == i);
+            gtk_grid_attach(GTK_GRID(grid), alex_att_b, x, 6 + i, 1, 1);
+            g_signal_connect(alex_att_b, "toggled", G_CALLBACK(alex_att_cb), (gpointer) (long) i);
+            last_alex_att_b = alex_att_b;
+          }
+        }
+        x++;
+        break;
+      default:
+        break;
+    }
   }
 
   int n_adc=1;

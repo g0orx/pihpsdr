@@ -67,6 +67,9 @@ static GtkWidget *agc_gain_label;
 static GtkWidget *agc_scale;
 static GtkWidget *attenuation_label;
 static GtkWidget *attenuation_scale;
+static GtkWidget *c25_att_preamp_label;
+static GtkWidget *c25_att_combobox;
+static GtkWidget *c25_preamp_combobox;
 static GtkWidget *mic_gain_label;
 static GtkWidget *mic_gain_scale;
 static GtkWidget *drive_label;
@@ -154,6 +157,49 @@ void set_attenuation_value(double value) {
     }
   }
   set_attenuation(adc_attenuation[active_receiver->adc]);
+}
+
+void update_att_preamp(void) {
+  if (filter_board == CHARLY25) {
+    char id[] = "x";
+    sprintf(id, "%d", active_receiver->alex_attenuation);
+    gtk_combo_box_set_active_id(GTK_COMBO_BOX(c25_att_combobox), id);
+    sprintf(id, "%d", active_receiver->preamp + active_receiver->dither);
+    gtk_combo_box_set_active_id(GTK_COMBO_BOX(c25_preamp_combobox), id);
+  }
+}
+
+void att_type_changed(void) {
+  if (filter_board == CHARLY25) {
+    gtk_widget_hide(attenuation_label);
+    gtk_widget_hide(attenuation_scale);
+    gtk_widget_show(c25_att_preamp_label);
+    gtk_widget_show(c25_att_combobox);
+    gtk_widget_show(c25_preamp_combobox);
+    update_att_preamp();
+  } else {
+    gtk_widget_hide(c25_att_preamp_label);
+    gtk_widget_hide(c25_att_combobox);
+    gtk_widget_hide(c25_preamp_combobox);
+    gtk_widget_show(attenuation_label);
+    gtk_widget_show(attenuation_scale);
+  }
+}
+
+static gboolean load_att_type_cb(gpointer data) {
+  att_type_changed();
+  return G_SOURCE_REMOVE;
+}
+
+static void c25_att_combobox_changed(GtkWidget *widget, gpointer data) {
+  int id = atoi(gtk_combo_box_get_active_id(GTK_COMBO_BOX(widget)));
+  set_alex_attenuation(id);
+}
+
+static void c25_preamp_combobox_changed(GtkWidget *widget, gpointer data) {
+  int id = atoi(gtk_combo_box_get_active_id(GTK_COMBO_BOX(widget)));
+  active_receiver->dither = id >= 2;
+  active_receiver->preamp = id >= 1;
 }
 
 static void agcgain_value_changed_cb(GtkWidget *widget, gpointer data) {
@@ -498,6 +544,25 @@ fprintf(stderr,"sliders_init: width=%d height=%d\n", width,height);
   gtk_widget_show(attenuation_scale);
   gtk_grid_attach(GTK_GRID(sliders),attenuation_scale,7,0,2,1);
   g_signal_connect(G_OBJECT(attenuation_scale),"value_changed",G_CALLBACK(attenuation_value_changed_cb),NULL);
+
+  c25_att_preamp_label = gtk_label_new("Att/PreAmp");
+  gtk_grid_attach(GTK_GRID(sliders), c25_att_preamp_label, 6, 0, 1, 1);
+
+  c25_att_combobox = gtk_combo_box_text_new();
+  gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(c25_att_combobox), "0", "0 dB");
+  gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(c25_att_combobox), "1", "-12 dB");
+  gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(c25_att_combobox), "2", "-24 dB");
+  gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(c25_att_combobox), "3", "-36 dB");
+  gtk_grid_attach(GTK_GRID(sliders), c25_att_combobox, 7, 0, 1, 1);
+  g_signal_connect(G_OBJECT(c25_att_combobox), "changed", G_CALLBACK(c25_att_combobox_changed), NULL);
+
+  c25_preamp_combobox = gtk_combo_box_text_new();
+  gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(c25_preamp_combobox), "0", "0 dB");
+  gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(c25_preamp_combobox), "1", "18 dB");
+  gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(c25_preamp_combobox), "2", "36 dB");
+  gtk_grid_attach(GTK_GRID(sliders), c25_preamp_combobox, 8, 0, 1, 1);
+  g_signal_connect(G_OBJECT(c25_preamp_combobox), "changed", G_CALLBACK(c25_preamp_combobox_changed), NULL);
+  g_idle_add(load_att_type_cb, NULL);
 
 
   mic_gain_label=gtk_label_new(mic_linein?"Linein:":"Mic (dB):");
