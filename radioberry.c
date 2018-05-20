@@ -54,7 +54,7 @@
 #define SPEED_192K                0x02
 #define SPEED_384K                0x03
 
-#define RECEIVED_SAMPLES 128
+#define RECEIVED_SAMPLES 64
 
 static GThread *radioberry_thread_id;
 static gpointer radioberry_thread(gpointer arg);
@@ -113,7 +113,7 @@ void radioberry_protocol_init(int rx,int pixels) {
 	fprintf(stderr,	"====================================================================\n");
 	fprintf(stderr, "                      Radioberry V2.0 beta 2.\n");
 	fprintf(stderr,	"\n");
-	fprintf(stderr, "                    PIHPSDR plugin version 11-5-2018 \n");
+	fprintf(stderr, "                    PIHPSDR plugin version 19-5-2018 \n");
 	fprintf(stderr,	"\n");
 	fprintf(stderr,	"\n");
 	fprintf(stderr, "                      Have fune Johan PA3GSB\n");
@@ -327,7 +327,7 @@ void rx1_spiReader(unsigned char iqdata[]) {
 	}
 	
 	iqdata[0] = (sampleSpeed[0] & 0x03);
-	iqdata[1] = (((active_receiver->random << 6) & 0x40) | ((active_receiver->dither <<5) & 0x20) |  (radioberry_attenuation & 0x1F));
+	iqdata[1] = (((active_receiver->random << 6) & 0x40) | (~(radioberry_attenuation & 0x2F)));
 	iqdata[2] = ((rxFrequency >> 24) & 0xFF);
 	iqdata[3] = ((rxFrequency >> 16) & 0xFF);
 	iqdata[4] = ((rxFrequency >> 8) & 0xFF);

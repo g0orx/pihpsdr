@@ -251,8 +251,11 @@ void encoder_menu(GtkWidget *parent,int e) {
   g_signal_connect(b_agc_gain,"pressed",G_CALLBACK(action_select_cb),(gpointer *)ENCODER_AGC_GAIN);
 
   row++;
-
-  b_attenuation=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_agc_gain),"Attenuation");
+#ifdef RADIOBERRY
+	b_attenuation=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_agc_gain),"RX GAIN");
+#else
+	b_attenuation=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(b_agc_gain),"Attenuation");
+#endif
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_attenuation), encoder_action==ENCODER_ATTENUATION);
   gtk_widget_show(b_attenuation);
   gtk_grid_attach(GTK_GRID(grid),b_attenuation,col,row,2,1);

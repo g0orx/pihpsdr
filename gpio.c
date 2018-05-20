@@ -212,7 +212,11 @@ static int running=0;
 char *encoder_string[] = {
 "AF GAIN",
 "AGC GAIN",
-"ATTENUATION",
+#ifdef RADIOBERRY
+	"RX-GAIN",
+#else
+	"ATTENUATION",
+#endif
 "MIC GAIN",
 "DRIVE",
 "RIT",
@@ -1265,9 +1269,15 @@ static encoder_changed(int action,int pos) {
       value+=(double)pos;
       if(value<0.0) {
         value=0.0;
-      } else if (value>31.0) {
-        value=31.0;
+#ifdef RADIOBERRY
+      } else if (value>60.0) {
+        value=60.0;
       }
+#else
+	  } else if (value>31.0) {
+        value=31.0;
+      }	
+#endif
       set_attenuation_value(value);
       break;
     case ENCODER_MIC_GAIN:
