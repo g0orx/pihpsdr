@@ -143,6 +143,7 @@ int receivers;
 
 int adc[2];
 int adc_attenuation[2];
+int rx_gain_slider[2];
 
 int locked;
 

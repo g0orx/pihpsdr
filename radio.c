@@ -468,6 +468,8 @@ fprintf(stderr,"title: length=%d\n", (int)strlen(text));
 
   adc_attenuation[0]=0;
   adc_attenuation[1]=0;
+  rx_gain_slider[0] = 0;
+  rx_gain_slider[1] = 0;
 
 //fprintf(stderr,"meter_calibration=%f display_calibration=%f\n", meter_calibration, display_calibration);
   radioRestoreState();

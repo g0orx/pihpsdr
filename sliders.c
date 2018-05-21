@@ -127,13 +127,10 @@ static void attenuation_value_changed_cb(GtkWidget *widget, gpointer data) {
   //from -12 to 0; the rx-gain slider functions as an att slider
   //from 0 - 48 db; the rx-gain slider functions as a gain slider with att = 0;
   //att set to 20 for good power measurement.
-  int rx_gain = (int)gtk_range_get_value(GTK_RANGE(attenuation_scale));
-  if (rx_gain > 12) {
-	  adc_attenuation[active_receiver->adc]= 20;
-  } else {
-	  adc_attenuation[active_receiver->adc]= 20 + (12- rx_gain);
-  }
-  set_attenuation(rx_gain);
+  int rx_gain_slider_value = (int)gtk_range_get_value(GTK_RANGE(attenuation_scale));
+  rx_gain_slider[active_receiver->adc]=rx_gain_slider_value;
+  adc_attenuation[active_receiver->adc]= MAX((12 - rx_gain_slider_value), 0);
+  set_attenuation(adc_attenuation[active_receiver->adc]);
 #else
   adc_attenuation[active_receiver->adc]=(int)gtk_range_get_value(GTK_RANGE(attenuation_scale));
   set_attenuation(adc_attenuation[active_receiver->adc]);

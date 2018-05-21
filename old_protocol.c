@@ -797,9 +797,18 @@ void ozy_send_buffer() {
     if(active_receiver->random) {
       output_buffer[C3]|=LT2208_RANDOM_ON;
     }
-    if(active_receiver->dither) {
-      output_buffer[C3]|=LT2208_DITHER_ON;
-    }
+#ifdef RADIOBERRY
+	if (rx_gain_slider[active_receiver->adc] > 31) 
+	{
+		output_buffer[C3]|=LT2208_DITHER_OFF;}
+	else {
+		output_buffer[C3]|=LT2208_DITHER_ON;
+	}
+#else
+	if(active_receiver->dither) {
+		output_buffer[C3]|=LT2208_DITHER_ON;
+	}
+#endif
     if(active_receiver->preamp) {
       output_buffer[C3]|=LT2208_GAIN_ON;
     }
@@ -1021,7 +1030,12 @@ void ozy_send_buffer() {
         if(radio->device==DEVICE_HERMES || radio->device==DEVICE_ANGELIA || radio->device==DEVICE_ORION || radio->device==DEVICE_ORION2) {
           output_buffer[C4]=0x20|adc_attenuation[receiver[0]->adc];
         } else {
-          output_buffer[C4]=0x00;
+#ifdef RADIOBERRY
+		  int att = 63 - rx_gain_slider[active_receiver->adc];
+          output_buffer[C4]=0x20|att;
+#else
+		  output_buffer[C4]=0x00;
+#endif
         }
         break;
       case 5:
