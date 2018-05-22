@@ -186,12 +186,7 @@ void general_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),vfo_divisor,4,2,1,1);
   g_signal_connect(vfo_divisor,"value_changed",G_CALLBACK(vfo_divisor_value_changed_cb),NULL);
 
-  if(protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL
-#ifdef RADIOBERRY
-  || protocol==RADIOBERRY_PROTOCOL) {
-#else
-	){
-#endif  
+  if(protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL){
 
     if((protocol==NEW_PROTOCOL && device==NEW_DEVICE_ORION) ||
        (protocol==NEW_PROTOCOL && device==NEW_DEVICE_ORION2) ||
@@ -218,10 +213,7 @@ void general_menu(GtkWidget *parent) {
       gtk_grid_attach(GTK_GRID(grid),bias_b,3,4,1,1);
       g_signal_connect(bias_b,"toggled",G_CALLBACK(bias_cb),NULL);
     }
-
-#ifdef RADIOBERRY
-  if (protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL) {
-#endif  
+ 
     GtkWidget *alex_b=gtk_check_button_new_with_label("ALEX");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (alex_b), filter_board==ALEX);
     gtk_grid_attach(GTK_GRID(grid),alex_b,1,1,1,1);
@@ -232,20 +224,12 @@ void general_menu(GtkWidget *parent) {
 
     g_signal_connect(alex_b,"toggled",G_CALLBACK(alex_cb),apollo_b);
     g_signal_connect(apollo_b,"toggled",G_CALLBACK(apollo_cb),alex_b);
-#ifdef RADIOBERRY
-	}
-#endif 
   }
 
   GtkWidget *sample_rate_label=gtk_label_new("Sample Rate:");
   gtk_grid_attach(GTK_GRID(grid),sample_rate_label,0,1,1,1);
 
-  if(protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL
- #ifdef RADIOBERRY
-  || protocol==RADIOBERRY_PROTOCOL) {
-#else
-	){
-#endif  
+  if(protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL){
     GtkWidget *sample_rate_48=gtk_radio_button_new_with_label(NULL,"48000");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sample_rate_48), sample_rate==48000);
     gtk_grid_attach(GTK_GRID(grid),sample_rate_48,0,2,1,1);

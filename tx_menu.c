@@ -204,12 +204,7 @@ void tx_menu(GtkWidget *parent) {
   row++;
   col=0;
 
-#ifdef RADIOBERRY
-  if(protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL || protocol==RADIOBERRY_PROTOCOL) {
-#else
   if(protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL) {
-#endif
-
     micin_b=gtk_radio_button_new_with_label_from_widget(NULL,"Mic In");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (micin_b), mic_linein==0);
     gtk_widget_show(micin_b);
@@ -407,11 +402,8 @@ void tx_menu(GtkWidget *parent) {
 
   gtk_widget_show_all(dialog);
 
-#ifdef RADIOBERRY
-	if(transmitter->local_microphone && (protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL || protocol==RADIOBERRY_PROTOCOL)) {
-#else
-	if(transmitter->local_microphone && (protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL)) {
-#endif
+
+  if(transmitter->local_microphone && (protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL)) {
     gtk_widget_hide(linein_b);
     gtk_widget_hide(micboost_b);
   }

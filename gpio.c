@@ -62,9 +62,6 @@
 
 int settle_time=DEFAULT_SETTLE_TIME;
 static gint release_timer=-1;
-#ifdef RADIOBERRY
-#include <pigpio.h>
-#endif
 
 #ifdef CONTROLLER2
 
@@ -1001,13 +998,6 @@ int gpio_init() {
   gpio_restore_state();
 
   wiringPiSetup(); // use WiringPi pin numbers
- 
-#ifdef RADIOBERRY 
-  	if (gpioInitialise() < 0) {
-		fprintf(stderr,"radioberry_protocol: gpio could not be initialized. \n");
-		exit(-1);
-	}
-#endif
 
   if(ENABLE_VFO_ENCODER) {
 #ifdef CONTROLLER2

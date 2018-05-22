@@ -37,12 +37,6 @@
 #ifdef USBOZY
 #include "ozyio.h"
 #endif
-#ifdef RADIOBERRY
-#include "radioberry_discovery.h"
-#endif
-#ifdef RADIOBERRY
-#include "radioberry.h"
-#endif
 #ifdef REMOTE
 #include "remote_radio.h"
 #endif
@@ -133,13 +127,8 @@ fprintf(stderr,"discovery\n");
   lime_discovery();
 #endif
 
-#ifdef RADIOBERRY
-      status_text("Radioberry SDR ... Discovering Device");
-      radioberry_discovery();
-#endif
   status_text("Discovery");
-
-
+  
   if(devices==0) {
     gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_ARROW));
     discovery_dialog = gtk_dialog_new();
@@ -242,11 +231,6 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
           sprintf(text,"%s",
                         d->name);
           break;
-#endif
-#ifdef RADIOBERRY
-				case RADIOBERRY_PROTOCOL:
-					sprintf(text,"%s\n",d->name);
-				break;
 #endif
 #ifdef STEMLAB_DISCOVERY
         case STEMLAB_PROTOCOL:

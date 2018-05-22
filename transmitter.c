@@ -305,11 +305,7 @@ static gboolean update_display(gpointer data) {
     double constant1=3.3;
     double constant2=0.095;
 
-#ifdef RADIOBERRY
-	if(protocol==ORIGINAL_PROTOCOL || protocol==RADIOBERRY_PROTOCOL) {
-#else
 	if(protocol==ORIGINAL_PROTOCOL) {
-#endif
       switch(device) {
         case DEVICE_METIS:
           constant1=3.3;
@@ -333,10 +329,6 @@ static gboolean update_display(gpointer data) {
           break;
         case DEVICE_HERMES_LITE:
           break;
-#ifdef RADIOBERRY
-		case RADIOBERRY_SPI_DEVICE:
-			break;
-#endif
       }
 
       int power=alex_forward_power;
@@ -387,12 +379,6 @@ static gboolean update_display(gpointer data) {
           constant1=3.3;
           constant2=0.09;
           break;
-#ifdef RADIOBERRY
-		case RADIOBERRY_SPI_DEVICE:
-			constant1=3.3;
-			constant2=0.09;
-			break;
-#endif
       }
 
       int power=alex_forward_power;
@@ -499,11 +485,7 @@ TRANSMITTER *create_transmitter(int id, int buffer_size, int fft_size, int fps, 
   tx->fft_size=fft_size;
   tx->fps=fps;
 
-#ifdef RADIOBERRY
-	if(protocol==ORIGINAL_PROTOCOL || protocol==RADIOBERRY_PROTOCOL) {
-#else
-	if(protocol==ORIGINAL_PROTOCOL) {
-#endif
+  if(protocol==ORIGINAL_PROTOCOL) {
     tx->mic_sample_rate=48000;
     tx->mic_dsp_rate=48000;
     tx->iq_output_rate=48000;
@@ -741,9 +723,6 @@ static void full_tx_buffer(TRANSMITTER *tx) {
   int mode;
 
   switch(protocol) {
-#ifdef RADIOBERRY
-    case RADIOBERRY_PROTOCOL:
-#endif
     case ORIGINAL_PROTOCOL:
       gain=32767.0;  // 16 bit
       break;
@@ -789,11 +768,6 @@ static void full_tx_buffer(TRANSMITTER *tx) {
         case NEW_PROTOCOL:
           new_protocol_iq_samples(isample,qsample);
           break;
-#ifdef RADIOBERRY
-        case RADIOBERRY_PROTOCOL:
-          radioberry_protocol_iq_samples(isample,qsample);
-          break;
-#endif
       }
     }
   }

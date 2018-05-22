@@ -140,7 +140,11 @@ static void attenuation_value_changed_cb(GtkWidget *widget, gpointer data) {
 void set_attenuation_value(double value) {
   adc_attenuation[active_receiver->adc]=(int)value;
   if(display_sliders) {
+#ifdef RADIOBERRY
+	gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)rx_gain_slider[active_receiver->adc]);
+#else
     gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc_attenuation[active_receiver->adc]);
+#endif
   } else {
     if(scale_status!=ATTENUATION) {
       if(scale_status!=NONE) {
@@ -519,10 +523,12 @@ fprintf(stderr,"sliders_init: width=%d height=%d\n", width,height);
 
 #ifdef RADIOBERRY
 	attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 60.0, 1.0);
+	gtk_range_set_value (GTK_RANGE(attenuation_scale),rx_gain_slider[active_receiver->adc]);
 #else
 	attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 31.0, 1.0);
+	gtk_range_set_value (GTK_RANGE(attenuation_scale),adc_attenuation[active_receiver->adc]);
 #endif
-  gtk_range_set_value (GTK_RANGE(attenuation_scale),adc_attenuation[active_receiver->adc]);
+  
   gtk_widget_show(attenuation_scale);
   gtk_grid_attach(GTK_GRID(sliders),attenuation_scale,7,0,2,1);
   g_signal_connect(G_OBJECT(attenuation_scale),"value_changed",G_CALLBACK(attenuation_value_changed_cb),NULL);
