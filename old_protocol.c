@@ -544,8 +544,13 @@ static void process_ozy_input_buffer(char  *buffer) {
 #ifdef PURESIGNAL
     nreceivers=(RECEIVERS*2)+1;
 #else
-    nreceivers=RECEIVERS;
+	#ifdef RADIOBERRY
+		nreceivers = receivers;
+	#else
+		nreceivers=RECEIVERS;
+	#endif
 #endif
+
     int iq_samples=(512-8)/((nreceivers*6)+2);
 
     for(i=0;i<iq_samples;i++) {
@@ -842,8 +847,13 @@ void ozy_send_buffer() {
     nreceivers=(RECEIVERS*2)-1;
     nreceivers+=1; // for PS TX Feedback
 #else
-    nreceivers=RECEIVERS-1;
+	#ifdef RADIOBERRY
+		nreceivers = receivers-1;
+	#else
+		nreceivers=RECEIVERS-1;
+	#endif
 #endif
+
     output_buffer[C4]|=nreceivers<<3;
     
     if(isTransmitting()) {
@@ -915,8 +925,13 @@ void ozy_send_buffer() {
 #ifdef PURESIGNAL
         nreceivers=(RECEIVERS*2)+1;
 #else
-        nreceivers=RECEIVERS;
+		#ifdef RADIOBERRY
+			nreceivers = receivers;
+		#else
+			nreceivers=RECEIVERS;
+		#endif
 #endif
+
         if(current_rx<nreceivers) {
           output_buffer[C0]=0x04+(current_rx*2);
 #ifdef PURESIGNAL
