@@ -45,9 +45,6 @@
 #include "new_menu.h"
 #include "new_protocol.h"
 #include "old_protocol.h"
-#ifdef RADIOBERRY
-#include "radioberry.h"
-#endif
 #include "store.h"
 #ifdef LIMESDR
 #include "lime_protocol.h"
@@ -431,11 +428,6 @@ fprintf(stderr,"title: length=%d\n", (int)strlen(text));
       sprintf(property_path,"limesdr.props");
       break;
 #endif
-#ifdef RADIOBERRY
-    case RADIOBERRY_PROTOCOL:
-      sprintf(property_path,"radioberry.props");
-      break;
-#endif
   }
 
   switch(radio->protocol) {
@@ -468,6 +460,8 @@ fprintf(stderr,"title: length=%d\n", (int)strlen(text));
 
   adc_attenuation[0]=0;
   adc_attenuation[1]=0;
+  rx_gain_slider[0] = 0;
+  rx_gain_slider[1] = 0;
 
 //fprintf(stderr,"meter_calibration=%f display_calibration=%f\n", meter_calibration, display_calibration);
   radioRestoreState();
@@ -577,11 +571,6 @@ fprintf(stderr,"Create %d receivers: height=%d\n",receivers,rx_height);
     case LIMESDR_PROTOCOL:
       lime_protocol_init(0,display_width,receiver[0]->sample_rate);
       break;
-#endif
-#ifdef RADIOBERRY
-	case RADIOBERRY_PROTOCOL:
-		radioberry_protocol_init(0,display_width);
-		break;
 #endif
   }
 
@@ -921,9 +910,6 @@ void setFrequency(long long f) {
   switch(protocol) {
     case NEW_PROTOCOL:
     case ORIGINAL_PROTOCOL:
-#ifdef RADIOBERRY
-	case RADIOBERRY_PROTOCOL:
-#endif
       if(vfo[v].ctun) {
         long long minf=vfo[v].frequency-(long long)(active_receiver->sample_rate/2);
         long long maxf=vfo[v].frequency+(long long)(active_receiver->sample_rate/2);
@@ -958,9 +944,6 @@ fprintf(stderr,"setFrequency: %lld\n",f);
       schedule_high_priority();
       break;
     case ORIGINAL_PROTOCOL:
-#ifdef RADIOBERRY
-	case RADIOBERRY_PROTOCOL:
-#endif
       break;
 #ifdef LIMESDR
     case LIMESDR_PROTOCOL:
@@ -1275,7 +1258,12 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     if(value) adc_attenuation[0]=atoi(value);
     value=getProperty("adc_1_attenuation");
     if(value) adc_attenuation[1]=atoi(value);
-
+	
+    value=getProperty("rx1_gain_slider");
+    if(value) rx_gain_slider[0]=atoi(value);
+    value=getProperty("rx2_gain_slider");
+	if(value) rx_gain_slider[1]=atoi(value);
+	
     sem_post(&property_sem);
 }
 
@@ -1442,7 +1430,12 @@ void radioSaveState() {
     setProperty("adc_0_attenuation",value);
     sprintf(value,"%d",adc_attenuation[1]);
     setProperty("adc_1_attenuation",value);
-
+	
+	sprintf(value,"%d",rx_gain_slider[0]);
+    setProperty("rx1_gain_slider",value);
+    sprintf(value,"%d",rx_gain_slider[1]);
+    setProperty("rx2_gain_slider",value);
+	
     vfo_save_state();
     sprintf(value,"%d",receivers);
     setProperty("receivers",value);

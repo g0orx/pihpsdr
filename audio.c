@@ -33,9 +33,6 @@
 
 #include "new_protocol.h"
 #include "old_protocol.h"
-#ifdef RADIOBERRY
-#include "radioberry.h"
-#endif
 #include "radio.h"
 #include "receiver.h"
 #include "audio.h"
@@ -198,11 +195,6 @@ fprintf(stderr,"audio_open_input: %d\n",transmitter->input_device);
     case NEW_PROTOCOL:
       mic_buffer_size = 64;
       break;
-#ifdef RADIOBERRY
-	case RADIOBERRY_PROTOCOL:
-		mic_buffer_size = 1024;
-		break;
-#endif
     default:
       break;
   }
@@ -432,11 +424,6 @@ fprintf(stderr,"mic_read_thread: mic_buffer_size=%d\n",mic_buffer_size);
         case NEW_PROTOCOL:
           new_protocol_process_local_mic(mic_buffer,1);
           break;
-#ifdef RADIOBERRY
-		case RADIOBERRY_PROTOCOL:
-			radioberry_protocol_process_local_mic(mic_buffer,1);
-			break;
-#endif
         default:
           break;
       }

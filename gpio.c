@@ -62,9 +62,6 @@
 
 int settle_time=DEFAULT_SETTLE_TIME;
 static gint release_timer=-1;
-#ifdef RADIOBERRY
-#include <pigpio.h>
-#endif
 
 #ifdef CONTROLLER2
 
@@ -212,7 +209,11 @@ static int running=0;
 char *encoder_string[] = {
 "AF GAIN",
 "AGC GAIN",
-"ATTENUATION",
+#ifdef RADIOBERRY
+	"RX-GAIN",
+#else
+	"ATTENUATION",
+#endif
 "MIC GAIN",
 "DRIVE",
 "RIT",
@@ -997,13 +998,6 @@ int gpio_init() {
   gpio_restore_state();
 
   wiringPiSetup(); // use WiringPi pin numbers
- 
-#ifdef RADIOBERRY 
-  	if (gpioInitialise() < 0) {
-		fprintf(stderr,"radioberry_protocol: gpio could not be initialized. \n");
-		exit(-1);
-	}
-#endif
 
   if(ENABLE_VFO_ENCODER) {
 #ifdef CONTROLLER2
@@ -1265,9 +1259,15 @@ static encoder_changed(int action,int pos) {
       value+=(double)pos;
       if(value<0.0) {
         value=0.0;
-      } else if (value>31.0) {
-        value=31.0;
+#ifdef RADIOBERRY
+      } else if (value>60.0) {
+        value=60.0;
       }
+#else
+	  } else if (value>31.0) {
+        value=31.0;
+      }	
+#endif
       set_attenuation_value(value);
       break;
     case ENCODER_MIC_GAIN:

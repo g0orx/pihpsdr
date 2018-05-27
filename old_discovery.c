@@ -178,7 +178,11 @@ fprintf(stderr,"discover_receive_thread\n");
                             strcpy(discovered[devices].name,"Orion");
                             break;
                         case DEVICE_HERMES_LITE:
-                            strcpy(discovered[devices].name,"Hermes Lite");
+							#ifdef RADIOBERRY
+								strcpy(discovered[devices].name,"Radioberry");
+							#else
+								strcpy(discovered[devices].name,"Hermes Lite");		
+							#endif
                             break;
                         case DEVICE_ORION2:
                             strcpy(discovered[devices].name,"Orion 2");
@@ -229,11 +233,18 @@ fprintf(stderr,"old_discovery\n");
     while (ifa) {
         g_main_context_iteration(NULL, 0);
         if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET) {
+			#ifdef RADIOBERRY
+			if((ifa->ifa_flags&IFF_UP)==IFF_UP
+                && (ifa->ifa_flags&IFF_RUNNING)==IFF_RUNNING) {
+				discover(ifa);
+			}
+			#else
             if((ifa->ifa_flags&IFF_UP)==IFF_UP
                 && (ifa->ifa_flags&IFF_RUNNING)==IFF_RUNNING
                 && (ifa->ifa_flags&IFF_LOOPBACK)!=IFF_LOOPBACK) {
                 discover(ifa);
             }
+			#endif 
         }
         ifa = ifa->ifa_next;
     }

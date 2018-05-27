@@ -68,11 +68,6 @@ static gboolean exit_cb (GtkWidget *widget, GdkEventButton *event, gpointer data
       lime_protocol_stop();
       break;
 #endif
-#ifdef RADIOBERRY
-	case RADIOBERRY_PROTOCOL:
-		radioberry_protocol_stop();
-		break;
-#endif
   }
   radioSaveState();
   _exit(0);
@@ -93,11 +88,6 @@ static gboolean reboot_cb (GtkWidget *widget, GdkEventButton *event, gpointer da
     case LIMESDR_PROTOCOL:
       lime_protocol_stop();
       break;
-#endif
-#ifdef RADIOBERRY
-	case RADIOBERRY_PROTOCOL:
-		radioberry_protocol_stop();
-		break;
 #endif
   }
   radioSaveState();
@@ -120,11 +110,6 @@ static gboolean shutdown_cb (GtkWidget *widget, GdkEventButton *event, gpointer 
     case LIMESDR_PROTOCOL:
       lime_protocol_stop();
       break;
-#endif
-#ifdef RADIOBERRY
-	case RADIOBERRY_PROTOCOL:
-		radioberry_protocol_stop();
-		break;
 #endif
   }
   radioSaveState();

@@ -52,9 +52,6 @@
 #include "freedv.h"
 #endif
 #include "audio_waterfall.h"
-#ifdef RADIOBERRY
-#include "radioberry.h"
-#endif
 #include "ext.h"
 #include "new_menu.h"
 
@@ -840,13 +837,7 @@ fprintf(stderr,"create_receiver: id=%d buffer_size=%d fft_size=%d pixels=%d fps=
       }
       switch(protocol) {
         case ORIGINAL_PROTOCOL:
-#ifdef RADIOBERRY
-		case RADIOBERRY_PROTOCOL:
-#endif
           switch(device) {
-#ifdef RADIOBERRY
-			case RADIOBERRY_SPI_DEVICE:
-#endif
             case DEVICE_METIS:
             case DEVICE_HERMES:
             case DEVICE_HERMES_LITE:			
@@ -1187,11 +1178,6 @@ static void process_freedv_rx_buffer(RECEIVER *rx) {
                 case LIMESDR_PROTOCOL:
                   break;
 #endif
-#ifdef RADIOBERRY
-                case RADIOBERRY_PROTOCOL:
-                  //no audio stream to radioberry hardware, using local audio of rpi.
-                  break;
-#endif
               }
             }
           }
@@ -1269,11 +1255,6 @@ static void process_rx_buffer(RECEIVER *rx) {
 #ifdef LIMESDR
         case LIMESDR_PROTOCOL:
           break;
-#endif
-#ifdef RADIOBERRY
-	case RADIOBERRY_PROTOCOL:
-		//no audio stream to radioberry hardware, using local audio of rpi.
-		break;
 #endif
       }
 

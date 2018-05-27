@@ -46,9 +46,6 @@
 #include "property.h"
 #include "new_menu.h"
 #include "button_text.h"
-#ifdef RADIOBERRY
-#include "radioberry.h"	
-#endif
 #include "ext.h"	
 
 #define MAX_FUNCTION 3
@@ -266,11 +263,6 @@ static void vox_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void stop() {
-#ifdef RADIOBERRY
-	if(protocol==RADIOBERRY_PROTOCOL) {
-		radioberry_protocol_stop();
-	}
-#endif
   if(protocol==ORIGINAL_PROTOCOL) {
     old_protocol_stop();
   } else {

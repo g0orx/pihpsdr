@@ -49,9 +49,6 @@
 #include "wdsp.h"
 #include "new_menu.h"
 #include "rigctl.h"
-#ifdef RADIOBERRY
-#include "radioberry.h"
-#endif
 #include "ext.h"
 #ifdef FREEDV
 #include "freedv.h"
