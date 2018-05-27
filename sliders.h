@@ -20,6 +20,9 @@
 #ifndef _SLIDERS_H
 #define _SLIDERS_H
 
+extern void att_type_changed(void);
+extern void update_att_preamp(void);
+
 extern int sliders_active_receiver_changed(void *data);
 extern void update_agc_gain(double gain);
 extern void update_af_gain();

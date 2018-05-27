@@ -171,7 +171,6 @@ static void resolver_found_cb(GaServiceResolver *resolver, AvahiIfIndex if_index
   device->info.network.interface_address = * (struct sockaddr_in *) current_if->ifa_addr;
   device->info.network.interface_netmask = * (struct sockaddr_in *) current_if->ifa_netmask;
   strcpy(device->info.network.interface_name, if_name);
-  fprintf(stderr, "|> Added STEMlab %.9s\n", name);
 }
 
 void resolver_failure_cb(GaServiceResolver *resolver, GError *error, gpointer data) {
@@ -187,6 +186,10 @@ static void new_service_cb(GaServiceBrowser *browser, gint if_index, GaProtocol 
   int mac_buffer = 0;
   if (1 != sscanf(name, "rp-%6x HTTP", &mac_buffer)) {
     return;
+  }
+  if (devices >= MAX_DEVICES) {
+    fprintf(stderr, ERROR_PREFIX "Maximum number of devices (%d) reached\n",
+        MAX_DEVICES);
   }
   if (protocol != AVAHI_PROTO_INET) {
     fprintf(stderr, ERROR_PREFIX "found %.9s via IPv6, skipping ...\n", name);
@@ -273,7 +276,6 @@ void stemlab_discovery(void) {
   while (!discovery_done || pending_callbacks > 0) {
     g_main_context_iteration(NULL, TRUE);
   }
-  fprintf(stderr, "|> STEMlab discovery done\n");
 }
 
 // This is essentially a no-op curl callback
@@ -287,11 +289,9 @@ static size_t app_start_callback(void *buffer, size_t size, size_t nmemb, void *
 
 void stemlab_start_app(const char * const app_id) {
   // Dummy string, using the longest possible app id
-  char app_start_url[] = "http://rp-ff00ff/bazaar?start=stemlab_sdr_transceiver_hpsdr";
-  sprintf(app_start_url, "http://rp-%02hhx%02hhx%02hhx/bazaar?start=%s",
-          radio->info.network.mac_address[3],
-          radio->info.network.mac_address[4],
-          radio->info.network.mac_address[5],
+  char app_start_url[] = "http://123.123.123.123/bazaar?start=stemlab_sdr_transceiver_hpsdr";
+  sprintf(app_start_url, "http://%s/bazaar?start=%s",
+          inet_ntoa(radio->info.network.address.sin_addr),
           app_id);
   CURL *curl_handle = curl_easy_init();
   if (curl_handle == NULL) {
@@ -301,7 +301,7 @@ void stemlab_start_app(const char * const app_id) {
   CURLcode curl_error = CURLE_OK;
 #define check_curl(description) do { \
   if (curl_error != CURLE_OK) { \
-    fprintf(stderr, "stemlab_start: " description "%s\n", \
+    fprintf(stderr, "stemlab_start: " description ": %s\n", \
         curl_easy_strerror(curl_error)); \
     exit(-1); \
   } \

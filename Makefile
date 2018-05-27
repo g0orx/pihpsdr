@@ -80,8 +80,9 @@ endif
 # uncomment the line below for LimeSDR (uncomment line below)
 #LIMESDR_INCLUDE=LIMESDR
 
-# uncomment the line below when Radioberry radio cape is plugged in (for now use emulator and old protocol)
-RADIOBERRY_INCLUDE=RADIOBERRY
+# uncomment the line below when Radioberry radio cape is plugged in
+#RADIOBERRY_INCLUDE=RADIOBERRY
+
 ifeq ($(RADIOBERRY_INCLUDE),RADIOBERRY)
 RADIOBERRY_OPTIONS=-D RADIOBERRY
 endif

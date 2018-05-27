@@ -230,10 +230,30 @@ void rx_menu(GtkWidget *parent) {
 #endif
   }
 
+<<<<<<< HEAD
+  switch(protocol) {
+    case ORIGINAL_PROTOCOL:
+    case NEW_PROTOCOL: 
+      {
+      GtkWidget *dither_b=gtk_check_button_new_with_label("Dither");
+      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (dither_b), active_receiver->dither);
+      gtk_grid_attach(GTK_GRID(grid),dither_b,x,2,1,1);
+      g_signal_connect(dither_b,"toggled",G_CALLBACK(dither_cb),NULL);
+
+      GtkWidget *random_b=gtk_check_button_new_with_label("Random");
+      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (random_b), active_receiver->random);
+      gtk_grid_attach(GTK_GRID(grid),random_b,x,3,1,1);
+      g_signal_connect(random_b,"toggled",G_CALLBACK(random_cb),NULL);
+
+      if((protocol==ORIGINAL_PROTOCOL && device==DEVICE_METIS) ||
+=======
   // The CHARLY25 board (with RedPitaya) has no support for dither or random,
   // so those are left out. PreAmps and Alex Attenuator are controlled via sliders.
   if (filter_board != CHARLY25) {
     switch(protocol) {
+#ifdef RADIOBERRY
+      case RADIOBERRY_PROTOCOL:
+#endif
       case ORIGINAL_PROTOCOL:
       case NEW_PROTOCOL:
         {
@@ -248,6 +268,7 @@ void rx_menu(GtkWidget *parent) {
           g_signal_connect(random_b,"toggled",G_CALLBACK(random_cb),NULL);
 
           if((protocol==ORIGINAL_PROTOCOL && device==DEVICE_METIS) ||
+>>>>>>> upstream/master
 #ifdef USBOZY
               (protocol==ORIGINAL_PROTOCOL && device==DEVICE_OZY) ||
 #endif
