@@ -17,6 +17,11 @@
 *
 */
 
+//
+// DL1YCF: If PortAudio is used instead of ALSO (e.g. on MacOS),
+//         this file is not used (and replaced by portaudio.c).
+
+#ifndef PORTAUDIO 
 
 #include <gtk/gtk.h>
 
@@ -528,3 +533,4 @@ fprintf(stderr,"output_device: %s\n",device_id);
   }
   snd_device_name_free_hint(hints);
 }
+#endif

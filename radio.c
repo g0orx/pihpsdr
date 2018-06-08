@@ -121,7 +121,11 @@ static gint save_timer_id;
 DISCOVERED *radio=NULL;
 
 char property_path[128];
+#ifdef __APPLE__
+sem_t *property_sem;
+#else
 sem_t property_sem;
+#endif
 
 RECEIVER *receiver[MAX_RECEIVERS];
 RECEIVER *active_receiver;
@@ -317,7 +321,8 @@ void reconfigure_radio() {
     } else {
       gtk_fixed_move(GTK_FIXED(fixed),sliders,0,y);
     }
-    gtk_widget_show_all(sliders);
+    gtk_widget_show_all(sliders);  // DL1YCF this shows both C25 and Alex ATT/Preamp sliders
+    att_type_changed();            // DL1YCF added here to hide the „wrong“ ones.
   } else {
     if(sliders!=NULL) {
       gtk_container_remove(GTK_CONTAINER(fixed),sliders); 
@@ -352,12 +357,21 @@ void start_radio() {
   gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_WATCH));
 
   int rc;
+#ifdef __APPLE__
+  property_sem=sem_open("PROPERTY", O_CREAT, 0700, 0);
+  rc=(property_sem == SEM_FAILED);
+#else
   rc=sem_init(&property_sem, 0, 0);
+#endif
   if(rc!=0) {
     fprintf(stderr,"start_radio: sem_init failed for property_sem: %d\n", rc);
     exit(-1);
   }
+#ifdef __APPLE__
+  sem_post(property_sem);
+#else
   sem_post(&property_sem);
+#endif
 
   char text[256];
   //for(i=0;i<devices;i++) {
@@ -1062,7 +1076,11 @@ void radioRestoreState() {
     char *value;
 
 fprintf(stderr,"radioRestoreState: %s\n",property_path);
+#ifdef __APPLE__
+    sem_wait(property_sem);
+#else
     sem_wait(&property_sem);
+#endif
     loadProperties(property_path);
 
     value=getProperty("region");
@@ -1264,14 +1282,22 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     value=getProperty("rx2_gain_slider");
 	if(value) rx_gain_slider[1]=atoi(value);
 	
+#ifdef __APPLE__
+    sem_post(property_sem);
+#else
     sem_post(&property_sem);
+#endif
 }
 
 void radioSaveState() {
     int i;
     char value[80];
 
+#ifdef __APPLE__
+    sem_wait(property_sem);
+#else
     sem_wait(&property_sem);
+#endif
     sprintf(value,"%d",region);
     setProperty("region",value);
     sprintf(value,"%d",buffer_size);
@@ -1457,7 +1483,11 @@ void radioSaveState() {
     setProperty("rigctl_port_base",value);
 
     saveProperties(property_path);
+#ifdef __APPLE__
+    sem_post(property_sem);
+#else
     sem_post(&property_sem);
+#endif
 }
 
 void calculate_display_average(RECEIVER *rx) {

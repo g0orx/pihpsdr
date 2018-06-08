@@ -144,7 +144,8 @@ tx_panadapter_motion_notify_event_cb (GtkWidget      *widget,
                                 &x,
                                 &y,
                                 &state);
-  if((state & GDK_BUTTON1_MASK == GDK_BUTTON1_MASK) || pressed) {
+  // DL1YCF: added a pair of () to fix an error
+  if(((state & GDK_BUTTON1_MASK) == GDK_BUTTON1_MASK) || pressed) {
     int moved=last_x-x;
     vfo_move((long long)((float)moved*hz_per_pixel));
     last_x=x;
@@ -164,6 +165,10 @@ tx_panadapter_scroll_event_cb (GtkWidget      *widget,
   } else {
     vfo_move(-step);
   }
+  // DL1YCF added return statement to make the compiler happy.
+  // however I am unsure about the correct return value.
+  // I would have coded this as a void function.
+  return FALSE;
 }
 
 void tx_panadapter_update(TRANSMITTER *tx) {

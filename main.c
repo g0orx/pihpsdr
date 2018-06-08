@@ -17,6 +17,13 @@
 *
 */
 
+// DL1YCF
+// Define maximum window size. 
+// Original values 800 and 480, but if the screen is large, why not using it?
+
+#define MAX_DISPLAY_WIDTH 1020
+#define MAX_DISPLAY_HEIGHT 700
+
 #include <gtk/gtk.h>
 #include <gdk/gdk.h>
 #include <math.h>
@@ -58,7 +65,11 @@ gint full_screen=1;
 
 static GtkWidget *discovery_dialog;
 
+#ifdef __APPLE__
+static sem_t *wisdom_sem;
+#else
 static sem_t wisdom_sem;
+#endif
 
 static GdkCursor *cursor_arrow;
 static GdkCursor *cursor_watch;
@@ -91,7 +102,12 @@ static void* wisdom_thread(void *arg) {
 fprintf(stderr,"Creating wisdom file: %s\n", (char *)arg);
   status_text("Creating FFTW Wisdom file ...");
   WDSPwisdom ((char *)arg);
+#ifdef __APPLE__
+  sem_post(wisdom_sem);
+#else
   sem_post(&wisdom_sem);
+#endif
+  return NULL;
 }
 
 gboolean main_delete (GtkWidget *widget) {
@@ -138,9 +154,18 @@ static int init(void *data) {
   strcpy(&wisdom_file[strlen(wisdom_file)],"wdspWisdom");
   status_text("Checking FFTW Wisdom file ...");
   if(access(wisdom_file,F_OK)<0) {
+#ifdef __APPLE__
+      int rc;
+      wisdom_sem=sem_open("WISDOM", O_CREAT, 0700, 0);
+#else
       int rc=sem_init(&wisdom_sem, 0, 0);
+#endif
       rc=pthread_create(&wisdom_thread_id, NULL, wisdom_thread, (void *)wisdom_directory);
+#ifdef __APPLE__
+      while(sem_trywait(wisdom_sem)<0) {
+#else
       while(sem_trywait(&wisdom_sem)<0) {
+#endif
         status_text(wisdom_get_status());
         while (gtk_events_pending ())
           gtk_main_iteration ();
@@ -178,21 +203,11 @@ static void activate_pihpsdr(GtkApplication *app, gpointer data) {
   display_height=gdk_screen_get_height(screen);
 
 fprintf(stderr,"width=%d height=%d\n", display_width, display_height);
-  if(display_width>800 || display_height>480) {
-/*
-    if(display_width>1600) {
-      display_width=1600;
-    } else {
-      display_width=800;
-    }
-    if(display_height>960) {
-      display_height=960;
-    } else {
-      display_height=480;
-    }
-*/
-    display_width=800;
-    display_height=480;
+
+  // DL1YCF: use define'd constants here
+  if(display_width>MAX_DISPLAY_WIDTH || display_height>MAX_DISPLAY_HEIGHT) {
+    display_width=MAX_DISPLAY_WIDTH;
+    display_height=MAX_DISPLAY_HEIGHT;
     full_screen=0;
   }
 

@@ -116,7 +116,11 @@ static int kcwr = 0;
 int *kdot;
 int *kdash;
 static int running = 0;
+#ifdef __APPLE__
+static sem_t *cw_event;
+#else
 static sem_t cw_event;
+#endif
 
 int keyer_out = 0;
 
@@ -160,7 +164,11 @@ void keyer_event(int gpio, int level) {
         kcwr = state;
 
     if (state || cw_keyer_mode == KEYER_STRAIGHT) {
+#ifdef __APPLE__
+        sem_post(cw_event);
+#else
         sem_post(&cw_event);
+#endif
     }
 }
 #endif
@@ -197,7 +205,11 @@ static void* keyer_thread(void *arg) {
 
 fprintf(stderr,"keyer_thread  state running= %d\n", running);
     while(running) {
+#ifdef __APPLE__
+        sem_wait(cw_event);
+#else
         sem_wait(&cw_event);
+#endif
 
         key_state = CHECK;
 
@@ -390,7 +402,12 @@ int keyer_init() {
         softToneCreate(SIDETONE_GPIO);
     }
 
+#ifdef __APPLE__
+    cw_event=sem_open("CW", O_CREAT, 0700, 0);
+    rc = (cw_event == SEM_FAILED);
+#else
     rc = sem_init(&cw_event, 0, 0);
+#endif
     rc |= pthread_create(&keyer_thread_id, NULL, keyer_thread, NULL);
     running = 1;
     if(rc < 0) {

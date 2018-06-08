@@ -73,7 +73,18 @@ int data_socket=-1;
 
 static int running;
 
+#ifdef __APPLE__
+//
+//DL1YCF:
+//Mac OS does not have sem_init for un-named semaphores,
+//we have to use named semaphores created with sem_open.
+//As a side effect, we consistently have to use sem_t
+//pointers instead of sem_t variables
+//
+sem_t *response_sem;
+#else
 sem_t response_sem;
+#endif
 
 static struct sockaddr_in base_addr;
 static int base_addr_length;
@@ -137,17 +148,37 @@ static int response;
 //static sem_t send_general_sem;
 //static int send_general=0;
 
+#ifdef __APPLE__
+static sem_t *command_response_sem_ready;
+static sem_t *command_response_sem_buffer;
+#else
 static sem_t command_response_sem_ready;
 static sem_t command_response_sem_buffer;
+#endif
 static GThread *command_response_thread_id;
+#ifdef __APPLE__
+static sem_t *high_priority_sem_ready;
+static sem_t *high_priority_sem_buffer;
+#else
 static sem_t high_priority_sem_ready;
 static sem_t high_priority_sem_buffer;
+#endif
 static GThread *high_priority_thread_id;
+#ifdef __APPLE__
+static sem_t *mic_line_sem_ready;
+static sem_t *mic_line_sem_buffer;
+#else
 static sem_t mic_line_sem_ready;
 static sem_t mic_line_sem_buffer;
+#endif
 static GThread *mic_line_thread_id;
+#ifdef __APPLE__
+static sem_t *iq_sem_ready[MAX_RECEIVERS];
+static sem_t *iq_sem_buffer[MAX_RECEIVERS];
+#else
 static sem_t iq_sem_ready[MAX_RECEIVERS];
 static sem_t iq_sem_buffer[MAX_RECEIVERS];
+#endif
 static GThread *iq_thread_id[MAX_RECEIVERS];
 
 static int samples[MAX_RECEIVERS];
@@ -169,7 +200,8 @@ static int psk_resample=6;  // convert from 48000 to 8000
 #define NET_BUFFER_SIZE 2048
 // Network buffers
 static struct sockaddr_in addr;
-static int length;
+// DL1YCF next line: changed int to socklen_t
+static socklen_t length;
 //static unsigned char buffer[NET_BUFFER_SIZE];
 static unsigned char *iq_buffer[MAX_RECEIVERS];
 static unsigned char *command_response_buffer;
@@ -296,28 +328,47 @@ void new_protocol_init(int pixels) {
     new_protocol_calc_buffers();
 #endif
 
+#ifdef __APPLE__
+    response_sem=sem_open("RESPONSE", O_CREAT, 0700, 0);
+#else
     rc=sem_init(&response_sem, 0, 0);
+#endif
     //rc=sem_init(&send_high_priority_sem, 0, 1);
     //rc=sem_init(&send_general_sem, 0, 1);
 
+#ifdef __APPLE__
+    command_response_sem_ready=sem_open("COMMRESREADY", O_CREAT, 0700, 0);
+    command_response_sem_buffer=sem_open("COMMRESBUF", O_CREAT, 0700, 0);
+#else
     rc=sem_init(&command_response_sem_ready, 0, 0);
     rc=sem_init(&command_response_sem_buffer, 0, 0);
+#endif
     command_response_thread_id = g_thread_new( "command_response thread",command_response_thread, NULL);
     if( ! command_response_thread_id ) {
       fprintf(stderr,"g_thread_new failed on command_response_thread\n");
       exit( -1 );
     }
     fprintf(stderr, "command_response_thread: id=%p\n",command_response_thread_id);
+#ifdef __APPLE__
+    high_priority_sem_ready=sem_open("HIGHREADY", O_CREAT, 0700, 0);
+    high_priority_sem_buffer=sem_open("HIGHBUF",   O_CREAT, 0700, 0);
+#else
     rc=sem_init(&high_priority_sem_ready, 0, 0);
     rc=sem_init(&high_priority_sem_buffer, 0, 0);
+#endif
     high_priority_thread_id = g_thread_new( "high_priority thread", high_priority_thread, NULL);
     if( ! high_priority_thread_id ) {
       fprintf(stderr,"g_thread_new failed on high_priority_thread\n");
       exit( -1 );
     }
     fprintf(stderr, "high_priority_thread: id=%p\n",high_priority_thread_id);
+#ifdef __APPLE__
+    mic_line_sem_ready=sem_open("MICREADY", O_CREAT, 0700, 0);
+    mic_line_sem_buffer=sem_open("MICBUF",   O_CREAT, 0700, 0);
+#else
     rc=sem_init(&mic_line_sem_ready, 0, 0);
     rc=sem_init(&mic_line_sem_buffer, 0, 0);
+#endif
     mic_line_thread_id = g_thread_new( "mic_line thread", mic_line_thread, NULL);
     if( ! mic_line_thread_id ) {
       fprintf(stderr,"g_thread_new failed on mic_line_thread\n");
@@ -326,23 +377,45 @@ void new_protocol_init(int pixels) {
     fprintf(stderr, "mic_line_thread: id=%p\n",mic_line_thread_id);
 
     for(i=0;i<RECEIVERS;i++) {
+#ifdef __APPLE__
+      char sname[12];
+#endif
       ddc=receiver[i]->ddc;
+#ifdef __APPLE__
+      sprintf(sname,"IQREADY%03d", ddc);
+      iq_sem_ready[ddc]=sem_open(sname, O_CREAT, 0700, 0);
+      sprintf(sname,"IQBUF%03d", ddc);
+      iq_sem_buffer[ddc]=sem_open(sname, O_CREAT, 0700, 0);
+#else
       rc=sem_init(&iq_sem_ready[ddc], 0, 0);
       rc=sem_init(&iq_sem_buffer[ddc], 0, 0);
+#endif
       iq_thread_id[ddc] = g_thread_new( "iq thread", iq_thread, (gpointer)(long)i);
-      if( ! iq_thread_id ) {
-        fprintf(stderr,"g_thread_new failed for iq_thread: rx=%d\n",i);
-        exit( -1 );
-      }
+      //DL1YCF: g_thread new always returns a value, upon failure the program aborts
+      //        so the next four lines have been deactivated.
+      //if( ! iq_thread_id ) {
+      //  fprintf(stderr,"g_thread_new failed for iq_thread: rx=%d\n",i);
+      //  exit( -1 );
+      //}
       fprintf(stderr, "iq_thread: rx=%d ddc=%d thread=%p\n",i, ddc, iq_thread_id);
     }
 
 #ifdef PURESIGNAL
     // for PS the two feedback streams are synced on the one DDC
     if(device!=NEW_DEVICE_HERMES) {
+#ifdef __APPLE__
+      char sname[12];
+#endif
       ddc=receiver[PS_TX_FEEDBACK]->ddc;
+#ifdef __APPLE__
+      sprintf(sname,"IQREADY%03d", ddc);
+      iq_sem_ready[ddc]=sem_open(sname, O_CREAT, 0700, 0);
+      sprintf(sname,"IQBUF%03d", ddc);
+      iq_sem_buffer[ddc]=sem_open(sname, O_CREAT, 0700, 0);
+#else
       rc=sem_init(&iq_sem_ready[ddc], 0, 0);
       rc=sem_init(&iq_sem_buffer[ddc], 0, 0);
+#endif
       iq_thread_id[ddc] = g_thread_new( "ps iq thread", ps_iq_thread, (gpointer)(long)PS_TX_FEEDBACK);
       if( ! iq_thread_id ) {
         fprintf(stderr,"g_thread_new failed for ps_iq_thread: rx=%d\n",PS_TX_FEEDBACK);
@@ -1144,28 +1217,60 @@ fprintf(stderr,"new_protocol_thread: high_priority_addr setup for port %d\n",HIG
               if(ddc>=MAX_RECEIVERS)  {
                 fprintf(stderr,"unexpected iq data from ddc %d\n",ddc);
               } else {
+#ifdef __APPLE__
+                sem_wait(iq_sem_ready[ddc]);
+#else
                 sem_wait(&iq_sem_ready[ddc]);
+#endif
                 iq_buffer[ddc]=buffer;
+#ifdef __APPLE__
+                sem_post(iq_sem_buffer[ddc]);
+#else
                 sem_post(&iq_sem_buffer[ddc]);
+#endif
               }
               break;
             case COMMAND_RESPONCE_TO_HOST_PORT:
+#ifdef __APPLE__
+              sem_wait(command_response_sem_ready);
+#else
               sem_wait(&command_response_sem_ready);
+#endif
               command_response_buffer=buffer;
+#ifdef __APPLE__
+              sem_post(command_response_sem_buffer);
+#else
               sem_post(&command_response_sem_buffer);
+#endif
               //process_command_response();
               break;
             case HIGH_PRIORITY_TO_HOST_PORT:
+#ifdef __APPLE__
+              sem_wait(high_priority_sem_ready);
+#else
               sem_wait(&high_priority_sem_ready);
+#endif
               high_priority_buffer=buffer;
+#ifdef __APPLE__
+              sem_post(high_priority_sem_buffer);
+#else
               sem_post(&high_priority_sem_buffer);
+#endif
               //process_high_priority();
               break;
             case MIC_LINE_TO_HOST_PORT:
+#ifdef __APPLE__
+              sem_wait(mic_line_sem_ready);
+#else
               sem_wait(&mic_line_sem_ready);
+#endif
               mic_line_buffer=buffer;
               mic_bytes_read=bytesread;
+#ifdef __APPLE__
+              sem_post(mic_line_sem_buffer);
+#else
               sem_post(&mic_line_sem_buffer);
+#endif
               break;
             default:
 fprintf(stderr,"new_protocol_thread: Unknown port %d\n",sourceport);
@@ -1175,13 +1280,19 @@ fprintf(stderr,"new_protocol_thread: Unknown port %d\n",sourceport);
     }
 
     close(data_socket);
+    return NULL;
 }
 
 static gpointer command_response_thread(gpointer data) {
   while(1) {
 fprintf(stderr,"command_response_thread\n");
+#ifdef __APPLE__
+    sem_post(command_response_sem_ready);
+    sem_wait(command_response_sem_buffer);
+#else
     sem_post(&command_response_sem_ready);
     sem_wait(&command_response_sem_buffer);
+#endif
     process_command_response();
     free(command_response_buffer);
   }
@@ -1190,8 +1301,13 @@ fprintf(stderr,"command_response_thread\n");
 static gpointer high_priority_thread(gpointer data) {
 fprintf(stderr,"high_priority_thread\n");
   while(1) {
+#ifdef __APPLE__
+    sem_post(high_priority_sem_ready);
+    sem_wait(high_priority_sem_buffer);
+#else
     sem_post(&high_priority_sem_ready);
     sem_wait(&high_priority_sem_buffer);
+#endif
     process_high_priority();
     free(high_priority_buffer);
   }
@@ -1200,8 +1316,13 @@ fprintf(stderr,"high_priority_thread\n");
 static gpointer mic_line_thread(gpointer data) {
 fprintf(stderr,"mic_line_thread\n");
   while(1) {
+#ifdef __APPLE__
+    sem_post(mic_line_sem_ready);
+    sem_wait(mic_line_sem_buffer);
+#else
     sem_post(&mic_line_sem_ready);
     sem_wait(&mic_line_sem_buffer);
+#endif
     if(!transmitter->local_microphone) {
       process_mic_data(mic_bytes_read);
     }
@@ -1214,8 +1335,13 @@ static gpointer iq_thread(gpointer data) {
   int ddc=receiver[rx]->ddc;
 fprintf(stderr,"iq_thread: rx=%d ddc=%d\n",rx,ddc);
   while(1) {
+#ifdef __APPLE__
+    sem_post(iq_sem_ready[ddc]);
+    sem_wait(iq_sem_buffer[ddc]);
+#else
     sem_post(&iq_sem_ready[ddc]);
     sem_wait(&iq_sem_buffer[ddc]);
+#endif
     process_iq_data(receiver[rx]);
     free(iq_buffer[ddc]);
   }
@@ -1227,8 +1353,13 @@ static gpointer ps_iq_thread(gpointer data) {
   int ddc=receiver[rx]->ddc;
 fprintf(stderr,"ps_iq_thread: rx=%d ddc=%d\n",rx,ddc);
   while(1) {
+#ifdef __APPLE__
+    sem_post(iq_sem_ready[ddc]);
+    sem_wait(iq_sem_buffer[ddc]);
+#else
     sem_post(&iq_sem_ready[ddc]);
     sem_wait(&iq_sem_buffer[ddc]);
+#endif
     process_ps_iq_data(receiver[rx]);
     free(iq_buffer[ddc]);
   }
@@ -1257,7 +1388,8 @@ static void process_iq_data(RECEIVER *rx) {
   }
   rx->iq_sequence++;
 
-  timestamp=((long long)(buffer[4]&0xFF)<<56)+((long long)(buffer[5]&0xFF)<<48)+((long long)(buffer[6]&0xFF)<<40)+((long long)(buffer[7]&0xFF)<<32);
+// DL1YCF: changed semicolon at end of next line to a plus sign
+  timestamp=((long long)(buffer[4]&0xFF)<<56)+((long long)(buffer[5]&0xFF)<<48)+((long long)(buffer[6]&0xFF)<<40)+((long long)(buffer[7]&0xFF)<<32)+
   ((long long)(buffer[8]&0xFF)<<24)+((long long)(buffer[9]&0xFF)<<16)+((long long)(buffer[10]&0xFF)<<8)+(long long)(buffer[11]&0xFF);
   bitspersample=((buffer[12]&0xFF)<<8)+(buffer[13]&0xFF);
   samplesperframe=((buffer[14]&0xFF)<<8)+(buffer[15]&0xFF);
@@ -1378,7 +1510,11 @@ static void process_command_response() {
     response_sequence=((command_response_buffer[0]&0xFF)<<24)+((command_response_buffer[1]&0xFF)<<16)+((command_response_buffer[2]&0xFF)<<8)+(command_response_buffer[3]&0xFF);
     response=command_response_buffer[4]&0xFF;
     fprintf(stderr,"response_sequence=%ld response=%d\n",response_sequence,response);
+#ifdef __APPLE__
+    sem_post(response_sem);
+#else
     sem_post(&response_sem);
+#endif
 }
 
 static void process_high_priority(unsigned char *buffer) {
@@ -1424,7 +1560,10 @@ static void process_mic_data(int bytes) {
   sequence=((mic_line_buffer[0]&0xFF)<<24)+((mic_line_buffer[1]&0xFF)<<16)+((mic_line_buffer[2]&0xFF)<<8)+(mic_line_buffer[3]&0xFF);
   b=4;
   for(i=0;i<MIC_SAMPLES;i++) {
-    sample=(short)((mic_line_buffer[b++]<<8) | (mic_line_buffer[b++]&0xFF));
+    // DL1YCF: changed this to two statements such that the order of pointer increments
+    //         becomes clearly defined.
+    sample=(short)(mic_line_buffer[b++]<<8);
+    sample |= (short) (mic_line_buffer[b++]&0xFF);
 #ifdef FREEDV
     if(active_receiver->freedv) {
       add_freedv_mic_sample(transmitter,sample);
@@ -1445,9 +1584,15 @@ void new_protocol_process_local_mic(unsigned char *buffer,int le) {
   b=0;
   for(i=0;i<MIC_SAMPLES;i++) {
     if(le) {
-      sample = (short)((buffer[b++]&0xFF) | (buffer[b++]<<8));
+      // DL1YCF: changed this to two statements such that the order of pointer increments
+      //         becomes clearly defined.
+      sample = (short)(buffer[b++]&0xFF);
+      sample |= (short) (buffer[b++]<<8);
     } else {
-      sample = (short)((buffer[b++]<<8) | (buffer[b++]&0xFF));
+      // DL1YCF: changed this to two statements such that the order of pointer increments
+      //         becomes clearly defined.
+      sample = (short)(buffer[b++]<<8);
+      sample |= (short) (buffer[b++]&0xFF);
     }
 #ifdef FREEDV
     if(active_receiver->freedv) {
@@ -1533,4 +1678,6 @@ fprintf(stderr,"new_protocol_timer_thread\n");
 //      }
 //    }
   }
+  // DL1YCF: added return statement to make compiler happy.
+  return NULL;
 }

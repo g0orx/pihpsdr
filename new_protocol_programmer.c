@@ -172,7 +172,11 @@ void *programmer_thread(void *arg) {
     // wait for the response to the erase command
     clock_gettime(CLOCK_REALTIME, &ts);
     ts.tv_sec+=120; // wait for 30 seconds
+#ifdef __APPLE__
+    result=sem_trywait(response_sem);
+#else
     result=sem_timedwait(&response_sem,&ts);
+#endif
     if(result==-1) {
         if(errno == ETIMEDOUT) {
             fprintf(stderr,"timedout waiting for response for erase (start)\n");
@@ -190,7 +194,11 @@ void *programmer_thread(void *arg) {
     // wait for the erase to complete
     clock_gettime(CLOCK_REALTIME, &ts);
     ts.tv_sec+=120; // wait for 30 seconds
+#ifdef __APPLE__
+    result=sem_trywait(response_sem);
+#else
     result=sem_timedwait(&response_sem,&ts);
+#endif
     if(result==-1) {
         if(errno == ETIMEDOUT) {
             fprintf(stderr,"timedout waiting for response for erase (complete)\n");
@@ -211,7 +219,11 @@ void *programmer_thread(void *arg) {
         programmer_send_block(b);
         clock_gettime(CLOCK_REALTIME, &ts);
         ts.tv_sec+=5; // wait for 5 seconds
+#ifdef __APPLE__
+        result=sem_trywait(response_sem);
+#else
         result=sem_timedwait(&response_sem,&ts);
+#endif
         if(result==-1) {
             if(errno == ETIMEDOUT) {
                 fprintf(stderr,"timedout waiting for response for sent block\n");
@@ -227,5 +239,7 @@ void *programmer_thread(void *arg) {
         }
         block_sequence++;
     }
-    
+
+    // DL1YCF added return statement to make compiler happy.
+    return NULL;    
 }

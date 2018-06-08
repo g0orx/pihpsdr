@@ -1,0 +1,141 @@
+===============================================================
+=                                                             =
+= piHPSDR on the Macintosh.                                   =
+=                                                             =
+= Port done by DL1YCF Christoph van Wullen.                   =
+=                                                             =
+===============================================================
+
+
+
+============================
+NOTES ON CHANGES IN THE CODE
+============================
+
+To make piHPSDR work on MacOS, I had to do two major things:
+
+a) Semaphores: MacOS does not have sem_t variables, only
+   sem_t pointers that must not be dereferences. Therefore
+   it has no working sem_init.
+   On MacOS one must use sem_open instead and use sem_t
+   pointers instead of sem_t variable throughout. This is
+   not recommended for LINUX, since named semaphores stay
+   alive even when the program terminates (on MacOS, all
+   semaphores are automatically destroyed). Therefore
+   *every* declaration of sem_t variable and *every*
+   call to semaphore functions had to be modified. Everything
+   is coded as
+
+#ifdef __APPLE__
+  use sem_t pointers
+#else
+  usem_t variables
+#endif
+
+   NOTE this change also applies to WDSP.
+
+b) Audio: MacOS does not have ALSA, therefore an additional
+   file portaudio.c is provided that is a functional duplicate
+   of audio.c. The whole file audio.c is not "protected with
+
+#ifndef PORTAUDIO
+everything in audio.c
+#endif
+
+  and the new file portaudio.c consequently reads
+
+#ifdef PORTAUDIO
+everything in portaudio.c
+#endif
+
+  such that one can link and compile both files. As an additional benefit,
+  the PortAudio module also offeres a two-tone generator as TX "mic" input.
+
+c) Only relevant for STEMLAB/HAMLAB: the "special" code that starts the
+   HPSDR application on the RedPitaya board via a browser interface relies
+   on AVAHI to detect the RedPitaya board. This does not work on MacOS
+   since we do not have AVAHI. However, libcurl is available on MacOS.
+   Therefore I provide a stripped-down version in the file stemlab_discovery.c
+   which assumes that the RedPitaya board is accessible by a fixed 
+   IP address. This address is read from $HOME/.rp.inet and set to 192.168.1.3
+   if this file could not be read.
+   If your STEMlab/HAMlab is then there, the list of applications is obtained
+   and the HPSDR application with highest priority is started, the priority
+   defined through the following list (first line = highest priority)
+
+   hamlab_sdr_transceiver_hpsdr
+   stemlab_sdr_transceiver_hpsdr
+   sdr_transceiver_hpsdr
+   sdr_receiver_hpsdr
+
+=============
+PREREQUISITES
+=============
+
+Since Audio and GUI are OpenSource and not Apple-specific, one needs some
+third-party libraries to link the program. Most recommended is to use
+"homebrew". You will need portaudio and gtk+3 for piHPSDR, and
+fftw3 for wdsp (which you have to compile separately). Note that packages
+such as gtk+3 depend on other packages, but these are automatically installed
+by homebrew.  The Makefile itself relies on pkg-config to determine the
+compile and link flags for certain external software.
+
+Of course, you need the Xcode command line tools (make, gcc, and friends).
+
+Before you compile piHPSDR, you need to compile wdsp. Using the Mac-Makefile
+there, "make install" will put libwdsp.dylib in /usr/local/lib. This is needed
+by piHPSDR.
+
+===================
+COMPILE and INSTALL
+===================
+
+
+That's easy. Just adjust the Makefile according to the instructions found there
+and type "make". In my case (I have a HAMLAB RedPitaya-based SDR box), I need
+the following options in the Makefile (and have all others commented out):
+
+PORTAUDIO_INCLUDE=PORTAUDIO
+STEMLAB_FIX_OPTION=-DSTEMLAB_FIX
+STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_MAC
+UNAME_N=MacOS
+
+The first one activates the PortAudio code and disables the Linux ALSA
+code, the second option activates some work-arounds around some RedPitaya
+HPSDR application bugs (this is also required if you are NOT using MacOS),
+and the third option activates code to start the HPSDR program on a RedPitaya
+before the actual discovery stuff takes place.
+
+Note: never un-comment the lines containing LIBRT, GPI_INCLUDE, I2C_INCLUDE,
+SX1509_INCLUDE, or LOCALCW_INCLUDE. This software/hardware is not present on a Mac.
+
+As a result of "make", you get an executable file "pihpsdr" which you
+can start from the terminal. With "make app" you can make a click-able
+MacOS application bundle. However note that this bundle is not self-contained:
+it needs a working gtk+3 environment. To put all this into an app bundle
+would create an app file hundreds of MByte long: you need all those pixbuf
+loaders etc. etc. etc. installed.
+
+What we do is to include portaudio, WDSP, fftw3 and some other libs into the bundle.
+
+
+===========================
+piHPSDR and wsjtx or fldigi
+===========================
+
+a) CAT control: use hamlib, and choose "OpenHPSDR piHPSDR" radio model and
+   e.g. port number 19090.  Then, activate rigctl in the piHPSDR menu, choosing
+   the same port number there.
+
+b) Audio: here you need the "SoundFlower" free-software program for MacOS, that
+   provides virtual audio cables. I have stripped down this somewhat, it now provides
+   two stero devices (named VAC A and VAC B) and has less overhead, since audio data
+   is no longer processed (no volume control) but simply moved: after all, this is what
+   a "cable" is supposed to do.
+   
+   For example, you can Choose "VAC A" as the RX output device and "VAC B" as the
+   TX input (mic) device in piHPSDR, and choose "VAC B" as the output device and "VAC A"
+   as the input device in fldigi or wsjt-x.
+   The modified version of SoundFlower is available on my github account, github.com/dl1ycf,
+   with the name MacOSVirtualAudioCable.
+   

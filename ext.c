@@ -44,6 +44,10 @@ int ext_discovery(void *data) {
 int ext_set_frequency(void *data) {
   setFrequency(*(long long *)data);
   free(data);
+  // DL1YCF added return statement
+  // this one is CRITICAL to avoid free() being called 
+  // repeatedly on the same pointer
+  return 0;
 }
 
 int ext_vfo_update(void *data) {
@@ -67,14 +71,20 @@ int ext_band_update(void *data) {
 
 int ext_mode_update(void *data) {
   start_mode();
+  // DL1YCF added return statement
+  return 0;
 }
 
 int ext_filter_update(void *data) {
   start_filter();
+  // DL1YCF added return statement
+  return 0;
 }
 
 int ext_noise_update(void *data) {
   start_noise();
+  // DL1YCF added return statement
+  return 0;
 }
 
 int ext_ptt_update(void *data) {

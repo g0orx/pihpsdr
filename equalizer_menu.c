@@ -70,6 +70,10 @@ static gboolean tx_rb_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
     gtk_range_set_value(GTK_RANGE(mid_scale),(double)tx_equalizer[2]);
     gtk_range_set_value(GTK_RANGE(high_scale),(double)tx_equalizer[3]);
   }
+  // DL1YCF added return statement to make the compiler happy.
+  // however I am unsure about the correct return value.
+  // I would have coded this as a void function.
+  return FALSE;
 }
 
 static gboolean rx_rb_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
@@ -82,6 +86,10 @@ static gboolean rx_rb_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
     gtk_range_set_value(GTK_RANGE(mid_scale),(double)rx_equalizer[2]);
     gtk_range_set_value(GTK_RANGE(high_scale),(double)rx_equalizer[3]);
   }
+  // DL1YCF added return statement to make the compiler happy.
+  // however I am unsure about the correct return value.
+  // I would have coded this as a void function.
+  return FALSE;
 }
 
 static gboolean enable_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
@@ -92,6 +100,10 @@ static gboolean enable_cb (GtkWidget *widget, GdkEventButton *event, gpointer da
     enable_rx_equalizer=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
     SetRXAEQRun(active_receiver->id, enable_rx_equalizer);
   }
+  // DL1YCF added return statement to make the compiler happy.
+  // however I am unsure about the correct return value.
+  // I would have coded this as a void function.
+  return FALSE;
 }
 
 static void value_changed_cb (GtkWidget *widget, gpointer data) {

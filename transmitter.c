@@ -63,6 +63,8 @@ static int waterfall_resample=8;
 
 int key = 0;
 
+// DL1YCF added next line.
+extern void cw_audio_write(double sample);
 static gint update_out_of_band(gpointer data) {
   TRANSMITTER *tx=(TRANSMITTER *)data;
   tx->out_of_band=0;

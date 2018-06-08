@@ -160,6 +160,10 @@ static void local_input_changed_cb(GtkWidget *widget, gpointer data) {
 static gboolean emp_cb (GtkWidget *widget, gpointer data) {
   pre_emphasize=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
   tx_set_pre_emphasize(transmitter,pre_emphasize);
+  // DL1YCF added return statement to make the compiler happy.
+  // however I am unsure about the correct return value.
+  // I would have coded this as a void function.
+  return FALSE;
 }
 
 static void tune_value_changed_cb(GtkWidget *widget, gpointer data) {

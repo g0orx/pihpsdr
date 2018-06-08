@@ -20,7 +20,11 @@
 #define _RECEIVER_H
 
 #include <gtk/gtk.h>
+#ifdef PORTAUDIO
+#include "portaudio.h"
+#else
 #include <alsa/asoundlib.h>
+#endif
 
 #define AUDIO_BUFFER_SIZE 260
 
@@ -106,9 +110,14 @@ typedef struct _receiver {
   int local_audio;
   int mute_when_not_active;
   int audio_device;
+#ifdef PORTAUDIO
+  PaStream *playback_handle;
+  float *playback_buffer;
+#else
   snd_pcm_t *playback_handle;
-  int playback_offset;
   unsigned char *playback_buffer;
+#endif
+  int playback_offset;
   int low_latency;
 
   int squelch_enable;

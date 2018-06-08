@@ -146,6 +146,8 @@ static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
         }
     }
     vfo_update();
+    // DL1YCF added return statement
+    return FALSE;
 }
 
 static GtkWidget *last_mode;

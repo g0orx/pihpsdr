@@ -70,7 +70,8 @@ static void pre_post_agc_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void nr2_gain_cb(GtkWidget *widget, gpointer data) {
-  active_receiver->nr2_gain_method==(uintptr_t)data;
+// DL1YCF changed == to =
+  active_receiver->nr2_gain_method=(uintptr_t)data;
   SetRXAEMNRgainMethod(active_receiver->id, active_receiver->nr2_gain_method);
 }
 

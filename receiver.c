@@ -131,7 +131,8 @@ gboolean receiver_motion_notify_event(GtkWidget *widget, GdkEventMotion *event, 
                                 &x,
                                 &y,
                                 &state);
-    if((state & GDK_BUTTON1_MASK == GDK_BUTTON1_MASK) || pressed) {
+    // DL1YCF added a pair of () to fix an error
+    if(((state & GDK_BUTTON1_MASK) == GDK_BUTTON1_MASK) || pressed) {
       int moved=last_x-x;
       vfo_move((long long)((float)moved*rx->hz_per_pixel));
       last_x=x;
