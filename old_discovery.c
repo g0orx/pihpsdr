@@ -133,7 +133,8 @@ static void discover(struct ifaddrs* iface) {
 //static void *discover_receive_thread(void* arg) {
 static gpointer discover_receive_thread(gpointer data) {
     struct sockaddr_in addr;
-    int len;
+    // DL1YCF changed int to socklen_t
+    socklen_t len;
     unsigned char buffer[2048];
     int bytes_read;
     struct timeval tv;
@@ -183,6 +184,7 @@ fprintf(stderr,"discover_receive_thread\n");
 							#else
 								strcpy(discovered[devices].name,"Hermes Lite");		
 							#endif
+
                             break;
                         case DEVICE_ORION2:
                             strcpy(discovered[devices].name,"Orion 2");
@@ -222,6 +224,8 @@ fprintf(stderr,"discover_receive_thread\n");
     }
     fprintf(stderr,"discovery: exiting discover_receive_thread\n");
     g_thread_exit(NULL);
+    // DL1YCF added return statement to make compiler happy.
+    return NULL;
 }
 
 void old_discovery() {

@@ -50,7 +50,11 @@
 #define MIC_SAMPLES 64
 
 extern int data_socket;
+#ifdef __APPLE__
+extern sem_t *response_sem;
+#else
 extern sem_t response_sem;
+#endif
 
 /*
 extern long response_sequence;

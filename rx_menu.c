@@ -113,12 +113,19 @@ static void mute_radio_cb(GtkWidget *widget, gpointer data) {
   active_receiver->mute_radio=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
 }
 
+//
+// DL1YCF:
+// possible the device has been changed:
+// call audo_close_output with old device, audio_open_output with new one
+//
 static void local_output_changed_cb(GtkWidget *widget, gpointer data) {
-  active_receiver->audio_device=(int)(long)data;
-fprintf(stderr,"local_output_changed rx=%d to %d\n",active_receiver->id,active_receiver->audio_device);
+//active_receiver->audio_device=(int)(long)data;
+  int newdev = (int)(long)data;
+fprintf(stderr,"local_output_changed rx=%d from %d to %d\n",active_receiver->id,active_receiver->audio_device,newdev);
   if(active_receiver->local_audio) {
-    audio_close_output(active_receiver);
-    if(audio_open_output(active_receiver)==0) {
+    audio_close_output(active_receiver);                     // audio_close with OLD device
+    active_receiver->audio_device=newdev;                    // update rx to NEW device
+    if(audio_open_output(active_receiver)==0) {              // audio_open with NEW device
       active_receiver->local_audio=1;
     } else {
       active_receiver->local_audio=0;

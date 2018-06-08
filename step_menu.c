@@ -52,6 +52,10 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 static gboolean step_select_cb (GtkWidget *widget, gpointer        data) {
   step=steps[(uintptr_t)data];
   vfo_update();
+  // DL1YCF added return statement to make the compiler happy.
+  // however I am unsure about the correct return value.
+  // I would have coded this as a void function.
+  return FALSE;
 }
 
 void step_menu(GtkWidget *parent) {

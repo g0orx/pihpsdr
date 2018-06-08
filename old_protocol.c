@@ -131,6 +131,9 @@ static double phase=0.0;
 static int running;
 static long ep4_sequence;
 
+// DL1YCF added this variable for lost-package-check
+static long last_seq_num=0;
+
 static int current_rx=0;
 
 static int samples=0;
@@ -161,7 +164,8 @@ static int command=1;
 static GThread *receive_thread_id;
 static void start_receive_thread();
 static gpointer receive_thread(gpointer arg);
-static void process_ozy_input_buffer(char  *buffer);
+// DL1YCF changed buffer to uchar*
+static void process_ozy_input_buffer(unsigned char  *buffer);
 static void process_bandscope_buffer(char  *buffer);
 void ozy_send_buffer();
 
@@ -169,9 +173,11 @@ static unsigned char metis_buffer[1032];
 static long send_sequence=-1;
 static int metis_offset=8;
 
-static int metis_write(unsigned char ep,char* buffer,int length);
+// DL1YCF changed buffer to uchar*
+static int metis_write(unsigned char ep,unsigned char* buffer,int length);
 static void metis_start_stop(int command);
-static void metis_send_buffer(char* buffer,int length);
+// DL1YCF changed buffer to uchar*
+static void metis_send_buffer(unsigned char* buffer,int length);
 static void metis_restart();
 
 #define COMMON_MERCURY_FREQUENCY 0x80
@@ -374,7 +380,8 @@ static void start_receive_thread() {
 
 static gpointer receive_thread(gpointer arg) {
   struct sockaddr_in addr;
-  int length;
+  // DL1YCF changed from int to socklen_t
+  socklen_t length;
   unsigned char buffer[2048];
   int bytes_read;
   int ep;
@@ -414,6 +421,11 @@ static gpointer receive_thread(gpointer arg) {
               // get the sequence number
               sequence=((buffer[4]&0xFF)<<24)+((buffer[5]&0xFF)<<16)+((buffer[6]&0xFF)<<8)+(buffer[7]&0xFF);
 
+	      // DL1YCF: added check on lost packets
+              if (sequence != last_seq_num+1) {
+		fprintf(stderr,"SEQ ERROR: last %ld, recvd %ld\n", last_seq_num, sequence);
+	      }
+	      last_seq_num=sequence;
               switch(ep) {
                 case 6: // EP6
                   // process the data
@@ -453,9 +465,12 @@ static gpointer receive_thread(gpointer arg) {
         break;
     }
   }
+  // DL1YCF added return statement to make compiler happy.
+  return NULL;
 }
 
-static void process_ozy_input_buffer(char  *buffer) {
+// Dl1YCF changed buffer to uchar*
+static void process_ozy_input_buffer(unsigned char  *buffer) {
   int i,j;
   int r;
   int b=0;
@@ -702,10 +717,18 @@ void old_protocol_process_local_mic(unsigned char *buffer,int le) {
 // always 48000 samples per second
   b=0;
   for(i=0;i<720;i++) {
+    // avoid pointer increments in logical-or constructs, as the sequence
+    // is undefined
     if(le) {
-      sample = (short)((buffer[b++]&0xFF) | (buffer[b++]<<8));
+      // DL1YCF: changed this to two statements such that the order of pointer increments
+      //         becomes clearly defined.
+      sample = (short) (buffer[b++]&0xFF);
+      sample |= (short) (buffer[b++]<<8);
     } else {
-      sample = (short)((buffer[b++]<<8) | (buffer[b++]&0xFF));
+      // DL1YCF: changed this to two statements such that the order of pointer increments
+      //         becomes clearly defined.
+      sample = (short)(buffer[b++]<<8);
+      sample |=  (short) (buffer[b++]&0xFF);
     }
 #ifdef FREEDV
     if(active_receiver->freedv) {
@@ -724,7 +747,10 @@ static void process_bandscope_buffer(char  *buffer) {
 }
 */
 
-
+#ifdef PROTOCOL_DEBUG
+// DL1YCF Debug: save last values and log changes
+static unsigned char last_c1[20], last_c2[20], last_c3[20], last_c4[20], last_mox;
+#endif
 
 void ozy_send_buffer() {
 
@@ -986,7 +1012,25 @@ void ozy_send_buffer() {
         {
         BAND *band=band_get_current_band();
         int power=0;
+#ifdef STEMLAB_FIX
+	//
+	// DL1YCF:
+	// On my HAMlab RedPitaya-based SDR transceiver, CW is generated on-board the RP.
+	// However, while in CW mode, DriveLevel changes do not become effective.
+	// If the CW paddle is hit, the new PTT state is sent to piHPSDR, then the TX drive
+	// is sent the next time "command 3" is performed, but this often is too late and
+	// CW is generated with zero DriveLevel.
+	// Therefore, when in CW mode, send the TX drive level also when receiving.
+	//
+        if(split) {
+          mode=vfo[1].mode;
+        } else {
+          mode=vfo[0].mode;
+        }
+        if(isTransmitting() || (mode == modeCWU) || (mode == modeCWL)) {
+#else
         if(isTransmitting()) {
+#endif
           if(tune && !transmitter->tune_use_drive) {
             power=(int)((double)transmitter->drive_level/100.0*(double)transmitter->tune_percent);
           } else {
@@ -1166,6 +1210,37 @@ void ozy_send_buffer() {
     }
   }
 
+#ifdef PROTOCOL_DEBUG
+//
+// DL1YCF debug:
+// look for changed parameters and log them
+// This is great for debugging protocol problems,
+// such as the HAMlab CW error fixed above, so I
+// leave it here deactivated
+//
+  int ind = output_buffer[C0] >> 1;
+  if (last_c1[ind] != output_buffer[C1]) {
+    fprintf(stderr, "C0=%x Old C1=%x New C1=%x\n", 2*ind,last_c1[ind], output_buffer[C1]);
+    last_c1[ind]=output_buffer[C1];
+  }
+  if (last_c2[ind] != output_buffer[C2]) {
+    fprintf(stderr, "C0=%x Old C2=%x New C2=%x\n", 2*ind,last_c2[ind], output_buffer[C2]);
+    last_c2[ind]=output_buffer[C2];
+  }
+  if (last_c3[ind] != output_buffer[C3]) {
+    fprintf(stderr, "C0=%x Old C3=%x New C3=%x\n", 2*ind,last_c3[ind], output_buffer[C3]);
+    last_c3[ind]=output_buffer[C3];
+  }
+  if (last_c4[ind] != output_buffer[C4]) {
+    fprintf(stderr, "C0=%x Old C4=%x New C4=%x\n", 2*ind,last_c4[ind], output_buffer[C4]);
+    last_c4[ind]=output_buffer[C4];
+  }
+  if ((output_buffer[C0] & 1) != last_mox) {
+    fprintf(stderr, "Last Mox=%d New Mox=%d\n", last_mox, output_buffer[C0] & 1);
+    last_mox=output_buffer[C0] & 1;
+  }
+#endif
+
 #ifdef USBOZY
 //
 // if we have a USB interfaced Ozy device:
@@ -1215,7 +1290,8 @@ static int ozyusb_write(char* buffer,int length)
 }
 #endif
 
-static int metis_write(unsigned char ep,char* buffer,int length) {
+// DL1YCF change buffer to uchar*
+static int metis_write(unsigned char ep,unsigned char* buffer,int length) {
   int i;
 
   // copy the buffer over
@@ -1248,11 +1324,33 @@ static int metis_write(unsigned char ep,char* buffer,int length) {
 
 static void metis_restart() {
   // reset metis frame
-  metis_offset==8;
+  // DL1YCF change == to = in the next line
+  metis_offset=8;
 
   // reset current rx
   current_rx=0;
 
+#ifdef STEMLAB_FIX
+  // DL1YCF:
+  // My RedPitaya HPSDR "clone" won't start up
+  // if too many commands are sent here. Note these
+  // packets are only there for sync-ing in the clock
+  // source etc.
+  // Note that always two 512-byte OZY buffers are
+  // combined into one METIS packet.
+  //
+  command=1;   // ship out a "C0=0" and a "set tx" command
+  ozy_send_buffer();
+  ozy_send_buffer();
+  command=2;  // ship out a "C0=0" and a "set rx" command for RX1
+  ozy_send_buffer();
+  ozy_send_buffer();
+
+  // DL1YCF: reset for the next commands
+  current_rx=0;
+  command=1;
+#else
+  // DL1YCF this is the original code, which does not do what it pretends ....
   // send commands twice
   command=1;
   do {
@@ -1262,6 +1360,7 @@ static void metis_restart() {
   do {
     ozy_send_buffer();
   } while (command!=1);
+#endif
 
   sleep(1);
 
@@ -1293,7 +1392,8 @@ static void metis_start_stop(int command) {
 #endif
 }
 
-static void metis_send_buffer(char* buffer,int length) {
+// DL1YCF changedbuffer to uchar *
+static void metis_send_buffer(unsigned char* buffer,int length) {
   if(sendto(data_socket,buffer,length,0,(struct sockaddr*)&data_addr,data_addr_length)!=length) {
     perror("sendto socket failed for metis_send_data\n");
   }

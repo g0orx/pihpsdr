@@ -82,8 +82,9 @@ int connect_cnt = 0;
 
 int rigctlGetFilterLow();
 int rigctlGetFilterHigh();
-int rigctlSetFilterLow(int val);
-int rigctlSetFilterHigh(int val);
+// DL1YCF changed next to function to void
+void rigctlSetFilterLow(int val);
+void rigctlSetFilterHigh(int val);
 int new_level;
 int active_transmitter = 0;
 int rigctl_busy = 0;  // Used to tell rigctl_menu that launch has already occured
@@ -122,7 +123,8 @@ static int rigctl_timer = 0;
 
 typedef struct _client {
   int socket;
-  int address_length;
+  // Dl1YCF change from int to socklen_t
+  socklen_t address_length;
   struct sockaddr_in address;
   GThread *thread_id;
 } CLIENT;
@@ -197,6 +199,8 @@ static gpointer set_rigctl_timer (gpointer data) {
       // Wait throttle time
       usleep(RIGCTL_TIMER_DELAY);
       rigctl_timer = 0;
+      // DL1YCF added return statement to make compiler happy.
+      return NULL;
 }
 
 //
@@ -1930,16 +1934,16 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                     
                                                 if(agc_resp == 0) {
                                                    active_receiver->agc = AGC_OFF;
-                                                } else if(agc_resp >0 && agc_resp <= 5 || (agc_resp == 84)) {
+                                                } else if((agc_resp >0 && agc_resp <= 5) || (agc_resp == 84)) {       // DL1YCF: added () to improve readability
                                                    active_receiver->agc = AGC_FAST;
                                                   //  fprintf(stderr,"GT command FAST\n");
-                                                } else if(agc_resp >6 && agc_resp <= 10 || (agc_resp == 2*84)) {
+                                                } else if((agc_resp >6 && agc_resp <= 10) || (agc_resp == 2*84)) {    // DL1YCF: added () to improve readability
                                                    active_receiver->agc = AGC_MEDIUM;
                                                   // fprintf(stderr,"GT command MED\n");
-                                                } else if(agc_resp >11 && agc_resp <= 15 || (agc_resp == 3*84)) {
+                                                } else if((agc_resp >11 && agc_resp <= 15) || (agc_resp == 3*84)) {   // DL1YCF: added () to improve readability
                                                    active_receiver->agc = AGC_SLOW;
                                                    //fprintf(stderr,"GT command SLOW\n");
-                                                } else if(agc_resp >16 && agc_resp <= 20 || (agc_resp == 4*84)) {
+                                                } else if((agc_resp >16 && agc_resp <= 20) || (agc_resp == 4*84)) {   // DL1YCF: added () to improve readability
                                                    active_receiver->agc = AGC_LONG;
                                                    // fprintf(stderr,"GT command LONG\n");
                                                 }
@@ -2019,8 +2023,8 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                                 send_resp(client_sock,"IS00000;");
                                              } 
                                           }  
-        else if((strcmp(cmd_str,"KS")==0) && (zzid_flag == 0) || 
-                (strcmp(cmd_str,"CS")==0) && (zzid_flag==1))  { 
+        else if(((strcmp(cmd_str,"KS")==0) && (zzid_flag == 0)) ||                               // Dl1YCF added () to improve readablity
+                ((strcmp(cmd_str,"CS")==0) && (zzid_flag==1)))  {                                // Dl1YCF added () to improve readablity
                                             // TS-2000 - KS - Set/Reads keying speed 0-060 max
                                             // PiHPSDR - ZZCS - Sets/Reads Keying speed
                                              if(len <=2) {
@@ -3053,8 +3057,8 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                                send_resp(client_sock,"?;"); 
                                              }
                                          }
-        else if((strcmp(cmd_str,"SD")==0) && (zzid_flag == 0) ||  
-                (strcmp(cmd_str,"CD")==0) && (zzid_flag ==1)) {  
+        else if(((strcmp(cmd_str,"SD")==0) && (zzid_flag == 0)) ||   // Dl1YCF added () to improve readablity
+                ((strcmp(cmd_str,"CD")==0) && (zzid_flag ==1))) {    // Dl1YCF added () to improve readablity
                                             // PiHPSDR - ZZCD - Set/Read CW Keyer Hang Time
                                             // TS-2000 - SD - Set/Read Break In Delay
                                             // 
@@ -3123,7 +3127,8 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
 
                                             // Determine how high above 127 we are..making a range of 114 from S0 to S9+60db
                                             // 5 is a fugdge factor that shouldn't be there - but seems to get us to S9=SM015
-                                            level =  abs(127+(level + (double) adc_attenuation[receiver[r]->adc]))+5;
+					    // DL1YCF replaced abs by fabs, and changed 127 to floating point constant
+                                            level =  fabs(127.0+(level + (double) adc_attenuation[receiver[r]->adc]))+5;
                                          
                                             // Clip the value just in case
                                             if(cmd_input[2] == '0') { 
@@ -3839,10 +3844,10 @@ int rigctlGetMode()  {
         }
 }
 
-
-int rigctlSetFilterLow(int val){
+// Changed these two functions to void
+void rigctlSetFilterLow(int val){
 };
-int rigctlSetFilterHigh(int val){
+void rigctlSetFilterHigh(int val){
 };
 
 void set_freqB(long long new_freqB) {      

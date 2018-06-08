@@ -78,7 +78,8 @@ waterfall_configure_event_cb (GtkWidget         *widget,
   int height=gtk_widget_get_allocated_height (widget);
 fprintf(stderr,"audio: waterfall_configure_event: width=%d height=%d\n",width,height);
   pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, FALSE, 8, width, height);
-  char *pixels = gdk_pixbuf_get_pixels (pixbuf);
+  // DL1YCF changed to uchar *
+  unsigned char *pixels = gdk_pixbuf_get_pixels (pixbuf);
 
   memset(pixels, 0, width*height*3);
 
@@ -135,7 +136,8 @@ void audio_waterfall_update() {
   int i;
 
   if(pixbuf) {
-    char *pixels = gdk_pixbuf_get_pixels (pixbuf);
+    // DL1YCF changed to uchar *
+    unsigned char *pixels = gdk_pixbuf_get_pixels (pixbuf);
 
     int width=gdk_pixbuf_get_width(pixbuf);
     int height=gdk_pixbuf_get_height(pixbuf);
@@ -147,7 +149,8 @@ void audio_waterfall_update() {
     memmove(&pixels[rowstride*(header+1)],&pixels[rowstride*header],(height-(header+1))*rowstride);
 
     float sample;
-    char *p;
+   // DL1YCF changed to uchar *
+    unsigned char *p;
     int average=0;
     p=&pixels[rowstride*header];
     for(i=0;i<width;i++) {

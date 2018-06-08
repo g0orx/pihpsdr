@@ -17,6 +17,208 @@
 *
 */
 
+#ifdef __APPLE__
+
+
+//
+// MacOS has no vahi, but it does have libcurl.
+// Therefore we try to start the SDR app on the RedPitaya
+// assuming is has the (fixed) ip address which can be
+// read from $HOME/.rp.inet, if this does not succeed it
+// defaults to 192.168.1.3.
+//
+// So, on MacOS, just configure your STEMLAB/HAMLAB to this
+// fixed IP address and you need not open a browser to start
+// SDR *before* you can use piHPSDR.
+//
+// Sure it's not perfect, but it makes life much easier for me.
+//
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <curl/curl.h>
+#include <glib.h>
+
+extern void status_text(const char *);
+
+static const char *appid = NULL;
+
+//
+// Extract the list of apps from the JSON answer
+//
+static size_t app_list_callback(void *buffer, size_t size, size_t nmemb, void *data) {
+  const gchar *needle;
+
+  needle="\"sdr_receiver_hpsdr\"";
+  if (g_strstr_len(buffer, size*nmemb, needle) != NULL) {
+    appid="sdr_receiver_hpsdr";
+  }
+
+  needle="\"sdr_transceiver_hpsdr\"";
+  if (g_strstr_len(buffer, size*nmemb, needle) != NULL) {
+    appid="sdr_transceiver_hpsdr";
+  }
+
+  needle="\"stemlab_sdr_transceiver_hpsdr\"";
+  if (g_strstr_len(buffer, size*nmemb, needle) != NULL) {
+    appid="stemlab_sdr_transceiver_hpsdr";
+  }
+
+  needle="\"hamlab_sdr_transceiver_hpsdr\"";
+  if (g_strstr_len(buffer, size*nmemb, needle) != NULL) {
+    appid="hamlab_sdr_transceiver_hpsdr";
+  }
+
+  if (appid) fprintf(stderr,"RedPitay WEB application to start: %s\n", appid);
+  return size * nmemb;
+}
+
+void stemlab_discovery() {
+  // this one is used "as the last resort", if nothing else is found.
+  size_t len;
+  char inet[20];
+  char txt[150];
+  CURL *curl_handle;
+  CURLcode curl_error;
+  FILE *fpin;
+  char *p;
+
+  fprintf(stderr,"Stripped-down STEMLAB/HAMLAB discovery...\n");
+//
+// Try to read inet addr from $HOME/.rp.inet, otherwise take 192.168.1.3
+//
+   strcpy(inet,"192,168.1.3");
+   p=getenv("HOME");
+   if (p) {
+     strncpy(txt,p, (size_t) 100);   // way less than size of txt
+   } else {
+     strcpy(txt,".");
+   }
+   strcat(txt,"/.rp.inet");
+   fprintf(stderr,"Trying to read inet addr from file=%s\n", txt);
+   fpin=fopen(txt, "r");
+   if (fpin) {
+     len=100;
+     p=txt;
+     len=getline(&p, &len, fpin);
+     // not txt now contains the trailing newline character
+     while (*p != 0) {
+       if (*p == '\n') *p = 0;
+       p++;
+     }
+     if (len < 20) strcpy(inet,txt);
+   }
+   fclose(fpin);
+   fprintf(stderr,"STEMLAB: using inet addr %s\n", inet);
+//
+// Do a HEAD request (poor curl's ping) to see whether the device is on-line
+// allow a 15 sec time-out
+  status_text("Looking for a STEMLAB web server ...");
+  curl_handle = curl_easy_init();
+  if (curl_handle == NULL) {
+    fprintf(stderr, "stemlab_start: Failed to create cURL handle\n");
+    return;
+  }
+  sprintf(txt,"http://%s",inet);
+  curl_error = curl_easy_setopt(curl_handle, CURLOPT_URL, txt);
+  curl_error = curl_easy_setopt(curl_handle, CURLOPT_NOBODY, (long) 1);
+  curl_error = curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, (long) 15);
+  curl_error = curl_easy_perform(curl_handle);
+  curl_easy_cleanup(curl_handle);
+  if (curl_error ==  CURLE_OPERATION_TIMEDOUT) {
+    sprintf(txt,"No response from web server at %s", inet);
+    status_text(txt);
+    fprintf(stderr,"%s\n",txt);
+  }
+  if (curl_error != CURLE_OK) {
+    fprintf(stderr, "STEMLAB ping error: %s\n", curl_easy_strerror(curl_error));
+    return;
+  }
+  
+//
+//obtain a list of apps, and choose the right one by looking for the following
+//target strings (in that order). Whatever is found first, is started. Then, we rely
+//on the original discovery() to discover the device.
+//
+//hamlab_sdr_transceiver_hpsdr
+//stemlab_sdr_transceiver_hpsdr
+//sdr_transceiver_hpsdr
+//sdr_receiver_hpsdr
+//
+  curl_handle = curl_easy_init();
+  if (curl_handle == NULL) {
+    fprintf(stderr, "stemlab_start: Failed to create cURL handle\n");
+    return;
+  }
+  sprintf(txt,"http://%s/bazaar?apps=", inet);
+  curl_error = curl_easy_setopt(curl_handle, CURLOPT_URL, txt);
+  curl_error = curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, (long) 60);
+  curl_error = curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, app_list_callback);
+  curl_error = curl_easy_perform(curl_handle);
+  curl_easy_cleanup(curl_handle);
+  if (curl_error == CURLE_OPERATION_TIMEDOUT) {
+    status_text("No Response from RedPitaya in 60 secs");
+    fprintf(stderr,"60-sec TimeOut met when trying to get list of HPSDR apps from RedPitaya\n");
+  }
+  if (curl_error != CURLE_OK) {
+    fprintf(stderr, "STEMLAB app-list error: %s\n", curl_easy_strerror(curl_error));
+    return;
+  }
+    
+//
+// Now we actually start the hpsdr application
+// Actually, try to stop it first, then re-start it.
+//
+  if (appid) {
+    curl_handle = curl_easy_init();
+    if (curl_handle == NULL) {
+      fprintf(stderr, "stemlab_start: Failed to create cURL handle\n");
+      return;
+    }
+    sprintf(txt,"http://%s/bazaar?stop=%s",inet,appid);
+    curl_error = curl_easy_setopt(curl_handle, CURLOPT_URL, txt);
+    curl_error = curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, (long) 60);
+    curl_error = curl_easy_perform(curl_handle);
+    if (curl_error == CURLE_OPERATION_TIMEDOUT) {
+      fprintf(stderr,"60-sec TimeOut met when trying to stop HPSDR app on RedPitaya\n");
+    }
+    if (curl_error != CURLE_OK) {
+      fprintf(stderr, "STEMLAB app-start error: %s\n", curl_easy_strerror(curl_error));
+    }
+    curl_handle = curl_easy_init();
+    if (curl_handle == NULL) {
+      fprintf(stderr, "stemlab_start: Failed to create cURL handle\n");
+      return;
+    }
+    sprintf(txt,"http://%s/bazaar?start=%s",inet,appid);
+    curl_error = curl_easy_setopt(curl_handle, CURLOPT_URL, txt);
+    curl_error = curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, (long) 60);
+    curl_error = curl_easy_perform(curl_handle);
+    if (curl_error == CURLE_OPERATION_TIMEDOUT) {
+      fprintf(stderr,"60-sec TimeOut met when trying to start HPSDR app on RedPitaya\n");
+    }
+    if (curl_error != CURLE_OK) {
+      fprintf(stderr, "STEMLAB app-start error: %s\n", curl_easy_strerror(curl_error));
+    }
+
+  }
+  // Whether or net we have successfully started the HPSDR application on the RedPitaya,
+  // we now return to the regular HPSDR protocol handling code that will eventually detect
+  // the "board". If this code does not work, you have to open a browser and start the HPSDR
+  // application manually.
+}
+
+// dummy function
+void stemlab_cleanup() {
+}
+
+// dummy function, never called
+void stemlab_start_app() {
+}
+
+#else
+
 #include <errno.h>
 #include <ifaddrs.h>
 #include <net/if.h>
@@ -324,3 +526,4 @@ void stemlab_cleanup(void) {
     curl_global_cleanup();
   }
 }
+#endif

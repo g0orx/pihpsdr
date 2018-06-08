@@ -63,6 +63,10 @@ static gboolean bandstack_select_cb (GtkWidget *widget, gpointer        data) {
   last_bandstack=widget;
   set_button_text_color(last_bandstack,"orange");
   vfo_bandstack_changed(b);
+  // DL1YCF added return statement to make the compiler happy.
+  // however I am unsure about the correct return value.
+  // I would have coded this as a void function.
+  return FALSE;
 }
 
 void bandstack_menu(GtkWidget *parent) {
