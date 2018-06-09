@@ -232,6 +232,11 @@ if(analog_meter) {
     case SMETER:
       {
       double level=value+(double)adc_attenuation[rx->adc];
+      if (filter_board == CHARLY25) {
+	// preamp/dither encodes the preamp level
+        if (rx->preamp) level -= 18.0;
+        if (rx->dither) level -= 18.0;
+      }
       offset=210.0;
 
       int i;
@@ -529,6 +534,11 @@ if(analog_meter) {
       text_location=10;
       offset=5.0;
       double level=value+(double)adc_attenuation[rx->adc];
+      if (filter_board == CHARLY25) {
+	// preamp/dither encodes the preamp level
+        if (rx->preamp) level -= 18.0;
+        if (rx->dither) level -= 18.0;
+      }
       if(meter_width>=114) {
         //int db=meter_width/114; // S9+60 (9*6)+60
         //if(db>2) db=2;

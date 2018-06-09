@@ -58,8 +58,8 @@
 #include <sys/socket.h>
 #include <arpa/inet.h> //inet_addr
 
-//#undef RIGCTL_DEBUG
-#define RIGCTL_DEBUG
+#undef RIGCTL_DEBUG
+//#define RIGCTL_DEBUG
 
 int rigctl_port_base=19090;
 int rigctl_enable=0;
