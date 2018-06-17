@@ -3,6 +3,15 @@
 GIT_DATE := $(firstword $(shell git --no-pager show --date=short --format="%ai" --name-only))
 GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 
+#DL1YCF: this uses PortAudio rather than ALSA
+PORTAUDIO_INCLUDE=PORTAUDIO
+
+#DL1YCF: un-commment this line for activate work-around some RedPitaty HPSDR bugs
+STEMLAB_FIX_OPTION=-DSTEMLAB_FIX
+
+#DL1YCF: un-commment if you need librt (probably always, except on MacOS)
+#LIBRT= -lrt
+
 # uncomment the line below to include GPIO
 #GPIO_INCLUDE=GPIO
 
@@ -27,18 +36,31 @@ GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 # uncomment the line to below include support local CW keyer
 #LOCALCW_INCLUDE=LOCALCW
 
-# uncomment the line below to include support for STEMlab discovery
+# uncomment the line below to include support for STEMlab discovery (does not work on MacOS)
 #STEMLAB_DISCOVERY=STEMLAB_DISCOVERY
 
+# uncomment the line below to include support for stripped-down STEMlab discovery that works on MacOS
+STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_MAC
+
 #uncomment the line below for the platform being compiled on
-UNAME_N=raspberrypi
+UNAME_N=MacOS
+#UNAME_N=raspberrypi
 #UNAME_N=odroid
 #UNAME_N=up
 #UNAME_N=pine64
 #UNAME_N=jetsen
 
 CC=gcc
+
+ifeq ($(UNAME_N),MacOS)
+#
+# This is only necessary for "make app", since the "patched"
+# library names are longer
+#
+LINK=gcc -headerpad_max_install_names
+else
 LINK=gcc
+endif
 
 # uncomment the line below for various debug facilities
 #DEBUG_OPTION=-D DEBUG
@@ -80,8 +102,9 @@ endif
 # uncomment the line below for LimeSDR (uncomment line below)
 #LIMESDR_INCLUDE=LIMESDR
 
-# uncomment the line below when Radioberry radio cape is plugged in (for now use emulator and old protocol)
-RADIOBERRY_INCLUDE=RADIOBERRY
+# uncomment the line below when Radioberry radio cape is plugged in
+#RADIOBERRY_INCLUDE=RADIOBERRY
+
 ifeq ($(RADIOBERRY_INCLUDE),RADIOBERRY)
 RADIOBERRY_OPTIONS=-D RADIOBERRY
 endif
@@ -163,6 +186,17 @@ ifeq ($(I2C_INCLUDE),I2C)
   I2C_OBJS=i2c.o
 endif
 
+#
+# STEMLAB_DISCOVERY_MAC depends on curl but not on avahi
+#
+ifeq ($(STEMLAB_DISCOVERY), STEMLAB_DISCOVERY_MAC)
+STEMLAB_OPTIONS=-D STEMLAB_DISCOVERY `pkg-config --cflags libcurl`
+STEMLAB_LIBS=`pkg-config --libs libcurl`
+STEMLAB_SOURCES=stemlab_discovery.c
+STEMLAB_HEADERS=stemlab_discovery.h
+STEMLAB_OBJS=stemlab_discovery.o
+endif
+
 ifeq ($(STEMLAB_DISCOVERY), STEMLAB_DISCOVERY)
 STEMLAB_OPTIONS=-D STEMLAB_DISCOVERY \
   `pkg-config --cflags avahi-gobject` \
@@ -176,12 +210,23 @@ endif
 GTKINCLUDES=`pkg-config --cflags gtk+-3.0`
 GTKLIBS=`pkg-config --libs gtk+-3.0`
 
+ifeq ($(PORTAUDIO_INCLUDE), PORTAUDIO)
+PORTAUDIO_OPTIONS=-DPORTAUDIO
+AUDIO_LIBS=-lportaudio
+else
 AUDIO_LIBS=-lasound
 #AUDIO_LIBS=-lsoundio
+endif
 
-OPTIONS=-g -Wno-deprecated-declarations $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) $(I2C_OPTIONS) $(GPIO_OPTIONS) $(LIMESDR_OPTIONS) $(FREEDV_OPTIONS) $(LOCALCW_OPTIONS) $(RADIOBERRY_OPTIONS) $(PSK_OPTIONS) $(STEMLAB_OPTIONS) -D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION) -O3
+OPTIONS=-g -Wno-deprecated-declarations $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(RADIOBERRY_OPTIONS) \
+	$(USBOZY_OPTIONS)  $(I2C_OPTIONS) $(GPIO_OPTIONS) $(LIMESDR_OPTIONS) $(FREEDV_OPTIONS) \
+	$(LOCALCW_OPTIONS) $(PSK_OPTIONS)  $(STEMLAB_OPTIONS) $(STEMLAB_FIX_OPTION) \
+	$(PORTAUDIO_OPTIONS) \
+	-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION) -O3
 
-LIBS=-lrt -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(PSKLIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS) $(STEMLAB_LIBS)
+LIBS= $(LIBRT) -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(PSKLIBS) $(GTKLIBS) $(GPIO_LIBS) \
+	$(SOAPYSDRLIBS) $(FREEDVLIBS) $(STEMLAB_LIBS)
+
 INCLUDES=$(GTKINCLUDES)
 
 COMPILE=$(CC) $(OPTIONS) $(INCLUDES)
@@ -212,6 +257,7 @@ dsp_menu.c \
 pa_menu.c \
 cw_menu.c \
 oc_menu.c \
+portaudio.c \
 xvtr_menu.c \
 equalizer_menu.c \
 step_menu.c \
@@ -397,10 +443,11 @@ store_menu.o \
 memory.o \
 led.o \
 ext.o \
-error_handler.o
+error_handler.o \
+portaudio.o
 
 $(PROGRAM):  $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) $(LOCALCW_OBJS) $(I2C_OBJS) $(GPIO_OBJS) $(PSK_OBJS) $(PURESIGNAL_OBJS) $(STEMLAB_OBJS)
-	$(LINK) -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(I2C_OBJS) $(GPIO_OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) $(LOCALCW_OBJS) $(PSK_OBJS) $(LIBS) $(PURESIGNAL_OBJS) $(STEMLAB_OBJS)
+	$(LINK) -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(I2C_OBJS) $(GPIO_OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) $(LOCALCW_OBJS) $(PSK_OBJS) $(PURESIGNAL_OBJS) $(STEMLAB_OBJS) $(LIBS)
 
 all: prebuild  $(PROGRAM) $(HEADERS) $(REMOTE_HEADERS) $(USBOZY_HEADERS) $(LIMESDR_HEADERS) $(FREEDV_HEADERS) $(LOCALCW_HEADERS) $(I2C_HEADERS) $(GPIO_HEADERS) $(PSK_HEADERS) $(PURESIGNAL_HEADERS) $(STEMLAB_HEADERS) $(SOURCES) $(REMOTE_SOURCES) $(USBOZY_SOURCES) $(LIMESDR_SOURCES) $(FREEDV_SOURCES) $(I2C_SOURCES) $(GPIO_SOURCES) $(PSK_SOURCES) $(PURESIGNAL_SOURCES) $(STEMLAB_SOURCES)
 
@@ -410,6 +457,7 @@ prebuild:
 clean:
 	-rm -f *.o
 	-rm -f $(PROGRAM)
+	-rm -rf $(PROGRAM).app
 
 install: $(PROGRAM)
 	cp $(PROGRAM) /usr/local/bin
@@ -418,4 +466,46 @@ release: $(PROGRAM)
 	cp $(PROGRAM) release/pihpsdr
 	cd release; tar cvf pihpsdr.tar pihpsdr
 	cd release; tar cvf pihpsdr-$(GIT_VERSION).tar pihpsdr
+
+#############################################################################
+#
+# This is for MacOS "app" creation ONLY
+#
+# Note: Note that we need a wrapper script to start the program, and
+#       that it requires a working GTK installation on the Mac.
+#       The program will not work if the
+#       libgtk, libgdk, libglib, libgobj, libgio libraries
+#       are copied to the Frameworks dir and "activated", because
+#       this stuff depends on tons of other files in /usr/local.
+#
+#       We bundle the "app" with the other libraries such as WDSP,
+#       portaudio, fftw etc. such that the "app" runs on Macs which
+#       do not have them. But it is *very* hard to do this with GTK.
+#
+#       ATTENTION
+#       =========
+#       Upon starting a freshly built application in an "app" bundle,
+#       it will do the FFT calculations required for wdspWisdom, since
+#       this is then stored *within* the app bundle.
+#
+#############################################################################
+app:  pihpsdr
+	@rm -rf pihpsdr.app
+	@mkdir -p pihpsdr.app/Contents/MacOS
+	@mkdir -p pihpsdr.app/Contents/Frameworks
+	@mkdir -p pihpsdr.app/Contents/Resources
+	@cp pihpsdr pihpsdr.app/Contents/MacOS/pihpsdr-bin
+	@cp MacOS/PkgInfo pihpsdr.app/Contents
+	@cp MacOS/Info.plist pihpsdr.app/Contents
+	@cp MacOS/hpsdr.icns pihpsdr.app/Contents/Resources/hpsdr.icns
+	@cp MacOS/pihpsdr.sh pihpsdr.app/Contents/MacOS/pihpsdr
+	@cp MacOS/hpsdr.png pihpsdr.app/Contents/Resources
+	@for lib in `otool -L pihpsdr.app/Contents/MacOS/pihpsdr-bin | grep dylib | sed -e "s/ (.*//" | grep -Ev "/(usr/lib|System)" | grep -Ev /libg `; do \
+	  libfn="`basename $$lib`"; \
+	  cp "$$lib" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
+	  chmod u+w "pihpsdr.app/Contents/Frameworks/$$libfn"; \
+	  install_name_tool -id "@executable_path/../Frameworks/$libfn" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
+	  install_name_tool -change "$$lib" "@executable_path/../Frameworks/$$libfn" pihpsdr.app/Contents/MacOS/pihpsdr-bin; \
+	done
+#############################################################################
 
