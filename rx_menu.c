@@ -268,7 +268,7 @@ void rx_menu(GtkWidget *parent) {
           GtkWidget *alex_att_label=gtk_label_new("Alex Attenuator");
           gtk_grid_attach(GTK_GRID(grid), alex_att_label, x, 5, 1, 1);
           GtkWidget *last_alex_att_b = NULL;
-          for (int i = 0; i <= 3; i++) {
+          for (i = 0; i <= 3; i++) {
             gchar button_text[] = "xx dB";
             sprintf(button_text, "%d dB", i*10);
             GtkWidget *alex_att_b=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(last_alex_att_b), button_text);
