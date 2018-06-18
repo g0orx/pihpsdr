@@ -217,11 +217,15 @@ static gboolean load_att_type_cb(gpointer data) {
 
 static void c25_att_combobox_changed(GtkWidget *widget, gpointer data) {
   int id = atoi(gtk_combo_box_get_active_id(GTK_COMBO_BOX(widget)));
+  //DL1YCF: store attenuation, such that in meter.c the correct level is displayed
+  adc_attenuation[active_receiver->adc] = 12.0*id;
   set_alex_attenuation(id);
 }
 
 static void c25_preamp_combobox_changed(GtkWidget *widget, gpointer data) {
   int id = atoi(gtk_combo_box_get_active_id(GTK_COMBO_BOX(widget)));
+  //DL1YCF comment: dither and preamp are "misused" to store the PreAmp value.
+  //                this has to be exploited in meter.c
   active_receiver->dither = id >= 2;
   active_receiver->preamp = id >= 1;
 }

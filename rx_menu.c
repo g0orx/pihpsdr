@@ -119,9 +119,8 @@ static void mute_radio_cb(GtkWidget *widget, gpointer data) {
 // call audo_close_output with old device, audio_open_output with new one
 //
 static void local_output_changed_cb(GtkWidget *widget, gpointer data) {
-//active_receiver->audio_device=(int)(long)data;
   int newdev = (int)(long)data;
-fprintf(stderr,"local_output_changed rx=%d from %d to %d\n",active_receiver->id,active_receiver->audio_device,newdev);
+  fprintf(stderr,"local_output_changed rx=%d from %d to %d\n",active_receiver->id,active_receiver->audio_device,newdev);
   if(active_receiver->local_audio) {
     audio_close_output(active_receiver);                     // audio_close with OLD device
     active_receiver->audio_device=newdev;                    // update rx to NEW device
@@ -130,7 +129,10 @@ fprintf(stderr,"local_output_changed rx=%d from %d to %d\n",active_receiver->id,
     } else {
       active_receiver->local_audio=0;
     }
-fprintf(stderr,"local_output_changed rx=%d local_audio=%d\n",active_receiver->id,active_receiver->local_audio);
+    fprintf(stderr,"local_output_changed rx=%d local_audio=%d\n",active_receiver->id,active_receiver->local_audio);
+  } else {
+    // If not (currently) using local audio, just change dev num
+    active_receiver->audio_device=newdev;
   }
 }
 
