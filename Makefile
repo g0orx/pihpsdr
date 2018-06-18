@@ -30,6 +30,9 @@ GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 # uncomment the line below to include support for STEMlab discovery
 #STEMLAB_DISCOVERY=STEMLAB_DISCOVERY
 
+# uncommment this line for activate work-around some RedPitaty HPSDR bugs
+#STEMLAB_FIX_OPTION=-DSTEMLAB_FIX
+
 #uncomment the line below for the platform being compiled on
 UNAME_N=raspberrypi
 #UNAME_N=odroid
@@ -179,7 +182,9 @@ GTKLIBS=`pkg-config --libs gtk+-3.0`
 AUDIO_LIBS=-lasound
 #AUDIO_LIBS=-lsoundio
 
-OPTIONS=-g -Wno-deprecated-declarations $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) $(I2C_OPTIONS) $(GPIO_OPTIONS) $(LIMESDR_OPTIONS) $(FREEDV_OPTIONS) $(LOCALCW_OPTIONS) $(RADIOBERRY_OPTIONS) $(PSK_OPTIONS) $(STEMLAB_OPTIONS) -D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION) -O3
+OPTIONS=-g -Wno-deprecated-declarations $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) $(I2C_OPTIONS) $(GPIO_OPTIONS) $(LIMESDR_OPTIONS) \
+		$(FREEDV_OPTIONS) $(LOCALCW_OPTIONS) $(RADIOBERRY_OPTIONS) $(PSK_OPTIONS) $(STEMLAB_OPTIONS) $(STEMLAB_FIX_OPTION) \
+		-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION) -O3
 
 LIBS=-lrt -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(PSKLIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS) $(STEMLAB_LIBS)
 INCLUDES=$(GTKINCLUDES)
