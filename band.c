@@ -56,16 +56,21 @@ BANDSTACK_ENTRY bandstack_entries80[] =
      {3751000LL,modeLSB,filterF5,-2800,-200,-2800,-200},
      {3850000LL,modeLSB,filterF5,-2800,-200,-2800,-200}};
 
+BANDSTACK_ENTRY bandstack_entries60_WRC15[] =
+    {{5352750LL,modeCWU,filterF6,200,2800,200,2800},    // WRC15 60m band allocation
+     {5357000LL,modeUSB,filterF5,200,2800,200,2800},    // sub-bands reflect IARU R1
+     {5363000LL,modeUSB,filterF5,200,2800,200,2800}};   // recommendation
+
 BANDSTACK_ENTRY bandstack_entries60_OTHER[] =
-    {{5332000LL,modeUSB,filterF5,-2800,-200,-2800,-200},
-     {5348000LL,modeUSB,filterF5,-2800,-200,-2800,-200},
+    {{5332000LL,modeUSB,filterF5,-2800,-200,-2800,-200}, // default channels for
+     {5348000LL,modeUSB,filterF5,-2800,-200,-2800,-200}, // 60m band, US regulations
      {5358500LL,modeUSB,filterF5,-2800,-200,-2800,-200},
      {5373000LL,modeUSB,filterF5,-2800,-200,-2800,-200},
      {5405000LL,modeUSB,filterF5,-2800,-200,-2800,-200}};
 
 BANDSTACK_ENTRY bandstack_entries60_UK[] =
-    {{5261250LL,modeUSB,filterF5,-2800,-200,-2800,-200},
-     {5280000LL,modeUSB,filterF5,-2800,-200,-2800,-200},
+    {{5261250LL,modeUSB,filterF5,-2800,-200,-2800,-200}, // default channels for
+     {5280000LL,modeUSB,filterF5,-2800,-200,-2800,-200}, // 60m band, UK regulations
      {5290250LL,modeUSB,filterF5,-2800,-200,-2800,-200},
      {5302500LL,modeUSB,filterF5,-2800,-200,-2800,-200},
      {5318000LL,modeUSB,filterF5,-2800,-200,-2800,-200},
@@ -309,6 +314,18 @@ CHANNEL band_channels_60m_UK[UK_CHANNEL_ENTRIES] =
       {5380000LL,4000LL},
       {5398250LL,6500LL},
       {5405000LL,3000LL}};
+
+//
+// Many countries have now allowed ham radio on the 60m
+// band based on WRC15. There are no "channels", but
+// an IARU region 1 recommendation can be read that
+// there is a CW segment, an all-mode segment
+// and a small weak-signal segment.
+//
+CHANNEL band_channels_60m_WRC15[WRC15_CHANNEL_ENTRIES] =
+     {{5352750LL, 2500LL},    // CW channel:           5351.5 to 5354   kHz
+      {5360000LL,12000LL},    // Phone and DigiModes:  5354   to 5360   kHz
+      {5366250LL, 500LL}};    // Weak narrow signals:  5366   to 5366.5 kHz
 
 CHANNEL band_channels_60m_OTHER[OTHER_CHANNEL_ENTRIES] =
      {{5332000LL,2800LL},

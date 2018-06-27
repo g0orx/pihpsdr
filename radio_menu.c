@@ -215,6 +215,7 @@ void radio_menu(GtkWidget *parent) {
   GtkWidget *region_combo=gtk_combo_box_text_new();
   gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(region_combo),NULL,"Other");
   gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(region_combo),NULL,"UK");
+  gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(region_combo),NULL,"WRC15");
   gtk_combo_box_set_active(GTK_COMBO_BOX(region_combo),region);
   gtk_grid_attach(GTK_GRID(grid),region_combo,2,0,1,1);
   g_signal_connect(region_combo,"changed",G_CALLBACK(region_cb),NULL);

@@ -83,40 +83,43 @@ compile and link flags for certain external software.
 Of course, you need the Xcode command line tools (make, gcc, and friends).
 
 Before you compile piHPSDR, you need to compile wdsp. Using the Mac-Makefile
-there, "make install" will put libwdsp.dylib in /usr/local/lib. This is needed
-by piHPSDR.
+there, "make -f Makefile.mac install" will put libwdsp.dylib in /usr/local/lib.
+This is needed by piHPSDR. The pihpsdr Makefile.mac assumes that WDSP can
+be linked with simply through the "-lwdsp" linker option.
 
 ===================
 COMPILE and INSTALL
 ===================
 
+The file Makefile.mac is meant for MacOS compilations. To "make" the program
+the command is thus 
+
+	make -f Makefile.mac
 
 That's easy. Just adjust the Makefile according to the instructions found there
 and type "make". In my case (I have a HAMLAB RedPitaya-based SDR box), I need
 the following options in the Makefile (and have all others commented out):
 
-PORTAUDIO_INCLUDE=PORTAUDIO
 STEMLAB_FIX_OPTION=-DSTEMLAB_FIX
 STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_MAC
-UNAME_N=MacOS
 
-The first one activates the PortAudio code and disables the Linux ALSA
-code, the second option activates some work-arounds around some RedPitaya
-HPSDR application bugs (this is also required if you are NOT using MacOS),
-and the third option activates code to start the HPSDR program on a RedPitaya
-before the actual discovery stuff takes place.
 
-Note: never un-comment the lines containing LIBRT, GPI_INCLUDE, I2C_INCLUDE,
+Note: never un-comment the lines containing GPI_INCLUDE, I2C_INCLUDE,
 SX1509_INCLUDE, or LOCALCW_INCLUDE. This software/hardware is not present on a Mac.
 
 As a result of "make", you get an executable file "pihpsdr" which you
-can start from the terminal. With "make app" you can make a click-able
-MacOS application bundle. However note that this bundle is not self-contained:
+can start from the terminal. With
+
+make -f Makefile.mac app
+
+you can make a click-able MacOS application bundle with a nice icon.
+However note that this bundle is not completely self-contained:
 it needs a working gtk+3 environment. To put all this into an app bundle
 would create an app file hundreds of MByte long: you need all those pixbuf
 loaders etc. etc. etc. installed.
 
-What we do is to include portaudio, WDSP, fftw3 and some other libs into the bundle.
+What we do is to include portaudio, WDSP, fftw3, pango, cairo and libs
+like that into the bundle.
 
 
 ===========================
@@ -127,15 +130,16 @@ a) CAT control: use hamlib, and choose "OpenHPSDR piHPSDR" radio model and
    e.g. port number 19090.  Then, activate rigctl in the piHPSDR menu, choosing
    the same port number there.
 
-b) Audio: here you need the "SoundFlower" free-software program for MacOS, that
-   provides virtual audio cables. I have stripped down this somewhat, it now provides
-   two stero devices (named VAC A and VAC B) and has less overhead, since audio data
-   is no longer processed (no volume control) but simply moved: after all, this is what
-   a "cable" is supposed to do.
+b) Audio: here you need a virtual audio cable (loopback) device. On my github account,
+   github.com/dl1ycf, you can find such a device driver. It provides two audio devices,
+   named "SDR-RX" and "SDR-TX".
    
-   For example, you can Choose "VAC A" as the RX output device and "VAC B" as the
-   TX input (mic) device in piHPSDR, and choose "VAC B" as the output device and "VAC A"
+   For example, you can Choose "SDR RX" as the RX output device and "SDR TX" as the
+   TX input (mic) device in piHPSDR, and choose "SDR TX" as the output device and "SDR RX"
    as the input device in fldigi or wsjt-x.
-   The modified version of SoundFlower is available on my github account, github.com/dl1ycf,
-   with the name MacOSVirtualAudioCable.
    
+   Of course, you can also use two USB Sound cards devices and two stereo cables to
+   implement loop-back audio in hardware. But then you generate some additional noise
+   from D/A converting the signal first, putting it through the cable and then A/D converting
+   it back. This would be the way to go if you do not want or cannot install un-trusted
+   MacOS kernel extensions.

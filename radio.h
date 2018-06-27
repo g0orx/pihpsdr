@@ -56,6 +56,7 @@ extern char property_path[];
 
 #define REGION_OTHER 0
 #define REGION_UK 1
+#define REGION_WRC15 2  // 60m band allocation for countries implementing WRC15
 
 extern int region;
 
