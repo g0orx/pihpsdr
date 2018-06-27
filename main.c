@@ -17,12 +17,11 @@
 *
 */
 
-// DL1YCF
 // Define maximum window size. 
-// Original values 800 and 480, but if the screen is large, why not using it?
+// Standard values 800 and 480: suitable for RaspberryBi 7-inch screen
 
-#define MAX_DISPLAY_WIDTH 1020
-#define MAX_DISPLAY_HEIGHT 700
+#define MAX_DISPLAY_WIDTH  800
+#define MAX_DISPLAY_HEIGHT 480
 
 #include <gtk/gtk.h>
 #include <gdk/gdk.h>

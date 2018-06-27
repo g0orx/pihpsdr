@@ -1545,17 +1545,27 @@ fprintf(stderr,"set_freedv: rx=%p state=%d\n",active_receiver,state);
 
 void radio_change_region(int r) {
   region=r;
-  if(region==REGION_UK) {
-    channel_entries=UK_CHANNEL_ENTRIES;
-    band_channels_60m=&band_channels_60m_UK[0];
-    bandstack60.entries=UK_CHANNEL_ENTRIES;
-    bandstack60.current_entry=0;
-    bandstack60.entry=bandstack_entries60_UK;
-  } else {
-    channel_entries=OTHER_CHANNEL_ENTRIES;
-    band_channels_60m=&band_channels_60m_OTHER[0];
-    bandstack60.entries=OTHER_CHANNEL_ENTRIES;
-    bandstack60.current_entry=0;
-    bandstack60.entry=bandstack_entries60_OTHER;
+  switch (region) {
+    case REGION_UK:
+      channel_entries=UK_CHANNEL_ENTRIES;
+      band_channels_60m=&band_channels_60m_UK[0];
+      bandstack60.entries=UK_CHANNEL_ENTRIES;
+      bandstack60.current_entry=0;
+      bandstack60.entry=bandstack_entries60_UK;
+      break;
+    case REGION_OTHER:
+      channel_entries=OTHER_CHANNEL_ENTRIES;
+      band_channels_60m=&band_channels_60m_OTHER[0];
+      bandstack60.entries=OTHER_CHANNEL_ENTRIES;
+      bandstack60.current_entry=0;
+      bandstack60.entry=bandstack_entries60_OTHER;
+      break;
+    case REGION_WRC15:
+      channel_entries=WRC15_CHANNEL_ENTRIES;
+      band_channels_60m=&band_channels_60m_WRC15[0];
+      bandstack60.entries=WRC15_CHANNEL_ENTRIES;
+      bandstack60.current_entry=0;
+      bandstack60.entry=bandstack_entries60_WRC15;
+      break;
   }
 }

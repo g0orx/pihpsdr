@@ -95,15 +95,18 @@ gboolean displayHF;
 
 #define UK_CHANNEL_ENTRIES 11
 #define OTHER_CHANNEL_ENTRIES 5
+#define WRC15_CHANNEL_ENTRIES 3
 
 extern int channel_entries;
 extern CHANNEL *band_channels_60m;
 
 extern CHANNEL band_channels_60m_UK[UK_CHANNEL_ENTRIES];
 extern CHANNEL band_channels_60m_OTHER[OTHER_CHANNEL_ENTRIES];
+extern CHANNEL band_channels_60m_WRC15[WRC15_CHANNEL_ENTRIES];
 
 extern BANDSTACK bandstack60;
 extern BANDSTACK_ENTRY bandstack_entries60_OTHER[];
+extern BANDSTACK_ENTRY bandstack_entries60_WRC15[];
 extern BANDSTACK_ENTRY bandstack_entries60_UK[];
 
 extern int band_get_current();

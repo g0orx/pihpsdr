@@ -3,14 +3,8 @@
 GIT_DATE := $(firstword $(shell git --no-pager show --date=short --format="%ai" --name-only))
 GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 
-#DL1YCF: this uses PortAudio rather than ALSA
-PORTAUDIO_INCLUDE=PORTAUDIO
-
-#DL1YCF: un-commment this line for activate work-around some RedPitaty HPSDR bugs
+# un-commment this line for activate work-around some RedPitaty HPSDR bugs
 STEMLAB_FIX_OPTION=-DSTEMLAB_FIX
-
-#DL1YCF: un-commment if you need librt (probably always, except on MacOS)
-#LIBRT= -lrt
 
 # uncomment the line below to include GPIO
 #GPIO_INCLUDE=GPIO
@@ -210,13 +204,12 @@ endif
 GTKINCLUDES=`pkg-config --cflags gtk+-3.0`
 GTKLIBS=`pkg-config --libs gtk+-3.0`
 
-ifeq ($(PORTAUDIO_INCLUDE), PORTAUDIO)
+#
+# Since this a Mac-specific Makefile, activate
+# PORTAUDIO in any case.
+#
 PORTAUDIO_OPTIONS=-DPORTAUDIO
 AUDIO_LIBS=-lportaudio
-else
-AUDIO_LIBS=-lasound
-#AUDIO_LIBS=-lsoundio
-endif
 
 OPTIONS=-g -Wno-deprecated-declarations $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(RADIOBERRY_OPTIONS) \
 	$(USBOZY_OPTIONS)  $(I2C_OPTIONS) $(GPIO_OPTIONS) $(LIMESDR_OPTIONS) $(FREEDV_OPTIONS) \
@@ -224,8 +217,8 @@ OPTIONS=-g -Wno-deprecated-declarations $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) 
 	$(PORTAUDIO_OPTIONS) \
 	-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION) -O3
 
-LIBS= $(LIBRT) -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(PSKLIBS) $(GTKLIBS) $(GPIO_LIBS) \
-	$(SOAPYSDRLIBS) $(FREEDVLIBS) $(STEMLAB_LIBS)
+LIBS=   $(AUDIO_LIBS) $(USBOZY_LIBS) $(PSKLIBS) $(GTKLIBS) $(GPIO_LIBS) \
+	$(SOAPYSDRLIBS) $(FREEDVLIBS) $(STEMLAB_LIBS) -lwdsp -lm -pthread
 
 INCLUDES=$(GTKINCLUDES)
 
