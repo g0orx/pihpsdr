@@ -367,11 +367,14 @@ void audio_close_output(RECEIVER *rx) {
 // we have to store the data such that the PA callback function
 // can access it.
 //
-static int apt=0;
 int audio_write (RECEIVER *rx, short r, short l)
 {
   PaError err;
 
+  // this will cause massive underflow errors, since
+  // we do not provide any data while transmitting.
+  // Instead, the side tone version will take over
+  if (rx == active_receiver && isTransmitting()) return 0;
   if (rx->playback_handle != NULL && rx->playback_buffer != NULL) {
     rx->playback_buffer[rx->playback_offset++] = (r + l) *0.000015259;  //   65536 --> 1.0   
     if (rx->playback_offset == audio_buffer_size) {
@@ -386,11 +389,22 @@ int audio_write (RECEIVER *rx, short r, short l)
   return 0;
 }
 
-//
-// CW audio write 
-// This is a dummy here because I think it is not correctly implemented in audio.c
-//
-void cw_audio_write(double sample) {
-}   
+int cw_audio_write(double sample) {
+  PaError err;
+  RECEIVER *rx = active_receiver;
+
+  if (rx->playback_handle != NULL && rx->playback_buffer != NULL) {
+    rx->playback_buffer[rx->playback_offset++] = sample;
+    if (rx->playback_offset == audio_buffer_size) {
+      rx->playback_offset=0;
+      err=Pa_WriteStream(rx->playback_handle, (void *) rx->playback_buffer, (unsigned long) audio_buffer_size);
+      //if (err != paNoError) {
+      //  fprintf(stderr,"PORTAUDIO ERROR: write stream dev=%d: %s\n",out_device_no[rx->audio_device],Pa_GetErrorText(err));
+      //  return -1;
+      // }
+    }
+  }
+  return 0;
+}
 
 #endif

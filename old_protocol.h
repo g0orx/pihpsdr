@@ -29,4 +29,5 @@ extern void old_protocol_set_mic_sample_rate(int rate);
 extern void old_protocol_process_local_mic(unsigned char *buffer,int le);
 extern void old_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right_audio_sample);
 extern void old_protocol_iq_samples(int isample,int qsample);
+extern void old_protocol_iq_samples_with_sidetone(int isample,int qsample,int side);
 #endif

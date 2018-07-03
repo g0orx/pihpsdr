@@ -51,6 +51,7 @@
 #include "ext.h"
 
 double getNextSideToneSample();
+double getNextInternalSideToneSample();
 
 #define min(x,y) (x<y?x:y)
 #define max(x,y) (x<y?y:x)
@@ -61,10 +62,13 @@ static int filterHigh;
 static int waterfall_samples=0;
 static int waterfall_resample=8;
 
-int key = 0;
+int cw_key_up = 0;
+int cw_key_down = 0;
+static int *cw_shape_buffer = NULL;
+int cw_shape = 0;
 
-// DL1YCF added next line.
 extern void cw_audio_write(double sample);
+
 static gint update_out_of_band(gpointer data) {
   TRANSMITTER *tx=(TRANSMITTER *)data;
   tx->out_of_band=0;
@@ -559,6 +563,8 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%d iq_output_buf
   tx->iq_output_buffer=malloc(sizeof(double)*2*tx->output_samples);
   tx->samples=0;
   tx->pixel_samples=malloc(sizeof(float)*tx->pixels);
+  if (cw_shape_buffer) free(cw_shape_buffer);
+  cw_shape_buffer=malloc(sizeof(double)*tx->buffer_size);
 fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%p iq_output_buffer=%p pixels=%p\n",tx->mic_input_buffer,tx->iq_output_buffer,tx->pixel_samples);
 
   fprintf(stderr,"create_transmitter: OpenChannel id=%d buffer_size=%d fft_size=%d sample_rate=%d dspRate=%d outputRate=%d\n",
@@ -719,10 +725,11 @@ void tx_set_pre_emphasize(TRANSMITTER *tx,int state) {
 static void full_tx_buffer(TRANSMITTER *tx) {
   long isample;
   long qsample;
-  double gain;
+  double gain,lgain,sidevol;
   int j;
   int error;
-  int mode;
+  int mode,do_shape;
+  int sidetone=0;
 
   switch(protocol) {
     case ORIGINAL_PROTOCOL:
@@ -732,6 +739,17 @@ static void full_tx_buffer(TRANSMITTER *tx) {
       gain=8388607.0; // 24 bit
       break;
   }
+
+  // do_shape means that we "shape" the signal with the
+  // envelope in cw_shape_buf, with values between 0 and 200
+  // this is the only way to produce click-free CW signals.
+  mode=vfo[VFO_A].mode;
+  if(split) {
+    mode=vfo[VFO_B].mode;
+  }
+  do_shape= (mode == modeCWL || mode == modeCWU) && !tune;
+  if (do_shape) sidevol= 1.29 * cw_keyer_sidetone_volume;   // will be multiplied with cw_shape
+  if (tune)     sidevol= 258.0 * cw_keyer_sidetone_volume;
 
   update_vox(tx);
 
@@ -758,14 +776,23 @@ static void full_tx_buffer(TRANSMITTER *tx) {
       }
     }
 
+    if (do_shape) gain=gain*0.005;
     for(j=0;j<tx->output_samples;j++) {
+      lgain=gain;
+      if (do_shape) lgain=gain*cw_shape_buffer[j];
       double is=tx->iq_output_buffer[j*2];
       double qs=tx->iq_output_buffer[(j*2)+1];
-      isample=is>=0.0?(long)floor(is*gain+0.5):(long)ceil(is*gain-0.5);
-      qsample=qs>=0.0?(long)floor(qs*gain+0.5):(long)ceil(qs*gain-0.5);
+      isample=is>=0.0?(long)floor(is*lgain+0.5):(long)ceil(is*lgain-0.5);
+      qsample=qs>=0.0?(long)floor(qs*lgain+0.5):(long)ceil(qs*lgain-0.5);
       switch(protocol) {
         case ORIGINAL_PROTOCOL:
-          old_protocol_iq_samples(isample,qsample);
+	  // produce a side tone for internal CW and tune on the HPSDR board
+	  // since we may have used getNextSidetoneSample above we need
+	  // an independent instance thereof here. To be nice to the CW
+	  // operator, the audio is shaped the same way as the RF
+          if (tune) sidetone=sidevol * getNextInternalSideToneSample();
+	  if (do_shape) sidetone=sidevol * cw_shape_buffer[j] * getNextInternalSideToneSample();
+          old_protocol_iq_samples_with_sidetone(isample,qsample,sidetone);
           break;
         case NEW_PROTOCOL:
           new_protocol_iq_samples(isample,qsample);
@@ -788,20 +815,38 @@ void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
     mode=vfo[0].mode;
   }
 
-	if (tune) {
-		  mic_sample_double=0.0;
+  // This is valid if not CW and not tuning
+  mic_sample_double=(double)mic_sample/32768.0;
+
+  if (tune) mic_sample_double=0.0;
+
+  if((mode==modeCWL || mode==modeCWU)) {
+    mic_sample_double=0.0;
+    if (isTransmitting()) {
+//
+//	The CW part sets the variables cw_key_up and cw_key_down
+//	to the number of samples for the next down/up sequence.
+//	cw_key_down can be zero, for inserting some space
+//
+//	We HAVE TO shape the signal to avoid hard clicks to be
+//	heard way beside our frequency. The envelope goes up
+//	  and down linearly within 200 samples (4.16 msec)
+//
+	if (cw_key_down > 0 ) {
+	    if (cw_shape < 200) cw_shape++;
+	    cw_key_down--;
+	} else {
+	    if (cw_key_up >= 0) {
+		// dig into this even if cw_key_up is already zero, to ensure
+		// that cw_shape eventually reaches zero
+		if (cw_shape > 0) cw_shape--;
+		if (cw_key_up > 0) cw_key_up--;
+	    }
 	}
-    else if(mode==modeCWL || mode==modeCWU) {
-		if (isTransmitting()) {
-			if (key == 1) {
-				mic_sample_double = getNextSideToneSample();
-				cw_audio_write(mic_sample_double * cw_keyer_sidetone_volume/ 127.0);
-				mic_sample_double = mic_sample_double * 200000; //* amplitude 
-			} else mic_sample_double=0.0;
-		}
-      } else {
-    mic_sample_double=(double)mic_sample/32768.0;
+	cw_audio_write(0.00003937 * getNextSideToneSample() * cw_keyer_sidetone_volume * cw_shape);
+    }
   }
+  cw_shape_buffer[tx->samples]=cw_shape;
   tx->mic_input_buffer[tx->samples*2]=mic_sample_double;
   tx->mic_input_buffer[(tx->samples*2)+1]=0.0; //mic_sample_double;
   tx->samples++;
@@ -920,23 +965,36 @@ void tx_set_ps_sample_rate(TRANSMITTER *tx,int rate) {
 }
 #endif
 
-void cw_sidetone_mute(int mute){
-	key = mute;
+//
+// This is the old key-down/key-up interface for iambic.c
+// but now it also smoothes (cw_shape) the signal
+//
+void cw_sidetone_mute(int mute) {
+  if (mute) {
+    cw_key_down = 480000;    // up to 10 sec, should be OK even for QRSS
+  } else {
+    cw_key_down = 0;
+  }
 }
 
-int asteps = 0;
-double timebase = 0.0;
-#define TIMESTEP (1.0 / 48000)
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
+// DL1YCF:
+// somewhat improved, and provided two siblings
+// for generating side tones simultaneously on the
+// HPSDR board and local audio.
+
+#define TWOPIOVERSAMPLERATE 0.0001308996938995747;  // 2 Pi / 48000
+
+static long asteps = 0;
+static long bsteps = 0;
+
 double getNextSideToneSample() {
-	double angle = cw_keyer_sidetone_frequency * 2 * M_PI * timebase;
-	timebase += TIMESTEP;
-	asteps++;
-	if (asteps == 48000) {
-		timebase = 0.0;
-		asteps = 0;
-	}
+	double angle = (asteps*cw_keyer_sidetone_frequency)*TWOPIOVERSAMPLERATE;
+	if (++asteps == 48000) asteps = 0;
+	return sin(angle);
+}
+
+double getNextInternalSideToneSample() {
+	double angle = (bsteps*cw_keyer_sidetone_frequency)*TWOPIOVERSAMPLERATE;
+	if (++bsteps == 48000) bsteps = 0;
 	return sin(angle);
 }

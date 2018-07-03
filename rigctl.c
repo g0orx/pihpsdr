@@ -54,11 +54,13 @@
 #include "rigctl_menu.h"
 #include <math.h>
 
+extern void vox_trigger(int lead_in);
+extern void vox_untrigger();
+
 // IP stuff below
 #include <sys/socket.h>
 #include <arpa/inet.h> //inet_addr
 
-#undef RIGCTL_DEBUG
 //#define RIGCTL_DEBUG
 
 int rigctl_port_base=19090;
@@ -76,8 +78,6 @@ static const int TelnetPortC = 19092;
 #define MAXDATASIZE 2000
 
 void parse_cmd ();
-int cw_busy = 0; // Used to signal that the system is in a busy state for sending CW - assert busy back to the user
-int cw_reset = 0; // Signals reset the transceiver
 int connect_cnt = 0;
 
 int rigctlGetFilterLow();
@@ -111,6 +111,7 @@ FILTER * band_filter;
 #define MAX_CLIENTS 3
 static GThread *rigctl_server_thread_id = NULL;
 static GThread *rigctl_set_timer_thread_id = NULL;
+static GThread *rigctl_cw_thread_id = NULL;
 static int server_running;
 
 static GThread *serial_server_thread_id = NULL;
@@ -293,35 +294,74 @@ int convert_ctcss() {
 }
 int vfo_sm=0;   // VFO State Machine - this keeps track of
 
-// Now my stuff
+// 
+//  CW sending stuff
+//
+
+static char cw_buf[30];
+static int  cw_busy=0;
+
+static long dotlen;
+static long dashlen;
+static int  dotsamples;
+static int  dashsamples;
+
+extern int cw_key_up, cw_key_down;
+
+//
+// send_dash()         send a "key-down" of a dashlen, followed by a "key-up" of a dotlen
+// send_dot()          send a "key-down" of a dotlen,  followed by a "key-up" of a dotlen
+// send_space(int len) send a "key_down" of zero,      followed by a "key-up" of len*dotlen
+//
+// The "trick" to get proper timing is, that we really specify  the number of samples
+// for the next element (dash/dot/nothing) and the following pause. 30 wpm is no
+// problem, and without too much "busy waiting". We just take a nap until 10 msec
+// before we have to act, and then wait several times for 1 msec until we can shoot.
 //
 void send_dash() {
-       //long delay = (1200000L * ((long)cw_keyer_weight/10L))/(long)cw_keyer_speed ;
-       int dot_delay = 1200/cw_keyer_speed;
-       int delay = (dot_delay * 3 * cw_keyer_weight)/50;
-       g_idle_add(ext_cw_key, (gpointer)(long)1);
-       usleep((long)delay*3000L);
-       g_idle_add(ext_cw_key, (gpointer)(long)0);
-       usleep((long)delay * 1000L);
-       //fprintf(stderr,"_%d",mox);
-       
+  int TimeToGo;
+  for(;;) {
+    TimeToGo=cw_key_up+cw_key_down;
+    if (TimeToGo == 0) break;
+    // sleep until 10 msec before ignition
+    if (TimeToGo > 500) usleep((long)(TimeToGo-500)*20L);
+    // sleep 1 msec
+    usleep(1000L);
+  }
+  cw_key_down = dashsamples;
+  cw_key_up   = dotsamples;
 }
+
 void send_dot() {
-       int dot_delay = 1200/cw_keyer_speed;
-       g_idle_add(ext_cw_key, (gpointer)(long)1);
-       usleep((long)dot_delay * 1000L);
-       g_idle_add(ext_cw_key, (gpointer)(long)0);
-       usleep((long)dot_delay* 1000L);
-       //fprintf(stderr,".%d",mox);
+  int TimeToGo;
+  for(;;) {
+    TimeToGo=cw_key_up+cw_key_down;
+    if (TimeToGo == 0) break;
+    // sleep until 10 msec before ignition
+    if (TimeToGo > 500) usleep((long)(TimeToGo-500)*20L);
+    // sleep 1 msec
+    usleep(1000L);
+  }
+  cw_key_down = dotsamples;
+  cw_key_up   = dotsamples;
 }
-void send_space() {
-       int dot_delay = 1200/cw_keyer_speed;
-       usleep((long)dot_delay* 7000L);
-       //fprintf(stderr," %d",mox);
+
+void send_space(int len) {
+  int TimeToGo;
+  for(;;) {
+    TimeToGo=cw_key_up+cw_key_down;
+    if (TimeToGo == 0) break;
+    // sleep until 10 msec before ignition
+    if (TimeToGo > 500) usleep((long)(TimeToGo-500)*20L);
+    // sleep 1 msec
+    usleep(1000L);
+  }
+  cw_key_up = len*dotsamples;
 }
 
 void rigctl_send_cw_char(char cw_char) {
     char pattern[9],*ptr;
+    static char last_cw_char=0;
     strcpy(pattern,"");
     ptr = &pattern[0];
     switch (cw_char) {
@@ -358,7 +398,7 @@ void rigctl_send_cw_char(char cw_char) {
        case 'p': 
        case 'P': strcpy(pattern,".--."); break;
        case 'q': 
-       case 'Q': strcpy(pattern,"-.--"); break;
+       case 'Q': strcpy(pattern,"--.-"); break;
        case 'r': 
        case 'R': strcpy(pattern,".-."); break;
        case 's': 
@@ -397,11 +437,8 @@ void rigctl_send_cw_char(char cw_char) {
        case '-': strcpy(pattern,"-....-");break;
        case '_': strcpy(pattern,".--.-.");break;
        case '@': strcpy(pattern,"..--.-");break;
-       case ' ': strcpy(pattern," ");break;
        default:  strcpy(pattern," ");
     }
-    //fprintf(stderr,"Sending %c:",cw_char);
-    g_idle_add(ext_cw_key, (gpointer)(long)0);
      
     while(*ptr != '\0') {
        if(*ptr == '-') {
@@ -410,16 +447,66 @@ void rigctl_send_cw_char(char cw_char) {
        if(*ptr == '.') {
           send_dot();
        }
-       if(*ptr == ' ') {
-          send_space();
-       }
        ptr++;
     }
-    // Need a delay HERE between characters
-    long delay = (1200000L * ((long)cw_keyer_weight/10L))/(long)cw_keyer_speed ;
-    usleep(delay*3L);
-    //fprintf(stderr,"\n");
+    // The last character sent already has one dotlen included.
+    // Therefore, if the character was a "space", we need an additional
+    // inter-word  pause of 6 dotlen, else we need a inter-character
+    // pause of 2 dotlens.
+    // Note that two or more adjacent space characters result in a 
+    // single inter-word distance. This also gets rid of trailing
+    // spaces in the KY command.
+    if (cw_char == ' ') {
+      if (last_cw_char != ' ') send_space(6);
+    } else {
+      send_space(2);
+    }
+    last_cw_char=cw_char;
 }
+
+//
+// This thread constantly looks whether CW data
+// is available, and produces CW in this case.
+// The buffer is copied to a local buffer and
+// immediately released, such that the next
+// chunk can already be prepeared. This way,
+// splitting a large CW text into words, and
+// sending each word with a separate KY command
+// produces perfectly readable CW.
+//
+static gpointer rigctl_cw_thread(gpointer data)
+{ 
+  int index;
+  char c;
+  char local_buf[30];
+  
+  while (server_running) {
+    // wait for cw_buf become filled with data
+    if (!cw_busy) {
+      usleep(100000L);
+      continue;
+    }
+    dotlen = 1200000L/(long)cw_keyer_speed;
+    dashlen = (dotlen * 3 * cw_keyer_weight) / 50L;
+    dotsamples = 57600 / cw_keyer_speed;
+    dashsamples = (3456 * cw_keyer_weight) / cw_keyer_speed;
+    strncpy(local_buf, cw_buf, 30);
+    index=0;
+    cw_busy=0; // mark buffer free again
+    // We need a relatively long lead-in time after triggering VOX
+    // Otherwise the first element is shortened
+    vox_trigger(100);  // lead-in 100 msec, only before the first character is sent.
+    while(((c=local_buf[index++]) != '\0')) {
+        rigctl_send_cw_char(c);
+    }
+    vox_untrigger();
+  }
+  // We arrive here if the rigctl server shuts down.
+  rigctl_cw_thread_id = NULL;
+  cw_busy=0;
+  return NULL;
+}
+
 void gui_vfo_move_to(gpointer data) {
    long long freq = *(long long *) data;
    fprintf(stderr,"GUI: %11lld\n",freq);
@@ -486,6 +573,10 @@ static gpointer rigctl_server(gpointer data) {
     client[i].socket=-1;
   }
   server_running=1;
+
+  // must start the thread here in order NOT to inherit a lock
+  if (!rigctl_cw_thread_id) rigctl_cw_thread_id = g_thread_new("RIGCTL cw", rigctl_cw_thread, NULL);
+
   while(server_running) {
     // listen with a max queue of 3
     if(listen(server_socket,3)<0) {
@@ -588,41 +679,6 @@ static gpointer rigctl_client (gpointer data) {
         if(save_flag != 1) {
            work_ptr = strtok(cmd_input,";");
            while(work_ptr != NULL) {
-               if(cw_busy == 1) {
-                  if(strlen(work_ptr)>2) {
-                     cw_check_buf[0] = work_ptr[0];
-                     cw_check_buf[1] = work_ptr[1];
-                     cw_check_buf[2] = '\0';
-                     if(strcmp("ZZ",cw_check_buf)==0) {
-                          if(strlen(work_ptr)>4) {
-                             cw_check_buf[0] = work_ptr[2];
-                             cw_check_buf[1] = work_ptr[3];
-                             cw_check_buf[2] = '\0';
-                          } else {
-                             send_resp(client->socket,"?;");
-                          }
-                     } 
-                   } else {
-                       // Illegal Command
-                       send_resp(client->socket,"?;");
-                   } 
-                   // Got here because we have a legal command in cw_check_buf
-                   // Look for RESET and BUSY which re respond to else - send ?;
-                   if(strcmp("BY",cw_check_buf)==0) {
-                      send_resp(client->socket,"BY11;"); // Indicate that we are BUSY
-                   } else if (strcmp("SR",cw_check_buf) == 0) {
-                      // Reset the transceiver
-                      g_mutex_lock(&mutex_c->m);
-                      cw_reset = 1;
-                      g_mutex_unlock(&mutex_c->m);
-                      // Wait till BUSY clears
-                      while(cw_busy);
-                      g_mutex_lock(&mutex_c->m);
-                      cw_reset = 0;
-                      g_mutex_unlock(&mutex_c->m);
-                   }
-
-               }
                // Lock so only one user goes into this at a time
                g_mutex_lock(&mutex_b->m);
                parse_cmd(work_ptr,strlen(work_ptr),client->socket);
@@ -2048,38 +2104,40 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                                 } 
                                             }
                                           }  
-        else if((strcmp(cmd_str,"KY")==0) && (zzid_flag == 0)) { 
-                                            // TS-2000 - KY - Convert char to morse code - not supported
-                                             int index = 2;
-                                             long delay = 1200000L/(long)cw_keyer_speed; // uS
-                                             #ifdef  RIGCTL_DEBUG
-                                             fprintf(stderr,"RIGCTL: KY DELAY=%ld, cw_keyer_speed=%d cw_keyer_weight=%d\n",delay,cw_keyer_speed,cw_keyer_weight); 
-                                             #endif
-                                             if(len <=2) {
-                                                send_resp(client_sock,"KY0;");
-                                             } else {
-                                               // Set CW BUSY flag
-                                               g_mutex_lock(&mutex_c->m);
-                                               cw_busy = 1;
-                                               g_mutex_unlock(&mutex_c->m);
-                                               while((cmd_input[index] != '\0') && (!cw_reset)) {
-                                                  //fprintf(stderr,"send=%c\n",cmd_input[index]);
-                                                  rigctl_send_cw_char(cmd_input[index]);
-                                                  //fprintf(stderr,"RIGCTL: 0 mox=%d\n",mox);
-                                                  index++;
-                                               } 
-                                             #ifdef  RIGCTL_DEBUG
-                                               fprintf(stderr,"RIGCTL: KY - Done sending cw\n");
-                                               fprintf(stderr,"RIGCTL: 1 mox=%d\n",mox);
-                                             #endif
-                                             } 
-                                             g_mutex_lock(&mutex_c->m);
-                                             cw_busy = 0;
-                                             g_mutex_unlock(&mutex_c->m);
-                                             #ifdef  RIGCTL_DEBUG
-                                             fprintf(stderr,"RIGCTL: 2 mox=%d\n",mox);
-                                             #endif
-                                          }  
+        else if((strcmp(cmd_str,"KY")==0) && (zzid_flag == 0))
+				    { 
+					// DL1YCF:
+					// Hamlib produces errors if we keep begin busy here for
+					// seconds. Therefore we just copy the data to be handled
+					// by a separate thread.
+					// Note that this thread only makes a 0 --> 1 transition for cw_busy,
+					// and the CW thread only makes a 1 --> 0 transition
+					//
+					// Note: for a "KY;" command, we have to return "KY0;" if we can
+					// accept new data (buffer space available) and "KY1;" if we cannot,
+					//
+                                        if (len <= 2) {
+					    if (cw_busy) {
+						send_resp(client_sock,"KY1;");  // can store no more data
+					    } else {
+						send_resp(client_sock,"KY0;");
+						}
+					} else {
+					    // So we have data. We have to init the CW setup because TUNE
+					    // changes the WDSP side tone frequency.
+					    g_idle_add(ext_cw_setup,NULL);    // Initialize for external transmit
+					    // We silently ignore buffer overruns. This does not happen with
+					    // hamlib since I fixed it.
+					    if (!cw_busy) {
+						// Copy data to buffer
+						strncpy(cw_buf, cmd_input+2, 30);
+						// Kenwood protocol allows for at most 28 characters, so
+						// this is pure paranoia
+						cw_buf[29]=0;
+						cw_busy=1;
+					    }
+					}  
+				    }
         else if(strcmp(cmd_str,"LK")==0)  { 
                                             // TS-2000 - LK - Set/read key lock function status
                                             // PiHPSDR - ZZLK - Set/read key lock function status

@@ -26,12 +26,23 @@
 #include "ext.h"
 
 static guint vox_timeout;
+static guint trigger_timeout = -1;
 
 static double peak=0.0;
+static int cwvox=0;
 
 static int vox_timeout_cb(gpointer data) {
   //setVox(0);
   g_idle_add(ext_vox_changed,(gpointer)0);
+  g_idle_add(ext_vfo_update,NULL);
+  return FALSE;
+}
+
+static int cwvox_timeout_cb(gpointer data) {
+  cwvox=0;
+  trigger_timeout=-1;
+  g_idle_add(ext_vox_changed,(gpointer)0);
+  g_idle_add(ext_cw_key     ,(gpointer)0);
   g_idle_add(ext_vfo_update,NULL);
   return FALSE;
 }
@@ -49,6 +60,9 @@ void update_vox(TRANSMITTER *tx) {
   int i;
   double sample;
   peak=0.0;
+
+  if (cwvox) return;  // do not set peak and fiddle around with VOX when in local CW mode
+
   for(i=0;i<tx->buffer_size;i++) {
     sample=tx->mic_input_buffer[i*2];
     if(sample<0.0) {
@@ -72,6 +86,29 @@ void update_vox(TRANSMITTER *tx) {
       g_idle_add(ext_vfo_update,NULL);
     }
   }
+}
+
+// vox_trigger activates MOX, vox_enabled does not matter here
+// if VOX this is already pending, 
+void vox_trigger(int lead_in) {
+
+  // delete any pending hang timers
+  if (trigger_timeout >= 0) g_source_remove(trigger_timeout);
+
+  if (!cwvox) {
+    cwvox=1;
+    g_idle_add(ext_vox_changed,(gpointer)1);
+    g_idle_add(ext_cw_key     ,(gpointer)1);
+    g_idle_add(ext_vfo_update,NULL);
+    usleep((long)lead_in*1000L);  // lead-in time is in ms
+  }
+}
+
+// vox_untrigger actives the vox hang timer for cwvox
+// so an immediately following "KY" CAT command will
+// just proceed.
+void vox_untrigger() {
+  trigger_timeout=g_timeout_add((int)vox_hang,cwvox_timeout_cb,NULL);
 }
 
 void vox_cancel() {

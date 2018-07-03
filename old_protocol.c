@@ -691,6 +691,30 @@ void old_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right
   }
 }
 
+//
+// This is a copy of old_protocol_iq_samples,
+// but it includes the possibility to send a side tone
+// We use it to provide a side-tone for CW/TUNE, in
+// all other cases side==0 and this routine then is
+// fully equivalent to old_protocol_iq_samples.
+//
+void old_protocol_iq_samples_with_sidetone(int isample, int qsample, int side) {
+  if(isTransmitting()) {
+    output_buffer[output_buffer_index++]=side >> 8;
+    output_buffer[output_buffer_index++]=side;
+    output_buffer[output_buffer_index++]=side >> 8;
+    output_buffer[output_buffer_index++]=side;
+    output_buffer[output_buffer_index++]=isample>>8;
+    output_buffer[output_buffer_index++]=isample;
+    output_buffer[output_buffer_index++]=qsample>>8;
+    output_buffer[output_buffer_index++]=qsample;
+    if(output_buffer_index>=OZY_BUFFER_SIZE) {
+      ozy_send_buffer();
+      output_buffer_index=8;
+    }
+  }
+}
+
 void old_protocol_iq_samples(int isample,int qsample) {
   if(isTransmitting()) {
     output_buffer[output_buffer_index++]=0;
@@ -1201,7 +1225,13 @@ void ozy_send_buffer() {
     mode=vfo[0].mode;
   }
   if(mode==modeCWU || mode==modeCWL) {
-    if(tune) {
+//
+//  VOX is set in CW if we send
+//  morse code via CAT. This is
+//  supported even if we use the
+//  external keyer for our paddles.
+//
+    if(tune || vox) {
       output_buffer[C0]|=0x01;
     }
   } else {
