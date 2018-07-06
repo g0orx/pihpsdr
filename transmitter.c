@@ -64,6 +64,7 @@ static int waterfall_resample=8;
 
 int cw_key_up = 0;
 int cw_key_down = 0;
+// cw_shape_buffer will eventually be integrated into TRANSMITTER
 static int *cw_shape_buffer = NULL;
 int cw_shape = 0;
 
@@ -564,7 +565,7 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%d iq_output_buf
   tx->samples=0;
   tx->pixel_samples=malloc(sizeof(float)*tx->pixels);
   if (cw_shape_buffer) free(cw_shape_buffer);
-  cw_shape_buffer=malloc(sizeof(double)*tx->buffer_size);
+  cw_shape_buffer=malloc(sizeof(int)*tx->buffer_size);
 fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%p iq_output_buffer=%p pixels=%p\n",tx->mic_input_buffer,tx->iq_output_buffer,tx->pixel_samples);
 
   fprintf(stderr,"create_transmitter: OpenChannel id=%d buffer_size=%d fft_size=%d sample_rate=%d dspRate=%d outputRate=%d\n",
@@ -725,10 +726,10 @@ void tx_set_pre_emphasize(TRANSMITTER *tx,int state) {
 static void full_tx_buffer(TRANSMITTER *tx) {
   long isample;
   long qsample;
-  double gain,lgain,sidevol;
+  double gain,fgain,sidevol;
   int j;
   int error;
-  int mode,do_shape;
+  int mode;
   int sidetone=0;
 
   switch(protocol) {
@@ -740,16 +741,10 @@ static void full_tx_buffer(TRANSMITTER *tx) {
       break;
   }
 
-  // do_shape means that we "shape" the signal with the
-  // envelope in cw_shape_buf, with values between 0 and 200
-  // this is the only way to produce click-free CW signals.
   mode=vfo[VFO_A].mode;
   if(split) {
     mode=vfo[VFO_B].mode;
   }
-  do_shape= (mode == modeCWL || mode == modeCWU) && !tune;
-  if (do_shape) sidevol= 1.29 * cw_keyer_sidetone_volume;   // will be multiplied with cw_shape
-  if (tune)     sidevol= 258.0 * cw_keyer_sidetone_volume;
 
   update_vox(tx);
 
@@ -776,31 +771,58 @@ static void full_tx_buffer(TRANSMITTER *tx) {
       }
     }
 
-    if (do_shape) gain=gain*0.005;
-    for(j=0;j<tx->output_samples;j++) {
-      lgain=gain;
-      if (do_shape) lgain=gain*cw_shape_buffer[j];
-      double is=tx->iq_output_buffer[j*2];
-      double qs=tx->iq_output_buffer[(j*2)+1];
-      isample=is>=0.0?(long)floor(is*lgain+0.5):(long)ceil(is*lgain-0.5);
-      qsample=qs>=0.0?(long)floor(qs*lgain+0.5):(long)ceil(qs*lgain-0.5);
-      switch(protocol) {
-        case ORIGINAL_PROTOCOL:
-	  // produce a side tone for internal CW and tune on the HPSDR board
-	  // since we may have used getNextSidetoneSample above we need
-	  // an independent instance thereof here. To be nice to the CW
-	  // operator, the audio is shaped the same way as the RF
-          if (tune) sidetone=sidevol * getNextInternalSideToneSample();
-	  if (do_shape) sidetone=sidevol * cw_shape_buffer[j] * getNextInternalSideToneSample();
-          old_protocol_iq_samples_with_sidetone(isample,qsample,sidetone);
-          break;
-        case NEW_PROTOCOL:
-          new_protocol_iq_samples(isample,qsample);
-          break;
-      }
+//  Two times essentially the same code: moved the check on "pulse shape" case
+//  out of the loops for computational efficiency
+
+    if ((mode == modeCWL || mode == modeCWU) && !tune) {
+	//
+	// "pulse shape case":
+	// shape the I/Q samples with the envelope function stored in cw_shape_buffer
+	// and produce side tone (again with shaped pulses)
+	//
+	fgain=gain*0.005;			    // will be multiplied with cw_shape
+        sidevol= 1.29 * cw_keyer_sidetone_volume;   // will be multiplied with cw_shape
+        for(j=0;j<tx->output_samples;j++) {
+	    gain=fgain*cw_shape_buffer[j];
+	    double is=tx->iq_output_buffer[j*2];
+	    double qs=tx->iq_output_buffer[(j*2)+1];
+	    isample=is>=0.0?(long)floor(is*gain+0.5):(long)ceil(is*gain-0.5);
+	    qsample=qs>=0.0?(long)floor(qs*gain+0.5):(long)ceil(qs*gain-0.5);
+	    switch(protocol) {
+		case ORIGINAL_PROTOCOL:
+		    // produce a side tone for internal CW on the HPSDR board
+		    // since we may use getNextSidetoneSample for local audio, we need
+		    // an independent instance thereof here. To be nice to the CW
+		    // operator, the audio is shaped the same way as the RF
+		    sidetone=sidevol * cw_shape_buffer[j] * getNextInternalSideToneSample();
+		    old_protocol_iq_samples_with_sidetone(isample,qsample,sidetone);
+		    break;
+		case NEW_PROTOCOL:
+		    // ToDo: how to produce side-tone on the HPSDR board?
+		    new_protocol_iq_samples(isample,qsample);
+		    break;
+	    }
+	}
+    } else {
+	//
+	// Original code without pulse shaping and without side tone
+	//
+	for(j=0;j<tx->output_samples;j++) {
+	    double is=tx->iq_output_buffer[j*2];
+	    double qs=tx->iq_output_buffer[(j*2)+1];
+	    isample=is>=0.0?(long)floor(is*gain+0.5):(long)ceil(is*gain-0.5);
+	    qsample=qs>=0.0?(long)floor(qs*gain+0.5):(long)ceil(qs*gain-0.5);
+	    switch(protocol) {
+		case ORIGINAL_PROTOCOL:
+		    old_protocol_iq_samples_with_sidetone(isample,qsample,0);
+		    break;
+		case NEW_PROTOCOL:
+		    new_protocol_iq_samples(isample,qsample);
+		    break;
+	    }
+	}
     }
   }
-
 }
 
 void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
@@ -815,16 +837,24 @@ void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
     mode=vfo[0].mode;
   }
 
-  // This is valid if not CW and not tuning
-  mic_sample_double=(double)mic_sample/32768.0;
+// silence TX audio not transmitting, if tuning, or
+// when doing CW
 
-  if (tune) mic_sample_double=0.0;
+  if (tune || !isTransmitting() || mode==modeCWL || mode==modeCWU) {
+    mic_sample_double=0.0;
+  } else {
+    mic_sample_double=(double)mic_sample/32768.0;
+  }
+
+//This statement takes care that the cw shape buffer is
+//automatically wiped if we are not doing local CW
+
+  cw_shape_buffer[tx->samples]=0;
 
   if((mode==modeCWL || mode==modeCWU)) {
-    mic_sample_double=0.0;
     if (isTransmitting()) {
 //
-//	The CW part sets the variables cw_key_up and cw_key_down
+//	RigCtl CW sets the variables cw_key_up and cw_key_down
 //	to the number of samples for the next down/up sequence.
 //	cw_key_down can be zero, for inserting some space
 //
@@ -844,9 +874,16 @@ void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
 	    }
 	}
 	cw_audio_write(0.00003937 * getNextSideToneSample() * cw_keyer_sidetone_volume * cw_shape);
+        cw_shape_buffer[tx->samples]=cw_shape;
+    } else {
+//
+//	Have to reset pulse shaper since RigCtl may wait forever
+//
+	cw_key_up=0;
+	cw_key_down=0;
+	cw_shape=0;
     }
   }
-  cw_shape_buffer[tx->samples]=cw_shape;
   tx->mic_input_buffer[tx->samples*2]=mic_sample_double;
   tx->mic_input_buffer[(tx->samples*2)+1]=0.0; //mic_sample_double;
   tx->samples++;

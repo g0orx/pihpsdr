@@ -1,4 +1,4 @@
-/* Copyrieht (C)
+/* Copyright (C)
 * 2015 - John Melton, G0ORX/N6LYT
 *
 * This program is free software; you can redistribute it and/or
@@ -288,6 +288,8 @@ double vox_threshold=0.001;
 double vox_gain=10.0;
 double vox_hang=250.0;
 int vox=0;
+int local_cw_is_active=0;
+int external_cw_key_hit=0;
 
 int diversity_enabled=0;
 double i_rotate[2]={1.0,1.0};
