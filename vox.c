@@ -36,6 +36,7 @@ static int vox_timeout_cb(gpointer data) {
   return FALSE;
 }
 
+
 double vox_get_peak() {
   double result=peak;
   return result;
@@ -48,7 +49,6 @@ void update_vox(TRANSMITTER *tx) {
   int i;
   double sample;
   peak=0.0;
-
   for(i=0;i<tx->buffer_size;i++) {
     sample=tx->mic_input_buffer[i*2];
     if(sample<0.0) {
