@@ -289,7 +289,7 @@ double vox_gain=10.0;
 double vox_hang=250.0;
 int vox=0;
 int local_cw_is_active=0;
-int external_cw_key_hit=0;
+int cw_key_hit=0;
 
 int diversity_enabled=0;
 double i_rotate[2]={1.0,1.0};

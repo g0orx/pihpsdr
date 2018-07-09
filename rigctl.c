@@ -303,7 +303,7 @@ static long dashlen;
 static int  dotsamples;
 static int  dashsamples;
 
-extern int cw_key_up, cw_key_down;
+extern int cw_key_up, cw_key_down, cw_not_ready;
 
 //
 // send_dash()         send a "key-down" of a dashlen, followed by a "key-up" of a dotlen
@@ -317,7 +317,7 @@ extern int cw_key_up, cw_key_down;
 //
 void send_dash() {
   int TimeToGo;
-  if (external_cw_key_hit) return;
+  if (cw_key_hit || cw_not_ready) return;
   for(;;) {
     TimeToGo=cw_key_up+cw_key_down;
     if (TimeToGo == 0) break;
@@ -332,7 +332,7 @@ void send_dash() {
 
 void send_dot() {
   int TimeToGo;
-  if (external_cw_key_hit) return;
+  if (cw_key_hit || cw_not_ready) return;
   for(;;) {
     TimeToGo=cw_key_up+cw_key_down;
     if (TimeToGo == 0) break;
@@ -347,7 +347,7 @@ void send_dot() {
 
 void send_space(int len) {
   int TimeToGo;
-  if (external_cw_key_hit) return;
+  if (cw_key_hit || cw_not_ready) return;
   for(;;) {
     TimeToGo=cw_key_up+cw_key_down;
     if (TimeToGo == 0) break;
@@ -483,7 +483,7 @@ static gpointer rigctl_cw_thread(gpointer data)
   while (server_running) {
     // wait for cw_buf become filled with data
     // (periodically look every 100 msec)
-    external_cw_key_hit=0;
+    cw_key_hit=0;
     if (!cw_busy) {
       usleep(100000L);
       continue;
@@ -506,37 +506,38 @@ static gpointer rigctl_cw_thread(gpointer data)
         usleep(100000L);
     }
     i=0;
-    while(((c=local_buf[i++]) != '\0') && !external_cw_key_hit && mox) {
+    while(((c=local_buf[i++]) != '\0') && !cw_key_hit && !cw_not_ready) {
         rigctl_send_cw_char(c);
     }
-    //
-    // Either an external CW key has been hit (one connected to the SDR board),
-    // or MOX has manually been switched. In this case swallow any pending
-    // or incoming KY messages for about 0.75 sec. We need this long time since
-    // hamlib waits 0.5 secs after receiving a "KY1" message before trying to
-    // send the next bunch (do PTT update immediately).
-    //
-    if (external_cw_key_hit || !mox) {
+    if (cw_key_hit || cw_not_ready) {
+       //
+       // CW transmission has been aborted, either due to manually
+       // removing MOX, changing the mode to non-CW, or because a CW key has been hit.
+       // Do not remove PTT if we abort CAT CW because a CW key has been hit.
        local_cw_is_active=0;
        g_idle_add(ext_cw_key     ,(gpointer)0);
        // If an external CW key has been hit, we continue in TX mode
        // doing CW manually. Otherwise, switch PTT off.
-       if (!external_cw_key_hit) {
+       if (!cw_key_hit) {
          g_idle_add(ext_ptt_update ,(gpointer)0);
        }
-       for (i=0; i< 75; i++) {
+       // Stay for 1 sec swallowing incoming
+       // CAT CW commands. We need this long time since
+       // hamlib waits 0.5 secs after receiving a "KY1" message before trying to
+       // send the next bunch
+       for (i=0; i< 50; i++) {
          cw_busy=0;      // mark buffer free
-         usleep(10000L);
+         usleep(20000L);
        }
-    }
-    // If the next message is pending, continue
-    if (cw_busy) continue;
-    local_cw_is_active=0;
-    // In case of an abort of local CW, this has already been done.
-    // It is not too harmful to do it again. In case of "normal termination"
-    // of sending a CAT CW message, we have to do it here.
-    g_idle_add(ext_cw_key     ,(gpointer)0);
-    if (!external_cw_key_hit) {
+    } else {
+      //
+      // CAT CW message has been sent.
+      // If the next message is pending, continue.
+      // Otherwise remove PTT and wait for next CAT
+      // CW command.
+      if (cw_busy) continue;
+      local_cw_is_active=0;
+      g_idle_add(ext_cw_key     ,(gpointer)0);
       g_idle_add(ext_ptt_update ,(gpointer)0);
     }
   }
@@ -2151,34 +2152,37 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
         else if((strcmp(cmd_str,"KY")==0) && (zzid_flag == 0))
 				    { 
 					// DL1YCF:
-					// Hamlib produces errors if we keep begin busy here for
-					// seconds. Therefore we just copy the data to be handled
-					// by a separate thread.
-					// Note that this thread only makes a 0 --> 1 transition for cw_busy,
-					// and the CW thread only makes a 1 --> 0 transition
+					// Hamlib produces timeout errors if we are busy here for
+					// seconds. Therefore we just move the data into a buffer
+					// that is processed by a separate thread.
+					// Note that here we only makes a 0 --> 1 transition for cw_busy,
+					// and the CW thread only makes a 1 --> 0 transition, so we do not
+					// need a mutex and/or atomic updates here.
 					//
-					// Note: for a "KY;" command, we have to return "KY0;" if we can
-					// accept new data (buffer space available) and "KY1;" if we cannot,
+					// Note: The "KY;" command is used to query if we are busy. We return:
+					//  - if we can accept new data (buffer space available) : "KY0;"
+					//  - if buffer is full: "KY1;"
 					//
                                         if (len <= 2) {
 					    if (cw_busy) {
-						send_resp(client_sock,"KY1;");  // can store no more data
+						send_resp(client_sock,"KY1;");
 					    } else {
 						send_resp(client_sock,"KY0;");
 						}
 					} else {
-					    // So we have data. We have to init the CW setup because TUNE
-					    // changes the WDSP side tone frequency.
-					    g_idle_add(ext_cw_setup,NULL);    // Initialize for external transmit
-					    // We silently ignore buffer overruns. This does not happen with
-					    // hamlib since I fixed it. Note further that the space immediately
-					    // following "KY" is *not* part of the message.
-					    // while cleaning up after hitting external CW key, just skip message
-					    if (!cw_busy && len > 3 && !external_cw_key_hit) {
+					    // - We silently ignore buffer overruns. This does not happen  if
+					    //   "busy" is correctly queried.
+					    // - Note further that the space immediately following "KY" is *not*
+					    //   part of the message.
+					    if (!cw_busy && len > 3) {
+						// A CW text will be sent. We have to call cw_setup here because
+						// TUNE changes the WDSP side tone frequency, and in this case we have
+						// to re-adjust it.
+					        g_idle_add(ext_cw_setup,NULL);    // Initialize for external transmit
 						// Copy data to buffer
-						strncpy(cw_buf, cmd_input+3, 30);
-						// Kenwood protocol allows for at most 28 characters, so
-						// this is pure paranoia
+						strncpy(cw_buf, cmd_input+3, 29);
+						// Kenwood protocol allows for at most 24 characters, so
+						// this seems pure paranoia -- but who knows?
 						cw_buf[29]=0;
 						cw_busy=1;
 					    }

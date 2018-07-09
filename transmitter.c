@@ -62,11 +62,21 @@ static int filterHigh;
 static int waterfall_samples=0;
 static int waterfall_resample=8;
 
+
+// These three variables are global. Their use is:
+// cw_key_up/cw_key_down: set number of samples for next key-down/key-up sequence
+//                        Any of these variable will only be set from outside if
+//			  both have value 0.
+// cw_not_ready:          set to 0 if transmitting in CW mode. This is used to
+//                        abort pending CAT CW messages if MOX or MODE is switched
+//                        manually.
 int cw_key_up = 0;
 int cw_key_down = 0;
+int cw_not_ready=1;
+
 // cw_shape_buffer will eventually be integrated into TRANSMITTER
 static int *cw_shape_buffer = NULL;
-int cw_shape = 0;
+static int cw_shape = 0;
 
 extern void cw_audio_write(double sample);
 
@@ -814,7 +824,7 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 	    qsample=qs>=0.0?(long)floor(qs*gain+0.5):(long)ceil(qs*gain-0.5);
 	    switch(protocol) {
 		case ORIGINAL_PROTOCOL:
-		    old_protocol_iq_samples_with_sidetone(isample,qsample,0);
+		    old_protocol_iq_samples(isample,qsample);
 		    break;
 		case NEW_PROTOCOL:
 		    new_protocol_iq_samples(isample,qsample);
@@ -837,8 +847,11 @@ void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
     mode=vfo[0].mode;
   }
 
-// silence TX audio not transmitting, if tuning, or
-// when doing CW
+//
+// silence TX audio if not transmitting, if tuning, or
+// when doing CW. Note: CW side tone added later on by a
+// separate mechanism.
+//
 
   if (tune || !isTransmitting() || mode==modeCWL || mode==modeCWU) {
     mic_sample_double=0.0;
@@ -846,13 +859,10 @@ void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
     mic_sample_double=(double)mic_sample/32768.0;
   }
 
-//This statement takes care that the cw shape buffer is
-//automatically wiped if we are not doing local CW
-
-  cw_shape_buffer[tx->samples]=0;
-
-  if((mode==modeCWL || mode==modeCWU)) {
-    if (isTransmitting()) {
+//
+// shape CW pulses when doing CW and transmitting, else nullify them
+//
+  if((mode==modeCWL || mode==modeCWU) && isTransmitting()) {
 //
 //	RigCtl CW sets the variables cw_key_up and cw_key_down
 //	to the number of samples for the next down/up sequence.
@@ -862,6 +872,7 @@ void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
 //	heard way beside our frequency. The envelope goes up
 //	  and down linearly within 200 samples (4.16 msec)
 //
+	cw_not_ready=0;
 	if (cw_key_down > 0 ) {
 	    if (cw_shape < 200) cw_shape++;
 	    cw_key_down--;
@@ -875,14 +886,18 @@ void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
 	}
 	cw_audio_write(0.00003937 * getNextSideToneSample() * cw_keyer_sidetone_volume * cw_shape);
         cw_shape_buffer[tx->samples]=cw_shape;
-    } else {
+  } else {
 //
-//	Have to reset pulse shaper since RigCtl may wait forever
+//	If no longer transmitting, or no longer doing CW: reset pulse shaper.
+//	This will also swallow any pending CW in rigtl CAT CW and wipe out the
+//      cw_shape buffer very quickly. In order to tell rigctl etc. that CW should be
+//	aborted, we also use the cw_not_ready flag.
 //
+	cw_not_ready=1;
 	cw_key_up=0;
 	cw_key_down=0;
 	cw_shape=0;
-    }
+  	cw_shape_buffer[tx->samples]=0;
   }
   tx->mic_input_buffer[tx->samples*2]=mic_sample_double;
   tx->mic_input_buffer[(tx->samples*2)+1]=0.0; //mic_sample_double;

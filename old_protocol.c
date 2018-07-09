@@ -507,7 +507,7 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
     dot=(control_in[0]&0x04)==0x04;
 
     local_ptt=ptt;
-    if (dot || dash) external_cw_key_hit=1;
+    if (dot || dash) cw_key_hit=1;
     if(vfo[tx_vfo].mode==modeCWL || vfo[tx_vfo].mode==modeCWU) {
       local_ptt=ptt|dot|dash;
     }

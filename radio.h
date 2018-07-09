@@ -245,7 +245,7 @@ extern double vox_gain;
 extern double vox_hang;
 extern int vox;
 extern int local_cw_is_active;
-extern int external_cw_key_hit;
+extern int cw_key_hit;
 
 extern int diversity_enabled;
 extern double i_rotate[2];
