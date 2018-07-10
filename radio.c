@@ -1,4 +1,4 @@
-/* Copyrieht (C)
+/* Copyright (C)
 * 2015 - John Melton, G0ORX/N6LYT
 *
 * This program is free software; you can redistribute it and/or
@@ -288,6 +288,8 @@ double vox_threshold=0.001;
 double vox_gain=10.0;
 double vox_hang=250.0;
 int vox=0;
+int local_cw_is_active=0;
+int cw_key_hit=0;
 
 int diversity_enabled=0;
 double i_rotate[2]={1.0,1.0};
@@ -844,14 +846,22 @@ void setTune(int state) {
       }
       pre_tune_mode=mode;
 
+      // DL1YCF: in USB/DIGU/DSB, tune 1000 Hz above carrier
+      //         in LSB/DIGL,     tune 1000 Hz below carrier
+      //         all other (CW, AM, FM): tune on carrier freq.
+      //         Note: do not look at CW sidetone freq here.
       switch(mode) {
         case modeLSB:
-        case modeCWL:
         case modeDIGL:
-          SetTXAPostGenToneFreq(transmitter->id,-(double)cw_keyer_sidetone_frequency);
+          SetTXAPostGenToneFreq(transmitter->id,-(double)1000.0);
+          break;
+        case modeUSB:
+        case modeDSB:
+        case modeDIGU:
+          SetTXAPostGenToneFreq(transmitter->id,(double)1000.0);
           break;
         default:
-          SetTXAPostGenToneFreq(transmitter->id,(double)cw_keyer_sidetone_frequency);
+          SetTXAPostGenToneFreq(transmitter->id,(double)0.0);
           break;
       }
 
@@ -895,15 +905,9 @@ void radio_cw_setup() {
     mode=vfo[VFO_B].mode;
   }
 
-  double freq=(double)cw_keyer_sidetone_frequency;
-  switch(mode) {
-    case modeCWU:
-      SetTXAPostGenToneFreq(transmitter->id,(double)cw_keyer_sidetone_frequency);
-      break;
-    case modeLSB:
-      SetTXAPostGenToneFreq(transmitter->id,-(double)cw_keyer_sidetone_frequency);
-      break;
-  }
+  // DL1YCF: to be "transceive" in CW, our signal
+  // needs to be spot-on the nominal frequency
+  SetTXAPostGenToneFreq(transmitter->id,(double) 0.0);
   SetTXAPostGenMode(transmitter->id,0);
   SetTXAPostGenToneMag(transmitter->id,0.99999);
 }

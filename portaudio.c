@@ -46,14 +46,20 @@ static int mic_buffer_size;
 static int audio_buffer_size=256;
 
 //
+// compile with DummyTwoTone defined, and you will have an
+// additional "microphone" device producing a two-tone signal
+// with 700 and 1900 Hz.
+//
+#ifdef DummyTwoTone
+//
 // Dummy Two-tone input device
 //
 static int TwoTone=0;
 #define lentab 480
 static float sintab[lentab];
 static int tonept;
-#define twopi 6.2831853071795864769252867665590
-#define factab (twopi/480)
+#define factab 0.013089969389957471826927680763665  // 2 Pi / 480
+#endif
 
 
 //
@@ -69,8 +75,10 @@ void audio_get_cards()
 
   PaError err;
 
-  // generate sine tab
-  for (i=0; i< lentab; i++) sintab[i] = 0.35*(sin(7*i*factab)+sin(19*i*factab));
+#ifdef DummyTwoTone
+  // generate sine tab, 700 and 1900 Hz.
+  for (i=0; i< lentab; i++) sintab[i] = 0.45*(sin(7*i*factab)+sin(19*i*factab));
+#endif
 
   err = Pa_Initialize();
   if( err != paNoError )
@@ -94,12 +102,14 @@ void audio_get_cards()
         inputParameters.suggestedLatency = 0; /* ignored by Pa_IsFormatSupported() */
         inputParameters.hostApiSpecificStreamInfo = NULL;
         if (Pa_IsFormatSupported(&inputParameters, NULL, 48000.0) == paFormatIsSupported) {
+#ifdef DummyTwoTone
           // duplicate the first suitable device, this will become
           // a dummy two-tone generator
           if (n_input_devices == 0) {
             input_devices[n_input_devices]="TwoTone";
             in_device_no[n_input_devices++] =i;
           }
+#endif
           if (n_input_devices < MAXDEVICES) {
             input_devices[n_input_devices]=deviceInfo->name;
             in_device_no[n_input_devices++] =i;
@@ -182,11 +192,13 @@ int audio_open_input()
   }
   mic_buffer=(unsigned char *)malloc(2*framesPerBuffer);
   mic_buffer_size=framesPerBuffer;
+#ifdef DummyTwoTone
   TwoTone=0;
   if (transmitter->input_device == 0) {
     tonept=0;
     TwoTone=1;
   }
+#endif
   return 0;
 }
 
@@ -205,7 +217,9 @@ int pa_mic_cb(const void *inputBuffer, void *outputBuffer, unsigned long framesP
 
 //
 // Convert input buffer in paFloat32 into a sequence of 16-bit
-// values in the mic buffer
+// values in the mic buffer. If using the dummy Two-Tone
+// device, mic input will be discarded and a two-tone
+// signal produced instead.
 //
   if (mic_buffer == NULL) return paAbort;
 
@@ -215,19 +229,25 @@ int pa_mic_cb(const void *inputBuffer, void *outputBuffer, unsigned long framesP
       *p++ = 0;
       *p++ = 0;
     }
+#ifdef DummyTwoTone
   } else if (TwoTone == 0) {
+#else
+  } else {
+#endif
     for (i=0; i<framesPerBuffer; i++) {
       isample=(short) (in[i]*32768.0);
-      *p++   = (isample & 0xFF);      // LittleEndian
-      *p++ = (isample >> 8)& 0xFF;
+      *p++   = (isample & 0xFF);         // LittleEndian
+      *p++   = (isample >> 8)& 0xFF;
     }
+#ifdef DummyTwoTone
   } else {
     for (i=0; i<framesPerBuffer; i++) {
-      isample=(short) (sintab[tonept++]*32768.0);
+      isample=(short) (sintab[tonept++]*32767.0);
       if (tonept == lentab) tonept=0;
       *p++   = (isample & 0xFF);      // LittleEndian
       *p++ = (isample >> 8)& 0xFF;
     }
+#endif
   }
 //
 // Call routine to send mic buffer
@@ -367,11 +387,14 @@ void audio_close_output(RECEIVER *rx) {
 // we have to store the data such that the PA callback function
 // can access it.
 //
-static int apt=0;
 int audio_write (RECEIVER *rx, short r, short l)
 {
   PaError err;
 
+  // this will cause massive underflow errors, since
+  // we do not provide any data while transmitting.
+  // Instead, the side tone version will take over
+  if (rx == active_receiver && isTransmitting()) return 0;
   if (rx->playback_handle != NULL && rx->playback_buffer != NULL) {
     rx->playback_buffer[rx->playback_offset++] = (r + l) *0.000015259;  //   65536 --> 1.0   
     if (rx->playback_offset == audio_buffer_size) {
@@ -386,11 +409,22 @@ int audio_write (RECEIVER *rx, short r, short l)
   return 0;
 }
 
-//
-// CW audio write 
-// This is a dummy here because I think it is not correctly implemented in audio.c
-//
-void cw_audio_write(double sample) {
-}   
+int cw_audio_write(double sample) {
+  PaError err;
+  RECEIVER *rx = active_receiver;
+
+  if (rx->playback_handle != NULL && rx->playback_buffer != NULL) {
+    rx->playback_buffer[rx->playback_offset++] = sample;
+    if (rx->playback_offset == audio_buffer_size) {
+      rx->playback_offset=0;
+      err=Pa_WriteStream(rx->playback_handle, (void *) rx->playback_buffer, (unsigned long) audio_buffer_size);
+      //if (err != paNoError) {
+      //  fprintf(stderr,"PORTAUDIO ERROR: write stream dev=%d: %s\n",out_device_no[rx->audio_device],Pa_GetErrorText(err));
+      //  return -1;
+      // }
+    }
+  }
+  return 0;
+}
 
 #endif

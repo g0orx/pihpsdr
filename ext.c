@@ -36,6 +36,14 @@
 
 // The following calls functions can be called usig g_idle_add
 
+// DL1YCF: added interface for mode change, to be used by rigctl
+//         (MD command)
+int ext_vfo_mode_changed(void * data)
+{
+  vfo_mode_changed((int) (long) data);
+  return 0;
+}
+
 int ext_discovery(void *data) {
   discovery();
   return 0;

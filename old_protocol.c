@@ -164,7 +164,6 @@ static int command=1;
 static GThread *receive_thread_id;
 static void start_receive_thread();
 static gpointer receive_thread(gpointer arg);
-// DL1YCF changed buffer to uchar*
 static void process_ozy_input_buffer(unsigned char  *buffer);
 static void process_bandscope_buffer(char  *buffer);
 void ozy_send_buffer();
@@ -173,10 +172,8 @@ static unsigned char metis_buffer[1032];
 static long send_sequence=-1;
 static int metis_offset=8;
 
-// DL1YCF changed buffer to uchar*
 static int metis_write(unsigned char ep,unsigned char* buffer,int length);
 static void metis_start_stop(int command);
-// DL1YCF changed buffer to uchar*
 static void metis_send_buffer(unsigned char* buffer,int length);
 static void metis_restart();
 
@@ -380,7 +377,6 @@ static void start_receive_thread() {
 
 static gpointer receive_thread(gpointer arg) {
   struct sockaddr_in addr;
-  // DL1YCF changed from int to socklen_t
   socklen_t length;
   unsigned char buffer[2048];
   int bytes_read;
@@ -421,7 +417,6 @@ static gpointer receive_thread(gpointer arg) {
               // get the sequence number
               sequence=((buffer[4]&0xFF)<<24)+((buffer[5]&0xFF)<<16)+((buffer[6]&0xFF)<<8)+(buffer[7]&0xFF);
 
-	      // DL1YCF: added check on lost packets
               if (sequence != last_seq_num+1) {
 		fprintf(stderr,"SEQ ERROR: last %ld, recvd %ld\n", last_seq_num, sequence);
 	      }
@@ -465,11 +460,9 @@ static gpointer receive_thread(gpointer arg) {
         break;
     }
   }
-  // DL1YCF added return statement to make compiler happy.
   return NULL;
 }
 
-// Dl1YCF changed buffer to uchar*
 static void process_ozy_input_buffer(unsigned char  *buffer) {
   int i,j;
   int r;
@@ -514,6 +507,7 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
     dot=(control_in[0]&0x04)==0x04;
 
     local_ptt=ptt;
+    if (dot || dash) cw_key_hit=1;
     if(vfo[tx_vfo].mode==modeCWL || vfo[tx_vfo].mode==modeCWU) {
       local_ptt=ptt|dot|dash;
     }
@@ -684,6 +678,30 @@ void old_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right
     output_buffer[output_buffer_index++]=0;
     output_buffer[output_buffer_index++]=0;
     output_buffer[output_buffer_index++]=0;
+    if(output_buffer_index>=OZY_BUFFER_SIZE) {
+      ozy_send_buffer();
+      output_buffer_index=8;
+    }
+  }
+}
+
+//
+// This is a copy of old_protocol_iq_samples,
+// but it includes the possibility to send a side tone
+// We use it to provide a side-tone for CW/TUNE, in
+// all other cases side==0 and this routine then is
+// fully equivalent to old_protocol_iq_samples.
+//
+void old_protocol_iq_samples_with_sidetone(int isample, int qsample, int side) {
+  if(isTransmitting()) {
+    output_buffer[output_buffer_index++]=side >> 8;
+    output_buffer[output_buffer_index++]=side;
+    output_buffer[output_buffer_index++]=side >> 8;
+    output_buffer[output_buffer_index++]=side;
+    output_buffer[output_buffer_index++]=isample>>8;
+    output_buffer[output_buffer_index++]=isample;
+    output_buffer[output_buffer_index++]=qsample>>8;
+    output_buffer[output_buffer_index++]=qsample;
     if(output_buffer_index>=OZY_BUFFER_SIZE) {
       ozy_send_buffer();
       output_buffer_index=8;
@@ -1201,7 +1219,16 @@ void ozy_send_buffer() {
     mode=vfo[0].mode;
   }
   if(mode==modeCWU || mode==modeCWL) {
-    if(tune) {
+//
+//  The default is doing 'external CW', that is,
+//  CW is entirely done on the HPSDR board. In this
+//  case, we should not set MOX, the PTT switching on
+//  the HPSDR board is done by the board itself.
+//
+//  However, if we are doing local CW or tuning,
+//  we must put the SDR into TX mode.
+//
+    if(isTransmitting() && (tune || local_cw_is_active)) {
       output_buffer[C0]|=0x01;
     }
   } else {
@@ -1290,7 +1317,6 @@ static int ozyusb_write(char* buffer,int length)
 }
 #endif
 
-// DL1YCF change buffer to uchar*
 static int metis_write(unsigned char ep,unsigned char* buffer,int length) {
   int i;
 
@@ -1324,7 +1350,6 @@ static int metis_write(unsigned char ep,unsigned char* buffer,int length) {
 
 static void metis_restart() {
   // reset metis frame
-  // DL1YCF change == to = in the next line
   metis_offset=8;
 
   // reset current rx
@@ -1346,7 +1371,6 @@ static void metis_restart() {
   ozy_send_buffer();
   ozy_send_buffer();
 
-  // DL1YCF: reset for the next commands
   current_rx=0;
   command=1;
 #else
@@ -1392,7 +1416,6 @@ static void metis_start_stop(int command) {
 #endif
 }
 
-// DL1YCF changedbuffer to uchar *
 static void metis_send_buffer(unsigned char* buffer,int length) {
   if(sendto(data_socket,buffer,length,0,(struct sockaddr*)&data_addr,data_addr_length)!=length) {
     perror("sendto socket failed for metis_send_data\n");
