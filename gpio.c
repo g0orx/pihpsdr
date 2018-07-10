@@ -969,7 +969,6 @@ fprintf(stderr,"setup_encoder_pin: pin=%d updown=%d\n",pin,up_down);
 }
 
 #ifdef LOCALCW
-#ifdef RADIOBERRY
 #define BUTTON_STEADY_TIME_US 5000
 static void setup_button(int button, gpioAlertFunc_t pAlert) {
   gpioSetMode(button, PI_INPUT);
@@ -981,13 +980,12 @@ static void setup_button(int button, gpioAlertFunc_t pAlert) {
 }
 
 static void cwAlert(int gpio, int level, uint32_t tick) {
-	//fprintf(stderr,"cw key at pin %d \n", gpio);
+    //fprintf(stderr,"cw key at pin %d \n", gpio);
     if (cw_keyer_internal == 0 ){
-		//fprintf(stderr,"call keyer_event...\n");
+	//fprintf(stderr,"call keyer_event...\n");
        keyer_event(gpio, cw_active_level == 0 ? level : (level==0));
-	}
+    }
 }
-#endif
 #endif
 
 int gpio_init() {
@@ -1115,13 +1113,11 @@ int gpio_init() {
 #endif
 
 #ifdef LOCALCW
-	fprintf(stderr,"GPIO: ENABLE_CW_BUTTONS=%d  CWL_BUTTON=%d CWR_BUTTON=%d\n",ENABLE_CW_BUTTONS, CWL_BUTTON, CWR_BUTTON);
-	if(ENABLE_CW_BUTTONS) {	
-		#ifdef RADIOBERRY
-			setup_button(CWL_BUTTON, cwAlert);
-			setup_button(CWR_BUTTON, cwAlert);
-		#endif
-	}
+  fprintf(stderr,"GPIO: ENABLE_CW_BUTTONS=%d  CWL_BUTTON=%d CWR_BUTTON=%d\n", ENABLE_CW_BUTTONS, CWL_BUTTON, CWR_BUTTON);
+  if(ENABLE_CW_BUTTONS) {	
+    setup_button(CWL_BUTTON, cwAlert);
+    setup_button(CWR_BUTTON, cwAlert);
+  }
 #endif
 
   return 0;

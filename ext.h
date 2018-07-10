@@ -53,3 +53,4 @@ extern int ext_tx_set_ps(void *data);
 extern int ext_ps_twotone(void *data);
 #endif
 int ext_vfo_step(void *data);
+int ext_vfo_mode_changed(void *data);

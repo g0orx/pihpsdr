@@ -2269,6 +2269,7 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                                      fprintf(stderr,"MD command Unknown\n");
                                                      #endif
                                                }
+#if 0
                                             // Other stuff to switch modes goes here..
                                             // since new_mode has the interpreted command in 
                                             // in it now.
@@ -2291,6 +2292,14 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                             set_filter(active_receiver,band_filter->low,band_filter->high);
                                             /* Need a way to update VFO info here..*/
                                             g_idle_add(ext_vfo_update,NULL);
+#endif
+					    // DL1YCF: I do not understand why the above code is so complicated.
+					    //         It is also problematic that the mode of the transmitter
+					    //         is not updated. I think one should simply behave as if
+					    //         a mode change had been selected from the menu. To this
+					    //         end, I added an interface for vfo_mode_changed in ext.c,
+					    //         to be able to call it using g_idle_add.
+					    g_idle_add(ext_vfo_mode_changed, (void *) (long) new_mode);
                                             }  else {     // Read Mode
                                                int curr_mode;
                                                switch (vfo[active_receiver->id].mode) {
