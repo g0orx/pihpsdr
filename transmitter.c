@@ -896,7 +896,7 @@ void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
 	// store the ramp value in cw_shape_buffer, but also use it for shaping the "local"
 	// side tone
 	ramp=cwramp[cw_shape];
-	cw_audio_write(0.00003937 * getNextSideToneSample() * cw_keyer_sidetone_volume * ramp);
+	cw_audio_write(0.0078 * getNextSideToneSample() * cw_keyer_sidetone_volume * ramp);
         cw_shape_buffer[tx->samples]=ramp;
   } else {
 //
