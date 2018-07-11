@@ -75,8 +75,12 @@ int cw_key_down = 0;
 int cw_not_ready=1;
 
 // cw_shape_buffer will eventually be integrated into TRANSMITTER
-static int *cw_shape_buffer = NULL;
+static double *cw_shape_buffer = NULL;
 static int cw_shape = 0;
+// cwramp is the function defining the "ramp" of the CW pulse.
+// is *must be* an array with 201 entries. The ramp width (200 samples)
+// is hard-coded.
+extern double cwramp[];  // see cwramp.c
 
 extern void cw_audio_write(double sample);
 
@@ -575,7 +579,7 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%d iq_output_buf
   tx->samples=0;
   tx->pixel_samples=malloc(sizeof(float)*tx->pixels);
   if (cw_shape_buffer) free(cw_shape_buffer);
-  cw_shape_buffer=malloc(sizeof(int)*tx->buffer_size);
+  cw_shape_buffer=malloc(sizeof(double)*tx->buffer_size);
 fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%p iq_output_buffer=%p pixels=%p\n",tx->mic_input_buffer,tx->iq_output_buffer,tx->pixel_samples);
 
   fprintf(stderr,"create_transmitter: OpenChannel id=%d buffer_size=%d fft_size=%d sample_rate=%d dspRate=%d outputRate=%d\n",
@@ -736,7 +740,7 @@ void tx_set_pre_emphasize(TRANSMITTER *tx,int state) {
 static void full_tx_buffer(TRANSMITTER *tx) {
   long isample;
   long qsample;
-  double gain,fgain,sidevol;
+  double gain, sidevol, ramp, fgain;
   int j;
   int error;
   int mode;
@@ -787,13 +791,14 @@ static void full_tx_buffer(TRANSMITTER *tx) {
     if ((mode == modeCWL || mode == modeCWU) && !tune) {
 	//
 	// "pulse shape case":
-	// shape the I/Q samples with the envelope function stored in cw_shape_buffer
-	// and produce side tone (again with shaped pulses)
+	// shape the I/Q samples with the envelope stored in cw_shape_buffer.
+	// We also produce a side tone with same shape.
 	//
-	fgain=gain*0.005;			    // will be multiplied with cw_shape
-        sidevol= 1.29 * cw_keyer_sidetone_volume;   // will be multiplied with cw_shape
+	fgain=gain;			    	    // will be multiplied with ramp function
+        sidevol= 258.0 * cw_keyer_sidetone_volume;  // will be multiplied with ramp function
         for(j=0;j<tx->output_samples;j++) {
-	    gain=fgain*cw_shape_buffer[j];
+	    ramp=cw_shape_buffer[j];	    	    // between 0 and 1
+	    gain=fgain*ramp;
 	    double is=tx->iq_output_buffer[j*2];
 	    double qs=tx->iq_output_buffer[(j*2)+1];
 	    isample=is>=0.0?(long)floor(is*gain+0.5):(long)ceil(is*gain-0.5);
@@ -804,7 +809,7 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 		    // since we may use getNextSidetoneSample for local audio, we need
 		    // an independent instance thereof here. To be nice to the CW
 		    // operator, the audio is shaped the same way as the RF
-		    sidetone=sidevol * cw_shape_buffer[j] * getNextInternalSideToneSample();
+		    sidetone=sidevol * ramp * getNextInternalSideToneSample();
 		    old_protocol_iq_samples_with_sidetone(isample,qsample,sidetone);
 		    break;
 		case NEW_PROTOCOL:
@@ -838,7 +843,7 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
   int mode;
   double sample;
-  double mic_sample_double;
+  double mic_sample_double, ramp;
   int i,s;
 
   if(split) {
@@ -869,35 +874,42 @@ void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
 //	cw_key_down can be zero, for inserting some space
 //
 //	We HAVE TO shape the signal to avoid hard clicks to be
-//	heard way beside our frequency. The envelope goes up
-//	  and down linearly within 200 samples (4.16 msec)
+//	heard way beside our frequency. The envelope (ramp function)
+//      is stored in cwramp[0::200], so we "move" cw_shape between these
+//      values. The ramp width is 200 samples (4.16 msec)
+//
+//      Note that usually, the pulse is much broader than the ramp,
+//      that is, cw_key_down and cw_key_up are much larger than 200.
 //
 	cw_not_ready=0;
 	if (cw_key_down > 0 ) {
-	    if (cw_shape < 200) cw_shape++;
-	    cw_key_down--;
+	    if (cw_shape < 200) cw_shape++;	// walk up the ramp
+	    cw_key_down--;			// decrement key-up counter
 	} else {
 	    if (cw_key_up >= 0) {
 		// dig into this even if cw_key_up is already zero, to ensure
-		// that cw_shape eventually reaches zero
-		if (cw_shape > 0) cw_shape--;
-		if (cw_key_up > 0) cw_key_up--;
+		// that we reach the bottom of the ramp for very small pauses
+		if (cw_shape > 0) cw_shape--;	// walk down the ramp
+		if (cw_key_up > 0) cw_key_up--; // decrement key-down counter
 	    }
 	}
-	cw_audio_write(0.00003937 * getNextSideToneSample() * cw_keyer_sidetone_volume * cw_shape);
-        cw_shape_buffer[tx->samples]=cw_shape;
+	// store the ramp value in cw_shape_buffer, but also use it for shaping the "local"
+	// side tone
+	ramp=cwramp[cw_shape];
+	cw_audio_write(0.00003937 * getNextSideToneSample() * cw_keyer_sidetone_volume * ramp);
+        cw_shape_buffer[tx->samples]=ramp;
   } else {
 //
 //	If no longer transmitting, or no longer doing CW: reset pulse shaper.
-//	This will also swallow any pending CW in rigtl CAT CW and wipe out the
-//      cw_shape buffer very quickly. In order to tell rigctl etc. that CW should be
+//	This will also swallow any pending CW in rigtl CAT CW and wipe out
+//      cw_shape_buffer very quickly. In order to tell rigctl etc. that CW should be
 //	aborted, we also use the cw_not_ready flag.
 //
 	cw_not_ready=1;
 	cw_key_up=0;
 	cw_key_down=0;
 	cw_shape=0;
-  	cw_shape_buffer[tx->samples]=0;
+  	cw_shape_buffer[tx->samples]=0.0;
   }
   tx->mic_input_buffer[tx->samples*2]=mic_sample_double;
   tx->mic_input_buffer[(tx->samples*2)+1]=0.0; //mic_sample_double;
