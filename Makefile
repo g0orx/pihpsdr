@@ -262,7 +262,8 @@ store_menu.c \
 memory.c \
 led.c \
 ext.c \
-error_handler.c
+error_handler.c \
+cwramp.c
 
 
 HEADERS= \
@@ -402,7 +403,8 @@ store_menu.o \
 memory.o \
 led.o \
 ext.o \
-error_handler.o
+error_handler.o \
+cwramp.o
 
 $(PROGRAM):  $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) $(LOCALCW_OBJS) $(I2C_OBJS) $(GPIO_OBJS) $(PSK_OBJS) $(PURESIGNAL_OBJS) $(STEMLAB_OBJS)
 	$(LINK) -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(I2C_OBJS) $(GPIO_OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) $(LOCALCW_OBJS) $(PSK_OBJS) $(PURESIGNAL_OBJS) $(STEMLAB_OBJS) $(LIBS)
