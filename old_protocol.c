@@ -1218,21 +1218,20 @@ void ozy_send_buffer() {
   } else {
     mode=vfo[0].mode;
   }
-  if(mode==modeCWU || mode==modeCWL) {
+  if (isTransmitting()) {
+    if(mode==modeCWU || mode==modeCWL) {
 //
-//  The default is doing 'external CW', that is,
-//  CW is entirely done on the HPSDR board. In this
-//  case, we should not set MOX, the PTT switching on
-//  the HPSDR board is done by the board itself.
+//    If CW is done on the HPSDR board, we should not set
+//    the MOX bit, everything is done in the FPGA.
 //
-//  However, if we are doing local CW or tuning,
-//  we must put the SDR into TX mode.
+//    However, if we are doing CAT CW, local CW or tuning,
+//    we must put the SDR into TX mode.
 //
-    if(isTransmitting() && (tune || local_cw_is_active)) {
-      output_buffer[C0]|=0x01;
-    }
-  } else {
-    if(isTransmitting()) {
+      if(tune || CAT_cw_is_active || !cw_keyer_internal) {
+        output_buffer[C0]|=0x01;
+      }
+    } else {
+      // not doing CW? set MOX in any case.
       output_buffer[C0]|=0x01;
     }
   }

@@ -141,11 +141,15 @@ int ext_radio_change_sample_rate(void *data) {
   return 0;
 }
 
+// DL1YCF: because of the new CW algorithm,
+//         this function is no longer used
 int ext_cw_setup() {
   radio_cw_setup();
   return 0;
 }
 
+// DL1YCF: because of the new CW algorithm,
+//         this function is no longer used
 int ext_cw_key(void *data) {
   radio_cw_key((uintptr_t)data);
   return 0;

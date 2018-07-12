@@ -145,7 +145,7 @@ extern void transmitter_set_compressor(TRANSMITTER *tx,int state);
 extern void tx_set_ps_sample_rate(TRANSMITTER *tx,int rate);
 extern void add_ps_iq_samples(TRANSMITTER *tx, double i_sample_0,double q_sample_0, double i_sample_1, double q_sample_1);
 
-extern void cw_sidetone_mute(int mute);
+extern void cw_hold_key(int state);
 #endif
 
 

@@ -288,7 +288,7 @@ double vox_threshold=0.001;
 double vox_gain=10.0;
 double vox_hang=250.0;
 int vox=0;
-int local_cw_is_active=0;
+int CAT_cw_is_active=0;
 int cw_key_hit=0;
 
 int diversity_enabled=0;
@@ -899,6 +899,8 @@ int getTune() {
   return tune;
 }
 
+// DL1YCF: because of the new CW algorithm,
+//         this function is no longer used
 void radio_cw_setup() {
   int mode=vfo[VFO_A].mode;;
   if(split) {
@@ -912,6 +914,8 @@ void radio_cw_setup() {
   SetTXAPostGenToneMag(transmitter->id,0.99999);
 }
 
+// DL1YCF: because of the new CW algorithm,
+//         this function is no longer used
 void radio_cw_key(int state) {
   SetTXAPostGenRun(transmitter->id,state);
 }

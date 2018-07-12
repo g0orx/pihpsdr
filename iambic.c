@@ -158,6 +158,10 @@ void keyer_update() {
 void keyer_event(int gpio, int level) {
     int state = (level == 0);
 
+    // This is for aborting CAT CW messages if the key is hit.
+    if (state) {
+	cw_key_hit = 1;
+    }
     if (gpio == CWL_BUTTON)
         kcwl = state;
     else  // CWR_BUTTON
@@ -180,21 +184,26 @@ void clear_memory() {
 
 void set_keyer_out(int state) {
     if (keyer_out != state) {
+	// DL1YCF: Shouln't one activate PTT if not yet done?
+	//         At the moment, it is required to *manually* activate
+	//         MOX before starting local CW.
         keyer_out = state;
         if(protocol==NEW_PROTOCOL) schedule_high_priority(9);
 		fprintf(stderr,"set_keyer_out keyer_out= %d\n", keyer_out);
-        if (state)
-            if (SIDETONE_GPIO)
+        if (state) {
+	    // DL1YCF: we must call cw_hold_key in *any* case, else no
+	    //         CW signal will be produced. We certainly do not
+	    //         want to produce a side tone *only*.
+            if (SIDETONE_GPIO) {
                 softToneWrite (SIDETONE_GPIO, cw_keyer_sidetone_frequency);
-            else {
-				cw_sidetone_mute(1);
-            }
-        else
-            if (SIDETONE_GPIO)
+	    }
+	    cw_hold_key(1); // this starts a CW pulse in transmitter.c
+        } else {
+            if (SIDETONE_GPIO) {
                 softToneWrite (SIDETONE_GPIO, 0);
-            else  {
-				cw_sidetone_mute(0);
-            }
+	    }
+	    cw_hold_key(0); // this stops a CW pulse in transmitter.c
+        }
     }
 }
 
