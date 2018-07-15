@@ -496,6 +496,14 @@ static gpointer rigctl_cw_thread(gpointer data)
     dotsamples = 57600 / cw_keyer_speed;
     dashsamples = (3456 * cw_keyer_weight) / cw_keyer_speed;
     CAT_cw_is_active=1;
+    // if out-of-band, ptt_update() has no effect
+    // and mox will not appear. In this case, we should
+    // skip the pending CW message to avoid an infinite
+    // loop
+    if (!canTransmit() && ! tx_out_of_band) {
+	fprintf(stderr,"CAT CW skipped -- out of band.\n");
+	continue;
+    }
     if (!mox) {
 	// activate PTT
         g_idle_add(ext_ptt_update ,(gpointer)1);

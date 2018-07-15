@@ -77,9 +77,6 @@ char *output_devices[32];
 int n_output_devices=0;
 //int n_selected_output_device=-1;
 
-int playback_cw_offset = 0;
-unsigned char *playback_cw_buffer;
-
 int audio_open_output(RECEIVER *rx) {
   int err;
   snd_pcm_hw_params_t *hw_params;
@@ -170,9 +167,7 @@ fprintf(stderr,"audio_open_output: handle=%p\n",rx->playback_handle);
   rx->playback_offset=0;
   rx->playback_buffer=(unsigned char *)malloc(OUTPUT_BUFFER_SIZE);
   
-  playback_cw_buffer = (unsigned char *)malloc(OUTPUT_BUFFER_SIZE);
-
-fprintf(stderr,"audio_open_output: rx=%d audio_device=%d handle=%p buffer=%p\n",rx->id,rx->audio_device,rx->playback_handle,rx->playback_buffer);
+  fprintf(stderr,"audio_open_output: rx=%d audio_device=%d handle=%p buffer=%p\n",rx->id,rx->audio_device,rx->playback_handle,rx->playback_buffer);
   return 0;
 }
 	
@@ -307,62 +302,70 @@ void audio_close_input() {
     free(mic_buffer);
     mic_buffer=NULL;
   }
-  if (playback_cw_buffer!=NULL) {
-	  free(playback_cw_buffer);
-	  playback_cw_buffer=NULL;
-  }
 }
 
-//write side tone for cw...
+//
+// This is for writing a CW side tone. It is essentially
+// a copy of audio_write using the active receiver.
+// Note that audio_write must be switched off for the
+// active_receiver when transmitting.
+//
 int cw_audio_write(double sample){
+  snd_pcm_sframes_t delay;
+  int error;
+  long trim;
+  short shortsample;
 	
-	snd_pcm_sframes_t delay;
-	int error;
-	long trim;
-	RECEIVER *rx = receiver[0];
-	//fprintf(stderr, "cw audio write \n");
-	if(rx->playback_handle!=NULL && playback_cw_buffer!=NULL) {
-	
-		// convert double sample to short and assign sample to L and R channel.
-		short ssample = (short)(sample*32767.0);
-		playback_cw_buffer[playback_cw_offset++] = ssample;
-		playback_cw_buffer[playback_cw_offset++] = ssample>>8;
-		playback_cw_buffer[playback_cw_offset++] = ssample;
-		playback_cw_buffer[playback_cw_offset++] = ssample>>8;
-		
-		if(playback_cw_offset==OUTPUT_BUFFER_SIZE) {
-			      trim=0;
+  RECEIVER *rx = active_receiver;
+ 
+  if(rx->playback_handle!=NULL && rx->playback_buffer!=NULL) {
+    shortsample = (short) (sample * 32767.0);
+    rx->playback_buffer[rx->playback_offset++]=shortsample;
+    rx->playback_buffer[rx->playback_offset++]=shortsample>>8;
+    rx->playback_buffer[rx->playback_offset++]=shortsample;
+    rx->playback_buffer[rx->playback_offset++]=shortsample>>8;
 
-			if(snd_pcm_delay(rx->playback_handle,&delay)==0) {
-				if(delay>2048) {
-				  trim=delay-2048;
-				}
-			}
+    if(rx->playback_offset==OUTPUT_BUFFER_SIZE) {
 
-			if ((error = snd_pcm_writei (rx->playback_handle, playback_cw_buffer, audio_buffer_size-trim)) != audio_buffer_size-trim) {
-				if(error==-EPIPE) {
-				  if ((error = snd_pcm_prepare (rx->playback_handle)) < 0) {
-					fprintf (stderr, "audio_write: cannot prepare audio interface for use (%s)\n",
-							snd_strerror (error));
-					return -1;
-				  }
-				  if ((error = snd_pcm_writei (rx->playback_handle, playback_cw_buffer, audio_buffer_size-trim)) != audio_buffer_size) {
-					fprintf (stderr, "audio_write: write to audio interface failed (%s)\n",
-							snd_strerror (error));
-					return -1;
-				  }
-				}
-			}
-			playback_cw_offset=0;
-		}
-	}
-	return 0;
+      trim=0;
+
+      if(snd_pcm_delay(rx->playback_handle,&delay)==0) {
+        if(delay>2048) {
+          trim=delay-2048;
+//fprintf(stderr,"audio delay=%ld trim=%ld\n",delay,trim);
+        }
+      }
+
+      if ((error = snd_pcm_writei (rx->playback_handle, rx->playback_buffer, audio_buffer_size-trim)) != audio_buffer_size-trim) {
+        if(error==-EPIPE) {
+          if ((error = snd_pcm_prepare (rx->playback_handle)) < 0) {
+            fprintf (stderr, "audio_write: cannot prepare audio interface for use (%s)\n",
+                    snd_strerror (error));
+            return -1;
+          }
+          if ((error = snd_pcm_writei (rx->playback_handle, rx->playback_buffer, audio_buffer_size-trim)) != audio_buffer_size) {
+            fprintf (stderr, "audio_write: write to audio interface failed (%s)\n",
+                    snd_strerror (error));
+            return -1;
+          }
+        }
+      }
+      rx->playback_offset=0;
+    }
+  }
+  return 0;
 }
 
+//
+// if rx == active_receiver and while transmitting, DO NOTHING
+// since cw_audio_write may be active
+//
 int audio_write(RECEIVER *rx,short left_sample,short right_sample) {
   snd_pcm_sframes_t delay;
   int error;
   long trim;
+
+  if (rx == active_receiver && isTransmitting()) return;
 
   if(rx->playback_handle!=NULL && rx->playback_buffer!=NULL) {
     rx->playback_buffer[rx->playback_offset++]=right_sample;
