@@ -77,6 +77,7 @@
 #define STEMLAB_PAVEL_RX 1
 #define STEMLAB_PAVEL_TRX 2
 #define STEMLAB_RP_TRX 4
+#define HAMLAB_RP_TRX 8
 #endif
 
 

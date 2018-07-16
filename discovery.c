@@ -295,9 +295,15 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
           }
           if ((d->software_version & STEMLAB_RP_TRX) != 0) {
             gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox[i]),
-                "stemlab_sdr_transceiver_hpsdr", "RedPitaya-Trx");
+                "stemlab_sdr_transceiver_hpsdr", "STEMlab-Trx");
             gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox[i]),
                 "stemlab_sdr_transceiver_hpsdr");
+          }
+          if ((d->software_version & HAMLAB_RP_TRX) != 0) {
+            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox[i]),
+                "hamlab_sdr_transceiver_hpsdr", "HAMlab-Trx");
+            gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox[i]),
+                "hamlab_sdr_transceiver_hpsdr");
           }
           gtk_widget_show(apps_combobox[i]);
           gtk_grid_attach(GTK_GRID(grid), apps_combobox[i], 4, i, 1, 1);

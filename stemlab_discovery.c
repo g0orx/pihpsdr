@@ -268,6 +268,10 @@ static size_t app_list_cb(void *buffer, size_t size, size_t nmemb, void *data) {
   if (g_strstr_len(buffer, size*nmemb, rp_trx_json) != NULL) {
     *software_version |= STEMLAB_RP_TRX;
   }
+  const gchar *hamlab_trx_json = "\"hamlab_sdr_transceiver_hpsdr\":";
+  if (g_strstr_len(buffer, size*nmemb, hamlab_trx_json) != NULL) {
+    *software_version |= HAMLAB_RP_TRX;
+  }
   // Returning the total amount of bytes "processed" to signal cURL that we
   // are done without any errors
   return size * nmemb;
