@@ -490,28 +490,30 @@ static gpointer rigctl_cw_thread(gpointer data)
     }
     strncpy(local_buf, cw_buf, 30);
     cw_busy=0; // mark buffer free again
-    // these values may have changed
+    // these values may have changed, so recompute them here
     dotlen = 1200000L/(long)cw_keyer_speed;
     dashlen = (dotlen * 3 * cw_keyer_weight) / 50L;
     dotsamples = 57600 / cw_keyer_speed;
     dashsamples = (3456 * cw_keyer_weight) / cw_keyer_speed;
     CAT_cw_is_active=1;
-    // if out-of-band, ptt_update() has no effect
-    // and mox will not appear. In this case, we should
-    // skip the pending CW message to avoid an infinite
-    // loop
-    if (!canTransmit() && ! tx_out_of_band) {
-	fprintf(stderr,"CAT CW skipped -- out of band.\n");
-	continue;
-    }
     if (!mox) {
 	// activate PTT
         g_idle_add(ext_ptt_update ,(gpointer)1);
 	// have to wait until it is really there
-        while (!mox) usleep(50000L);
-	// some extra time to settle down
+	// Note that if out-of-band, we would wait
+	// forever here, so allow at most 500 msec
+	i=10;
+        while (!mox && (i--) > 0) usleep(50000L);
+	// still no MOX? --> silently discard CW message and give up
+	if (!mox) {
+	    CAT_cw_is_active=0;
+	    continue;
+	}
+	// some extra time to settle down, in order NOT to loose
+	// the first dit or dah
         usleep(100000L);
     }
+    // At this point, mox==1 and CAT_cw_active == 1
     i=0;
     while(((c=local_buf[i++]) != '\0') && !cw_key_hit && !cw_not_ready) {
         rigctl_send_cw_char(c);
