@@ -413,6 +413,8 @@ void rigctl_send_cw_char(char cw_char) {
        case 'W': strcpy(pattern,".--"); break;
        case 'x': 
        case 'X': strcpy(pattern,"-..-"); break;
+       case 'y':
+       case 'Y': strcpy(pattern,"-.--"); break;
        case 'z': 
        case 'Z': strcpy(pattern,"--.."); break;
        case '0': strcpy(pattern,"-----"); break;
