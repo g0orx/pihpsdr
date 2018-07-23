@@ -413,6 +413,8 @@ void rigctl_send_cw_char(char cw_char) {
        case 'W': strcpy(pattern,".--"); break;
        case 'x': 
        case 'X': strcpy(pattern,"-..-"); break;
+       case 'y':
+       case 'Y': strcpy(pattern,"-.--"); break;
        case 'z': 
        case 'Z': strcpy(pattern,"--.."); break;
        case '0': strcpy(pattern,"-----"); break;
@@ -490,21 +492,30 @@ static gpointer rigctl_cw_thread(gpointer data)
     }
     strncpy(local_buf, cw_buf, 30);
     cw_busy=0; // mark buffer free again
-    // these values may have changed
+    // these values may have changed, so recompute them here
     dotlen = 1200000L/(long)cw_keyer_speed;
     dashlen = (dotlen * 3 * cw_keyer_weight) / 50L;
     dotsamples = 57600 / cw_keyer_speed;
     dashsamples = (3456 * cw_keyer_weight) / cw_keyer_speed;
-    local_cw_is_active=1;
+    CAT_cw_is_active=1;
     if (!mox) {
 	// activate PTT
         g_idle_add(ext_ptt_update ,(gpointer)1);
-        g_idle_add(ext_cw_key     ,(gpointer)1);
 	// have to wait until it is really there
-        while (!mox) usleep(50000L);
-	// some extra time to settle down
+	// Note that if out-of-band, we would wait
+	// forever here, so allow at most 500 msec
+	i=10;
+        while (!mox && (i--) > 0) usleep(50000L);
+	// still no MOX? --> silently discard CW message and give up
+	if (!mox) {
+	    CAT_cw_is_active=0;
+	    continue;
+	}
+	// some extra time to settle down, in order NOT to loose
+	// the first dit or dah
         usleep(100000L);
     }
+    // At this point, mox==1 and CAT_cw_active == 1
     i=0;
     while(((c=local_buf[i++]) != '\0') && !cw_key_hit && !cw_not_ready) {
         rigctl_send_cw_char(c);
@@ -514,8 +525,7 @@ static gpointer rigctl_cw_thread(gpointer data)
        // CW transmission has been aborted, either due to manually
        // removing MOX, changing the mode to non-CW, or because a CW key has been hit.
        // Do not remove PTT if we abort CAT CW because a CW key has been hit.
-       local_cw_is_active=0;
-       g_idle_add(ext_cw_key     ,(gpointer)0);
+       CAT_cw_is_active=0;
        // If an external CW key has been hit, we continue in TX mode
        // doing CW manually. Otherwise, switch PTT off.
        if (!cw_key_hit) {
@@ -536,8 +546,7 @@ static gpointer rigctl_cw_thread(gpointer data)
       // Otherwise remove PTT and wait for next CAT
       // CW command.
       if (cw_busy) continue;
-      local_cw_is_active=0;
-      g_idle_add(ext_cw_key     ,(gpointer)0);
+      CAT_cw_is_active=0;
       g_idle_add(ext_ptt_update ,(gpointer)0);
     }
   }
@@ -547,7 +556,6 @@ static gpointer rigctl_cw_thread(gpointer data)
   // of a transmission
   rigctl_cw_thread_id = NULL;
   cw_busy=0;
-  g_idle_add(ext_cw_key     ,(gpointer)0);
   g_idle_add(ext_ptt_update ,(gpointer)0);
   return NULL;
 }
@@ -1754,7 +1762,6 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                                      sprintf(msg,"ZZFB%011lld;",vfo[VFO_B].frequency);
                                                   }
                                                }
-                                               fprintf(stderr,"RIGCTL: FB=%s\n",msg);
                                                send_resp(client_sock,msg);
                                             }
                                          }
@@ -2175,11 +2182,7 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
 					    // - Note further that the space immediately following "KY" is *not*
 					    //   part of the message.
 					    if (!cw_busy && len > 3) {
-						// A CW text will be sent. We have to call cw_setup here because
-						// TUNE changes the WDSP side tone frequency, and in this case we have
-						// to re-adjust it.
-					        g_idle_add(ext_cw_setup,NULL);    // Initialize for external transmit
-						// Copy data to buffer
+						// A CW text will be sent. Copy incoming data to buffer
 						strncpy(cw_buf, cmd_input+3, 29);
 						// Kenwood protocol allows for at most 24 characters, so
 						// this seems pure paranoia -- but who knows?
@@ -3223,13 +3226,8 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
         else if(strcmp(cmd_str,"SM")==0) {  
                                             // PiHPSDR - ZZSM - Read SMeter - same range as TS 2000
                                             // TI-2000 - SM - Read SMETER
-                                            // SMx;  x=0 RX1, x=1 RX2 
-                                            // meter is in dbm - value will be 0<260
-                                            // Translate to 00-30 for main, 0-15 fo sub
-                                            // Resp= SMxAABB; 
-                                            //  Received range from the SMeter can be -127 for S0, S9 is -73, and S9+60=-13.;
-                                            //  PowerSDR returns S9=0015 code. 
-                                            //  Let's make S9 half scale or a value of 70.  
+                                            // SM0:  main receiver, SM1: sub receiver
+                                            // Resp= SM0xxxx or SM1yyyy; xxxx between 0000 and 0030, yyyy between 0000 and 0015.
                                             double level=0.0;
 
                                             int r=0;
@@ -3242,23 +3240,38 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                             }
                                             level = GetRXAMeter(receiver[r]->id, smeter); 
 
-                                            // Determine how high above 127 we are..making a range of 114 from S0 to S9+60db
-                                            // 5 is a fugdge factor that shouldn't be there - but seems to get us to S9=SM015
-					    // DL1YCF replaced abs by fabs, and changed 127 to floating point constant
-                                            level =  fabs(127.0+(level + (double) adc_attenuation[receiver[r]->adc]))+5;
-                                         
-                                            // Clip the value just in case
-                                            if(cmd_input[2] == '0') { 
-                                               new_level = (int) ((level * 30.0)/114.0);
-                                               // Do saturation check
-                                               if(new_level < 0) { new_level = 0; }
-                                               if(new_level > 30) { new_level = 30;}
-                                            } else { //Assume we are using sub receiver where range is 0-15
-                                               new_level = (int) ((level * 15.0)/114.0);
-                                               // Do saturation check
-                                               if(new_level < 0) { new_level = 0; }
-                                               if(new_level > 15) { new_level = 15;}
-                                            }
+                                            if(r == 0) { 
+						// DL1YCF: In the "main" bar graph, each bar counts 4 dB.
+						// S9+60 has 30 bars, S9 has 15 bars, S7 has 12 bars, and so on
+						// since S9 is about -73 dBm, the correct formula for converting
+						// dBm to bars is 15 + (level+73)/4 or 0.25*level + 33.25.
+						// The problem is now that S1 has 3 bars, such that 0 bars would
+						// correspond to S0 - 6dB. If one assumes that S0 corresponds
+						// to 0 bars, then it follows that the slope is 2 dB per bar
+						// below S1. This assumption is used in hamlib, and thus followed here.
+						if (level <= -121.0) {
+						    new_level = (int) round(0.50*level+63.50);   // valid up to S1 = -48 dBm
+						} else {
+						    new_level = (int) round(0.25*level+33.25);   // valid if at least S1
+						}
+						// Clip
+						if(new_level < 0) { new_level = 0; }
+						if(new_level > 30) { new_level = 30;}
+                                            } else {
+						// DL1YCF: studying the pictures in the TS2000 manual,
+						// for the "sub" display we have 0-9 small bars for S0 -S9, and in addition 1-6
+						// large bars for S9+10, ..., S9+60. So the slope is 6 dB per par
+						// up to S9, and 10 dB per bar beyond.
+						if (level <= -73.0) {
+						    new_level = (int) round(0.16667*level+21.16667);   // valid up to S9
+						} else {
+						    new_level = (int) round(0.1*level+16.3);           // valid if at least S9
+						}
+						// Clip
+						if(new_level < 0) { new_level = 0; }
+						if(new_level > 15) { new_level = 15;}
+					    }
+
                                             if(zzid_flag == 0) {
                                                sprintf(msg,"SM%1c%04d;",
                                                            cmd_input[2],new_level);
@@ -3517,7 +3530,6 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                                g_idle_add(ext_mox_update,(gpointer)(long)mox_state); 
                                                g_idle_add(ext_vfo_update,NULL);
                                             } else {
-                                              g_idle_add(ext_cw_setup,NULL);    // Initialize for external transmit
                                               g_idle_add(ext_mox_update,(gpointer)(long)1); // Turn on External MOX
                                             }
                                          }
@@ -3682,17 +3694,19 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                              }
                                          }
         else if((strcmp(cmd_str,"XC")==0) && (zzid_flag == 1)) {  
-                                            // PiHPSDR - ZZXC  - Turn off External MOX- 
-                                            g_idle_add(ext_mox_update,(gpointer)(long)0); // Turn on xmitter (set Mox)
+                                            // PiHPSDR - ZZXC  - Terminate "CW" via ZZXO/ZZXT (Key up and MOX off)
+					    cw_hold_key(0);
+                                            g_idle_add(ext_mox_update,(gpointer)(long)0);
+					    CAT_cw_is_active=0;
                                          }
         else if((strcmp(cmd_str,"XI")==0) && (zzid_flag == 1)) {  
-                                            // PiHPSDR - ZZXI - Initialize the transmitter for external CW
-                                            g_idle_add(ext_cw_setup,NULL);    // Initialize for external transmit
-                                            g_idle_add(ext_mox_update,(gpointer)(long)1); // Turn on External MOX
+                                            // PiHPSDR - ZZXI - Prepeare for "CW" via ZZXO/ZZXT (MOX on)
+					    CAT_cw_is_active=1;
+                                            g_idle_add(ext_mox_update,(gpointer)(long)1);
                                          }
        else if((strcmp(cmd_str,"XO")==0) && (zzid_flag == 1)) {  
-                                            // PiHPSDR - ZZXT - Turn CW Note off when in CW mode
-                                            g_idle_add(ext_cw_key, (gpointer)(long)0);
+                                            // PiHPSDR - ZZXO - Turn CW Note off when in CW mode
+					    cw_hold_key(0);
                                          }
         else if(strcmp(cmd_str,"XT")==0) {  
                                            if(zzid_flag == 0 ) {
@@ -3703,7 +3717,7 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                              }
                                            } else {
                                             // PiHPSDR - ZZXT - Turn CW Note on when in CW mode
-                                            g_idle_add(ext_cw_key, (gpointer)(long)1);
+					    cw_hold_key(1);
                                            }
                                          }
         else if((strcmp(cmd_str,"XX")==0) && (zzid_flag == 0)) {  // 

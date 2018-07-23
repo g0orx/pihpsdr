@@ -244,7 +244,7 @@ extern double vox_threshold;
 extern double vox_gain;
 extern double vox_hang;
 extern int vox;
-extern int local_cw_is_active;
+extern int CAT_cw_is_active;
 extern int cw_key_hit;
 
 extern int diversity_enabled;

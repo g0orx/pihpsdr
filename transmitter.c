@@ -741,10 +741,16 @@ static void full_tx_buffer(TRANSMITTER *tx) {
   long isample;
   long qsample;
   double gain, sidevol, ramp, fgain;
+  double *dp;
   int j;
   int error;
-  int mode;
+  int cwmode;
   int sidetone=0;
+
+  // It is important query tx->mode and tune only once, to assure that
+  // the two "if (cwmode)" queries give the same result.
+
+  cwmode = (tx->mode == modeCWL || tx->mode == modeCWU) && !tune;
 
   switch(protocol) {
     case ORIGINAL_PROTOCOL:
@@ -755,16 +761,30 @@ static void full_tx_buffer(TRANSMITTER *tx) {
       break;
   }
 
-  mode=vfo[VFO_A].mode;
-  if(split) {
-    mode=vfo[VFO_B].mode;
-  }
+  if (cwmode) {
+    //
+    // do not update VOX in CW mode in case we have just switched to CW
+    // and tx->mic_input_buffer is non-empty. WDSP (fexchange0) is not
+    // needed because we directly produce the I/Q samples (see below).
+    // What we do, however, is to create the iq_output_buffer for the
+    // sole purpose to display the spectrum of our CW signal. Then,
+    // the difference between poorly-shaped and well-shaped CW pulses
+    // also becomes visible on *our* TX spectrum display.
+    //
+    dp=tx->iq_output_buffer;
+    // These are the I/Q samples that describe our CW signal
+    // The only use we make of it is displaying the spectrum.
+    for (j = 0; j < tx->output_samples; j++) {
+      *dp++ = cw_shape_buffer[j];
+      *dp++ = 0.0;
+    }
+  } else {
+    update_vox(tx);
 
-  update_vox(tx);
-
-  fexchange0(tx->id, tx->mic_input_buffer, tx->iq_output_buffer, &error);
-  if(error!=0) {
-    fprintf(stderr,"full_tx_buffer: id=%d fexchange0: error=%d\n",tx->id,error);
+    fexchange0(tx->id, tx->mic_input_buffer, tx->iq_output_buffer, &error);
+    if(error!=0) {
+      fprintf(stderr,"full_tx_buffer: id=%d fexchange0: error=%d\n",tx->id,error);
+    }
   }
 
 #ifdef PURESIGNAL
@@ -778,6 +798,12 @@ static void full_tx_buffer(TRANSMITTER *tx) {
   if(isTransmitting()) {
 
     if(radio->device==NEW_DEVICE_ATLAS && atlas_penelope) {
+      //
+      // On these boards, drive level changes are performed by
+      // scaling the TX IQ samples. In the other cases, DriveLevel
+      // as sent in the C&C frames becomes effective and the IQ
+      // samples are sent with full amplitude.
+      //
       if(tune && !transmitter->tune_use_drive) {
         gain=gain*((double)transmitter->drive_level*100.0/(double)transmitter->tune_percent);
       } else {
@@ -785,35 +811,42 @@ static void full_tx_buffer(TRANSMITTER *tx) {
       }
     }
 
-//  Two times essentially the same code: moved the check on "pulse shape" case
-//  out of the loops for computational efficiency
+//
+//  When doing CW, we do not need WDSP since I(t) = cw_shape_buffer(t) and Q(t)=0
+//  For the old protocol where the IQ and audio samples are tied together, we can
+//  easily generate a synchronous side tone (and use the function
+//  old_protocol_iq_samples_with_sidetone for this purpose).
+//
 
-    if ((mode == modeCWL || mode == modeCWU) && !tune) {
+    if (cwmode) {
 	//
 	// "pulse shape case":
-	// shape the I/Q samples with the envelope stored in cw_shape_buffer.
-	// We also produce a side tone with same shape.
+	// directly produce the I/Q samples. For a continuous zero-frequency
+	// carrier (as needed for CW) I(t)=1 and Q(t)=0 everywhere. We shape I(t)
+	// with the pulse envelope. We also produce a side tone with same shape.
+	// Note that tx->iq_output_buffer is not used. Therefore, all the
+        // SetTXAPostGen functions are not needed for CW!
 	//
-	fgain=gain;			    	    // will be multiplied with ramp function
-        sidevol= 258.0 * cw_keyer_sidetone_volume;  // will be multiplied with ramp function
+        sidevol= 258.0 * cw_keyer_sidetone_volume;  // between 0.0 and 32766.0
+	qsample=0;				    // will be constantly zero
         for(j=0;j<tx->output_samples;j++) {
-	    ramp=cw_shape_buffer[j];	    	    // between 0 and 1
-	    gain=fgain*ramp;
-	    double is=tx->iq_output_buffer[j*2];
-	    double qs=tx->iq_output_buffer[(j*2)+1];
-	    isample=is>=0.0?(long)floor(is*gain+0.5):(long)ceil(is*gain-0.5);
-	    qsample=qs>=0.0?(long)floor(qs*gain+0.5):(long)ceil(qs*gain-0.5);
+	    ramp=cw_shape_buffer[j];	    	    // between 0.0 and 1.0
+	    isample=floor(gain*ramp+0.5);           // always non-negative, isample is just the pulse envelope
 	    switch(protocol) {
 		case ORIGINAL_PROTOCOL:
+		    //
 		    // produce a side tone for internal CW on the HPSDR board
 		    // since we may use getNextSidetoneSample for local audio, we need
 		    // an independent instance thereof here. To be nice to the CW
 		    // operator, the audio is shaped the same way as the RF
+		    // The extra CPU to calculate the side tone is available here,
+		    // because we have not called fexchange0 for this buffer.
+	 	    //
 		    sidetone=sidevol * ramp * getNextInternalSideToneSample();
 		    old_protocol_iq_samples_with_sidetone(isample,qsample,sidetone);
 		    break;
 		case NEW_PROTOCOL:
-		    // ToDo: how to produce side-tone on the HPSDR board?
+		    // ToDo: how to produce synchronous side-tone on the HPSDR board?
 		    new_protocol_iq_samples(isample,qsample);
 		    break;
 	    }
@@ -841,16 +874,10 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 }
 
 void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
-  int mode;
+  int mode=tx->mode;
   double sample;
   double mic_sample_double, ramp;
   int i,s;
-
-  if(split) {
-    mode=vfo[1].mode;
-  } else {
-    mode=vfo[0].mode;
-  }
 
 //
 // silence TX audio if not transmitting, if tuning, or
@@ -1033,9 +1060,9 @@ void tx_set_ps_sample_rate(TRANSMITTER *tx,int rate) {
 // This is the old key-down/key-up interface for iambic.c
 // but now it also smoothes (cw_shape) the signal
 //
-void cw_sidetone_mute(int mute) {
-  if (mute) {
-    cw_key_down = 480000;    // up to 10 sec, should be OK even for QRSS
+void cw_hold_key(int state) {
+  if (state) {
+    cw_key_down = 4800000;    // up to 100 sec
   } else {
     cw_key_down = 0;
   }
