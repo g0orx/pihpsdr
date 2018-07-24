@@ -364,8 +364,16 @@ int audio_write(RECEIVER *rx,short left_sample,short right_sample) {
   snd_pcm_sframes_t delay;
   int error;
   long trim;
-
-  if (rx == active_receiver && isTransmitting()) return;
+  int mode=transmitter->mode;
+  //
+  // We have to stop the stream here if a CW side tone may occur.
+  // This might cause underflows, but we cannot use audio_write
+  // and cw_audio_write simultaneously on the same device.
+  // Instead, the side tone version will take over.
+  // If *not* doing CW, the stream continues because we might wish
+  // to listen to this rx while transmitting.
+  //
+  if (rx == active_receiver && isTransmitting() && (mode==modeCWU || mode==modeCWL)) return 0;
 
   if(rx->playback_handle!=NULL && rx->playback_buffer!=NULL) {
     rx->playback_buffer[rx->playback_offset++]=right_sample;

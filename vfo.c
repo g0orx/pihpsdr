@@ -556,6 +556,7 @@ void vfo_update() {
     int id=active_receiver->id;
     FILTER* band_filters=filters[vfo[id].mode];
     FILTER* band_filter=&band_filters[vfo[id].filter];
+    int have_noise=1;
     if(vfo_surface) {
         char temp_text[32];
         cairo_t *cr;
@@ -596,28 +597,45 @@ void vfo_update() {
           case modeAM:
             sprintf(temp_text,"%s %s %s",mode_string[vfo[id].mode],band_filter->title,dv);
             break;
+#ifdef DIGI_MODES
+	  case modeDIGU:
+	  case modeDIGL:
+	    // No band filter title
+            sprintf(temp_text,"%s %s",mode_string[vfo[id].mode],dv);
+	    // used later on NOT to display noise reduction 
+	    have_noise=0;
+            break;
+#endif
           default:
             sprintf(temp_text,"%s %s",mode_string[vfo[id].mode],band_filter->title);
             break;
         }
         cairo_show_text(cr, temp_text);
 
+	// DL1YCF: in what follows, we want to display the VFO frequency
+	// on which we currently transmit a signal with red colour.
+	// If it is out-of-band, we display "Out of band" in red.
+        // Frequencies we are not transmitting on are displayed in green
+	// (dimmed if the freq. does not belong to the active receiver).
+        // Depending on which receiver is the active one, and if we use slit,
+        // the following frequencies are used for transmitting (see old_protocol.c):
+	// id == 0, split == 0 : TX freq = VFO_A
+	// id == 0, split == 1 : TX freq = VFO_B
+	// id == 1, split == 0 : TX freq = VFO_B
+	// id == 1, split == 1 : TX freq = VFO_A
+
 
         long long af=vfo[0].frequency+vfo[0].offset;
-        if(transmitter->out_of_band && !split) {
-          cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
-          sprintf(temp_text,"VFO A: Out of band");
+        sprintf(temp_text,"VFO A: %0lld.%06lld",af/(long long)1000000,af%(long long)1000000);
+        if(isTransmitting() && ((id  == 0 && !split) || (id == 1 && split))) {
+	    if (transmitter->out_of_band) sprintf(temp_text,"VFO A: Out of band");
+            cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
         } else {
-          sprintf(temp_text,"VFO A: %0lld.%06lld",af/(long long)1000000,af%(long long)1000000);
-          if(isTransmitting() && !split) {
-              cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
-          } else {
-              if(active_receiver->id==0) {
-                cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
-              } else {
-                cairo_set_source_rgb(cr, 0.0, 0.65, 0.0);
-              }
-          }
+            if(id==0) {
+              cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
+            } else {
+              cairo_set_source_rgb(cr, 0.0, 0.65, 0.0);
+            }
         }
         cairo_move_to(cr, 5, 38);  
         cairo_set_font_size(cr, 22); 
@@ -625,20 +643,16 @@ void vfo_update() {
 
 
         long long bf=vfo[1].frequency+vfo[1].offset;
-        if(transmitter->out_of_band && split) {
-          cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
-          sprintf(temp_text,"VFO B: Out of band");
+        sprintf(temp_text,"VFO B: %0lld.%06lld",bf/(long long)1000000,bf%(long long)1000000);
+        if(isTransmitting() && ((id == 0 && split) || (id == 1 && !split))) {
+	    if (transmitter->out_of_band) sprintf(temp_text,"VFO B: Out of band");
+            cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
         } else {
-          sprintf(temp_text,"VFO B: %0lld.%06lld",bf/(long long)1000000,bf%(long long)1000000);
-          if(isTransmitting() && split) {
-              cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
-          } else {
-              if(active_receiver->id==1) {
-                cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
-              } else {
-                cairo_set_source_rgb(cr, 0.0, 0.65, 0.0);
-              }
-          }
+            if(id==1) {
+              cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
+            } else {
+              cairo_set_source_rgb(cr, 0.0, 0.65, 0.0);
+            }
         }
         cairo_move_to(cr, 260, 38);  
         cairo_show_text(cr, temp_text);
@@ -662,7 +676,7 @@ void vfo_update() {
         cairo_show_text(cr, "NB");
 
         cairo_move_to(cr, 175, 50);
-        if(active_receiver->nb2) {
+        if(active_receiver->nb2 && have_noise) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         } else {
           cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
@@ -670,7 +684,7 @@ void vfo_update() {
         cairo_show_text(cr, "NB2");
 
         cairo_move_to(cr, 200, 50);  
-        if(active_receiver->nr) {
+        if(active_receiver->nr && have_noise) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         } else {
           cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
@@ -678,7 +692,7 @@ void vfo_update() {
         cairo_show_text(cr, "NR");
 
         cairo_move_to(cr, 225, 50);  
-        if(active_receiver->nr2) {
+        if(active_receiver->nr2 && have_noise) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         } else {
           cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
@@ -686,7 +700,7 @@ void vfo_update() {
         cairo_show_text(cr, "NR2");
 
         cairo_move_to(cr, 250, 50);  
-        if(active_receiver->anf) {
+        if(active_receiver->anf && have_noise) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         } else {
           cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
@@ -694,7 +708,7 @@ void vfo_update() {
         cairo_show_text(cr, "ANF");
 
         cairo_move_to(cr, 275, 50);  
-        if(active_receiver->snb) {
+        if(active_receiver->snb && have_noise) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         } else {
           cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);

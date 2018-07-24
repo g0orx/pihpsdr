@@ -193,7 +193,7 @@ static void enable_freedv_cb(GtkWidget *widget, gpointer data) {
 }
 #endif
 
-#ifdef FREEDV
+#ifdef PURESIGNAL
 static void enable_ps_cb(GtkWidget *widget, gpointer data) {
   tx_set_ps(transmitter,gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)));
 }

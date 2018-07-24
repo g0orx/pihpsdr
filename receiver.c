@@ -1096,17 +1096,29 @@ void receiver_frequency_changed(RECEIVER *rx) {
 
 void receiver_filter_changed(RECEIVER *rx) {
   int m=vfo[rx->id].mode;
-  if(m==modeFMN) {
-    if(rx->deviation==2500) {
-      set_filter(rx,-4000,4000);
-    } else {
-      set_filter(rx,-8000,8000);
-    }
-    set_deviation(rx);
-  } else {
-    FILTER *mode_filters=filters[m];
-    FILTER *filter=&mode_filters[vfo[rx->id].filter];
-    set_filter(rx,filter->low,filter->high);
+  switch (m) {
+    case modeFMN:
+      if(rx->deviation==2500) {
+        set_filter(rx,-4000,4000);
+      } else {
+        set_filter(rx,-8000,8000);
+      }
+      set_deviation(rx);
+      break;
+#ifdef DIGI_MODES
+    case modeDIGU:
+        set_filter(rx,0,3000);
+	break;
+    case modeDIGL:
+        set_filter(rx,-3000,0);
+        break;
+#endif
+    default:
+	{
+    	FILTER *mode_filters=filters[m];
+    	FILTER *filter=&mode_filters[vfo[rx->id].filter];
+    	set_filter(rx,filter->low,filter->high);
+	}
   }
 }
 
@@ -1197,8 +1209,16 @@ static void process_rx_buffer(RECEIVER *rx) {
   short left_audio_sample;
   short right_audio_sample;
   int i;
+  int mute=0;
+  //
+  // DL1YCF: mute the receiver if we are transmitting on its frequency
+  //
+  if (isTransmitting()) {
+    if (!split && (rx->id == active_receiver->id)) mute=1;
+    if ( split && (rx->id != active_receiver->id)) mute=1;
+  }
   for(i=0;i<rx->output_samples;i++) {
-    if(isTransmitting()) {
+    if(mute) {
       left_audio_sample=0;
       right_audio_sample=0;
     } else {

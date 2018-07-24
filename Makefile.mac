@@ -30,11 +30,8 @@ STEMLAB_FIX_OPTION=-DSTEMLAB_FIX
 # uncomment the line to below include support local CW keyer
 #LOCALCW_INCLUDE=LOCALCW
 
-# uncomment the line below to include support for STEMlab discovery (does not work on MacOS)
-#STEMLAB_DISCOVERY=STEMLAB_DISCOVERY
-
-# uncomment the line below to include support for stripped-down STEMlab discovery that works on MacOS
-STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_MAC
+# uncomment the line below to include support for STEMlab discovery
+STEMLAB_DISCOVERY=STEMLAB_DISCOVERY
 
 #uncomment the line below for the platform being compiled on
 UNAME_N=MacOS
@@ -43,6 +40,15 @@ UNAME_N=MacOS
 #UNAME_N=up
 #UNAME_N=pine64
 #UNAME_N=jetsen
+
+# Additional options that can be chosen at compile time:
+# -DDIGI_MODES		wide filters and no noise reduction in DIGU/DIGL
+# -DSPLIT_RXTX          if there is more than one receiver, TX panel only "hides" the first one
+# -DPROTOCOL_DEBUG	logs (on stderr) all state changes sent to the SDR (only old protocol)
+#
+# leave the list empty if no such option should be used
+
+ADDITIONAL_OPTIONS= -DDIGI_MODES -DSPLIT_RXTX
 
 CC=gcc
 
@@ -181,21 +187,11 @@ ifeq ($(I2C_INCLUDE),I2C)
 endif
 
 #
-# STEMLAB_DISCOVERY_MAC depends on curl but not on avahi
+# Here in Makefile.mac, we use the version that does not need avahi
 #
-ifeq ($(STEMLAB_DISCOVERY), STEMLAB_DISCOVERY_MAC)
-STEMLAB_OPTIONS=-D STEMLAB_DISCOVERY `pkg-config --cflags libcurl`
-STEMLAB_LIBS=`pkg-config --libs libcurl`
-STEMLAB_SOURCES=stemlab_discovery.c
-STEMLAB_HEADERS=stemlab_discovery.h
-STEMLAB_OBJS=stemlab_discovery.o
-endif
-
 ifeq ($(STEMLAB_DISCOVERY), STEMLAB_DISCOVERY)
-STEMLAB_OPTIONS=-D STEMLAB_DISCOVERY \
-  `pkg-config --cflags avahi-gobject` \
-  `pkg-config --cflags libcurl`
-STEMLAB_LIBS=`pkg-config --libs avahi-gobject` `pkg-config --libs libcurl`
+STEMLAB_OPTIONS=-D STEMLAB_DISCOVERY -D NO_AVAHI `pkg-config --cflags libcurl`
+STEMLAB_LIBS=`pkg-config --libs libcurl`
 STEMLAB_SOURCES=stemlab_discovery.c
 STEMLAB_HEADERS=stemlab_discovery.h
 STEMLAB_OBJS=stemlab_discovery.o
@@ -214,7 +210,7 @@ AUDIO_LIBS=-lportaudio
 OPTIONS=-g -Wno-deprecated-declarations $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(RADIOBERRY_OPTIONS) \
 	$(USBOZY_OPTIONS)  $(I2C_OPTIONS) $(GPIO_OPTIONS) $(LIMESDR_OPTIONS) $(FREEDV_OPTIONS) \
 	$(LOCALCW_OPTIONS) $(PSK_OPTIONS)  $(STEMLAB_OPTIONS) $(STEMLAB_FIX_OPTION) \
-	$(PORTAUDIO_OPTIONS) \
+	$(PORTAUDIO_OPTIONS) $(ADDITIONAL_OPTIONS) \
 	-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION) -O3
 
 LIBS=   $(AUDIO_LIBS) $(USBOZY_LIBS) $(PSKLIBS) $(GTKLIBS) $(GPIO_LIBS) \

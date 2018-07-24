@@ -332,7 +332,11 @@ void reconfigure_radio() {
     }
   }
 
+#ifdef SPLIT_RXTX
+  reconfigure_transmitter(transmitter,rx_height/receivers);
+#else
   reconfigure_transmitter(transmitter,rx_height);
+#endif
 
 }
 
@@ -518,7 +522,11 @@ fprintf(stderr,"title: length=%d\n", (int)strlen(text));
   if(display_sliders) {
     rx_height-=SLIDERS_HEIGHT;
   }
+#ifdef SPLIT_RXTX
+  int tx_height=rx_height/receivers;
+#else
   int tx_height=rx_height;
+#endif
   rx_height=rx_height/receivers;
 
 
@@ -552,10 +560,9 @@ fprintf(stderr,"Create %d receivers: height=%d\n",receivers,rx_height);
 
 #ifdef PURESIGNAL
   tx_set_ps_sample_rate(transmitter,protocol==NEW_PROTOCOL?192000:active_receiver->sample_rate);
-  if(((protocol==ORIGINAL_PROTOCOL) && (device!=DEVICE_METIS)) || ((protocol==NEW_PROTOCOL) && (device!=NEW_DEVICE_ATLAS))) {
-    receiver[PS_TX_FEEDBACK]=create_pure_signal_receiver(PS_TX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
-    receiver[PS_RX_FEEDBACK]=create_pure_signal_receiver(PS_RX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
-  }
+  // DL1YCF: we must create these receivers in ANY case to avoid seg-faults.
+  receiver[PS_TX_FEEDBACK]=create_pure_signal_receiver(PS_TX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
+  receiver[PS_RX_FEEDBACK]=create_pure_signal_receiver(PS_RX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
 #endif
 
 #ifdef AUDIO_WATERFALL
@@ -719,7 +726,11 @@ static void rxtx(int state) {
     tx_feedback->samples=0;
 #endif
 
+#ifdef SPLIT_RXTX
+    for(i=0;i<1;i++) {
+#else
     for(i=0;i<receivers;i++) {
+#endif
       SetChannelState(receiver[i]->id,0,i==(receivers-1));
       set_displaying(receiver[i],0);
       if(protocol==NEW_PROTOCOL) {
@@ -756,7 +767,11 @@ static void rxtx(int state) {
 //      gtk_widget_hide(audio_waterfall);
 //    }
 //#endif
+#ifdef SPLIT_RXTX
+    for(i=0;i<1;i++) {
+#else
     for(i=0;i<receivers;i++) {
+#endif
       gtk_fixed_put(GTK_FIXED(fixed),receiver[i]->panel,receiver[i]->x,receiver[i]->y);
       SetChannelState(receiver[i]->id,1,0);
       set_displaying(receiver[i],1);
@@ -832,7 +847,11 @@ void setTune(int state) {
       //schedule_general();
     }
     if(tune) {
-      for(i=0;i<receivers;i++) {
+#ifdef SPLIT_RXTX
+        for(i=0;i<1;i++) {
+#else
+        for(i=0;i<receivers;i++) {
+#endif
         SetChannelState(receiver[i]->id,0,i==(receivers-1));
         set_displaying(receiver[i],0);
         if(protocol==NEW_PROTOCOL) {

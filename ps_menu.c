@@ -278,6 +278,7 @@ fprintf(stderr,"ps_menu: entry %d is NULL\n", i);
     usleep(10000); // 10 ms
   }
   gtk_entry_set_text(GTK_ENTRY(entry[15]),"");
+  return NULL;
 }
 
 static void enable_cb(GtkWidget *widget, gpointer data) {

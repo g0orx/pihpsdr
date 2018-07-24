@@ -60,6 +60,7 @@
 #include "vfo_menu.h"
 #include "fft_menu.h"
 #include "main.h"
+#include "button_text.h"
 
 
 static GtkWidget *menu_b=NULL;
@@ -371,6 +372,19 @@ static gboolean ps_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) 
   start_ps();
   return TRUE;
 }
+#else
+static gboolean tt_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  // even without PURESIGNAL, a two-tone generator is nice-to-have
+  // so whe "PS" button now is a "TT" (two-tone) button.
+  int state=transmitter->twotone?0:1;
+  tx_set_twotone(transmitter,state);
+  if(state) {
+    set_button_text_color(widget,"red");
+  } else {
+    set_button_text_color(widget,"black");
+  }
+  return TRUE;
+}
 #endif
 
 #ifdef GPIO
@@ -477,6 +491,15 @@ void new_menu()
       GtkWidget *ps_b=gtk_button_new_with_label("PS");
       g_signal_connect (ps_b, "button-press-event", G_CALLBACK(ps_cb), NULL);
       gtk_grid_attach(GTK_GRID(grid),ps_b,(i%5),i/5,1,1);
+      i++;
+#else
+      GtkWidget *tt_b=gtk_button_new_with_label("TT");
+      gtk_widget_show(tt_b);
+      gtk_grid_attach(GTK_GRID(grid),tt_b,(i%5),i/5,1,1);
+      g_signal_connect (tt_b, "pressed", G_CALLBACK(tt_cb), NULL);
+      if(transmitter->twotone) {
+        set_button_text_color(tt_b,"red");
+      }
       i++;
 #endif
 

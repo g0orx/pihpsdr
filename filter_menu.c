@@ -196,6 +196,13 @@ void filter_menu(GtkWidget *parent) {
       }
       break;
 
+#ifdef DIGI_MODES
+    case modeDIGU:
+    case modeDIGL:
+      gtk_button_set_label(GTK_BUTTON(close_b), "DIGU/DIGL have a fixed wide filter.");
+      break;
+#endif
+
     default:
       for(i=0;i<FILTERS-2;i++) {
         FILTER* band_filter=&band_filters[i];

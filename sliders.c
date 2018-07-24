@@ -166,7 +166,12 @@ void set_attenuation_value(double value) {
 	  scale_status=ATTENUATION;
       scale_dialog=gtk_dialog_new_with_buttons(title,GTK_WINDOW(top_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
       GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
-      attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 31.0, 1.00);
+      if (filter_board == CHARLY25) {
+	// although this slider is hidden, its value range does matter
+        attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 36.0, 1.00);
+      } else {
+        attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 31.0, 1.00);
+      }
       gtk_widget_set_size_request (attenuation_scale, 400, 30);
       gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc_attenuation[active_receiver->adc]);
       gtk_widget_show(attenuation_scale);
@@ -575,7 +580,11 @@ fprintf(stderr,"sliders_init: width=%d height=%d\n", width,height);
 	attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 60.0, 1.0);
 	gtk_range_set_value (GTK_RANGE(attenuation_scale),rx_gain_slider[active_receiver->adc]);
 #else
-	attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 31.0, 1.0);
+	if (filter_board == CHARLY25) {
+	  attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 36.0, 1.0);
+        } else {
+	  attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 31.0, 1.0);
+	}
 	gtk_range_set_value (GTK_RANGE(attenuation_scale),adc_attenuation[active_receiver->adc]);
 #endif
   

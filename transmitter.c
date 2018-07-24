@@ -422,7 +422,14 @@ static gboolean update_display(gpointer data) {
       }
     } 
 
+#ifdef SPLIT_RXTX
+    // If the second RX is active, we rather want to see its S-meter instead of TX data
+    if (active_receiver == receiver[0]) {
+      meter_update(active_receiver,POWER,transmitter->fwd,transmitter->rev,transmitter->exciter,transmitter->alc);
+    }
+#else
     meter_update(active_receiver,POWER,transmitter->fwd,transmitter->rev,transmitter->exciter,transmitter->alc);
+#endif
 
     return TRUE; // keep going
   }
@@ -541,14 +548,15 @@ fprintf(stderr,"create_transmitter: id=%d buffer_size=%d mic_sample_rate=%d mic_
 
   tx->low_latency=0;
 
+  tx->twotone=0;
 #ifdef PURESIGNAL
   tx->puresignal=0;
   tx->feedback=0;
-  tx->twotone=0;
   tx->auto_on=0;
   tx->single_on=0;
 #endif
 
+  tx->attenuation=0;
   tx->ctcss=0;
   tx->ctcss_frequency=100.0;
 
@@ -1040,9 +1048,17 @@ void tx_set_ps(TRANSMITTER *tx,int state) {
   vfo_update();
 }
 
+void tx_set_ps_sample_rate(TRANSMITTER *tx,int rate) {
+  SetPSFeedbackRate (tx->id,rate);
+}
+#endif
+
 void tx_set_twotone(TRANSMITTER *tx,int state) {
   transmitter->twotone=state;
   if(state) {
+    // DL1YCF: set frequencies and levels
+    SetTXAPostGenTTFreq(transmitter->id, 900.0, 1700.0);
+    SetTXAPostGenTTMag (transmitter->id, 0.49, 0.49);
     SetTXAPostGenMode(transmitter->id, 1);
     SetTXAPostGenRun(transmitter->id, 1);
   } else {
@@ -1051,10 +1067,6 @@ void tx_set_twotone(TRANSMITTER *tx,int state) {
   g_idle_add(ext_mox_update,(gpointer)(long)state);
 }
 
-void tx_set_ps_sample_rate(TRANSMITTER *tx,int rate) {
-  SetPSFeedbackRate (tx->id,rate);
-}
-#endif
 
 //
 // This is the old key-down/key-up interface for iambic.c

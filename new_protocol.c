@@ -417,10 +417,6 @@ void new_protocol_init(int pixels) {
       rc=sem_init(&iq_sem_buffer[ddc], 0, 0);
 #endif
       iq_thread_id[ddc] = g_thread_new( "ps iq thread", ps_iq_thread, (gpointer)(long)PS_TX_FEEDBACK);
-      if( ! iq_thread_id ) {
-        fprintf(stderr,"g_thread_new failed for ps_iq_thread: rx=%d\n",PS_TX_FEEDBACK);
-        exit( -1 );
-      }
       fprintf(stderr, "iq_thread: id=%p\n",iq_thread_id);
     }
 #endif
@@ -1446,7 +1442,7 @@ static void process_ps_iq_data(RECEIVER *rx) {
   }
   rx->iq_sequence++;
 
-  timestamp=((long long)(buffer[4]&0xFF)<<56)+((long long)(buffer[5]&0xFF)<<48)+((long long)(buffer[6]&0xFF)<<40)+((long long)(buffer[7]&0xFF)<<32);
+  timestamp=((long long)(buffer[4]&0xFF)<<56)+((long long)(buffer[5]&0xFF)<<48)+((long long)(buffer[6]&0xFF)<<40)+((long long)(buffer[7]&0xFF)<<32)+
   ((long long)(buffer[8]&0xFF)<<24)+((long long)(buffer[9]&0xFF)<<16)+((long long)(buffer[10]&0xFF)<<8)+(long long)(buffer[11]&0xFF);
   bitspersample=((buffer[12]&0xFF)<<8)+(buffer[13]&0xFF);
   samplesperframe=((buffer[14]&0xFF)<<8)+(buffer[15]&0xFF);

@@ -766,8 +766,9 @@ static void process_bandscope_buffer(char  *buffer) {
 */
 
 #ifdef PROTOCOL_DEBUG
-// DL1YCF Debug: save last values and log changes
+// DL1YCF Debug: save last values and print any changes to stderr
 static unsigned char last_c1[20], last_c2[20], last_c3[20], last_c4[20], last_mox;
+static long long last_tx, last_rx[8];
 #endif
 
 void ozy_send_buffer() {
@@ -965,6 +966,12 @@ void ozy_send_buffer() {
         output_buffer[C2]=txFrequency>>16;
         output_buffer[C3]=txFrequency>>8;
         output_buffer[C4]=txFrequency;
+#ifdef PROTOCOL_DEBUG
+        if (last_tx != txFrequency) {
+          fprintf(stderr,"TX1 FREQ CHANGE from %lld to %lld\n", last_tx, txFrequency);
+	  last_tx=txFrequency;
+	}
+#endif
         break;
       case 2: // rx frequency
 #ifdef PURESIGNAL
@@ -1017,6 +1024,12 @@ void ozy_send_buffer() {
             output_buffer[C2]=rxFrequency>>16;
             output_buffer[C3]=rxFrequency>>8;
             output_buffer[C4]=rxFrequency;
+#ifdef PROTOCOL_DEBUG
+	    if (rxFrequency != last_rx[current_rx]) {
+		fprintf(stderr,"RX%d FREQ CHANGE from %lld to %lld\n", current_rx+1, last_rx[current_rx], rxFrequency);
+		last_rx[current_rx] = rxFrequency;
+	    }
+#endif
 #ifdef PURESIGNAL
           }
 #endif
@@ -1245,21 +1258,24 @@ void ozy_send_buffer() {
 // leave it here deactivated
 //
   int ind = output_buffer[C0] >> 1;
-  if (last_c1[ind] != output_buffer[C1]) {
-    fprintf(stderr, "C0=%x Old C1=%x New C1=%x\n", 2*ind,last_c1[ind], output_buffer[C1]);
-    last_c1[ind]=output_buffer[C1];
-  }
-  if (last_c2[ind] != output_buffer[C2]) {
-    fprintf(stderr, "C0=%x Old C2=%x New C2=%x\n", 2*ind,last_c2[ind], output_buffer[C2]);
-    last_c2[ind]=output_buffer[C2];
-  }
-  if (last_c3[ind] != output_buffer[C3]) {
-    fprintf(stderr, "C0=%x Old C3=%x New C3=%x\n", 2*ind,last_c3[ind], output_buffer[C3]);
-    last_c3[ind]=output_buffer[C3];
-  }
-  if (last_c4[ind] != output_buffer[C4]) {
-    fprintf(stderr, "C0=%x Old C4=%x New C4=%x\n", 2*ind,last_c4[ind], output_buffer[C4]);
-    last_c4[ind]=output_buffer[C4];
+  if (ind == 0 || ind > 8) {
+    // Frequency changes are reported above.
+    if (last_c1[ind] != output_buffer[C1]) {
+      fprintf(stderr, "C0=%x Old C1=%x New C1=%x\n", 2*ind,last_c1[ind], output_buffer[C1]);
+      last_c1[ind]=output_buffer[C1];
+    }
+    if (last_c2[ind] != output_buffer[C2]) {
+      fprintf(stderr, "C0=%x Old C2=%x New C2=%x\n", 2*ind,last_c2[ind], output_buffer[C2]);
+      last_c2[ind]=output_buffer[C2];
+    }
+    if (last_c3[ind] != output_buffer[C3]) {
+      fprintf(stderr, "C0=%x Old C3=%x New C3=%x\n", 2*ind,last_c3[ind], output_buffer[C3]);
+      last_c3[ind]=output_buffer[C3];
+    }
+    if (last_c4[ind] != output_buffer[C4]) {
+      fprintf(stderr, "C0=%x Old C4=%x New C4=%x\n", 2*ind,last_c4[ind], output_buffer[C4]);
+      last_c4[ind]=output_buffer[C4];
+    }
   }
   if ((output_buffer[C0] & 1) != last_mox) {
     fprintf(stderr, "Last Mox=%d New Mox=%d\n", last_mox, output_buffer[C0] & 1);

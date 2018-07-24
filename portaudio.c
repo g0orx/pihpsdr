@@ -25,6 +25,7 @@
 #endif
 #include "radio.h"
 #include "receiver.h"
+#include "mode.h"
 #include "portaudio.h"
 #include "math.h"   // for sintab, two-tone generator
 
@@ -390,11 +391,17 @@ void audio_close_output(RECEIVER *rx) {
 int audio_write (RECEIVER *rx, short r, short l)
 {
   PaError err;
+  int mode=transmitter->mode;
+  //
+  // We have to stop the stream here if a CW side tone may occur.
+  // This might cause underflows, but we cannot use audio_write
+  // and cw_audio_write simultaneously on the same device.
+  // Instead, the side tone version will take over.
+  // If *not* doing CW, the stream continues because we might wish
+  // to listen to this rx while transmitting.
+  //
+  if (rx == active_receiver && isTransmitting() && (mode==modeCWU || mode==modeCWL)) return 0;
 
-  // this will cause massive underflow errors, since
-  // we do not provide any data while transmitting.
-  // Instead, the side tone version will take over
-  if (rx == active_receiver && isTransmitting()) return 0;
   if (rx->playback_handle != NULL && rx->playback_buffer != NULL) {
     rx->playback_buffer[rx->playback_offset++] = (r + l) *0.000015259;  //   65536 --> 1.0   
     if (rx->playback_offset == audio_buffer_size) {

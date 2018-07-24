@@ -17,230 +17,35 @@
 *
 */
 
-#ifdef __APPLE__
+// DL1YCF: we provide a stripped-down version not relying on AVAHI.
+// this is compiled when defining NO_AVAHI
 
 
-//
-// MacOS has no vahi, but it does have libcurl.
-// Therefore we try to start the SDR app on the RedPitaya
-// assuming is has the (fixed) ip address which can be
-// read from $HOME/.rp.inet, if this does not succeed it
-// defaults to 192.168.1.3.
-//
-// So, on MacOS, just configure your STEMLAB/HAMLAB to this
-// fixed IP address and you need not open a browser to start
-// SDR *before* you can use piHPSDR.
-//
-// Sure it's not perfect, but it makes life much easier for me.
-//
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <curl/curl.h>
-#include <glib.h>
-
-extern void status_text(const char *);
-
-static const char *appid = NULL;
-
-//
-// Extract the list of apps from the JSON answer
-//
-static size_t app_list_callback(void *buffer, size_t size, size_t nmemb, void *data) {
-  const gchar *needle;
-
-  needle="\"sdr_receiver_hpsdr\"";
-  if (g_strstr_len(buffer, size*nmemb, needle) != NULL) {
-    appid="sdr_receiver_hpsdr";
-  }
-
-  needle="\"sdr_transceiver_hpsdr\"";
-  if (g_strstr_len(buffer, size*nmemb, needle) != NULL) {
-    appid="sdr_transceiver_hpsdr";
-  }
-
-  needle="\"stemlab_sdr_transceiver_hpsdr\"";
-  if (g_strstr_len(buffer, size*nmemb, needle) != NULL) {
-    appid="stemlab_sdr_transceiver_hpsdr";
-  }
-
-  needle="\"hamlab_sdr_transceiver_hpsdr\"";
-  if (g_strstr_len(buffer, size*nmemb, needle) != NULL) {
-    appid="hamlab_sdr_transceiver_hpsdr";
-  }
-
-  if (appid) fprintf(stderr,"RedPitay WEB application to start: %s\n", appid);
-  return size * nmemb;
-}
-
-void stemlab_discovery() {
-  // this one is used "as the last resort", if nothing else is found.
-  size_t len;
-  char inet[20];
-  char txt[150];
-  CURL *curl_handle;
-  CURLcode curl_error;
-  FILE *fpin;
-  char *p;
-
-  fprintf(stderr,"Stripped-down STEMLAB/HAMLAB discovery...\n");
-//
-// Try to read inet addr from $HOME/.rp.inet, otherwise take 192.168.1.3
-//
-   strcpy(inet,"192,168.1.3");
-   p=getenv("HOME");
-   if (p) {
-     strncpy(txt,p, (size_t) 100);   // way less than size of txt
-   } else {
-     strcpy(txt,".");
-   }
-   strcat(txt,"/.rp.inet");
-   fprintf(stderr,"Trying to read inet addr from file=%s\n", txt);
-   fpin=fopen(txt, "r");
-   if (fpin) {
-     len=100;
-     p=txt;
-     len=getline(&p, &len, fpin);
-     // not txt now contains the trailing newline character
-     while (*p != 0) {
-       if (*p == '\n') *p = 0;
-       p++;
-     }
-     if (len < 20) strcpy(inet,txt);
-   }
-   fclose(fpin);
-   fprintf(stderr,"STEMLAB: using inet addr %s\n", inet);
-//
-// Do a HEAD request (poor curl's ping) to see whether the device is on-line
-// allow a 15 sec time-out
-  status_text("Looking for a STEMLAB web server ...");
-  curl_handle = curl_easy_init();
-  if (curl_handle == NULL) {
-    fprintf(stderr, "stemlab_start: Failed to create cURL handle\n");
-    return;
-  }
-  sprintf(txt,"http://%s",inet);
-  curl_error = curl_easy_setopt(curl_handle, CURLOPT_URL, txt);
-  curl_error = curl_easy_setopt(curl_handle, CURLOPT_NOBODY, (long) 1);
-  curl_error = curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, (long) 15);
-  curl_error = curl_easy_perform(curl_handle);
-  curl_easy_cleanup(curl_handle);
-  if (curl_error ==  CURLE_OPERATION_TIMEDOUT) {
-    sprintf(txt,"No response from web server at %s", inet);
-    status_text(txt);
-    fprintf(stderr,"%s\n",txt);
-  }
-  if (curl_error != CURLE_OK) {
-    fprintf(stderr, "STEMLAB ping error: %s\n", curl_easy_strerror(curl_error));
-    return;
-  }
-  
-//
-//obtain a list of apps, and choose the right one by looking for the following
-//target strings (in that order). Whatever is found first, is started. Then, we rely
-//on the original discovery() to discover the device.
-//
-//hamlab_sdr_transceiver_hpsdr
-//stemlab_sdr_transceiver_hpsdr
-//sdr_transceiver_hpsdr
-//sdr_receiver_hpsdr
-//
-  curl_handle = curl_easy_init();
-  if (curl_handle == NULL) {
-    fprintf(stderr, "stemlab_start: Failed to create cURL handle\n");
-    return;
-  }
-  sprintf(txt,"http://%s/bazaar?apps=", inet);
-  curl_error = curl_easy_setopt(curl_handle, CURLOPT_URL, txt);
-  curl_error = curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, (long) 60);
-  curl_error = curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, app_list_callback);
-  curl_error = curl_easy_perform(curl_handle);
-  curl_easy_cleanup(curl_handle);
-  if (curl_error == CURLE_OPERATION_TIMEDOUT) {
-    status_text("No Response from RedPitaya in 60 secs");
-    fprintf(stderr,"60-sec TimeOut met when trying to get list of HPSDR apps from RedPitaya\n");
-  }
-  if (curl_error != CURLE_OK) {
-    fprintf(stderr, "STEMLAB app-list error: %s\n", curl_easy_strerror(curl_error));
-    return;
-  }
-    
-//
-// Now we actually start the hpsdr application
-// Actually, try to stop it first, then re-start it.
-//
-  if (appid) {
-    curl_handle = curl_easy_init();
-    if (curl_handle == NULL) {
-      fprintf(stderr, "stemlab_start: Failed to create cURL handle\n");
-      return;
-    }
-    sprintf(txt,"http://%s/bazaar?stop=%s",inet,appid);
-    curl_error = curl_easy_setopt(curl_handle, CURLOPT_URL, txt);
-    curl_error = curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, (long) 60);
-    curl_error = curl_easy_perform(curl_handle);
-    if (curl_error == CURLE_OPERATION_TIMEDOUT) {
-      fprintf(stderr,"60-sec TimeOut met when trying to stop HPSDR app on RedPitaya\n");
-    }
-    if (curl_error != CURLE_OK) {
-      fprintf(stderr, "STEMLAB app-start error: %s\n", curl_easy_strerror(curl_error));
-    }
-    curl_handle = curl_easy_init();
-    if (curl_handle == NULL) {
-      fprintf(stderr, "stemlab_start: Failed to create cURL handle\n");
-      return;
-    }
-    sprintf(txt,"http://%s/bazaar?start=%s",inet,appid);
-    curl_error = curl_easy_setopt(curl_handle, CURLOPT_URL, txt);
-    curl_error = curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, (long) 60);
-    curl_error = curl_easy_perform(curl_handle);
-    if (curl_error == CURLE_OPERATION_TIMEDOUT) {
-      fprintf(stderr,"60-sec TimeOut met when trying to start HPSDR app on RedPitaya\n");
-    }
-    if (curl_error != CURLE_OK) {
-      fprintf(stderr, "STEMLAB app-start error: %s\n", curl_easy_strerror(curl_error));
-    }
-
-  }
-  // Whether or net we have successfully started the HPSDR application on the RedPitaya,
-  // we now return to the regular HPSDR protocol handling code that will eventually detect
-  // the "board". If this code does not work, you have to open a browser and start the HPSDR
-  // application manually.
-}
-
-// dummy function
-void stemlab_cleanup() {
-}
-
-// dummy function, never called
-void stemlab_start_app() {
-}
-
-#else
-
-#include <errno.h>
+#include <stdbool.h>
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <arpa/inet.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <stdio.h>
 #include <string.h>
-
-#include <avahi-gobject/ga-client.h>
-#include <avahi-gobject/ga-service-browser.h>
-#include <avahi-gobject/ga-service-resolver.h>
-
+#include <unistd.h>
 #include <curl/curl.h>
-
+#include <gtk/gtk.h>
+#include <gdk/gdk.h>
 #include <glib.h>
+#include <errno.h>
+#include <ifaddrs.h>
+#include <stdint.h>
+#include <string.h>
 
 #include "discovered.h"
 #include "radio.h"
 
-#define ERROR_PREFIX "stemlab_discovery: "
+#ifndef NO_AVAHI
+#include <avahi-gobject/ga-client.h>
+#include <avahi-gobject/ga-service-browser.h>
+#include <avahi-gobject/ga-service-resolver.h>
+#endif
 
 // As we only run in the GTK+ main event loop, which is single-threaded and
 // non-preemptive, we shouldn't need any additional synchronisation mechanisms.
@@ -248,35 +53,16 @@ static bool discovery_done = FALSE;
 static int pending_callbacks = 0;
 static struct ifaddrs *ifaddrs = NULL;
 static bool curl_initialised = FALSE;
+extern void status_text(const char *);
 
-static size_t app_list_cb(void *buffer, size_t size, size_t nmemb, void *data) {
-  // cURL does *not* make any guarantees for this data to be the complete
-  // However, as the STEMlab answers in one big chunk, we just hope for the
-  // answer to be the complete json object, and avoid the hassle of manually
-  // building up our buffer.
-  int *software_version = (int*) data;
-  // This is not 100% clean, but avoids requiring in a json library dependency
-  const gchar *pavel_rx_json = "\"sdr_receiver_hpsdr\":";
-  if (g_strstr_len(buffer, size*nmemb, pavel_rx_json) != NULL) {
-    *software_version |= STEMLAB_PAVEL_RX;
-  }
-  const gchar *pavel_trx_json = "\"sdr_transceiver_hpsdr\":";
-  if (g_strstr_len(buffer, size*nmemb, pavel_trx_json) != NULL) {
-    *software_version |= STEMLAB_PAVEL_TRX;
-  }
-  const gchar *rp_trx_json = "\"stemlab_sdr_transceiver_hpsdr\":";
-  if (g_strstr_len(buffer, size*nmemb, rp_trx_json) != NULL) {
-    *software_version |= STEMLAB_RP_TRX;
-  }
-  const gchar *hamlab_trx_json = "\"hamlab_sdr_transceiver_hpsdr\":";
-  if (g_strstr_len(buffer, size*nmemb, hamlab_trx_json) != NULL) {
-    *software_version |= HAMLAB_RP_TRX;
-  }
-  // Returning the total amount of bytes "processed" to signal cURL that we
-  // are done without any errors
-  return size * nmemb;
-}
+#define ERROR_PREFIX "stemlab_discovery: "
 
+//
+// A bunch of callback-routines that use avahi, and are only needed by the
+// avahi-dependent version of stemlab_discovery(). These are only compiled
+// in the avahi case.
+//
+#ifndef NO_AVAHI
 static void resolver_found_cb(GaServiceResolver *resolver, AvahiIfIndex if_index,
     GaProtocol protocol, gchar *name, gchar *service, gchar *domain,
     gchar *hostname, AvahiAddress *address, gint port, AvahiStringList *txt,
@@ -434,54 +220,38 @@ static void cache_exhausted_cb(GaServiceBrowser *browser, gpointer data) {
   }
   discovery_done = TRUE;
 }
+#endif
 
-void stemlab_discovery(void) {
-  discovery_done = FALSE;
-  GaClient * const avahi_client = ga_client_new(GA_CLIENT_FLAG_NO_FLAGS);
-  if (avahi_client == NULL) {
-    fprintf(stderr, ERROR_PREFIX "Failed creating Avahi client\n");
-    return;
+//
+// Some callback routines and functions that do not depend on avahi
+// and are compiled in either case.
+//
+static size_t app_list_cb(void *buffer, size_t size, size_t nmemb, void *data) {
+  // cURL does *not* make any guarantees for this data to be the complete
+  // However, as the STEMlab answers in one big chunk, we just hope for the
+  // answer to be the complete json object, and avoid the hassle of manually
+  // building up our buffer.
+  int *software_version = (int*) data;
+  // This is not 100% clean, but avoids requiring in a json library dependency
+  const gchar *pavel_rx_json = "\"sdr_receiver_hpsdr\":";
+  if (g_strstr_len(buffer, size*nmemb, pavel_rx_json) != NULL) {
+    *software_version |= STEMLAB_PAVEL_RX;
   }
-  GaServiceBrowser * const avahi_browser = ga_service_browser_new("_http._tcp");
-  if (avahi_browser == NULL) {
-    fprintf(stderr, ERROR_PREFIX "Failed creating Avahi browser\n");
-    return;
+  const gchar *pavel_trx_json = "\"sdr_transceiver_hpsdr\":";
+  if (g_strstr_len(buffer, size*nmemb, pavel_trx_json) != NULL) {
+    *software_version |= STEMLAB_PAVEL_TRX;
   }
-  GError *avahi_error = NULL;
-  if (!ga_client_start(avahi_client, &avahi_error)) {
-    fprintf(stderr, ERROR_PREFIX "Failed to start Avahi client: %s\n",
-      avahi_error == NULL ? "(Unknown Error)" : avahi_error->message);
-    return;
+  const gchar *rp_trx_json = "\"stemlab_sdr_transceiver_hpsdr\":";
+  if (g_strstr_len(buffer, size*nmemb, rp_trx_json) != NULL) {
+    *software_version |= STEMLAB_RP_TRX;
   }
-  if (!ga_service_browser_attach(avahi_browser, avahi_client, &avahi_error)) {
-    fprintf(stderr, ERROR_PREFIX "Failed attaching Avahi browser to client: %s\n",
-      avahi_error == NULL ? "(Unknown Error)" : avahi_error->message);
-    return;
+  const gchar *hamlab_trx_json = "\"hamlab_sdr_transceiver_hpsdr\":";
+  if (g_strstr_len(buffer, size*nmemb, hamlab_trx_json) != NULL) {
+    *software_version |= HAMLAB_RP_TRX;
   }
-  const gulong new_service_handler =
-    g_signal_connect(avahi_browser, "new-service", G_CALLBACK(new_service_cb),
-        (gpointer) avahi_client);
-  if (new_service_handler <= 0) {
-    fprintf(stderr, ERROR_PREFIX "Failed installing browser \"new-service\" callback\n");
-    return;
-  }
-  if(g_signal_connect(avahi_browser, "cache-exhausted",
-      G_CALLBACK(cache_exhausted_cb), (gpointer) NULL) <= 0) {
-    fprintf(stderr, ERROR_PREFIX "Failed installing browser \"cache-exhausted\" callback\n");
-    g_signal_handler_disconnect(avahi_browser, new_service_handler);
-    return;
-  }
-  // We need neither SSL nor Win32 sockets
-  const CURLcode curl_error = curl_global_init(CURL_GLOBAL_NOTHING);
-  if (curl_error != CURLE_OK) {
-    fprintf(stderr, ERROR_PREFIX "Failed to initialise cURL: %s\n",
-        curl_easy_strerror(curl_error));
-    return;
-  }
-  curl_initialised = TRUE;
-  while (!discovery_done || pending_callbacks > 0) {
-    g_main_context_iteration(NULL, TRUE);
-  }
+  // Returning the total amount of bytes "processed" to signal cURL that we
+  // are done without any errors
+  return size * nmemb;
 }
 
 // This is essentially a no-op curl callback
@@ -530,4 +300,199 @@ void stemlab_cleanup(void) {
     curl_global_cleanup();
   }
 }
+
+#ifndef NO_AVAHI
+//
+// This is the avahi-dependent version of stemlab_discovery()
+//
+void stemlab_discovery(void) {
+  discovery_done = FALSE;
+  GaClient * const avahi_client = ga_client_new(GA_CLIENT_FLAG_NO_FLAGS);
+  if (avahi_client == NULL) {
+    fprintf(stderr, ERROR_PREFIX "Failed creating Avahi client\n");
+    return;
+  }
+  GaServiceBrowser * const avahi_browser = ga_service_browser_new("_http._tcp");
+  if (avahi_browser == NULL) {
+    fprintf(stderr, ERROR_PREFIX "Failed creating Avahi browser\n");
+    return;
+  }
+  GError *avahi_error = NULL;
+  if (!ga_client_start(avahi_client, &avahi_error)) {
+    fprintf(stderr, ERROR_PREFIX "Failed to start Avahi client: %s\n",
+      avahi_error == NULL ? "(Unknown Error)" : avahi_error->message);
+    return;
+  }
+  if (!ga_service_browser_attach(avahi_browser, avahi_client, &avahi_error)) {
+    fprintf(stderr, ERROR_PREFIX "Failed attaching Avahi browser to client: %s\n",
+      avahi_error == NULL ? "(Unknown Error)" : avahi_error->message);
+    return;
+  }
+  const gulong new_service_handler =
+    g_signal_connect(avahi_browser, "new-service", G_CALLBACK(new_service_cb),
+        (gpointer) avahi_client);
+  if (new_service_handler <= 0) {
+    fprintf(stderr, ERROR_PREFIX "Failed installing browser \"new-service\" callback\n");
+    return;
+  }
+  if(g_signal_connect(avahi_browser, "cache-exhausted",
+      G_CALLBACK(cache_exhausted_cb), (gpointer) NULL) <= 0) {
+    fprintf(stderr, ERROR_PREFIX "Failed installing browser \"cache-exhausted\" callback\n");
+    g_signal_handler_disconnect(avahi_browser, new_service_handler);
+    return;
+  }
+  // We need neither SSL nor Win32 sockets
+  const CURLcode curl_error = curl_global_init(CURL_GLOBAL_NOTHING);
+  if (curl_error != CURLE_OK) {
+    fprintf(stderr, ERROR_PREFIX "Failed to initialise cURL: %s\n",
+        curl_easy_strerror(curl_error));
+    return;
+  }
+  curl_initialised = TRUE;
+  while (!discovery_done || pending_callbacks > 0) {
+    g_main_context_iteration(NULL, TRUE);
+  }
+}
+#else
+//
+// This version of stemlab_discovery() needs libcurl
+// but does not need avahi.
+//
+// Therefore we try to find the SDR apps on the RedPitaya
+// assuming is has the (fixed) ip address which can be
+// read from $HOME/.rp.inet, if this does not succeed it
+// defaults to 192.168.1.3.
+//
+// So, on MacOS, just configure your STEMLAB/HAMLAB to this
+// fixed IP address and you need not open a browser to start
+// SDR *before* you can use piHPSDR.
+//
+// After starting the app in the main discover menu, we
+// have to re-discover to get full info and start the radio.
+//
+
+
+void stemlab_discovery() {
+  size_t len;
+  char inet[20];
+  char txt[150];
+  CURL *curl_handle;
+  CURLcode curl_error;
+  FILE *fpin;
+  char *p;
+  int i;
+  int app_list;
+  struct sockaddr_in ip_address;
+  struct sockaddr_in netmask;
+
+  fprintf(stderr,"Stripped-down STEMLAB/HAMLAB discovery...\n");
+//
+// Try to read inet addr from $HOME/.rp.inet, otherwise take 192.168.1.3
+//
+   strcpy(inet,"192.168.1.3");
+   p=getenv("HOME");
+   if (p) {
+     strncpy(txt,p, (size_t) 100);   // way less than size of txt
+   } else {
+     strcpy(txt,".");
+   }
+   strcat(txt,"/.rp.inet");
+   fprintf(stderr,"Trying to read inet addr from file=%s\n", txt);
+   fpin=fopen(txt, "r");
+   if (fpin) {
+     len=100;
+     p=txt;
+     len=getline(&p, &len, fpin);
+     // not txt now contains the trailing newline character
+     while (*p != 0) {
+       if (*p == '\n') *p = 0;
+       p++;
+     }
+     if (len < 20) strcpy(inet,txt);
+   }
+   fclose(fpin);
+   fprintf(stderr,"STEMLAB: using inet addr %s\n", inet);
+   ip_address.sin_family = AF_INET;
+   inet_aton(inet, &ip_address.sin_addr);
+
+   netmask.sin_family = AF_INET;
+   inet_aton("0.0.0.0", &netmask.sin_addr);
+
+
+//
+// Do a HEAD request (poor curl's ping) to see whether the device is on-line
+// allow a 15 sec time-out
+//
+  curl_handle = curl_easy_init();
+  if (curl_handle == NULL) {
+    fprintf(stderr, "stemlab_start: Failed to create cURL handle\n");
+    return;
+  }
+  sprintf(txt,"http://%s",inet);
+  curl_error = curl_easy_setopt(curl_handle, CURLOPT_URL, txt);
+  curl_error = curl_easy_setopt(curl_handle, CURLOPT_NOBODY, (long) 1);
+  curl_error = curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, (long) 15);
+  curl_error = curl_easy_perform(curl_handle);
+  curl_easy_cleanup(curl_handle);
+  if (curl_error ==  CURLE_OPERATION_TIMEDOUT) {
+    sprintf(txt,"No response from web server at %s", inet);
+    status_text(txt);
+    fprintf(stderr,"%s\n",txt);
+  }
+  if (curl_error != CURLE_OK) {
+    fprintf(stderr, "STEMLAB ping error: %s\n", curl_easy_strerror(curl_error));
+    return;
+  }
+  
+//
+// Determine which SDR apps are present on the RedPitaya. The list may be empty.
+//
+  curl_handle = curl_easy_init();
+  if (curl_handle == NULL) {
+    fprintf(stderr, "stemlab_start: Failed to create cURL handle\n");
+    return;
+  }
+  app_list=0;
+  sprintf(txt,"http://%s/bazaar?apps=", inet);
+  curl_error = curl_easy_setopt(curl_handle, CURLOPT_URL, txt);
+  curl_error = curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, (long) 60);
+  curl_error = curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, app_list_cb);
+  curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, &app_list);
+  curl_error = curl_easy_perform(curl_handle);
+  curl_easy_cleanup(curl_handle);
+  if (curl_error == CURLE_OPERATION_TIMEDOUT) {
+    status_text("No Response from RedPitaya in 60 secs");
+    fprintf(stderr,"60-sec TimeOut met when trying to get list of HPSDR apps from RedPitaya\n");
+  }
+  if (curl_error != CURLE_OK) {
+    fprintf(stderr, "STEMLAB app-list error: %s\n", curl_easy_strerror(curl_error));
+    return;
+  }
+    
+//
+// Constructe "device" descripter. Hi-Jack the software version to
+// encode which apps are present.
+// What is needed in the interface data is only info.network.address.sin_addr,
+// but the address and netmask of the interface must be compatible with this
+// address to avoid an error condition upstream. That means
+// (addr & mask) == (interface_addr & mask) must be fulfilled. This is easily
+// achieved by setting interface_addr = addr and mask = 0.
+//
+  DISCOVERED *device = &discovered[devices++];
+  device->protocol = STEMLAB_PROTOCOL;
+  device->device = DEVICE_METIS;					// not used
+  strcpy(device->name, "STEMlab");
+  device->software_version = app_list;					// encodes list of SDR apps present
+  device->status = STATE_AVAILABLE;
+  memset(device->info.network.mac_address, 0, 6);			// not used
+  device->info.network.address_length = sizeof(struct sockaddr_in);
+  device->info.network.address.sin_family = AF_INET;
+  device->info.network.address.sin_addr = ip_address.sin_addr;
+  device->info.network.address.sin_port = htons(1024);
+  device->info.network.interface_length = sizeof(struct sockaddr_in);
+  device->info.network.interface_address = ip_address;			// same as RP address
+  device->info.network.interface_netmask= netmask;			// does not matter
+  strcpy(device->info.network.interface_name, "");
+}
+
 #endif
