@@ -103,8 +103,11 @@ int sliders_active_receiver_changed(void *data) {
   if(display_sliders) {
     gtk_range_set_value(GTK_RANGE(af_gain_scale),active_receiver->volume*100.0);
     gtk_range_set_value (GTK_RANGE(agc_scale),active_receiver->agc_gain);
-    gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc_attenuation[active_receiver->adc]);
-
+    if (filter_board == CHARLY25) {
+      update_att_preamp();
+    } else {
+      gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc_attenuation[active_receiver->adc]);
+    }
     char title[64];
 #ifdef RADIOBERRY
 	sprintf(title,"RX GAIN"/*,active_receiver->adc*/);
@@ -166,12 +169,7 @@ void set_attenuation_value(double value) {
 	  scale_status=ATTENUATION;
       scale_dialog=gtk_dialog_new_with_buttons(title,GTK_WINDOW(top_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
       GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
-      if (filter_board == CHARLY25) {
-	// although this slider is hidden, its value range does matter
-        attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 36.0, 1.00);
-      } else {
-        attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 31.0, 1.00);
-      }
+      attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 31.0, 1.00);
       gtk_widget_set_size_request (attenuation_scale, 400, 30);
       gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc_attenuation[active_receiver->adc]);
       gtk_widget_show(attenuation_scale);
@@ -189,6 +187,7 @@ void set_attenuation_value(double value) {
 }
 
 void update_att_preamp(void) {
+  // CHARLY25: update the ATT/Pre buttons to the values of the active RX
   if (filter_board == CHARLY25) {
     char id[] = "x";
     sprintf(id, "%d", active_receiver->alex_attenuation);
@@ -221,18 +220,34 @@ static gboolean load_att_type_cb(gpointer data) {
 }
 
 static void c25_att_combobox_changed(GtkWidget *widget, gpointer data) {
-  int id = atoi(gtk_combo_box_get_active_id(GTK_COMBO_BOX(widget)));
-  //DL1YCF: store attenuation, such that in meter.c the correct level is displayed
-  adc_attenuation[active_receiver->adc] = 12.0*id;
-  set_alex_attenuation(id);
+  int val = atoi(gtk_combo_box_get_active_id(GTK_COMBO_BOX(widget)));
+  if (active_receiver->id == 0) {
+    //DL1YCF: this button is only valid for the first receiver
+    //        store attenuation, such that in meter.c the correct level is displayed
+    adc_attenuation[active_receiver->adc] = 12*val;
+    set_alex_attenuation(val);
+  } else {
+    // always show "0 dB" on the button if the second RX is active
+    if (val != 0) {
+      gtk_combo_box_set_active_id(GTK_COMBO_BOX(c25_att_combobox), "0");
+    }
+  }
 }
 
 static void c25_preamp_combobox_changed(GtkWidget *widget, gpointer data) {
-  int id = atoi(gtk_combo_box_get_active_id(GTK_COMBO_BOX(widget)));
-  //DL1YCF comment: dither and preamp are "misused" to store the PreAmp value.
-  //                this has to be exploited in meter.c
-  active_receiver->dither = id >= 2;
-  active_receiver->preamp = id >= 1;
+  int val = atoi(gtk_combo_box_get_active_id(GTK_COMBO_BOX(widget)));
+  if (active_receiver->id == 0) {
+    //DL1YCF: This button is only valid for the first receiver
+    //        dither and preamp are "misused" to store the PreAmp value.
+    //        this has to be exploited in meter.c
+    active_receiver->dither = (val >= 2);  // second preamp ON
+    active_receiver->preamp = (val >= 1);  // first  preamp ON
+  } else{
+    // always show "0 dB" on the button if the second RX is active
+    if (val != 0) {
+      gtk_combo_box_set_active_id(GTK_COMBO_BOX(c25_preamp_combobox), "0");
+    }
+  }
 }
 
 static void agcgain_value_changed_cb(GtkWidget *widget, gpointer data) {
@@ -580,11 +595,7 @@ fprintf(stderr,"sliders_init: width=%d height=%d\n", width,height);
 	attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 60.0, 1.0);
 	gtk_range_set_value (GTK_RANGE(attenuation_scale),rx_gain_slider[active_receiver->adc]);
 #else
-	if (filter_board == CHARLY25) {
-	  attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 36.0, 1.0);
-        } else {
-	  attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 31.0, 1.0);
-	}
+	attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 31.0, 1.0);
 	gtk_range_set_value (GTK_RANGE(attenuation_scale),adc_attenuation[active_receiver->adc]);
 #endif
   

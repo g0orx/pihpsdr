@@ -132,7 +132,9 @@ static int running;
 static long ep4_sequence;
 
 // DL1YCF added this variable for lost-package-check
-static long last_seq_num=0;
+// init with -1 such that there is no error message if the
+// first packet is received with seq_num = 0
+static long last_seq_num=-1;
 
 static int current_rx=0;
 
@@ -843,8 +845,7 @@ void ozy_send_buffer() {
     }
 
 // TODO - add Alex Antenna
-    output_buffer[C3]=0x00;
-    output_buffer[C3] = receiver[0]->alex_attenuation;
+    output_buffer[C3] = (receiver[0]->alex_attenuation) & 0x03;  // do not set higher bits
     if(active_receiver->random) {
       output_buffer[C3]|=LT2208_RANDOM_ON;
     }

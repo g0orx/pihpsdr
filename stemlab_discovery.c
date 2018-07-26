@@ -254,7 +254,8 @@ static size_t app_list_cb(void *buffer, size_t size, size_t nmemb, void *data) {
   return size * nmemb;
 }
 
-// This is essentially a no-op curl callback
+// This is essentially a no-op curl callback.
+// Its main purpose is to prevent the status message going to stderr
 static size_t app_start_callback(void *buffer, size_t size, size_t nmemb, void *data) {
   if (strncmp(buffer, "{\"status\":\"OK\"}", size*nmemb) != 0) {
     fprintf(stderr, "stemlab_start: Receiver error from STEMlab\n");
@@ -263,36 +264,63 @@ static size_t app_start_callback(void *buffer, size_t size, size_t nmemb, void *
   return size * nmemb;
 }
 
-void stemlab_start_app(const char * const app_id) {
+int stemlab_start_app(const char * const app_id) {
   // Dummy string, using the longest possible app id
-  char app_start_url[] = "http://123.123.123.123/bazaar?start=stemlab_sdr_transceiver_hpsdr";
-  sprintf(app_start_url, "http://%s/bazaar?start=%s",
-          inet_ntoa(radio->info.network.address.sin_addr),
-          app_id);
+  char app_start_url[] = "http://123.123.123.123/bazaar?start=stemlab_sdr_transceiver_hpsdr_headroom_max";
+  //
+  // If there is already an SDR application running on the RedPitaya,
+  // starting the SDR app might lead to an unpredictable state, unless
+  // the "killall" command from stop.sh is included in start.sh but this
+  // is not done at the factory.
+  // Therefore, we first stop the program (this essentially includes the
+  // command "killall sdr_transceiver_hpsdr") and then start it.
+  // We return with value 0 if everything went OK, else we return -1.
+  // This is so because in the NO_AVAHI case, we can in principle recover
+  // from a failure here.
+
   CURL *curl_handle = curl_easy_init();
+  CURLcode curl_error = CURLE_OK;
+
   if (curl_handle == NULL) {
     fprintf(stderr, "stemlab_start: Failed to create cURL handle\n");
-    exit(-1);
+    return -1;
   }
-  CURLcode curl_error = CURLE_OK;
+
 #define check_curl(description) do { \
   if (curl_error != CURLE_OK) { \
     fprintf(stderr, "stemlab_start: " description ": %s\n", \
         curl_easy_strerror(curl_error)); \
-    exit(-1); \
+     return -1; \
   } \
 }  while (0);
+
+  sprintf(app_start_url, "http://%s/bazaar?stop=%s",
+          inet_ntoa(radio->info.network.address.sin_addr),
+          app_id);
+  curl_error = curl_easy_setopt(curl_handle, CURLOPT_URL, app_start_url);
+  check_curl("Failed setting cURL URL");
+  curl_error = curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, app_start_callback);
+  check_curl("Failed install cURL callback");
+  curl_error = curl_easy_perform(curl_handle);
+  check_curl("Failed to stop app");
+
+  sprintf(app_start_url, "http://%s/bazaar?start=%s",
+          inet_ntoa(radio->info.network.address.sin_addr),
+          app_id);
   curl_error = curl_easy_setopt(curl_handle, CURLOPT_URL, app_start_url);
   check_curl("Failed setting cURL URL");
   curl_error = curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, app_start_callback);
   check_curl("Failed install cURL callback");
   curl_error = curl_easy_perform(curl_handle);
   check_curl("Failed to start app");
+
 #undef check_curl
+
   curl_easy_cleanup(curl_handle);
   // Since the SDR application is now running, we can hand it over to the
   // regular HPSDR protocol handling code
   radio->protocol = ORIGINAL_PROTOCOL;
+  return 0;
 }
 
 void stemlab_cleanup(void) {

@@ -60,7 +60,8 @@ fprintf(stderr,"start_cb: %p\n",data);
   // we otherwise lose the information about which app has been selected.
   if (radio->protocol == STEMLAB_PROTOCOL) {
     const int device_id = radio - discovered;
-    stemlab_start_app(gtk_combo_box_get_active_id(GTK_COMBO_BOX(apps_combobox[device_id])));
+    int ret;
+    ret=stemlab_start_app(gtk_combo_box_get_active_id(GTK_COMBO_BOX(apps_combobox[device_id])));
 #ifdef NO_AVAHI
     // We only have started the app, but not queried e.g. the MAC address.
     // Therefore, we have to clean up and re-start the discovery process.
@@ -69,6 +70,8 @@ fprintf(stderr,"start_cb: %p\n",data);
     g_idle_add(ext_discovery,NULL);
     return TRUE;
 #endif
+    // At this point, if stemlab_start_app failed, we cannot recover
+    if (ret != 0) exit(-1);
   }
   stemlab_cleanup();
 #endif
