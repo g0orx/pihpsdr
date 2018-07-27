@@ -41,6 +41,7 @@
 #include "radio.h"
 #include "receiver.h"
 #include "audio.h"
+#include "mode.h"
 
 int audio = 0;
 int audio_buffer_size = 256; // samples (both left and right)
