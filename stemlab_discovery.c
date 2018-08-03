@@ -57,6 +57,8 @@ extern void status_text(const char *);
 
 #define ERROR_PREFIX "stemlab_discovery: "
 
+static size_t app_list_cb(void *buffer, size_t size, size_t nmemb, void *data);
+
 //
 // A bunch of callback-routines that use avahi, and are only needed by the
 // avahi-dependent version of stemlab_discovery(). These are only compiled
@@ -437,8 +439,8 @@ void stemlab_discovery() {
        p++;
      }
      if (len < 20) strcpy(inet,txt);
+     fclose(fpin);
    }
-   fclose(fpin);
    fprintf(stderr,"STEMLAB: using inet addr %s\n", inet);
    ip_address.sin_family = AF_INET;
    inet_aton(inet, &ip_address.sin_addr);
