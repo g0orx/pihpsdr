@@ -44,6 +44,7 @@
 #include "stemlab_discovery.h"
 #endif
 #include "ext.h"
+#include "configure.h"
 
 static GtkWidget *discovery_dialog;
 static DISCOVERED *d;

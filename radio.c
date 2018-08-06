@@ -66,6 +66,9 @@
 #include "toolbar.h"
 #include "rigctl.h"
 #include "ext.h"
+#ifdef LOCALCW
+#include "iambic.h"
+#endif
 
 #define min(x,y) (x<y?x:y)
 #define max(x,y) (x<y?y:x)

@@ -21,7 +21,7 @@
 #ifndef _CONFIGURE_H
 #define _CONFIGURE_H
 
-#ifdef INCLUDE_GPIO
+#ifdef GPIO
 void configure_gpio(GtkWidget *parent);
 #endif
 

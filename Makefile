@@ -27,8 +27,11 @@ GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 # uncomment the line to below include support local CW keyer
 #LOCALCW_INCLUDE=LOCALCW
 
-# uncomment the line below to include support for STEMlab discovery
+# uncomment the line below to include support for STEMlab discovery (with avahi)
 #STEMLAB_DISCOVERY=STEMLAB_DISCOVERY
+
+# uncomment the line below to include support for STEMlab discovery WITHOUT AVAHI
+#STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_NOAVAHI
 
 # uncommment this line for activate work-around some RedPitaty HPSDR bugs
 #STEMLAB_FIX_OPTION=-DSTEMLAB_FIX
@@ -40,11 +43,19 @@ UNAME_N=raspberrypi
 #UNAME_N=pine64
 #UNAME_N=jetsen
 
+# Additional options that can be chosen at compile time:
+# -DDIGI_MODES          wide filters and no noise reduction in DIGU/DIGL
+# -DSPLIT_RXTX          if there is more than one receiver, TX panel only "hides" the first one
+# -DPROTOCOL_DEBUG      logs (on stderr) all state changes sent to the SDR (only old protocol)
+# -DDEBUG               activate debug output
+#
+# leave the list empty if no such option should be used
+
+ADDITIONAL_OPTIONS=
+
+
 CC=gcc
 LINK=gcc
-
-# uncomment the line below for various debug facilities
-#DEBUG_OPTION=-D DEBUG
 
 ifeq ($(PURESIGNAL_INCLUDE),PURESIGNAL)
 PURESIGNAL_OPTIONS=-D PURESIGNAL
@@ -84,7 +95,7 @@ endif
 #LIMESDR_INCLUDE=LIMESDR
 
 # uncomment the line below when Radioberry radio cape is plugged in (for now use emulator and old protocol)
-RADIOBERRY_INCLUDE=RADIOBERRY
+#RADIOBERRY_INCLUDE=RADIOBERRY
 ifeq ($(RADIOBERRY_INCLUDE),RADIOBERRY)
 RADIOBERRY_OPTIONS=-D RADIOBERRY
 endif
@@ -166,11 +177,23 @@ ifeq ($(I2C_INCLUDE),I2C)
   I2C_OBJS=i2c.o
 endif
 
+#
+# We have two versions here, the second one has to be used
+# if you do not have the avahi libraries
+#
 ifeq ($(STEMLAB_DISCOVERY), STEMLAB_DISCOVERY)
 STEMLAB_OPTIONS=-D STEMLAB_DISCOVERY \
   `pkg-config --cflags avahi-gobject` \
   `pkg-config --cflags libcurl`
 STEMLAB_LIBS=`pkg-config --libs avahi-gobject` `pkg-config --libs libcurl`
+STEMLAB_SOURCES=stemlab_discovery.c
+STEMLAB_HEADERS=stemlab_discovery.h
+STEMLAB_OBJS=stemlab_discovery.o
+endif
+
+ifeq ($(STEMLAB_DISCOVERY), STEMLAB_DISCOVERY_NOAVAHI)
+STEMLAB_OPTIONS=-D STEMLAB_DISCOVERY -D NO_AVAHI `pkg-config --cflags libcurl`
+STEMLAB_LIBS=`pkg-config --libs libcurl`
 STEMLAB_SOURCES=stemlab_discovery.c
 STEMLAB_HEADERS=stemlab_discovery.h
 STEMLAB_OBJS=stemlab_discovery.o
@@ -184,7 +207,7 @@ AUDIO_LIBS=-lasound
 
 OPTIONS=-g -Wno-deprecated-declarations $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) $(I2C_OPTIONS) $(GPIO_OPTIONS) $(LIMESDR_OPTIONS) \
 		$(FREEDV_OPTIONS) $(LOCALCW_OPTIONS) $(RADIOBERRY_OPTIONS) $(PSK_OPTIONS) $(STEMLAB_OPTIONS) $(STEMLAB_FIX_OPTION) \
-		-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION) -O3
+		-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(ADDITIONAL_OPTIONS) -O3
 
 LIBS=-lrt -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(PSKLIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS) $(STEMLAB_LIBS)
 INCLUDES=$(GTKINCLUDES)

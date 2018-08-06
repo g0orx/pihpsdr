@@ -203,7 +203,6 @@ static void activate_pihpsdr(GtkApplication *app, gpointer data) {
 
 fprintf(stderr,"width=%d height=%d\n", display_width, display_height);
 
-  // DL1YCF: use define'd constants here
   if(display_width>MAX_DISPLAY_WIDTH || display_height>MAX_DISPLAY_HEIGHT) {
     display_width=MAX_DISPLAY_WIDTH;
     display_height=MAX_DISPLAY_HEIGHT;

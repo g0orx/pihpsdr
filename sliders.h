@@ -20,6 +20,10 @@
 #ifndef _SLIDERS_H
 #define _SLIDERS_H
 
+// include these since we are using RECEIVER and TRANSMITTER
+#include "receiver.h"
+#include "transmitter.h"
+
 extern void att_type_changed(void);
 extern void update_att_preamp(void);
 
@@ -40,5 +44,6 @@ extern GtkWidget *sliders_init(int my_width, int my_height);
 extern void sliders_update();
 
 extern void set_squelch(RECEIVER* rx);
+extern void set_compression(TRANSMITTER *tx);
 
 #endif

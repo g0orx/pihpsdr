@@ -56,6 +56,10 @@
 #endif
 #include "ext.h"
 #include "sliders.h"
+#include "new_protocol.h"
+#ifdef LOCALCW
+#include "iambic.h"
+#endif
 
 // debounce settle time in ms
 #define DEFAULT_SETTLE_TIME 150
@@ -969,23 +973,31 @@ fprintf(stderr,"setup_encoder_pin: pin=%d updown=%d\n",pin,up_down);
 }
 
 #ifdef LOCALCW
-#define BUTTON_STEADY_TIME_US 5000
-static void setup_button(int button, gpioAlertFunc_t pAlert) {
-  gpioSetMode(button, PI_INPUT);
-  gpioSetPullUpDown(button,PI_PUD_UP);
-  // give time to settle to avoid false triggers
-  usleep(10000);
-  gpioSetAlertFunc(button, pAlert);
-  gpioGlitchFilter(button, BUTTON_STEADY_TIME_US);
+
+static void setup_cw_pin(int pin, void(*pAlert)(void)) {
+fprintf(stderr,"setup_cw_pin: pin=%d \n",pin);
+   pinMode(pin,INPUT);
+   pullUpDnControl(pin,PUD_UP);
+   usleep(10000);
+   wiringPiISR(pin,INT_EDGE_BOTH,pAlert);
 }
 
-static void cwAlert(int gpio, int level, uint32_t tick) {
-    //fprintf(stderr,"cw key at pin %d \n", gpio);
-    if (cw_keyer_internal == 0 ){
-	//fprintf(stderr,"call keyer_event...\n");
-       keyer_event(gpio, cw_active_level == 0 ? level : (level==0));
-    }
+static void cwAlert_left() {
+	int level=digitalRead(CWL_BUTTON);
+	//fprintf(stderr,"cwl button : level=%d \n",level);
+   if (cw_keyer_internal == 0 ){
+      keyer_event(CWL_BUTTON, cw_active_level == 0 ? level : (level==0));
+   }
 }
+
+static void cwAlert_right() {
+	int level=digitalRead(CWR_BUTTON);
+	//fprintf(stderr,"cwr button : level=%d \n",level);
+   if (cw_keyer_internal == 0 ){
+      keyer_event(CWR_BUTTON, cw_active_level == 0 ? level : (level==0));
+   }
+}
+
 #endif
 
 int gpio_init() {
@@ -1115,8 +1127,8 @@ int gpio_init() {
 #ifdef LOCALCW
   fprintf(stderr,"GPIO: ENABLE_CW_BUTTONS=%d  CWL_BUTTON=%d CWR_BUTTON=%d\n", ENABLE_CW_BUTTONS, CWL_BUTTON, CWR_BUTTON);
   if(ENABLE_CW_BUTTONS) {	
-    setup_button(CWL_BUTTON, cwAlert);
-    setup_button(CWR_BUTTON, cwAlert);
+    setup_cw_pin(CWL_BUTTON, cwAlert_left);
+    setup_cw_pin(CWR_BUTTON, cwAlert_right);
   }
 #endif
 
@@ -1220,7 +1232,7 @@ static int vfo_encoder_changed(void *data) {
   return 0;
 }
 
-static encoder_changed(int action,int pos) {
+static void encoder_changed(int action,int pos) {
   double value;
   int mode;
   int id;
