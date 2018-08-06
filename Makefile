@@ -158,7 +158,7 @@ endif
 
 ifeq ($(GPIO_INCLUDE),GPIO)
   GPIO_OPTIONS=-D GPIO
-  GPIO_LIBS=-lwiringPi -lpigpio 
+  GPIO_LIBS=-lwiringPi
   GPIO_SOURCES= \
   gpio.c \
   encoder_menu.c
