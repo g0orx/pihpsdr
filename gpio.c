@@ -974,8 +974,12 @@ fprintf(stderr,"setup_encoder_pin: pin=%d updown=%d\n",pin,up_down);
 
 #ifdef LOCALCW
 
+// Note we cannot use debouncing, as after the first interrupt,
+// we might read the wrong level. So we forward all CW interrupts
+// to the keyer.
+
 static void setup_cw_pin(int pin, void(*pAlert)(void)) {
-fprintf(stderr,"setup_cw_pin: pin=%d \n",pin);
+   fprintf(stderr,"setup_cw_pin: pin=%d \n",pin);
    pinMode(pin,INPUT);
    pullUpDnControl(pin,PUD_UP);
    usleep(10000);
@@ -983,19 +987,19 @@ fprintf(stderr,"setup_cw_pin: pin=%d \n",pin);
 }
 
 static void cwAlert_left() {
-	int level=digitalRead(CWL_BUTTON);
-	//fprintf(stderr,"cwl button : level=%d \n",level);
-   if (cw_keyer_internal == 0 ){
-      keyer_event(CWL_BUTTON, cw_active_level == 0 ? level : (level==0));
-   }
+    int level;
+    if (cw_keyer_internal != 0) return; // as quickly as possible
+    level=digitalRead(CWL_BUTTON);
+    //fprintf(stderr,"cwl button : level=%d \n",level);
+    keyer_event(CWL_BUTTON, cw_active_level == 0 ? level : (level==0));
 }
 
 static void cwAlert_right() {
-	int level=digitalRead(CWR_BUTTON);
-	//fprintf(stderr,"cwr button : level=%d \n",level);
-   if (cw_keyer_internal == 0 ){
-      keyer_event(CWR_BUTTON, cw_active_level == 0 ? level : (level==0));
-   }
+    int level;
+    if (cw_keyer_internal != 0) return; // as quickly as possible
+    level=digitalRead(CWR_BUTTON);
+    //fprintf(stderr,"cwr button : level=%d \n",level);
+     keyer_event(CWR_BUTTON, cw_active_level == 0 ? level : (level==0));
 }
 
 #endif
