@@ -164,8 +164,9 @@ void keyer_event(int gpio, int level) {
     if (state) {
         // This is for aborting CAT CW messages if the key is hit.
 	cw_key_hit = 1;
-        // we do PTT as soon as possible ...
-        if (running && !cwvox) {
+        // we do PTT as soon as possible, but disable cwvox if
+	// PTT has been engaged manually
+        if (running && !cwvox && !mox) {
 	   g_idle_add(ext_mox_update, (gpointer)(long) 1);
            cwvox=(int) vox_hang;
 	}
