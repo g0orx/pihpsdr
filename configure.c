@@ -96,11 +96,13 @@ static   GtkWidget *function;
 
 #ifdef LOCALCW
 static GtkWidget *cwl_label;
-static GtkWidget *cwl_gpio_label;
 static GtkWidget *cwl;
 static GtkWidget *cwr_label;
-static GtkWidget *cwr_gpio_label;
 static GtkWidget *cwr;
+static GtkWidget *cws_label;
+static GtkWidget *cws;
+static GtkWidget *b_enable_cws;
+static GtkWidget *b_enable_cwlr;
 #endif
 
 static gboolean save_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
@@ -149,8 +151,11 @@ static gboolean save_cb (GtkWidget *widget, GdkEventButton *event, gpointer data
     ENABLE_FUNCTION_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_function))?1:0;
     FUNCTION_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(function));
 #ifdef LOCALCW
+    ENABLE_CW_BUTTONS=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_cwlr))?1:0;
     CWL_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(cwl));
     CWR_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(cwr));
+    ENABLE_GPIO_SIDETONE=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_cws))?1:0;
+    SIDETONE_GPIO=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(cws));
 #endif
 
     gpio_save_state();
@@ -331,6 +336,25 @@ void configure_gpio(GtkWidget *parent) {
   gtk_widget_show(S1);
   gtk_grid_attach(GTK_GRID(grid),S1,2,y,1,1);
 
+#ifdef LOCALCW
+  // With LOCALCW, the menu got too long (does not fit on the screen)
+  // Therefore it has been moved to the right of S1/S2/S3
+  // The GPIO side tone is also configured here. Note that
+  // these setting are only active when doing local CW
+  cwl_label=gtk_label_new("CWL GPIO:");
+  gtk_widget_show(cwl_label);
+  gtk_grid_attach(GTK_GRID(grid),cwl_label,3,y,1,1);
+
+  cwl=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(cwl),CWL_BUTTON);
+  gtk_widget_show(cwl);
+  gtk_grid_attach(GTK_GRID(grid),cwl,4,y,1,1);
+
+  b_enable_cwlr=gtk_check_button_new_with_label("Enable CW buttons");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_cwlr), ENABLE_CW_BUTTONS);
+  gtk_widget_show(b_enable_cwlr);
+  gtk_grid_attach(GTK_GRID(grid),b_enable_cwlr,5,y,1,1);
+#endif
 
   y++;
 
@@ -348,6 +372,17 @@ void configure_gpio(GtkWidget *parent) {
   gtk_widget_show(S2);
   gtk_grid_attach(GTK_GRID(grid),S2,2,y,1,1);
 
+#ifdef LOCALCW
+  cwr_label=gtk_label_new("CWR GPIO:");
+  gtk_widget_show(cwr_label);
+  gtk_grid_attach(GTK_GRID(grid),cwr_label,3,y,1,1);
+
+  cwr=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(cwr),CWR_BUTTON);
+  gtk_widget_show(cwr);
+  gtk_grid_attach(GTK_GRID(grid),cwr,4,y,1,1);
+#endif
+
   y++;
 
   b_enable_S3=gtk_check_button_new_with_label("Enable S3");
@@ -364,6 +399,21 @@ void configure_gpio(GtkWidget *parent) {
   gtk_widget_show(S3);
   gtk_grid_attach(GTK_GRID(grid),S3,2,y,1,1);
 
+#ifdef LOCALCW
+  cws_label=gtk_label_new("  SideTone GPIO:");
+  gtk_widget_show(cws_label);
+  gtk_grid_attach(GTK_GRID(grid),cws_label,3,y,1,1);
+
+  cws=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(cws),SIDETONE_GPIO);
+  gtk_widget_show(cws);
+  gtk_grid_attach(GTK_GRID(grid),cws,4,y,1,1);
+
+  b_enable_cws=gtk_check_button_new_with_label("Enable");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_cws), ENABLE_GPIO_SIDETONE);
+  gtk_widget_show(b_enable_cws);
+  gtk_grid_attach(GTK_GRID(grid),b_enable_cws,5,y,1,1);
+#endif
   y++;
 
   b_enable_S4=gtk_check_button_new_with_label("Enable S4");
@@ -430,38 +480,6 @@ void configure_gpio(GtkWidget *parent) {
 
   y++;
 
-#ifdef LOCALCW
-  cwl_label=gtk_label_new("CWL");
-  gtk_widget_show(cwl_label);
-  gtk_grid_attach(GTK_GRID(grid),cwl_label,0,y,1,1);
-
-  cwl_gpio_label=gtk_label_new("GPIO:");
-  gtk_widget_show(cwl_gpio_label);
-  gtk_grid_attach(GTK_GRID(grid),cwl_gpio_label,1,y,1,1);
-
-  cwl=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(cwl),CWL_BUTTON);
-  gtk_widget_show(cwl);
-  gtk_grid_attach(GTK_GRID(grid),cwl,2,y,1,1);
-
-  y++;
-
-  cwr_label=gtk_label_new("CWR");
-  gtk_widget_show(cwr_label);
-  gtk_grid_attach(GTK_GRID(grid),cwr_label,0,y,1,1);
-
-  cwr_gpio_label=gtk_label_new("GPIO:");
-  gtk_widget_show(cwr_gpio_label);
-  gtk_grid_attach(GTK_GRID(grid),cwr_gpio_label,1,y,1,1);
-
-  cwr=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(cwr),CWR_BUTTON);
-  gtk_widget_show(cwr);
-  gtk_grid_attach(GTK_GRID(grid),cwr,2,y,1,1);
-
-  y++;
-#endif
-  
   GtkWidget *save_b=gtk_button_new_with_label("Save");
   g_signal_connect (save_b, "button_press_event", G_CALLBACK(save_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),save_b,4,y-1,1,1);

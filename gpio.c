@@ -29,6 +29,9 @@
 #include <poll.h>
 #include <sched.h>
 #include <wiringPi.h>
+#ifdef LOCALCW
+#include <softTone.h>
+#endif
 #include <semaphore.h>
 
 #include "band.h"
@@ -144,11 +147,14 @@ int FUNCTION_BUTTON=3;
 int ENABLE_E1_BUTTON=1;
 int ENABLE_E2_BUTTON=1;
 int ENABLE_E3_BUTTON=1;
-int ENABLE_CW_BUTTONS=1;
 #endif
+
 #ifdef LOCALCW
-int CWL_BUTTON=18;
-int CWR_BUTTON=19;
+int CWL_BUTTON=14;
+int CWR_BUTTON=15;
+int SIDETONE_GPIO=8;
+int ENABLE_GPIO_SIDETONE=0;
+int ENABLE_CW_BUTTONS=1;
 #endif
 
 static volatile int vfoEncoderPos;
@@ -848,6 +854,10 @@ void gpio_restore_state() {
  if(value) CWL_BUTTON=atoi(value);		
  value=getProperty("CWR_BUTTON");		
  if(value) CWR_BUTTON=atoi(value);		
+ value=getProperty("SIDETONE_GPIO");		
+ if(value) SIDETONE_GPIO=atoi(value);		
+ value=getProperty("ENABLE_GPIO_SIDETONE");		
+ if(value) ENABLE_GPIO_SIDETONE=atoi(value);		
 #endif
 
 
@@ -950,6 +960,10 @@ void gpio_save_state() {
  setProperty("CWL_BUTTON",value);		
  sprintf(value,"%d",CWR_BUTTON);		
  setProperty("CWR_BUTTON",value);		
+ sprintf(value,"%d",SIDETONE_GPIO);		
+ setProperty("SIDETONE_GPIO",value);		
+ sprintf(value,"%d",ENABLE_GPIO_SIDETONE);		
+ setProperty("ENABLE_GPIO_SIDETONE",value);		
 #endif
 
   saveProperties("gpio.props");
@@ -975,8 +989,11 @@ fprintf(stderr,"setup_encoder_pin: pin=%d updown=%d\n",pin,up_down);
 #ifdef LOCALCW
 
 // Note we cannot use debouncing, as after the first interrupt,
-// we might read the wrong level. So we forward all CW interrupts
+// we might read the wrong level. So we process all interrupts
 // to the keyer.
+// The only way to do proper debouncing is to record the times
+// of the last state change of each of the two buttons, and
+// disable further state changes for a short time (5 msec)
 
 static void setup_cw_pin(int pin, void(*pAlert)(void)) {
    fprintf(stderr,"setup_cw_pin: pin=%d \n",pin);
@@ -1134,6 +1151,9 @@ int gpio_init() {
     setup_cw_pin(CWL_BUTTON, cwAlert_left);
     setup_cw_pin(CWR_BUTTON, cwAlert_right);
   }
+  if (ENABLE_GPIO_SIDETONE) {
+    softToneCreate(SIDETONE_GPIO);
+  }
 #endif
 
   return 0;
@@ -1142,6 +1162,14 @@ int gpio_init() {
 void gpio_close() {
     running=0;
 }
+
+#ifdef LOCALCW
+void gpio_sidetone(int freq) {
+  if (ENABLE_GPIO_SIDETONE) {
+    softToneWrite (SIDETONE_GPIO, freq);
+  }
+}
+#endif
 
 int vfo_encoder_get_pos() {
   int pos=vfoEncoderPos;

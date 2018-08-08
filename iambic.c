@@ -71,7 +71,6 @@
 #include <sys/mman.h>
 
 #include <wiringPi.h>
-#include <softTone.h>
 
 #include "gpio.h"
 #include "radio.h"
@@ -82,9 +81,6 @@
 
 static void* keyer_thread(void *arg);
 static pthread_t keyer_thread_id;
-
-// set to 0 to use the PI's hw:0 audio out for sidetone
-#define SIDETONE_GPIO 0 // this is in wiringPi notation // tried 4 working great.
 
 #define MY_PRIORITY (90)
 #define MAX_SAFE_STACK (8*1024)
@@ -124,6 +120,7 @@ static sem_t cw_event;
 #endif
 
 static int cwvox = 0;
+static int first_dot = 0;
 
 int keyer_out = 0;
 
@@ -169,6 +166,7 @@ void keyer_event(int gpio, int level) {
         if (running && !cwvox && !mox) {
 	   g_idle_add(ext_mox_update, (gpointer)(long) 1);
            cwvox=(int) vox_hang;
+	   first_dot=1;
 	}
     }
     if (gpio == CWL_BUTTON) {
@@ -203,17 +201,10 @@ void set_keyer_out(int state) {
         if(protocol==NEW_PROTOCOL) schedule_high_priority(9);
 		//fprintf(stderr,"set_keyer_out keyer_out= %d\n", keyer_out);
         if (state) {
-	    // DL1YCF: we must call cw_hold_key in *any* case, else no
-	    //         CW signal will be produced. We certainly do not
-	    //         want to produce a side tone *only*.
-            if (SIDETONE_GPIO) {
-                softToneWrite (SIDETONE_GPIO, cw_keyer_sidetone_frequency);
-	    }
+	    gpio_sidetone(cw_keyer_sidetone_frequency);
 	    cw_hold_key(1); // this starts a CW pulse in transmitter.c
         } else {
-            if (SIDETONE_GPIO) {
-                softToneWrite (SIDETONE_GPIO, 0);
-	    }
+	    gpio_sidetone(0);
 	    cw_hold_key(0); // this stops a CW pulse in transmitter.c
         }
     }
@@ -275,10 +266,18 @@ fprintf(stderr,"keyer_thread  state running= %d\n", running);
             case PREDOT:                         // need to clear any pending dots or dashes
                 clear_memory();
                 key_state = SENDDOT;
+		if (first_dot) {		// make the first "dot" or "dash" after automatic
+		   kdelay = -15;		// PTT switching 15 msec longer
+		   first_dot = 0;
+		}
                 break;
             case PREDASH:
                 clear_memory();
                 key_state = SENDDASH;
+		if (first_dot) {		// make the first "dot" or "dash" after automatic
+		   kdelay = -15;		// PTT switching 15 msec longer
+		   first_dot = 0;
+		}
                 break;
 
             // dot paddle  pressed so set keyer_out high for time dependant on speed
@@ -429,10 +428,6 @@ int keyer_init() {
     if(mlockall(MCL_CURRENT|MCL_FUTURE) == -1) {
             perror("mlockall failed");
             running = 0;
-    }
-
-    if (SIDETONE_GPIO){
-        softToneCreate(SIDETONE_GPIO);
     }
 
 #ifdef __APPLE__
