@@ -120,7 +120,6 @@ static sem_t cw_event;
 #endif
 
 static int cwvox = 0;
-static int first_dot = 0;
 
 int keyer_out = 0;
 
@@ -166,7 +165,6 @@ void keyer_event(int gpio, int level) {
         if (running && !cwvox && !mox) {
 	   g_idle_add(ext_mox_update, (gpointer)(long) 1);
            cwvox=(int) vox_hang;
-	   first_dot=1;
 	}
     }
     if (gpio == CWL_BUTTON) {
@@ -266,18 +264,10 @@ fprintf(stderr,"keyer_thread  state running= %d\n", running);
             case PREDOT:                         // need to clear any pending dots or dashes
                 clear_memory();
                 key_state = SENDDOT;
-		if (first_dot) {		// make the first "dot" or "dash" after automatic
-		   kdelay = -15;		// PTT switching 15 msec longer
-		   first_dot = 0;
-		}
                 break;
             case PREDASH:
                 clear_memory();
                 key_state = SENDDASH;
-		if (first_dot) {		// make the first "dot" or "dash" after automatic
-		   kdelay = -15;		// PTT switching 15 msec longer
-		   first_dot = 0;
-		}
                 break;
 
             // dot paddle  pressed so set keyer_out high for time dependant on speed
