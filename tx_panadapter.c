@@ -49,12 +49,10 @@ static gfloat hz_per_pixel;
 static gfloat filter_left;
 static gfloat filter_right;
 
-#ifdef SPLIT_RXTX
 #include "new_menu.h"
 #include "ext.h"
 #include "sliders.h"
 static gboolean making_active = FALSE;
-#endif
 
 /* Create a new surface of the appropriate size to store our scribbles */
 static gboolean
@@ -109,9 +107,7 @@ tx_panadapter_button_press_event_cb (GtkWidget      *widget,
     has_moved=FALSE;
     pressed=TRUE;
   }
-#ifdef SPLIT_RXTX
   making_active=(active_receiver != receiver[0]);
-#endif
   return TRUE;
 }
 
@@ -125,6 +121,9 @@ tx_panadapter_button_release_event_cb (GtkWidget      *widget,
   int display_height=gtk_widget_get_allocated_height (tx->panadapter);
 
 #ifdef SPLIT_RXTX
+  // when clicking into the TX window, the first receiver is
+  // selected since the TX window only hides the display of
+  // the first RX
   if (making_active) {
     active_receiver=receiver[0];
     making_active=FALSE;
@@ -157,24 +156,20 @@ tx_panadapter_motion_notify_event_cb (GtkWidget      *widget,
 {
   int x, y;
   GdkModifierType state;
-#ifdef SPLIT_RXTX
+  // do not do this upon the first click. Instead, click first, drag later
   if (!making_active) {
-#endif
-  gdk_window_get_device_position (event->window,
-                                event->device,
-                                &x,
-                                &y,
-                                &state);
-  // DL1YCF: added a pair of () to fix an error
-  if(((state & GDK_BUTTON1_MASK) == GDK_BUTTON1_MASK) || pressed) {
-    int moved=last_x-x;
-    vfo_move((long long)((float)moved*hz_per_pixel));
-    last_x=x;
-    has_moved=TRUE;
+    gdk_window_get_device_position (event->window,
+                                    event->device,
+                                    &x,
+                                    &y,
+                                    &state);
+    if(((state & GDK_BUTTON1_MASK) == GDK_BUTTON1_MASK) || pressed) {
+      int moved=last_x-x;
+      vfo_move((long long)((float)moved*hz_per_pixel));
+      last_x=x;
+      has_moved=TRUE;
+    }
   }
-#ifdef SPLIT_RXTX
-  }
-#endif
 
   return TRUE;
 }
@@ -209,17 +204,10 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   int display_width=gtk_widget_get_allocated_width (tx->panadapter);
   int display_height=gtk_widget_get_allocated_height (tx->panadapter);
 
-  int id=0;
-#ifdef SPLIT_RXTX
-  id = active_receiver->id;
+  int id = active_receiver->id;
   if (split) {
     id = 1-id;
   }
-#else
-  if(split) {
-    id=1;
-  }
-#endif
   samples=tx->pixel_samples;
 
   //hz_per_pixel=(double)tx->output_rate/(double)display_width;
@@ -266,7 +254,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   //long long half=12000LL; //(long long)(tx->output_rate/2);
   long long half=24000LL; //(long long)(tx->output_rate/2);
   long long frequency;
-  frequency=vfo[id].frequency+vfo[VFO_B].offset;
+  frequency=vfo[id].frequency+vfo[id].offset;
   divisor=5000LL;
   for(i=0;i<display_width;i++) {
     f = frequency - half + (long) (hz_per_pixel * i);
@@ -296,12 +284,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   // band edges
   long long min_display=frequency-half;
   long long max_display=frequency+half;
-  int b;
-  if(split) {
-    b=vfo[1].band;
-  } else {
-    b=vfo[0].band;
-  }
+  int b=vfo[i].band;
   BAND *band=band_get_band(b);
   if(band->frequencyMin!=0LL) {
     cairo_set_source_rgb (cr, 1.0, 0.0, 0.0);

@@ -758,7 +758,7 @@ static void full_tx_buffer(TRANSMITTER *tx) {
   // It is important query tx->mode and tune only once, to assure that
   // the two "if (cwmode)" queries give the same result.
 
-  cwmode = (tx->mode == modeCWL || tx->mode == modeCWU) && !tune;
+  cwmode = (tx->mode == modeCWL || tx->mode == modeCWU) && !tune && !tx->twotone;
 
   switch(protocol) {
     case ORIGINAL_PROTOCOL:
@@ -1057,7 +1057,16 @@ void tx_set_twotone(TRANSMITTER *tx,int state) {
   transmitter->twotone=state;
   if(state) {
     // DL1YCF: set frequencies and levels
-    SetTXAPostGenTTFreq(transmitter->id, 900.0, 1700.0);
+    switch(tx->mode) {
+      case modeCWL:
+      case modeLSB:
+      case modeDIGL:
+	SetTXAPostGenTTFreq(transmitter->id, -900.0, -1700.0);
+        break;
+      default:
+	SetTXAPostGenTTFreq(transmitter->id, 900.0, 1700.0);
+	break;
+    }
     SetTXAPostGenTTMag (transmitter->id, 0.49, 0.49);
     SetTXAPostGenMode(transmitter->id, 1);
     SetTXAPostGenRun(transmitter->id, 1);

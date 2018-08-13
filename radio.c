@@ -1294,6 +1294,7 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     bandRestoreState();
     memRestoreState();
     vfo_restore_state();
+    modesettings_restore_state();
 #ifdef FREEDV
     freedv_restore_state();
 #endif
@@ -1493,6 +1494,7 @@ void radioSaveState() {
     setProperty("rx2_gain_slider",value);
 	
     vfo_save_state();
+    modesettings_save_state();
     sprintf(value,"%d",receivers);
     setProperty("receivers",value);
     for(i=0;i<receivers;i++) {

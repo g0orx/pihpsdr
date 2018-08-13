@@ -44,10 +44,9 @@ UNAME_N=raspberrypi
 #UNAME_N=jetsen
 
 # Additional options that can be chosen at compile time:
-# -DDIGI_MODES          wide filters and no noise reduction in DIGU/DIGL
 # -DSPLIT_RXTX          if there is more than one receiver, TX panel only "hides" the first one
 # -DPROTOCOL_DEBUG      logs (on stderr) all state changes sent to the SDR (only old protocol)
-# -DDEBUG               activate debug output
+# -DDEBUG               activate general debug output
 #
 # leave the list empty if no such option should be used
 

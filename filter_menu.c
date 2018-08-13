@@ -67,9 +67,6 @@ static gboolean filter_select_cb (GtkWidget *widget, gpointer        data) {
   set_button_text_color(last_filter,"black");
   last_filter=widget;
   set_button_text_color(last_filter,"orange");
-  // DL1YCF added return statement to make the compiler happy.
-  // however I am unsure about the correct return value.
-  // I would have coded this as a void function.
   return FALSE;
 }
 
@@ -195,13 +192,6 @@ void filter_menu(GtkWidget *parent) {
       gtk_grid_attach(GTK_GRID(grid),b,2,1,1,1);
       }
       break;
-
-#ifdef DIGI_MODES
-    case modeDIGU:
-    case modeDIGL:
-      gtk_button_set_label(GTK_BUTTON(close_b), "DIGU/DIGL have a fixed wide filter.");
-      break;
-#endif
 
     default:
       for(i=0;i<FILTERS-2;i++) {

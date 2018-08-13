@@ -1178,7 +1178,7 @@ void ozy_send_buffer() {
         if(mode!=modeCWU && mode!=modeCWL) {
           // output_buffer[C1]|=0x00;
         } else {
-          if((tune==1) || (vox==1) || (cw_keyer_internal==0)) {
+          if((tune==1) || (vox==1) || (cw_keyer_internal==0) || (transmitter->twotone==1)) {
             output_buffer[C1]|=0x00;
           } else {
             output_buffer[C1]|=0x01;
@@ -1238,14 +1238,14 @@ void ozy_send_buffer() {
 //    If CW is done on the HPSDR board, we should not set
 //    the MOX bit, everything is done in the FPGA.
 //
-//    However, if we are doing CAT CW, local CW or tuning,
-//    we must put the SDR into TX mode.
+//    However, if we are doing CAT CW, local CW or tuning/TwoTone,
+//    we must put the SDR into TX mode *here*.
 //
-      if(tune || CAT_cw_is_active || !cw_keyer_internal) {
+      if(tune || CAT_cw_is_active || !cw_keyer_internal || transmitter->twotone) {
         output_buffer[C0]|=0x01;
       }
     } else {
-      // not doing CW? set MOX in any case.
+      // not doing CW? always set MOX if transmitting
       output_buffer[C0]|=0x01;
     }
   }

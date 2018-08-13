@@ -1105,14 +1105,6 @@ void receiver_filter_changed(RECEIVER *rx) {
       }
       set_deviation(rx);
       break;
-#ifdef DIGI_MODES
-    case modeDIGU:
-        set_filter(rx,0,3000);
-	break;
-    case modeDIGL:
-        set_filter(rx,-3000,0);
-        break;
-#endif
     default:
 	{
     	FILTER *mode_filters=filters[m];

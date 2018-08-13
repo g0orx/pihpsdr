@@ -50,6 +50,7 @@
 #include "new_menu.h"
 #include "rigctl.h"
 #include "ext.h"
+#include "noise_menu.h"
 #ifdef FREEDV
 #include "freedv.h"
 #endif
@@ -67,13 +68,82 @@ char *step_labels[]={"1Hz","10Hz","25Hz","50Hz","100Hz","250Hz","500Hz","1kHz","
 static GtkWidget* menu=NULL;
 static GtkWidget* band_menu=NULL;
 
-
 static void vfo_save_bandstack() {
   BANDSTACK *bandstack=bandstack_get_bandstack(vfo[0].band);
   BANDSTACK_ENTRY *entry=&bandstack->entry[vfo[0].bandstack];
   entry->frequency=vfo[0].frequency;
   entry->mode=vfo[0].mode;
   entry->filter=vfo[0].filter;
+}
+
+void modesettings_save_state() {
+  int i;
+  char name[80];
+  char value[80];
+
+  for (i=0; i<MODES; i++) {
+    sprintf(name,"modeset.%d.filter", i);
+    sprintf(value,"%d", mode_settings[i].filter);
+    setProperty(name,value);
+    sprintf(name,"modeset.%d.nr", i);
+    sprintf(value,"%d", mode_settings[i].nr);
+    setProperty(name,value);
+    sprintf(name,"modeset.%d.nr2", i);
+    sprintf(value,"%d", mode_settings[i].nr2);
+    setProperty(name,value);
+    sprintf(name,"modeset.%d.nb", i);
+    sprintf(value,"%d", mode_settings[i].nb);
+    setProperty(name,value);
+    sprintf(name,"modeset.%d.nb2", i);
+    sprintf(value,"%d", mode_settings[i].nb2);
+    setProperty(name,value);
+    sprintf(name,"modeset.%d.anf", i);
+    sprintf(value,"%d", mode_settings[i].anf);
+    setProperty(name,value);
+    sprintf(name,"modeset.%d.snb", i);
+    sprintf(value,"%d", mode_settings[i].snb);
+    setProperty(name,value);
+  }
+}
+
+void modesettings_restore_state() {
+  int i;
+  char name[80];
+  char *value;
+
+  // set some reasonable defaults for the filters
+
+  for (i=0; i<MODES; i++) {
+    mode_settings[i].filter=filterF6;
+    mode_settings[i].nr=0;
+    mode_settings[i].nr2=0;
+    mode_settings[i].nb=0;
+    mode_settings[i].nb2=0;
+    mode_settings[i].anf=0;
+    mode_settings[i].snb=0;
+
+    sprintf(name,"modeset.%d.filter",i);
+    value=getProperty(name);
+    if(value) mode_settings[i].filter=atoi(value);
+    sprintf(name,"modeset.%d.nr",i);
+    value=getProperty(name);
+    if(value) mode_settings[i].nr=atoi(value);
+    sprintf(name,"modeset.%d.nr2",i);
+    value=getProperty(name);
+    if(value) mode_settings[i].nr2=atoi(value);
+    sprintf(name,"modeset.%d.nb",i);
+    value=getProperty(name);
+    if(value) mode_settings[i].nb=atoi(value);
+    sprintf(name,"modeset.%d.nb2",i);
+    value=getProperty(name);
+    if(value) mode_settings[i].nb2=atoi(value);
+    sprintf(name,"modeset.%d.anf",i);
+    value=getProperty(name);
+    if(value) mode_settings[i].anf=atoi(value);
+    sprintf(name,"modeset.%d.snb",i);
+    value=getProperty(name);
+    if(value) mode_settings[i].snb=atoi(value);
+  }
 }
 
 void vfo_save_state() {
@@ -275,9 +345,25 @@ void vfo_bandstack_changed(int b) {
 
 }
 
+//
+// When changing the mode, store the current filter setting
+// and for the new mode, switch to the filter we had the last time
+//
 void vfo_mode_changed(int m) {
   int id=active_receiver->id;
+
   vfo[id].mode=m;
+  // restore filter and NR configuration used last in the new mode
+  vfo[id].filter      =mode_settings[m].filter;
+  active_receiver->nr =mode_settings[m].nr;
+  active_receiver->nr2=mode_settings[m].nr2;
+  active_receiver->nb =mode_settings[m].nb;
+  active_receiver->nb2=mode_settings[m].nb2;
+  active_receiver->anf=mode_settings[m].anf;
+  active_receiver->snb=mode_settings[m].snb;
+
+  // make changes effective
+  update_noise();
   switch(id) {
     case 0:
       receiver_mode_changed(receiver[0]);
@@ -301,6 +387,10 @@ void vfo_mode_changed(int m) {
 
 void vfo_filter_changed(int f) {
   int id=active_receiver->id;
+
+  // store changed filter in the mode settings
+  mode_settings[vfo[id].mode].filter = f;
+
   vfo[id].filter=f;
   switch(id) {
     case 0:
@@ -556,7 +646,6 @@ void vfo_update() {
     int id=active_receiver->id;
     FILTER* band_filters=filters[vfo[id].mode];
     FILTER* band_filter=&band_filters[vfo[id].filter];
-    int have_noise=1;
     if(vfo_surface) {
         char temp_text[32];
         cairo_t *cr;
@@ -597,15 +686,6 @@ void vfo_update() {
           case modeAM:
             sprintf(temp_text,"%s %s %s",mode_string[vfo[id].mode],band_filter->title,dv);
             break;
-#ifdef DIGI_MODES
-	  case modeDIGU:
-	  case modeDIGL:
-	    // No band filter title
-            sprintf(temp_text,"%s %s",mode_string[vfo[id].mode],dv);
-	    // used later on NOT to display noise reduction 
-	    have_noise=0;
-            break;
-#endif
           default:
             sprintf(temp_text,"%s %s",mode_string[vfo[id].mode],band_filter->title);
             break;
@@ -676,7 +756,7 @@ void vfo_update() {
         cairo_show_text(cr, "NB");
 
         cairo_move_to(cr, 175, 50);
-        if(active_receiver->nb2 && have_noise) {
+        if(active_receiver->nb2) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         } else {
           cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
@@ -684,7 +764,7 @@ void vfo_update() {
         cairo_show_text(cr, "NB2");
 
         cairo_move_to(cr, 200, 50);  
-        if(active_receiver->nr && have_noise) {
+        if(active_receiver->nr) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         } else {
           cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
@@ -692,7 +772,7 @@ void vfo_update() {
         cairo_show_text(cr, "NR");
 
         cairo_move_to(cr, 225, 50);  
-        if(active_receiver->nr2 && have_noise) {
+        if(active_receiver->nr2) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         } else {
           cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
@@ -700,7 +780,7 @@ void vfo_update() {
         cairo_show_text(cr, "NR2");
 
         cairo_move_to(cr, 250, 50);  
-        if(active_receiver->anf && have_noise) {
+        if(active_receiver->anf) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         } else {
           cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
@@ -708,7 +788,7 @@ void vfo_update() {
         cairo_show_text(cr, "ANF");
 
         cairo_move_to(cr, 275, 50);  
-        if(active_receiver->snb && have_noise) {
+        if(active_receiver->snb) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         } else {
           cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);

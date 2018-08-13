@@ -33,9 +33,6 @@
 #include "receiver.h"
 #include "vfo.h"
 #include "button_text.h"
-#ifdef DIGI_MODES
-#include "noise_menu.h"		// for noise-on/off in DIGU/L
-#endif
 
 static GtkWidget *parent_window=NULL;
 
@@ -66,16 +63,6 @@ static gboolean mode_select_cb (GtkWidget *widget, gpointer        data) {
   set_button_text_color(last_mode,"black");
   last_mode=widget;
   set_button_text_color(last_mode,"orange");
-#ifdef DIGI_MODES
-  switch (m) {
-    case modeDIGL:
-    case modeDIGU:
-      noise_off();        // diable noise reduction machine completely for DIGI modes
-      break;
-    default:
-      update_noise();     // set noise reduction to the values stored in the current RECEIVER
-  }
-#endif
   vfo_mode_changed(m);
   return FALSE;
 }

@@ -59,20 +59,7 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
   return FALSE;
 }
 
-#ifdef DIGI_MODES
-void noise_off() {
-  SetEXTANBRun(active_receiver->id,  0);
-  SetEXTNOBRun(active_receiver->id,  0);
-  SetRXAANRRun(active_receiver->id,  0);
-  SetRXAEMNRRun(active_receiver->id, 0);
-  SetRXAANFRun(active_receiver->id,  0);
-  SetRXASNBARun(active_receiver->id, 0);
-}
-
 void update_noise() {
-#else
-static void update_noise() {
-#endif
   SetEXTANBRun(active_receiver->id, active_receiver->nb);
   SetEXTNOBRun(active_receiver->id, active_receiver->nb2);
   SetRXAANRRun(active_receiver->id, active_receiver->nr);
@@ -85,46 +72,60 @@ static void update_noise() {
 static void nb_none_cb(GtkWidget *widget, gpointer data) {
   active_receiver->nb=0;
   active_receiver->nb2=0;
+  mode_settings[vfo[active_receiver->id].mode].nb=0;
+  mode_settings[vfo[active_receiver->id].mode].nb2=0;
   update_noise();
 }
 
 static void nb_cb(GtkWidget *widget, gpointer data) {
   active_receiver->nb=1;
   active_receiver->nb2=0;
+  mode_settings[vfo[active_receiver->id].mode].nb=1;
+  mode_settings[vfo[active_receiver->id].mode].nb2=0;
   update_noise();
 }
 
 static void nr_none_cb(GtkWidget *widget, gpointer data) {
   active_receiver->nr=0;
   active_receiver->nr2=0;
+  mode_settings[vfo[active_receiver->id].mode].nr=0;
+  mode_settings[vfo[active_receiver->id].mode].nr2=0;
   update_noise();
 }
 
 static void nr_cb(GtkWidget *widget, gpointer data) {
   active_receiver->nr=1;
   active_receiver->nr2=0;
+  mode_settings[vfo[active_receiver->id].mode].nr=1;
+  mode_settings[vfo[active_receiver->id].mode].nr2=0;
   update_noise();
 }
 
 static void nb2_cb(GtkWidget *widget, gpointer data) {
   active_receiver->nb=0;
   active_receiver->nb2=1;
+  mode_settings[vfo[active_receiver->id].mode].nb=0;
+  mode_settings[vfo[active_receiver->id].mode].nb2=1;
   update_noise();
 }
 
 static void nr2_cb(GtkWidget *widget, gpointer data) {
   active_receiver->nr=0;
-  active_receiver->nr2=2;
+  active_receiver->nr2=1;
+  mode_settings[vfo[active_receiver->id].mode].nr=0;
+  mode_settings[vfo[active_receiver->id].mode].nr2=1;
   update_noise();
 }
 
 static void anf_cb(GtkWidget *widget, gpointer data) {
   active_receiver->anf=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
+  mode_settings[vfo[active_receiver->id].mode].anf=active_receiver->anf;
   update_noise();
 }
 
 static void snb_cb(GtkWidget *widget, gpointer data) {
   active_receiver->snb=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
+  mode_settings[vfo[active_receiver->id].mode].snb=active_receiver->snb;
   update_noise();
 }
 
@@ -159,14 +160,6 @@ void noise_menu(GtkWidget *parent) {
   gtk_grid_set_column_spacing (GTK_GRID(grid),5);
   gtk_grid_set_row_spacing (GTK_GRID(grid),5);
 
-#ifdef DIGI_MODES
-  if (mode == modeDIGU || mode == modeDIGL) {
-  GtkWidget *close_b=gtk_button_new_with_label("DIGU/DIGL have no noise options.");
-  g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
-  gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
-  }
-  else {
-#endif
   GtkWidget *close_b=gtk_button_new_with_label("Close");
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
@@ -251,9 +244,6 @@ void noise_menu(GtkWidget *parent) {
   gtk_widget_show(b_nr2);
   gtk_grid_attach(GTK_GRID(grid),b_nr2,col,row,1,1);
   g_signal_connect(b_nr2,"pressed",G_CALLBACK(nr2_cb),NULL);
-#ifdef DIGI_MODES
-  }
-#endif
 
   gtk_container_add(GTK_CONTAINER(content),grid);
 

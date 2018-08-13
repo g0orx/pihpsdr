@@ -83,9 +83,6 @@ static gboolean store_select_cb (GtkWidget *widget, gpointer data) {
 
    // Save in the file now..
    memSaveState();
-  // DL1YCF added return statement to make the compiler happy.
-  // however I am unsure about the correct return value.
-  // I would have coded this as a void function.
   return FALSE;
 }
 
@@ -111,9 +108,6 @@ static gboolean recall_select_cb (GtkWidget *widget, gpointer data) {
     vfo_mode_changed(mem[index].mode);
     g_idle_add(ext_vfo_update,NULL);
 
-  // DL1YCF added return statement to make the compiler happy.
-  // however I am unsure about the correct return value.
-  // I would have coded this as a void function.
   return FALSE;
 }
 

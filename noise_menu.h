@@ -19,7 +19,4 @@
 
 extern void noise_menu(GtkWidget *parent);
 
-#ifdef DIGI_MODES
-extern void noise_off();
 extern void update_noise();
-#endif
