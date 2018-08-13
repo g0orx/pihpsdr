@@ -859,8 +859,6 @@ void gpio_restore_state() {
  value=getProperty("ENABLE_GPIO_SIDETONE");		
  if(value) ENABLE_GPIO_SIDETONE=atoi(value);		
 #endif
-
-
 }
 
 void gpio_save_state() {
@@ -991,7 +989,7 @@ fprintf(stderr,"setup_encoder_pin: pin=%d updown=%d\n",pin,up_down);
 // Note we cannot use debouncing, as after the first interrupt,
 // we might read the wrong level. So we process all interrupts
 // to the keyer.
-// The only way to do proper debouncing is to record the times
+// The only way to do proper debouncing is to record the wall-clock time
 // of the last state change of each of the two buttons, and
 // disable further state changes for a short time (5 msec)
 
