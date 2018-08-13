@@ -204,6 +204,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   int display_width=gtk_widget_get_allocated_width (tx->panadapter);
   int display_height=gtk_widget_get_allocated_height (tx->panadapter);
 
+  // id = VFO which contains the TX frequency
   int id = active_receiver->id;
   if (split) {
     id = 1-id;
@@ -284,7 +285,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   // band edges
   long long min_display=frequency-half;
   long long max_display=frequency+half;
-  int b=vfo[i].band;
+  int b=vfo[id].band;
   BAND *band=band_get_band(b);
   if(band->frequencyMin!=0LL) {
     cairo_set_source_rgb (cr, 1.0, 0.0, 0.0);
