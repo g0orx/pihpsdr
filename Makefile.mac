@@ -44,13 +44,12 @@ UNAME_N=raspberrypi
 #UNAME_N=jetsen
 
 # Additional options that can be chosen at compile time:
-# -DSPLIT_RXTX          if there is more than one receiver, TX panel only "hides" the first one
 # -DPROTOCOL_DEBUG	logs (on stderr) all state changes sent to the SDR (only old protocol)
 # -DDEBUG		activate debug output
 #
 # leave the list empty if no such option should be used
 
-ADDITIONAL_OPTIONS= -DSPLIT_RXTX
+DEBUG_OPTION=
 
 CC=gcc
 LINK=gcc
@@ -210,7 +209,7 @@ AUDIO_LIBS=-lportaudio
 
 OPTIONS=-g -Wno-deprecated-declarations $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) $(I2C_OPTIONS) $(GPIO_OPTIONS) $(LIMESDR_OPTIONS) \
                 $(FREEDV_OPTIONS) $(LOCALCW_OPTIONS) $(RADIOBERRY_OPTIONS) $(PSK_OPTIONS) $(STEMLAB_OPTIONS) $(STEMLAB_FIX_OPTION) \
-                -D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(PORTAUDIO_OPTIONS) $(ADDITIONAL_OPTIONS) -O3
+                -D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(PORTAUDIO_OPTIONS) $(DEBUG_OPTION) -O3
 
 LIBS=-lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(PSKLIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS) $(STEMLAB_LIBS)
 INCLUDES=$(GTKINCLUDES)
