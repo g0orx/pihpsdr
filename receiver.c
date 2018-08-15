@@ -1096,21 +1096,17 @@ void receiver_frequency_changed(RECEIVER *rx) {
 
 void receiver_filter_changed(RECEIVER *rx) {
   int m=vfo[rx->id].mode;
-  switch (m) {
-    case modeFMN:
-      if(rx->deviation==2500) {
-        set_filter(rx,-4000,4000);
-      } else {
-        set_filter(rx,-8000,8000);
-      }
-      set_deviation(rx);
-      break;
-    default:
-	{
-    	FILTER *mode_filters=filters[m];
-    	FILTER *filter=&mode_filters[vfo[rx->id].filter];
-    	set_filter(rx,filter->low,filter->high);
-	}
+  if(m==modeFMN) {
+    if(rx->deviation==2500) {
+      set_filter(rx,-4000,4000);
+    } else {
+      set_filter(rx,-8000,8000);
+    }
+    set_deviation(rx);
+  } else {
+    FILTER *mode_filters=filters[m];
+    FILTER *filter=&mode_filters[vfo[rx->id].filter];
+    set_filter(rx,filter->low,filter->high);
   }
 }
 
