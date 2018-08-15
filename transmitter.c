@@ -1045,7 +1045,6 @@ void tx_set_ps(TRANSMITTER *tx,int state) {
 void tx_set_ps_sample_rate(TRANSMITTER *tx,int rate) {
   SetPSFeedbackRate (tx->id,rate);
 }
-#endif
 
 void tx_set_twotone(TRANSMITTER *tx,int state) {
   transmitter->twotone=state;
@@ -1070,6 +1069,10 @@ void tx_set_twotone(TRANSMITTER *tx,int state) {
   g_idle_add(ext_mox_update,(gpointer)(long)state);
 }
 
+void tx_set_ps_sample_rate(TRANSMITTER *tx,int rate) {
+  SetPSFeedbackRate (tx->id,rate);
+}
+#endif
 
 //
 // This is the old key-down/key-up interface for iambic.c
