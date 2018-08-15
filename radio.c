@@ -335,11 +335,7 @@ void reconfigure_radio() {
     }
   }
 
-#ifdef SPLIT_RXTX
-  reconfigure_transmitter(transmitter,rx_height/receivers);
-#else
   reconfigure_transmitter(transmitter,rx_height);
-#endif
 
 }
 
@@ -525,11 +521,7 @@ fprintf(stderr,"title: length=%d\n", (int)strlen(text));
   if(display_sliders) {
     rx_height-=SLIDERS_HEIGHT;
   }
-#ifdef SPLIT_RXTX
-  int tx_height=rx_height/receivers;
-#else
   int tx_height=rx_height;
-#endif
   rx_height=rx_height/receivers;
 
 
@@ -728,11 +720,7 @@ static void rxtx(int state) {
     tx_feedback->samples=0;
 #endif
 
-#ifdef SPLIT_RXTX
-    for(i=0;i<1;i++) {
-#else
     for(i=0;i<receivers;i++) {
-#endif
       SetChannelState(receiver[i]->id,0,i==(receivers-1));
       set_displaying(receiver[i],0);
       if(protocol==NEW_PROTOCOL) {
@@ -769,11 +757,7 @@ static void rxtx(int state) {
 //      gtk_widget_hide(audio_waterfall);
 //    }
 //#endif
-#ifdef SPLIT_RXTX
-    for(i=0;i<1;i++) {
-#else
     for(i=0;i<receivers;i++) {
-#endif
       gtk_fixed_put(GTK_FIXED(fixed),receiver[i]->panel,receiver[i]->x,receiver[i]->y);
       SetChannelState(receiver[i]->id,1,0);
       set_displaying(receiver[i],1);
@@ -849,11 +833,7 @@ void setTune(int state) {
       //schedule_general();
     }
     if(tune) {
-#ifdef SPLIT_RXTX
-        for(i=0;i<1;i++) {
-#else
         for(i=0;i<receivers;i++) {
-#endif
         SetChannelState(receiver[i]->id,0,i==(receivers-1));
         set_displaying(receiver[i],0);
         if(protocol==NEW_PROTOCOL) {

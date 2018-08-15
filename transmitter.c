@@ -425,14 +425,7 @@ static gboolean update_display(gpointer data) {
       }
     } 
 
-#ifdef SPLIT_RXTX
-    // If the second RX is active, we rather want to see its S-meter instead of TX data
-    if (active_receiver == receiver[0]) {
-      meter_update(active_receiver,POWER,transmitter->fwd,transmitter->rev,transmitter->exciter,transmitter->alc);
-    }
-#else
     meter_update(active_receiver,POWER,transmitter->fwd,transmitter->rev,transmitter->exciter,transmitter->alc);
-#endif
 
     return TRUE; // keep going
   }

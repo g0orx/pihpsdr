@@ -52,7 +52,6 @@ static gfloat filter_right;
 #include "new_menu.h"
 #include "ext.h"
 #include "sliders.h"
-static gboolean making_active = FALSE;
 
 /* Create a new surface of the appropriate size to store our scribbles */
 static gboolean
@@ -107,7 +106,6 @@ tx_panadapter_button_press_event_cb (GtkWidget      *widget,
     has_moved=FALSE;
     pressed=TRUE;
   }
-  making_active=(active_receiver != receiver[0]);
   return TRUE;
 }
 
@@ -120,18 +118,6 @@ tx_panadapter_button_release_event_cb (GtkWidget      *widget,
   int display_width=gtk_widget_get_allocated_width (tx->panadapter);
   int display_height=gtk_widget_get_allocated_height (tx->panadapter);
 
-#ifdef SPLIT_RXTX
-  // when clicking into the TX window, the first receiver is
-  // selected since the TX window only hides the display of
-  // the first RX
-  if (making_active) {
-    active_receiver=receiver[0];
-    making_active=FALSE;
-    g_idle_add(menu_active_receiver_changed,NULL);
-    g_idle_add(ext_vfo_update,NULL);
-    g_idle_add(sliders_active_receiver_changed,NULL);
-  }
-#endif
   if(pressed) {
     int x=(int)event->x;
     if (event->button == 1) {
@@ -156,21 +142,17 @@ tx_panadapter_motion_notify_event_cb (GtkWidget      *widget,
 {
   int x, y;
   GdkModifierType state;
-  // do not do this upon the first click. Instead, click first, drag later
-  if (!making_active) {
-    gdk_window_get_device_position (event->window,
-                                    event->device,
-                                    &x,
-                                    &y,
-                                    &state);
-    if(((state & GDK_BUTTON1_MASK) == GDK_BUTTON1_MASK) || pressed) {
-      int moved=last_x-x;
-      vfo_move((long long)((float)moved*hz_per_pixel));
-      last_x=x;
-      has_moved=TRUE;
-    }
+  gdk_window_get_device_position (event->window,
+                                  event->device,
+                                  &x,
+                                  &y,
+                                  &state);
+  if(((state & GDK_BUTTON1_MASK) == GDK_BUTTON1_MASK) || pressed) {
+    int moved=last_x-x;
+    vfo_move((long long)((float)moved*hz_per_pixel));
+    last_x=x;
+    has_moved=TRUE;
   }
-
   return TRUE;
 }
 

@@ -39,8 +39,6 @@ static GtkWidget *correcting_l;
 static GtkWidget *get_pk;
 static GtkWidget *set_pk;
 
-static GThread *info_thread_id;
-
 static int running=0;
 
 #define INFO_SIZE 16
@@ -84,15 +82,25 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 
 static int deltadb=0;
 
-static gpointer info_thread(gpointer arg) {
+//
+//
+// DL1YCF: had repeated seg-faults, possibly this is not thread-safe.
+//         executing it at regular intervals in the glib main loop
+//         does the same thing.
+//         We now call this function every 100 msec, therefore we can
+//         adjust the tx attenuation upon each invocation.
+//         The massive alloc/free of the label is completely unnecessary
+//         and has been removed, the small string to be displayed is
+//         prepeared in "label".
+//
+static int info_thread(gpointer arg) {
   static int info[16];
   int i;
-  gchar *label;
+  gchar label[20];
   static int old5=0;
   static int old5_2=0;
   static int old14=0;
   int display;
-  int counter=0;
   int state=0;
   int save_auto_on;
   int save_single_on;
@@ -103,34 +111,14 @@ static gpointer info_thread(gpointer arg) {
     transmitter->attenuation=0;
   }
 
-  running=1;
-  while(running) {
     GetPSInfo(transmitter->id,&info[0]);
     for(i=0;i<INFO_SIZE;i++) {
-      label=NULL;
       display=1;
+      sprintf(label,"%d",info[i]);
       switch(i) {
-        case 0:
-          label=g_strdup_printf("%d",info[i]);
-          display=0;
-          break;
-        case 1:
-          label=g_strdup_printf("%d",info[i]);
-          display=0;
-          break;
-        case 2:
-          label=g_strdup_printf("%d",info[i]);
-          display=0;
-          break;
-        case 3:
-          label=g_strdup_printf("%d",info[i]);
-          display=0;
-          break;
         case 4:
-          label=g_strdup_printf("%d",info[i]);
           break;
         case 5:
-          label=g_strdup_printf("%d",info[i]);
           if(info[i]!=old5) {
             old5=info[5];
             if(info[4]>181)  {
@@ -145,13 +133,10 @@ static gpointer info_thread(gpointer arg) {
           }
           break;
         case 6:
-          label=g_strdup_printf("%d",info[i]);
           break;
         case 13:
-          label=g_strdup_printf("%d",info[i]);
           break;
         case 14:
-          label=g_strdup_printf("%d",info[i]);
           if(info[14]!=old14) {
             old14=info[14];
             if(info[14]==0) {
@@ -165,80 +150,62 @@ static gpointer info_thread(gpointer arg) {
         case 15:
           switch(info[i]) {
             case 0:
-              label=g_strdup_printf("RESET");
+              strcpy(label,"RESET");
               break;
             case 1:
-              label=g_strdup_printf("WAIT");
+              strcpy(label,"WAIT");
               break;
             case 2:
-              label=g_strdup_printf("MOXDELAY");
+              strcpy(label,"MOXDELAY");
               break;
             case 3:
-              label=g_strdup_printf("SETUP");
+              strcpy(label,"SETUP");
               break;
             case 4:
-              label=g_strdup_printf("COLLECT");
+              strcpy(label,"COLLECT");
               break;
             case 5:
-              label=g_strdup_printf("MOXCHECK");
+              strcpy(label,"MOXCHECK");
               break;
             case 6:
-              label=g_strdup_printf("CALC");
+              strcpy(label,"CALC");
               break;
             case 7:
-              label=g_strdup_printf("DELAY");
+              strcpy(label,"DELAY");
               break;
             case 8:
-              label=g_strdup_printf("STAYON");
+              strcpy(label,"STAYON");
               break;
             case 9:
-              label=g_strdup_printf("TUNRON");
+              strcpy(label,"TURNON");
               break;
             default:
-              label=g_strdup_printf("UNKNOWN %d=%d",i,info[i]);
+              display=0;
               break;
           }
           break;
         default:
-          label=g_strdup_printf("info %d=%d",i,info[i]);
           display=0;
           break;
       }
-      if(display) {
-        if(entry[i]!=NULL) {
+      if(display && entry[i] != NULL) {
           gtk_entry_set_text(GTK_ENTRY(entry[i]),label);
-        } else {
-fprintf(stderr,"ps_menu: entry %d is NULL\n", i);
-        }
       }
-
-      if(label!=NULL) {
-        g_free(label);
-        label=NULL;
-      }
-
     }
 
     double pk;
-    gchar *pk_label;
 
     GetPSMaxTX(transmitter->id,&pk);
-    pk_label=g_strdup_printf("%f",pk);
-    gtk_entry_set_text(GTK_ENTRY(get_pk),pk_label);
-    if(pk_label!=NULL) {
-      g_free(pk_label);
-      pk_label=NULL;
-    }
+    sprintf(label,"%f", pk);
+    gtk_entry_set_text(GTK_ENTRY(get_pk),label);
 
-
-    counter++;
-    if(counter==10) { // every 100ms
+    if (transmitter->auto_on) {
       double ddb;
       int newcal=info[5]!=old5_2;
       old5_2=info[5];
       switch(state) {
         case 0:
-          if(transmitter->auto_on && newcal && (info[4]>181 || (info[4]<=128 && transmitter->attenuation>0))) {
+          if(newcal && (info[4]>181 || (info[4]<=128 && transmitter->attenuation>0))) {
             if(info[4]<=256) {
               ddb= 20.0 * log10((double)info[4]/152.293);
               if(isnan(ddb)) {
@@ -273,12 +240,9 @@ fprintf(stderr,"ps_menu: entry %d is NULL\n", i);
           SetPSControl(transmitter->id, 0, save_single_on, save_auto_on, 0);
           break;
       }
-      counter=0;
     }
-    usleep(10000); // 10 ms
-  }
-  gtk_entry_set_text(GTK_ENTRY(entry[15]),"");
-  return NULL;
+  if (!running) gtk_entry_set_text(GTK_ENTRY(entry[15]),"");
+  return running ? TRUE : FALSE;
 }
 
 static void enable_cb(GtkWidget *widget, gpointer data) {
@@ -314,23 +278,8 @@ static void reset_cb(GtkWidget *widget, gpointer data) {
   SetPSControl(transmitter->id, 1, 0, 0, 0);
 }
 
-void ps_twotone(int state) {
-  tx_set_twotone(transmitter,state);
-  if(transmitter->twotone) {
-    //set_button_text_color(widget,"red");
-  } else {
-    //set_button_text_color(widget,"black");
-  }
-  if(state && transmitter->puresignal) {
-    //info_thread_id=g_thread_new( "PS info", info_thread, NULL);
-  } else {
-    running=0;
-  }
-}
-
 static void twotone_cb(GtkWidget *widget, gpointer data) {
   int state=transmitter->twotone?0:1;
-  //g_idle_add(ext_ps_twotone,(gpointer)(long)state);
   tx_set_twotone(transmitter,state);
   if(state) {
     set_button_text_color(widget,"red");
@@ -338,9 +287,11 @@ static void twotone_cb(GtkWidget *widget, gpointer data) {
     set_button_text_color(widget,"black");
   }
   if(state && transmitter->puresignal) {
-    info_thread_id=g_thread_new( "PS info", info_thread, NULL);
+    running=1;
+    g_timeout_add((guint) 100, info_thread, NULL);
   } else {
     running=0;
+    usleep(20000); // to be sure info_thread stopped
   }
 }
 
@@ -479,6 +430,7 @@ void ps_menu(GtkWidget *parent) {
     if(display) {
       GtkWidget *lbl=gtk_label_new(label);
       entry[i]=gtk_entry_new();
+      gtk_entry_set_max_length(GTK_ENTRY(entry[i]), 20);
       gtk_grid_attach(GTK_GRID(grid),lbl,col,row,1,1);
       col++;
       gtk_grid_attach(GTK_GRID(grid),entry[i],col,row,1,1);
