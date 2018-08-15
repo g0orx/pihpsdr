@@ -563,7 +563,6 @@ fprintf(stderr,"Create %d receivers: height=%d\n",receivers,rx_height);
 
 #ifdef PURESIGNAL
   tx_set_ps_sample_rate(transmitter,protocol==NEW_PROTOCOL?192000:active_receiver->sample_rate);
-  // DL1YCF: we must create these receivers in ANY case to avoid seg-faults.
   receiver[PS_TX_FEEDBACK]=create_pure_signal_receiver(PS_TX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
   receiver[PS_RX_FEEDBACK]=create_pure_signal_receiver(PS_RX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
 #endif

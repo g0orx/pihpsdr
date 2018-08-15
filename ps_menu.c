@@ -322,7 +322,7 @@ void ps_twotone(int state) {
     //set_button_text_color(widget,"black");
   }
   if(state && transmitter->puresignal) {
-    info_thread_id=g_thread_new( "PS info", info_thread, NULL);
+    //info_thread_id=g_thread_new( "PS info", info_thread, NULL);
   } else {
     running=0;
   }

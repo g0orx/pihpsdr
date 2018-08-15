@@ -19,7 +19,7 @@ GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 #FREEDV_INCLUDE=FREEDV
 
 # uncomment the line below to include Pure Signal support
-#PURESIGNAL_INCLUDE=PURESIGNAL
+PURESIGNAL_INCLUDE=PURESIGNAL
 
 # uncomment the line to below include support for sx1509 i2c expander
 #SX1509_INCLUDE=sx1509

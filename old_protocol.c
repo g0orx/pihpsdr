@@ -614,7 +614,7 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
               }
               break;
             case 3:
-              if(device==DEVICE_METIS)  {
+              if(device==DEVICE_HERMES)  {
                 left_sample_double_tx=left_sample_double;
                 right_sample_double_tx=right_sample_double;
                 add_ps_iq_samples(transmitter, left_sample_double_tx,right_sample_double_tx,left_sample_double_rx,right_sample_double_rx);

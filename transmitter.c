@@ -308,10 +308,13 @@ static gboolean update_display(gpointer data) {
     }
 #endif
 #ifdef PURESIGNAL
+    // if "MON" button is active (tx->feedback is TRUE),
+    // then obtain spectrum pixels from PS_RX_FEEDBACK,
+    // that is, display the (attenuated) TX signal from the "antenna"
     if(tx->puresignal && tx->feedback) {
-      RECEIVER *tx_feedback=receiver[PS_TX_FEEDBACK];
-      GetPixels(tx_feedback->id,0,tx_feedback->pixel_samples,&rc);
-      memcpy(tx->pixel_samples,tx_feedback->pixel_samples,sizeof(float)*tx->pixels);
+      RECEIVER *rx_feedback=receiver[PS_RX_FEEDBACK];
+      GetPixels(rx_feedback->id,0,rx_feedback->pixel_samples,&rc);
+      memcpy(tx->pixel_samples,rx_feedback->pixel_samples,sizeof(float)*tx->pixels);
     } else {
 #endif
       GetPixels(tx->id,0,tx->pixel_samples,&rc);
@@ -992,9 +995,7 @@ void add_ps_iq_samples(TRANSMITTER *tx, double i_sample_tx,double q_sample_tx, d
       pscc(transmitter->id, rx_feedback->buffer_size, tx_feedback->iq_input_buffer, rx_feedback->iq_input_buffer);
       if(transmitter->displaying) {
         if(transmitter->feedback) {
-          Spectrum0(1, tx_feedback->id, 0, 0, tx_feedback->iq_input_buffer);
-        //} else {
-        //  Spectrum0(1, rx_feedback->id, 0, 0, rx_feedback->iq_input_buffer);
+          Spectrum0(1, rx_feedback->id, 0, 0, rx_feedback->iq_input_buffer);
         }
       }
     }

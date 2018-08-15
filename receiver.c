@@ -743,7 +743,7 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
   rx->sample_rate=sample_rate;
   rx->buffer_size=buffer_size;
   rx->fft_size=fft_size;
-  rx->pixels=0;
+  rx->pixels=pixels;   // need this for the "MON" button
   rx->fps=0;
 
   rx->width=0;
