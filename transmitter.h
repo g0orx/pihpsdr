@@ -75,7 +75,6 @@ typedef struct _transmitter {
 
   int low_latency;
 
-// want to have a two-tone generator in any case
   int twotone;
 #ifdef PURESIGNAL
   int puresignal;
