@@ -60,7 +60,6 @@
 #include "vfo_menu.h"
 #include "fft_menu.h"
 #include "main.h"
-#include "button_text.h"
 
 
 static GtkWidget *menu_b=NULL;
