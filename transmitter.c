@@ -1042,10 +1042,6 @@ void tx_set_ps(TRANSMITTER *tx,int state) {
   vfo_update();
 }
 
-void tx_set_ps_sample_rate(TRANSMITTER *tx,int rate) {
-  SetPSFeedbackRate (tx->id,rate);
-}
-
 void tx_set_twotone(TRANSMITTER *tx,int state) {
   transmitter->twotone=state;
   if(state) {
