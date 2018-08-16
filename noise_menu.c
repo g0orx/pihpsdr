@@ -132,7 +132,6 @@ static void snb_cb(GtkWidget *widget, gpointer data) {
 void noise_menu(GtkWidget *parent) {
   GtkWidget *b;
   int i;
-  int mode=vfo[active_receiver->id].mode;
 
   parent_window=parent;
 

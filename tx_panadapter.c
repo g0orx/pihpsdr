@@ -49,9 +49,6 @@ static gfloat hz_per_pixel;
 static gfloat filter_left;
 static gfloat filter_right;
 
-#include "new_menu.h"
-#include "ext.h"
-#include "sliders.h"
 
 /* Create a new surface of the appropriate size to store our scribbles */
 static gboolean
@@ -143,16 +140,17 @@ tx_panadapter_motion_notify_event_cb (GtkWidget      *widget,
   int x, y;
   GdkModifierType state;
   gdk_window_get_device_position (event->window,
-                                  event->device,
-                                  &x,
-                                  &y,
-                                  &state);
+                                event->device,
+                                &x,
+                                &y,
+                                &state);
   if(((state & GDK_BUTTON1_MASK) == GDK_BUTTON1_MASK) || pressed) {
     int moved=last_x-x;
     vfo_move((long long)((float)moved*hz_per_pixel));
     last_x=x;
     has_moved=TRUE;
   }
+
   return TRUE;
 }
 

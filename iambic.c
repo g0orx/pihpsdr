@@ -167,13 +167,11 @@ void keyer_event(int gpio, int level) {
            cwvox=(int) vox_hang;
 	}
     }
-    if (gpio == CWL_BUTTON) {
+    if (gpio == CWL_BUTTON)
         kcwl = state;
         //fprintf(stderr,"L=%d\n",state);   
-    } else { // CWR_BUTTON
+    else // CWR_BUTTON
         kcwr = state;
-        //fprintf(stderr,"R=%d\n",state);   
-    }
 
     if (state || cw_keyer_mode == KEYER_STRAIGHT) {
 #ifdef __APPLE__

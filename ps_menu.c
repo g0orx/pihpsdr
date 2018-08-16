@@ -291,7 +291,6 @@ static void twotone_cb(GtkWidget *widget, gpointer data) {
     g_timeout_add((guint) 100, info_thread, NULL);
   } else {
     running=0;
-    usleep(20000); // to be sure info_thread stopped
   }
 }
 

@@ -131,9 +131,6 @@ static double phase=0.0;
 static int running;
 static long ep4_sequence;
 
-// DL1YCF added this variable for lost-package-check
-// init with -1 such that there is no error message if the
-// first packet is received with seq_num = 0
 static long last_seq_num=-1;
 
 static int current_rx=0;

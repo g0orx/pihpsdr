@@ -27,29 +27,21 @@ PURESIGNAL_INCLUDE=PURESIGNAL
 # uncomment the line to below include support local CW keyer
 #LOCALCW_INCLUDE=LOCALCW
 
-# uncomment the line below to include support for STEMlab discovery (with avahi)
-#STEMLAB_DISCOVERY=STEMLAB_DISCOVERY
-
-# uncomment the line below to include support for STEMlab discovery WITHOUT AVAHI
+# uncomment the line below to include support for STEMlab discovery (WITHOUT AVAHI)
 STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_NOAVAHI
 
 # un-commment this line for activate work-around some RedPitaty HPSDR bugs
 STEMLAB_FIX_OPTION=-DSTEMLAB_FIX
 
-#uncomment the line below for the platform being compiled on
+#uncomment the line below for the platform being compiled on (actually not used)
 UNAME_N=raspberrypi
 #UNAME_N=odroid
 #UNAME_N=up
 #UNAME_N=pine64
 #UNAME_N=jetsen
 
-# Additional options that can be chosen at compile time:
-# -DPROTOCOL_DEBUG	logs (on stderr) all state changes sent to the SDR (only old protocol)
-# -DDEBUG		activate debug output
-#
-# leave the list empty if no such option should be used
-
-DEBUG_OPTION=
+# uncomment the line below for various debug facilities
+#DEBUG_OPTION=-D DEBUG
 
 CC=gcc
 LINK=gcc
@@ -173,20 +165,6 @@ ifeq ($(I2C_INCLUDE),I2C)
   I2C_SOURCES=i2c.c
   I2C_HEADERS=i2c.h
   I2C_OBJS=i2c.o
-endif
-
-#
-# We have two versions here, the second one has to be used
-# if you do not have the avahi libraries
-#
-ifeq ($(STEMLAB_DISCOVERY), STEMLAB_DISCOVERY)
-STEMLAB_OPTIONS=-D STEMLAB_DISCOVERY \
-  `pkg-config --cflags avahi-gobject` \
-  `pkg-config --cflags libcurl`
-STEMLAB_LIBS=`pkg-config --libs avahi-gobject` `pkg-config --libs libcurl`
-STEMLAB_SOURCES=stemlab_discovery.c
-STEMLAB_HEADERS=stemlab_discovery.h
-STEMLAB_OBJS=stemlab_discovery.o
 endif
 
 ifeq ($(STEMLAB_DISCOVERY), STEMLAB_DISCOVERY_NOAVAHI)
@@ -493,12 +471,19 @@ app:	$(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) \
 	@cp MacOS/hpsdr.icns pihpsdr.app/Contents/Resources/hpsdr.icns
 	@cp MacOS/pihpsdr.sh pihpsdr.app/Contents/MacOS/pihpsdr
 	@cp MacOS/hpsdr.png pihpsdr.app/Contents/Resources
-	@for lib in `otool -L pihpsdr.app/Contents/MacOS/pihpsdr-bin | grep dylib | sed -e "s/ (.*//" | grep -Ev "/(usr/lib|System)" | grep -Ev /libg `; do \
+	@for lib in `otool -L pihpsdr.app/Contents/MacOS/pihpsdr-bin | grep dylib | sed -e "s/ (.*//" | grep -Ev "/(usr/lib|System)" | grep -Ev /libg  | grep -Ev pango | grep -Ev cairo`; do \
 	  libfn="`basename $$lib`"; \
 	  cp "$$lib" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
 	  chmod u+w "pihpsdr.app/Contents/Frameworks/$$libfn"; \
 	  install_name_tool -id "@executable_path/../Frameworks/$libfn" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
 	  install_name_tool -change "$$lib" "@executable_path/../Frameworks/$$libfn" pihpsdr.app/Contents/MacOS/pihpsdr-bin; \
 	done
+#
+# Make "app" and copy wdspWisdom and props file to app bundle
+#
+localapp:	app
+	cp wdspWisdom pihpsdr.app/Contents/Resources
+	cp *.props    pihpsdr.app/Contents/Resources
+
 #############################################################################
 

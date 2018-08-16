@@ -68,6 +68,7 @@ char *step_labels[]={"1Hz","10Hz","25Hz","50Hz","100Hz","250Hz","500Hz","1kHz","
 static GtkWidget* menu=NULL;
 static GtkWidget* band_menu=NULL;
 
+
 static void vfo_save_bandstack() {
   BANDSTACK *bandstack=bandstack_get_bandstack(vfo[0].band);
   BANDSTACK_ENTRY *entry=&bandstack->entry[vfo[0].bandstack];
@@ -345,15 +346,12 @@ void vfo_bandstack_changed(int b) {
 
 }
 
-//
-// When changing the mode, store the current filter setting
-// and for the new mode, switch to the filter we had the last time
-//
 void vfo_mode_changed(int m) {
   int id=active_receiver->id;
-
   vfo[id].mode=m;
-  // restore filter and NR configuration used last in the new mode
+//
+// Change to the filter/NR combination stored for this mode
+//
   vfo[id].filter      =mode_settings[m].filter;
   active_receiver->nr =mode_settings[m].nr;
   active_receiver->nr2=mode_settings[m].nr2;
@@ -697,7 +695,7 @@ void vfo_update() {
 	// If it is out-of-band, we display "Out of band" in red.
         // Frequencies we are not transmitting on are displayed in green
 	// (dimmed if the freq. does not belong to the active receiver).
-        // Depending on which receiver is the active one, and if we use slit,
+        // Depending on which receiver is the active one, and if we use split,
         // the following frequencies are used for transmitting (see old_protocol.c):
 	// id == 0, split == 0 : TX freq = VFO_A
 	// id == 0, split == 1 : TX freq = VFO_B

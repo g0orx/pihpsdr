@@ -859,6 +859,8 @@ void gpio_restore_state() {
  value=getProperty("ENABLE_GPIO_SIDETONE");		
  if(value) ENABLE_GPIO_SIDETONE=atoi(value);		
 #endif
+
+
 }
 
 void gpio_save_state() {

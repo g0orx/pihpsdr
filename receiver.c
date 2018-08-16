@@ -1197,16 +1197,8 @@ static void process_rx_buffer(RECEIVER *rx) {
   short left_audio_sample;
   short right_audio_sample;
   int i;
-  int mute=0;
-  //
-  // DL1YCF: mute the receiver if we are transmitting on its frequency
-  //
-  if (isTransmitting()) {
-    if (!split && (rx->id == active_receiver->id)) mute=1;
-    if ( split && (rx->id != active_receiver->id)) mute=1;
-  }
   for(i=0;i<rx->output_samples;i++) {
-    if(mute) {
+    if(isTransmitting()) {
       left_audio_sample=0;
       right_audio_sample=0;
     } else {

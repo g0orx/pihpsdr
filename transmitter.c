@@ -986,10 +986,8 @@ void add_ps_iq_samples(TRANSMITTER *tx, double i_sample_tx,double q_sample_tx, d
   if(rx_feedback->samples>=rx_feedback->buffer_size) {
     if(isTransmitting()) {
       pscc(transmitter->id, rx_feedback->buffer_size, tx_feedback->iq_input_buffer, rx_feedback->iq_input_buffer);
-      if(transmitter->displaying) {
-        if(transmitter->feedback) {
-          Spectrum0(1, rx_feedback->id, 0, 0, rx_feedback->iq_input_buffer);
-        }
+      if(transmitter->displaying && transmitter->feedback) {
+        Spectrum0(1, rx_feedback->id, 0, 0, rx_feedback->iq_input_buffer);
       }
     }
     rx_feedback->samples=0;

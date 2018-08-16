@@ -27,33 +27,27 @@ GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 # uncomment the line to below include support local CW keyer
 #LOCALCW_INCLUDE=LOCALCW
 
-# uncomment the line below to include support for STEMlab discovery (with avahi)
+# uncomment the line below to include support for STEMlab discovery (WITH AVAHI)
 #STEMLAB_DISCOVERY=STEMLAB_DISCOVERY
 
-# uncomment the line below to include support for STEMlab discovery WITHOUT AVAHI
+# uncomment the line below to include support for STEMlab discovery (WITHOUT AVAHI)
 #STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_NOAVAHI
 
 # uncommment this line for activate work-around some RedPitaty HPSDR bugs
 #STEMLAB_FIX_OPTION=-DSTEMLAB_FIX
 
-#uncomment the line below for the platform being compiled on
+#uncomment the line below for the platform being compiled on (actually not used)
 UNAME_N=raspberrypi
 #UNAME_N=odroid
 #UNAME_N=up
 #UNAME_N=pine64
 #UNAME_N=jetsen
 
-# Additional options that can be chosen at compile time:
-# -DPROTOCOL_DEBUG      logs (on stderr) all state changes sent to the SDR (only old protocol)
-# -DDEBUG               activate general debug output
-#
-# leave the list empty if no such option should be used
-
-DEBUGL_OPTION=
-
-
 CC=gcc
 LINK=gcc
+
+# uncomment the line below for various debug facilities
+#DEBUG_OPTION=-D DEBUG
 
 ifeq ($(PURESIGNAL_INCLUDE),PURESIGNAL)
 PURESIGNAL_OPTIONS=-D PURESIGNAL
@@ -176,8 +170,10 @@ ifeq ($(I2C_INCLUDE),I2C)
 endif
 
 #
-# We have two versions here, the second one has to be used
-# if you do not have the avahi libraries
+# We have two versions of STEMLAB_DISCOVERY here,
+# the second one has to be used
+# if you do not have the avahi (devel-) libraries
+# on your system.
 #
 ifeq ($(STEMLAB_DISCOVERY), STEMLAB_DISCOVERY)
 STEMLAB_OPTIONS=-D STEMLAB_DISCOVERY \

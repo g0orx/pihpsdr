@@ -833,7 +833,7 @@ void setTune(int state) {
       //schedule_general();
     }
     if(tune) {
-        for(i=0;i<receivers;i++) {
+      for(i=0;i<receivers;i++) {
         SetChannelState(receiver[i]->id,0,i==(receivers-1));
         set_displaying(receiver[i],0);
         if(protocol==NEW_PROTOCOL) {
