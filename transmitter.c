@@ -308,10 +308,13 @@ static gboolean update_display(gpointer data) {
     }
 #endif
 #ifdef PURESIGNAL
+    // if "MON" button is active (tx->feedback is TRUE),
+    // then obtain spectrum pixels from PS_RX_FEEDBACK,
+    // that is, display the (attenuated) TX signal from the "antenna"
     if(tx->puresignal && tx->feedback) {
-      RECEIVER *tx_feedback=receiver[PS_TX_FEEDBACK];
-      GetPixels(tx_feedback->id,0,tx_feedback->pixel_samples,&rc);
-      memcpy(tx->pixel_samples,tx_feedback->pixel_samples,sizeof(float)*tx->pixels);
+      RECEIVER *rx_feedback=receiver[PS_RX_FEEDBACK];
+      GetPixels(rx_feedback->id,0,rx_feedback->pixel_samples,&rc);
+      memcpy(tx->pixel_samples,rx_feedback->pixel_samples,sizeof(float)*tx->pixels);
     } else {
 #endif
       GetPixels(tx->id,0,tx->pixel_samples,&rc);
@@ -541,14 +544,15 @@ fprintf(stderr,"create_transmitter: id=%d buffer_size=%d mic_sample_rate=%d mic_
 
   tx->low_latency=0;
 
+  tx->twotone=0;
 #ifdef PURESIGNAL
   tx->puresignal=0;
   tx->feedback=0;
-  tx->twotone=0;
   tx->auto_on=0;
   tx->single_on=0;
 #endif
 
+  tx->attenuation=0;
   tx->ctcss=0;
   tx->ctcss_frequency=100.0;
 
@@ -750,7 +754,7 @@ static void full_tx_buffer(TRANSMITTER *tx) {
   // It is important query tx->mode and tune only once, to assure that
   // the two "if (cwmode)" queries give the same result.
 
-  cwmode = (tx->mode == modeCWL || tx->mode == modeCWU) && !tune;
+  cwmode = (tx->mode == modeCWL || tx->mode == modeCWU) && !tune && !tx->twotone;
 
   switch(protocol) {
     case ORIGINAL_PROTOCOL:
@@ -982,12 +986,8 @@ void add_ps_iq_samples(TRANSMITTER *tx, double i_sample_tx,double q_sample_tx, d
   if(rx_feedback->samples>=rx_feedback->buffer_size) {
     if(isTransmitting()) {
       pscc(transmitter->id, rx_feedback->buffer_size, tx_feedback->iq_input_buffer, rx_feedback->iq_input_buffer);
-      if(transmitter->displaying) {
-        if(transmitter->feedback) {
-          Spectrum0(1, tx_feedback->id, 0, 0, tx_feedback->iq_input_buffer);
-        //} else {
-        //  Spectrum0(1, rx_feedback->id, 0, 0, rx_feedback->iq_input_buffer);
-        }
+      if(transmitter->displaying && transmitter->feedback) {
+        Spectrum0(1, rx_feedback->id, 0, 0, rx_feedback->iq_input_buffer);
       }
     }
     rx_feedback->samples=0;
@@ -1043,6 +1043,18 @@ void tx_set_ps(TRANSMITTER *tx,int state) {
 void tx_set_twotone(TRANSMITTER *tx,int state) {
   transmitter->twotone=state;
   if(state) {
+    // DL1YCF: set frequencies and levels
+    switch(tx->mode) {
+      case modeCWL:
+      case modeLSB:
+      case modeDIGL:
+	SetTXAPostGenTTFreq(transmitter->id, -900.0, -1700.0);
+        break;
+      default:
+	SetTXAPostGenTTFreq(transmitter->id, 900.0, 1700.0);
+	break;
+    }
+    SetTXAPostGenTTMag (transmitter->id, 0.49, 0.49);
     SetTXAPostGenMode(transmitter->id, 1);
     SetTXAPostGenRun(transmitter->id, 1);
   } else {

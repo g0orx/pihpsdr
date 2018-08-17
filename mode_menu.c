@@ -64,9 +64,6 @@ static gboolean mode_select_cb (GtkWidget *widget, gpointer        data) {
   last_mode=widget;
   set_button_text_color(last_mode,"orange");
   vfo_mode_changed(m);
-  // DL1YCF added return statement to make the compiler happy.
-  // however I am unsure about the correct return value.
-  // I would have coded this as a void function.
   return FALSE;
 }
 

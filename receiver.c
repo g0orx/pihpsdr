@@ -306,9 +306,15 @@ fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
   sprintf(name,"receiver.%d.sample_rate",rx->id);
   value=getProperty(name);
   if(value) rx->sample_rate=atoi(value);
+#ifdef STEMLAB_FIX
+  // HPSDR apps on the RedPitay have hard-wired connections
+  // that should not be changed
+  fprintf(stderr,"STEMLAB: ignoring ADC settings for RX%d\n",rx->id);
+#else
   sprintf(name,"receiver.%d.adc",rx->id);
   value=getProperty(name);
   if(value) rx->adc=atoi(value);
+#endif
   sprintf(name,"receiver.%d.filter_low",rx->id);
   value=getProperty(name);
   if(value) rx->filter_low=atoi(value);
@@ -743,7 +749,7 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
   rx->sample_rate=sample_rate;
   rx->buffer_size=buffer_size;
   rx->fft_size=fft_size;
-  rx->pixels=0;
+  rx->pixels=pixels;   // need this for the "MON" button
   rx->fps=0;
 
   rx->width=0;
@@ -861,6 +867,12 @@ fprintf(stderr,"create_receiver: id=%d buffer_size=%d fft_size=%d pixels=%d fps=
           }
           break;
       }
+#ifdef STEMLAB_FIX
+//
+//    RedPitaya based HPSDR apps have hard-wired adc settings
+//
+      if (id == 1) rx->adc=1;
+#endif
   }
 fprintf(stderr,"create_receiver: id=%d default ddc=%d adc=%d\n",rx->id, rx->ddc, rx->adc);
   rx->sample_rate=48000;

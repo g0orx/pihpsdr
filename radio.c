@@ -66,6 +66,9 @@
 #include "toolbar.h"
 #include "rigctl.h"
 #include "ext.h"
+#ifdef LOCALCW
+#include "iambic.h"
+#endif
 
 #define min(x,y) (x<y?x:y)
 #define max(x,y) (x<y?y:x)
@@ -552,10 +555,8 @@ fprintf(stderr,"Create %d receivers: height=%d\n",receivers,rx_height);
 
 #ifdef PURESIGNAL
   tx_set_ps_sample_rate(transmitter,protocol==NEW_PROTOCOL?192000:active_receiver->sample_rate);
-  if(((protocol==ORIGINAL_PROTOCOL) && (device!=DEVICE_METIS)) || ((protocol==NEW_PROTOCOL) && (device!=NEW_DEVICE_ATLAS))) {
-    receiver[PS_TX_FEEDBACK]=create_pure_signal_receiver(PS_TX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
-    receiver[PS_RX_FEEDBACK]=create_pure_signal_receiver(PS_RX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
-  }
+  receiver[PS_TX_FEEDBACK]=create_pure_signal_receiver(PS_TX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
+  receiver[PS_RX_FEEDBACK]=create_pure_signal_receiver(PS_RX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
 #endif
 
 #ifdef AUDIO_WATERFALL
@@ -1272,6 +1273,7 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     bandRestoreState();
     memRestoreState();
     vfo_restore_state();
+    modesettings_restore_state();
 #ifdef FREEDV
     freedv_restore_state();
 #endif
@@ -1471,6 +1473,7 @@ void radioSaveState() {
     setProperty("rx2_gain_slider",value);
 	
     vfo_save_state();
+    modesettings_save_state();
     sprintf(value,"%d",receivers);
     setProperty("receivers",value);
     for(i=0;i<receivers;i++) {

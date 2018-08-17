@@ -20,6 +20,7 @@
 #ifndef _VFO_H
 #define _VFO_H
 
+#include "mode.h"
 
 enum {
   VFO_A=0,
@@ -44,6 +45,19 @@ struct _vfo {
 
 } vfo[MAX_VFOS];
 
+//
+// Store filter and NR settings on a per-mode basis
+//
+struct _mode_settings {
+  int filter;
+  int nb;
+  int nb2;
+  int nr;
+  int nr2;
+  int anf;
+  int snb;
+} mode_settings[MODES];
+
 
 extern int steps[];
 extern char *step_labels[];
@@ -57,6 +71,8 @@ extern void set_frequency();
 
 extern void vfo_save_state();
 extern void vfo_restore_state();
+extern void modesettings_save_state();
+extern void modesettings_restore_state();
 
 extern void vfo_band_changed(int b);
 extern void vfo_bandstack_changed(int b);

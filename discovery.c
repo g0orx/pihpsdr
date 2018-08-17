@@ -44,6 +44,7 @@
 #include "stemlab_discovery.h"
 #endif
 #include "ext.h"
+#include "configure.h"
 
 static GtkWidget *discovery_dialog;
 static DISCOVERED *d;
@@ -60,7 +61,18 @@ fprintf(stderr,"start_cb: %p\n",data);
   // we otherwise lose the information about which app has been selected.
   if (radio->protocol == STEMLAB_PROTOCOL) {
     const int device_id = radio - discovered;
-    stemlab_start_app(gtk_combo_box_get_active_id(GTK_COMBO_BOX(apps_combobox[device_id])));
+    int ret;
+    ret=stemlab_start_app(gtk_combo_box_get_active_id(GTK_COMBO_BOX(apps_combobox[device_id])));
+#ifdef NO_AVAHI
+    // We only have started the app, but not queried e.g. the MAC address.
+    // Therefore, we have to clean up and re-start the discovery process.
+    stemlab_cleanup();
+    gtk_widget_destroy(discovery_dialog);
+    g_idle_add(ext_discovery,NULL);
+    return TRUE;
+#endif
+    // At this point, if stemlab_start_app failed, we cannot recover
+    if (ret != 0) exit(-1);
   }
   stemlab_cleanup();
 #endif
@@ -113,7 +125,11 @@ fprintf(stderr,"discovery\n");
 #endif
 
 #ifdef STEMLAB_DISCOVERY
+#ifdef NO_AVAHI
+  status_text("Looking for STEMlab WEB apps");
+#else
   status_text("STEMlab (Avahi) ... Discovering Devices");
+#endif
   stemlab_discovery();
 #endif
 
@@ -235,6 +251,9 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
 #endif
 #ifdef STEMLAB_DISCOVERY
         case STEMLAB_PROTOCOL:
+#ifdef NO_AVAHI
+	  sprintf(text,"Choose App from %s and re-Discover:",inet_ntoa(d->info.network.address.sin_addr));
+#else
           sprintf(text, "STEMlab (%02X:%02X:%02X:%02X:%02X:%02X) on %s",
                          d->info.network.mac_address[0],
                          d->info.network.mac_address[1],
@@ -244,10 +263,12 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
                          d->info.network.mac_address[5],
                          d->info.network.interface_name);
 #endif
+#endif
       }
 
       GtkWidget *label=gtk_label_new(text);
       gtk_widget_override_font(label, pango_font_description_from_string("FreeMono 12"));
+      gtk_widget_set_halign (label, GTK_ALIGN_START);
       gtk_widget_show(label);
       gtk_grid_attach(GTK_GRID(grid),label,0,i,3,1);
 
@@ -279,7 +300,7 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
           gtk_widget_override_font(apps_combobox[i],
               pango_font_description_from_string("FreeMono 12"));
           // We want the default selection priority for the STEMlab app to be
-          // RP-Trx > Pavel-Trx > Pavel-Rx, so we add in decreasing order and
+          // RP-Trx > HAMlab-Trx > Pavel-Trx > Pavel-Rx, so we add in decreasing order and
           // always set the newly added entry to be active.
           if ((d->software_version & STEMLAB_PAVEL_RX) != 0) {
             gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox[i]),
@@ -293,17 +314,17 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
             gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox[i]),
                 "sdr_transceiver_hpsdr");
           }
-          if ((d->software_version & STEMLAB_RP_TRX) != 0) {
-            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox[i]),
-                "stemlab_sdr_transceiver_hpsdr", "STEMlab-Trx");
-            gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox[i]),
-                "stemlab_sdr_transceiver_hpsdr");
-          }
           if ((d->software_version & HAMLAB_RP_TRX) != 0) {
             gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox[i]),
                 "hamlab_sdr_transceiver_hpsdr", "HAMlab-Trx");
             gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox[i]),
                 "hamlab_sdr_transceiver_hpsdr");
+          }
+          if ((d->software_version & STEMLAB_RP_TRX) != 0) {
+            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox[i]),
+                "stemlab_sdr_transceiver_hpsdr", "STEMlab-Trx");
+            gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox[i]),
+                "stemlab_sdr_transceiver_hpsdr");
           }
           gtk_widget_show(apps_combobox[i]);
           gtk_grid_attach(GTK_GRID(grid), apps_combobox[i], 4, i, 1, 1);

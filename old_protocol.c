@@ -131,8 +131,7 @@ static double phase=0.0;
 static int running;
 static long ep4_sequence;
 
-// DL1YCF added this variable for lost-package-check
-static long last_seq_num=0;
+static long last_seq_num=-1;
 
 static int current_rx=0;
 
@@ -612,7 +611,7 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
               }
               break;
             case 3:
-              if(device==DEVICE_METIS)  {
+              if(device==DEVICE_HERMES)  {
                 left_sample_double_tx=left_sample_double;
                 right_sample_double_tx=right_sample_double;
                 add_ps_iq_samples(transmitter, left_sample_double_tx,right_sample_double_tx,left_sample_double_rx,right_sample_double_rx);
@@ -766,8 +765,9 @@ static void process_bandscope_buffer(char  *buffer) {
 */
 
 #ifdef PROTOCOL_DEBUG
-// DL1YCF Debug: save last values and log changes
+// DL1YCF Debug: save last values and print any changes to stderr
 static unsigned char last_c1[20], last_c2[20], last_c3[20], last_c4[20], last_mox;
+static long long last_tx, last_rx[8];
 #endif
 
 void ozy_send_buffer() {
@@ -842,8 +842,7 @@ void ozy_send_buffer() {
     }
 
 // TODO - add Alex Antenna
-    output_buffer[C3]=0x00;
-    output_buffer[C3] = receiver[0]->alex_attenuation;
+    output_buffer[C3] = (receiver[0]->alex_attenuation) & 0x03;  // do not set higher bits
     if(active_receiver->random) {
       output_buffer[C3]|=LT2208_RANDOM_ON;
     }
@@ -965,6 +964,12 @@ void ozy_send_buffer() {
         output_buffer[C2]=txFrequency>>16;
         output_buffer[C3]=txFrequency>>8;
         output_buffer[C4]=txFrequency;
+#ifdef PROTOCOL_DEBUG
+        if (last_tx != txFrequency) {
+          fprintf(stderr,"TX1 FREQ CHANGE from %lld to %lld\n", last_tx, txFrequency);
+	  last_tx=txFrequency;
+	}
+#endif
         break;
       case 2: // rx frequency
 #ifdef PURESIGNAL
@@ -1017,6 +1022,12 @@ void ozy_send_buffer() {
             output_buffer[C2]=rxFrequency>>16;
             output_buffer[C3]=rxFrequency>>8;
             output_buffer[C4]=rxFrequency;
+#ifdef PROTOCOL_DEBUG
+	    if (rxFrequency != last_rx[current_rx]) {
+		fprintf(stderr,"RX%d FREQ CHANGE from %lld to %lld\n", current_rx+1, last_rx[current_rx], rxFrequency);
+		last_rx[current_rx] = rxFrequency;
+	    }
+#endif
 #ifdef PURESIGNAL
           }
 #endif
@@ -1032,9 +1043,8 @@ void ozy_send_buffer() {
         int power=0;
 #ifdef STEMLAB_FIX
 	//
-	// DL1YCF:
-	// On my HAMlab RedPitaya-based SDR transceiver, CW is generated on-board the RP.
-	// However, while in CW mode, DriveLevel changes do not become effective.
+	// Some HPSDR apps for the RedPitaya generate CW inside the FPGA, but while
+	// doing this, DriveLevel changes are processed by the server, but do not become effective.
 	// If the CW paddle is hit, the new PTT state is sent to piHPSDR, then the TX drive
 	// is sent the next time "command 3" is performed, but this often is too late and
 	// CW is generated with zero DriveLevel.
@@ -1164,7 +1174,7 @@ void ozy_send_buffer() {
         if(mode!=modeCWU && mode!=modeCWL) {
           // output_buffer[C1]|=0x00;
         } else {
-          if((tune==1) || (vox==1) || (cw_keyer_internal==0)) {
+          if((tune==1) || (vox==1) || (cw_keyer_internal==0) || (transmitter->twotone==1)) {
             output_buffer[C1]|=0x00;
           } else {
             output_buffer[C1]|=0x01;
@@ -1224,14 +1234,14 @@ void ozy_send_buffer() {
 //    If CW is done on the HPSDR board, we should not set
 //    the MOX bit, everything is done in the FPGA.
 //
-//    However, if we are doing CAT CW, local CW or tuning,
-//    we must put the SDR into TX mode.
+//    However, if we are doing CAT CW, local CW or tuning/TwoTone,
+//    we must put the SDR into TX mode *here*.
 //
-      if(tune || CAT_cw_is_active || !cw_keyer_internal) {
+      if(tune || CAT_cw_is_active || !cw_keyer_internal || transmitter->twotone) {
         output_buffer[C0]|=0x01;
       }
     } else {
-      // not doing CW? set MOX in any case.
+      // not doing CW? always set MOX if transmitting
       output_buffer[C0]|=0x01;
     }
   }
@@ -1245,21 +1255,24 @@ void ozy_send_buffer() {
 // leave it here deactivated
 //
   int ind = output_buffer[C0] >> 1;
-  if (last_c1[ind] != output_buffer[C1]) {
-    fprintf(stderr, "C0=%x Old C1=%x New C1=%x\n", 2*ind,last_c1[ind], output_buffer[C1]);
-    last_c1[ind]=output_buffer[C1];
-  }
-  if (last_c2[ind] != output_buffer[C2]) {
-    fprintf(stderr, "C0=%x Old C2=%x New C2=%x\n", 2*ind,last_c2[ind], output_buffer[C2]);
-    last_c2[ind]=output_buffer[C2];
-  }
-  if (last_c3[ind] != output_buffer[C3]) {
-    fprintf(stderr, "C0=%x Old C3=%x New C3=%x\n", 2*ind,last_c3[ind], output_buffer[C3]);
-    last_c3[ind]=output_buffer[C3];
-  }
-  if (last_c4[ind] != output_buffer[C4]) {
-    fprintf(stderr, "C0=%x Old C4=%x New C4=%x\n", 2*ind,last_c4[ind], output_buffer[C4]);
-    last_c4[ind]=output_buffer[C4];
+  if (ind == 0 || ind > 8) {
+    // Frequency changes are reported above.
+    if (last_c1[ind] != output_buffer[C1]) {
+      fprintf(stderr, "C0=%x Old C1=%x New C1=%x\n", 2*ind,last_c1[ind], output_buffer[C1]);
+      last_c1[ind]=output_buffer[C1];
+    }
+    if (last_c2[ind] != output_buffer[C2]) {
+      fprintf(stderr, "C0=%x Old C2=%x New C2=%x\n", 2*ind,last_c2[ind], output_buffer[C2]);
+      last_c2[ind]=output_buffer[C2];
+    }
+    if (last_c3[ind] != output_buffer[C3]) {
+      fprintf(stderr, "C0=%x Old C3=%x New C3=%x\n", 2*ind,last_c3[ind], output_buffer[C3]);
+      last_c3[ind]=output_buffer[C3];
+    }
+    if (last_c4[ind] != output_buffer[C4]) {
+      fprintf(stderr, "C0=%x Old C4=%x New C4=%x\n", 2*ind,last_c4[ind], output_buffer[C4]);
+      last_c4[ind]=output_buffer[C4];
+    }
   }
   if ((output_buffer[C0] & 1) != last_mox) {
     fprintf(stderr, "Last Mox=%d New Mox=%d\n", last_mox, output_buffer[C0] & 1);
@@ -1355,13 +1368,11 @@ static void metis_restart() {
   current_rx=0;
 
 #ifdef STEMLAB_FIX
-  // DL1YCF:
-  // My RedPitaya HPSDR "clone" won't start up
-  // if too many commands are sent here. Note these
-  // packets are only there for sync-ing in the clock
-  // source etc.
-  // Note that always two 512-byte OZY buffers are
-  // combined into one METIS packet.
+  // 
+  // Some (older) HPSDR apps on the RedPitaya have very small
+  // buffers that over-run if too much data is sent
+  // to the RedPitaya *before* sending a METIS start packet.
+  // Therefore we send only four OZY buffers here.
   //
   command=1;   // ship out a "C0=0" and a "set tx" command
   ozy_send_buffer();

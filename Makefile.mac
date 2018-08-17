@@ -3,9 +3,6 @@
 GIT_DATE := $(firstword $(shell git --no-pager show --date=short --format="%ai" --name-only))
 GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 
-# un-commment this line for activate work-around some RedPitaty HPSDR bugs
-STEMLAB_FIX_OPTION=-DSTEMLAB_FIX
-
 # uncomment the line below to include GPIO
 #GPIO_INCLUDE=GPIO
 
@@ -22,7 +19,7 @@ STEMLAB_FIX_OPTION=-DSTEMLAB_FIX
 #FREEDV_INCLUDE=FREEDV
 
 # uncomment the line below to include Pure Signal support
-#PURESIGNAL_INCLUDE=PURESIGNAL
+PURESIGNAL_INCLUDE=PURESIGNAL
 
 # uncomment the line to below include support for sx1509 i2c expander
 #SX1509_INCLUDE=sx1509
@@ -30,34 +27,24 @@ STEMLAB_FIX_OPTION=-DSTEMLAB_FIX
 # uncomment the line to below include support local CW keyer
 #LOCALCW_INCLUDE=LOCALCW
 
-# uncomment the line below to include support for STEMlab discovery (does not work on MacOS)
-#STEMLAB_DISCOVERY=STEMLAB_DISCOVERY
+# uncomment the line below to include support for STEMlab discovery (WITHOUT AVAHI)
+STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_NOAVAHI
 
-# uncomment the line below to include support for stripped-down STEMlab discovery that works on MacOS
-STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_MAC
+# uncommment this line for circumventing problems with RedPitya HPSDR apps.
+STEMLAB_FIX_OPTION=-DSTEMLAB_FIX
 
-#uncomment the line below for the platform being compiled on
-UNAME_N=MacOS
-#UNAME_N=raspberrypi
+#uncomment the line below for the platform being compiled on (actually not used)
+UNAME_N=raspberrypi
 #UNAME_N=odroid
 #UNAME_N=up
 #UNAME_N=pine64
 #UNAME_N=jetsen
 
-CC=gcc
-
-ifeq ($(UNAME_N),MacOS)
-#
-# This is only necessary for "make app", since the "patched"
-# library names are longer
-#
-LINK=gcc -headerpad_max_install_names
-else
-LINK=gcc
-endif
-
 # uncomment the line below for various debug facilities
 #DEBUG_OPTION=-D DEBUG
+
+CC=gcc
+LINK=gcc
 
 ifeq ($(PURESIGNAL_INCLUDE),PURESIGNAL)
 PURESIGNAL_OPTIONS=-D PURESIGNAL
@@ -96,7 +83,7 @@ endif
 # uncomment the line below for LimeSDR (uncomment line below)
 #LIMESDR_INCLUDE=LIMESDR
 
-# uncomment the line below when Radioberry radio cape is plugged in
+# uncomment the line below when Radioberry radio cape is plugged in (for now use emulator and old protocol)
 #RADIOBERRY_INCLUDE=RADIOBERRY
 
 ifeq ($(RADIOBERRY_INCLUDE),RADIOBERRY)
@@ -180,22 +167,9 @@ ifeq ($(I2C_INCLUDE),I2C)
   I2C_OBJS=i2c.o
 endif
 
-#
-# STEMLAB_DISCOVERY_MAC depends on curl but not on avahi
-#
-ifeq ($(STEMLAB_DISCOVERY), STEMLAB_DISCOVERY_MAC)
-STEMLAB_OPTIONS=-D STEMLAB_DISCOVERY `pkg-config --cflags libcurl`
+ifeq ($(STEMLAB_DISCOVERY), STEMLAB_DISCOVERY_NOAVAHI)
+STEMLAB_OPTIONS=-D STEMLAB_DISCOVERY -D NO_AVAHI `pkg-config --cflags libcurl`
 STEMLAB_LIBS=`pkg-config --libs libcurl`
-STEMLAB_SOURCES=stemlab_discovery.c
-STEMLAB_HEADERS=stemlab_discovery.h
-STEMLAB_OBJS=stemlab_discovery.o
-endif
-
-ifeq ($(STEMLAB_DISCOVERY), STEMLAB_DISCOVERY)
-STEMLAB_OPTIONS=-D STEMLAB_DISCOVERY \
-  `pkg-config --cflags avahi-gobject` \
-  `pkg-config --cflags libcurl`
-STEMLAB_LIBS=`pkg-config --libs avahi-gobject` `pkg-config --libs libcurl`
 STEMLAB_SOURCES=stemlab_discovery.c
 STEMLAB_HEADERS=stemlab_discovery.h
 STEMLAB_OBJS=stemlab_discovery.o
@@ -211,15 +185,11 @@ GTKLIBS=`pkg-config --libs gtk+-3.0`
 PORTAUDIO_OPTIONS=-DPORTAUDIO
 AUDIO_LIBS=-lportaudio
 
-OPTIONS=-g -Wno-deprecated-declarations $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(RADIOBERRY_OPTIONS) \
-	$(USBOZY_OPTIONS)  $(I2C_OPTIONS) $(GPIO_OPTIONS) $(LIMESDR_OPTIONS) $(FREEDV_OPTIONS) \
-	$(LOCALCW_OPTIONS) $(PSK_OPTIONS)  $(STEMLAB_OPTIONS) $(STEMLAB_FIX_OPTION) \
-	$(PORTAUDIO_OPTIONS) \
-	-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION) -O3
+OPTIONS=-g -Wno-deprecated-declarations $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) $(I2C_OPTIONS) $(GPIO_OPTIONS) $(LIMESDR_OPTIONS) \
+                $(FREEDV_OPTIONS) $(LOCALCW_OPTIONS) $(RADIOBERRY_OPTIONS) $(PSK_OPTIONS) $(STEMLAB_OPTIONS) $(STEMLAB_FIX_OPTION) \
+                -D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(PORTAUDIO_OPTIONS) $(DEBUG_OPTION) -O3
 
-LIBS=   $(AUDIO_LIBS) $(USBOZY_LIBS) $(PSKLIBS) $(GTKLIBS) $(GPIO_LIBS) \
-	$(SOAPYSDRLIBS) $(FREEDVLIBS) $(STEMLAB_LIBS) -lwdsp -lm -pthread
-
+LIBS=-lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(PSKLIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS) $(STEMLAB_LIBS)
 INCLUDES=$(GTKINCLUDES)
 
 COMPILE=$(CC) $(OPTIONS) $(INCLUDES)
@@ -484,7 +454,13 @@ release: $(PROGRAM)
 #       this is then stored *within* the app bundle.
 #
 #############################################################################
-app:  pihpsdr
+app:	$(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) \
+		$(LOCALCW_OBJS) $(I2C_OBJS) $(GPIO_OBJS) $(PSK_OBJS) \
+		$(PURESIGNAL_OBJS) $(STEMLAB_OBJS)
+	$(LINK) -headerpad_max_install_names -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) \
+		$(USBOZY_OBJS) $(I2C_OBJS) $(GPIO_OBJS) $(LIMESDR_OBJS) \
+		$(FREEDV_OBJS) $(LOCALCW_OBJS) $(PSK_OBJS) $(PURESIGNAL_OBJS) \
+		$(STEMLAB_OBJS) $(LIBS)
 	@rm -rf pihpsdr.app
 	@mkdir -p pihpsdr.app/Contents/MacOS
 	@mkdir -p pihpsdr.app/Contents/Frameworks
@@ -495,12 +471,19 @@ app:  pihpsdr
 	@cp MacOS/hpsdr.icns pihpsdr.app/Contents/Resources/hpsdr.icns
 	@cp MacOS/pihpsdr.sh pihpsdr.app/Contents/MacOS/pihpsdr
 	@cp MacOS/hpsdr.png pihpsdr.app/Contents/Resources
-	@for lib in `otool -L pihpsdr.app/Contents/MacOS/pihpsdr-bin | grep dylib | sed -e "s/ (.*//" | grep -Ev "/(usr/lib|System)" | grep -Ev /libg `; do \
+	@for lib in `otool -L pihpsdr.app/Contents/MacOS/pihpsdr-bin | grep dylib | sed -e "s/ (.*//" | grep -Ev "/(usr/lib|System)" | grep -Ev /libg  | grep -Ev pango | grep -Ev cairo`; do \
 	  libfn="`basename $$lib`"; \
 	  cp "$$lib" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
 	  chmod u+w "pihpsdr.app/Contents/Frameworks/$$libfn"; \
 	  install_name_tool -id "@executable_path/../Frameworks/$libfn" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
 	  install_name_tool -change "$$lib" "@executable_path/../Frameworks/$$libfn" pihpsdr.app/Contents/MacOS/pihpsdr-bin; \
 	done
+#
+# Make "app" and copy wdspWisdom and props file to app bundle
+#
+localapp:	app
+	cp wdspWisdom pihpsdr.app/Contents/Resources
+	cp *.props    pihpsdr.app/Contents/Resources
+
 #############################################################################
 

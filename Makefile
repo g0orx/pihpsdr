@@ -27,13 +27,16 @@ GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 # uncomment the line to below include support local CW keyer
 #LOCALCW_INCLUDE=LOCALCW
 
-# uncomment the line below to include support for STEMlab discovery
+# uncomment the line below to include support for STEMlab discovery (WITH AVAHI)
 #STEMLAB_DISCOVERY=STEMLAB_DISCOVERY
 
-# uncommment this line for activate work-around some RedPitaty HPSDR bugs
+# uncomment the line below to include support for STEMlab discovery (WITHOUT AVAHI)
+#STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_NOAVAHI
+
+# uncommment this line for circumventing problems with RedPitya HPSDR apps.
 #STEMLAB_FIX_OPTION=-DSTEMLAB_FIX
 
-#uncomment the line below for the platform being compiled on
+#uncomment the line below for the platform being compiled on (actually not used)
 UNAME_N=raspberrypi
 #UNAME_N=odroid
 #UNAME_N=up
@@ -84,7 +87,7 @@ endif
 #LIMESDR_INCLUDE=LIMESDR
 
 # uncomment the line below when Radioberry radio cape is plugged in (for now use emulator and old protocol)
-RADIOBERRY_INCLUDE=RADIOBERRY
+#RADIOBERRY_INCLUDE=RADIOBERRY
 ifeq ($(RADIOBERRY_INCLUDE),RADIOBERRY)
 RADIOBERRY_OPTIONS=-D RADIOBERRY
 endif
@@ -147,7 +150,7 @@ endif
 
 ifeq ($(GPIO_INCLUDE),GPIO)
   GPIO_OPTIONS=-D GPIO
-  GPIO_LIBS=-lwiringPi -lpigpio 
+  GPIO_LIBS=-lwiringPi
   GPIO_SOURCES= \
   gpio.c \
   encoder_menu.c
@@ -166,11 +169,25 @@ ifeq ($(I2C_INCLUDE),I2C)
   I2C_OBJS=i2c.o
 endif
 
+#
+# We have two versions of STEMLAB_DISCOVERY here,
+# the second one has to be used
+# if you do not have the avahi (devel-) libraries
+# on your system.
+#
 ifeq ($(STEMLAB_DISCOVERY), STEMLAB_DISCOVERY)
 STEMLAB_OPTIONS=-D STEMLAB_DISCOVERY \
   `pkg-config --cflags avahi-gobject` \
   `pkg-config --cflags libcurl`
 STEMLAB_LIBS=`pkg-config --libs avahi-gobject` `pkg-config --libs libcurl`
+STEMLAB_SOURCES=stemlab_discovery.c
+STEMLAB_HEADERS=stemlab_discovery.h
+STEMLAB_OBJS=stemlab_discovery.o
+endif
+
+ifeq ($(STEMLAB_DISCOVERY), STEMLAB_DISCOVERY_NOAVAHI)
+STEMLAB_OPTIONS=-D STEMLAB_DISCOVERY -D NO_AVAHI `pkg-config --cflags libcurl`
+STEMLAB_LIBS=`pkg-config --libs libcurl`
 STEMLAB_SOURCES=stemlab_discovery.c
 STEMLAB_HEADERS=stemlab_discovery.h
 STEMLAB_OBJS=stemlab_discovery.o

@@ -29,6 +29,9 @@
 #include <poll.h>
 #include <sched.h>
 #include <wiringPi.h>
+#ifdef LOCALCW
+#include <softTone.h>
+#endif
 #include <semaphore.h>
 
 #include "band.h"
@@ -56,6 +59,10 @@
 #endif
 #include "ext.h"
 #include "sliders.h"
+#include "new_protocol.h"
+#ifdef LOCALCW
+#include "iambic.h"
+#endif
 
 // debounce settle time in ms
 #define DEFAULT_SETTLE_TIME 150
@@ -140,11 +147,14 @@ int FUNCTION_BUTTON=3;
 int ENABLE_E1_BUTTON=1;
 int ENABLE_E2_BUTTON=1;
 int ENABLE_E3_BUTTON=1;
-int ENABLE_CW_BUTTONS=1;
 #endif
+
 #ifdef LOCALCW
-int CWL_BUTTON=18;
-int CWR_BUTTON=19;
+int CWL_BUTTON=14;
+int CWR_BUTTON=15;
+int SIDETONE_GPIO=8;
+int ENABLE_GPIO_SIDETONE=0;
+int ENABLE_CW_BUTTONS=1;
 #endif
 
 static volatile int vfoEncoderPos;
@@ -844,6 +854,10 @@ void gpio_restore_state() {
  if(value) CWL_BUTTON=atoi(value);		
  value=getProperty("CWR_BUTTON");		
  if(value) CWR_BUTTON=atoi(value);		
+ value=getProperty("SIDETONE_GPIO");		
+ if(value) SIDETONE_GPIO=atoi(value);		
+ value=getProperty("ENABLE_GPIO_SIDETONE");		
+ if(value) ENABLE_GPIO_SIDETONE=atoi(value);		
 #endif
 
 
@@ -946,6 +960,10 @@ void gpio_save_state() {
  setProperty("CWL_BUTTON",value);		
  sprintf(value,"%d",CWR_BUTTON);		
  setProperty("CWR_BUTTON",value);		
+ sprintf(value,"%d",SIDETONE_GPIO);		
+ setProperty("SIDETONE_GPIO",value);		
+ sprintf(value,"%d",ENABLE_GPIO_SIDETONE);		
+ setProperty("ENABLE_GPIO_SIDETONE",value);		
 #endif
 
   saveProperties("gpio.props");
@@ -969,23 +987,38 @@ fprintf(stderr,"setup_encoder_pin: pin=%d updown=%d\n",pin,up_down);
 }
 
 #ifdef LOCALCW
-#define BUTTON_STEADY_TIME_US 5000
-static void setup_button(int button, gpioAlertFunc_t pAlert) {
-  gpioSetMode(button, PI_INPUT);
-  gpioSetPullUpDown(button,PI_PUD_UP);
-  // give time to settle to avoid false triggers
-  usleep(10000);
-  gpioSetAlertFunc(button, pAlert);
-  gpioGlitchFilter(button, BUTTON_STEADY_TIME_US);
+
+// Note we cannot use debouncing, as after the first interrupt,
+// we might read the wrong level. So we process all interrupts
+// to the keyer.
+// The only way to do proper debouncing is to record the wall-clock time
+// of the last state change of each of the two buttons, and
+// disable further state changes for a short time (5 msec)
+
+static void setup_cw_pin(int pin, void(*pAlert)(void)) {
+   fprintf(stderr,"setup_cw_pin: pin=%d \n",pin);
+   pinMode(pin,INPUT);
+   pullUpDnControl(pin,PUD_UP);
+   usleep(10000);
+   wiringPiISR(pin,INT_EDGE_BOTH,pAlert);
 }
 
-static void cwAlert(int gpio, int level, uint32_t tick) {
-    //fprintf(stderr,"cw key at pin %d \n", gpio);
-    if (cw_keyer_internal == 0 ){
-	//fprintf(stderr,"call keyer_event...\n");
-       keyer_event(gpio, cw_active_level == 0 ? level : (level==0));
-    }
+static void cwAlert_left() {
+    int level;
+    if (cw_keyer_internal != 0) return; // as quickly as possible
+    level=digitalRead(CWL_BUTTON);
+    //fprintf(stderr,"cwl button : level=%d \n",level);
+    keyer_event(CWL_BUTTON, cw_active_level == 0 ? level : (level==0));
 }
+
+static void cwAlert_right() {
+    int level;
+    if (cw_keyer_internal != 0) return; // as quickly as possible
+    level=digitalRead(CWR_BUTTON);
+    //fprintf(stderr,"cwr button : level=%d \n",level);
+     keyer_event(CWR_BUTTON, cw_active_level == 0 ? level : (level==0));
+}
+
 #endif
 
 int gpio_init() {
@@ -1115,8 +1148,11 @@ int gpio_init() {
 #ifdef LOCALCW
   fprintf(stderr,"GPIO: ENABLE_CW_BUTTONS=%d  CWL_BUTTON=%d CWR_BUTTON=%d\n", ENABLE_CW_BUTTONS, CWL_BUTTON, CWR_BUTTON);
   if(ENABLE_CW_BUTTONS) {	
-    setup_button(CWL_BUTTON, cwAlert);
-    setup_button(CWR_BUTTON, cwAlert);
+    setup_cw_pin(CWL_BUTTON, cwAlert_left);
+    setup_cw_pin(CWR_BUTTON, cwAlert_right);
+  }
+  if (ENABLE_GPIO_SIDETONE) {
+    softToneCreate(SIDETONE_GPIO);
   }
 #endif
 
@@ -1126,6 +1162,14 @@ int gpio_init() {
 void gpio_close() {
     running=0;
 }
+
+#ifdef LOCALCW
+void gpio_sidetone(int freq) {
+  if (ENABLE_GPIO_SIDETONE) {
+    softToneWrite (SIDETONE_GPIO, freq);
+  }
+}
+#endif
 
 int vfo_encoder_get_pos() {
   int pos=vfoEncoderPos;
@@ -1220,7 +1264,7 @@ static int vfo_encoder_changed(void *data) {
   return 0;
 }
 
-static encoder_changed(int action,int pos) {
+static void encoder_changed(int action,int pos) {
   double value;
   int mode;
   int id;

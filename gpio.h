@@ -80,8 +80,14 @@ extern int ENABLE_MOX_BUTTON;
 extern int MOX_BUTTON;
 extern int ENABLE_FUNCTION_BUTTON;
 extern int FUNCTION_BUTTON;
+#ifdef LOCALCW
 extern int CWL_BUTTON;
 extern int CWR_BUTTON;
+extern int SIDETONE_GPIO;
+extern int ENABLE_GPIO_SIDETONE;
+extern int ENABLE_CW_BUTTONS;
+void gpio_sidetone(int freq);
+#endif
 
 void gpio_restore_state();
 void gpio_save_state();

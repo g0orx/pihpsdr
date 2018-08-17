@@ -26,5 +26,6 @@ extern int *kdash;
 void keyer_event(int gpio, int level);
 void keyer_update();
 void keyer_close();
+int  keyer_init();
 
 #endif

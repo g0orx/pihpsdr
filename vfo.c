@@ -50,6 +50,7 @@
 #include "new_menu.h"
 #include "rigctl.h"
 #include "ext.h"
+#include "noise_menu.h"
 #ifdef FREEDV
 #include "freedv.h"
 #endif
@@ -74,6 +75,76 @@ static void vfo_save_bandstack() {
   entry->frequency=vfo[0].frequency;
   entry->mode=vfo[0].mode;
   entry->filter=vfo[0].filter;
+}
+
+void modesettings_save_state() {
+  int i;
+  char name[80];
+  char value[80];
+
+  for (i=0; i<MODES; i++) {
+    sprintf(name,"modeset.%d.filter", i);
+    sprintf(value,"%d", mode_settings[i].filter);
+    setProperty(name,value);
+    sprintf(name,"modeset.%d.nr", i);
+    sprintf(value,"%d", mode_settings[i].nr);
+    setProperty(name,value);
+    sprintf(name,"modeset.%d.nr2", i);
+    sprintf(value,"%d", mode_settings[i].nr2);
+    setProperty(name,value);
+    sprintf(name,"modeset.%d.nb", i);
+    sprintf(value,"%d", mode_settings[i].nb);
+    setProperty(name,value);
+    sprintf(name,"modeset.%d.nb2", i);
+    sprintf(value,"%d", mode_settings[i].nb2);
+    setProperty(name,value);
+    sprintf(name,"modeset.%d.anf", i);
+    sprintf(value,"%d", mode_settings[i].anf);
+    setProperty(name,value);
+    sprintf(name,"modeset.%d.snb", i);
+    sprintf(value,"%d", mode_settings[i].snb);
+    setProperty(name,value);
+  }
+}
+
+void modesettings_restore_state() {
+  int i;
+  char name[80];
+  char *value;
+
+  // set some reasonable defaults for the filters
+
+  for (i=0; i<MODES; i++) {
+    mode_settings[i].filter=filterF6;
+    mode_settings[i].nr=0;
+    mode_settings[i].nr2=0;
+    mode_settings[i].nb=0;
+    mode_settings[i].nb2=0;
+    mode_settings[i].anf=0;
+    mode_settings[i].snb=0;
+
+    sprintf(name,"modeset.%d.filter",i);
+    value=getProperty(name);
+    if(value) mode_settings[i].filter=atoi(value);
+    sprintf(name,"modeset.%d.nr",i);
+    value=getProperty(name);
+    if(value) mode_settings[i].nr=atoi(value);
+    sprintf(name,"modeset.%d.nr2",i);
+    value=getProperty(name);
+    if(value) mode_settings[i].nr2=atoi(value);
+    sprintf(name,"modeset.%d.nb",i);
+    value=getProperty(name);
+    if(value) mode_settings[i].nb=atoi(value);
+    sprintf(name,"modeset.%d.nb2",i);
+    value=getProperty(name);
+    if(value) mode_settings[i].nb2=atoi(value);
+    sprintf(name,"modeset.%d.anf",i);
+    value=getProperty(name);
+    if(value) mode_settings[i].anf=atoi(value);
+    sprintf(name,"modeset.%d.snb",i);
+    value=getProperty(name);
+    if(value) mode_settings[i].snb=atoi(value);
+  }
 }
 
 void vfo_save_state() {
@@ -278,6 +349,19 @@ void vfo_bandstack_changed(int b) {
 void vfo_mode_changed(int m) {
   int id=active_receiver->id;
   vfo[id].mode=m;
+//
+// Change to the filter/NR combination stored for this mode
+//
+  vfo[id].filter      =mode_settings[m].filter;
+  active_receiver->nr =mode_settings[m].nr;
+  active_receiver->nr2=mode_settings[m].nr2;
+  active_receiver->nb =mode_settings[m].nb;
+  active_receiver->nb2=mode_settings[m].nb2;
+  active_receiver->anf=mode_settings[m].anf;
+  active_receiver->snb=mode_settings[m].snb;
+
+  // make changes effective
+  update_noise();
   switch(id) {
     case 0:
       receiver_mode_changed(receiver[0]);
@@ -301,6 +385,10 @@ void vfo_mode_changed(int m) {
 
 void vfo_filter_changed(int f) {
   int id=active_receiver->id;
+
+  // store changed filter in the mode settings
+  mode_settings[vfo[id].mode].filter = f;
+
   vfo[id].filter=f;
   switch(id) {
     case 0:
@@ -602,22 +690,30 @@ void vfo_update() {
         }
         cairo_show_text(cr, temp_text);
 
+	// DL1YCF: in what follows, we want to display the VFO frequency
+	// on which we currently transmit a signal with red colour.
+	// If it is out-of-band, we display "Out of band" in red.
+        // Frequencies we are not transmitting on are displayed in green
+	// (dimmed if the freq. does not belong to the active receiver).
+        // Depending on which receiver is the active one, and if we use split,
+        // the following frequencies are used for transmitting (see old_protocol.c):
+	// id == 0, split == 0 : TX freq = VFO_A
+	// id == 0, split == 1 : TX freq = VFO_B
+	// id == 1, split == 0 : TX freq = VFO_B
+	// id == 1, split == 1 : TX freq = VFO_A
+
 
         long long af=vfo[0].frequency+vfo[0].offset;
-        if(transmitter->out_of_band && !split) {
-          cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
-          sprintf(temp_text,"VFO A: Out of band");
+        sprintf(temp_text,"VFO A: %0lld.%06lld",af/(long long)1000000,af%(long long)1000000);
+        if(isTransmitting() && ((id  == 0 && !split) || (id == 1 && split))) {
+	    if (transmitter->out_of_band) sprintf(temp_text,"VFO A: Out of band");
+            cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
         } else {
-          sprintf(temp_text,"VFO A: %0lld.%06lld",af/(long long)1000000,af%(long long)1000000);
-          if(isTransmitting() && !split) {
-              cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
-          } else {
-              if(active_receiver->id==0) {
-                cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
-              } else {
-                cairo_set_source_rgb(cr, 0.0, 0.65, 0.0);
-              }
-          }
+            if(id==0) {
+              cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
+            } else {
+              cairo_set_source_rgb(cr, 0.0, 0.65, 0.0);
+            }
         }
         cairo_move_to(cr, 5, 38);  
         cairo_set_font_size(cr, 22); 
@@ -625,20 +721,16 @@ void vfo_update() {
 
 
         long long bf=vfo[1].frequency+vfo[1].offset;
-        if(transmitter->out_of_band && split) {
-          cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
-          sprintf(temp_text,"VFO B: Out of band");
+        sprintf(temp_text,"VFO B: %0lld.%06lld",bf/(long long)1000000,bf%(long long)1000000);
+        if(isTransmitting() && ((id == 0 && split) || (id == 1 && !split))) {
+	    if (transmitter->out_of_band) sprintf(temp_text,"VFO B: Out of band");
+            cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
         } else {
-          sprintf(temp_text,"VFO B: %0lld.%06lld",bf/(long long)1000000,bf%(long long)1000000);
-          if(isTransmitting() && split) {
-              cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
-          } else {
-              if(active_receiver->id==1) {
-                cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
-              } else {
-                cairo_set_source_rgb(cr, 0.0, 0.65, 0.0);
-              }
-          }
+            if(id==1) {
+              cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
+            } else {
+              cairo_set_source_rgb(cr, 0.0, 0.65, 0.0);
+            }
         }
         cairo_move_to(cr, 260, 38);  
         cairo_show_text(cr, temp_text);

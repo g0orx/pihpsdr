@@ -170,11 +170,6 @@ int ext_tx_set_ps(void *data) {
   tx_set_ps(transmitter,(uintptr_t)data);
   return 0;
 }
-
-int ext_ps_twotone(void *data) {
-  ps_twotone((uintptr_t)data);
-  return 0;
-}
 #endif
 
 int ext_vfo_step(void *data) {

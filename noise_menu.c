@@ -59,7 +59,7 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
   return FALSE;
 }
 
-static void update_noise() {
+void update_noise() {
   SetEXTANBRun(active_receiver->id, active_receiver->nb);
   SetEXTNOBRun(active_receiver->id, active_receiver->nb2);
   SetRXAANRRun(active_receiver->id, active_receiver->nr);
@@ -72,46 +72,60 @@ static void update_noise() {
 static void nb_none_cb(GtkWidget *widget, gpointer data) {
   active_receiver->nb=0;
   active_receiver->nb2=0;
+  mode_settings[vfo[active_receiver->id].mode].nb=0;
+  mode_settings[vfo[active_receiver->id].mode].nb2=0;
   update_noise();
 }
 
 static void nb_cb(GtkWidget *widget, gpointer data) {
   active_receiver->nb=1;
   active_receiver->nb2=0;
+  mode_settings[vfo[active_receiver->id].mode].nb=1;
+  mode_settings[vfo[active_receiver->id].mode].nb2=0;
   update_noise();
 }
 
 static void nr_none_cb(GtkWidget *widget, gpointer data) {
   active_receiver->nr=0;
   active_receiver->nr2=0;
+  mode_settings[vfo[active_receiver->id].mode].nr=0;
+  mode_settings[vfo[active_receiver->id].mode].nr2=0;
   update_noise();
 }
 
 static void nr_cb(GtkWidget *widget, gpointer data) {
   active_receiver->nr=1;
   active_receiver->nr2=0;
+  mode_settings[vfo[active_receiver->id].mode].nr=1;
+  mode_settings[vfo[active_receiver->id].mode].nr2=0;
   update_noise();
 }
 
 static void nb2_cb(GtkWidget *widget, gpointer data) {
   active_receiver->nb=0;
   active_receiver->nb2=1;
+  mode_settings[vfo[active_receiver->id].mode].nb=0;
+  mode_settings[vfo[active_receiver->id].mode].nb2=1;
   update_noise();
 }
 
 static void nr2_cb(GtkWidget *widget, gpointer data) {
   active_receiver->nr=0;
-  active_receiver->nr2=2;
+  active_receiver->nr2=1;
+  mode_settings[vfo[active_receiver->id].mode].nr=0;
+  mode_settings[vfo[active_receiver->id].mode].nr2=1;
   update_noise();
 }
 
 static void anf_cb(GtkWidget *widget, gpointer data) {
   active_receiver->anf=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
+  mode_settings[vfo[active_receiver->id].mode].anf=active_receiver->anf;
   update_noise();
 }
 
 static void snb_cb(GtkWidget *widget, gpointer data) {
   active_receiver->snb=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
+  mode_settings[vfo[active_receiver->id].mode].snb=active_receiver->snb;
   update_noise();
 }
 

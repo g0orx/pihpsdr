@@ -144,7 +144,6 @@ tx_panadapter_motion_notify_event_cb (GtkWidget      *widget,
                                 &x,
                                 &y,
                                 &state);
-  // DL1YCF: added a pair of () to fix an error
   if(((state & GDK_BUTTON1_MASK) == GDK_BUTTON1_MASK) || pressed) {
     int moved=last_x-x;
     vfo_move((long long)((float)moved*hz_per_pixel));
@@ -185,9 +184,10 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   int display_width=gtk_widget_get_allocated_width (tx->panadapter);
   int display_height=gtk_widget_get_allocated_height (tx->panadapter);
 
-  int id=0;
-  if(split) {
-    id=1;
+  // id = VFO which contains the TX frequency
+  int id = active_receiver->id;
+  if (split) {
+    id = 1-id;
   }
   samples=tx->pixel_samples;
 
@@ -235,7 +235,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   //long long half=12000LL; //(long long)(tx->output_rate/2);
   long long half=24000LL; //(long long)(tx->output_rate/2);
   long long frequency;
-  frequency=vfo[id].frequency+vfo[VFO_B].offset;
+  frequency=vfo[id].frequency+vfo[id].offset;
   divisor=5000LL;
   for(i=0;i<display_width;i++) {
     f = frequency - half + (long) (hz_per_pixel * i);
@@ -265,12 +265,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   // band edges
   long long min_display=frequency-half;
   long long max_display=frequency+half;
-  int b;
-  if(split) {
-    b=vfo[1].band;
-  } else {
-    b=vfo[0].band;
-  }
+  int b=vfo[id].band;
   BAND *band=band_get_band(b);
   if(band->frequencyMin!=0LL) {
     cairo_set_source_rgb (cr, 1.0, 0.0, 0.0);

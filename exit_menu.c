@@ -27,6 +27,9 @@
 #include "radio.h"
 #include "new_protocol.h"
 #include "old_protocol.h"
+#ifdef GPIO
+#include "gpio.h"
+#endif
 
 static GtkWidget *parent_window=NULL;
 

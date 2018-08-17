@@ -71,19 +71,16 @@
 #include <sys/mman.h>
 
 #include <wiringPi.h>
-#include <softTone.h>
 
 #include "gpio.h"
 #include "radio.h"
 #include "new_protocol.h"
 #include "iambic.h"
 #include "transmitter.h"
+#include "ext.h"
 
 static void* keyer_thread(void *arg);
 static pthread_t keyer_thread_id;
-
-// set to 0 to use the PI's hw:0 audio out for sidetone
-#define SIDETONE_GPIO 0 // this is in wiringPi notation // tried 4 working great.
 
 #define MY_PRIORITY (90)
 #define MAX_SAFE_STACK (8*1024)
@@ -122,6 +119,8 @@ static sem_t *cw_event;
 static sem_t cw_event;
 #endif
 
+static int cwvox = 0;
+
 int keyer_out = 0;
 
 // using clock_nanosleep of librt
@@ -158,13 +157,20 @@ void keyer_update() {
 void keyer_event(int gpio, int level) {
     int state = (level == 0);
 
-    // This is for aborting CAT CW messages if the key is hit.
     if (state) {
+        // This is for aborting CAT CW messages if the key is hit.
 	cw_key_hit = 1;
+        // we do PTT as soon as possible, but disable cwvox if
+	// PTT has been engaged manually
+        if (running && !cwvox && !mox) {
+	   g_idle_add(ext_mox_update, (gpointer)(long) 1);
+           cwvox=(int) vox_hang;
+	}
     }
     if (gpio == CWL_BUTTON)
         kcwl = state;
-    else  // CWR_BUTTON
+        //fprintf(stderr,"L=%d\n",state);   
+    else // CWR_BUTTON
         kcwr = state;
 
     if (state || cw_keyer_mode == KEYER_STRAIGHT) {
@@ -189,19 +195,12 @@ void set_keyer_out(int state) {
 	//         MOX before starting local CW.
         keyer_out = state;
         if(protocol==NEW_PROTOCOL) schedule_high_priority(9);
-		fprintf(stderr,"set_keyer_out keyer_out= %d\n", keyer_out);
+		//fprintf(stderr,"set_keyer_out keyer_out= %d\n", keyer_out);
         if (state) {
-	    // DL1YCF: we must call cw_hold_key in *any* case, else no
-	    //         CW signal will be produced. We certainly do not
-	    //         want to produce a side tone *only*.
-            if (SIDETONE_GPIO) {
-                softToneWrite (SIDETONE_GPIO, cw_keyer_sidetone_frequency);
-	    }
+	    gpio_sidetone(cw_keyer_sidetone_frequency);
 	    cw_hold_key(1); // this starts a CW pulse in transmitter.c
         } else {
-            if (SIDETONE_GPIO) {
-                softToneWrite (SIDETONE_GPIO, 0);
-	    }
+	    gpio_sidetone(0);
 	    cw_hold_key(0); // this stops a CW pulse in transmitter.c
         }
     }
@@ -222,9 +221,21 @@ fprintf(stderr,"keyer_thread  state running= %d\n", running);
 
         key_state = CHECK;
 
-        while (key_state != EXITLOOP) {
-            switch(key_state) {
+	// If MOX still hanging, continue spinnning/checking and decrement cwvox
+
+        while (key_state != EXITLOOP || cwvox > 0) {
+          if (cwvox > 0 && key_state != EXITLOOP && key_state != CHECK) cwvox=(int) vox_hang;
+	  switch (key_state) {
+	    case EXITLOOP:
+		if (cwvox >0) cwvox--;
+                if (cwvox == 0) {
+		    g_idle_add(ext_mox_update,(gpointer)(long) 0);
+		} else {
+		    key_state=CHECK;
+		}
+	        break;
             case CHECK: // check for key press
+		if (cwvox > 1) cwvox--;
                 if (cw_keyer_mode == KEYER_STRAIGHT) {       // Straight/External key or bug
                     if (*kdash) {                  // send manual dashes
                         set_keyer_out(1);
@@ -405,10 +416,6 @@ int keyer_init() {
     if(mlockall(MCL_CURRENT|MCL_FUTURE) == -1) {
             perror("mlockall failed");
             running = 0;
-    }
-
-    if (SIDETONE_GPIO){
-        softToneCreate(SIDETONE_GPIO);
     }
 
 #ifdef __APPLE__

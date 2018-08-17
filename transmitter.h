@@ -75,9 +75,9 @@ typedef struct _transmitter {
 
   int low_latency;
 
+  int twotone;
 #ifdef PURESIGNAL
   int puresignal;
-  int twotone;
   int feedback;
   int auto_on;
   int single_on;
