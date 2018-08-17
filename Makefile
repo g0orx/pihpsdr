@@ -33,7 +33,7 @@ GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 # uncomment the line below to include support for STEMlab discovery (WITHOUT AVAHI)
 #STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_NOAVAHI
 
-# uncommment this line for activate work-around some RedPitaty HPSDR bugs
+# uncommment this line for circumventing problems with RedPitya HPSDR apps.
 #STEMLAB_FIX_OPTION=-DSTEMLAB_FIX
 
 #uncomment the line below for the platform being compiled on (actually not used)
