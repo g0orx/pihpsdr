@@ -1043,9 +1043,8 @@ void ozy_send_buffer() {
         int power=0;
 #ifdef STEMLAB_FIX
 	//
-	// DL1YCF:
-	// On my HAMlab RedPitaya-based SDR transceiver, CW is generated on-board the RP.
-	// However, while in CW mode, DriveLevel changes do not become effective.
+	// Some HPSDR apps for the RedPitaya generate CW inside the FPGA, but while
+	// doing this, DriveLevel changes are processed by the server, but do not become effective.
 	// If the CW paddle is hit, the new PTT state is sent to piHPSDR, then the TX drive
 	// is sent the next time "command 3" is performed, but this often is too late and
 	// CW is generated with zero DriveLevel.
@@ -1369,13 +1368,11 @@ static void metis_restart() {
   current_rx=0;
 
 #ifdef STEMLAB_FIX
-  // DL1YCF:
-  // My RedPitaya HPSDR "clone" won't start up
-  // if too many commands are sent here. Note these
-  // packets are only there for sync-ing in the clock
-  // source etc.
-  // Note that always two 512-byte OZY buffers are
-  // combined into one METIS packet.
+  // 
+  // Some (older) HPSDR apps on the RedPitaya have very small
+  // buffers that over-run if too much data is sent
+  // to the RedPitaya *before* sending a METIS start packet.
+  // Therefore we send only four OZY buffers here.
   //
   command=1;   // ship out a "C0=0" and a "set tx" command
   ozy_send_buffer();
