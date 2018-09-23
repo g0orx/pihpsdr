@@ -36,6 +36,9 @@ GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 # uncommment this line for circumventing problems with RedPitya HPSDR apps.
 #STEMLAB_FIX_OPTION=-DSTEMLAB_FIX
 
+# uncomment the line below to include support for Pi SDR
+#PI_SDR_INCLUDE=PI_SDR
+
 #uncomment the line below for the platform being compiled on (actually not used)
 UNAME_N=raspberrypi
 #UNAME_N=odroid
@@ -193,6 +196,10 @@ STEMLAB_HEADERS=stemlab_discovery.h
 STEMLAB_OBJS=stemlab_discovery.o
 endif
 
+ifeq ($(PI_SDR_INCLUDE),PI_SDR)
+PI_SDR_OPTIONS=-D PI_SDR
+endif
+
 GTKINCLUDES=`pkg-config --cflags gtk+-3.0`
 GTKLIBS=`pkg-config --libs gtk+-3.0`
 
@@ -200,7 +207,7 @@ AUDIO_LIBS=-lasound
 #AUDIO_LIBS=-lsoundio
 
 OPTIONS=-g -Wno-deprecated-declarations $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) $(I2C_OPTIONS) $(GPIO_OPTIONS) $(LIMESDR_OPTIONS) \
-		$(FREEDV_OPTIONS) $(LOCALCW_OPTIONS) $(RADIOBERRY_OPTIONS) $(PSK_OPTIONS) $(STEMLAB_OPTIONS) $(STEMLAB_FIX_OPTION) \
+		$(FREEDV_OPTIONS) $(LOCALCW_OPTIONS) $(RADIOBERRY_OPTIONS) $(PI_SDR_OPTIONS) $(PSK_OPTIONS) $(STEMLAB_OPTIONS) $(STEMLAB_FIX_OPTION) \
 		-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION) -O3
 
 LIBS=-lrt -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(PSKLIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS) $(STEMLAB_LIBS)

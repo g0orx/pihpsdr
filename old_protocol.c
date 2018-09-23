@@ -552,7 +552,7 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
 #ifdef PURESIGNAL
     nreceivers=(RECEIVERS*2)+1;
 #else
-	#ifdef RADIOBERRY
+	#if defined(RADIOBERRY) || defined(PI_SDR)
 		nreceivers = receivers;
 	#else
 		nreceivers=RECEIVERS;
