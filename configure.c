@@ -103,6 +103,7 @@ static GtkWidget *cws_label;
 static GtkWidget *cws;
 static GtkWidget *b_enable_cws;
 static GtkWidget *b_enable_cwlr;
+static GtkWidget *b_cw_active_low;
 #endif
 
 static gboolean save_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
@@ -152,6 +153,7 @@ static gboolean save_cb (GtkWidget *widget, GdkEventButton *event, gpointer data
     FUNCTION_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(function));
 #ifdef LOCALCW
     ENABLE_CW_BUTTONS=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_cwlr))?1:0;
+    CW_ACTIVE_LOW=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_cw_active_low))?1:0;
     CWL_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(cwl));
     CWR_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(cwr));
     ENABLE_GPIO_SIDETONE=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_cws))?1:0;
@@ -350,7 +352,7 @@ void configure_gpio(GtkWidget *parent) {
   gtk_widget_show(cwl);
   gtk_grid_attach(GTK_GRID(grid),cwl,4,y,1,1);
 
-  b_enable_cwlr=gtk_check_button_new_with_label("Enable CW buttons");
+  b_enable_cwlr=gtk_check_button_new_with_label("CWLR Enable");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_cwlr), ENABLE_CW_BUTTONS);
   gtk_widget_show(b_enable_cwlr);
   gtk_grid_attach(GTK_GRID(grid),b_enable_cwlr,5,y,1,1);
@@ -381,6 +383,11 @@ void configure_gpio(GtkWidget *parent) {
   gtk_spin_button_set_value (GTK_SPIN_BUTTON(cwr),CWR_BUTTON);
   gtk_widget_show(cwr);
   gtk_grid_attach(GTK_GRID(grid),cwr,4,y,1,1);
+
+  b_cw_active_low=gtk_check_button_new_with_label("CWLR active-low");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_cw_active_low), CW_ACTIVE_LOW);
+  gtk_widget_show(b_cw_active_low);
+  gtk_grid_attach(GTK_GRID(grid),b_cw_active_low,5,y,1,1);
 #endif
 
   y++;
@@ -490,55 +497,8 @@ void configure_gpio(GtkWidget *parent) {
 
   gtk_container_add(GTK_CONTAINER(content),grid);
 
-/*
-  GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Save",GTK_RESPONSE_OK);
-  //gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 20"));
-*/
   gtk_widget_show_all(dialog);
   int result=gtk_dialog_run(GTK_DIALOG(dialog));
-
-/*
-  ENABLE_VFO_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_vfo_encoder))?1:0;
-  VFO_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(vfo_a));
-  VFO_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(vfo_b));
-  ENABLE_VFO_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_vfo_pullup))?1:0;
-  ENABLE_E1_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E1_encoder))?1:0;
-  E1_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E1_a));
-  E1_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E1_b));
-  ENABLE_E1_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E1_pullup))?1:0;
-  ENABLE_E2_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E2_encoder))?1:0;
-  E2_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E2_a));
-  E2_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E2_b));
-  ENABLE_E2_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E2_pullup))?1:0;
-  ENABLE_E3_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_S6_encoder))?1:0;
-  E3_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(S6_a));
-  E3_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(S6_b));
-  ENABLE_E3_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_S6_pullup))?1:0;
-  ENABLE_S1_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_S1))?1:0;
-  S1_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(S1));
-  ENABLE_S2_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_S2))?1:0;
-  S2_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(S2));
-  ENABLE_S3_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_S3))?1:0;
-  S3_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(S3));
-  ENABLE_S4_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_S4))?1:0;
-  S4_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(S4));
-  ENABLE_S5_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_S5))?1:0;
-  S5_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(S5));
-  ENABLE_S6_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_S6))?1:0;
-  S6_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(S6));
-  ENABLE_MOX_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_mox))?1:0;
-  MOX_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(mox));
-  ENABLE_FUNCTION_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_function))?1:0;
-  FUNCTION_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(function));
-#ifdef LOCALCW
-  CWL_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(cwl));
-  CWR_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(cwr));
-#endif
-*/
-
-  gtk_widget_destroy(dialog);
-
-//  gpio_save_state();
 
 }
 #endif

@@ -154,9 +154,7 @@ void keyer_update() {
 }
 
 #ifdef GPIO
-void keyer_event(int gpio, int level) {
-    int state = (level == 0);
-
+void keyer_event(int gpio, int state) {
     if (state) {
         // This is for aborting CAT CW messages if the key is hit.
 	cw_key_hit = 1;
@@ -164,7 +162,7 @@ void keyer_event(int gpio, int level) {
 	// PTT has been engaged manually
         if (running && !cwvox && !mox) {
 	   g_idle_add(ext_mox_update, (gpointer)(long) 1);
-           cwvox=(int) vox_hang;
+           cwvox=(int) cw_breakin;
 	}
     }
     if (gpio == CWL_BUTTON)
@@ -224,7 +222,7 @@ fprintf(stderr,"keyer_thread  state running= %d\n", running);
 	// If MOX still hanging, continue spinnning/checking and decrement cwvox
 
         while (key_state != EXITLOOP || cwvox > 0) {
-          if (cwvox > 0 && key_state != EXITLOOP && key_state != CHECK) cwvox=(int) vox_hang;
+          if (cwvox > 0 && key_state != EXITLOOP && key_state != CHECK) cwvox=(int) cw_breakin;
 	  switch (key_state) {
 	    case EXITLOOP:
 		if (cwvox >0) cwvox--;

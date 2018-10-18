@@ -86,7 +86,10 @@ extern int CWR_BUTTON;
 extern int SIDETONE_GPIO;
 extern int ENABLE_GPIO_SIDETONE;
 extern int ENABLE_CW_BUTTONS;
+extern int CW_ACTIVE_LOW;
 void gpio_sidetone(int freq);
+int  gpio_left_cw_key();
+int  gpio_right_cw_key();
 #endif
 
 void gpio_restore_state();

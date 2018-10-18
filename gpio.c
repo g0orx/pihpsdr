@@ -155,6 +155,7 @@ int CWR_BUTTON=15;
 int SIDETONE_GPIO=8;
 int ENABLE_GPIO_SIDETONE=0;
 int ENABLE_CW_BUTTONS=1;
+int CW_ACTIVE_LOW=1;
 #endif
 
 static volatile int vfoEncoderPos;
@@ -850,6 +851,8 @@ void gpio_restore_state() {
 #ifdef LOCALCW		
  value=getProperty("ENABLE_CW_BUTTONS");		
  if(value) ENABLE_CW_BUTTONS=atoi(value);		
+ value=getProperty("CW_ACTIVE_LOW");		
+ if(value) CW_ACTIVE_LOW=atoi(value);		
  value=getProperty("CWL_BUTTON");		
  if(value) CWL_BUTTON=atoi(value);		
  value=getProperty("CWR_BUTTON");		
@@ -956,6 +959,8 @@ void gpio_save_state() {
 #ifdef LOCALCW		
  sprintf(value,"%d",ENABLE_CW_BUTTONS);		
  setProperty("ENABLE_CW_BUTTONS",value);		
+ sprintf(value,"%d",CW_ACTIVE_LOW);		
+ setProperty("CW_ACTIVE_LOW",value);		
  sprintf(value,"%d",CWL_BUTTON);		
  setProperty("CWL_BUTTON",value);		
  sprintf(value,"%d",CWR_BUTTON);		
@@ -988,12 +993,9 @@ fprintf(stderr,"setup_encoder_pin: pin=%d updown=%d\n",pin,up_down);
 
 #ifdef LOCALCW
 
-// Note we cannot use debouncing, as after the first interrupt,
-// we might read the wrong level. So we process all interrupts
-// to the keyer.
-// The only way to do proper debouncing is to record the wall-clock time
-// of the last state change of each of the two buttons, and
-// disable further state changes for a short time (5 msec)
+//
+// We generate interrupts only on falling edge
+//
 
 static void setup_cw_pin(int pin, void(*pAlert)(void)) {
    fprintf(stderr,"setup_cw_pin: pin=%d \n",pin);
@@ -1008,7 +1010,8 @@ static void cwAlert_left() {
     if (cw_keyer_internal != 0) return; // as quickly as possible
     level=digitalRead(CWL_BUTTON);
     //fprintf(stderr,"cwl button : level=%d \n",level);
-    keyer_event(CWL_BUTTON, cw_active_level == 0 ? level : (level==0));
+    //the second parameter of keyer_event ("state") is TRUE on key-down
+    keyer_event(CWL_BUTTON, CW_ACTIVE_LOW ? (level==0) : level);
 }
 
 static void cwAlert_right() {
@@ -1016,9 +1019,21 @@ static void cwAlert_right() {
     if (cw_keyer_internal != 0) return; // as quickly as possible
     level=digitalRead(CWR_BUTTON);
     //fprintf(stderr,"cwr button : level=%d \n",level);
-     keyer_event(CWR_BUTTON, cw_active_level == 0 ? level : (level==0));
+     keyer_event(CWR_BUTTON, CW_ACTIVE_LOW ? (level==0) : level);
 }
 
+//
+// Two functions added, might be useful somewhere
+//
+int gpio_left_cw_key() {
+  int val=digitalRead(CWL_BUTTON);
+  return CW_ACTIVE_LOW? (val==0) : val;
+}
+
+int gpio_right_cw_key() {
+  int val=digitalRead(CWR_BUTTON);
+  return CW_ACTIVE_LOW? (val==0) : val;
+}
 #endif
 
 int gpio_init() {
