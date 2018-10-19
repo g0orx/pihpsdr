@@ -202,7 +202,7 @@ void cw_menu(GtkWidget *parent) {
   gtk_widget_show(cw_keyer_sidetone_level_label);
   gtk_grid_attach(GTK_GRID(grid),cw_keyer_sidetone_level_label,0,7,1,1);
 
-  GtkWidget *cw_keyer_sidetone_level_b=gtk_spin_button_new_with_range(1.0,protocol==NEW_PROTOCOL?255.0:127.0,1.0);
+  GtkWidget *cw_keyer_sidetone_level_b=gtk_spin_button_new_with_range(0.0,protocol==NEW_PROTOCOL?255.0:127.0,1.0);
   //gtk_widget_override_font(cw_keyer_sidetone_level_b, pango_font_description_from_string("Arial 18"));
   gtk_spin_button_set_value(GTK_SPIN_BUTTON(cw_keyer_sidetone_level_b),(double)cw_keyer_sidetone_volume);
   gtk_widget_show(cw_keyer_sidetone_level_b);

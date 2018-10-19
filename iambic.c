@@ -162,7 +162,7 @@ void keyer_event(int gpio, int state) {
 	// PTT has been engaged manually
         if (running && !cwvox && !mox) {
 	   g_idle_add(ext_mox_update, (gpointer)(long) 1);
-           cwvox=(int) cw_breakin;
+           cwvox=(int) cw_keyer_hang_time;
 	}
     }
     if (gpio == CWL_BUTTON)
@@ -222,7 +222,7 @@ fprintf(stderr,"keyer_thread  state running= %d\n", running);
 	// If MOX still hanging, continue spinnning/checking and decrement cwvox
 
         while (key_state != EXITLOOP || cwvox > 0) {
-          if (cwvox > 0 && key_state != EXITLOOP && key_state != CHECK) cwvox=(int) cw_breakin;
+          if (cwvox > 0 && key_state != EXITLOOP && key_state != CHECK) cwvox=(int) cw_keyer_hang_time;
 	  switch (key_state) {
 	    case EXITLOOP:
 		if (cwvox >0) cwvox--;
