@@ -217,7 +217,6 @@ int cw_keyer_ptt_delay=20; // 0-255ms
 int cw_keyer_hang_time=300; // ms
 int cw_keyer_sidetone_frequency=400; // Hz
 int cw_breakin=1; // 0=disabled 1=enabled
-int cw_active_level=1; // 0=active_low 1=active_high
 
 int vfo_encoder_divisor=15;
 
@@ -1170,8 +1169,6 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     value=getProperty("cw_keyer_internal");
     if(value) cw_keyer_internal=atoi(value);
 #endif
-    value=getProperty("cw_active_level");
-    if(value) cw_active_level=atoi(value);
     value=getProperty("cw_keyer_sidetone_volume");
     if(value) cw_keyer_sidetone_volume=atoi(value);
     value=getProperty("cw_keyer_ptt_delay");
@@ -1373,8 +1370,6 @@ void radioSaveState() {
     setProperty("cw_keyer_spacing",value);
     sprintf(value,"%d",cw_keyer_internal);
     setProperty("cw_keyer_internal",value);
-    sprintf(value,"%d",cw_active_level);
-    setProperty("cw_active_level",value);
     sprintf(value,"%d",cw_keyer_sidetone_volume);
     setProperty("cw_keyer_sidetone_volume",value);
     sprintf(value,"%d",cw_keyer_ptt_delay);

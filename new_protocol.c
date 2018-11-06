@@ -287,14 +287,6 @@ void tuner_changed() {
 }
 */
 
-void cw_changed() {
-#ifdef LOCALCW
-    // update the iambic keyer params
-    if (cw_keyer_internal == 0)
-        keyer_update();
-#endif
-}
-
 void new_protocol_init(int pixels) {
     int i;
     int rc;
@@ -568,8 +560,6 @@ static void new_protocol_high_priority() {
         // set the ptt if we're not in breakin mode and mox is on
         if(cw_breakin == 0 && getMox()) high_priority_buffer_to_radio[4]|=0x02;
         high_priority_buffer_to_radio[5]|=(keyer_out) ? 0x01 : 0;
-        //high_priority_buffer_to_radio[5]|=(*kdot) ? 0x02 : 0;
-        //high_priority_buffer_to_radio[5]|=(*kdash) ? 0x04 : 0;
         high_priority_buffer_to_radio[5]|=(key_state==SENDDOT) ? 0x02 : 0;
         high_priority_buffer_to_radio[5]|=(key_state==SENDDASH) ? 0x04 : 0;
       }

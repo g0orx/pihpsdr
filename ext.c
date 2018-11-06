@@ -36,11 +36,10 @@
 
 // The following calls functions can be called usig g_idle_add
 
-// DL1YCF: added interface for mode change, to be used by rigctl
-//         (MD command)
 int ext_vfo_mode_changed(void * data)
 {
-  vfo_mode_changed((int) (long) data);
+  int mode=(uintptr_t) data;
+  vfo_mode_changed(mode);
   return 0;
 }
 
@@ -52,9 +51,6 @@ int ext_discovery(void *data) {
 int ext_set_frequency(void *data) {
   setFrequency(*(long long *)data);
   free(data);
-  // DL1YCF added return statement
-  // this one is CRITICAL to avoid free() being called 
-  // repeatedly on the same pointer
   return 0;
 }
 
@@ -141,20 +137,6 @@ int ext_radio_change_sample_rate(void *data) {
   return 0;
 }
 
-// DL1YCF: because of the new CW algorithm,
-//         this function is no longer used
-int ext_cw_setup() {
-  radio_cw_setup();
-  return 0;
-}
-
-// DL1YCF: because of the new CW algorithm,
-//         this function is no longer used
-int ext_cw_key(void *data) {
-  radio_cw_key((uintptr_t)data);
-  return 0;
-}
-
 int ext_update_squelch(void *data) {
   set_squelch(active_receiver);
   return 0;
@@ -167,7 +149,8 @@ int ext_sliders_update(void *data) {
 
 #ifdef PURESIGNAL
 int ext_tx_set_ps(void *data) {
-  tx_set_ps(transmitter,(uintptr_t)data);
+  int state=(uintptr_t) data;
+  tx_set_ps(transmitter, state);
   return 0;
 }
 #endif

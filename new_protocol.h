@@ -81,7 +81,6 @@ extern void new_protocol_run();
 extern void filter_board_changed();
 extern void pa_changed();
 extern void tuner_changed();
-extern void cw_changed();
 
 extern void setMox(int state);
 extern int getMox();

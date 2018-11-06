@@ -33,12 +33,21 @@
 #include "receiver.h"
 #include "new_protocol.h"
 #include "old_protocol.h"
+#include "iambic.h"
 
 static GtkWidget *parent_window=NULL;
 
 static GtkWidget *menu_b=NULL;
 
 static GtkWidget *dialog=NULL;
+
+void cw_changed() {
+// inform the local keyer about CW parameter changes
+// (only if LOCALCW is active).
+#ifdef LOCALCW
+  keyer_update();
+#endif
+}
 
 static void cleanup() {
   if(dialog!=NULL) {
@@ -63,8 +72,8 @@ static void cw_keyer_internal_cb(GtkWidget *widget, gpointer data) {
   cw_changed();
 }
 
-static void cw_active_level_cb(GtkWidget *widget, gpointer data) {
-  cw_active_level=cw_active_level==1?0:1;
+static void cw_keyer_spacing_cb(GtkWidget *widget, gpointer data) {
+  cw_keyer_spacing=cw_keyer_spacing==1?0:1;
   cw_changed();
 }
 
@@ -207,7 +216,7 @@ void cw_menu(GtkWidget *parent) {
   gtk_widget_show(cw_keyer_sidetone_level_label);
   gtk_grid_attach(GTK_GRID(grid),cw_keyer_sidetone_level_label,0,7,1,1);
 
-  GtkWidget *cw_keyer_sidetone_level_b=gtk_spin_button_new_with_range(1.0,protocol==NEW_PROTOCOL?255.0:127.0,1.0);
+  GtkWidget *cw_keyer_sidetone_level_b=gtk_spin_button_new_with_range(0.0,protocol==NEW_PROTOCOL?255.0:127.0,1.0);
   //gtk_widget_override_font(cw_keyer_sidetone_level_b, pango_font_description_from_string("Arial 18"));
   gtk_spin_button_set_value(GTK_SPIN_BUTTON(cw_keyer_sidetone_level_b),(double)cw_keyer_sidetone_volume);
   gtk_widget_show(cw_keyer_sidetone_level_b);
@@ -240,18 +249,16 @@ void cw_menu(GtkWidget *parent) {
 
 #ifdef LOCALCW
   GtkWidget *cw_keyer_internal_b=gtk_check_button_new_with_label("CW Internal");
-  //gtk_widget_override_font(cw_keyer_internal_b, pango_font_description_from_string("Arial 18"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (cw_keyer_internal_b), cw_keyer_internal);
   gtk_widget_show(cw_keyer_internal_b);
   gtk_grid_attach(GTK_GRID(grid),cw_keyer_internal_b,0,10,1,1);
   g_signal_connect(cw_keyer_internal_b,"toggled",G_CALLBACK(cw_keyer_internal_cb),NULL);
 
-  GtkWidget *cw_active_level_b=gtk_check_button_new_with_label("CW Local Active_Low");
-  //gtk_widget_override_font(cw_active_level_b, pango_font_description_from_string("Arial 18"));
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (cw_active_level_b), cw_active_level==0);
-  gtk_widget_show(cw_active_level_b);
-  gtk_grid_attach(GTK_GRID(grid),cw_active_level_b,1,10,1,1);
-  g_signal_connect(cw_active_level_b,"toggled",G_CALLBACK(cw_active_level_cb),NULL);
+  GtkWidget *cw_keyer_spacing_b=gtk_check_button_new_with_label("CW enforce letter spacing");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (cw_keyer_spacing_b), cw_keyer_spacing);
+  gtk_widget_show(cw_keyer_spacing_b);
+  gtk_grid_attach(GTK_GRID(grid),cw_keyer_spacing_b,0,11,1,1);
+  g_signal_connect(cw_keyer_spacing_b,"toggled",G_CALLBACK(cw_keyer_spacing_cb),NULL);
 #endif
 
   gtk_container_add(GTK_CONTAINER(content),grid);
@@ -261,4 +268,3 @@ void cw_menu(GtkWidget *parent) {
   gtk_widget_show_all(dialog);
 
 }
-

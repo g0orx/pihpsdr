@@ -79,6 +79,9 @@ void saveProperties(char* filename) {
     FILE* f=fopen(filename,"w+");
     char line[512];
     char version[32];
+
+    //fprintf(stderr,"saveProperties: %s\n",filename);
+
     if(!f) {
         fprintf(stderr,"can't open %s\n",filename);
         return;
