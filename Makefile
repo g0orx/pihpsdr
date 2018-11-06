@@ -141,14 +141,9 @@ endif
 
 ifeq ($(LOCALCW_INCLUDE),LOCALCW)
 LOCALCW_OPTIONS=-D LOCALCW
-LOCALCW_SOURCES= \
-beep.c \
-iambic.c
-LOCALCW_HEADERS= \
-beep.h \
-iambic.h
-LOCALCW_OBJS= \
-iambic.o
+LOCALCW_SOURCES= iambic.c
+LOCALCW_HEADERS= iambic.h
+LOCALCW_OBJS   = iambic.o
 endif
 
 ifeq ($(GPIO_INCLUDE),GPIO)

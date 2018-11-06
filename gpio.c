@@ -29,9 +29,6 @@
 #include <poll.h>
 #include <sched.h>
 #include <wiringPi.h>
-#ifdef LOCALCW
-#include <softTone.h>
-#endif
 #include <semaphore.h>
 
 #include "band.h"
@@ -1011,7 +1008,7 @@ static void cwAlert_left() {
     level=digitalRead(CWL_BUTTON);
     //fprintf(stderr,"cwl button : level=%d \n",level);
     //the second parameter of keyer_event ("state") is TRUE on key-down
-    keyer_event(CWL_BUTTON, CW_ACTIVE_LOW ? (level==0) : level);
+    keyer_event(1, CW_ACTIVE_LOW ? (level==0) : level);
 }
 
 static void cwAlert_right() {
@@ -1019,11 +1016,13 @@ static void cwAlert_right() {
     if (cw_keyer_internal != 0) return; // as quickly as possible
     level=digitalRead(CWR_BUTTON);
     //fprintf(stderr,"cwr button : level=%d \n",level);
-     keyer_event(CWR_BUTTON, CW_ACTIVE_LOW ? (level==0) : level);
+     keyer_event(0, CW_ACTIVE_LOW ? (level==0) : level);
 }
 
 //
-// Two functions added, might be useful somewhere
+// The following functions are an interface for
+// other parts to access CW gpio functions
+// (query left and right paddle, set sidetone output)
 //
 int gpio_left_cw_key() {
   int val=digitalRead(CWL_BUTTON);
@@ -1033,6 +1032,16 @@ int gpio_left_cw_key() {
 int gpio_right_cw_key() {
   int val=digitalRead(CWR_BUTTON);
   return CW_ACTIVE_LOW? (val==0) : val;
+}
+
+int gpio_cw_sidetone_enabled() {
+  return ENABLE_GPIO_SIDETONE;
+}
+
+void gpio_cw_sidetone_set(int level) {
+  if (ENABLE_GPIO_SIDETONE) {
+    digitalWrite(SIDETONE_GPIO, level);
+  }
 }
 #endif
 
@@ -1167,7 +1176,12 @@ int gpio_init() {
     setup_cw_pin(CWR_BUTTON, cwAlert_right);
   }
   if (ENABLE_GPIO_SIDETONE) {
-    softToneCreate(SIDETONE_GPIO);
+//
+//  use this pin as an output pin and
+//  set its value to LOW
+//
+    pinMode(SIDETONE_GPIO, OUTPUT);
+    digitalWrite(SIDETONE_GPIO, 0);
   }
 #endif
 
@@ -1177,14 +1191,6 @@ int gpio_init() {
 void gpio_close() {
     running=0;
 }
-
-#ifdef LOCALCW
-void gpio_sidetone(int freq) {
-  if (ENABLE_GPIO_SIDETONE) {
-    softToneWrite (SIDETONE_GPIO, freq);
-  }
-}
-#endif
 
 int vfo_encoder_get_pos() {
   int pos=vfoEncoderPos;
@@ -1466,12 +1472,9 @@ static int e4_encoder_changed(void *data) {
 static gpointer rotary_encoder_thread(gpointer data) {
     int pos;
 
-    // ignore startup glitches
     sleep(2);
 
-    //g_mutex_lock(&m_running);
     running=1;
-    //g_mutex_unlock(&m_running);
     while(1) {
 
         pos=vfo_encoder_get_pos();
@@ -1514,17 +1517,12 @@ static gpointer rotary_encoder_thread(gpointer data) {
         mox_state = 0;
         lock_state = 0;
 #endif
-//fprintf(stderr,"gpio_thread: lock\n");
-        //g_mutex_lock(&m_running);
         if(running==0) {
-fprintf(stderr,"gpio_thread: unlock (running==0)\n");
-          //g_mutex_unlock(&m_running);
+          fprintf(stderr,"gpio_thread: quitting (running==0)\n");
           g_thread_exit(NULL);
         }
         usleep(100000);
 
-//fprintf(stderr,"gpio_thread: unlock (running==1)\n");
-        //g_mutex_unlock(&m_running);
     }
     return NULL;
 }

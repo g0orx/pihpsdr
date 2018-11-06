@@ -297,6 +297,7 @@ int vfo_sm=0;   // VFO State Machine - this keeps track of
 
 static char cw_buf[30];
 static int  cw_busy=0;
+static int  cat_cw_seen=0;
 
 static long dotlen;
 static long dashlen;
@@ -317,45 +318,54 @@ extern int cw_key_up, cw_key_down, cw_not_ready;
 //
 void send_dash() {
   int TimeToGo;
-  if (cw_key_hit || cw_not_ready) return;
   for(;;) {
     TimeToGo=cw_key_up+cw_key_down;
+    // TimeToGo is invalid if local CW keying has set in
+    if (cw_key_hit || cw_not_ready) return;
     if (TimeToGo == 0) break;
     // sleep until 10 msec before ignition
     if (TimeToGo > 500) usleep((long)(TimeToGo-500)*20L);
     // sleep 1 msec
     usleep(1000L);
   }
+  // If local CW keying has set in, do not interfere
+  if (cw_key_hit || cw_not_ready) return;
   cw_key_down = dashsamples;
   cw_key_up   = dotsamples;
 }
 
 void send_dot() {
   int TimeToGo;
-  if (cw_key_hit || cw_not_ready) return;
   for(;;) {
     TimeToGo=cw_key_up+cw_key_down;
+    // TimeToGo is invalid if local CW keying has set in
+    if (cw_key_hit || cw_not_ready) return;
     if (TimeToGo == 0) break;
     // sleep until 10 msec before ignition
     if (TimeToGo > 500) usleep((long)(TimeToGo-500)*20L);
     // sleep 1 msec
     usleep(1000L);
   }
+  // If local CW keying has set in, do not interfere
+  if (cw_key_hit || cw_not_ready) return;
   cw_key_down = dotsamples;
   cw_key_up   = dotsamples;
 }
 
 void send_space(int len) {
   int TimeToGo;
-  if (cw_key_hit || cw_not_ready) return;
   for(;;) {
     TimeToGo=cw_key_up+cw_key_down;
+    // TimeToGo is invalid if local CW keying has set in
+    if (cw_key_hit || cw_not_ready) return;
     if (TimeToGo == 0) break;
     // sleep until 10 msec before ignition
     if (TimeToGo > 500) usleep((long)(TimeToGo-500)*20L);
     // sleep 1 msec
     usleep(1000L);
   }
+  // If local CW keying has set in, do not interfere
+  if (cw_key_hit || cw_not_ready) return;
   cw_key_up = len*dotsamples;
 }
 
@@ -481,16 +491,15 @@ void rigctl_send_cw_char(char cw_char) {
 //
 // This thread constantly looks whether CW data
 // is available, and produces CW in this case.
-// The buffer is copied to a local buffer and
-// immediately released, such that the next
-// chunk can already be prepeared. This way,
-// splitting a large CW text into words, and
-// sending each word with a separate KY command
-// produces perfectly readable CW.
 //
-// UPDATE: we maintain a ring buffer such that
-//         the contents of several KY commands
-//         can be buffered
+// A ring buffer is maintained such that the contents
+// of several KY commands can be buffered. This allows
+// sending a large CW text word-by-word (each word in a
+// separate KY command).
+//
+// If the contents of the last KY command do not fit into
+// the ring buffer, cw_busy is NOT reset. Eventually, there
+// is enough space in the ring buffer, then cw_busy is reset.
 //
 static gpointer rigctl_cw_thread(gpointer data)
 { 
@@ -504,15 +513,14 @@ static gpointer rigctl_cw_thread(gpointer data)
   int  num_buf=0;
   
   while (server_running) {
-    // wait for cw_buf become filled with data
-    // (periodically look every 100 msec)
+    // wait for CW data (periodically look every 100 msec)
     if (!cw_busy && num_buf ==0) {
       cw_key_hit=0;
       usleep(100000L);
       continue;
     }
 
-    // if new data available and space in buffer, copy it
+    // if new data is available and fits into the buffer, copy-in.
     // If there are several adjacent spaces, take only the first one.
     // This also swallows the "tails" of the KY commands which
     // (according to Kenwood) have to be padded with spaces up
@@ -527,7 +535,7 @@ static gpointer rigctl_cw_thread(gpointer data)
         num_buf++;
         if (write_buf - ring_buf == 128) write_buf=ring_buf;  // wrap around
       }
-      cw_busy=0; // mark buffer free again
+      cw_busy=0; // mark one-line buffer free again
     }
 
     // these values may have changed, so recompute them here
@@ -552,29 +560,29 @@ static gpointer rigctl_cw_thread(gpointer data)
 	    CAT_cw_is_active=0;
 	    continue;
 	}
-	// some extra time to settle down, in order NOT to loose
-	// the first dit or dah
-        usleep(100000L);
     }
     // At this point, mox==1 and CAT_cw_active == 1
     if (cw_key_hit || cw_not_ready) {
        //
        // CW transmission has been aborted, either due to manually
        // removing MOX, changing the mode to non-CW, or because a CW key has been hit.
-       // Do not remove PTT if we abort CAT CW because a CW key has been hit.
+       // Do not remove PTT in the latter case
        CAT_cw_is_active=0;
-       // If an external CW key has been hit, we continue in TX mode
-       // doing CW manually. Otherwise, switch PTT off.
-       if (!cw_key_hit) {
+       // If a CW key has been hit, we continue in TX mode.
+       // Otherwise, switch PTT off.
+       if (!cw_key_hit && mox) {
          g_idle_add(ext_ptt_update ,(gpointer)0);
        }
-       // Stay for 1 sec swallowing incoming
-       // CAT CW commands. We need this long time since
-       // hamlib waits 0.5 secs after receiving a "KY1" message before trying to
-       // send the next bunch
-       cw_busy=-1;      // mark buffer purge situation
-       usleep(1000000L);
-       cw_busy=0;
+       // Let the CAT system swallow incoming CW commands by setting cw_busy to -1.
+       // Do so until no CAT CW message has arrived for 1 second
+       cw_busy=-1;
+       for (;;) {
+         cat_cw_seen=0;
+         usleep(1000000L);
+         if (cat_cw_seen) continue;
+         cw_busy=0;
+         break;
+       }
        write_buf=read_buf=ring_buf;
        num_buf=0;
     } else {
@@ -587,13 +595,16 @@ static gpointer rigctl_cw_thread(gpointer data)
       // Otherwise remove PTT and wait for next CAT CW command.
       if (cw_busy || num_buf > 0) continue;
       CAT_cw_is_active=0;
-      g_idle_add(ext_ptt_update ,(gpointer)0);
-      // wait up to 500 msec for MOX having gone
-      // otherwise there might be a race condition when sending
-      // the next character really soon
-      i=10;
-      while (mox && (i--) > 0) usleep(50000L);
+      if (!cw_key_hit) {
+        g_idle_add(ext_ptt_update ,(gpointer)0);
+        // wait up to 500 msec for MOX having gone
+        // otherwise there might be a race condition when sending
+        // the next character really soon
+        i=10;
+        while (mox && (i--) > 0) usleep(50000L);
+      }
     }
+    // end of while (server_running)
   }
   // We arrive here if the rigctl server shuts down.
   // This very rarely happens. But we should shut down the
@@ -601,8 +612,10 @@ static gpointer rigctl_cw_thread(gpointer data)
   // of a transmission
   rigctl_cw_thread_id = NULL;
   cw_busy=0;
-  CAT_cw_is_active=0;
-  g_idle_add(ext_ptt_update ,(gpointer)0);
+  if (CAT_cw_is_active) {
+    CAT_cw_is_active=0;
+    g_idle_add(ext_ptt_update ,(gpointer)0);
+  }
   return NULL;
 }
 
@@ -2204,6 +2217,7 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                           }  
         else if((strcmp(cmd_str,"KY")==0) && (zzid_flag == 0))
 				    { 
+					if (cw_busy < 0) cat_cw_seen=1;
 					// DL1YCF:
 					// Hamlib produces timeout errors if we are busy here for
 					// seconds. Therefore we just move the data into a buffer

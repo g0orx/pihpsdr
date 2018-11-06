@@ -80,7 +80,7 @@ void saveProperties(char* filename) {
     char line[512];
     char version[32];
 
-    fprintf(stderr,"saveProperties: %s\n",filename);
+    //fprintf(stderr,"saveProperties: %s\n",filename);
 
     if(!f) {
         fprintf(stderr,"can't open %s\n",filename);
