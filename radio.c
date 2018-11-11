@@ -154,6 +154,7 @@ int alc=TXA_ALC_AV;
 double tone_level=0.2;
 
 int filter_board=ALEX;
+int use_tcp=0;
 //int pa=PA_ENABLED;
 //int apollo_tuner=0;
 
@@ -1103,6 +1104,8 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     if(value) tx_out_of_band=atoi(value);
     value=getProperty("filter_board");
     if(value) filter_board=atoi(value);
+    value=getProperty("use_tcp");
+    if(value) use_tcp=atoi(value);
 /*
     value=getProperty("apollo_tuner");
     if(value) apollo_tuner=atoi(value);
@@ -1315,6 +1318,8 @@ void radioSaveState() {
     setProperty("atlas_penelope",value);
     sprintf(value,"%d",filter_board);
     setProperty("filter_board",value);
+    sprintf(value,"%d",use_tcp);
+    setProperty("use_tcp",value);
     sprintf(value,"%d",tx_out_of_band);
     setProperty("tx_out_of_band",value);
     sprintf(value,"%d",updates_per_second);

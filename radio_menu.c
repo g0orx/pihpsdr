@@ -41,6 +41,8 @@ static GtkWidget *menu_b=NULL;
 
 static GtkWidget *dialog=NULL;
 
+static GtkWidget *use_tcp_b=NULL;
+
 static void cleanup() {
   if(dialog!=NULL) {
     gtk_widget_destroy(dialog);
@@ -116,6 +118,11 @@ static void load_filters(void) {
     }
   }
   att_type_changed();
+  if (filter_board == CHARLY25) {
+    if (use_tcp_b) gtk_widget_show(use_tcp_b);
+  } else {
+    if (use_tcp_b) gtk_widget_hide(use_tcp_b);
+  }
 }
 
 static void none_cb(GtkWidget *widget, gpointer data) {
@@ -136,6 +143,20 @@ static void apollo_cb(GtkWidget *widget, gpointer data) {
   if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
     filter_board = APOLLO;
     load_filters();
+  }
+}
+
+static void use_tcp_cb(GtkWidget *widget, gpointer data) {
+  if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
+    use_tcp = 1;
+    if (protocol==ORIGINAL_PROTOCOL) {
+	old_protocol_stop();
+	old_protocol_run();
+    }
+  } else {
+    // This becomes active upon next restart
+    // The current session will continue using TCP
+    use_tcp = 0;
   }
 }
 
@@ -347,30 +368,39 @@ void radio_menu(GtkWidget *parent) {
       x++;
     }
 
+    GtkWidget *sample_rate_label=gtk_label_new("Filter Board:");
+    gtk_grid_attach(GTK_GRID(grid),sample_rate_label,x,1,1,1);
+
     GtkWidget *none_b = gtk_radio_button_new_with_label(NULL, "NONE");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(none_b), filter_board == NONE);
-    gtk_grid_attach(GTK_GRID(grid), none_b, x, 1, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), none_b, x, 2, 1, 1);
 
     GtkWidget *alex_b = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(none_b), "ALEX");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(alex_b), filter_board == ALEX);
-    gtk_grid_attach(GTK_GRID(grid), alex_b, x, 2, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), alex_b, x, 3, 1, 1);
 
     GtkWidget *apollo_b = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(none_b), "APOLLO");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(apollo_b), filter_board == APOLLO);
-    gtk_grid_attach(GTK_GRID(grid), apollo_b, x, 3, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), apollo_b, x, 4, 1, 1);
 
     GtkWidget *charly25_b = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(none_b), "CHARLY25");
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(charly25_b), filter_board == CHARLY25);
-    gtk_grid_attach(GTK_GRID(grid), charly25_b, x, 4, 1, 1);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(charly25_b), filter_board==CHARLY25);
+    gtk_grid_attach(GTK_GRID(grid), charly25_b, x, 5, 1, 1);
 
     g_signal_connect(none_b, "toggled", G_CALLBACK(none_cb), NULL);
     g_signal_connect(alex_b, "toggled", G_CALLBACK(alex_cb), NULL);
     g_signal_connect(apollo_b, "toggled", G_CALLBACK(apollo_cb), NULL);
     g_signal_connect(charly25_b, "toggled", G_CALLBACK(charly25_cb), NULL);
 
+    if (protocol == ORIGINAL_PROTOCOL) {
+      use_tcp_b = gtk_check_button_new_with_label("Use TCP not UDP");
+      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(use_tcp_b), use_tcp==1);
+      gtk_grid_attach(GTK_GRID(grid), use_tcp_b, x, 6, 1, 1);
+      g_signal_connect(use_tcp_b, "toggled", G_CALLBACK(use_tcp_cb), NULL);
+    }
+
     x++;
   }
-
 
   GtkWidget *rit_label=gtk_label_new("RIT step (Hz): ");
   gtk_grid_attach(GTK_GRID(grid),rit_label,x,1,1,1);
@@ -447,5 +477,7 @@ void radio_menu(GtkWidget *parent) {
   sub_menu=dialog;
 
   gtk_widget_show_all(dialog);
+  // Only show this buttion if the C25 filter board is selected
+  if (filter_board != CHARLY25) gtk_widget_hide(use_tcp_b);
 
 }

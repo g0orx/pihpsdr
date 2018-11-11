@@ -106,6 +106,7 @@ extern int tx_leveler;
 extern double tone_level;
 
 extern int filter_board;
+extern int use_tcp;
 extern int pa;
 extern int apollo_tuner;
 

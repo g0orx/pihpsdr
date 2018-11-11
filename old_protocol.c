@@ -118,6 +118,7 @@ static int dsp_rate=48000;
 static int output_rate=48000;
 
 static int data_socket;
+static int tcp_socket=-1;
 static struct sockaddr_in data_addr;
 static int data_addr_length;
 
@@ -342,16 +343,26 @@ static void start_receive_thread() {
       if(setsockopt(data_socket, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval))<0) {
         perror("data_socket: SO_REUSEPORT");
       }
-
-/*
+      optval=0xffff;
+      if (setsockopt(data_socket, SOL_SOCKET, SO_SNDBUF, &optval, sizeof(optval))<0) {
+        perror("tcp_socket: SO_SNDBUF");
+      }
+      if (setsockopt(data_socket, SOL_SOCKET, SO_RCVBUF, &optval, sizeof(optval))<0) {
+        perror("tcp_socket: SO_RCVBUF");
+      }
+      //
       // set a timeout for receive
+      // This is necessary because we might already "sit" in an UDP recvfrom() call while
+      // instructing the radio to switch to TCP. Then this call has to finish eventually
+      // and the next recvfrom() then uses the TCP socket.
+      //
       struct timeval tv;
       tv.tv_sec=1;
       tv.tv_usec=0;
       if(setsockopt(data_socket, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv))<0) {
         perror("data_socket: SO_RCVTIMEO");
       }
-*/
+
       // bind to the interface
       if(bind(data_socket,(struct sockaddr*)&radio->info.network.interface_address,radio->info.network.interface_length)<0) {
         perror("old_protocol: bind socket failed for data_socket\n");
@@ -379,6 +390,7 @@ static gpointer receive_thread(gpointer arg) {
   socklen_t length;
   unsigned char buffer[2048];
   int bytes_read;
+  int ret,left;
   int ep;
   long sequence;
 
@@ -396,13 +408,27 @@ static gpointer receive_thread(gpointer arg) {
 #endif
 
       default:
-        bytes_read=recvfrom(data_socket,buffer,sizeof(buffer),0,(struct sockaddr*)&addr,&length);
-        if(bytes_read<0) {
-          if(errno==EAGAIN) {
-            error_handler("old_protocol: receiver_thread: recvfrom socket failed","Radio not sending data");
-          } else {
-            error_handler("old_protocol: receiver_thread: recvfrom socket failed",strerror(errno));
-          }
+	for (;;) {
+          if (tcp_socket >= 0) {
+	    // TCP messages may be split, so collect exactly 1032 bytes.
+	    // Remember, this is a STREAMING protocol.
+            bytes_read=0;
+            left=1032;
+            while ((ret=recvfrom(tcp_socket,buffer+bytes_read,(size_t)(left),0,NULL,0))) {
+              if (ret < 0 && errno == EAGAIN) continue; // time-out
+              if (ret < 0) break;                       // error
+              bytes_read += ret;
+              left -= ret;
+              if (left <= 0) break;
+            }
+	    if (ret < 0) bytes_read=ret;                // error case: discard whole packet
+	  } else {
+            bytes_read=recvfrom(data_socket,buffer,sizeof(buffer),0,(struct sockaddr*)&addr,&length);
+          } 
+          if(bytes_read >= 0 || errno != EAGAIN) break;
+	}
+        if(bytes_read < 0) {
+          error_handler("old_protocol: receiver_thread: recvfrom socket failed",strerror(errno));
           running=0;
           continue;
         }
@@ -416,7 +442,9 @@ static gpointer receive_thread(gpointer arg) {
               // get the sequence number
               sequence=((buffer[4]&0xFF)<<24)+((buffer[5]&0xFF)<<16)+((buffer[6]&0xFF)<<8)+(buffer[7]&0xFF);
 
-              if (sequence != last_seq_num+1) {
+	      // A sequence error with a seqnum of zero usually indicates a METIS restart
+	      // and is no error condition
+              if (sequence != 0 && sequence != last_seq_num+1) {
 		fprintf(stderr,"SEQ ERROR: last %ld, recvd %ld\n", last_seq_num, sequence);
 	      }
 	      last_seq_num=sequence;
@@ -1399,11 +1427,16 @@ static void metis_restart() {
   sleep(1);
 
   // start the data flowing
-  metis_start_stop(1);
+  if (use_tcp && filter_board == CHARLY25) {
+    metis_start_stop(0x11);
+  } else {
+    metis_start_stop(1);
+  }
 }
 
 static void metis_start_stop(int command) {
   int i;
+  int tmp;
   unsigned char buffer[64];
     
 #ifdef USBOZY
@@ -1421,14 +1454,72 @@ static void metis_start_stop(int command) {
   }
 
   metis_send_buffer(buffer,sizeof(buffer));
+
+  //
+  // If the "start" command reads 0x11 instead of 1, and no TCP socket has
+  // been connected so far, then connect to a TCP socket with the same port
+  // number and address. Some Red-Pitaya based HPSDR emulators offer a
+  // TCP-based protocol this way. Note one cannot go back to UDP unless one
+  // restart the HPSDR app on the RedPitaya.
+  //
+  // Note that the variable tcp_socket must be set LATER to the value of
+  // the socket, such that the receive thread does not try to use this socket
+  // before it is fully functional.
+  //
+  // All subsequent METIS_SEND commands also use the TCP socket if it is
+  // activated.
+  //
+  // The RedPitaya HPSDR application does never switch back to UPD unless restarted,
+  // therefore there is no possibility to switch back.
+  //
+  tmp=tcp_socket;
+  if (command == 0x11 && tcp_socket < 0) {
+    tmp=socket(AF_INET, SOCK_STREAM, 0);
+    if (connect(tmp,(const struct sockaddr *)&data_addr,data_addr_length) < 0) {
+      perror("tcp_socket: connect");
+    }
+    int optval = 1;
+    if(setsockopt(tmp, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval))<0) {
+      perror("tcp_socket: SO_REUSEADDR");
+    }
+    if(setsockopt(tmp, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval))<0) {
+      perror("tcp_socket: SO_REUSEPORT");
+    }
+    optval=0xffff;
+    if (setsockopt(tmp, SOL_SOCKET, SO_SNDBUF, &optval, sizeof(optval))<0) {
+      perror("tcp_socket: SO_SNDBUF");
+    }
+    if (setsockopt(tmp, SOL_SOCKET, SO_RCVBUF, &optval, sizeof(optval))<0) {
+      perror("tcp_socket: SO_RCVBUF");
+    }
+    //
+    // set a timeout for receive
+    // This is necessary because we might already "sit" in and TCP recvfrom() call while
+    // restarting METIS with UDP
+    //
+    struct timeval tv;
+    tv.tv_sec=1;
+    tv.tv_usec=0;
+    if(setsockopt(tmp, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv))<0) {
+        perror("tcp_socket: SO_RCVTIMEO");
+    }
+    tcp_socket=tmp; // this switches the receive thread to using TCP
+  }
+
 #ifdef USBOZY
   }
 #endif
 }
 
 static void metis_send_buffer(unsigned char* buffer,int length) {
-  if(sendto(data_socket,buffer,length,0,(struct sockaddr*)&data_addr,data_addr_length)!=length) {
-    perror("sendto socket failed for metis_send_data\n");
+  if (tcp_socket >= 0) {
+    if(sendto(tcp_socket,buffer,length,0,NULL, 0)!=length) {
+      perror("sendto socket failed for metis_send_data\n");
+    }
+  } else {
+    if(sendto(data_socket,buffer,length,0,(struct sockaddr*)&data_addr,data_addr_length)!=length) {
+      perror("sendto socket failed for metis_send_data\n");
+    }
   }
 }
 
