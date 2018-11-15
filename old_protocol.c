@@ -1380,17 +1380,18 @@ static int metis_write(unsigned char ep,unsigned char* buffer,int length) {
     metis_buffer[5]=(send_sequence>>16)&0xFF;
     metis_buffer[6]=(send_sequence>>8)&0xFF;
     metis_buffer[7]=(send_sequence)&0xFF;
-    send_sequence++;
-
 
     //
     // When using UDP, the buffer will ALWAYS be sent. However, when using TCP,
     // we must be able to suppress sending buffers HERE asynchronously
     // when we want to sent a METIS start or stop packet. This is so because TCP
     // is a byte stream, and data from two sources might end up interleaved
+    // In order not to confuse the SDR, we increase the sequence number only
+    // for packets actually sent.
     //
     if (!suppress_ozy_packet) {
       // send the buffer
+      send_sequence++;
       metis_send_buffer(&metis_buffer[0],1032);
     }
     metis_offset=8;
