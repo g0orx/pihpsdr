@@ -132,7 +132,8 @@ static double phase=0.0;
 static int running;
 static long ep4_sequence;
 
-static long last_seq_num=-1;
+static uint32_t last_seq_num=-1;
+static int suppress_ozy_packet = 0;
 
 static int current_rx=0;
 
@@ -169,7 +170,7 @@ static void process_bandscope_buffer(char  *buffer);
 void ozy_send_buffer();
 
 static unsigned char metis_buffer[1032];
-static long send_sequence=-1;
+static uint32_t send_sequence=0;
 static int metis_offset=8;
 
 static int metis_write(unsigned char ep,unsigned char* buffer,int length);
@@ -357,8 +358,8 @@ static void start_receive_thread() {
       // and the next recvfrom() then uses the TCP socket.
       //
       struct timeval tv;
-      tv.tv_sec=1;
-      tv.tv_usec=0;
+      tv.tv_sec=0;
+      tv.tv_usec=100000;
       if(setsockopt(data_socket, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv))<0) {
         perror("data_socket: SO_RCVTIMEO");
       }
@@ -392,7 +393,7 @@ static gpointer receive_thread(gpointer arg) {
   int bytes_read;
   int ret,left;
   int ep;
-  long sequence;
+  uint32_t sequence;
 
   fprintf(stderr, "old_protocol: receive_thread\n");
   running=1;
@@ -414,22 +415,25 @@ static gpointer receive_thread(gpointer arg) {
 	    // Remember, this is a STREAMING protocol.
             bytes_read=0;
             left=1032;
-            while ((ret=recvfrom(tcp_socket,buffer+bytes_read,(size_t)(left),0,NULL,0))) {
+            while (left > 0) {
+              ret=recvfrom(tcp_socket,buffer+bytes_read,(size_t)(left),0,NULL,0);
               if (ret < 0 && errno == EAGAIN) continue; // time-out
               if (ret < 0) break;                       // error
               bytes_read += ret;
               left -= ret;
-              if (left <= 0) break;
             }
-	    if (ret < 0) bytes_read=ret;                // error case: discard whole packet
+	    if (ret < 0) {
+	      bytes_read=ret;                          // error case: discard whole packet
+              //perror("old_protocol recvfrom TCP:");
+	    }
 	  } else {
             bytes_read=recvfrom(data_socket,buffer,sizeof(buffer),0,(struct sockaddr*)&addr,&length);
+            //if(bytes_read < 0) perror("old_protocol recvfrom UDP:");
+            if(bytes_read < 0 && errno != EAGAIN) perror("old_protocol recvfrom UDP:");
           } 
           if(bytes_read >= 0 || errno != EAGAIN) break;
 	}
         if(bytes_read < 0) {
-          error_handler("old_protocol: receiver_thread: recvfrom socket failed",strerror(errno));
-          running=0;
           continue;
         }
 
@@ -445,7 +449,7 @@ static gpointer receive_thread(gpointer arg) {
 	      // A sequence error with a seqnum of zero usually indicates a METIS restart
 	      // and is no error condition
               if (sequence != 0 && sequence != last_seq_num+1) {
-		fprintf(stderr,"SEQ ERROR: last %ld, recvd %ld\n", last_seq_num, sequence);
+		fprintf(stderr,"SEQ ERROR: last %ld, recvd %ld\n", (long) last_seq_num, (long) sequence);
 	      }
 	      last_seq_num=sequence;
               switch(ep) {
@@ -1368,7 +1372,6 @@ static int metis_write(unsigned char ep,unsigned char* buffer,int length) {
   if(metis_offset==8) {
     metis_offset=520;
   } else {
-    send_sequence++;
     metis_buffer[0]=0xEF;
     metis_buffer[1]=0xFE;
     metis_buffer[2]=0x01;
@@ -1377,10 +1380,19 @@ static int metis_write(unsigned char ep,unsigned char* buffer,int length) {
     metis_buffer[5]=(send_sequence>>16)&0xFF;
     metis_buffer[6]=(send_sequence>>8)&0xFF;
     metis_buffer[7]=(send_sequence)&0xFF;
+    send_sequence++;
 
 
-    // send the buffer
-    metis_send_buffer(&metis_buffer[0],1032);
+    //
+    // When using UDP, the buffer will ALWAYS be sent. However, when using TCP,
+    // we must be able to suppress sending buffers HERE asynchronously
+    // when we want to sent a METIS start or stop packet. This is so because TCP
+    // is a byte stream, and data from two sources might end up interleaved
+    //
+    if (!suppress_ozy_packet) {
+      // send the buffer
+      metis_send_buffer(&metis_buffer[0],1032);
+    }
     metis_offset=8;
 
   }
@@ -1444,6 +1456,14 @@ static void metis_start_stop(int command) {
   {
 #endif
 
+  if (tcp_socket >=0) {
+    //
+    // Stop the sending of ozy packets (1032-byte-length) and wait a while
+    //
+    suppress_ozy_packet=1;
+    usleep(100000);
+  }
+
   buffer[0]=0xEF;
   buffer[1]=0xFE;
   buffer[2]=0x04;    // start/stop command
@@ -1455,24 +1475,36 @@ static void metis_start_stop(int command) {
 
   metis_send_buffer(buffer,sizeof(buffer));
 
+  if (tcp_socket >=0) {
+    //
+    // Wait a while before resuming sending 1032-byte packets.
+    // This way the SDR TCP receive loop recognizes that a "short" packet
+    // has arrived.
+    // We should only arrive here when sending METIS stop packets. Therefore
+    // we wait even longer to swallow all incoming 1032-byte TCP packets from
+    // the SDR.
+    //
+    usleep(200000);
+    suppress_ozy_packet=0;
+  }
   //
   // If the "start" command reads 0x11 instead of 1, and no TCP socket has
   // been connected so far, then connect to a TCP socket with the same port
   // number and address. Some Red-Pitaya based HPSDR emulators offer a
-  // TCP-based protocol this way. Note one cannot go back to UDP unless one
-  // restart the HPSDR app on the RedPitaya.
+  // TCP-based protocol this way.
   //
   // Note that the variable tcp_socket must be set LATER to the value of
   // the socket, such that the receive thread does not try to use this socket
   // before it is fully functional.
   //
-  // All subsequent METIS_SEND commands also use the TCP socket if it is
-  // activated.
+  // Note that the TCP socket is ONLY used for 1032-byte-packets
   //
-  // The RedPitaya HPSDR application does never switch back to UPD unless restarted,
-  // therefore there is no possibility to switch back.
-  //
-  tmp=tcp_socket;
+  if (command == 0 && tcp_socket >= 0) {
+    // We just have sent a METIS stop in TCP
+    tcp_socket=-1;
+    close(tcp_socket);
+    fprintf(stderr,"TCP socket closed\n");
+  }
   if (command == 0x11 && tcp_socket < 0) {
     tmp=socket(AF_INET, SOCK_STREAM, 0);
     if (connect(tmp,(const struct sockaddr *)&data_addr,data_addr_length) < 0) {
@@ -1498,12 +1530,13 @@ static void metis_start_stop(int command) {
     // restarting METIS with UDP
     //
     struct timeval tv;
-    tv.tv_sec=1;
-    tv.tv_usec=0;
+    tv.tv_sec=0;
+    tv.tv_usec=100000;
     if(setsockopt(tmp, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv))<0) {
         perror("tcp_socket: SO_RCVTIMEO");
     }
     tcp_socket=tmp; // this switches the receive thread to using TCP
+    fprintf(stderr,"TCP socket established: %d\n", tcp_socket);
   }
 
 #ifdef USBOZY
@@ -1513,12 +1546,12 @@ static void metis_start_stop(int command) {
 
 static void metis_send_buffer(unsigned char* buffer,int length) {
   if (tcp_socket >= 0) {
-    if(sendto(tcp_socket,buffer,length,0,NULL, 0)!=length) {
-      perror("sendto socket failed for metis_send_data\n");
+    if(sendto(tcp_socket,buffer,length,0,NULL, 0) != length) {
+      perror("sendto socket failed for TCP metis_send_data\n");
     }
   } else {
     if(sendto(data_socket,buffer,length,0,(struct sockaddr*)&data_addr,data_addr_length)!=length) {
-      perror("sendto socket failed for metis_send_data\n");
+      perror("sendto socket failed for UDP metis_send_data\n");
     }
   }
 }

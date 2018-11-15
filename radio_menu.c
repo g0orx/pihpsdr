@@ -147,16 +147,14 @@ static void apollo_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void use_tcp_cb(GtkWidget *widget, gpointer data) {
-  if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
-    use_tcp = 1;
-    if (protocol==ORIGINAL_PROTOCOL) {
-	old_protocol_stop();
-	old_protocol_run();
+  if (protocol == ORIGINAL_PROTOCOL) {
+    if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
+      use_tcp = 1;
+    } else {
+      use_tcp = 0;
     }
-  } else {
-    // This becomes active upon next restart
-    // The current session will continue using TCP
-    use_tcp = 0;
+    old_protocol_stop();
+    old_protocol_run();
   }
 }
 
