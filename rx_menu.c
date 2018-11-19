@@ -296,6 +296,7 @@ void rx_menu(GtkWidget *parent) {
           break;
         case DEVICE_HERMES:
         case DEVICE_HERMES_LITE:
+	case DEVICE_STEMLAB:
           n_adc=1;
           break;
         default: 

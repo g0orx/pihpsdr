@@ -118,11 +118,6 @@ static void load_filters(void) {
     }
   }
   att_type_changed();
-  if (filter_board == CHARLY25) {
-    if (use_tcp_b) gtk_widget_show(use_tcp_b);
-  } else {
-    if (use_tcp_b) gtk_widget_hide(use_tcp_b);
-  }
 }
 
 static void none_cb(GtkWidget *widget, gpointer data) {
@@ -390,7 +385,8 @@ void radio_menu(GtkWidget *parent) {
     g_signal_connect(apollo_b, "toggled", G_CALLBACK(apollo_cb), NULL);
     g_signal_connect(charly25_b, "toggled", G_CALLBACK(charly25_cb), NULL);
 
-    if (protocol == ORIGINAL_PROTOCOL) {
+    if (protocol == ORIGINAL_PROTOCOL && device==DEVICE_STEMLAB) {
+      // Currently, STEMlab supports TCP switching, but RADIOBERRY might do this as well
       use_tcp_b = gtk_check_button_new_with_label("Use TCP not UDP");
       gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(use_tcp_b), use_tcp==1);
       gtk_grid_attach(GTK_GRID(grid), use_tcp_b, x, 6, 1, 1);
@@ -475,7 +471,5 @@ void radio_menu(GtkWidget *parent) {
   sub_menu=dialog;
 
   gtk_widget_show_all(dialog);
-  // Only show this buttion if the C25 filter board is selected
-  if (filter_board != CHARLY25) gtk_widget_hide(use_tcp_b);
 
 }

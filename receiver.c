@@ -848,6 +848,7 @@ fprintf(stderr,"create_receiver: id=%d buffer_size=%d fft_size=%d pixels=%d fps=
             case DEVICE_METIS:
             case DEVICE_HERMES:
             case DEVICE_HERMES_LITE:			
+	    case DEVICE_STEMLAB:
               rx->adc=0;
               break;
             default:

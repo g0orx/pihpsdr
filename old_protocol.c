@@ -637,13 +637,13 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
               }
               break;
             case 2:
-              if(device==DEVICE_HERMES)  {
+              if(device==DEVICE_HERMES || device==DEVICE_STEMLAB)  {
                 left_sample_double_rx=left_sample_double;
                 right_sample_double_rx=right_sample_double;
               }
               break;
             case 3:
-              if(device==DEVICE_HERMES)  {
+              if(device==DEVICE_HERMES || device==DEVICE_STEMLAB)  {
                 left_sample_double_tx=left_sample_double;
                 right_sample_double_tx=right_sample_double;
                 add_ps_iq_samples(transmitter, left_sample_double_tx,right_sample_double_tx,left_sample_double_rx,right_sample_double_rx);

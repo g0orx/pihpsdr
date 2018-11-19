@@ -189,6 +189,10 @@ fprintf(stderr,"discover_receive_thread\n");
                         case DEVICE_ORION2:
                             strcpy(discovered[devices].name,"Orion 2");
                             break;
+			case DEVICE_STEMLAB:
+			    // In most respects similar to HERMES, but this indicates TCP capability
+                            strcpy(discovered[devices].name,"STEMlab");
+                            break;
                         default:
                             strcpy(discovered[devices].name,"Unknown");
                             break;

@@ -329,7 +329,7 @@ static gboolean update_display(gpointer data) {
     double constant1=3.3;
     double constant2=0.095;
 
-	if(protocol==ORIGINAL_PROTOCOL) {
+    if(protocol==ORIGINAL_PROTOCOL) {
       switch(device) {
         case DEVICE_METIS:
           constant1=3.3;
