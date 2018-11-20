@@ -385,7 +385,11 @@ void radio_menu(GtkWidget *parent) {
     g_signal_connect(apollo_b, "toggled", G_CALLBACK(apollo_cb), NULL);
     g_signal_connect(charly25_b, "toggled", G_CALLBACK(charly25_cb), NULL);
 
+#ifdef RADIOBERRY
+    if (protocol == ORIGINAL_PROTOCOL && (device==DEVICE_STEMLAB || device==DEVICE_HERMESLITE)) {
+#else
     if (protocol == ORIGINAL_PROTOCOL && device==DEVICE_STEMLAB) {
+#endif
       // Currently, STEMlab supports TCP switching, but RADIOBERRY might do this as well
       use_tcp_b = gtk_check_button_new_with_label("Use TCP not UDP");
       gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(use_tcp_b), use_tcp==1);

@@ -1440,73 +1440,77 @@ static void metis_restart() {
   sleep(1);
 
   // start the data flowing
-  if (use_tcp && filter_board == CHARLY25) {
+#ifdef RADIOBERRY
+  if (use_tcp && (device == DEVICE_STEMLAB || device == DEVICE_HERMESLITE)) {
+#else
+  if (use_tcp && device == DEVICE_STEMLAB) {
+#endif
     metis_start_stop(0x11);
   } else {
-    metis_start_stop(1);
+    metis_start_stop(0x01);
   }
 }
 
 static void metis_start_stop(int command) {
   int i;
   int tmp;
-  unsigned char buffer[64];
+  unsigned char buffer[1032];
     
 #ifdef USBOZY
   if(device!=DEVICE_OZY)
   {
 #endif
 
-  if (tcp_socket >=0) {
+  buffer[0]=0xEF;
+  buffer[1]=0xFE;
+  buffer[2]=0x04;	// start/stop command
+  buffer[3]=command;	// send EP6 and EP4 data (0x00=stop)
+
+  if (tcp_socket < 0) {
+    // use UDP  -- send a short packet
+    for(i=4;i<64;i++) {
+      buffer[i]=0x00;
+    }
+    metis_send_buffer(buffer,64);
+  } else {
+    // use TCP -- send a long packet
     //
-    // Stop the sending of ozy packets (1032-byte-length) and wait a while
+    // Stop the sending of TX/audio packets (1032-byte-length) and wait a while
+    // Then, send the start/stop buffer with a length of 1032
+    // Note: we should never arrive here sending a start signal
     //
     suppress_ozy_packet=1;
     usleep(100000);
-  }
-
-  buffer[0]=0xEF;
-  buffer[1]=0xFE;
-  buffer[2]=0x04;    // start/stop command
-  buffer[3]=command;    // send EP6 and EP4 data (0x00=stop)
-
-  for(i=0;i<60;i++) {
-    buffer[i+4]=0x00;
-  }
-
-  metis_send_buffer(buffer,sizeof(buffer));
-
-  if (tcp_socket >=0) {
+    for(i=4;i<1032;i++) {
+      buffer[i]=0x00;
+    }
+    metis_send_buffer(buffer,1032);
     //
-    // Wait a while before resuming sending 1032-byte packets.
-    // This way the SDR TCP receive loop recognizes that a "short" packet
-    // has arrived.
-    // We should only arrive here when sending METIS stop packets. Therefore
-    // we wait even longer to swallow all incoming 1032-byte TCP packets from
-    // the SDR.
+    // Wait a while before resuming sending TX/audio packets.
+    // This prevents mangling of data from TX/audio and Start/Stop packets.
     //
-    usleep(200000);
+    usleep(100000);
     suppress_ozy_packet=0;
   }
   //
   // If the "start" command reads 0x11 instead of 1, and no TCP socket has
   // been connected so far, then connect to a TCP socket with the same port
-  // number and address. Some Red-Pitaya based HPSDR emulators offer a
-  // TCP-based protocol this way.
+  // number and address. This is currently available for STEMlab and RADIOBERRY
+  // SDRs.
   //
-  // Note that the variable tcp_socket must be set LATER to the value of
-  // the socket, such that the receive thread does not try to use this socket
-  // before it is fully functional.
-  //
-  // Note that the TCP socket is ONLY used for 1032-byte-packets
+  // Note that the variable tcp_socket must not be set until the socket is fully
+  // fully functional.
   //
   if (command == 0 && tcp_socket >= 0) {
-    // We just have sent a METIS stop in TCP
+    // We just have sent a METIS stop in TCP ==> switch back to UDP
+    tmp=tcp_socket;
     tcp_socket=-1;
-    close(tcp_socket);
+    usleep(100000);  // give some time to swallow incoming TCP packets
+    close(tmp);
     fprintf(stderr,"TCP socket closed\n");
   }
   if (command == 0x11 && tcp_socket < 0) {
+    // We just have sent a METIS start indicating a switch to TCP
     tmp=socket(AF_INET, SOCK_STREAM, 0);
     if (connect(tmp,(const struct sockaddr *)&data_addr,data_addr_length) < 0) {
       perror("tcp_socket: connect");
@@ -1526,16 +1530,8 @@ static void metis_start_stop(int command) {
       perror("tcp_socket: SO_RCVBUF");
     }
     //
-    // set a timeout for receive
-    // This is necessary because we might already "sit" in and TCP recvfrom() call while
-    // restarting METIS with UDP
+    // It seems that no time-out is necessary in TCP
     //
-    struct timeval tv;
-    tv.tv_sec=0;
-    tv.tv_usec=100000;
-    if(setsockopt(tmp, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv))<0) {
-        perror("tcp_socket: SO_RCVTIMEO");
-    }
     tcp_socket=tmp; // this switches the receive thread to using TCP
     fprintf(stderr,"TCP socket established: %d\n", tcp_socket);
   }
@@ -1546,7 +1542,14 @@ static void metis_start_stop(int command) {
 }
 
 static void metis_send_buffer(unsigned char* buffer,int length) {
+  //
+  // Send using either the UDP or TCP socket. Do not use TCP for
+  // packets that are not 1032 bytes long
+  //
   if (tcp_socket >= 0) {
+    if (length != 1032) {
+       fprintf(stderr,"PROGRAMMING ERROR: TCP LENGTH != 1032\n");
+    }
     if(sendto(tcp_socket,buffer,length,0,NULL, 0) != length) {
       perror("sendto socket failed for TCP metis_send_data\n");
     }
