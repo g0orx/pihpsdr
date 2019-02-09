@@ -41,8 +41,6 @@ static GtkWidget *menu_b=NULL;
 
 static GtkWidget *dialog=NULL;
 
-static GtkWidget *use_tcp_b=NULL;
-
 static void cleanup() {
   if(dialog!=NULL) {
     gtk_widget_destroy(dialog);
@@ -141,13 +139,9 @@ static void apollo_cb(GtkWidget *widget, gpointer data) {
   }
 }
 
-static void use_tcp_cb(GtkWidget *widget, gpointer data) {
+static void protocol_cb(GtkWidget *widget, gpointer data) {
   if (protocol == ORIGINAL_PROTOCOL) {
-    if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
-      use_tcp = 1;
-    } else {
-      use_tcp = 0;
-    }
+    use_tcp=gtk_combo_box_get_active(GTK_COMBO_BOX(widget));
     old_protocol_stop();
     old_protocol_run();
   }
@@ -215,9 +209,6 @@ void radio_menu(GtkWidget *parent) {
 
   GtkWidget *grid=gtk_grid_new();
   gtk_grid_set_column_spacing (GTK_GRID(grid),10);
-  //gtk_grid_set_row_spacing (GTK_GRID(grid),10);
-  //gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
-  //gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
 
   GtkWidget *close_b=gtk_button_new_with_label("Close");
   g_signal_connect (close_b, "button_press_event", G_CALLBACK(close_cb), NULL);
@@ -234,17 +225,16 @@ void radio_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),region_combo,2,0,1,1);
   g_signal_connect(region_combo,"changed",G_CALLBACK(region_cb),NULL);
 
-/*
-  GtkWidget *uk_region=gtk_radio_button_new_with_label(NULL,"UK");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (uk_region), region==REGION_UK);
-  gtk_grid_attach(GTK_GRID(grid),uk_region,2,0,1,1);
-  g_signal_connect(uk_region,"pressed",G_CALLBACK(region_cb),(gpointer)REGION_UK);
-
-  GtkWidget *other_region=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(uk_region),"Other");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (other_region),region==REGION_OTHER);
-  gtk_grid_attach(GTK_GRID(grid),other_region,3,0,1,1);
-  g_signal_connect(other_region,"pressed",G_CALLBACK(region_cb),(gpointer)REGION_OTHER);
-*/
+  if (protocol == ORIGINAL_PROTOCOL && radio->can_tcp && !radio->only_tcp) {
+    GtkWidget *protocol_label=gtk_label_new("Protocol: ");
+    gtk_grid_attach(GTK_GRID(grid),protocol_label,3,0,1,1);
+    GtkWidget *protocol_combo=gtk_combo_box_text_new();
+    gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(protocol_combo),NULL,"UDP");
+    gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(protocol_combo),NULL,"TCP");
+    gtk_combo_box_set_active(GTK_COMBO_BOX(protocol_combo),use_tcp);
+    gtk_grid_attach(GTK_GRID(grid),protocol_combo,4,0,1,1);
+    g_signal_connect(protocol_combo,"changed",G_CALLBACK(protocol_cb),NULL);
+  }
 
   int x=0;
 
@@ -384,18 +374,6 @@ void radio_menu(GtkWidget *parent) {
     g_signal_connect(alex_b, "toggled", G_CALLBACK(alex_cb), NULL);
     g_signal_connect(apollo_b, "toggled", G_CALLBACK(apollo_cb), NULL);
     g_signal_connect(charly25_b, "toggled", G_CALLBACK(charly25_cb), NULL);
-
-#ifdef RADIOBERRY
-    if (protocol == ORIGINAL_PROTOCOL && (device==DEVICE_STEMLAB || device==DEVICE_HERMESLITE)) {
-#else
-    if (protocol == ORIGINAL_PROTOCOL && device==DEVICE_STEMLAB) {
-#endif
-      // Currently, STEMlab supports TCP switching, but RADIOBERRY might do this as well
-      use_tcp_b = gtk_check_button_new_with_label("Use TCP not UDP");
-      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(use_tcp_b), use_tcp==1);
-      gtk_grid_attach(GTK_GRID(grid), use_tcp_b, x, 6, 1, 1);
-      g_signal_connect(use_tcp_b, "toggled", G_CALLBACK(use_tcp_cb), NULL);
-    }
 
     x++;
   }

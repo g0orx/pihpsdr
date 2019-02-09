@@ -86,6 +86,8 @@
 struct _DISCOVERED {
     int protocol;
     int device;
+    int can_tcp;     // Radio can do UDP but is able to switch to TCP
+    int only_tcp;    // Radio can only be reached via TCP, UDP does not work
     char name[64];
     int software_version;
     int status;

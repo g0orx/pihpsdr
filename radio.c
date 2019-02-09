@@ -1105,7 +1105,8 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     value=getProperty("filter_board");
     if(value) filter_board=atoi(value);
     value=getProperty("use_tcp");
-    if(value) use_tcp=atoi(value);
+    // use_tcp must remain zero if the device cannot or can-only use TCP
+    if(value && radio->can_tcp && ! radio->only_tcp) use_tcp=atoi(value);
 /*
     value=getProperty("apollo_tuner");
     if(value) apollo_tuner=atoi(value);

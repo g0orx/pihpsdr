@@ -63,14 +63,18 @@ fprintf(stderr,"start_cb: %p\n",data);
     const int device_id = radio - discovered;
     int ret;
     ret=stemlab_start_app(gtk_combo_box_get_active_id(GTK_COMBO_BOX(apps_combobox[device_id])));
-#ifdef NO_AVAHI
-    // We only have started the app, but not queried e.g. the MAC address.
-    // Therefore, we have to clean up and re-start the discovery process.
-    stemlab_cleanup();
-    gtk_widget_destroy(discovery_dialog);
-    g_idle_add(ext_discovery,NULL);
-    return TRUE;
-#endif
+    //
+    // We have started the SDR app on the RedPitaya, but may need to fill
+    // in information necessary for starting the radio, including the
+    // MAC address and the interface listening to. Even when using AVAHI,
+    // we miss some information (can_tcp, METIS vs. HERMES, etc).
+    // To get all required info, we do a "fake" discovery on the RedPitaya IP address.
+    // Here we also try TCP if UDP does not work, such that we can work with STEMlabs
+    // in remote subnets.
+    //
+    if (ret == 0) {
+      ret=stemlab_get_info(device_id);
+    }
     // At this point, if stemlab_start_app failed, we cannot recover
     if (ret != 0) exit(-1);
   }
@@ -252,7 +256,7 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
 #ifdef STEMLAB_DISCOVERY
         case STEMLAB_PROTOCOL:
 #ifdef NO_AVAHI
-	  sprintf(text,"Choose App from %s and re-Discover:",inet_ntoa(d->info.network.address.sin_addr));
+	  sprintf(text,"Choose RedPitaya App from %s and start radio:",inet_ntoa(d->info.network.address.sin_addr));
 #else
           sprintf(text, "STEMlab (%02X:%02X:%02X:%02X:%02X:%02X) on %s",
                          d->info.network.mac_address[0],

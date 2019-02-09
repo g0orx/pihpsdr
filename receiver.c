@@ -848,7 +848,6 @@ fprintf(stderr,"create_receiver: id=%d buffer_size=%d fft_size=%d pixels=%d fps=
             case DEVICE_METIS:
             case DEVICE_HERMES:
             case DEVICE_HERMES_LITE:			
-	    case DEVICE_STEMLAB:
               rx->adc=0;
               break;
             default:
@@ -1092,7 +1091,7 @@ void receiver_change_sample_rate(RECEIVER *rx,int sample_rate) {
   init_analyzer(rx);
   SetEXTANBSamplerate (rx->id, sample_rate);
   SetEXTNOBSamplerate (rx->id, sample_rate);
-fprintf(stderr,"receiver_change_sample_rate: id=%d rate=%d buffer_size=%d output_samples=%d\n",rx->id, rx->sample_rate, rx->buffer_size, rx->output_samples);
+  fprintf(stderr,"receiver_change_sample_rate: id=%d rate=%d buffer_size=%d output_samples=%d\n",rx->id, rx->sample_rate, rx->buffer_size, rx->output_samples);
   SetChannelState(rx->id,1,0);
 }
 

@@ -130,6 +130,138 @@ static void discover(struct ifaddrs* iface) {
 
 }
 
+#ifdef STEMLAB_DISCOVERY
+//
+// We have just started the SDR app on the RedPitaya without using AVAHI.
+// Therefore we must send a discovery packet and analyze its response
+// to have all information to start the radio.
+// Since this essentially what happens in the original discovery process,
+// we put this function HERE and not into stemlab_discovery.c
+//
+int stemlab_get_info(int id) {
+  int ret;
+  unsigned char buffer[1032];
+  int optval,i;
+
+  // Allow RP app to come up
+  sleep(2);
+
+  devices=id;
+
+  discovery_socket = socket(AF_INET, SOCK_DGRAM, 0);
+  if (discovery_socket < 0) return(1);
+
+  optval = 1;
+  setsockopt(discovery_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+  setsockopt(discovery_socket, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval));
+
+  memset(&discovery_addr, 0, sizeof(discovery_addr));
+  discovery_addr.sin_family=AF_INET;
+  discovery_addr.sin_addr.s_addr=htonl(INADDR_ANY);
+  discovery_addr.sin_port=htons(DISCOVERY_PORT);
+  ret=bind(discovery_socket, (struct sockaddr *)&discovery_addr, sizeof(discovery_addr));
+  if (ret < 0) {
+    perror("BIND FAILED:");
+    return 1;
+  }
+
+  // start a receive thread to collect discovery response packets
+  discover_thread_id = g_thread_new( "old discover receive", discover_receive_thread, NULL);
+  if( ! discover_thread_id )
+  {
+      fprintf(stderr,"g_thread_new failed on discover_receive_thread\n");
+      return 1;
+  }
+
+  // send discovery packet
+  buffer[0]=0xEF;
+  buffer[1]=0xFE;
+  buffer[2]=0x02;
+  for(i=3;i<63;i++) {
+      buffer[i]=0x00;
+  }
+
+  ret=sendto(discovery_socket,buffer,63,0,
+             (struct sockaddr*)&(discovered[id].info.network.address),
+             sizeof(discovered[id].info.network.address));
+  if (ret < 63) {
+    perror("SEND DISCOVERY PACKET:");
+    return -1;
+  }
+
+  // wait for receive thread to complete
+  g_thread_join(discover_thread_id);
+
+  close(discovery_socket);
+
+  // if all went well, we have now filled in data for exactly
+  // one device.
+  if (devices == id+1) return 0;
+
+  if (devices > id+1) return 1;
+
+  // If we have not received an answer, then possibly the STEMlab is located
+  // on a different subnet and UDP packets are not correctly routed through.
+  // In this case, we try to open a connection using TCP.
+
+  discovery_socket = socket(AF_INET, SOCK_STREAM, 0);
+  if (discovery_socket < 0) {
+    perror("TCP socket:");
+    return 1;
+  }
+
+  optval = 1;
+  setsockopt(discovery_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+  setsockopt(discovery_socket, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval));
+  ret=connect(discovery_socket, (struct sockaddr*)&(discovered[id].info.network.address),
+                                  sizeof(discovered[id].info.network.address));
+  if (ret < 0) {
+    perror("TCP connect:");
+    return 1;
+  }
+
+  // send discovery packet
+  buffer[0]=0xEF;
+  buffer[1]=0xFE;
+  buffer[2]=0x02;
+  for(i=3;i<1032;i++) {
+      buffer[i]=0x00;
+  }
+
+  // start a receive thread to collect discovery response packets
+  discover_thread_id = g_thread_new( "old discover receive", discover_receive_thread, NULL);
+  if( ! discover_thread_id )
+  {
+      fprintf(stderr,"g_thread_new failed on discover_receive_thread\n");
+      return 1;
+  }
+
+  ret=sendto(discovery_socket,buffer,1032,0,
+             (struct sockaddr*)&(discovered[id].info.network.address),
+             sizeof(discovered[id].info.network.address));
+  if (ret < 1032) {
+    perror("SEND DISCOVERY PACKET:");
+    return -1;
+  }
+
+  // wait for receive thread to complete
+  g_thread_join(discover_thread_id);
+
+  close(discovery_socket);
+
+  // if all went well, we have now filled in data for exactly
+  // one device. We must set a flag that this one can ONLY do
+  // TCP
+  if (devices == id+1) {
+     fprintf(stderr,"UDP did not work, but TCP does!\n");
+     discovered[id].only_tcp=1;
+     discovered[id].can_tcp=0;
+     return 0;
+  }
+  return 1;
+}
+#endif
+
 //static void *discover_receive_thread(void* arg) {
 static gpointer discover_receive_thread(gpointer data) {
     struct sockaddr_in addr;
@@ -149,12 +281,13 @@ fprintf(stderr,"discover_receive_thread\n");
 
     len=sizeof(addr);
     while(1) {
-        bytes_read=recvfrom(discovery_socket,buffer,sizeof(buffer),0,(struct sockaddr*)&addr,&len);
+        bytes_read=recvfrom(discovery_socket,buffer,sizeof(buffer),1032,(struct sockaddr*)&addr,&len);
         if(bytes_read<0) {
             fprintf(stderr,"discovery: bytes read %d\n", bytes_read);
             perror("discovery: recvfrom socket failed for discover_receive_thread");
             break;
         }
+        if (bytes_read == 0) break;
         fprintf(stderr,"Old Protocol discovered: received %d bytes\n",bytes_read);
         if ((buffer[0] & 0xFF) == 0xEF && (buffer[1] & 0xFF) == 0xFE) {
             int status = buffer[2] & 0xFF;
@@ -190,7 +323,8 @@ fprintf(stderr,"discover_receive_thread\n");
                             strcpy(discovered[devices].name,"Orion 2");
                             break;
 			case DEVICE_STEMLAB:
-			    // In most respects similar to HERMES, but this indicates TCP capability
+			    // This is in principle the same as HERMES so pretend a HERMES
+			    discovered[devices].device = DEVICE_HERMES;
                             strcpy(discovered[devices].name,"STEMlab");
                             break;
                         default:
@@ -208,8 +342,17 @@ fprintf(stderr,"discover_receive_thread\n");
                     memcpy((void*)&discovered[devices].info.network.interface_netmask,(void*)&interface_netmask,sizeof(interface_netmask));
                     discovered[devices].info.network.interface_length=sizeof(interface_addr);
                     strcpy(discovered[devices].info.network.interface_name,interface_name);
-                    fprintf(stderr,"discovery: found device=%d software_version=%d status=%d address=%s (%02X:%02X:%02X:%02X:%02X:%02X) on %s\n",
+		    //
+		    // some devices report TCP capability here
+		    //
+		    discovered[devices].only_tcp=0;
+		    discovered[devices].can_tcp=0;
+		    if (buffer[11] == 'T' && buffer[12] == 'C' && buffer[13]=='P') {
+			discovered[devices].can_tcp=1;
+		    }
+		    fprintf(stderr,"discovery: found device=%d CanTCP=%d software_version=%d status=%d address=%s (%02X:%02X:%02X:%02X:%02X:%02X) on %s\n",
                             discovered[devices].device,
+                            discovered[devices].can_tcp,
                             discovered[devices].software_version,
                             discovered[devices].status,
                             inet_ntoa(discovered[devices].info.network.address.sin_addr),
