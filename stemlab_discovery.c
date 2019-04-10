@@ -39,6 +39,7 @@
 #include <string.h>
 
 #include "discovered.h"
+#include "discovery.h"
 #include "radio.h"
 
 #ifndef NO_AVAHI
@@ -389,9 +390,8 @@ void stemlab_discovery(void) {
 // but does not need avahi.
 //
 // Therefore we try to find the SDR apps on the RedPitaya
-// assuming is has the (fixed) ip address which can be
-// read from $HOME/.rp.inet, if this does not succeed it
-// defaults to 192.168.1.3.
+// assuming is has the (fixed) ip address which we can now set
+// in the discovery menu and which is saved to a local file.
 //
 // So, on MacOS, just configure your STEMLAB/HAMLAB to this
 // fixed IP address and you need not open a browser to start
@@ -404,7 +404,6 @@ void stemlab_discovery(void) {
 
 void stemlab_discovery() {
   size_t len;
-  char inet[20];
   char txt[150];
   CURL *curl_handle;
   CURLcode curl_error;
@@ -415,35 +414,13 @@ void stemlab_discovery() {
   struct sockaddr_in ip_address;
   struct sockaddr_in netmask;
 
-  fprintf(stderr,"Stripped-down STEMLAB/HAMLAB discovery...\n");
-//
-// Try to read inet addr from $HOME/.rp.inet, otherwise take 192.168.1.3
-//
-   strcpy(inet,"192.168.1.3");
-   p=getenv("HOME");
-   if (p) {
-     strncpy(txt,p, (size_t) 100);   // way less than size of txt
-   } else {
-     strcpy(txt,".");
-   }
-   strcat(txt,"/.rp.inet");
-   fprintf(stderr,"Trying to read inet addr from file=%s\n", txt);
-   fpin=fopen(txt, "r");
-   if (fpin) {
-     len=100;
-     p=txt;
-     len=getline(&p, &len, fpin);
-     // not txt now contains the trailing newline character
-     while (*p != 0) {
-       if (*p == '\n') *p = 0;
-       p++;
-     }
-     if (len < 20) strcpy(inet,txt);
-     fclose(fpin);
-   }
-   fprintf(stderr,"STEMLAB: using inet addr %s\n", inet);
+   fprintf(stderr,"Stripped-down STEMLAB/HAMLAB discovery...\n");
+   fprintf(stderr,"STEMLAB: using inet addr %s\n", ipaddr_tcp);
    ip_address.sin_family = AF_INET;
-   inet_aton(inet, &ip_address.sin_addr);
+   if (inet_aton(ipaddr_tcp, &ip_address.sin_addr) == 0) {
+	fprintf(stderr,"StemlabDiscovery: TCP %s is invalid!\n", ipaddr_tcp);
+	return;
+   }
 
    netmask.sin_family = AF_INET;
    inet_aton("0.0.0.0", &netmask.sin_addr);
@@ -451,21 +428,21 @@ void stemlab_discovery() {
 
 //
 // Do a HEAD request (poor curl's ping) to see whether the device is on-line
-// allow a 15 sec time-out
+// allow a 5 sec time-out
 //
   curl_handle = curl_easy_init();
   if (curl_handle == NULL) {
     fprintf(stderr, "stemlab_start: Failed to create cURL handle\n");
     return;
   }
-  sprintf(txt,"http://%s",inet);
+  sprintf(txt,"http://%s",ipaddr_tcp);
   curl_error = curl_easy_setopt(curl_handle, CURLOPT_URL, txt);
   curl_error = curl_easy_setopt(curl_handle, CURLOPT_NOBODY, (long) 1);
-  curl_error = curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, (long) 15);
+  curl_error = curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, (long) 5);
   curl_error = curl_easy_perform(curl_handle);
   curl_easy_cleanup(curl_handle);
   if (curl_error ==  CURLE_OPERATION_TIMEDOUT) {
-    sprintf(txt,"No response from web server at %s", inet);
+    sprintf(txt,"No response from web server at %s", ipaddr_tcp);
     status_text(txt);
     fprintf(stderr,"%s\n",txt);
   }
@@ -483,7 +460,7 @@ void stemlab_discovery() {
     return;
   }
   app_list=0;
-  sprintf(txt,"http://%s/bazaar?apps=", inet);
+  sprintf(txt,"http://%s/bazaar?apps=", ipaddr_tcp);
   curl_error = curl_easy_setopt(curl_handle, CURLOPT_URL, txt);
   curl_error = curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, (long) 60);
   curl_error = curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, app_list_cb);

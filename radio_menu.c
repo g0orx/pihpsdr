@@ -139,14 +139,6 @@ static void apollo_cb(GtkWidget *widget, gpointer data) {
   }
 }
 
-static void protocol_cb(GtkWidget *widget, gpointer data) {
-  if (protocol == ORIGINAL_PROTOCOL) {
-    use_tcp=gtk_combo_box_get_active(GTK_COMBO_BOX(widget));
-    old_protocol_stop();
-    old_protocol_run();
-  }
-}
-
 static void charly25_cb(GtkWidget *widget, gpointer data) {
   if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
     filter_board = CHARLY25;
@@ -224,17 +216,6 @@ void radio_menu(GtkWidget *parent) {
   gtk_combo_box_set_active(GTK_COMBO_BOX(region_combo),region);
   gtk_grid_attach(GTK_GRID(grid),region_combo,2,0,1,1);
   g_signal_connect(region_combo,"changed",G_CALLBACK(region_cb),NULL);
-
-  if (protocol == ORIGINAL_PROTOCOL && radio->can_tcp && !radio->only_tcp) {
-    GtkWidget *protocol_label=gtk_label_new("Protocol: ");
-    gtk_grid_attach(GTK_GRID(grid),protocol_label,3,0,1,1);
-    GtkWidget *protocol_combo=gtk_combo_box_text_new();
-    gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(protocol_combo),NULL,"UDP");
-    gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(protocol_combo),NULL,"TCP");
-    gtk_combo_box_set_active(GTK_COMBO_BOX(protocol_combo),use_tcp);
-    gtk_grid_attach(GTK_GRID(grid),protocol_combo,4,0,1,1);
-    g_signal_connect(protocol_combo,"changed",G_CALLBACK(protocol_cb),NULL);
-  }
 
   int x=0;
 

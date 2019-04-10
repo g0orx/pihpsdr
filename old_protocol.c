@@ -243,7 +243,7 @@ void old_protocol_init(int rx,int pixels,int rate) {
 #endif
   {
     fprintf(stderr,"old_protocol starting receive thread: buffer_size=%d output_buffer_size=%d\n",buffer_size,output_buffer_size);
-    if (radio->only_tcp) {
+    if (radio->use_tcp) {
       open_tcp_socket();
     } else  {
       open_udp_socket();
@@ -397,12 +397,10 @@ static void open_tcp_socket() {
       usleep(100000);
       close(tmp);
     }
-    //memcpy(&data_addr,&radio->info.network.address,radio->info.network.address_length);
-    //data_addr.sin_port=htons(DATA_PORT);
-    memset(&data_addr, 0, sizeof(data_addr));
+    memcpy(&data_addr,&radio->info.network.address,radio->info.network.address_length);
+    data_addr.sin_port=htons(DATA_PORT);
     data_addr.sin_family = AF_INET;
-    inet_aton("192.168.1.100", &data_addr.sin_addr);
-    data_addr.sin_port=htons(1024);
+    fprintf(stderr,"Trying to open TCP connection to %s\n", inet_ntoa(radio->info.network.address.sin_addr));
 
     tmp=socket(AF_INET, SOCK_STREAM, 0);
     if (tmp < 0) {
@@ -842,12 +840,6 @@ static void process_bandscope_buffer(char  *buffer) {
 }
 */
 
-#ifdef PROTOCOL_DEBUG
-// DL1YCF Debug: save last values and print any changes to stderr
-static unsigned char last_c1[20], last_c2[20], last_c3[20], last_c4[20], last_mox;
-static long long last_tx, last_rx[8];
-#endif
-
 void ozy_send_buffer() {
 
   int mode;
@@ -1042,12 +1034,6 @@ void ozy_send_buffer() {
         output_buffer[C2]=txFrequency>>16;
         output_buffer[C3]=txFrequency>>8;
         output_buffer[C4]=txFrequency;
-#ifdef PROTOCOL_DEBUG
-        if (last_tx != txFrequency) {
-          fprintf(stderr,"TX1 FREQ CHANGE from %lld to %lld\n", last_tx, txFrequency);
-	  last_tx=txFrequency;
-	}
-#endif
         break;
       case 2: // rx frequency
 #ifdef PURESIGNAL
@@ -1064,7 +1050,9 @@ void ozy_send_buffer() {
           output_buffer[C0]=0x04+(current_rx*2);
 #ifdef PURESIGNAL
           int v=receiver[current_rx/2]->id;
-          if(isTransmitting() && transmitter->puresignal) {
+	  // DL1YCF: for the "last" receiver, v is out of range. In this case,
+	  //         use TX frequency also while receiving
+          if((isTransmitting() && transmitter->puresignal) || (v >= MAX_VFOS)) {
             long long txFrequency;
             if(active_receiver->id==VFO_A) {
               if(split) {
@@ -1100,12 +1088,6 @@ void ozy_send_buffer() {
             output_buffer[C2]=rxFrequency>>16;
             output_buffer[C3]=rxFrequency>>8;
             output_buffer[C4]=rxFrequency;
-#ifdef PROTOCOL_DEBUG
-	    if (rxFrequency != last_rx[current_rx]) {
-		fprintf(stderr,"RX%d FREQ CHANGE from %lld to %lld\n", current_rx+1, last_rx[current_rx], rxFrequency);
-		last_rx[current_rx] = rxFrequency;
-	    }
-#endif
 #ifdef PURESIGNAL
           }
 #endif
@@ -1324,40 +1306,6 @@ void ozy_send_buffer() {
     }
   }
 
-#ifdef PROTOCOL_DEBUG
-//
-// DL1YCF debug:
-// look for changed parameters and log them
-// This is great for debugging protocol problems,
-// such as the HAMlab CW error fixed above, so I
-// leave it here deactivated
-//
-  int ind = output_buffer[C0] >> 1;
-  if (ind == 0 || ind > 8) {
-    // Frequency changes are reported above.
-    if (last_c1[ind] != output_buffer[C1]) {
-      fprintf(stderr, "C0=%x Old C1=%x New C1=%x\n", 2*ind,last_c1[ind], output_buffer[C1]);
-      last_c1[ind]=output_buffer[C1];
-    }
-    if (last_c2[ind] != output_buffer[C2]) {
-      fprintf(stderr, "C0=%x Old C2=%x New C2=%x\n", 2*ind,last_c2[ind], output_buffer[C2]);
-      last_c2[ind]=output_buffer[C2];
-    }
-    if (last_c3[ind] != output_buffer[C3]) {
-      fprintf(stderr, "C0=%x Old C3=%x New C3=%x\n", 2*ind,last_c3[ind], output_buffer[C3]);
-      last_c3[ind]=output_buffer[C3];
-    }
-    if (last_c4[ind] != output_buffer[C4]) {
-      fprintf(stderr, "C0=%x Old C4=%x New C4=%x\n", 2*ind,last_c4[ind], output_buffer[C4]);
-      last_c4[ind]=output_buffer[C4];
-    }
-  }
-  if ((output_buffer[C0] & 1) != last_mox) {
-    fprintf(stderr, "Last Mox=%d New Mox=%d\n", last_mox, output_buffer[C0] & 1);
-    last_mox=output_buffer[C0] & 1;
-  }
-#endif
-
 #ifdef USBOZY
 //
 // if we have a USB interfaced Ozy device:
@@ -1454,7 +1402,7 @@ static void metis_restart() {
   // has closed the socket. Note that the UDP socket, once
   // opened is never closed.
   //
-  if (radio->only_tcp && tcp_socket < 1) open_tcp_socket();
+  if (radio->use_tcp && tcp_socket < 1) open_tcp_socket();
 
   // reset metis frame
   metis_offset=8;
@@ -1511,11 +1459,6 @@ static void metis_start_stop(int command) {
   buffer[1]=0xFE;
   buffer[2]=0x04;	// start/stop command
   buffer[3]=command;	// send EP6 and EP4 data (0x00=stop)
-
-  // switch to TCP if requested, but do this ONLY with a start command
-  if (command == 1 && tcp_socket < 0 && use_tcp) {
-    open_tcp_socket();
-  }
 
   if (tcp_socket < 0) {
     // use UDP  -- send a short packet

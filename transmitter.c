@@ -170,6 +170,9 @@ void transmitter_save_state(TRANSMITTER *tx) {
   sprintf(name,"transmitter.%d.single_on",tx->id);
   sprintf(value,"%d",tx->single_on);
   setProperty(name,value);
+  sprintf(name,"transmitter.%d.feedback",tx->id);
+  sprintf(value,"%d",tx->feedback);
+  setProperty(name,value);
 #endif
   sprintf(name,"transmitter.%d.ctcss",tx->id);
   sprintf(value,"%d",tx->ctcss);
@@ -253,6 +256,9 @@ void transmitter_restore_state(TRANSMITTER *tx) {
   sprintf(name,"transmitter.%d.single_on",tx->id);
   value=getProperty(name);
   if(value) tx->single_on=atoi(value);
+  sprintf(name,"transmitter.%d.feedback",tx->id);
+  value=getProperty(name);
+  if(value) tx->feedback=atoi(value);
 #endif
   sprintf(name,"transmitter.%d.ctcss",tx->id);
   value=getProperty(name);
