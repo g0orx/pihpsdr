@@ -457,5 +457,5 @@ release: $(PROGRAM)
 hpsdrsim.o:	hpsdrsim.c
 	$(CC) -c -O hpsdrsim.c
 
-hpsdrsim:	hpsersim.o
+hpsdrsim:	hpsdrsim.o
 	$(LINK) -o hpsdrsim hpsdrsim.o -lm -lpthread
