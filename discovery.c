@@ -224,7 +224,7 @@ fprintf(stderr,"discovery\n");
     g_signal_connect (discover_b, "button-press-event", G_CALLBACK(discover_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),discover_b,1,1,1,1);
 
-    GtkWidget *tcp_b=gtk_button_new_with_label("Try TCP Addr:");
+    GtkWidget *tcp_b=gtk_button_new_with_label("Use new TCP Addr:");
     g_signal_connect (tcp_b, "button-press-event", G_CALLBACK(tcp_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),tcp_b,0,2,1,1);
 
@@ -278,7 +278,7 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
             sprintf(text,"%s (%s) on USB /dev/ozy", d->name, d->protocol==ORIGINAL_PROTOCOL?"Protocol 1":"Protocol 2");
           } else {
 #endif
-            sprintf(text,"%s (%s %s) %s (%02X:%02X:%02X:%02X:%02X:%02X) on %s",
+            sprintf(text,"%s (%s %s) %s (%02X:%02X:%02X:%02X:%02X:%02X) on %s: ",
                           d->name,
                           d->protocol==ORIGINAL_PROTOCOL?"Protocol 1":"Protocol 2",
                           version,
@@ -303,7 +303,7 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
 #ifdef STEMLAB_DISCOVERY
         case STEMLAB_PROTOCOL:
 #ifdef NO_AVAHI
-	  sprintf(text,"Choose RedPitaya App from %s and start radio:",inet_ntoa(d->info.network.address.sin_addr));
+	  sprintf(text,"Choose RedPitaya App from %s and start radio: ",inet_ntoa(d->info.network.address.sin_addr));
 #else
           sprintf(text, "STEMlab (%02X:%02X:%02X:%02X:%02X:%02X) on %s",
                          d->info.network.mac_address[0],
@@ -399,7 +399,7 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
     gtk_grid_attach(GTK_GRID(grid),exit_b,2,i,1,1);
 
     i++;
-    GtkWidget *tcp_b=gtk_button_new_with_label("Try TCP Addr:");
+    GtkWidget *tcp_b=gtk_button_new_with_label("Use new TCP Addr:");
     g_signal_connect (tcp_b, "button-press-event", G_CALLBACK(tcp_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),tcp_b,1,i,1,1);
 

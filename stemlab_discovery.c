@@ -462,17 +462,21 @@ void stemlab_discovery() {
   app_list=0;
   sprintf(txt,"http://%s/bazaar?apps=", ipaddr_tcp);
   curl_error = curl_easy_setopt(curl_handle, CURLOPT_URL, txt);
-  curl_error = curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, (long) 60);
+  curl_error = curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, (long) 20);
   curl_error = curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, app_list_cb);
   curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, &app_list);
   curl_error = curl_easy_perform(curl_handle);
   curl_easy_cleanup(curl_handle);
   if (curl_error == CURLE_OPERATION_TIMEDOUT) {
-    status_text("No Response from RedPitaya in 60 secs");
+    status_text("No Response from RedPitaya in 20 secs");
     fprintf(stderr,"60-sec TimeOut met when trying to get list of HPSDR apps from RedPitaya\n");
   }
   if (curl_error != CURLE_OK) {
     fprintf(stderr, "STEMLAB app-list error: %s\n", curl_easy_strerror(curl_error));
+    return;
+  }
+  if (app_list == 0) {
+    fprintf(stderr, "Could contact web server but no STEMlab apps found.\n");
     return;
   }
     

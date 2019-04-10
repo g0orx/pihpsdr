@@ -472,9 +472,9 @@ static gpointer receive_thread(gpointer arg) {
             bytes_read=recvfrom(data_socket,buffer,sizeof(buffer),0,(struct sockaddr*)&addr,&length);
             if(bytes_read < 0 && errno != EAGAIN) perror("old_protocol recvfrom UDP:");
           } else {
-	    // This should absolutely not happen.
-	    fprintf(stderr,"Neither TCP nor UDP socket available, exiting!\n");
-	    exit(-1);
+	    // This could happen in METIS start/stop sequences
+	    usleep(100000);
+	    continue;
 	  }
           if(bytes_read >= 0 || errno != EAGAIN) break;
 	}
@@ -1515,13 +1515,13 @@ static void metis_send_buffer(unsigned char* buffer,int length) {
     if(sendto(tcp_socket,buffer,length,0,NULL, 0) != length) {
       perror("sendto socket failed for TCP metis_send_data\n");
     }
-  } else if (data_socket >= 0{
+  } else if (data_socket >= 0) {
     if(sendto(data_socket,buffer,length,0,(struct sockaddr*)&data_addr,sizeof(data_addr))!=length) {
       perror("sendto socket failed for UDP metis_send_data\n");
     }
   } else {
-    // This should absolutely not happen.
-    fprintf(stderr,"Neither TCP nor UDP socket available, exiting!\n");
+    // This should not happen
+    fprintf(stderr,"METIS send: neither UDP nor TCP socket available!\n");
     exit(-1);
   }
 }
