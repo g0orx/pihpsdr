@@ -23,7 +23,6 @@
 #include <wdsp.h>
 
 #include "button_text.h"
-//#include "led.h"
 #include "new_menu.h"
 #include "radio.h"
 #include "toolbar.h"
@@ -38,6 +37,36 @@ static GtkWidget *feedback_l;
 static GtkWidget *correcting_l;
 static GtkWidget *get_pk;
 static GtkWidget *set_pk;
+static GtkWidget *tx_att;
+
+/*
+ * PureSignal 2.0 default parameters and declarations
+ */
+
+static double ampdelay  = 20e-9;   // 20 nsec
+static int    ints      = 16;
+static int    spi       = 256;
+static int    stbl      = 0;
+static int    map       = 1;
+static int    pin       = 1;
+static double ptol      = 0.8;
+static double moxdelay  = 0.1;
+static double loopdelay = 0.0;
+
+//
+// The following declarations are missing in wdsp.h
+// We put them here because sooner or later there will be
+// a corrected version of WDSP where this is contained
+//
+extern void SetPSIntsAndSpi (int channel, int ints, int spi);
+extern void SetPSStabilize (int channel, int stbl);
+extern void SetPSMapMode (int channel, int map);
+extern void SetPSPinMode (int channel, int pin);
+
+//
+// Todo: create buttons to change these value
+//
+
 
 static int running=0;
 
@@ -45,21 +74,17 @@ static int running=0;
 
 static GtkWidget *entry[INFO_SIZE];
 
-// results from GetPSDisp
-static double ps_x[4096];
-static double ps_ym[4096];
-static double ps_yc[4096];
-static double ps_ys[4096];
-static double ps_cm[64];
-static double ps_cc[64];
-static double ps_cs[64];
-
 static void destroy_cb(GtkWidget *widget, gpointer data) {
-//fprintf(stderr,"ps_menu: destroy_cb\n");
   running=0;
+  // wait for one instance of info_thread to complete
+  usleep(100000);
 }
 
 static void cleanup() {
+  running=0;
+  // wait for one instance of info_thread to complete
+  usleep(100000);
+
   if(transmitter->twotone) {
     tx_set_twotone(transmitter,0);
   }
@@ -80,8 +105,6 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
   return FALSE;
 }
 
-static int deltadb=0;
-
 //
 //
 // DL1YCF: had repeated seg-faults, possibly this is not thread-safe.
@@ -94,22 +117,16 @@ static int deltadb=0;
 //         prepeared in "label".
 //
 static int info_thread(gpointer arg) {
-  static int info[16];
+  static int info[INFO_SIZE];
   int i;
   gchar label[20];
   static int old5=0;
   static int old5_2=0;
   static int old14=0;
   int display;
-  int state=0;
-  int save_auto_on;
-  int save_single_on;
+  static int state=0;
 
-  if(transmitter->auto_on) {
-    transmitter->attenuation=31;
-  } else {
-    transmitter->attenuation=0;
-  }
+  if (!running) return FALSE;
 
     GetPSInfo(transmitter->id,&info[0]);
     for(i=0;i<INFO_SIZE;i++) {
@@ -122,7 +139,7 @@ static int info_thread(gpointer arg) {
           if(info[i]!=old5) {
             old5=info[5];
             if(info[4]>181)  {
-              gtk_label_set_markup(GTK_LABEL(feedback_l),"<span color='black'>Feedback Lvl</span>");
+              gtk_label_set_markup(GTK_LABEL(feedback_l),"<span color='blue'>Feedback Lvl</span>");
             } else if(info[4]>128)  {
               gtk_label_set_markup(GTK_LABEL(feedback_l),"<span color='green'>Feedback Lvl</span>");
             } else if(info[4]>90)  {
@@ -193,56 +210,56 @@ static int info_thread(gpointer arg) {
       }
     }
 
+    sprintf(label,"%d",transmitter->attenuation);
+    gtk_entry_set_text(GTK_ENTRY(tx_att),label);
+
     double pk;
 
     GetPSMaxTX(transmitter->id,&pk);
-    sprintf(label,"%f", pk);
+    sprintf(label,"%6.3f", pk);
     gtk_entry_set_text(GTK_ENTRY(get_pk),label);
 
     if (transmitter->auto_on) {
       double ddb;
+      int new_att;
       int newcal=info[5]!=old5_2;
       old5_2=info[5];
       switch(state) {
         case 0:
           if(newcal && (info[4]>181 || (info[4]<=128 && transmitter->attenuation>0))) {
-            if(info[4]<=256) {
-              ddb= 20.0 * log10((double)info[4]/152.293);
-              if(isnan(ddb)) {
-                ddb=31.1;
-              }
-              if(ddb<-100.0) {
+            ddb= 20.0 * log10((double)info[4]/152.293);
+            if(isnan(ddb)) {
+		// this means feedback lvl is < 1, switch OFF attenuation
                 ddb=-100.0;
-              }
-              if(ddb > 100.0) {
-                ddb=100.0;
-              }
-            } else {
-              ddb=31.1;
             }
-            deltadb=(int)ddb;
-            save_auto_on=transmitter->auto_on;
-            save_single_on=transmitter->single_on;
-            SetPSControl(transmitter->id, 1, 0, 0, 0);
-            state=1;
+            new_att=transmitter->attenuation + (int)ddb;
+	    // keep new value of attenuation in allowed range
+	    if (new_att <  0) new_att= 0;
+	    if (new_att > 31) new_att=31;
+	    // A "PS reset" is only necessary if the attenuation
+	    // has actually changed. This prevents firing "reset"
+	    // constantly if the SDR board does not have a TX attenuator
+	    // (in this case, att will fast reach 31 and stay there if the
+	    // feedback level is too high).
+	    // Actually, we first adjust the attenuation (state=0),
+	    // then do a PS reset (state=1), and then restart PS (state=2).
+            if (transmitter->attenuation != new_att) {
+	      transmitter->attenuation=new_att;
+              state=1;
+	    }
           }
           break;
         case 1:
-          if((deltadb+transmitter->attenuation)>0) {
-            transmitter->attenuation+=deltadb;
-          } else {
-            transmitter->attenuation=0;
-          }
-          state=2;
-          break;
+	  state=2;
+          SetPSControl(transmitter->id, 1, 0, 0, 0);
+	  break;
         case 2:
           state=0;
-          SetPSControl(transmitter->id, 0, save_single_on, save_auto_on, 0);
+          SetPSControl(transmitter->id, 0, 0, 1, 0);
           break;
       }
     }
-  if (!running) gtk_entry_set_text(GTK_ENTRY(entry[15]),"");
-  return running ? TRUE : FALSE;
+    return TRUE;
 }
 
 static void enable_cb(GtkWidget *widget, gpointer data) {
@@ -258,9 +275,8 @@ static void auto_cb(GtkWidget *widget, gpointer data) {
   }
 }
 
-static void calibrate_cb(GtkWidget *widget, gpointer data) {
-  transmitter->puresignal=1;
-  SetPSControl(transmitter->id, 0, 1, 0, 0);
+static void resume_cb(GtkWidget *widget, gpointer data) {
+  SetPSControl(transmitter->id, 0, 0, 1, 0);
 }
 
 static void feedback_cb(GtkWidget *widget, gpointer data) {
@@ -285,12 +301,6 @@ static void twotone_cb(GtkWidget *widget, gpointer data) {
     set_button_text_color(widget,"red");
   } else {
     set_button_text_color(widget,"black");
-  }
-  if(state && transmitter->puresignal) {
-    running=1;
-    g_timeout_add((guint) 100, info_thread, NULL);
-  } else {
-    running=0;
   }
 }
 
@@ -358,10 +368,16 @@ void ps_menu(GtkWidget *parent) {
   
   col++;
 
-  GtkWidget *reset_b=gtk_button_new_with_label("Reset");
+  GtkWidget *reset_b=gtk_button_new_with_label("OFF");
   gtk_widget_show(reset_b);
   gtk_grid_attach(GTK_GRID(grid),reset_b,col,row,1,1);
   g_signal_connect(reset_b,"pressed",G_CALLBACK(reset_cb),NULL);
+
+  col++;
+
+  GtkWidget *resume_b=gtk_button_new_with_label("Restart");
+  gtk_grid_attach(GTK_GRID(grid),resume_b,col,row,1,1);
+  g_signal_connect(resume_b,"pressed",G_CALLBACK(resume_cb),NULL);
 
   col++;
 
@@ -372,7 +388,6 @@ void ps_menu(GtkWidget *parent) {
   if(transmitter->feedback)  {
     set_button_text_color(feedback_b,"red");
   }
-
 
   row++;
   col=0;
@@ -394,18 +409,6 @@ void ps_menu(GtkWidget *parent) {
     int display=1;
     char label[16];
     switch(i) {
-      //case 0:
-      //  strcpy(label,"bldr.rx");
-      //  break;
-      //case 1:
-      //  strcpy(label,"bldr.cm");
-      //  break;
-      //case 2:
-      //  strcpy(label,"bldr.cc");
-      //  break;
-      //case 3:
-      //  strcpy(label,"bldr.cs");
-      //  break;
       case 4:
         strcpy(label,"feedbk");
         break;
@@ -423,16 +426,16 @@ void ps_menu(GtkWidget *parent) {
         break;
       default:
         display=0;
-        sprintf(label,"Info %d:", i);
         break;
     }
     if(display) {
       GtkWidget *lbl=gtk_label_new(label);
       entry[i]=gtk_entry_new();
-      gtk_entry_set_max_length(GTK_ENTRY(entry[i]), 20);
+      gtk_entry_set_max_length(GTK_ENTRY(entry[i]), 10);
       gtk_grid_attach(GTK_GRID(grid),lbl,col,row,1,1);
       col++;
       gtk_grid_attach(GTK_GRID(grid),entry[i],col,row,1,1);
+      gtk_entry_set_width_chars(GTK_ENTRY(entry[i]), 10);
       col++;
       if(col>=6) {
         row++;
@@ -451,6 +454,7 @@ void ps_menu(GtkWidget *parent) {
 
   get_pk=gtk_entry_new();
   gtk_grid_attach(GTK_GRID(grid),get_pk,col,row,1,1);
+  gtk_entry_set_width_chars(GTK_ENTRY(get_pk), 10);
   col++;
 
   lbl=gtk_label_new("SetPk");
@@ -460,17 +464,41 @@ void ps_menu(GtkWidget *parent) {
   double pk;
   char pk_text[16];
   GetPSHWPeak(transmitter->id,&pk);
-  sprintf(pk_text,"%f",pk);
+  sprintf(pk_text,"%6.3f",pk);
   set_pk=gtk_entry_new();
   gtk_entry_set_text(GTK_ENTRY(set_pk),pk_text);
   gtk_grid_attach(GTK_GRID(grid),set_pk,col,row,1,1);
+  gtk_entry_set_width_chars(GTK_ENTRY(set_pk), 10);
+  col++;
+
+  lbl=gtk_label_new("TX ATT");
+  gtk_grid_attach(GTK_GRID(grid),lbl,col,row,1,1);
+  col++;
+
+  tx_att=gtk_entry_new();
+  gtk_grid_attach(GTK_GRID(grid),tx_att,col,row,1,1);
+  gtk_entry_set_width_chars(GTK_ENTRY(tx_att), 10);
 
   gtk_container_add(GTK_CONTAINER(content),grid);
   sub_menu=dialog;
 
-  //if(transmitter->puresignal) {
-  //  info_thread_id=g_thread_new( "PS info", info_thread, NULL);
-  //}
+// DL1YCF: This is not the default setting,
+// but in my experience in behaves better in difficult situations.
+  ints=8;
+  spi=512;
+  ampdelay=100e-9;
+
+  SetPSIntsAndSpi(transmitter->id, ints, spi);
+  SetPSStabilize(transmitter->id, stbl);
+  SetPSMapMode(transmitter->id, map);
+  SetPSPinMode(transmitter->id, pin);
+  SetPSPtol(transmitter->id, ptol);
+  SetPSMoxDelay(transmitter->id, moxdelay);
+  SetPSTXDelay(transmitter->id, ampdelay);
+  SetPSLoopDelay(transmitter->id, loopdelay);
+
+  running=1;
+  g_timeout_add((guint) 100, info_thread, NULL);
 
   gtk_widget_show_all(dialog);
 
