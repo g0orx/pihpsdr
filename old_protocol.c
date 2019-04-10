@@ -131,7 +131,7 @@ static double phase=0.0;
 static int running;
 static long ep4_sequence;
 
-static uint32_t last_seq_num=-1;
+static uint32_t last_seq_num=-0xffffffff;
 static int suppress_ozy_packet = 0;
 
 static int current_rx=0;
@@ -405,6 +405,7 @@ static void open_tcp_socket() {
     tmp=socket(AF_INET, SOCK_STREAM, 0);
     if (tmp < 0) {
       perror("tcp_socket: create socket failed for TCP socket");
+      exit(-1);
     }
     int optval = 1;
     if(setsockopt(tmp, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval))<0) {
@@ -471,9 +472,9 @@ static gpointer receive_thread(gpointer arg) {
             bytes_read=recvfrom(data_socket,buffer,sizeof(buffer),0,(struct sockaddr*)&addr,&length);
             if(bytes_read < 0 && errno != EAGAIN) perror("old_protocol recvfrom UDP:");
           } else {
-	    // no Socket available, wait a While
-	    usleep(100000);
-	    bytes_read=0;
+	    // This should absolutely not happen.
+	    fprintf(stderr,"Neither TCP nor UDP socket available, exiting!\n");
+	    exit(-1);
 	  }
           if(bytes_read >= 0 || errno != EAGAIN) break;
 	}
@@ -1442,7 +1443,7 @@ static void metis_restart() {
   sleep(1);
 
   // start the data flowing
-  metis_start_stop(0x01);
+  metis_start_stop(1);
 }
 
 static void metis_start_stop(int command) {
@@ -1471,7 +1472,6 @@ static void metis_start_stop(int command) {
     //
     // Stop the sending of TX/audio packets (1032-byte-length) and wait a while
     // Then, send the start/stop buffer with a length of 1032
-    // Note: we should never arrive here sending a start signal
     //
     suppress_ozy_packet=1;
     usleep(100000);
@@ -1510,14 +1510,19 @@ static void metis_send_buffer(unsigned char* buffer,int length) {
   if (tcp_socket >= 0) {
     if (length != 1032) {
        fprintf(stderr,"PROGRAMMING ERROR: TCP LENGTH != 1032\n");
+       exit(-1);
     }
     if(sendto(tcp_socket,buffer,length,0,NULL, 0) != length) {
       perror("sendto socket failed for TCP metis_send_data\n");
     }
-  } else {
+  } else if (data_socket >= 0{
     if(sendto(data_socket,buffer,length,0,(struct sockaddr*)&data_addr,sizeof(data_addr))!=length) {
       perror("sendto socket failed for UDP metis_send_data\n");
     }
+  } else {
+    // This should absolutely not happen.
+    fprintf(stderr,"Neither TCP nor UDP socket available, exiting!\n");
+    exit(-1);
   }
 }
 

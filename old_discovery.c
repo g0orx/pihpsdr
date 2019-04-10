@@ -400,9 +400,6 @@ fprintf(stderr,"discover_receive_thread\n");
                     memcpy((void*)&discovered[devices].info.network.interface_netmask,(void*)&interface_netmask,sizeof(interface_netmask));
                     discovered[devices].info.network.interface_length=sizeof(interface_addr);
                     strcpy(discovered[devices].info.network.interface_name,interface_name);
-		    //
-		    // some devices report TCP capability here
-		    //
 		    discovered[devices].use_tcp=0;
 		    fprintf(stderr,"discovery: found device=%d software_version=%d status=%d address=%s (%02X:%02X:%02X:%02X:%02X:%02X) on %s\n",
                             discovered[devices].device,
@@ -431,7 +428,7 @@ fprintf(stderr,"discover_receive_thread\n");
 void old_discovery() {
     struct ifaddrs *addrs,*ifa;
 
-    fprintf(stderr,"old_discovery\n");
+fprintf(stderr,"old_discovery\n");
     getifaddrs(&addrs);
     ifa = addrs;
     while (ifa) {
@@ -453,8 +450,11 @@ void old_discovery() {
         ifa = ifa->ifa_next;
     }
     freeifaddrs(addrs);
-    // To one additional "discover" for a fixed TCP address
+
+    // Do one additional "discover" for a fixed TCP address
     discover(NULL);
+
+    fprintf(stderr, "discovery found %d devices\n",devices);
 
     int i;
     for(i=0;i<devices;i++) {
