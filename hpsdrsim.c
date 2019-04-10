@@ -1,3 +1,38 @@
+/*
+ * HPSDR simulator, (C) Christoph van Wuellen, April 2019
+ *
+ * This program simulates a HPSDR board.
+ * If an SDR program such as phipsdr "connects" with this program, it
+ * writes to stdout what goes on. This is great for debugging.
+ *
+ * In addition, I have built in the following features:
+ *
+ * This device has three ADCs, which "see" the following input
+ *
+ * ADC1: ADC noise (16-bit ADC) plus a  800 Hz signal at -100dBm
+ * ADC2: upon RX or with sample rate != 48000: ADC noise (16-bit ADC) plus a 2000 Hz signal at - 80dBm
+ * ADC2: upon TX with sample rate=48000: TX feedback signal with some distortion. This signal is modulated
+ *       according to the "TX drive" and "TX ATT" settings.
+ * ADC3: TX signal with a peak value of 0.4 (irrespective of TX drive level)
+ *
+ * Upon RX, the two "signals" to ADC1 and ADC2 are amplified or attenuated
+ * according to the preamp/attenuator settings.
+ *
+ * Upon TX, ADC2 "sees" the TX signal with some distortion. This signal
+ * is attenuated according to the TX att setting.
+ * 
+ * The default association:
+ * RX1:  ADC1
+ * RX2:  ADC2
+ * RX3:  ADC2
+ * RX4:  ADC3
+ *
+ * RX5 to RX8: no signal
+ * 
+ * This is the setting for PURESIGNAL with HERMES boards. The ADC settings can be changed by the
+ * SDR program. For Orion2 boards (Anan7000 etc), we should connect RX4 with ADC2 and RX5 with ADC3.
+ *
+ */
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -53,12 +88,9 @@ int		txdrive = 0;
 int		txatt = 0;
 int		sidetone_volume = -1;
 int		cw_internal = -1;
-int		rx1_att = -1;
+int		rx_att[2] = {-1,-1};
 int		rx1_attE = -1;
-int             rx1_preamp = -1;
-int             rx2_preamp = -1;
-int             rx3_preamp = -1;
-int             rx4_preamp = -1;
+int             rx_preamp[4] = {-1,-1,-1,-1};
 int		MerTxATT0 = -1;
 int		MerTxATT1 = -1;
 int		MetisDB9 = -1;
@@ -72,25 +104,13 @@ int		ptt=-1;
 int		att=-1;
 int		TX_class_E = -1;
 int		OpenCollectorOutputs=-1;
-long		tx_freq_1=-1;
-long		rx_freq_1=-1;
-long		rx_freq_2=-1;
-long		rx_freq_3=-1;
-long		rx_freq_4=-1;
-long		rx_freq_5=-1;
-long		rx_freq_6=-1;
-long		rx_freq_7=-1;
+long		tx_freq=-1;
+long		rx_freq[7] = {-1,-1,-1,-1,-1,-1,-1};
 int		hermes_config=-1;
 int		alex_lpf=-1;
 int		alex_hpf=-1;
 int		c25_ext_board_i2c_data=-1;
-int		rx1_adc=-1;
-int		rx2_adc=-1;
-int		rx3_adc=-1;
-int		rx4_adc=-1;
-int		rx5_adc=-1;
-int		rx6_adc=-1;
-int		rx7_adc=-1;
+int		rx_adc[7]={0,1,1,2,-1,-1,-1};
 int		cw_hang = -1;
 int		cw_reversed = -1;
 int		cw_speed = -1;
@@ -99,12 +119,14 @@ int		cw_weight = -1;
 int		cw_spacing = -1;
 int		cw_delay = -1;
 int		CommonMercuryFreq = -1;
-int		rx2_att = -1;
 int             freq=-1;
 
 
+// floating-point represeners of TX att, RX att, and RX preamp settings
+
 double txdrv_dbl = 1.0;
 double txatt_dbl = 1.0;
+double rxatt_dbl[4] = {1.0, 1.0, 1.0, 1.0};   // this reflects both ATT and PREAMP
 
 int sock_ep2;
 
@@ -562,42 +584,42 @@ void process_ep2(uint8_t *frame)
 
         case 2:
         case 3:
-	   chk_data(frame[4] | (frame[3] << 8) | (frame[2] << 16) | (frame[1] << 24), tx_freq_1,"TX FREQ");
+	   chk_data(frame[4] | (frame[3] << 8) | (frame[2] << 16) | (frame[1] << 24), tx_freq,"TX FREQ");
 	   break;
 
         case 4:
         case 5:
-	   chk_data(frame[4] | (frame[3] << 8) | (frame[2] << 16) | (frame[1] << 24), rx_freq_1,"RX FREQ1");
+	   chk_data(frame[4] | (frame[3] << 8) | (frame[2] << 16) | (frame[1] << 24), rx_freq[0],"RX FREQ1");
 	   break;
 
         case 6:
         case 7:
-	   chk_data(frame[4] | (frame[3] << 8) | (frame[2] << 16) | (frame[1] << 24), rx_freq_2,"RX FREQ2");
+	   chk_data(frame[4] | (frame[3] << 8) | (frame[2] << 16) | (frame[1] << 24), rx_freq[1],"RX FREQ2");
 	   break;
 
         case 8:
         case 9:
-	   chk_data(frame[4] | (frame[3] << 8) | (frame[2] << 16) | (frame[1] << 24), rx_freq_3,"RX FREQ3");
+	   chk_data(frame[4] | (frame[3] << 8) | (frame[2] << 16) | (frame[1] << 24), rx_freq[2],"RX FREQ3");
 	   break;
 
         case 10:
         case 11:
-	   chk_data(frame[4] | (frame[3] << 8) | (frame[2] << 16) | (frame[1] << 24), rx_freq_4,"RX FREQ4");
+	   chk_data(frame[4] | (frame[3] << 8) | (frame[2] << 16) | (frame[1] << 24), rx_freq[3],"RX FREQ4");
 	   break;
 
         case 12:
         case 13:
-	   chk_data(frame[4] | (frame[3] << 8) | (frame[2] << 16) | (frame[1] << 24), rx_freq_5,"RX FREQ5");
+	   chk_data(frame[4] | (frame[3] << 8) | (frame[2] << 16) | (frame[1] << 24), rx_freq[4],"RX FREQ5");
 	   break;
 
         case 14:
         case 15:
-	   chk_data(frame[4] | (frame[3] << 8) | (frame[2] << 16) | (frame[1] << 24), rx_freq_6,"RX FREQ6");
+	   chk_data(frame[4] | (frame[3] << 8) | (frame[2] << 16) | (frame[1] << 24), rx_freq[5],"RX FREQ6");
 	   break;
 
         case 16:
         case 17:
-	   chk_data(frame[4] | (frame[3] << 8) | (frame[2] << 16) | (frame[1] << 24), rx_freq_7,"RX FREQ7");
+	   chk_data(frame[4] | (frame[3] << 8) | (frame[2] << 16) | (frame[1] << 24), rx_freq[6],"RX FREQ7");
 	   break;
 
 	case 18:
@@ -612,10 +634,10 @@ void process_ep2(uint8_t *frame)
 
 	case 20:
 	case 21:
-	   chk_data((frame[1] & 0x01) >> 0, rx1_preamp, "RX1 preamp");
-	   chk_data((frame[1] & 0x02) >> 1, rx2_preamp, "RX2 preamp");
-	   chk_data((frame[1] & 0x04) >> 2, rx3_preamp, "RX3 preamp");
-	   chk_data((frame[1] & 0x08) >> 3, rx4_preamp, "RX4 preamp");
+	   chk_data((frame[1] & 0x01) >> 0, rx_preamp[0], "ADC1 preamp");
+	   chk_data((frame[1] & 0x02) >> 1, rx_preamp[1], "ADC2 preamp");
+	   chk_data((frame[1] & 0x04) >> 2, rx_preamp[2], "ADC3 preamp");
+	   chk_data((frame[1] & 0x08) >> 3, rx_preamp[3], "ADC4 preamp");
 	   chk_data((frame[1] & 0x10) >> 4, tip_ring  , "TIP/Ring");
 	   chk_data((frame[1] & 0x20) >> 5, MicBias   , "MicBias");
 	   chk_data((frame[1] & 0x40) >> 6, MicPTT    , "MicPTT");
@@ -628,19 +650,27 @@ void process_ep2(uint8_t *frame)
    	   chk_data((frame[3] & 0x0F) >> 0, MetisDB9  , "MetisDB9");
    	   chk_data((frame[3] & 0x10) >> 4, MerTxATT1 , "Mercury Att on TX/1");
 
-   	   chk_data((frame[4] & 0x1F) >> 0, rx1_att, "RX1 ATT");
+   	   chk_data((frame[4] & 0x1F) >> 0, rx_att[0], "RX1 ATT");
    	   chk_data((frame[4] & 0x20) >> 5, rx1_attE, "RX1 ATT enable");
 
+	   // Set RX amplification factors. Assume 20 dB preamps
+           rxatt_dbl[0]=pow(10.0, -0.05*(rx_att[0]-20*rx_preamp[0]));
+           rxatt_dbl[1]=pow(10.0, -0.05*(rx_att[1]-20*rx_preamp[1]));
+           rxatt_dbl[2]=pow(10.0, (double) rx_preamp[2]);
+           rxatt_dbl[3]=pow(10.0, (double) rx_preamp[3]);
 	   break;
 
 	case 22:
 	case 23:
-           chk_data(frame[1] & 0x1f, rx2_att,"RX2 ATT");
+           chk_data(frame[1] & 0x1f, rx_att[1],"RX2 ATT");
            chk_data((frame[2] >> 6) & 1, cw_reversed, "CW REV");
            chk_data(frame[3] & 63, cw_speed, "CW SPEED");
            chk_data((frame[3] >> 6) & 3, cw_mode, "CW MODE");
            chk_data(frame[4] & 127, cw_weight,"CW WEIGHT");
            chk_data((frame[4] >> 7) & 1, cw_spacing, "CW SPACING");
+
+	   // Set RX amplification factors. Assume 20 dB preamps
+           rxatt_dbl[1]=pow(10.0, -0.05*(rx_att[1]-20*rx_preamp[1]));
 	   break;
 
 	case 24:
@@ -652,13 +682,13 @@ void process_ep2(uint8_t *frame)
 
 	case 28:
 	case 29:
-            chk_data((frame[1] & 0x03) >> 0, rx1_adc, "RX1 ADC");
-            chk_data((frame[1] & 0x0C) >> 2, rx2_adc, "RX2 ADC");
-            chk_data((frame[1] & 0x30) >> 4, rx3_adc, "RX3 ADC");
-            chk_data((frame[1] & 0xC0) >> 6, rx4_adc, "RX4 ADC");
-            chk_data((frame[2] & 0x03) >> 0, rx5_adc, "RX5 ADC");
-            chk_data((frame[2] & 0x0C) >> 2, rx6_adc, "RX6 ADC");
-            chk_data((frame[2] & 0x30) >> 4, rx7_adc, "RX7 ADC");
+            chk_data((frame[1] & 0x03) >> 0, rx_adc[0], "RX1 ADC");
+            chk_data((frame[1] & 0x0C) >> 2, rx_adc[1], "RX2 ADC");
+            chk_data((frame[1] & 0x30) >> 4, rx_adc[2], "RX3 ADC");
+            chk_data((frame[1] & 0xC0) >> 6, rx_adc[3], "RX4 ADC");
+            chk_data((frame[2] & 0x03) >> 0, rx_adc[4], "RX5 ADC");
+            chk_data((frame[2] & 0x0C) >> 2, rx_adc[5], "RX6 ADC");
+            chk_data((frame[2] & 0x30) >> 4, rx_adc[6], "RX7 ADC");
 	    chk_data((frame[3] & 0x1f), txatt, "TX ATT");
 	    txatt_dbl=pow(10.0, -0.05*(double) txatt);
 	    break;
@@ -677,15 +707,6 @@ void process_ep2(uint8_t *frame)
             chk_data((frame[3] << 4) | (frame[4] & 255), freq, "SIDE TONE FREQ");
 	    break;
 	}
-
-#ifdef DEBUG_EP2
-	fprintf(stderr, "DEBUG_EP2: Frames after switch case statement:\n");
-	fprintf(stderr, "DEBUG_EP2: frame[0]: %d\n", frame[0]);
-	fprintf(stderr, "DEBUG_EP2: frame[1]: %d\n", frame[1]);
-	fprintf(stderr, "DEBUG_EP2: frame[2]: %d\n", frame[2]);
-	fprintf(stderr, "DEBUG_EP2: frame[3]: %d\n", frame[3]);
-	fprintf(stderr, "DEBUG_EP2: frame[4]: %d\n", frame[4]);
-#endif
 }
 
 //
@@ -697,12 +718,10 @@ void process_ep2(uint8_t *frame)
 static double noiseItab[LENNOISE];
 static double noiseQtab[LENNOISE];
 
-static double T1000Itab[384];
-static double T1000Qtab[384];
+static double T0800Itab[480];
+static double T0800Qtab[480];
 static double T2000Itab[192];
 static double T2000Qtab[192];
-static double T4000Itab[96];
-static double T4000Qtab[96];
 
 void *handler_ep6(void *arg)
 {
@@ -730,9 +749,8 @@ void *handler_ep6(void *arg)
 #endif
         int wait;
         int noiseIQpt;
-	int len4000,pt4000;
 	int len2000,pt2000;
-	int len1000,pt1000;
+	int len0800,pt0800;
         double run,inc;
         double i1,i2,q1,q2;
 
@@ -763,37 +781,28 @@ void *handler_ep6(void *arg)
         }
 	noiseIQpt=0;
 	//
-	// b) a 4000, 2000, and 1000  Hz tone in upper side band
+	// b) some tones in the upper side band (one wave)
 	//
-        len4000=12 << rate; // we must make one sine wave
-        len2000=24 << rate; // we must make one sine wave
-        len1000=48 << rate; // we must make one sine wave
+        len2000=24 << rate;
+	len0800=60 << rate;
 
-	inc = 6.283185307179586476925287 / (double) len4000;
-	run = 0.0;
-        for (i=0; i<len4000; i++) {
-	  T4000Qtab[i]=0.1*cos(run);
-	  T4000Itab[i]=0.1*sin(run);
-	  run += inc;
-        }
 	inc = 6.283185307179586476925287 / (double) len2000;
 	run = 0.0;
         for (i=0; i<len2000; i++) {
-	  T2000Qtab[i]=0.1*cos(run);
-	  T2000Itab[i]=0.1*sin(run);
+	  T2000Qtab[i]=cos(run);
+	  T2000Itab[i]=sin(run);
 	  run += inc;
         }
-	inc = 6.283185307179586476925287 / (double) len1000;
+	inc = 6.283185307179586476925287 / (double) len0800;
 	run = 0.0;
-        for (i=0; i<len1000; i++) {
-	  T1000Qtab[i]=0.1*cos(run);
-	  T1000Itab[i]=0.1*sin(run);
+        for (i=0; i<len0800; i++) {
+	  T0800Qtab[i]=cos(run);
+	  T0800Itab[i]=sin(run);
 	  run += inc;
         }
 
-        pt4000=0;
         pt2000=0;
-        pt1000=0;
+        pt0800=0;
 	  
         
         clock_gettime(CLOCK_MONOTONIC, &delay);
@@ -819,144 +828,96 @@ void *handler_ep6(void *arg)
 
 		for (i = 0; i < 2; ++i)
 		{
-			pointer = buffer + i * 516 - i % 2 * 4 + 8;
-			memcpy(pointer, header + header_offset, 8);
+		    pointer = buffer + i * 516 - i % 2 * 4 + 8;
+		    memcpy(pointer, header + header_offset, 8);
 
-			header_offset = header_offset >= 32 ? 0 : header_offset + 8;
+		    header_offset = header_offset >= 32 ? 0 : header_offset + 8;
 
-			//
-			// TODO: HERMES:     Copy TX samples back to RX4, and distorted TX samples to RX3
-			//                   This allows for testing PURESIGNAL.
-			//       METIS:      TX to RX2, distorted TX to RX1
-			//       ANGELIA:    TX to RX5, distroted TX to RX4  (also for ORION and ORION2)
-			//
-			pointer += 8;
-			memset(pointer, 0, 504);
-			for (j=0; j<n; j++) {
-			  //
-			  // RX1 samples: noise
-			  //
-			  sample= noiseItab[noiseIQpt] * 8388607.0;
-			  *pointer++ = (sample >> 16) & 0xFF;
-			  *pointer++ = (sample >>  8) & 0xFF;
-			  *pointer++ = (sample >>  0) & 0xFF;
-			  sample=noiseQtab[noiseIQpt] * 8388607.0;
-			  *pointer++ = (sample >> 16) & 0xFF;
-			  *pointer++ = (sample >>  8) & 0xFF;
-			  *pointer++ = (sample >>  0) & 0xFF;
-			  if (receivers > 1) {
-			    //
-			    // RX2 samples:
-                            // If transmitting AND samplerate == 48000: RX feedback; else tone 2000
-			    //
-                            if (rate == 0 && ptt) {
-                              // We add some third-order distortion
-			      i1=isample[rxptr]*txdrv_dbl;
-			      q1=qsample[rxptr]*txdrv_dbl;
-			      i2=i1*i1;
-			      q2=q1*q1;
-                              sample= txatt_dbl*i1*(IM3a+IM3b*i2+IM3b*q2) * 8388607.0;
-                              *pointer++ = (sample >> 16) & 0xFF;
-                              *pointer++ = (sample >>  8) & 0xFF;
-                              *pointer++ = (sample >>  0) & 0xFF;
-                              sample= txatt_dbl*q1*(IM3a+IM3b*q2+IM3b*i2) * 8388607.0;
-                              *pointer++ = (sample >> 16) & 0xFF;
-                              *pointer++ = (sample >>  8) & 0xFF;
-                              *pointer++ = (sample >>  0) & 0xFF;
-                            } else {
-                              sample=T4000Itab[pt4000] * 8388607.0;
-                              *pointer++ = (sample >> 16) & 0xFF;
-                              *pointer++ = (sample >>  8) & 0xFF;
-                              *pointer++ = (sample >>  0) & 0xFF;
-                              sample=T4000Qtab[pt4000] * 8388607.0;
-                              *pointer++ = (sample >> 16) & 0xFF;
-                              *pointer++ = (sample >>  8) & 0xFF;
-                              *pointer++ = (sample >>  0) & 0xFF;
-                            }
-			  }
-			  if (receivers > 2) {
-			    //
-			    // RX3 samples: same as RX2
-			    //
-			    if (rate == 0 && ptt) {
-                              // We add some third-order distortion
-                              i1=isample[rxptr]*txdrv_dbl;
-                              q1=qsample[rxptr]*txdrv_dbl;
-                              i2=i1*i1;
-                              q2=q1*q1;
-                              sample= txatt_dbl*i1*(IM3a+IM3b*i2+IM3b*q2) * 8388607.0;
-                              *pointer++ = (sample >> 16) & 0xFF;
-                              *pointer++ = (sample >>  8) & 0xFF;
-                              *pointer++ = (sample >>  0) & 0xFF;
-                              sample= txatt_dbl*q1*(IM3a+IM3b*q2+IM3b*i2) * 8388607.0;
-                              *pointer++ = (sample >> 16) & 0xFF;
-                              *pointer++ = (sample >>  8) & 0xFF;
-                              *pointer++ = (sample >>  0) & 0xFF;
-                            } else {
-                              sample=T4000Itab[pt4000] * 8388607.0;
-                              *pointer++ = (sample >> 16) & 0xFF;
-                              *pointer++ = (sample >>  8) & 0xFF;
-                              *pointer++ = (sample >>  0) & 0xFF;
-                              sample=T4000Qtab[pt4000] * 8388607.0;
-                              *pointer++ = (sample >> 16) & 0xFF;
-                              *pointer++ = (sample >>  8) & 0xFF;
-                              *pointer++ = (sample >>  0) & 0xFF;
+		    pointer += 8;
+		    memset(pointer, 0, 504);
+		    for (j=0; j<n; j++) {
+			for (k=0; k< receivers; k++) {
+			    switch (rx_adc[k]) {
+				case 0:
+				    //
+				    // ADC1 samples: noise + weak 800 Hz tone
+				    //
+				    sample= noiseItab[noiseIQpt] * 8388607.0;
+			  	    sample += T0800Itab[pt0800] * 83.886070 *rxatt_dbl[0];  // 100 dB below peak
+			   	    *pointer++ = (sample >> 16) & 0xFF;
+				    *pointer++ = (sample >>  8) & 0xFF;
+				    *pointer++ = (sample >>  0) & 0xFF;
+				    sample=noiseQtab[noiseIQpt] * 8388607.0;
+			  	    sample += T0800Qtab[pt0800] * 83.886070 *rxatt_dbl[0];  // 100 dB below peak
+				    *pointer++ = (sample >> 16) & 0xFF;
+				    *pointer++ = (sample >>  8) & 0xFF;
+				    *pointer++ = (sample >>  0) & 0xFF;
+				    break;
+			  	case 1:
+                                    if (rate == 0 && ptt) {
+                                    	//
+                                    	// Distorted (feed-back) TX signal
+                                    	// Note we first add distortion, then adjust level
+                                    	// Therefore we first multiply with txdrv_dbl, then
+                                    	// distort, and then attenuate with txatt_dbl.
+                                   	//
+                                        i1=isample[rxptr]*txdrv_dbl;
+                                        q1=qsample[rxptr]*txdrv_dbl;
+                                        i2=i1*i1;
+                                        q2=q1*q1;
+                                        sample= txatt_dbl*i1*(IM3a+IM3b*i2+IM3b*q2) * 8388607.0;
+                                        *pointer++ = (sample >> 16) & 0xFF;
+                                        *pointer++ = (sample >>  8) & 0xFF;
+                                        *pointer++ = (sample >>  0) & 0xFF;
+                                        sample= txatt_dbl*q1*(IM3a+IM3b*q2+IM3b*i2) * 8388607.0;
+                                        *pointer++ = (sample >> 16) & 0xFF;
+                                        *pointer++ = (sample >>  8) & 0xFF;
+                                        *pointer++ = (sample >>  0) & 0xFF;
+                                    } else {
+				    	//
+				    	// ADC2 samples: noise + weak 2000 Hz tone
+				    	//
+				    	sample= noiseItab[noiseIQpt] * 8388607.0;
+			  	    	sample += T2000Itab[pt2000] * 838.86070 * rxatt_dbl[1];  // 80 dB below peak
+				    	*pointer++ = (sample >> 16) & 0xFF;
+				    	*pointer++ = (sample >>  8) & 0xFF;
+				    	*pointer++ = (sample >>  0) & 0xFF;
+				    	sample=noiseQtab[noiseIQpt] * 8388607.0;
+			  	    	sample += T2000Qtab[pt2000] * 838.86070 * rxatt_dbl[1];  // 80 dB below peak
+				    	*pointer++ = (sample >> 16) & 0xFF;
+				    	*pointer++ = (sample >>  8) & 0xFF;
+				    	*pointer++ = (sample >>  0) & 0xFF;
+				    }
+				    break;
+				case 2:
+				    //
+				    // ADC3 samples: TX signal with HWPeak = 0.4
+				    //
+                        	    if (rate == 0) {
+                                  	sample= isample[rxptr] * 0.400 * 8388607.0;
+                                  	*pointer++ = (sample >> 16) & 0xFF;
+                                  	*pointer++ = (sample >>  8) & 0xFF;
+                                  	*pointer++ = (sample >>  0) & 0xFF;
+                                  	sample= qsample[rxptr] * 0.400 * 8388607.0;
+                                  	*pointer++ = (sample >> 16) & 0xFF;
+                                  	*pointer++ = (sample >>  8) & 0xFF;
+                                  	*pointer++ = (sample >>  0) & 0xFF;
+                               	    } else {
+				  	pointer +=6;
+				    }
+				    break;
+				default:
+				    pointer +=6;
 			    }
-			  }
-			  if (receivers > 3) {
-			    //
-			    // RX4 samples:
-			    // If transmitting AND samplerate == 48000: TX feedback; else tone 1000
-			    // TX feedback has level independent of txdrv, the value of 0.4 is
-			    // typically used for GetPk
-			    //
-                            if (rate == 0 && ptt) {
-			      // Original TX signal
-                              sample= isample[rxptr] * 0.400 * 8388607.0;
-                              *pointer++ = (sample >> 16) & 0xFF;
-                              *pointer++ = (sample >>  8) & 0xFF;
-                              *pointer++ = (sample >>  0) & 0xFF;
-                              sample= qsample[rxptr] * 0.400 * 8388607.0;
-                              *pointer++ = (sample >> 16) & 0xFF;
-                              *pointer++ = (sample >>  8) & 0xFF;
-                              *pointer++ = (sample >>  0) & 0xFF;
-                            } else {
-                              sample=T1000Itab[pt1000] * 0.400 * 8388607.0;
-                              *pointer++ = (sample >> 16) & 0xFF;
-                              *pointer++ = (sample >>  8) & 0xFF;
-                              *pointer++ = (sample >>  0) & 0xFF;
-                              sample=T1000Qtab[pt1000] * 0.400 * 8388607.0;
-                              *pointer++ = (sample >> 16) & 0xFF;
-                              *pointer++ = (sample >>  8) & 0xFF;
-                              *pointer++ = (sample >>  0) & 0xFF;
-                            }
-			  }
-			  if (size >26) {
-			    // RX5 samples: silence
-			    pointer += 6;
-			  }
-			  if (size >32) {
-			    // RX6 samples: silence
-			    pointer += 6;
-			  }
-			  if (size >38) {
-			    // RX7 samples: silence
-			    pointer += 6;
-			  }
-			  if (size >44) {
-			    // RX8 samples: silence
-			    pointer += 6;
-			  }
-			  // Microphone samples: silence
-			  pointer += 2;
-			  rxptr++;     if (rxptr >= RTXLEN) rxptr=0;
-			  noiseIQpt++; if (noiseIQpt == LENNOISE) noiseIQpt=rand() / NOISEDIV;
-			  pt4000++;    if (pt4000 == len4000) pt4000=0;
-			  pt2000++;    if (pt2000 == len2000) pt2000=0;
-			  pt1000++;    if (pt1000 == len1000) pt1000=0;
-			}
+		        }
+			// Microphone samples: silence
+			pointer += 2;
+			rxptr++;     if (rxptr >= RTXLEN) rxptr=0;
+			noiseIQpt++; if (noiseIQpt == LENNOISE) noiseIQpt=rand() / NOISEDIV;
+			pt2000++;    if (pt2000 == len2000) pt2000=0;
+			pt0800++;    if (pt0800 == len0800) pt0800=0;
+		    }
 		}
-
 		//
 		// Wait until the time has passed for all these samples
 		//
