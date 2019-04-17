@@ -7,30 +7,28 @@
  *
  * In addition, I have built in the following features:
  *
- * This device has three ADCs, which "see" the following input
+ * This device has four "RF sources"
  *
- * ADC1: ADC noise (16-bit ADC) plus a  800 Hz signal at -100dBm
- * ADC2: upon RX or with sample rate != 48000: ADC noise (16-bit ADC) plus a 2000 Hz signal at - 80dBm
- * ADC2: upon TX with sample rate=48000: TX feedback signal with some distortion. This signal is modulated
- *       according to the "TX drive" and "TX ATT" settings.
- * ADC3: TX signal with a peak value of 0.4 (irrespective of TX drive level)
+ * RF1: ADC noise (16-bit ADC) plus a  800 Hz signal at -100dBm
+ * RF2: ADC noise (16-bit ADC) plus a 2000 Hz signal at - 80dBm
+ * RF3: (upon TX with sample rate=48000): TX feedback signal with some distortion. This signal is modulated
+ *      according to the "TX drive" and "TX ATT" settings.
+ * RF4: (upon TX with sample rate=48000): TX signal with a peak value of 0.400
  *
- * Upon RX, the two "signals" to ADC1 and ADC2 are amplified or attenuated
- * according to the preamp/attenuator settings.
+ * RF1 and RF2 are attenuated according to the preamp/attenuator settings.
+ * RF3 respects the "TX drive" and "TX ATT" settings
+ * RF4 is the TX signal multiplied with 0.4 (ignores TX_DRIVE and TX_ATT).
  *
- * Upon TX, ADC2 "sees" the TX signal with some distortion. This signal
- * is attenuated according to the TX att setting.
- * 
- * The default association:
- * RX1:  ADC1
- * RX2:  ADC2
- * RX3:  ADC2
- * RX4:  ADC3
+ * We support 4 receivers, they see
+ * RX1:  RF1
+ * RX2:  RF2 while receiving, RF3 while transmitting/48000
+ * RX3:  RF2 while receiving, RF3 while transmitting/48000
+ * RX4:  RF3 
  *
  * RX5 to RX8: no signal
  * 
- * This is the setting for PURESIGNAL with HERMES boards. The ADC settings can be changed by the
- * SDR program. For Orion2 boards (Anan7000 etc), we should connect RX4 with ADC2 and RX5 with ADC3.
+ * This is the setting for PURESIGNAL with HERMES boards.
+ * To simulate Orion2 boards (Anan7000 etc), we should connect RX4 with RF2 and RX5 with RF3.
  *
  */
 #include <stdio.h>
@@ -752,7 +750,7 @@ void *handler_ep6(void *arg)
 	int len2000,pt2000;
 	int len0800,pt0800;
         double run,inc;
-        double i1,i2,q1,q2;
+        double i1,q1,fac;
 
 	memset(audio, 0, sizeof(audio));
 	memset(&iovec, 0, sizeof(iovec));
@@ -837,10 +835,10 @@ void *handler_ep6(void *arg)
 		    memset(pointer, 0, 504);
 		    for (j=0; j<n; j++) {
 			for (k=0; k< receivers; k++) {
-			    switch (rx_adc[k]) {
-				case 0:
+			    switch (k) {
+				case 0: // RX1 sees RF1
 				    //
-				    // ADC1 samples: noise + weak 800 Hz tone
+				    // RF1: noise + weak 800 Hz tone
 				    //
 				    sample= noiseItab[noiseIQpt] * 8388607.0;
 			  	    sample += T0800Itab[pt0800] * 83.886070 *rxatt_dbl[0];  // 100 dB below peak
@@ -853,9 +851,11 @@ void *handler_ep6(void *arg)
 				    *pointer++ = (sample >>  8) & 0xFF;
 				    *pointer++ = (sample >>  0) & 0xFF;
 				    break;
-			  	case 1:
+			  	case 1: // RX2 and RX3 see RF2 upon receiving, RF3 upon transmitting
+				case 2:
                                     if (rate == 0 && ptt) {
                                     	//
+					// RF3:
                                     	// Distorted (feed-back) TX signal
                                     	// Note we first add distortion, then adjust level
                                     	// Therefore we first multiply with txdrv_dbl, then
@@ -863,19 +863,18 @@ void *handler_ep6(void *arg)
                                    	//
                                         i1=isample[rxptr]*txdrv_dbl;
                                         q1=qsample[rxptr]*txdrv_dbl;
-                                        i2=i1*i1;
-                                        q2=q1*q1;
-                                        sample= txatt_dbl*i1*(IM3a+IM3b*i2+IM3b*q2) * 8388607.0;
+                                        fac=IM3a+IM3b*(i1*i1+q1*q1);
+                                        sample= txatt_dbl*i1*fac * 8388607.0;
                                         *pointer++ = (sample >> 16) & 0xFF;
                                         *pointer++ = (sample >>  8) & 0xFF;
                                         *pointer++ = (sample >>  0) & 0xFF;
-                                        sample= txatt_dbl*q1*(IM3a+IM3b*q2+IM3b*i2) * 8388607.0;
+                                        sample= txatt_dbl*q1*fac * 8388607.0;
                                         *pointer++ = (sample >> 16) & 0xFF;
                                         *pointer++ = (sample >>  8) & 0xFF;
                                         *pointer++ = (sample >>  0) & 0xFF;
                                     } else {
 				    	//
-				    	// ADC2 samples: noise + weak 2000 Hz tone
+				    	// RF2: noise + weak 2000 Hz tone
 				    	//
 				    	sample= noiseItab[noiseIQpt] * 8388607.0;
 			  	    	sample += T2000Itab[pt2000] * 838.86070 * rxatt_dbl[1];  // 80 dB below peak
@@ -889,11 +888,11 @@ void *handler_ep6(void *arg)
 				    	*pointer++ = (sample >>  0) & 0xFF;
 				    }
 				    break;
-				case 2:
+				case 3: // RX4 sees TX outgoing signal (no distortion, no attenuation)
 				    //
-				    // ADC3 samples: TX signal with HWPeak = 0.4
+				    // RF4: TX signal with HWPeak = 0.4
 				    //
-                        	    if (rate == 0) {
+                        	    if (rate == 0 && ptt) {
                                   	sample= isample[rxptr] * 0.400 * 8388607.0;
                                   	*pointer++ = (sample >> 16) & 0xFF;
                                   	*pointer++ = (sample >>  8) & 0xFF;
@@ -928,7 +927,7 @@ void *handler_ep6(void *arg)
                 }
 #ifdef __APPLE__
 		//
-		// The (so-called) operating system for Mac does not have clock_nanosleep,
+		// The (so-called) operating system for Mac does not have clock_nanosleep(),
 		// but is has clock_gettime as well as nanosleep.
 		// So, to circumvent this problem, we look at the watch and determine
 		// how long we should sleep now.
