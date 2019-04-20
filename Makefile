@@ -445,3 +445,17 @@ release: $(PROGRAM)
 	cd release; tar cvf pihpsdr.tar pihpsdr
 	cd release; tar cvf pihpsdr-$(GIT_VERSION).tar pihpsdr
 
+#############################################################################
+#
+# hpsdrsim is a cool program that emulates an SDR board with UDP and TCP
+# facilities. It even feeds back the TX signal and distorts it, so that
+# you can test PURESIGNAL.
+# This feature only works if the sample rate is 48000
+#
+#############################################################################
+
+hpsdrsim.o:	hpsdrsim.c
+	$(CC) -c -O hpsdrsim.c
+
+hpsdrsim:	hpsdrsim.o
+	$(LINK) -o hpsdrsim hpsdrsim.o -lm -lpthread

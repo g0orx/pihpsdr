@@ -201,9 +201,6 @@ void radio_menu(GtkWidget *parent) {
 
   GtkWidget *grid=gtk_grid_new();
   gtk_grid_set_column_spacing (GTK_GRID(grid),10);
-  //gtk_grid_set_row_spacing (GTK_GRID(grid),10);
-  //gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
-  //gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
 
   GtkWidget *close_b=gtk_button_new_with_label("Close");
   g_signal_connect (close_b, "button_press_event", G_CALLBACK(close_cb), NULL);
@@ -219,18 +216,6 @@ void radio_menu(GtkWidget *parent) {
   gtk_combo_box_set_active(GTK_COMBO_BOX(region_combo),region);
   gtk_grid_attach(GTK_GRID(grid),region_combo,2,0,1,1);
   g_signal_connect(region_combo,"changed",G_CALLBACK(region_cb),NULL);
-
-/*
-  GtkWidget *uk_region=gtk_radio_button_new_with_label(NULL,"UK");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (uk_region), region==REGION_UK);
-  gtk_grid_attach(GTK_GRID(grid),uk_region,2,0,1,1);
-  g_signal_connect(uk_region,"pressed",G_CALLBACK(region_cb),(gpointer)REGION_UK);
-
-  GtkWidget *other_region=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(uk_region),"Other");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (other_region),region==REGION_OTHER);
-  gtk_grid_attach(GTK_GRID(grid),other_region,3,0,1,1);
-  g_signal_connect(other_region,"pressed",G_CALLBACK(region_cb),(gpointer)REGION_OTHER);
-*/
 
   int x=0;
 
@@ -347,21 +332,24 @@ void radio_menu(GtkWidget *parent) {
       x++;
     }
 
+    GtkWidget *sample_rate_label=gtk_label_new("Filter Board:");
+    gtk_grid_attach(GTK_GRID(grid),sample_rate_label,x,1,1,1);
+
     GtkWidget *none_b = gtk_radio_button_new_with_label(NULL, "NONE");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(none_b), filter_board == NONE);
-    gtk_grid_attach(GTK_GRID(grid), none_b, x, 1, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), none_b, x, 2, 1, 1);
 
     GtkWidget *alex_b = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(none_b), "ALEX");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(alex_b), filter_board == ALEX);
-    gtk_grid_attach(GTK_GRID(grid), alex_b, x, 2, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), alex_b, x, 3, 1, 1);
 
     GtkWidget *apollo_b = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(none_b), "APOLLO");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(apollo_b), filter_board == APOLLO);
-    gtk_grid_attach(GTK_GRID(grid), apollo_b, x, 3, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), apollo_b, x, 4, 1, 1);
 
     GtkWidget *charly25_b = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(none_b), "CHARLY25");
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(charly25_b), filter_board == CHARLY25);
-    gtk_grid_attach(GTK_GRID(grid), charly25_b, x, 4, 1, 1);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(charly25_b), filter_board==CHARLY25);
+    gtk_grid_attach(GTK_GRID(grid), charly25_b, x, 5, 1, 1);
 
     g_signal_connect(none_b, "toggled", G_CALLBACK(none_cb), NULL);
     g_signal_connect(alex_b, "toggled", G_CALLBACK(alex_cb), NULL);
@@ -370,7 +358,6 @@ void radio_menu(GtkWidget *parent) {
 
     x++;
   }
-
 
   GtkWidget *rit_label=gtk_label_new("RIT step (Hz): ");
   gtk_grid_attach(GTK_GRID(grid),rit_label,x,1,1,1);

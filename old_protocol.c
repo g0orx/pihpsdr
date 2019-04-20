@@ -117,9 +117,9 @@ static int speed;
 static int dsp_rate=48000;
 static int output_rate=48000;
 
-static int data_socket;
+static int data_socket=-1;
+static int tcp_socket=-1;
 static struct sockaddr_in data_addr;
-static int data_addr_length;
 
 static int output_buffer_size;
 
@@ -131,7 +131,8 @@ static double phase=0.0;
 static int running;
 static long ep4_sequence;
 
-static long last_seq_num=-1;
+static uint32_t last_seq_num=-0xffffffff;
+static int suppress_ozy_packet = 0;
 
 static int current_rx=0;
 
@@ -161,20 +162,22 @@ static int output_buffer_index=8;
 static int command=1;
 
 static GThread *receive_thread_id;
-static void start_receive_thread();
 static gpointer receive_thread(gpointer arg);
 static void process_ozy_input_buffer(unsigned char  *buffer);
 static void process_bandscope_buffer(char  *buffer);
 void ozy_send_buffer();
 
 static unsigned char metis_buffer[1032];
-static long send_sequence=-1;
+static uint32_t send_sequence=0;
 static int metis_offset=8;
 
 static int metis_write(unsigned char ep,unsigned char* buffer,int length);
 static void metis_start_stop(int command);
 static void metis_send_buffer(unsigned char* buffer,int length);
 static void metis_restart();
+
+static void open_tcp_socket(void);
+static void open_udp_socket(void);
 
 #define COMMON_MERCURY_FREQUENCY 0x80
 #define PENELOPE_MIC 0x80
@@ -238,7 +241,22 @@ void old_protocol_init(int rx,int pixels,int rate) {
   }
   else
 #endif
-  start_receive_thread();
+  {
+    fprintf(stderr,"old_protocol starting receive thread: buffer_size=%d output_buffer_size=%d\n",buffer_size,output_buffer_size);
+    if (radio->use_tcp) {
+      open_tcp_socket();
+    } else  {
+      open_udp_socket();
+    }
+    receive_thread_id = g_thread_new( "old protocol", receive_thread, NULL);
+    if( ! receive_thread_id )
+    {
+      fprintf(stderr,"g_thread_new failed on receive_thread\n");
+      exit( -1 );
+    }
+    fprintf(stderr, "receive_thread: id=%p\n",receive_thread_id);
+  }
+
 
   fprintf(stderr,"old_protocol_init: prime radio\n");
   for(i=8;i<OZY_BUFFER_SIZE;i++) {
@@ -316,62 +334,98 @@ static gpointer ozy_ep6_rx_thread(gpointer arg) {
 }
 #endif
 
-static void start_receive_thread() {
-  int i;
-  int rc;
-  struct hostent *h;
+static void open_udp_socket() {
+    int tmp;
 
-  fprintf(stderr,"old_protocol starting receive thread: buffer_size=%d output_buffer_size=%d\n",buffer_size,output_buffer_size);
+    if (data_socket >= 0) {
+      tmp=data_socket;
+      data_socket=-1;
+      usleep(100000);
+      close(tmp);
+    }
+    tmp=socket(PF_INET,SOCK_DGRAM,IPPROTO_UDP);
+    if(tmp<0) {
+      perror("old_protocol: create socket failed for data_socket\n");
+      exit(-1);
+    }
 
-  switch(device) {
-#ifdef USBOZY
-    case DEVICE_OZY:
-      break;
-#endif
-    default:
-      data_socket=socket(PF_INET,SOCK_DGRAM,IPPROTO_UDP);
-      if(data_socket<0) {
-        perror("old_protocol: create socket failed for data_socket\n");
-        exit(-1);
-      }
+    int optval = 1;
+    if(setsockopt(tmp, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval))<0) {
+      perror("data_socket: SO_REUSEADDR");
+    }
+    if(setsockopt(tmp, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval))<0) {
+      perror("data_socket: SO_REUSEPORT");
+    }
+    optval=0xffff;
+    if (setsockopt(tmp, SOL_SOCKET, SO_SNDBUF, &optval, sizeof(optval))<0) {
+      perror("data_socket: SO_SNDBUF");
+    }
+    if (setsockopt(tmp, SOL_SOCKET, SO_RCVBUF, &optval, sizeof(optval))<0) {
+      perror("data_socket: SO_RCVBUF");
+    }
+    //
+    // set a timeout for receive
+    // This is necessary because we might already "sit" in an UDP recvfrom() call while
+    // instructing the radio to switch to TCP. Then this call has to finish eventually
+    // and the next recvfrom() then uses the TCP socket.
+    //
+    struct timeval tv;
+    tv.tv_sec=0;
+    tv.tv_usec=100000;
+    if(setsockopt(tmp, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv))<0) {
+      perror("data_socket: SO_RCVTIMEO");
+    }
 
-      int optval = 1;
-      if(setsockopt(data_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval))<0) {
-        perror("data_socket: SO_REUSEADDR");
-      }
-      if(setsockopt(data_socket, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval))<0) {
-        perror("data_socket: SO_REUSEPORT");
-      }
+    // bind to the interface
+    if(bind(tmp,(struct sockaddr*)&radio->info.network.interface_address,radio->info.network.interface_length)<0) {
+      perror("old_protocol: bind socket failed for data_socket\n");
+      exit(-1);
+    }
 
-/*
-      // set a timeout for receive
-      struct timeval tv;
-      tv.tv_sec=1;
-      tv.tv_usec=0;
-      if(setsockopt(data_socket, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv))<0) {
-        perror("data_socket: SO_RCVTIMEO");
-      }
-*/
-      // bind to the interface
-      if(bind(data_socket,(struct sockaddr*)&radio->info.network.interface_address,radio->info.network.interface_length)<0) {
-        perror("old_protocol: bind socket failed for data_socket\n");
-        exit(-1);
-      }
+    memcpy(&data_addr,&radio->info.network.address,radio->info.network.address_length);
+    data_addr.sin_port=htons(DATA_PORT);
+    data_socket=tmp;
+    fprintf(stderr,"UDP socket established: %d\n", data_socket);
+}
 
-      memcpy(&data_addr,&radio->info.network.address,radio->info.network.address_length);
-      data_addr_length=radio->info.network.address_length;
-      data_addr.sin_port=htons(DATA_PORT);
-      break;
-  }
+static void open_tcp_socket() {
+    int tmp;
 
-  receive_thread_id = g_thread_new( "old protocol", receive_thread, NULL);
-  if( ! receive_thread_id )
-  {
-    fprintf(stderr,"g_thread_new failed on receive_thread\n");
-    exit( -1 );
-  }
-  fprintf(stderr, "receive_thread: id=%p\n",receive_thread_id);
+    if (tcp_socket >= 0) {
+      tmp=tcp_socket;
+      tcp_socket=-1;
+      usleep(100000);
+      close(tmp);
+    }
+    memcpy(&data_addr,&radio->info.network.address,radio->info.network.address_length);
+    data_addr.sin_port=htons(DATA_PORT);
+    data_addr.sin_family = AF_INET;
+    fprintf(stderr,"Trying to open TCP connection to %s\n", inet_ntoa(radio->info.network.address.sin_addr));
 
+    tmp=socket(AF_INET, SOCK_STREAM, 0);
+    if (tmp < 0) {
+      perror("tcp_socket: create socket failed for TCP socket");
+      exit(-1);
+    }
+    int optval = 1;
+    if(setsockopt(tmp, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval))<0) {
+      perror("tcp_socket: SO_REUSEADDR");
+    }
+    if(setsockopt(tmp, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval))<0) {
+      perror("tcp_socket: SO_REUSEPORT");
+    }
+    if (connect(tmp,(const struct sockaddr *)&data_addr,sizeof(data_addr)) < 0) {
+      perror("tcp_socket: connect");
+    }
+    optval=0xffff;
+    if (setsockopt(tmp, SOL_SOCKET, SO_SNDBUF, &optval, sizeof(optval))<0) {
+      perror("tcp_socket: SO_SNDBUF");
+    }
+    if (setsockopt(tmp, SOL_SOCKET, SO_RCVBUF, &optval, sizeof(optval))<0) {
+      perror("tcp_socket: SO_RCVBUF");
+    }
+    tcp_socket=tmp;
+    fprintf(stderr,"TCP socket established: %d\n", tcp_socket);
 }
 
 static gpointer receive_thread(gpointer arg) {
@@ -379,8 +433,9 @@ static gpointer receive_thread(gpointer arg) {
   socklen_t length;
   unsigned char buffer[2048];
   int bytes_read;
+  int ret,left;
   int ep;
-  long sequence;
+  uint32_t sequence;
 
   fprintf(stderr, "old_protocol: receive_thread\n");
   running=1;
@@ -396,14 +451,34 @@ static gpointer receive_thread(gpointer arg) {
 #endif
 
       default:
-        bytes_read=recvfrom(data_socket,buffer,sizeof(buffer),0,(struct sockaddr*)&addr,&length);
-        if(bytes_read<0) {
-          if(errno==EAGAIN) {
-            error_handler("old_protocol: receiver_thread: recvfrom socket failed","Radio not sending data");
+	for (;;) {
+          if (tcp_socket >= 0) {
+	    // TCP messages may be split, so collect exactly 1032 bytes.
+	    // Remember, this is a STREAMING protocol.
+            bytes_read=0;
+            left=1032;
+            while (left > 0) {
+              ret=recvfrom(tcp_socket,buffer+bytes_read,(size_t)(left),0,NULL,0);
+              if (ret < 0 && errno == EAGAIN) continue; // time-out
+              if (ret < 0) break;                       // error
+              bytes_read += ret;
+              left -= ret;
+            }
+	    if (ret < 0) {
+	      bytes_read=ret;                          // error case: discard whole packet
+              //perror("old_protocol recvfrom TCP:");
+	    }
+	  } else if (data_socket >= 0) {
+            bytes_read=recvfrom(data_socket,buffer,sizeof(buffer),0,(struct sockaddr*)&addr,&length);
+            if(bytes_read < 0 && errno != EAGAIN) perror("old_protocol recvfrom UDP:");
           } else {
-            error_handler("old_protocol: receiver_thread: recvfrom socket failed",strerror(errno));
-          }
-          running=0;
+	    // This could happen in METIS start/stop sequences
+	    usleep(100000);
+	    continue;
+	  }
+          if(bytes_read >= 0 || errno != EAGAIN) break;
+	}
+        if(bytes_read <= 0) {
           continue;
         }
 
@@ -416,8 +491,10 @@ static gpointer receive_thread(gpointer arg) {
               // get the sequence number
               sequence=((buffer[4]&0xFF)<<24)+((buffer[5]&0xFF)<<16)+((buffer[6]&0xFF)<<8)+(buffer[7]&0xFF);
 
-              if (sequence != last_seq_num+1) {
-		fprintf(stderr,"SEQ ERROR: last %ld, recvd %ld\n", last_seq_num, sequence);
+	      // A sequence error with a seqnum of zero usually indicates a METIS restart
+	      // and is no error condition
+              if (sequence != 0 && sequence != last_seq_num+1) {
+		fprintf(stderr,"SEQ ERROR: last %ld, recvd %ld\n", (long) last_seq_num, (long) sequence);
 	      }
 	      last_seq_num=sequence;
               switch(ep) {
@@ -764,12 +841,6 @@ static void process_bandscope_buffer(char  *buffer) {
 }
 */
 
-#ifdef PROTOCOL_DEBUG
-// DL1YCF Debug: save last values and print any changes to stderr
-static unsigned char last_c1[20], last_c2[20], last_c3[20], last_c4[20], last_mox;
-static long long last_tx, last_rx[8];
-#endif
-
 void ozy_send_buffer() {
 
   int mode;
@@ -964,12 +1035,6 @@ void ozy_send_buffer() {
         output_buffer[C2]=txFrequency>>16;
         output_buffer[C3]=txFrequency>>8;
         output_buffer[C4]=txFrequency;
-#ifdef PROTOCOL_DEBUG
-        if (last_tx != txFrequency) {
-          fprintf(stderr,"TX1 FREQ CHANGE from %lld to %lld\n", last_tx, txFrequency);
-	  last_tx=txFrequency;
-	}
-#endif
         break;
       case 2: // rx frequency
 #ifdef PURESIGNAL
@@ -986,7 +1051,9 @@ void ozy_send_buffer() {
           output_buffer[C0]=0x04+(current_rx*2);
 #ifdef PURESIGNAL
           int v=receiver[current_rx/2]->id;
-          if(isTransmitting() && transmitter->puresignal) {
+	  // DL1YCF: for the "last" receiver, v is out of range. In this case,
+	  //         use TX frequency also while receiving
+          if((isTransmitting() && transmitter->puresignal) || (v >= MAX_VFOS)) {
             long long txFrequency;
             if(active_receiver->id==VFO_A) {
               if(split) {
@@ -1022,12 +1089,6 @@ void ozy_send_buffer() {
             output_buffer[C2]=rxFrequency>>16;
             output_buffer[C3]=rxFrequency>>8;
             output_buffer[C4]=rxFrequency;
-#ifdef PROTOCOL_DEBUG
-	    if (rxFrequency != last_rx[current_rx]) {
-		fprintf(stderr,"RX%d FREQ CHANGE from %lld to %lld\n", current_rx+1, last_rx[current_rx], rxFrequency);
-		last_rx[current_rx] = rxFrequency;
-	    }
-#endif
 #ifdef PURESIGNAL
           }
 #endif
@@ -1246,40 +1307,6 @@ void ozy_send_buffer() {
     }
   }
 
-#ifdef PROTOCOL_DEBUG
-//
-// DL1YCF debug:
-// look for changed parameters and log them
-// This is great for debugging protocol problems,
-// such as the HAMlab CW error fixed above, so I
-// leave it here deactivated
-//
-  int ind = output_buffer[C0] >> 1;
-  if (ind == 0 || ind > 8) {
-    // Frequency changes are reported above.
-    if (last_c1[ind] != output_buffer[C1]) {
-      fprintf(stderr, "C0=%x Old C1=%x New C1=%x\n", 2*ind,last_c1[ind], output_buffer[C1]);
-      last_c1[ind]=output_buffer[C1];
-    }
-    if (last_c2[ind] != output_buffer[C2]) {
-      fprintf(stderr, "C0=%x Old C2=%x New C2=%x\n", 2*ind,last_c2[ind], output_buffer[C2]);
-      last_c2[ind]=output_buffer[C2];
-    }
-    if (last_c3[ind] != output_buffer[C3]) {
-      fprintf(stderr, "C0=%x Old C3=%x New C3=%x\n", 2*ind,last_c3[ind], output_buffer[C3]);
-      last_c3[ind]=output_buffer[C3];
-    }
-    if (last_c4[ind] != output_buffer[C4]) {
-      fprintf(stderr, "C0=%x Old C4=%x New C4=%x\n", 2*ind,last_c4[ind], output_buffer[C4]);
-      last_c4[ind]=output_buffer[C4];
-    }
-  }
-  if ((output_buffer[C0] & 1) != last_mox) {
-    fprintf(stderr, "Last Mox=%d New Mox=%d\n", last_mox, output_buffer[C0] & 1);
-    last_mox=output_buffer[C0] & 1;
-  }
-#endif
-
 #ifdef USBOZY
 //
 // if we have a USB interfaced Ozy device:
@@ -1340,7 +1367,6 @@ static int metis_write(unsigned char ep,unsigned char* buffer,int length) {
   if(metis_offset==8) {
     metis_offset=520;
   } else {
-    send_sequence++;
     metis_buffer[0]=0xEF;
     metis_buffer[1]=0xFE;
     metis_buffer[2]=0x01;
@@ -1350,9 +1376,19 @@ static int metis_write(unsigned char ep,unsigned char* buffer,int length) {
     metis_buffer[6]=(send_sequence>>8)&0xFF;
     metis_buffer[7]=(send_sequence)&0xFF;
 
-
-    // send the buffer
-    metis_send_buffer(&metis_buffer[0],1032);
+    //
+    // When using UDP, the buffer will ALWAYS be sent. However, when using TCP,
+    // we must be able to suppress sending buffers HERE asynchronously
+    // when we want to sent a METIS start or stop packet. This is so because TCP
+    // is a byte stream, and data from two sources might end up interleaved
+    // In order not to confuse the SDR, we increase the sequence number only
+    // for packets actually sent.
+    //
+    if (!suppress_ozy_packet) {
+      // send the buffer
+      send_sequence++;
+      metis_send_buffer(&metis_buffer[0],1032);
+    }
     metis_offset=8;
 
   }
@@ -1361,6 +1397,14 @@ static int metis_write(unsigned char ep,unsigned char* buffer,int length) {
 }
 
 static void metis_restart() {
+  //
+  // In TCP-ONLY mode, we possibly need to re-connect
+  // since if we come from a METIS-stop, the server
+  // has closed the socket. Note that the UDP socket, once
+  // opened is never closed.
+  //
+  if (radio->use_tcp && tcp_socket < 1) open_tcp_socket();
+
   // reset metis frame
   metis_offset=8;
 
@@ -1404,7 +1448,8 @@ static void metis_restart() {
 
 static void metis_start_stop(int command) {
   int i;
-  unsigned char buffer[64];
+  int tmp;
+  unsigned char buffer[1032];
     
 #ifdef USBOZY
   if(device!=DEVICE_OZY)
@@ -1413,22 +1458,71 @@ static void metis_start_stop(int command) {
 
   buffer[0]=0xEF;
   buffer[1]=0xFE;
-  buffer[2]=0x04;    // start/stop command
-  buffer[3]=command;    // send EP6 and EP4 data (0x00=stop)
+  buffer[2]=0x04;	// start/stop command
+  buffer[3]=command;	// send EP6 and EP4 data (0x00=stop)
 
-  for(i=0;i<60;i++) {
-    buffer[i+4]=0x00;
+  if (tcp_socket < 0) {
+    // use UDP  -- send a short packet
+    for(i=4;i<64;i++) {
+      buffer[i]=0x00;
+    }
+    metis_send_buffer(buffer,64);
+  } else {
+    // use TCP -- send a long packet
+    //
+    // Stop the sending of TX/audio packets (1032-byte-length) and wait a while
+    // Then, send the start/stop buffer with a length of 1032
+    //
+    suppress_ozy_packet=1;
+    usleep(100000);
+    for(i=4;i<1032;i++) {
+      buffer[i]=0x00;
+    }
+    metis_send_buffer(buffer,1032);
+    //
+    // Wait a while before resuming sending TX/audio packets.
+    // This prevents mangling of data from TX/audio and Start/Stop packets.
+    //
+    usleep(100000);
+    suppress_ozy_packet=0;
+  }
+  if (command == 0 && tcp_socket >= 0) {
+    // We just have sent a METIS stop in TCP
+    // Radio will close the TCP connection, therefore we do this as well
+    tmp=tcp_socket;
+    tcp_socket=-1;
+    usleep(100000);  // give some time to swallow incoming TCP packets
+    close(tmp);
+    fprintf(stderr,"TCP socket closed\n");
   }
 
-  metis_send_buffer(buffer,sizeof(buffer));
 #ifdef USBOZY
   }
 #endif
 }
 
 static void metis_send_buffer(unsigned char* buffer,int length) {
-  if(sendto(data_socket,buffer,length,0,(struct sockaddr*)&data_addr,data_addr_length)!=length) {
-    perror("sendto socket failed for metis_send_data\n");
+  //
+  // Send using either the UDP or TCP socket. Do not use TCP for
+  // packets that are not 1032 bytes long
+  //
+
+  if (tcp_socket >= 0) {
+    if (length != 1032) {
+       fprintf(stderr,"PROGRAMMING ERROR: TCP LENGTH != 1032\n");
+       exit(-1);
+    }
+    if(sendto(tcp_socket,buffer,length,0,NULL, 0) != length) {
+      perror("sendto socket failed for TCP metis_send_data\n");
+    }
+  } else if (data_socket >= 0) {
+    if(sendto(data_socket,buffer,length,0,(struct sockaddr*)&data_addr,sizeof(data_addr))!=length) {
+      perror("sendto socket failed for UDP metis_send_data\n");
+    }
+  } else {
+    // This should not happen
+    fprintf(stderr,"METIS send: neither UDP nor TCP socket available!\n");
+    exit(-1);
   }
 }
 

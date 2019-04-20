@@ -29,7 +29,6 @@
 #include <arpa/inet.h>
 
 #include "discovered.h"
-#include "discovery.h"
 #include "old_discovery.h"
 #include "new_discovery.h"
 #include "main.h"
@@ -53,6 +52,11 @@ static DISCOVERED *d;
 static GtkWidget *apps_combobox[MAX_DEVICES];
 #endif
 
+GtkWidget *tcpaddr;
+#define IPADDR_LEN 20
+static char ipaddr_tcp_buf[IPADDR_LEN] = "10.10.10.10";
+char *ipaddr_tcp = &ipaddr_tcp_buf[0];
+
 static gboolean start_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
 fprintf(stderr,"start_cb: %p\n",data);
   radio=(DISCOVERED *)data;
@@ -63,14 +67,18 @@ fprintf(stderr,"start_cb: %p\n",data);
     const int device_id = radio - discovered;
     int ret;
     ret=stemlab_start_app(gtk_combo_box_get_active_id(GTK_COMBO_BOX(apps_combobox[device_id])));
-#ifdef NO_AVAHI
-    // We only have started the app, but not queried e.g. the MAC address.
-    // Therefore, we have to clean up and re-start the discovery process.
-    stemlab_cleanup();
-    gtk_widget_destroy(discovery_dialog);
-    g_idle_add(ext_discovery,NULL);
-    return TRUE;
-#endif
+    //
+    // We have started the SDR app on the RedPitaya, but may need to fill
+    // in information necessary for starting the radio, including the
+    // MAC address and the interface listening to. Even when using AVAHI,
+    // we miss some information.
+    // To get all required info, we do a "fake" discovery on the RedPitaya IP address.
+    // Here we also try TCP if UDP does not work, such that we can work with STEMlabs
+    // in remote subnets.
+    //
+    if (ret == 0) {
+      ret=stemlab_get_info(device_id);
+    }
     // At this point, if stemlab_start_app failed, we cannot recover
     if (ret != 0) exit(-1);
   }
@@ -100,11 +108,45 @@ static gboolean exit_cb (GtkWidget *widget, GdkEventButton *event, gpointer data
   return TRUE;
 }
 
+static gboolean tcp_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+    strncpy(ipaddr_tcp, gtk_entry_get_text(GTK_ENTRY(tcpaddr)), IPADDR_LEN);
+    ipaddr_tcp[IPADDR_LEN-1]=0;
+    // remove possible trailing newline chars in ipaddr_tcp
+	    int len=strnlen(ipaddr_tcp,IPADDR_LEN);
+	    while (--len >= 0) {
+	      if (ipaddr_tcp[len] != '\n') break;
+	      ipaddr_tcp[len]=0;
+	    }
+	    fprintf(stderr,"New TCP addr = %s.\n", ipaddr_tcp);
+	    // save this value to config file
+	    FILE *fp = fopen("ip.addr", "w");
+	    if (fp) {
+		fprintf(fp,"%s\n",ipaddr_tcp);
+		fclose(fp);
+	    }
+	    gtk_widget_destroy(discovery_dialog);
+	    g_idle_add(ext_discovery,NULL);
+	    return TRUE;
+	}
+
 void discovery() {
 fprintf(stderr,"discovery\n");
   selected_device=0;
   devices=0;
 
+  // Try to locate IP addr
+  FILE *fp=fopen("ip.addr","r");
+  if (fp) {
+    fgets(ipaddr_tcp, IPADDR_LEN,fp);
+    fclose(fp);
+    ipaddr_tcp[IPADDR_LEN-1]=0;
+    // remove possible trailing newline char in ipaddr_tcp
+    int len=strnlen(ipaddr_tcp,IPADDR_LEN);
+    while (--len >= 0) {
+      if (ipaddr_tcp[len] != '\n') break;
+      ipaddr_tcp[len]=0;
+    }
+  }
 #ifdef USBOZY
 //
 // first: look on USB for an Ozy
@@ -182,6 +224,15 @@ fprintf(stderr,"discovery\n");
     g_signal_connect (discover_b, "button-press-event", G_CALLBACK(discover_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),discover_b,1,1,1,1);
 
+    GtkWidget *tcp_b=gtk_button_new_with_label("Use new TCP Addr:");
+    g_signal_connect (tcp_b, "button-press-event", G_CALLBACK(tcp_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),tcp_b,0,2,1,1);
+
+    tcpaddr=gtk_entry_new();
+    gtk_entry_set_max_length(GTK_ENTRY(tcpaddr), 20);
+    gtk_grid_attach(GTK_GRID(grid),tcpaddr,1,2,1,1);
+    gtk_entry_set_text(GTK_ENTRY(tcpaddr), ipaddr_tcp);
+
     gtk_container_add (GTK_CONTAINER (content), grid);
     gtk_widget_show_all(discovery_dialog);
   } else {
@@ -227,7 +278,7 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
             sprintf(text,"%s (%s) on USB /dev/ozy", d->name, d->protocol==ORIGINAL_PROTOCOL?"Protocol 1":"Protocol 2");
           } else {
 #endif
-            sprintf(text,"%s (%s %s) %s (%02X:%02X:%02X:%02X:%02X:%02X) on %s",
+            sprintf(text,"%s (%s %s) %s (%02X:%02X:%02X:%02X:%02X:%02X) on %s: ",
                           d->name,
                           d->protocol==ORIGINAL_PROTOCOL?"Protocol 1":"Protocol 2",
                           version,
@@ -252,7 +303,7 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
 #ifdef STEMLAB_DISCOVERY
         case STEMLAB_PROTOCOL:
 #ifdef NO_AVAHI
-	  sprintf(text,"Choose App from %s and re-Discover:",inet_ntoa(d->info.network.address.sin_addr));
+	  sprintf(text,"Choose RedPitaya App from %s and start radio: ",inet_ntoa(d->info.network.address.sin_addr));
 #else
           sprintf(text, "STEMlab (%02X:%02X:%02X:%02X:%02X:%02X) on %s",
                          d->info.network.mac_address[0],
@@ -346,6 +397,16 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
     GtkWidget *exit_b=gtk_button_new_with_label("Exit");
     g_signal_connect (exit_b, "button-press-event", G_CALLBACK(exit_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),exit_b,2,i,1,1);
+
+    i++;
+    GtkWidget *tcp_b=gtk_button_new_with_label("Use new TCP Addr:");
+    g_signal_connect (tcp_b, "button-press-event", G_CALLBACK(tcp_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),tcp_b,1,i,1,1);
+
+    tcpaddr=gtk_entry_new();
+    gtk_entry_set_max_length(GTK_ENTRY(tcpaddr), 20);
+    gtk_grid_attach(GTK_GRID(grid),tcpaddr,2,i,1,1);
+    gtk_entry_set_text(GTK_ENTRY(tcpaddr), ipaddr_tcp);
 
     gtk_container_add (GTK_CONTAINER (content), grid);
     gtk_widget_show_all(discovery_dialog);

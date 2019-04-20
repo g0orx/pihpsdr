@@ -36,6 +36,8 @@
 #define DEVICE_HERMES_LITE 6
 // 8000DLE uses 10 as the device type in old protocol
 #define DEVICE_ORION2 10 
+// Newer STEMlab hpsdr emulators use 100 instead of 1
+#define DEVICE_STEMLAB 100
 
 #ifdef USBOZY
 #define DEVICE_OZY 7
@@ -84,6 +86,7 @@
 struct _DISCOVERED {
     int protocol;
     int device;
+    int use_tcp;    // use TCP rather than UDP to connect to radio
     char name[64];
     int software_version;
     int status;
