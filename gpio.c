@@ -1407,7 +1407,7 @@ static void encoder_changed(int action,int pos) {
         value=100.0;
       }
       active_receiver->squelch=value;
-      set_squelch(active_receiver);
+      set_squelch();
       break;
     case ENCODER_COMP:
       value=(double)transmitter->compressor_level;

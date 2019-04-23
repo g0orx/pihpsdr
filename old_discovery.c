@@ -31,6 +31,7 @@
 #include <ifaddrs.h>
 #include <string.h>
 #include <errno.h>
+#include <fcntl.h>
 
 #include "discovered.h"
 #include "discovery.h"
@@ -81,9 +82,12 @@ static void discover(struct ifaddrs* iface) {
 	//
 	// We make a time-out of 3 secs, otherwise we might "hang" in connect()
 	//
+	flags=fcntl(discovery_socket, F_GETFL, 0);
+	fcntl(discovery_socket, F_SETFL, flags | O_NONBLOCK);
         tv.tv_sec=3;
 	tv.tv_usec=0;
 	setsockopt(discovery_socket, SOL_SOCKET, SO_RCVTIMEO, (void *)&tv, sizeof(tv));
+	
 
         if (connect(discovery_socket, (const struct sockaddr *)&to_addr, sizeof(to_addr)) < 0) {
             perror("discover: connect() failed for TCP discovery_socket:");

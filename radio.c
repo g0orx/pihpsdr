@@ -69,6 +69,9 @@
 #ifdef LOCALCW
 #include "iambic.h"
 #endif
+#ifdef MIDI
+#include "midi.h"
+#endif
 
 #define min(x,y) (x<y?x:y)
 #define max(x,y) (x<y?y:x)
@@ -361,6 +364,11 @@ void start_radio() {
   gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_WATCH));
 
   int rc;
+
+#ifdef MIDI
+  MIDIstartup();
+#endif
+
 #ifdef __APPLE__
   property_sem=sem_open("PROPERTY", O_CREAT, 0700, 0);
   rc=(property_sem == SEM_FAILED);

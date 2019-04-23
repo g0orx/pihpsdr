@@ -1,0 +1,33 @@
+#
+# Sample midi.inp file, suitable for a Behringer CMD PL-1 MIDI controller
+#
+# Note that the Attenuator is implemented twice, as a key and as a wheel
+# The key is suitable for radios with a step (ALEX) attenuator, the wheel
+# fits best for radios with a programmable attenuator (0-31 dB)
+#
+DEVICE=CMD PL 1
+CTRL=31 WHEEL THR=59 61 63 65 67 69 ACTION=VFO           # Big wheel:    : main VFO knob
+PITCH ACTION=AFGAIN                                      # Big slider    : AF gain
+KEY=16 ACTION=PREAMP					 # Key 1         : Cycle through Preamp settings
+KEY=17 ACTION=ATT 					 # Key 2         : Cycle through ATT (Alex ATT) settings
+KEY=18 ACTION=RITTOGGLE					 # Key 3         : RIT on/off
+KEY=19 ACTION=NONE					 # Key 4         :
+KEY=20 ACTION=NONE					 # Key 5         :
+KEY=21 ACTION=NONE					 # Key 6         :
+KEY=22 ACTION=NONE					 # Key 7         :
+KEY=23 ACTION=NONE					 # Key 8         :
+KEY=24 ACTION=TUNE                                       # LOAD    button: TUNE on/off
+KEY=27 ACTION=SWAPVFO 					 # SCRATCH button: Swap VFOs A and B
+KEY=34 ACTION=MOX                                        # CUE     button: MOX on/off
+KEY=36 ACTION=MODEDOWN					 # <<      button: Mode down
+KEY=37 ACTION=MODEUP					 # >>      button: Mode up
+KEY=38 ACTION=BANDDOWN					 # -       button: Band down
+KEY=39 ACTION=BANDUP					 # +       button: Band up
+CTRL=0 WHEEL THR=-1 -1 63 65 128 128 ACTION=ATT          # Knob 1        : RX att
+CTRL=1 WHEEL THR=-1 -1 63 65 128 128 ACTION=COMPRESS     # Knob 2        : TX compression
+CTRL=2 WHEEL THR=-1 -1 63 65 128 128 ACTION=RITVAL       # Knob 3        : RIT value
+CTRL=3 WHEEL THR=-1 -1 63 65 128 128 ACTION=PANLOW       # Knob 4        : Panadapter low
+CTRL=4 WHEEL THR=-1 -1 63 65 128 128 ACTION=AGC          # Knob 5        : AGC
+CTRL=5 WHEEL THR=-1 -1 63 65 128 128 ACTION=MICGAIN      # Knob 6        : MIC gain
+CTRL=6 WHEEL THR=-1 -1 63 65 128 128 ACTION=RFPOWER      # Knob 7        : TX drive
+CTRL=7 WHEEL THR=-1 -1 63 65 128 128 ACTION=FILTERUP     # Knob 8        : cycle through the filters

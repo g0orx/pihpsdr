@@ -188,12 +188,22 @@ void set_attenuation_value(double value) {
 
 void update_att_preamp(void) {
   // CHARLY25: update the ATT/Pre buttons to the values of the active RX
+  // We should also set the attenuation for use in meter.c
   if (filter_board == CHARLY25) {
     char id[] = "x";
+    if (active_receiver->id != 0) {
+      active_receiver->alex_attenuation=0;
+      active_receiver->preamp=0;
+      active_receiver->dither=0;
+      adc_attenuation[active_receiver->adc] = 0;
+    }
     sprintf(id, "%d", active_receiver->alex_attenuation);
+    adc_attenuation[active_receiver->adc] = 12*active_receiver->alex_attenuation;
     gtk_combo_box_set_active_id(GTK_COMBO_BOX(c25_att_combobox), id);
     sprintf(id, "%d", active_receiver->preamp + active_receiver->dither);
     gtk_combo_box_set_active_id(GTK_COMBO_BOX(c25_preamp_combobox), id);
+  } else {
+    adc_attenuation[active_receiver->adc] = 10*active_receiver->alex_attenuation;
   }
 }
 
@@ -385,12 +395,6 @@ void set_mic_gain(double value) {
   }
 }
 
-int update_mic_gain(void *data) {
-  set_mic_gain(*(double*)data);
-  free(data);
-  return 0;
-}
-
 void set_linein_gain(int value) {
   linein_gain=value;
   if(display_sliders) {
@@ -489,7 +493,7 @@ static void compressor_enable_cb(GtkWidget *widget, gpointer data) {
   transmitter_set_compressor(transmitter,gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)));
 }
 
-void set_squelch(RECEIVER* rx) {
+void set_squelch() {
   setSquelch(active_receiver);
   if(display_sliders) {
     gtk_range_set_value (GTK_RANGE(squelch_scale),active_receiver->squelch);

@@ -221,7 +221,7 @@ static int info_thread(gpointer arg) {
 
     if (transmitter->auto_on) {
       double ddb;
-      int new_att;
+      static int new_att;
       int newcal=info[5]!=old5_2;
       old5_2=info[5];
       switch(state) {
@@ -244,6 +244,7 @@ static int info_thread(gpointer arg) {
 	    // Actually, we first adjust the attenuation (state=0),
 	    // then do a PS reset (state=1), and then restart PS (state=2).
             if (transmitter->attenuation != new_att) {
+              SetPSControl(transmitter->id, 1, 0, 0, 0);
 	      transmitter->attenuation=new_att;
               state=1;
 	    }
@@ -268,11 +269,10 @@ static void enable_cb(GtkWidget *widget, gpointer data) {
 
 static void auto_cb(GtkWidget *widget, gpointer data) {
   transmitter->auto_on=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
-  if(transmitter->auto_on) {
-    transmitter->attenuation=31;
-  } else {
+  if(!transmitter->auto_on) {
     transmitter->attenuation=0;
   }
+
 }
 
 static void resume_cb(GtkWidget *widget, gpointer data) {

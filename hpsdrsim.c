@@ -19,17 +19,20 @@
  * RF3 respects the "TX drive" and "TX ATT" settings
  * RF4 is the TX signal multiplied with 0.4 (ignores TX_DRIVE and TX_ATT).
  *
- * We support 4 receivers, they see
- * RX1:  RF1
- * RX2:  RF2 while receiving, RF3 while transmitting/48000
- * RX3:  RF2 while receiving, RF3 while transmitting/48000
- * RX4:  RF3 
+ * Depending on the device type, the receivers see different signals
+ * (This is necessary for PURESIGNAL). We chose the association such that
+ * it works both with and without PURESIGNAL. Upon receiving, the association
+ * is as follows:
+ * RX1=RF1, RX2=RF2, RX3=RF2, 
  *
- * RX5 to RX8: no signal
+ * The connection upon transmitting depends on the DEVICE, namely
+ *
+ * DEVICE=METIS:    RX1=RF3, RX2=RF4
+ * DEVICE=HERMES:   RX3=RF3, RX4=RF4  (also for DEVICE=StemLab)
+ * DEVICE=ORION2:   RX4=RF3, RX5=RF5  (also for DEVICE=ANGELIA and ORION)
+ *
+ * Note that currently, RF3 and RF4 only exist when using 48000 Hz sample rate. 
  * 
- * This is the setting for PURESIGNAL with HERMES boards.
- * To simulate Orion2 boards (Anan7000 etc), we should connect RX4 with RF2 and RX5 with RF3.
- *
  */
 #include <stdio.h>
 #include <errno.h>
@@ -66,75 +69,75 @@ static int sock_TCP_Client = -1;
  * Whenevery they are changed, this is reported.
  */
 
-int		AlexTXrel = -1;
-int		alexRXout = -1;
-int		alexRXant = -1;
-int		MicTS = -1;
-int		duplex = -1;
-int		receivers = -1;
-int		rate = -1;
-int             preamp = -1;
-int		LTdither = -1;
-int		LTrandom = -1;
-int		AlexRXant = -1;
-int		AlexRXout = -1;
-int             ref10 = -1;
-int		src122 = -1;
-int		PMconfig = -1;
-int		MicSrc = -1;
-int		txdrive = 0;
-int		txatt = 0;
-int		sidetone_volume = -1;
-int		cw_internal = -1;
-int		rx_att[2] = {-1,-1};
-int		rx1_attE = -1;
-int             rx_preamp[4] = {-1,-1,-1,-1};
-int		MerTxATT0 = -1;
-int		MerTxATT1 = -1;
-int		MetisDB9 = -1;
-int		PeneSel = -1;
-int		PureSignal = -1;
-int		LineGain = -1;
-int		MicPTT = -1;
-int		tip_ring = -1;
-int		MicBias = -1;
-int		ptt=-1;
-int		att=-1;
-int		TX_class_E = -1;
-int		OpenCollectorOutputs=-1;
-long		tx_freq=-1;
-long		rx_freq[7] = {-1,-1,-1,-1,-1,-1,-1};
-int		hermes_config=-1;
-int		alex_lpf=-1;
-int		alex_hpf=-1;
-int		c25_ext_board_i2c_data=-1;
-int		rx_adc[7]={0,1,1,2,-1,-1,-1};
-int		cw_hang = -1;
-int		cw_reversed = -1;
-int		cw_speed = -1;
-int		cw_mode = -1;
-int		cw_weight = -1;
-int		cw_spacing = -1;
-int		cw_delay = -1;
-int		CommonMercuryFreq = -1;
-int             freq=-1;
+static int		AlexTXrel = -1;
+static int		alexRXout = -1;
+static int		alexRXant = -1;
+static int		MicTS = -1;
+static int		duplex = -1;
+static int		receivers = -1;
+static int		rate = -1;
+static int             preamp = -1;
+static int		LTdither = -1;
+static int		LTrandom = -1;
+static int		AlexRXant = -1;
+static int		AlexRXout = -1;
+static int             ref10 = -1;
+static int		src122 = -1;
+static int		PMconfig = -1;
+static int		MicSrc = -1;
+static int		txdrive = 0;
+static int		txatt = 0;
+static int		sidetone_volume = -1;
+static int		cw_internal = -1;
+static int		rx_att[2] = {-1,-1};
+static int		rx1_attE = -1;
+static int              rx_preamp[4] = {-1,-1,-1,-1};
+static int		MerTxATT0 = -1;
+static int		MerTxATT1 = -1;
+static int		MetisDB9 = -1;
+static int		PeneSel = -1;
+static int		PureSignal = -1;
+static int		LineGain = -1;
+static int		MicPTT = -1;
+static int		tip_ring = -1;
+static int		MicBias = -1;
+static int		ptt=-1;
+static int		att=-1;
+static int		TX_class_E = -1;
+static int		OpenCollectorOutputs=-1;
+static long		tx_freq=-1;
+static long		rx_freq[7] = {-1,-1,-1,-1,-1,-1,-1};
+static int		hermes_config=-1;
+static int		alex_lpf=-1;
+static int		alex_hpf=-1;
+static int		c25_ext_board_i2c_data=-1;
+static int		rx_adc[7]={0,1,1,2,-1,-1,-1};
+static int		cw_hang = -1;
+static int		cw_reversed = -1;
+static int		cw_speed = -1;
+static int		cw_mode = -1;
+static int		cw_weight = -1;
+static int		cw_spacing = -1;
+static int		cw_delay = -1;
+static int		CommonMercuryFreq = -1;
+static int             freq=-1;
 
 
 // floating-point represeners of TX att, RX att, and RX preamp settings
 
-double txdrv_dbl = 1.0;
-double txatt_dbl = 1.0;
-double rxatt_dbl[4] = {1.0, 1.0, 1.0, 1.0};   // this reflects both ATT and PREAMP
+static double txdrv_dbl = 1.0;
+static double txatt_dbl = 1.0;
+static double rxatt_dbl[4] = {1.0, 1.0, 1.0, 1.0};   // this reflects both ATT and PREAMP
 
-int sock_ep2;
+static int sock_ep2;
 
-struct sockaddr_in addr_ep6;
+static struct sockaddr_in addr_ep6;
 
 /*
  * These two variables monitor whether the TX thread is active
  */
-int enable_thread = 0;
-int active_thread = 0;
+static int enable_thread = 0;
+static int active_thread = 0;
 
 void process_ep2(uint8_t *frame);
 void *handler_ep6(void *arg);
@@ -146,10 +149,12 @@ void *handler_ep6(void *arg);
 
 // 63 * 130,  RTXLEN must be an even multiple of 63!
 #define RTXLEN 8190
-double  isample[RTXLEN];
-double  qsample[RTXLEN];
-int  txptr=0;
-int  rxptr=0;
+static double  isample[RTXLEN];
+static double  qsample[RTXLEN];
+static int  txptr=0;
+static int  rxptr=0;
+
+static int ismetis,isorion,ishermes,isc25;
 
 int main(int argc, char *argv[])
 {
@@ -157,6 +162,7 @@ int main(int argc, char *argv[])
 	struct sched_param param;
 	pthread_attr_t attr;
 	pthread_t thread;
+        int DEVICE;
 
 	uint8_t reply[11] = { 0xef, 0xfe, 2, 0, 0, 0, 0, 0, 0, 32, 1 };
 
@@ -178,6 +184,31 @@ int main(int argc, char *argv[])
 	int udp_retries=0;
 	int bytes_read, bytes_left;
 	uint32_t *code0 = (uint32_t *) buffer;  // fast access to code of first buffer
+
+/*
+ *      Examples for METIS:	ANAN10E, ANAN100B
+ *      Examples for HERMES:	HERMES, ANAN10, ANAN100
+ *	Examples for ORION:	ANAN100D, ANAN200D
+ *	Examples for ORION2:	ANAN7000D, ANAN8000D
+ */
+
+	DEVICE=1; // default is Hermes
+        if (argc > 1) {
+	    if (!strncmp(argv[1],"-metis"  ,6))  DEVICE=0;
+	    if (!strncmp(argv[1],"-hermes" ,7))  DEVICE=1;
+	    if (!strncmp(argv[1],"-orion" , 6))  DEVICE=5;
+	    if (!strncmp(argv[1],"-orion2" ,7))  DEVICE=10;   // Anan7000 in old protocol
+	    if (!strncmp(argv[1],"-c25"    ,8))  DEVICE=100;  // the same as hermes
+        }
+	ismetis=ishermes=isorion=isc25;
+	switch (DEVICE) {
+	    case   0: fprintf(stderr,"DEVICE is METIS\n");   ismetis=1;  break;
+	    case   1: fprintf(stderr,"DEVICE is HERMES\n");  ishermes=1; break;
+	    case   5: fprintf(stderr,"DEVICE is ORION\n");   isorion=1;  break;
+	    case  10: fprintf(stderr,"DEVICE is ORION2\n");  isorion=1;  break;
+	    case 100: fprintf(stderr,"DEVICE is StemLab\n"); ishermes=1;  isc25=1; break;
+	}
+	reply[10]=DEVICE;
 
 	if ((sock_ep2 = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
 	{
@@ -422,11 +453,6 @@ int main(int argc, char *argv[])
 				memset(buffer, 0, 60);
 				memcpy(buffer, reply, 11);
 
-				// ab-use some of the "unused" bytes in the reply block to indicate we can do TCP
-				// This information can be used by SDR programs
-				buffer[11]='T';
-				buffer[12]='C';
-				buffer[13]='P';
 				if (sock_TCP_Client > -1)
 				{
 					// We will get into trouble if we respond via TCP while the radio is
@@ -568,8 +594,8 @@ void process_ep2(uint8_t *frame)
 
           chk_data((frame[3] & 0x03) >> 0, att, "ALEX Attenuator");
           chk_data((frame[3] & 0x04) >> 2, preamp, "ALEX preamp");
-          chk_data((frame[3] & 0x08) >> 2, LTdither, "LT2208 Dither");
-          chk_data((frame[3] & 0x10) >> 2, LTrandom, "LT2208 Random");
+          chk_data((frame[3] & 0x08) >> 3, LTdither, "LT2208 Dither");
+          chk_data((frame[3] & 0x10) >> 4, LTrandom, "LT2208 Random");
           chk_data((frame[3] & 0x60) >> 5, alexRXant, "ALEX RX ant");
           chk_data((frame[3] & 0x80) >> 7, alexRXout, "ALEX RX out");
 
@@ -578,6 +604,13 @@ void process_ep2(uint8_t *frame)
           chk_data(((frame[4] >> 3) & 7) + 1, receivers, "RECEIVERS");
           chk_data(((frame[4] >> 6) & 1), MicTS, "TimeStampMic");
           chk_data(((frame[4] >> 7) & 1), CommonMercuryFreq,"Common Mercury Freq");
+
+	  if (isc25) {
+             // Charly25: has two 18-dB preamps that are switched with "preamp" and "dither"
+             //           and a step-attenuator triggered by Alex ATT ONLY RX1!
+               rxatt_dbl[0]=pow(10.0, -0.05*(12*att-18*LTdither-18*preamp));
+               rxatt_dbl[1]=1.0;
+          }
 	  break;
 
         case 2:
@@ -651,11 +684,13 @@ void process_ep2(uint8_t *frame)
    	   chk_data((frame[4] & 0x1F) >> 0, rx_att[0], "RX1 ATT");
    	   chk_data((frame[4] & 0x20) >> 5, rx1_attE, "RX1 ATT enable");
 
-	   // Set RX amplification factors. Assume 20 dB preamps
-           rxatt_dbl[0]=pow(10.0, -0.05*(rx_att[0]-20*rx_preamp[0]));
-           rxatt_dbl[1]=pow(10.0, -0.05*(rx_att[1]-20*rx_preamp[1]));
-           rxatt_dbl[2]=pow(10.0, (double) rx_preamp[2]);
-           rxatt_dbl[3]=pow(10.0, (double) rx_preamp[3]);
+	   if (!isc25) {
+	     // Set RX amplification factors. Assume 20 dB preamps
+             rxatt_dbl[0]=pow(10.0, -0.05*(rx_att[0]-20*rx_preamp[0]));
+             rxatt_dbl[1]=pow(10.0, -0.05*(rx_att[1]-20*rx_preamp[1]));
+             rxatt_dbl[2]=pow(10.0, (double) rx_preamp[2]);
+             rxatt_dbl[3]=pow(10.0, (double) rx_preamp[3]);
+	   }
 	   break;
 
 	case 22:
@@ -740,7 +775,13 @@ void *handler_ep6(void *arg)
 		127, 127, 127, 24, 0, 0, 0, 0,
 		127, 127, 127, 32, 66, 66, 66, 66
 	};
-        int32_t sample;
+        int32_t rf1isample,rf1qsample;
+        int32_t rf2isample,rf2qsample;
+        int32_t rf3isample,rf3qsample;
+        int32_t rf4isample,rf4qsample;
+
+	int32_t myisample,myqsample;
+
         struct timespec delay;
 #ifdef __APPLE__
 	struct timespec now;
@@ -834,80 +875,87 @@ void *handler_ep6(void *arg)
 		    pointer += 8;
 		    memset(pointer, 0, 504);
 		    for (j=0; j<n; j++) {
+			//
+			// Define samples of our sources RF1 through RF4
+			//
+			rf1isample= noiseItab[noiseIQpt] * 8388607.0;			// Noise
+			rf1isample += T0800Itab[pt0800] * 83.886070 *rxatt_dbl[0];	// tone 100 dB below peak
+			rf1qsample=noiseQtab[noiseIQpt] * 8388607.0;
+			rf1qsample += T0800Qtab[pt0800] * 83.886070 *rxatt_dbl[0];
+			//
+			rf2isample= noiseItab[noiseIQpt] * 8388607.0;			// Noise
+			rf2isample += T2000Itab[pt2000] * 838.86070 * rxatt_dbl[1];	// tone 80 dB below peak
+			rf2qsample=noiseQtab[noiseIQpt] * 8388607.0;
+			rf2qsample += T2000Qtab[pt2000] * 838.86070 * rxatt_dbl[1];
+			//
+			// RF3: TX signal distorted
+			//
+			i1=isample[rxptr]*txdrv_dbl;
+			q1=qsample[rxptr]*txdrv_dbl;
+			fac=IM3a+IM3b*(i1*i1+q1*q1);
+			rf3isample= txatt_dbl*i1*fac * 8388607.0;
+			rf3qsample= txatt_dbl*q1*fac * 8388607.0;
+			//
+			// RF4: TX signal with peak=0.4
+			//
+			rf4isample= isample[rxptr] * 0.400 * 8388607.0;
+			rf4qsample= qsample[rxptr] * 0.400 * 8388607.0;
+
+
+
 			for (k=0; k< receivers; k++) {
+			    myisample=0;
+			    myqsample=0;
 			    switch (k) {
-				case 0: // RX1 sees RF1
-				    //
-				    // RF1: noise + weak 800 Hz tone
-				    //
-				    sample= noiseItab[noiseIQpt] * 8388607.0;
-			  	    sample += T0800Itab[pt0800] * 83.886070 *rxatt_dbl[0];  // 100 dB below peak
-			   	    *pointer++ = (sample >> 16) & 0xFF;
-				    *pointer++ = (sample >>  8) & 0xFF;
-				    *pointer++ = (sample >>  0) & 0xFF;
-				    sample=noiseQtab[noiseIQpt] * 8388607.0;
-			  	    sample += T0800Qtab[pt0800] * 83.886070 *rxatt_dbl[0];  // 100 dB below peak
-				    *pointer++ = (sample >> 16) & 0xFF;
-				    *pointer++ = (sample >>  8) & 0xFF;
-				    *pointer++ = (sample >>  0) & 0xFF;
-				    break;
-			  	case 1: // RX2 and RX3 see RF2 upon receiving, RF3 upon transmitting
-				case 2:
-                                    if (rate == 0 && ptt) {
-                                    	//
-					// RF3:
-                                    	// Distorted (feed-back) TX signal
-                                    	// Note we first add distortion, then adjust level
-                                    	// Therefore we first multiply with txdrv_dbl, then
-                                    	// distort, and then attenuate with txatt_dbl.
-                                   	//
-                                        i1=isample[rxptr]*txdrv_dbl;
-                                        q1=qsample[rxptr]*txdrv_dbl;
-                                        fac=IM3a+IM3b*(i1*i1+q1*q1);
-                                        sample= txatt_dbl*i1*fac * 8388607.0;
-                                        *pointer++ = (sample >> 16) & 0xFF;
-                                        *pointer++ = (sample >>  8) & 0xFF;
-                                        *pointer++ = (sample >>  0) & 0xFF;
-                                        sample= txatt_dbl*q1*fac * 8388607.0;
-                                        *pointer++ = (sample >> 16) & 0xFF;
-                                        *pointer++ = (sample >>  8) & 0xFF;
-                                        *pointer++ = (sample >>  0) & 0xFF;
-                                    } else {
-				    	//
-				    	// RF2: noise + weak 2000 Hz tone
-				    	//
-				    	sample= noiseItab[noiseIQpt] * 8388607.0;
-			  	    	sample += T2000Itab[pt2000] * 838.86070 * rxatt_dbl[1];  // 80 dB below peak
-				    	*pointer++ = (sample >> 16) & 0xFF;
-				    	*pointer++ = (sample >>  8) & 0xFF;
-				    	*pointer++ = (sample >>  0) & 0xFF;
-				    	sample=noiseQtab[noiseIQpt] * 8388607.0;
-			  	    	sample += T2000Qtab[pt2000] * 838.86070 * rxatt_dbl[1];  // 80 dB below peak
-				    	*pointer++ = (sample >> 16) & 0xFF;
-				    	*pointer++ = (sample >>  8) & 0xFF;
-				    	*pointer++ = (sample >>  0) & 0xFF;
-				    }
-				    break;
-				case 3: // RX4 sees TX outgoing signal (no distortion, no attenuation)
-				    //
-				    // RF4: TX signal with HWPeak = 0.4
-				    //
-                        	    if (rate == 0 && ptt) {
-                                  	sample= isample[rxptr] * 0.400 * 8388607.0;
-                                  	*pointer++ = (sample >> 16) & 0xFF;
-                                  	*pointer++ = (sample >>  8) & 0xFF;
-                                  	*pointer++ = (sample >>  0) & 0xFF;
-                                  	sample= qsample[rxptr] * 0.400 * 8388607.0;
-                                  	*pointer++ = (sample >> 16) & 0xFF;
-                                  	*pointer++ = (sample >>  8) & 0xFF;
-                                  	*pointer++ = (sample >>  0) & 0xFF;
-                               	    } else {
-				  	pointer +=6;
-				    }
-				    break;
-				default:
-				    pointer +=6;
+			      case 0: // RX1
+				if (rate == 0 && ptt && ismetis) {
+				    myisample=rf3isample;
+				    myqsample=rf3qsample;
+				} else {
+				    myisample=rf1isample;
+				    myqsample=rf1qsample;
+				}
+				break;
+			      case 1: // RX2
+				if (rate == 0 && ptt && ismetis) {
+				    myisample=rf4isample;
+				    myqsample=rf4qsample;
+				} else {
+				    myisample=rf2isample;
+				    myqsample=rf2qsample;
+				}
+				break;
+			      case 2:
+                                if (rate == 0 && ptt && ishermes) {
+				    myisample=rf3isample;
+				    myqsample=rf3qsample;
+                                } else {
+				    myisample=rf2isample;
+				    myqsample=rf2qsample;
+				}
+				break;
+			      case 3: // RX4
+                        	if (rate == 0 && ptt && ishermes) {
+				    myisample=rf4isample;
+				    myqsample=rf4qsample;
+                               	} else if (rate == 0 && ptt && isorion) {
+				    myisample=rf3isample;
+				    myqsample=rf3qsample;
+				}
+				break;
+			      case 4: // RX5
+                               	if (rate == 0 && ptt && isorion) {
+				    myisample=rf4isample;
+				    myqsample=rf4qsample;
+				}
+				break;
 			    }
+			    *pointer++ = (myisample >> 16) & 0xFF;
+			    *pointer++ = (myisample >>  8) & 0xFF;
+			    *pointer++ = (myisample >>  0) & 0xFF;
+			    *pointer++ = (myqsample >> 16) & 0xFF;
+			    *pointer++ = (myqsample >>  8) & 0xFF;
+			    *pointer++ = (myqsample >>  0) & 0xFF;
 		        }
 			// Microphone samples: silence
 			pointer += 2;

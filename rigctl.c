@@ -2445,10 +2445,9 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
 						       } else {
 							  int tval = atoi(&cmd_input[2]);                
 							  new_vol = (double) (tval * 60/100) - 10; 
-							  //set_mic_gain(new_vol); 
 							  double *p_mic_gain=malloc(sizeof(double));
 							  *p_mic_gain=new_vol;
-							  g_idle_add(update_mic_gain,(void *)p_mic_gain);
+							  g_idle_add(ext_set_mic_gain,(void *)p_mic_gain);
 						       }
 						    } else {
 						       if(len <=2) {
@@ -2459,7 +2458,7 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                                           if((new_vol >= -10) && (new_vol <= 50)) {
 							     double *p_mic_gain=malloc(sizeof(double));
 							     *p_mic_gain=new_vol;
-							     g_idle_add(update_mic_gain,(void *)p_mic_gain);
+							     g_idle_add(ext_set_mic_gain,(void *)p_mic_gain);
                                                           } else {
                                                              send_resp(client_sock,"?;");
                                                           }
