@@ -67,7 +67,7 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
 			DoTheMidi(desc->action, desc->type, new);
 		    }
 		    break;
-		default:
+		case EVENT_NONE:
 		    break;
 	    }
 	    break;

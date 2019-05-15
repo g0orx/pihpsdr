@@ -352,7 +352,7 @@ static gboolean minimize_cb (GtkWidget *widget, GdkEventButton *event, gpointer 
 }
 
 static gboolean menu_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  new_menu(top_window);
+  new_menu();
   return TRUE;
 }
 
@@ -1014,6 +1014,21 @@ static int calcLevel(double d) {
 
   level=(int)(actual_volts*255.0);
 
+#ifdef __APPLE__
+#ifdef PURESIGNAL
+//
+//  DL1YCF: I do not know exactly why: if the drive level
+//          is set to zero while PS is active, the program
+//          reproducably crashes when the drive is set from 1 Watt
+//          to 0 Watt, possibly a division by zero or the evaluation
+//          of a logarithm within WDSP.
+//          QuickAndDirty Fix: use "1" as minimum drive level
+//          which corresponds to a fraction of a Watt.
+//
+  if (level < 1) level=1;
+#endif
+#endif
+ 
 //fprintf(stderr,"calcLevel: %f calib=%f level=%d\n",d, gbb, level);
   return level;
 }
@@ -1482,6 +1497,11 @@ void radioSaveState() {
     for(i=0;i<receivers;i++) {
       receiver_save_state(receiver[i]);
     }
+#ifdef PURESIGNAL
+    // There is little to save.
+    // An exception is the feedback_antenna stored in PS_RX_FEEDBACK
+    receiver_save_state(receiver[PS_RX_FEEDBACK]);
+#endif
     transmitter_save_state(transmitter);
 #ifdef FREEDV
     freedv_save_state();

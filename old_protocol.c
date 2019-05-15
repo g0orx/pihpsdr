@@ -97,10 +97,6 @@
 #define SPEED_384K                0x03
 #define MODE_CLASS_E              0x01
 #define MODE_OTHERS               0x00
-#define ALEX_ATTENUATION_0DB      0x00
-#define ALEX_ATTENUATION_10DB     0x01
-#define ALEX_ATTENUATION_20DB     0x02
-#define ALEX_ATTENUATION_30DB     0x03
 #define LT2208_GAIN_OFF           0x00
 #define LT2208_GAIN_ON            0x04
 #define LT2208_DITHER_OFF         0x00
@@ -627,7 +623,13 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
 
 
 #ifdef PURESIGNAL
-    nreceivers=(RECEIVERS*2)+1;
+    // DL1YCF:
+    // for PureSignal, the number of receivers needed is hard-coded below.
+    // we need at least 3 (for RX), and up to 5 for Orion2 boards, since
+    // the TX DAC channel is hard-wired to RX5.
+    nreceivers=3;
+    if (device == DEVICE_HERMES) nreceivers=4;
+    if (device == DEVICE_ANGELIA || device == DEVICE_ORION || device == DEVICE_ORION2) nreceivers=5;
 #else
 	#if defined(RADIOBERRY) || defined(PI_SDR)
 		nreceivers = receivers;
@@ -853,6 +855,9 @@ void ozy_send_buffer() {
   output_buffer[SYNC2]=SYNC;
 
   if(metis_offset==8) {
+    //
+    // Every second packet is a "C0=0" packet
+    //
     output_buffer[C0]=0x00;
     output_buffer[C1]=0x00;
     switch(active_receiver->sample_rate) {
@@ -912,7 +917,6 @@ void ozy_send_buffer() {
       output_buffer[C2]|=band->OCrx<<1;
     }
 
-// TODO - add Alex Antenna
     output_buffer[C3] = (receiver[0]->alex_attenuation) & 0x03;  // do not set higher bits
     if(active_receiver->random) {
       output_buffer[C3]|=LT2208_RANDOM_ON;
@@ -933,19 +937,25 @@ void ozy_send_buffer() {
       output_buffer[C3]|=LT2208_GAIN_ON;
     }
 
-    switch(receiver[0]->alex_antenna) {
+    i=receiver[0]->alex_antenna;
+#ifdef PURESIGNAL
+    //
+    // Upon TX, we might have to activate a different RX path for the
+    // attenuated feedback signal. Use feedback_antenna == 0, if
+    // the feedback signal is routed automatically/internally (e.g.
+    // ANAN-7000DLE, when using the internal feedback path).
+    //
+    if (isTransmitting() && transmitter->puresignal) i=receiver[PS_RX_FEEDBACK]->feedback_antenna;
+#endif
+    switch(i) {
       case 0:  // ANT 1
-        break;
       case 1:  // ANT 2
-        break;
       case 2:  // ANT 3
         break;
-      case 3:  // EXT 1
-        //output_buffer[C3]|=0xA0;
+      case 3:  // Alex: RX2 IN, ANAN: EXT1, ANAN7000: EXT
         output_buffer[C3]|=0xC0;
         break;
-      case 4:  // EXT 2
-        //output_buffer[C3]|=0xC0;
+      case 4:  // Alex: RX1 IN, ANAN: EXT2, ANAN7000: RX BYPASS
         output_buffer[C3]|=0xA0;
         break;
       case 5:  // XVTR
@@ -959,8 +969,10 @@ void ozy_send_buffer() {
 // TODO - add Alex TX relay, duplex, receivers Mercury board frequency
     output_buffer[C4]=0x04;  // duplex
 #ifdef PURESIGNAL
-    nreceivers=(RECEIVERS*2)-1;
-    nreceivers+=1; // for PS TX Feedback
+    // DL1YCF: see comment on "nreceivers" above. The number is reduced by 1 here
+    nreceivers=2;
+    if (device == DEVICE_HERMES) nreceivers=3;
+    if (device == DEVICE_ANGELIA || device == DEVICE_ORION || device == DEVICE_ORION2) nreceivers=4;
 #else
 	#ifdef RADIOBERRY
 		nreceivers = receivers-1;
@@ -969,6 +981,7 @@ void ozy_send_buffer() {
 	#endif
 #endif
 
+    // 0 ... 7 maps on 1 ... 8 receivers
     output_buffer[C4]|=nreceivers<<3;
     
     if(isTransmitting()) {
@@ -1014,6 +1027,10 @@ void ozy_send_buffer() {
       }
     }
   } else {
+    //
+    // metis_offset !=8: send "command" C&C packets in round-robin
+    // using the value of "command" from 1 to 10,
+    // and "command==2" packets are repeated for each RX
     switch(command) {
       case 1: // tx frequency
         output_buffer[C0]=0x02;
@@ -1038,7 +1055,10 @@ void ozy_send_buffer() {
         break;
       case 2: // rx frequency
 #ifdef PURESIGNAL
-        nreceivers=(RECEIVERS*2)+1;
+	// DL1YCF: see comment on "nreceivers" above.
+	nreceivers=3;
+	if (device == DEVICE_HERMES) nreceivers=4;
+	if (device == DEVICE_ANGELIA || device == DEVICE_ORION || device == DEVICE_ORION2) nreceivers=5;
 #else
 		#ifdef RADIOBERRY
 			nreceivers = receivers;
@@ -1175,28 +1195,30 @@ void ozy_send_buffer() {
         }
 #endif
         output_buffer[C3]=0x00;
+        output_buffer[C4]=0x00;
   
         if(radio->device==DEVICE_HERMES || radio->device==DEVICE_ANGELIA || radio->device==DEVICE_ORION || radio->device==DEVICE_ORION2) {
-          output_buffer[C4]=0x20|adc_attenuation[receiver[0]->adc];
+	  // DL1YCF: if attenuation is zero, then disable attenuator
+	  i = adc_attenuation[receiver[0]->adc] & 0x1F;
+          if (i >0) output_buffer[C4]=0x20| i;
         } else {
 #ifdef RADIOBERRY
-		  int att = 63 - rx_gain_slider[active_receiver->adc];
+	  int att = 63 - rx_gain_slider[active_receiver->adc];
           output_buffer[C4]=0x20|att;
-#else
-		  output_buffer[C4]=0x00;
 #endif
         }
         break;
       case 5:
-        // need to add adc 2 and 3 attenuation
         output_buffer[C0]=0x16;
         output_buffer[C1]=0x00;
         if(receivers==2) {
           if(radio->device==DEVICE_HERMES || radio->device==DEVICE_ANGELIA || radio->device==DEVICE_ORION || radio->device==DEVICE_ORION2) {
-            output_buffer[C1]=0x20|adc_attenuation[receiver[1]->adc];
+	    // DL1YCF: if attenuation is zero, then disable attenuator
+	    i = adc_attenuation[receiver[1]->adc] & 0x1F;
+            if (i > 0) output_buffer[C1]=0x20|i;
           }
         }
-        output_buffer[C2]=0x00;
+        output_buffer[C2]=0x00; // ADC3 attenuator disabled.
         if(cw_keys_reversed!=0) {
           output_buffer[C2]|=0x40;
         }
@@ -1208,12 +1230,30 @@ void ozy_send_buffer() {
         output_buffer[C0]=0x1C;
         output_buffer[C1]=0x00;
 #ifdef PURESIGNAL
-        output_buffer[C1]|=receiver[0]->adc;
-        output_buffer[C1]|=(receiver[0]->adc<<2);
-        output_buffer[C1]|=receiver[1]->adc<<4;
-        output_buffer[C1]|=(receiver[1]->adc<<6);
+
+	// The whole setup here implicitly assumes
+	// that receiver[0]->adc is 0 and receiver[1]->adc is 1
+
+	// This is the correct setting for DEVICE_METIS and DEVICE_HERMES
+        output_buffer[C1]|=receiver[0]->adc;		// RX1 bound to ADC0
+        output_buffer[C1]|=(receiver[0]->adc<<2);	// RX2 bound to ADC0
+        output_buffer[C1]|=receiver[1]->adc<<4;		// RX3 bound to ADC1
+
+	// DL1YCF:
+	// For Orion, Angelia and OrionMk2 RX4 must show the FeedBack signal.
+        // In most cases this is routed back to RX1 so we need ADC0 for RX4
+	// Since I could test this only on my ANAN7000, I changed to code
+	// to associate RX4 with ADC0 only on Orion2 -- but I guess this will
+	// be necessary for other SDRs as well.
+
+        if (device == DEVICE_ORION2) {
+          output_buffer[C1]|=(receiver[0]->adc<<6);   // This works on ANAN7000
+	} else {
+          output_buffer[C1]|=(receiver[1]->adc<<6);   // Does this work for somebody?
+	}
         output_buffer[C2]=0x00;
         if(transmitter->puresignal) {
+	  // This should not be necessary since RX5 is hard-wired to the TX DAC on TX
           output_buffer[C2]|=receiver[2]->adc;
         }
 #else
@@ -1263,14 +1303,14 @@ void ozy_send_buffer() {
         output_buffer[C0]=0x24;
         output_buffer[C1]=0x00;
         if(isTransmitting()) {
-          output_buffer[C1]|=0x80; // ground RX1 on transmit
+          output_buffer[C1]|=0x80; // ground RX2 on transmit, bit0-6 are Alex2 filters
         }
         output_buffer[C2]=0x00;
         if(receiver[0]->alex_antenna==5) { // XVTR
-          output_buffer[C2]=0x02;
+          output_buffer[C2]=0x02;          // Alex2 XVTR enable
         }
-        output_buffer[C3]=0x00;
-        output_buffer[C4]=0x00;
+        output_buffer[C3]=0x00;            // Alex2 filters
+        output_buffer[C4]=0x00;            // Alex2 filters
         break;
     }
 

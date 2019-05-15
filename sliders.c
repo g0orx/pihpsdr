@@ -202,8 +202,6 @@ void update_att_preamp(void) {
     gtk_combo_box_set_active_id(GTK_COMBO_BOX(c25_att_combobox), id);
     sprintf(id, "%d", active_receiver->preamp + active_receiver->dither);
     gtk_combo_box_set_active_id(GTK_COMBO_BOX(c25_preamp_combobox), id);
-  } else {
-    adc_attenuation[active_receiver->adc] = 10*active_receiver->alex_attenuation;
   }
 }
 

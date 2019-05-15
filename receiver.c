@@ -125,14 +125,15 @@ gboolean receiver_motion_notify_event(GtkWidget *widget, GdkEventMotion *event, 
   int x, y;
   GdkModifierType state;
   RECEIVER *rx=(RECEIVER *)data;
-  if(!making_active) {
+  // DL1YCF: if !pressed, we may come from the destruction
+  //         of a menu, and should not move the VFO.
+  if(!making_active && pressed) {
     gdk_window_get_device_position (event->window,
                                 event->device,
                                 &x,
                                 &y,
                                 &state);
-    // DL1YCF added a pair of () to fix an error
-    if(((state & GDK_BUTTON1_MASK) == GDK_BUTTON1_MASK) || pressed) {
+    if(state & GDK_BUTTON1_MASK) {
       int moved=last_x-x;
       vfo_move((long long)((float)moved*rx->hz_per_pixel));
       last_x=x;
@@ -198,6 +199,11 @@ void receiver_save_state(RECEIVER *rx) {
   sprintf(value,"%d",rx->waterfall_automatic);
   setProperty(name,value);
   
+#ifdef PURESIGNAL
+  sprintf(name,"receiver.%d.feedback_antenna",rx->id);
+  sprintf(value,"%d",rx->feedback_antenna);
+  setProperty(name,value);
+#endif
   sprintf(name,"receiver.%d.alex_antenna",rx->id);
   sprintf(value,"%d",rx->alex_antenna);
   setProperty(name,value);
@@ -306,15 +312,9 @@ fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
   sprintf(name,"receiver.%d.sample_rate",rx->id);
   value=getProperty(name);
   if(value) rx->sample_rate=atoi(value);
-#ifdef STEMLAB_FIX
-  // HPSDR apps on the RedPitay have hard-wired connections
-  // that should not be changed
-  fprintf(stderr,"STEMLAB: ignoring ADC settings for RX%d\n",rx->id);
-#else
   sprintf(name,"receiver.%d.adc",rx->id);
   value=getProperty(name);
   if(value) rx->adc=atoi(value);
-#endif
   sprintf(name,"receiver.%d.filter_low",rx->id);
   value=getProperty(name);
   if(value) rx->filter_low=atoi(value);
@@ -360,6 +360,11 @@ fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
   value=getProperty(name);
   if(value) rx->waterfall_automatic=atoi(value);
 
+#ifdef PURESIGNAL
+  sprintf(name,"receiver.%d.feedback_antenna",rx->id);
+  value=getProperty(name);
+  if(value) rx->feedback_antenna=atoi(value);
+#endif
   sprintf(name,"receiver.%d.alex_antenna",rx->id);
   value=getProperty(name);
   if(value) rx->alex_antenna=atoi(value);
@@ -774,6 +779,9 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
 
   rx->volume=0.0;
 
+  rx->squelch_enable=0;
+  rx->squelch=0;
+
   rx->dither=0;
   rx->random=0;
   rx->preamp=0;
@@ -790,6 +798,7 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
   rx->nr2_npe_method=0;
   rx->nr2_ae=1;
   
+  rx->feedback_antenna=0;
   rx->alex_antenna=0;
   rx->alex_attenuation=0;
 
@@ -807,6 +816,9 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
   rx->mute_radio=0;
 
   rx->low_latency=0;
+
+  // not much to be restored, except feedback_antenna
+  if (id == PS_RX_FEEDBACK) receiver_restore_state(rx);
 
   int result;
   XCreateAnalyzer(rx->id, &result, 262144, 1, 1, "");
@@ -867,12 +879,6 @@ fprintf(stderr,"create_receiver: id=%d buffer_size=%d fft_size=%d pixels=%d fps=
           }
           break;
       }
-#ifdef STEMLAB_FIX
-//
-//    RedPitaya based HPSDR apps have hard-wired adc settings
-//
-      if (id == 1) rx->adc=1;
-#endif
   }
 fprintf(stderr,"create_receiver: id=%d default ddc=%d adc=%d\n",rx->id, rx->ddc, rx->adc);
   rx->sample_rate=48000;
@@ -925,6 +931,10 @@ fprintf(stderr,"create_receiver: id=%d default ddc=%d adc=%d\n",rx->id, rx->ddc,
   rx->nr2_npe_method=0;
   rx->nr2_ae=1;
   
+#ifdef PURESIGNAL
+  rx->feedback_antenna=0;
+#endif
+
   BAND *b=band_get_band(vfo[rx->id].band);
   rx->alex_antenna=b->alexRxAntenna;
   rx->alex_attenuation=b->alexAttenuation;

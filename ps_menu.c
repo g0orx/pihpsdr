@@ -227,11 +227,12 @@ static int info_thread(gpointer arg) {
       switch(state) {
         case 0:
           if(newcal && (info[4]>181 || (info[4]<=128 && transmitter->attenuation>0))) {
-            ddb= 20.0 * log10((double)info[4]/152.293);
-            if(isnan(ddb)) {
-		// this means feedback lvl is < 1, switch OFF attenuation
-                ddb=-100.0;
-            }
+	    if (info[4] > 0) {
+              ddb= 20.0 * log10((double)info[4]/152.293);
+	    } else {
+	      // This happens when the "Drive" slider is moved to zero
+	      ddb= -100.0;
+	    }
             new_att=transmitter->attenuation + (int)ddb;
 	    // keep new value of attenuation in allowed range
 	    if (new_att <  0) new_att= 0;
@@ -261,6 +262,12 @@ static int info_thread(gpointer arg) {
       }
     }
     return TRUE;
+}
+
+static void ps_ant_cb(GtkWidget *widget, gpointer data) {
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
+    receiver[PS_RX_FEEDBACK]->feedback_antenna = (int) (uintptr_t) data;
+  }
 }
 
 static void enable_cb(GtkWidget *widget, gpointer data) {
@@ -358,7 +365,6 @@ void ps_menu(GtkWidget *parent) {
     set_button_text_color(twotone_b,"red");
   }
 
-  
   col++;
 
   GtkWidget *auto_b=gtk_check_button_new_with_label("Auto Attenuate");
@@ -392,6 +398,30 @@ void ps_menu(GtkWidget *parent) {
   row++;
   col=0;
 
+  GtkWidget *ps_ant_label=gtk_label_new("PS FeedBk ANT:");
+  gtk_widget_show(ps_ant_label);
+  gtk_grid_attach(GTK_GRID(grid), ps_ant_label, col, row, 1, 1);
+  col++;
+
+  GtkWidget *ps_ant_auto=gtk_radio_button_new_with_label(NULL,"AUTO");
+  gtk_widget_show(ps_ant_auto);
+  gtk_grid_attach(GTK_GRID(grid), ps_ant_auto, col, row, 1, 1);
+  g_signal_connect(ps_ant_auto,"toggled", G_CALLBACK(ps_ant_cb), (gpointer) (long) 0);
+  col++;
+
+  GtkWidget *ps_ant_ext1=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(ps_ant_auto),"EXT1");
+  gtk_widget_show(ps_ant_ext1);
+  gtk_grid_attach(GTK_GRID(grid), ps_ant_ext1, col, row, 1, 1);
+  g_signal_connect(ps_ant_ext1,"toggled", G_CALLBACK(ps_ant_cb), (gpointer) (long) 3);
+  col++;
+
+  GtkWidget *ps_ant_ext2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(ps_ant_auto),"EXT2");
+  gtk_widget_show(ps_ant_ext2);
+  gtk_grid_attach(GTK_GRID(grid), ps_ant_ext2, col, row, 1, 1);
+  g_signal_connect(ps_ant_ext2,"toggled", G_CALLBACK(ps_ant_cb), (gpointer) (long) 4);
+
+  row++;
+  col=0;
   feedback_l=gtk_label_new("Feedback Lvl");
   gtk_widget_show(feedback_l);
   gtk_grid_attach(GTK_GRID(grid),feedback_l,col,row,1,1);

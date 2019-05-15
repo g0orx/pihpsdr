@@ -89,6 +89,13 @@ typedef struct _receiver {
   int alex_antenna;
   int alex_attenuation;
 
+#ifdef PURESIGNAL
+  // indicates to which ALEX RX antenna the attenuated feedback
+  // signal from the PA goes. The coding is the same as for alex_antenna,
+  // except that this connector is only used when transmitting.
+  int feedback_antenna;
+#endif
+
   int filter_low;
   int filter_high;
 

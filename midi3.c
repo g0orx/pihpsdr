@@ -226,7 +226,8 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 		    break;
 	    }
 	    break;
-	default:
+	case COMPRESS:
+	case ACTION_NONE:
             fprintf(stderr,"Unimplemented in DoTheMidi: A=%d T=%d val=%d\n", action, type, val);
 	    break;
     }
