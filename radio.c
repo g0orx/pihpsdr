@@ -727,11 +727,7 @@ static void rxtx(int state) {
 #endif
 
     for(i=0;i<receivers;i++) {
-#ifdef PURESIGNAL
-#else
-      // Original code: wait 
       SetChannelState(receiver[i]->id,0,i==(receivers-1));
-#endif
       set_displaying(receiver[i],0);
       if(protocol==NEW_PROTOCOL) {
         schedule_high_priority();
