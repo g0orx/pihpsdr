@@ -228,7 +228,6 @@ int device;
 int ozy_software_version;
 int mercury_software_version;
 int penelope_software_version;
-int ptt;
 int dot;
 int dash;
 int adc_overload;
@@ -728,7 +727,11 @@ static void rxtx(int state) {
 #endif
 
     for(i=0;i<receivers;i++) {
+#ifdef PURESIGNAL
+#else
+      // Original code: wait 
       SetChannelState(receiver[i]->id,0,i==(receivers-1));
+#endif
       set_displaying(receiver[i],0);
       if(protocol==NEW_PROTOCOL) {
         schedule_high_priority();
@@ -785,12 +788,12 @@ static void rxtx(int state) {
 
 void setMox(int state) {
   if(mox!=state) {
-    mox=state;
     if(vox_enabled && vox) {
       vox_cancel();
     } else {
       rxtx(state);
     }
+    mox=state;
   }
 }
 
@@ -800,8 +803,8 @@ int getMox() {
 
 void setVox(int state) {
   if(vox!=state && !tune) {
-    vox=state;
     rxtx(state);
+    vox=state;
   }
   g_idle_add(ext_vfo_update,(gpointer)NULL);
 }
@@ -815,11 +818,10 @@ void setTune(int state) {
   int i;
 
   if(tune!=state) {
-    tune=state;
     if(vox_enabled && vox) {
       vox_cancel();
     }
-    if(tune) {
+    if(state) {
       if(full_tune) {
         if(OCfull_tune_time!=0) {
           struct timeval te;
@@ -839,7 +841,7 @@ void setTune(int state) {
       schedule_high_priority();
       //schedule_general();
     }
-    if(tune) {
+    if(state) {
       for(i=0;i<receivers;i++) {
         SetChannelState(receiver[i]->id,0,i==(receivers-1));
         set_displaying(receiver[i],0);
@@ -887,9 +889,9 @@ void setTune(int state) {
           tx_set_mode(transmitter,modeUSB);
           break;
       }
-      rxtx(tune);
+      rxtx(state);
     } else {
-      rxtx(tune);
+      rxtx(state);
       SetTXAPostGenRun(transmitter->id,0);
       switch(pre_tune_mode) {
         case modeCWL:
@@ -898,8 +900,8 @@ void setTune(int state) {
           cw_keyer_internal=1;
           break;
       }
-
     }
+    tune=state;
   }
 }
 
@@ -929,7 +931,7 @@ void radio_cw_key(int state) {
 }
 
 int isTransmitting() {
-  return ptt | mox | vox | tune;
+  return mox | vox | tune;
 }
 
 void setFrequency(long long f) {

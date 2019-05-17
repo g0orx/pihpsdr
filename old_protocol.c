@@ -571,20 +571,22 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
     control_in[3]=buffer[b++];
     control_in[4]=buffer[b++];
 
+    // do not set ptt. In PURESIGNAL, this would stop the
+    // receiver sending samples to WDSP abruptly.
+    // Do the RX-TX change only via ext_mox_update.
     previous_ptt=local_ptt;
     previous_dot=dot;
     previous_dash=dash;
-    ptt=(control_in[0]&0x01)==0x01;
+    local_ptt=(control_in[0]&0x01)==0x01;
     dash=(control_in[0]&0x02)==0x02;
     dot=(control_in[0]&0x04)==0x04;
 
-    local_ptt=ptt;
     if (dot || dash) cw_key_hit=1;
     if(vfo[tx_vfo].mode==modeCWL || vfo[tx_vfo].mode==modeCWU) {
-      local_ptt=ptt|dot|dash;
+      local_ptt=local_ptt|dot|dash;
     }
     if(previous_ptt!=local_ptt) {
-      g_idle_add(ext_ptt_update,(gpointer)(long)(local_ptt));
+      g_idle_add(ext_mox_update,(gpointer)(long)(local_ptt));
     }
 
 

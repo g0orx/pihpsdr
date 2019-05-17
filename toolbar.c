@@ -342,9 +342,6 @@ void mox_cb(GtkWidget *widget, gpointer data) {
   }
   if(getMox()==1) {
     setMox(0);
-    if(ptt) {
-      ptt=0;
-    }
   } else if(canTransmit() || tx_out_of_band) {
     setMox(1);
   } else {
@@ -367,10 +364,6 @@ void mox_update(int state) {
     setMox(state);
   }
   g_idle_add(ext_vfo_update,NULL);
-}
-
-void ptt_update(int state) {
-  mox_update(state);
 }
 
 void tune_cb(GtkWidget *widget, gpointer data) {

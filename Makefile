@@ -455,7 +455,7 @@ release: $(PROGRAM)
 #############################################################################
 
 hpsdrsim.o:	hpsdrsim.c
-	$(CC) -c -O hpsdrsim.c
+	$(CC) -c -O -DPORTAUDIO hpsdrsim.c
 
 hpsdrsim:	hpsdrsim.o
-	$(LINK) -o hpsdrsim hpsdrsim.o -lm -lpthread
+	$(LINK) -o hpsdrsim hpsdrsim.o -lm -lpthread -lportaudio

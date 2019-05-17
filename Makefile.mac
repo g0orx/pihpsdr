@@ -456,10 +456,10 @@ release: $(PROGRAM)
 #############################################################################
 
 hpsdrsim.o:     hpsdrsim.c
-	$(CC) -c -O hpsdrsim.c 
+	$(CC) -c -O $(PORTAUDIO_OPTIONS) hpsdrsim.c
         
 hpsdrsim:       hpsdrsim.o
-	$(LINK) -o hpsdrsim hpsdrsim.o -lm -lpthread
+	$(LINK) -o hpsdrsim hpsdrsim.o -lm -lpthread $(AUDIO_LIBS)
 
 #############################################################################
 #

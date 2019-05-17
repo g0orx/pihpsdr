@@ -88,11 +88,6 @@ int ext_noise_update(void *data) {
   return 0;
 }
 
-int ext_ptt_update(void *data) {
-  ptt_update((int)(uintptr_t)data);
-  return 0;
-}
-
 int ext_mox_update(void *data) {
   mox_update((int)(uintptr_t)data);
   return 0;

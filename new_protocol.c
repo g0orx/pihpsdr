@@ -1513,11 +1513,11 @@ static void process_high_priority(unsigned char *buffer) {
 
     sequence=((high_priority_buffer[0]&0xFF)<<24)+((high_priority_buffer[1]&0xFF)<<16)+((high_priority_buffer[2]&0xFF)<<8)+(high_priority_buffer[3]&0xFF);
 
-    previous_ptt=ptt;
+    previous_ptt=local_ptt;
     previous_dot=dot;
     previous_dash=dash;
 
-    ptt=high_priority_buffer[4]&0x01;
+    local_ptt=high_priority_buffer[4]&0x01;
     dot=(high_priority_buffer[4]>>1)&0x01;
     dash=(high_priority_buffer[4]>>2)&0x01;
     pll_locked=(high_priority_buffer[4]>>3)&0x01;
@@ -1528,12 +1528,11 @@ static void process_high_priority(unsigned char *buffer) {
     supply_volts=((high_priority_buffer[49]&0xFF)<<8)|(high_priority_buffer[50]&0xFF);
 
     int tx_vfo=split?VFO_B:VFO_A;
-    local_ptt=ptt;
     if(vfo[tx_vfo].mode==modeCWL || vfo[tx_vfo].mode==modeCWU) {
-      local_ptt=ptt|dot|dash;
+      local_ptt=local_ptt|dot|dash;
     }
     if(previous_ptt!=local_ptt) {
-      g_idle_add(ext_ptt_update,(gpointer)(long)(local_ptt));
+      g_idle_add(ext_mox_update,(gpointer)(long)(local_ptt));
     }
 }
 

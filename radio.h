@@ -183,7 +183,6 @@ extern int mox;
 extern int tune;
 extern int memory_tune;
 extern int full_tune;
-extern int ptt;
 extern int dot;
 extern int dash;
 extern int adc_overload;

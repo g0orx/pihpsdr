@@ -549,7 +549,7 @@ static gpointer rigctl_cw_thread(gpointer data)
     CAT_cw_is_active=1;
     if (!mox) {
 	// activate PTT
-        g_idle_add(ext_ptt_update ,(gpointer)1);
+        g_idle_add(ext_mox_update ,(gpointer)1);
 	// have to wait until it is really there
 	// Note that if out-of-band, we would wait
 	// forever here, so allow at most 500 msec
@@ -571,7 +571,7 @@ static gpointer rigctl_cw_thread(gpointer data)
        // If a CW key has been hit, we continue in TX mode.
        // Otherwise, switch PTT off.
        if (!cw_key_hit && mox) {
-         g_idle_add(ext_ptt_update ,(gpointer)0);
+         g_idle_add(ext_mox_update ,(gpointer)0);
        }
        // Let the CAT system swallow incoming CW commands by setting cw_busy to -1.
        // Do so until no CAT CW message has arrived for 1 second
@@ -596,7 +596,7 @@ static gpointer rigctl_cw_thread(gpointer data)
       if (cw_busy || num_buf > 0) continue;
       CAT_cw_is_active=0;
       if (!cw_key_hit) {
-        g_idle_add(ext_ptt_update ,(gpointer)0);
+        g_idle_add(ext_mox_update ,(gpointer)0);
         // wait up to 500 msec for MOX having gone
         // otherwise there might be a race condition when sending
         // the next character really soon
@@ -614,7 +614,7 @@ static gpointer rigctl_cw_thread(gpointer data)
   cw_busy=0;
   if (CAT_cw_is_active) {
     CAT_cw_is_active=0;
-    g_idle_add(ext_ptt_update ,(gpointer)0);
+    g_idle_add(ext_mox_update ,(gpointer)0);
   }
   return NULL;
 }
