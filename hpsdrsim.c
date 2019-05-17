@@ -50,12 +50,17 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+
 #ifdef PORTAUDIO
 #include "portaudio.h"
+#else
+#include <alsa/asoundlib.h>
+#endif
+
+// Forward declarations for the audio functions
 void audio_get_cards(void);
 void audio_open_output();
 void audio_write(short, short);
-#endif
 
 
 #ifndef __APPLE__
@@ -199,10 +204,8 @@ int main(int argc, char *argv[])
 	int bytes_read, bytes_left;
 	uint32_t *code0 = (uint32_t *) buffer;  // fast access to code of first buffer
 
-#ifdef PORTAUDIO
 	audio_get_cards();
         audio_open_output();
-#endif
 /*
  *      Examples for METIS:	Mercury/Penelope boards
  *      Examples for HERMES:	ANAN10, ANAN100
@@ -430,16 +433,12 @@ int main(int argc, char *argv[])
 				  double disample,dqsample,idelta,qdelta;
                                   bp=buffer+16;  // skip 8 header and 8 SYNC/C&C bytes
                                   for (j=0; j<126; j++) {
-#ifdef PORTAUDIO
 					// write audio samples
 					r  = (int)((signed char) *bp++)<<8;
 					r |= (int)((signed char) *bp++ & 0xFF);
 					l  = (int)((signed char) *bp++)<<8;
 					l |= (int)((signed char) *bp++ & 0xFF);
                                         audio_write(r,l);
-#else
-					bp += 4;
-#endif
 					sample  = (int)((signed char) *bp++)<<8;
 					sample |= (int) ((signed char) *bp++ & 0xFF);
 					disample=(double) sample / 32768.0;
@@ -1174,4 +1173,211 @@ void audio_write (short l, short r)
   }
 }
 
+#else
+//
+// Audio functions based on LINUX ALSA
+//
+
+static snd_pcm_t *playback_handle = NULL;
+static unsigned char playback_buffer[1024]; // 256 samples, left-and-right, two bytes per sample
+static int playback_offset;
+
+static char *device_id = NULL;
+
+void audio_get_cards() {
+  snd_ctl_card_info_t *info;
+  snd_pcm_info_t *pcminfo;
+  snd_ctl_card_info_alloca(&info);
+  snd_pcm_info_alloca(&pcminfo);
+  int i;
+  int card = -1;
+
+
+  while (snd_card_next(&card) >= 0 && card >= 0) {
+    int err = 0;
+    snd_ctl_t *handle;
+    char name[20];
+    snprintf(name, sizeof(name), "hw:%d", card);
+    if ((err = snd_ctl_open(&handle, name, 0)) < 0) {
+      continue;
+    }
+
+    if ((err = snd_ctl_card_info(handle, info)) < 0) {
+      snd_ctl_close(handle);
+      continue;
+    }
+
+    int dev = -1;
+
+    while (snd_ctl_pcm_next_device(handle, &dev) >= 0 && dev >= 0 && device_id == NULL) {
+      snd_pcm_info_set_device(pcminfo, dev);
+      snd_pcm_info_set_subdevice(pcminfo, 0);
+
+      // ouput devices
+      snd_pcm_info_set_stream(pcminfo, SND_PCM_STREAM_PLAYBACK);
+      if ((err = snd_ctl_pcm_info(handle, pcminfo)) == 0) {
+        device_id=malloc(64);
+        snprintf(device_id, 64, "plughw:%d,%d %s", card, dev, snd_ctl_card_info_get_name(info));
+        fprintf(stderr,"ALSA output_device: %s\n",device_id);
+      }
+    }
+
+    snd_ctl_close(handle);
+   
+  }
+
+  if (device_id != NULL) return; // found one
+
+  // look for dmix
+  void **hints, **n;
+  char *name, *descr, *io;
+
+  if (snd_device_name_hint(-1, "pcm", &hints) < 0)
+    return;
+  n = hints;
+  while (*n != NULL && device_id == NULL) {
+    name = snd_device_name_get_hint(*n, "NAME");
+    descr = snd_device_name_get_hint(*n, "DESC");
+    io = snd_device_name_get_hint(*n, "IOID");
+    
+    if(strncmp("dmix:", name, 5)==0/* || strncmp("pulse", name, 5)==0*/) {
+      fprintf(stderr,"name=%s descr=%s io=%s\n",name, descr, io);
+      device_id=malloc(64);
+      
+      snprintf(device_id, 64, "%s", name);
+      fprintf(stderr,"ALSA output_device: %s\n",device_id);
+    }
+
+    if (name != NULL)
+      free(name);
+    if (descr != NULL)
+      free(descr);
+    if (io != NULL)
+      free(io);
+    n++;
+  }
+  snd_device_name_free_hint(hints);
+}
+
+
+void audio_open_output() {
+  int err;
+  snd_pcm_hw_params_t *hw_params;
+  int rate=48000;
+  int dir=0;
+
+  int i;
+  char hw[64];
+  char *selected=device_id;
+ 
+  i=0;
+  while(selected[i]!=' ') {
+    hw[i]=selected[i];
+    i++;
+  }
+  hw[i]='\0';
+  
+  if ((err = snd_pcm_open (&playback_handle, hw, SND_PCM_STREAM_PLAYBACK, 0)) < 0) {
+    fprintf (stderr, "audio_open_output: cannot open audio device %s (%s)\n", 
+            hw,
+            snd_strerror (err));
+    playback_handle = NULL;
+    return;
+  }
+
+  if ((err = snd_pcm_hw_params_malloc (&hw_params)) < 0) {
+    fprintf (stderr, "audio_open_output: cannot allocate hardware parameter structure (%s)\n",
+            snd_strerror (err));
+    playback_handle=NULL;
+    return;
+  }
+
+  if ((err = snd_pcm_hw_params_any (playback_handle, hw_params)) < 0) {
+    fprintf (stderr, "audio_open_output: cannot initialize hardware parameter structure (%s)\n",
+            snd_strerror (err));
+    playback_handle=NULL;
+    return;
+  }
+
+  if ((err = snd_pcm_hw_params_set_access (playback_handle, hw_params, SND_PCM_ACCESS_RW_INTERLEAVED)) < 0) {
+    fprintf (stderr, "audio_open_output: cannot set access type (%s)\n",
+            snd_strerror (err));
+    playback_handle=NULL;
+    return;
+  }
+	
+  if ((err = snd_pcm_hw_params_set_format (playback_handle, hw_params, SND_PCM_FORMAT_S16_LE)) < 0) {
+    fprintf (stderr, "audio_open_output: cannot set sample format (%s)\n",
+            snd_strerror (err));
+    playback_handle=NULL;
+    return;
+  }
+	
+
+  if ((err = snd_pcm_hw_params_set_rate_near (playback_handle, hw_params, &rate, &dir)) < 0) {
+    fprintf (stderr, "audio_open_output: cannot set sample rate (%s)\n",
+            snd_strerror (err));
+    playback_handle=NULL;
+    return;
+  }
+	
+  if ((err = snd_pcm_hw_params_set_channels (playback_handle, hw_params, 2)) < 0) {
+    fprintf (stderr, "audio_open_output: cannot set channel count (%s)\n",
+            snd_strerror (err));
+    playback_handle=NULL;
+    return;
+  }
+	
+  if ((err = snd_pcm_hw_params (playback_handle, hw_params)) < 0) {
+    fprintf (stderr, "audio_open_output: cannot set parameters (%s)\n",
+            snd_strerror (err));
+    playback_handle=NULL;
+    return;
+  }
+	
+  snd_pcm_hw_params_free (hw_params);
+
+  playback_offset=0;
+  
+  return;
+}
+
+void audio_write(short left_sample,short right_sample) {
+  snd_pcm_sframes_t delay;
+  int error;
+  long trim;
+
+  if(playback_handle!=NULL) {
+    playback_buffer[playback_offset++]=right_sample;
+    playback_buffer[playback_offset++]=right_sample>>8;
+    playback_buffer[playback_offset++]=left_sample;
+    playback_buffer[playback_offset++]=left_sample>>8;
+
+    if(playback_offset==1024) {
+      trim=0;
+
+      if(snd_pcm_delay(playback_handle,&delay)==0) {
+        if(delay>2048) {
+          trim=delay-2048;
+        }
+      }
+
+      if ((error = snd_pcm_writei (playback_handle, playback_buffer, 256-trim)) != 256-trim) {
+        if(error==-EPIPE) {
+          if ((error = snd_pcm_prepare (playback_handle)) < 0) {
+            fprintf (stderr, "audio_write: cannot prepare audio interface for use (%s)\n",
+                    snd_strerror (error));
+            return;
+          }
+          if ((error = snd_pcm_writei (playback_handle, playback_buffer, 256-trim)) != 256) {
+            fprintf (stderr, "audio_write: write to audio interface failed (%s)\n",
+                    snd_strerror (error));
+            return;
+          }
+        }
+      }
+      playback_offset=0;
+    }
+  }
+}
 #endif
