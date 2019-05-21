@@ -25,12 +25,16 @@
 #include "vfo.h"
 #include "ext.h"
 
-static guint vox_timeout;
+static guint vox_timeout=0;
 
 static double peak=0.0;
 
 static int vox_timeout_cb(gpointer data) {
-  //setVox(0);
+  //
+  // First set vox_timeout to zero indicating no "hanging" timeout
+  // then, remove VOX and update display
+  //
+  vox_timeout=0;
   g_idle_add(ext_vox_changed,(gpointer)0);
   g_idle_add(ext_vfo_update,NULL);
   return FALSE;
@@ -45,7 +49,6 @@ double vox_get_peak() {
 void update_vox(TRANSMITTER *tx) {
   // calculate peak microphone input
   // assumes it is interleaved left and right channel with length samples
-  int previous_vox=vox;
   int i;
   double sample;
   peak=0.0;
@@ -60,25 +63,32 @@ void update_vox(TRANSMITTER *tx) {
   }
 
   if(vox_enabled) {
-    if(peak>vox_threshold) {
-      if(previous_vox) {
+    if(peak > vox_threshold) {
+      // we use the value of vox_timeout to determine whether
+      // the time-out is "hanging". We cannot use the value of vox
+      // since this may be set with a delay, and we MUST NOT miss
+      // a "hanging" timeout. Note that if a time-out fires, vox_timeout
+      // is set to zero.
+      if(vox_timeout) {
         g_source_remove(vox_timeout);
       } else {
+	//
+	// no hanging time-out, assume that we just fired VOX
         g_idle_add(ext_vox_changed,(gpointer)1);
+        g_idle_add(ext_vfo_update,NULL);
       }
+      // re-init "vox hang" time
       vox_timeout=g_timeout_add((int)vox_hang,vox_timeout_cb,NULL);
     }
-    if(vox!=previous_vox) {
-      g_idle_add(ext_vfo_update,NULL);
-    }
+    // if peak is not above threshold, do nothing (this shall be done later in the timeout event
   }
 }
 
+//
+// If no vox time-out is hanging, this function is a no-op
+//
 void vox_cancel() {
-  if(vox) {
+  if(vox_timeout) {
     g_source_remove(vox_timeout);
-    //setVox(0);
-    g_idle_add(ext_vox_changed,(gpointer)0);
-    g_idle_add(ext_vfo_update,NULL);
   }
 }

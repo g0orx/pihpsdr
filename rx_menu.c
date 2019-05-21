@@ -247,6 +247,9 @@ void rx_menu(GtkWidget *parent) {
   // Instead, we offer these checkboxes in either case and must rely on the user
   // not playing around with features that are not there.
   //
+  // NOTE: Preamps are not present on most current HPSDR models, and ALEX attenuators
+  //       are not present e.g. in ANAN-7000.
+  //
   if (filter_board != CHARLY25) {
     switch(protocol) {
       case ORIGINAL_PROTOCOL:

@@ -404,18 +404,22 @@ void ps_menu(GtkWidget *parent) {
   col++;
 
   GtkWidget *ps_ant_auto=gtk_radio_button_new_with_label(NULL,"AUTO");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ps_ant_auto), 
+    (receiver[PS_RX_FEEDBACK]->feedback_antenna!=3) && (receiver[PS_RX_FEEDBACK]->feedback_antenna!=4));
   gtk_widget_show(ps_ant_auto);
   gtk_grid_attach(GTK_GRID(grid), ps_ant_auto, col, row, 1, 1);
   g_signal_connect(ps_ant_auto,"toggled", G_CALLBACK(ps_ant_cb), (gpointer) (long) 0);
   col++;
 
   GtkWidget *ps_ant_ext1=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(ps_ant_auto),"EXT1");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ps_ant_ext1), receiver[PS_RX_FEEDBACK]->feedback_antenna==3);
   gtk_widget_show(ps_ant_ext1);
   gtk_grid_attach(GTK_GRID(grid), ps_ant_ext1, col, row, 1, 1);
   g_signal_connect(ps_ant_ext1,"toggled", G_CALLBACK(ps_ant_cb), (gpointer) (long) 3);
   col++;
 
   GtkWidget *ps_ant_ext2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(ps_ant_auto),"EXT2");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ps_ant_ext2), receiver[PS_RX_FEEDBACK]->feedback_antenna==4);
   gtk_widget_show(ps_ant_ext2);
   gtk_grid_attach(GTK_GRID(grid), ps_ant_ext2, col, row, 1, 1);
   g_signal_connect(ps_ant_ext2,"toggled", G_CALLBACK(ps_ant_cb), (gpointer) (long) 4);

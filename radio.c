@@ -729,9 +729,10 @@ static void rxtx(int state) {
     for(i=0;i<receivers;i++) {
 #ifdef PURESIGNAL
       // When using PURESIGNAL, delivery of RX samples
-      // comes to an abrupt stop (since they are "fed"
-      // to pscc()) upon a TX-RX transition.
-      // Therefore, wait for all receivers to complete
+      // to WDSP via fexchange0() comes to an abrupt stop
+      // since they go through add_ps_iq_samples()
+      // rather than add_iq_samples().
+      // Therefore, wait for *all* receivers to complete
       // their slew-down before going TX.
       SetChannelState(receiver[i]->id,0,1);
 #else
@@ -793,12 +794,13 @@ static void rxtx(int state) {
 }
 
 void setMox(int state) {
+  vox_cancel();  // remove time-out
+  if (vox) {     // if VOX active, turn it off
+    rxtx(0);
+    vox=0;
+  }
   if(mox!=state) {
-    if(vox_enabled && vox) {
-      vox_cancel();
-    } else {
-      rxtx(state);
-    }
+    rxtx(state);
     mox=state;
   }
 }
@@ -807,25 +809,25 @@ int getMox() {
     return mox;
 }
 
-void setVox(int state) {
-  if(vox!=state && !tune) {
-    rxtx(state);
-    vox=state;
-  }
-  g_idle_add(ext_vfo_update,(gpointer)NULL);
-}
-
 void vox_changed(int state) {
-  setVox(state);
+  if(vox!=state && !tune && !mox) {
+    rxtx(state);
+  }
+  vox=state;
 }
 
 
 void setTune(int state) {
   int i;
 
+  // if state==tune, this function is a no-op
+
   if(tune!=state) {
-    if(vox_enabled && vox) {
-      vox_cancel();
+    vox_cancel();
+    if (vox || mox) {
+      rxtx(0);
+      vox=0;
+      mox=0;
     }
     if(state) {
       if(full_tune) {
@@ -851,9 +853,10 @@ void setTune(int state) {
       for(i=0;i<receivers;i++) {
 #ifdef PURESIGNAL
         // When using PURESIGNAL, delivery of RX samples
-        // comes to an abrupt stop (since they are "fed"
-        // to pscc()) upon a TX-RX transition.
-        // Therefore, wait for all receivers to complete
+        // to WDSP via fexchange0() comes to an abrupt stop
+        // since they go through add_ps_iq_samples()
+        // rather than add_iq_samples().
+        // Therefore, wait for *all* receivers to complete
         // their slew-down before going TX.
         SetChannelState(receiver[i]->id,0,1);
 #else
@@ -923,27 +926,6 @@ void setTune(int state) {
 
 int getTune() {
   return tune;
-}
-
-// DL1YCF: because of the new CW algorithm,
-//         this function is no longer used
-void radio_cw_setup() {
-  int mode=vfo[VFO_A].mode;;
-  if(split) {
-    mode=vfo[VFO_B].mode;
-  }
-
-  // DL1YCF: to be "transceive" in CW, our signal
-  // needs to be spot-on the nominal frequency
-  SetTXAPostGenToneFreq(transmitter->id,(double) 0.0);
-  SetTXAPostGenMode(transmitter->id,0);
-  SetTXAPostGenToneMag(transmitter->id,0.99999);
-}
-
-// DL1YCF: because of the new CW algorithm,
-//         this function is no longer used
-void radio_cw_key(int state) {
-  SetTXAPostGenRun(transmitter->id,state);
 }
 
 int isTransmitting() {
@@ -1032,21 +1014,6 @@ static int calcLevel(double d) {
 
   level=(int)(actual_volts*255.0);
 
-#ifdef __APPLE__
-#ifdef PURESIGNAL
-//
-//  DL1YCF: I do not know exactly why: if the drive level
-//          is set to zero while PS is active, the program
-//          reproducably crashes when the drive is set from 1 Watt
-//          to 0 Watt, possibly a division by zero or the evaluation
-//          of a logarithm within WDSP.
-//          QuickAndDirty Fix: use "1" as minimum drive level
-//          which corresponds to a fraction of a Watt.
-//
-  if (level < 1) level=1;
-#endif
-#endif
- 
 //fprintf(stderr,"calcLevel: %f calib=%f level=%d\n",d, gbb, level);
   return level;
 }

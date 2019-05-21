@@ -601,9 +601,6 @@ vfo_scroll_event_cb (GtkWidget      *widget,
   } else {
     vfo_move(-step);
   }
-  // DL1YCF added return statement to make the compiler happy.
-  // however I am unsure about the correct return value.
-  // I would have coded this as a void function.
   return FALSE;
 }
 

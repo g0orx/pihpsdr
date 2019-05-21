@@ -240,6 +240,5 @@ void *programmer_thread(void *arg) {
         block_sequence++;
     }
 
-    // DL1YCF added return statement to make compiler happy.
     return NULL;    
 }

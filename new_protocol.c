@@ -74,13 +74,6 @@ int data_socket=-1;
 static int running;
 
 #ifdef __APPLE__
-//
-//DL1YCF:
-//Mac OS does not have sem_init for un-named semaphores,
-//we have to use named semaphores created with sem_open.
-//As a side effect, we consistently have to use sem_t
-//pointers instead of sem_t variables
-//
 sem_t *response_sem;
 #else
 sem_t response_sem;
@@ -200,7 +193,6 @@ static int psk_resample=6;  // convert from 48000 to 8000
 #define NET_BUFFER_SIZE 2048
 // Network buffers
 static struct sockaddr_in addr;
-// DL1YCF next line: changed int to socklen_t
 static socklen_t length;
 //static unsigned char buffer[NET_BUFFER_SIZE];
 static unsigned char *iq_buffer[MAX_RECEIVERS];
@@ -383,12 +375,6 @@ void new_protocol_init(int pixels) {
       rc=sem_init(&iq_sem_buffer[ddc], 0, 0);
 #endif
       iq_thread_id[ddc] = g_thread_new( "iq thread", iq_thread, (gpointer)(long)i);
-      //DL1YCF: g_thread new always returns a value, upon failure the program aborts
-      //        so the next four lines have been deactivated.
-      //if( ! iq_thread_id ) {
-      //  fprintf(stderr,"g_thread_new failed for iq_thread: rx=%d\n",i);
-      //  exit( -1 );
-      //}
       fprintf(stderr, "iq_thread: rx=%d ddc=%d thread=%p\n",i, ddc, iq_thread_id);
     }
 
@@ -1374,7 +1360,6 @@ static void process_iq_data(RECEIVER *rx) {
   }
   rx->iq_sequence++;
 
-// DL1YCF: changed semicolon at end of next line to a plus sign
   timestamp=((long long)(buffer[4]&0xFF)<<56)+((long long)(buffer[5]&0xFF)<<48)+((long long)(buffer[6]&0xFF)<<40)+((long long)(buffer[7]&0xFF)<<32)+
   ((long long)(buffer[8]&0xFF)<<24)+((long long)(buffer[9]&0xFF)<<16)+((long long)(buffer[10]&0xFF)<<8)+(long long)(buffer[11]&0xFF);
   bitspersample=((buffer[12]&0xFF)<<8)+(buffer[13]&0xFF);
@@ -1545,8 +1530,6 @@ static void process_mic_data(int bytes) {
   sequence=((mic_line_buffer[0]&0xFF)<<24)+((mic_line_buffer[1]&0xFF)<<16)+((mic_line_buffer[2]&0xFF)<<8)+(mic_line_buffer[3]&0xFF);
   b=4;
   for(i=0;i<MIC_SAMPLES;i++) {
-    // DL1YCF: changed this to two statements such that the order of pointer increments
-    //         becomes clearly defined.
     sample=(short)(mic_line_buffer[b++]<<8);
     sample |= (short) (mic_line_buffer[b++]&0xFF);
 #ifdef FREEDV
@@ -1569,13 +1552,9 @@ void new_protocol_process_local_mic(unsigned char *buffer,int le) {
   b=0;
   for(i=0;i<MIC_SAMPLES;i++) {
     if(le) {
-      // DL1YCF: changed this to two statements such that the order of pointer increments
-      //         becomes clearly defined.
       sample = (short)(buffer[b++]&0xFF);
       sample |= (short) (buffer[b++]<<8);
     } else {
-      // DL1YCF: changed this to two statements such that the order of pointer increments
-      //         becomes clearly defined.
       sample = (short)(buffer[b++]<<8);
       sample |= (short) (buffer[b++]&0xFF);
     }
@@ -1663,6 +1642,5 @@ fprintf(stderr,"new_protocol_timer_thread\n");
 //      }
 //    }
   }
-  // DL1YCF: added return statement to make compiler happy.
   return NULL;
 }

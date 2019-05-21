@@ -557,11 +557,28 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
   double right_sample_double_rx;
   double left_sample_double_tx;
   double right_sample_double_tx;
-  int nreceivers;
 
   int id=active_receiver->id;
 
   int tx_vfo=split?VFO_B:VFO_A;
+
+  int nreceivers;
+
+#ifdef PURESIGNAL
+    // DL1YCF:
+    // for PureSignal, the number of receivers needed is hard-coded below.
+    // we need at least 3 (for RX), and up to 5 for Orion2 boards, since
+    // the TX DAC channel is hard-wired to RX5.
+    nreceivers=3;
+    if (device == DEVICE_HERMES) nreceivers=4;
+    if (device == DEVICE_ANGELIA || device == DEVICE_ORION || device == DEVICE_ORION2) nreceivers=5;
+#else
+#if defined(RADIOBERRY) || defined(PI_SDR)
+	nreceivers = receivers;
+#else
+	nreceivers=RECEIVERS;
+#endif
+#endif
 
   if(buffer[b++]==SYNC && buffer[b++]==SYNC && buffer[b++]==SYNC) {
     // extract control bytes
@@ -622,23 +639,6 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
         AIN6=(control_in[3]<<8)+control_in[4]; // from Pennelope or Hermes
         break;
     }
-
-
-#ifdef PURESIGNAL
-    // DL1YCF:
-    // for PureSignal, the number of receivers needed is hard-coded below.
-    // we need at least 3 (for RX), and up to 5 for Orion2 boards, since
-    // the TX DAC channel is hard-wired to RX5.
-    nreceivers=3;
-    if (device == DEVICE_HERMES) nreceivers=4;
-    if (device == DEVICE_ANGELIA || device == DEVICE_ORION || device == DEVICE_ORION2) nreceivers=5;
-#else
-	#if defined(RADIOBERRY) || defined(PI_SDR)
-		nreceivers = receivers;
-	#else
-		nreceivers=RECEIVERS;
-	#endif
-#endif
 
     int iq_samples=(512-8)/((nreceivers*6)+2);
 
@@ -818,13 +818,9 @@ void old_protocol_process_local_mic(unsigned char *buffer,int le) {
     // avoid pointer increments in logical-or constructs, as the sequence
     // is undefined
     if(le) {
-      // DL1YCF: changed this to two statements such that the order of pointer increments
-      //         becomes clearly defined.
       sample = (short) (buffer[b++]&0xFF);
       sample |= (short) (buffer[b++]<<8);
     } else {
-      // DL1YCF: changed this to two statements such that the order of pointer increments
-      //         becomes clearly defined.
       sample = (short)(buffer[b++]<<8);
       sample |=  (short) (buffer[b++]&0xFF);
     }
@@ -851,6 +847,22 @@ void ozy_send_buffer() {
   int i;
   BAND *band;
   int nreceivers;
+
+#ifdef PURESIGNAL
+    // DL1YCF:
+    // for PureSignal, the number of receivers needed is hard-coded below.
+    // we need at least 3 (for RX), and up to 5 for Orion2 boards, since
+    // the TX DAC channel is hard-wired to RX5.
+    nreceivers=3;
+    if (device == DEVICE_HERMES) nreceivers=4;
+    if (device == DEVICE_ANGELIA || device == DEVICE_ORION || device == DEVICE_ORION2) nreceivers=5;
+#else
+#if defined(RADIOBERRY) || defined(PI_SDR)
+	nreceivers = receivers;
+#else
+	nreceivers=RECEIVERS;
+#endif
+#endif
 
   output_buffer[SYNC0]=SYNC;
   output_buffer[SYNC1]=SYNC;
@@ -944,24 +956,16 @@ void ozy_send_buffer() {
     //
     // Upon TX, we might have to activate a different RX path for the
     // attenuated feedback signal. Use feedback_antenna == 0, if
-    // the feedback signal is routed automatically/internally (e.g.
-    // ANAN-7000DLE, when using the internal feedback path).
+    // the feedback signal is routed automatically/internally
     //
     if (isTransmitting() && transmitter->puresignal) i=receiver[PS_RX_FEEDBACK]->feedback_antenna;
 #endif
     switch(i) {
-      case 0:  // ANT 1
-      case 1:  // ANT 2
-      case 2:  // ANT 3
-        break;
       case 3:  // Alex: RX2 IN, ANAN: EXT1, ANAN7000: EXT
         output_buffer[C3]|=0xC0;
         break;
       case 4:  // Alex: RX1 IN, ANAN: EXT2, ANAN7000: RX BYPASS
         output_buffer[C3]|=0xA0;
-        break;
-      case 5:  // XVTR
-        output_buffer[C3]|=0xE0;
         break;
       default:
         break;
@@ -970,21 +974,9 @@ void ozy_send_buffer() {
 
 // TODO - add Alex TX relay, duplex, receivers Mercury board frequency
     output_buffer[C4]=0x04;  // duplex
-#ifdef PURESIGNAL
-    // DL1YCF: see comment on "nreceivers" above. The number is reduced by 1 here
-    nreceivers=2;
-    if (device == DEVICE_HERMES) nreceivers=3;
-    if (device == DEVICE_ANGELIA || device == DEVICE_ORION || device == DEVICE_ORION2) nreceivers=4;
-#else
-	#ifdef RADIOBERRY
-		nreceivers = receivers-1;
-	#else
-		nreceivers=RECEIVERS-1;
-	#endif
-#endif
 
     // 0 ... 7 maps on 1 ... 8 receivers
-    output_buffer[C4]|=nreceivers<<3;
+    output_buffer[C4]|=(nreceivers-1)<<3;
     
     if(isTransmitting()) {
       switch(transmitter->alex_antenna) {
@@ -1030,9 +1022,8 @@ void ozy_send_buffer() {
     }
   } else {
     //
-    // metis_offset !=8: send "command" C&C packets in round-robin
-    // using the value of "command" from 1 to 10,
-    // and "command==2" packets are repeated for each RX
+    // metis_offset !=8: send the other C&C packets in round-robin
+    // RX frequency commands are repeated for each RX
     switch(command) {
       case 1: // tx frequency
         output_buffer[C0]=0x02;
@@ -1056,19 +1047,6 @@ void ozy_send_buffer() {
         output_buffer[C4]=txFrequency;
         break;
       case 2: // rx frequency
-#ifdef PURESIGNAL
-	// DL1YCF: see comment on "nreceivers" above.
-	nreceivers=3;
-	if (device == DEVICE_HERMES) nreceivers=4;
-	if (device == DEVICE_ANGELIA || device == DEVICE_ORION || device == DEVICE_ORION2) nreceivers=5;
-#else
-		#ifdef RADIOBERRY
-			nreceivers = receivers;
-		#else
-			nreceivers=RECEIVERS;
-		#endif
-#endif
-
         if(current_rx<nreceivers) {
           output_buffer[C0]=0x04+(current_rx*2);
 #ifdef PURESIGNAL
@@ -1311,6 +1289,11 @@ void ozy_send_buffer() {
         if(receiver[0]->alex_antenna==5) { // XVTR
           output_buffer[C2]=0x02;          // Alex2 XVTR enable
         }
+#ifdef PURESIGNAL
+        if(transmitter->puresignal) {
+          output_buffer[C2]|=0x40;	   // Synchronize RX5 andh TX frequency on transmit
+        }
+#endif
         output_buffer[C3]=0x00;            // Alex2 filters
         output_buffer[C4]=0x00;            // Alex2 filters
         break;

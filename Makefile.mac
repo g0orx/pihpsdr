@@ -436,6 +436,7 @@ clean:
 	-rm -f *.o
 	-rm -f $(PROGRAM)
 	-rm -rf $(PROGRAM).app
+	-rm -f hpsdrsim
 
 install: $(PROGRAM)
 	cp $(PROGRAM) /usr/local/bin
@@ -459,7 +460,7 @@ hpsdrsim.o:     hpsdrsim.c
 	$(CC) -c -O $(PORTAUDIO_OPTIONS) hpsdrsim.c
         
 hpsdrsim:       hpsdrsim.o
-	$(LINK) -o hpsdrsim hpsdrsim.o -lm -lpthread $(AUDIO_LIBS)
+	$(LINK) -o hpsdrsim hpsdrsim.o $(AUDIO_LIBS) -lm -lpthread
 
 #############################################################################
 #

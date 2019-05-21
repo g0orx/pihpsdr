@@ -63,7 +63,6 @@ waterfall_configure_event_cb (GtkWidget         *widget,
   display_height=gtk_widget_get_allocated_height (widget);
   rx->pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, FALSE, 8, display_width, display_height);
 
-  // DL1YCF changed to uchar
   unsigned char *pixels = gdk_pixbuf_get_pixels (rx->pixbuf);
 
   memset(pixels, 0, display_width*display_height*3);
@@ -123,7 +122,6 @@ void waterfall_update(RECEIVER *rx) {
 
   float *samples;
   if(rx->pixbuf) {
-    // DL1YCF changed to uchar
     unsigned char *pixels = gdk_pixbuf_get_pixels (rx->pixbuf);
 
     int width=gdk_pixbuf_get_width(rx->pixbuf);
@@ -171,7 +169,6 @@ void waterfall_update(RECEIVER *rx) {
 
     float sample;
     int average=0;
-    // DL1YCF changed to uchar
     unsigned char *p;
     p=pixels;
     samples=rx->pixel_samples;

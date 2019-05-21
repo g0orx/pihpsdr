@@ -54,6 +54,7 @@
 #include "discovery.h"
 #include "new_protocol.h"
 #include "old_protocol.h"
+#include "frequency.h"   // for canTransmit
 #include "ext.h"
 
 struct utsname unameData;
@@ -107,6 +108,31 @@ fprintf(stderr,"Creating wisdom file: %s\n", (char *)arg);
   sem_post(&wisdom_sem);
 #endif
   return NULL;
+}
+
+//
+// handler for key press events.
+// SpaceBar presses toggle MOX, everything else downstream
+// code to switch mox copied from mox_cb() in toolbar.c,
+// but added the correct return values.
+//
+gboolean keypress_cb(GtkWidget *widget, GdkEventKey *event, gpointer data) {
+
+  if (event->keyval == GDK_KEY_space && radio != NULL) {
+    if(getTune()==1) {
+      setTune(0);
+    }
+    if(getMox()==1) {
+      setMox(0);
+    } else if(canTransmit() || tx_out_of_band) {
+      setMox(1);
+    } else {
+      transmitter_set_out_of_band(transmitter);
+    }
+    g_idle_add(ext_vfo_update,NULL);
+    return TRUE;
+  }
+  return FALSE;
 }
 
 gboolean main_delete (GtkWidget *widget) {
@@ -231,6 +257,13 @@ fprintf(stderr,"full screen\n");
   }
   g_signal_connect (top_window, "delete-event", G_CALLBACK (main_delete), NULL);
   //g_signal_connect (top_window,"draw", G_CALLBACK (main_draw_cb), NULL);
+
+  //
+  // We want to use the space-bar as an alternative to go to TX
+  //
+  gtk_widget_add_events(top_window, GDK_KEY_PRESS_MASK);
+  g_signal_connect(top_window, "key_press_event", G_CALLBACK(keypress_cb), NULL);
+
 
 //fprintf(stderr,"create fixed container\n");
   //fixed=gtk_fixed_new();

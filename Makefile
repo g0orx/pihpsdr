@@ -435,7 +435,7 @@ prebuild:
 
 clean:
 	-rm -f *.o
-	-rm -f $(PROGRAM)
+	-rm -f $(PROGRAM) hpsdrsim
 
 install: $(PROGRAM)
 	cp $(PROGRAM) /usr/local/bin

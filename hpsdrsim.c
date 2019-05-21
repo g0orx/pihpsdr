@@ -1,5 +1,7 @@
+//#define MICSAMPLES   // define to send microphone samples (triggered by attenuator slider)
+//#define TX_ENVELOPE  // define to dump TX envelope 1 sec after first PTT
 /*
- * HPSDR simulator, (C) Christoph van Wuellen, April 2019
+ * HPSDR simulator, (C) Christoph van Wuellen, April/Mai 2019
  *
  * This program simulates a HPSDR board.
  * If an SDR program such as phipsdr "connects" with this program, it
@@ -11,13 +13,11 @@
  *
  * RF1: ADC noise (16-bit ADC) plus a  800 Hz signal at -100dBm
  * RF2: ADC noise (16-bit ADC) plus a 2000 Hz signal at - 80dBm
- * RF3: TX feedback signal with some distortion. This signal is modulated
+ * RF3: TX feedback signal with some distortion. Signal strength
  *      according to the "TX drive" and "TX ATT" settings.
- * RF4: TX signal with a peak value of 0.400
+ * RF4: normalized undistorted TX signal with a peak value of 0.400
  *
- * RF1 and RF2 are attenuated according to the preamp/attenuator settings.
- * RF3 respects the "TX drive" and "TX ATT" settings
- * RF4 is the TX signal multiplied with 0.4 (ignores TX_DRIVE and TX_ATT).
+ * RF1 and RF2 respect the Preamp and Attenuator settings
  *
  * Depending on the device type, the receivers see different signals
  * (This is necessary for PURESIGNAL). We chose the association such that
@@ -31,6 +31,13 @@
  * DEVICE=HERMES:   RX3=RF3, RX4=RF4  (also for DEVICE=StemLab)
  * DEVICE=ORION2:   RX4=RF3, RX5=RF5  (also for DEVICE=ANGELIA and ORION)
  *
+ *
+ * Audio sent to the "radio" is played via the first available output channel.
+ * This works on MacOS (PORTAUDIO) and Linux (ALSA).
+ *
+ * Additional feature include the recording of the TX envelope of the first second
+ * of TXing, and the possiblity to read a file with mic samples and "send"
+ * them to the SDR. Both features are meant for testing RX/TX timings.
  */
 #include <stdio.h>
 #include <errno.h>
@@ -60,7 +67,7 @@
 // Forward declarations for the audio functions
 void audio_get_cards(void);
 void audio_open_output();
-void audio_write(short, short);
+void audio_write(int16_t, int16_t);
 
 
 #ifndef __APPLE__
@@ -109,8 +116,8 @@ static int		LineGain = -1;
 static int		MicPTT = -1;
 static int		tip_ring = -1;
 static int		MicBias = -1;
-static int		ptt=-1;
-static int		att=-1;
+static int		ptt=0;
+static int		AlexAtt=-1;
 static int		TX_class_E = -1;
 static int		OpenCollectorOutputs=-1;
 static long		tx_freq=-1;
@@ -138,9 +145,31 @@ static int              freq=-1;
 
 // floating-point represeners of TX att, RX att, and RX preamp settings
 
-static double txdrv_dbl = 1.0;
+static double txdrv_dbl = 0.99;
 static double txatt_dbl = 1.0;
 static double rxatt_dbl[4] = {1.0, 1.0, 1.0, 1.0};   // this reflects both ATT and PREAMP
+
+#ifdef TX_ENVELOPE
+//
+// This records the size of the first MAXENV TX samples after the first RX-TX transition.
+// This can be used to detect whether RX/TX transitions are fast enough not to chop
+// the first part of an SSB transmission using VOX, or of the first CW element.
+//
+#define MAXENV 48000
+static float envelope[MAXENV];
+int          envptr=0;
+#endif
+
+#ifdef MICSAMPLES
+//
+// Raw audio data (48000 16-bit int words) is read from a file and stored.
+// As soon as the ALEX attenuators are engaged, these mic samples are
+// sent to the SDR program ONCE.
+//
+static int16_t micsamples[48000];
+int micsamples_ptr=-2;
+int micsamples_rate=0;
+#endif
 
 static int sock_ep2;
 
@@ -203,7 +232,18 @@ int main(int argc, char *argv[])
 	int udp_retries=0;
 	int bytes_read, bytes_left;
 	uint32_t *code0 = (uint32_t *) buffer;  // fast access to code of first buffer
+        int fd;
 
+#ifdef MICSAMPLES
+        fd=open("micsamples", O_RDONLY);
+        if (fd >= 0) {
+	  if (read(fd, micsamples, 48000*sizeof(int16_t)) == 48000*sizeof(int16_t)) {
+	    fprintf(stderr,"MIC SAMPLES available\n");
+	    micsamples_ptr=-1;
+	  }
+	}
+#endif
+        
 	audio_get_cards();
         audio_open_output();
 /*
@@ -446,6 +486,20 @@ int main(int argc, char *argv[])
 					sample |= (int) ((signed char) *bp++ & 0xFF);
 					dqsample=(double) sample / 32768.0;
 
+#ifdef TX_ENVELOPE
+					if (ptt || envptr > 0) {
+					  if (envptr < MAXENV) envelope[envptr++]=(disample*disample+dqsample*dqsample);
+					  if (envptr == MAXENV) {
+					    fd=open("dump.envelope", O_RDWR | O_CREAT | O_TRUNC, (mode_t) 0777);
+					    if (fd >= 0) {
+					      write (fd, envelope, MAXENV*sizeof(float));
+					      close (fd);
+					      fprintf(stderr,"TX ENV dumped\n");
+					    }
+					    envptr++;
+					  }
+					}
+#endif
 					switch (rate) {
 					    case 0:  // RX sample rate = TX sample rate = 48000
                                         	isample[txptr  ]=disample;
@@ -655,7 +709,7 @@ void process_ep2(uint8_t *frame)
           chk_data(frame[2] & 1, TX_class_E, "TX CLASS-E");
           chk_data((frame[2] & 0xfe) >> 1, OpenCollectorOutputs,"OpenCollector");
 
-          chk_data((frame[3] & 0x03) >> 0, att, "ALEX Attenuator");
+          chk_data((frame[3] & 0x03) >> 0, AlexAtt, "ALEX Attenuator");
           chk_data((frame[3] & 0x04) >> 2, preamp, "ALEX preamp");
           chk_data((frame[3] & 0x08) >> 3, LTdither, "LT2208 Dither");
           chk_data((frame[3] & 0x10) >> 4, LTrandom, "LT2208 Random");
@@ -669,11 +723,15 @@ void process_ep2(uint8_t *frame)
           chk_data(((frame[4] >> 7) & 1), CommonMercuryFreq,"Common Mercury Freq");
 
 	  if (isc25) {
-             // Charly25: has two 18-dB preamps that are switched with "preamp" and "dither"
-             //           and two attenuators encoded in Alex-ATT
-	     //           Both only applies to RX1!
-               rxatt_dbl[0]=pow(10.0, -0.05*(12*att-18*LTdither-18*preamp));
-               rxatt_dbl[1]=1.0;
+              // Charly25: has two 18-dB preamps that are switched with "preamp" and "dither"
+              //           and two attenuators encoded in Alex-ATT
+	      //           Both only applies to RX1!
+              rxatt_dbl[0]=pow(10.0, -0.05*(12*AlexAtt-18*LTdither-18*preamp));
+              rxatt_dbl[1]=1.0;
+          } else {
+	      // Assume that it has ALEX attenuators in addition to the Step Attenuators
+              rxatt_dbl[0]=pow(10.0, -0.05*(10*AlexAtt+rx_att[0]));
+              rxatt_dbl[1]=1.0;
           }
 	  break;
 
@@ -728,8 +786,8 @@ void process_ep2(uint8_t *frame)
 	   chk_data(frame[3] & 0x40,lna6m,"ALEX 6m LNA");
 	   chk_data(frame[3] & 0x80,alexTRdisable,"ALEX T/R disable");
 	   chk_data(frame[4],alex_lpf,"ALEX LPF");
-           // reset TX level
-	   txdrv_dbl=(double) txdrive / 255.0;
+           // reset TX level. Leve a little head-room for noise
+	   txdrv_dbl=(double) txdrive / 256.0;
 	   break;
 
 	case 20:
@@ -753,12 +811,16 @@ void process_ep2(uint8_t *frame)
    	   chk_data((frame[4] & 0x1F) >> 0, rx_att[0], "RX1 ATT");
    	   chk_data((frame[4] & 0x20) >> 5, rx1_attE, "RX1 ATT enable");
 
+#ifdef MICSAMPLES
+	  if (rx_att[0] > 20 && micsamples_ptr == -1) micsamples_ptr =  0;
+	  if (rx_att[0] < 10 && micsamples_ptr == 48000) micsamples_ptr = -1;
+#endif
 	   if (!isc25) {
-	     // Set RX amplification factors. Assume 20 dB preamps
-             rxatt_dbl[0]=pow(10.0, -0.05*(rx_att[0]-20*rx_preamp[0]));
-             rxatt_dbl[1]=pow(10.0, -0.05*(rx_att[1]-20*rx_preamp[1]));
-             rxatt_dbl[2]=pow(10.0, (double) rx_preamp[2]);
-             rxatt_dbl[3]=pow(10.0, (double) rx_preamp[3]);
+	     // Set RX amplification factors. No switchable preamps available normally.
+             rxatt_dbl[0]=pow(10.0, -0.05*(10*AlexAtt+rx_att[0]));
+             rxatt_dbl[1]=pow(10.0, -0.05*(rx_att[1]));
+             rxatt_dbl[2]=1.0;
+             rxatt_dbl[3]=1.0;
 	   }
 	   break;
 
@@ -771,8 +833,8 @@ void process_ep2(uint8_t *frame)
            chk_data(frame[4] & 127, cw_weight,"CW WEIGHT");
            chk_data((frame[4] >> 7) & 1, cw_spacing, "CW SPACING");
 
-	   // Set RX amplification factors. Assume 20 dB preamps
-           rxatt_dbl[1]=pow(10.0, -0.05*(rx_att[1]-20*rx_preamp[1]));
+	   // Set RX amplification factors.
+           rxatt_dbl[1]=pow(10.0, -0.05*(rx_att[1]));
 	   break;
 
 	case 24:
@@ -850,6 +912,7 @@ void *handler_ep6(void *arg)
         int32_t rf4isample,rf4qsample;
 
 	int32_t myisample,myqsample;
+        int16_t ssample;
 
         struct timespec delay;
 #ifdef __APPLE__
@@ -959,13 +1022,13 @@ void *handler_ep6(void *arg)
 			rf2qsample=noiseQtab[noiseIQpt] * 8388607.0;
 			rf2qsample += T2000Qtab[pt2000] * 838.86070 * rxatt_dbl[1];
 			//
-			// RF3: TX signal distorted
+			// RF3: TX signal distorted, with some ADC noise
 			//
 			i1=isample[rxptr]*txdrv_dbl;
 			q1=qsample[rxptr]*txdrv_dbl;
 			fac=IM3a+IM3b*(i1*i1+q1*q1);
-			rf3isample= txatt_dbl*i1*fac * 8388607.0;
-			rf3qsample= txatt_dbl*q1*fac * 8388607.0;
+			rf3isample= (txatt_dbl*i1*fac+noiseItab[noiseIQpt]) * 8388607.0;
+			rf3qsample= (txatt_dbl*q1*fac+noiseItab[noiseIQpt]) * 8388607.0;
 			//
 			// RF4: TX signal with peak=0.4
 			//
@@ -1028,8 +1091,24 @@ void *handler_ep6(void *arg)
 			    *pointer++ = (myqsample >>  8) & 0xFF;
 			    *pointer++ = (myqsample >>  0) & 0xFF;
 		        }
+#ifdef MICSAMPLES
+			if (micsamples_ptr >= 0 && micsamples_ptr < 48000) {
+			  ssample=micsamples[micsamples_ptr];
+			  *pointer++ = (ssample >> 8) & 0xFF;
+			  *pointer++ = (ssample     ) & 0xFF;
+			  micsamples_rate++;
+			  if (micsamples_rate == 1 << rate) {
+				micsamples_rate=0;
+				micsamples_ptr++;
+			  }
+			} else {
+			  *pointer++ = 0;
+			  *pointer++ = 0;
+			}
+#else
 			// Microphone samples: silence
 			pointer += 2;
+#endif
 			rxptr++;     if (rxptr >= RTXLEN) rxptr=0;
 			noiseIQpt++; if (noiseIQpt == LENNOISE) noiseIQpt=rand() / NOISEDIV;
 			pt2000++;    if (pt2000 == len2000) pt2000=0;
@@ -1161,7 +1240,7 @@ void audio_open_output()
   return;
 }
 
-void audio_write (short l, short r)
+void audio_write (int16_t l, int16_t r)
 {
   PaError err;
   if (playback_handle != NULL) {
@@ -1342,7 +1421,7 @@ void audio_open_output() {
   return;
 }
 
-void audio_write(short left_sample,short right_sample) {
+void audio_write(int16_t left_sample,int16_t right_sample) {
   snd_pcm_sframes_t delay;
   int error;
   long trim;

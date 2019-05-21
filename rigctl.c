@@ -79,7 +79,6 @@ int connect_cnt = 0;
 
 int rigctlGetFilterLow();
 int rigctlGetFilterHigh();
-// DL1YCF changed next to function to void
 void rigctlSetFilterLow(int val);
 void rigctlSetFilterHigh(int val);
 int new_level;
@@ -197,7 +196,6 @@ static gpointer set_rigctl_timer (gpointer data) {
       // Wait throttle time
       usleep(RIGCTL_TIMER_DELAY);
       rigctl_timer = 0;
-      // DL1YCF added return statement to make compiler happy.
       return NULL;
 }
 
@@ -552,9 +550,9 @@ static gpointer rigctl_cw_thread(gpointer data)
         g_idle_add(ext_mox_update ,(gpointer)1);
 	// have to wait until it is really there
 	// Note that if out-of-band, we would wait
-	// forever here, so allow at most 500 msec
-	i=10;
-        while (!mox && (i--) > 0) usleep(50000L);
+	// forever here, so allow at most 100 msec
+	i=100;
+        while (!mox && i-- > 0) usleep(1000L);
 	// still no MOX? --> silently discard CW character and give up
 	if (!mox) {
 	    CAT_cw_is_active=0;
@@ -2101,16 +2099,16 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                     
                                                 if(agc_resp == 0) {
                                                    active_receiver->agc = AGC_OFF;
-                                                } else if((agc_resp >0 && agc_resp <= 5) || (agc_resp == 84)) {       // DL1YCF: added () to improve readability
+                                                } else if((agc_resp >0 && agc_resp <= 5) || (agc_resp == 84)) {
                                                    active_receiver->agc = AGC_FAST;
                                                   //  fprintf(stderr,"GT command FAST\n");
-                                                } else if((agc_resp >6 && agc_resp <= 10) || (agc_resp == 2*84)) {    // DL1YCF: added () to improve readability
+                                                } else if((agc_resp >6 && agc_resp <= 10) || (agc_resp == 2*84)) {
                                                    active_receiver->agc = AGC_MEDIUM;
                                                   // fprintf(stderr,"GT command MED\n");
-                                                } else if((agc_resp >11 && agc_resp <= 15) || (agc_resp == 3*84)) {   // DL1YCF: added () to improve readability
+                                                } else if((agc_resp >11 && agc_resp <= 15) || (agc_resp == 3*84)) {
                                                    active_receiver->agc = AGC_SLOW;
                                                    //fprintf(stderr,"GT command SLOW\n");
-                                                } else if((agc_resp >16 && agc_resp <= 20) || (agc_resp == 4*84)) {   // DL1YCF: added () to improve readability
+                                                } else if((agc_resp >16 && agc_resp <= 20) || (agc_resp == 4*84)) {
                                                    active_receiver->agc = AGC_LONG;
                                                    // fprintf(stderr,"GT command LONG\n");
                                                 }

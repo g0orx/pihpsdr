@@ -317,10 +317,61 @@ static gboolean update_display(gpointer data) {
     // if "MON" button is active (tx->feedback is TRUE),
     // then obtain spectrum pixels from PS_RX_FEEDBACK,
     // that is, display the (attenuated) TX signal from the "antenna"
+    //
+    // POSSIBLE MISMATCH OF SAMPLE RATES:
+    // TX sample rate is fixed 48 kHz, but RX sample rate can be
+    // 2*, 4*, or even 8* larger. In this case, the spectrum shown
+    // here is squeezed, so we have to extend the pixels.
+    // So the feedback spectrum is not nice to look at with 192000 Hz
+    // sample rate (low-res), but at least it is correct.
+    // For the sake of saving CPU cycles, we do not interpolate.
+    //
+    // This correction is applied her for the V1 protocol only, because
+    // there might be non-integer ratios using the new protocol.
+    //
     if(tx->puresignal && tx->feedback) {
       RECEIVER *rx_feedback=receiver[PS_RX_FEEDBACK];
       GetPixels(rx_feedback->id,0,rx_feedback->pixel_samples,&rc);
-      memcpy(tx->pixel_samples,rx_feedback->pixel_samples,sizeof(float)*tx->pixels);
+      if (protocol == ORIGINAL_PROTOCOL && (active_receiver->sample_rate != 48000)) {
+        int ratio = active_receiver->sample_rate / 48000;
+        int width = tx->pixels / ratio;         // number of pixels to copy from the feedback spectrum
+        int start = (tx->pixels - width) >> 1;  // Copy from start ... (end-1) 
+        int end   = start + width;
+        int i;
+        float *tfp=tx->pixel_samples;
+	float *rfp=rx_feedback->pixel_samples+start;
+        switch (ratio) {
+          case 8:
+            for (i=start; i < end; i++) {
+		*tfp++ = *rfp;
+		*tfp++ = *rfp;
+		*tfp++ = *rfp;
+		*tfp++ = *rfp;
+		*tfp++ = *rfp;
+		*tfp++ = *rfp;
+		*tfp++ = *rfp;
+		*tfp++ = *rfp++;
+            }
+	    break;
+          case 4:
+            for (i=start; i < end; i++) {
+		*tfp++ = *rfp;
+		*tfp++ = *rfp;
+		*tfp++ = *rfp;
+		*tfp++ = *rfp++;
+            }
+	    break;
+          case 2:
+            for (i=start; i < end; i++) {
+		*tfp++ = *rfp;
+		*tfp++ = *rfp++;
+            }
+	    break;
+	}
+      } else {
+	// TX and feedback sample rates are equal -- just copy
+        memcpy(tx->pixel_samples,rx_feedback->pixel_samples,sizeof(float)*tx->pixels);
+      }
     } else {
 #endif
       GetPixels(tx->id,0,tx->pixel_samples,&rc);
@@ -890,12 +941,11 @@ void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
   int i,s;
 
 //
-// silence TX audio if not transmitting, if tuning, or
-// when doing CW. Note: CW side tone added later on by a
-// separate mechanism.
+// silence TX audio if tuning, or when doing CW.
+// (in order not to fire VOX)
 //
 
-  if (tune || !isTransmitting() || mode==modeCWL || mode==modeCWU) {
+  if (tune || mode==modeCWL || mode==modeCWU) {
     mic_sample_double=0.0;
   } else {
     mic_sample_double=(double)mic_sample/32768.0;

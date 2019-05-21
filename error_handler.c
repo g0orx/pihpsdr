@@ -22,9 +22,6 @@ int show_error(void *data) {
   gtk_widget_show(label);
   timer=g_timeout_add(5000,timeout_cb,NULL);
   int result=gtk_dialog_run(GTK_DIALOG(dialog));
-  // DL1YCF added return statement to make the compiler happy.
-  // however I am unsure about the correct return value.
-  // I would have coded this as a void function.
   return FALSE;
 }
 

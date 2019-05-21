@@ -468,7 +468,6 @@ fprintf(stderr,"discover_receive_thread\n");
     }
     fprintf(stderr,"discovery: exiting discover_receive_thread\n");
     g_thread_exit(NULL);
-    // DL1YCF added return statement to make compiler happy.
     return NULL;
 }
 

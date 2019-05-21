@@ -185,7 +185,6 @@ void new_discover(struct ifaddrs* iface) {
 //void* new_discover_receive_thread(void* arg) {
 gpointer new_discover_receive_thread(gpointer data) {
     struct sockaddr_in addr;
-    // DL1YCF change from int to socklen_t
     socklen_t len;
     unsigned char buffer[2048];
     int bytes_read;
@@ -276,6 +275,5 @@ gpointer new_discover_receive_thread(gpointer data) {
     }
     fprintf(stderr,"new_discover: exiting new_discover_receive_thread\n");
     g_thread_exit(NULL);
-    // DL1YCF added return statement to make compiler happy.
     return NULL;
 }
