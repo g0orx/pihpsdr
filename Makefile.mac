@@ -480,7 +480,7 @@ hpsdrsim:       hpsdrsim.o
 #       ATTENTION
 #       =========
 #       Upon starting a freshly built application in an "app" bundle,
-#       it will do the FFT calculations required for wdspWisdom, since
+#       it will do the FFT calculations required for wdsp-Wisdom, since
 #       this is then stored *within* the app bundle.
 #
 #############################################################################
@@ -512,10 +512,10 @@ app:	$(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) \
 # Make "app" and copy local files app bundle
 #
 localapp:	app
-	cp wdspWisdom pihpsdr.app/Contents/Resources
-	cp *.props    pihpsdr.app/Contents/Resources
-	cp midi.inp   pihpsdr.app/Contents/Resources
-	cp ip.addr    pihpsdr.app/Contents/Resources
+	cp wdspWisdom00 pihpsdr.app/Contents/Resources
+	cp *.props      pihpsdr.app/Contents/Resources
+	cp midi.inp     pihpsdr.app/Contents/Resources
+	cp ip.addr      pihpsdr.app/Contents/Resources
 
 #############################################################################
 

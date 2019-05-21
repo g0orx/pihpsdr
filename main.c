@@ -99,7 +99,7 @@ static gint save_cb(gpointer data) {
 static pthread_t wisdom_thread_id;
 
 static void* wisdom_thread(void *arg) {
-fprintf(stderr,"Creating wisdom file: %s\n", (char *)arg);
+  fprintf(stderr,"Securing wisdom file in directory: %s\n", (char *)arg);
   status_text("Creating FFTW Wisdom file ...");
   WDSPwisdom ((char *)arg);
 #ifdef __APPLE__
@@ -162,6 +162,7 @@ static int init(void *data) {
   char *res;
   char wisdom_directory[1024];
   char wisdom_file[1024];
+  int rc;
 
   fprintf(stderr,"init\n");
 
@@ -172,30 +173,29 @@ static int init(void *data) {
 
   gdk_window_set_cursor(gtk_widget_get_window(top_window),cursor_watch);
 
-  // check if wisdom file exists
+  //
+  // Let WDSP (via FFTW) check for wisdom file in current dir
+  // If there is one, the "wisdom thread" takes no time
+  // Depending on the WDSP version, the file is wdspWisdom or wdspWisdom00.
+  //
   res=getcwd(wisdom_directory, sizeof(wisdom_directory));
   strcpy(&wisdom_directory[strlen(wisdom_directory)],"/");
   strcpy(wisdom_file,wisdom_directory);
-  strcpy(&wisdom_file[strlen(wisdom_file)],"wdspWisdom");
-  status_text("Checking FFTW Wisdom file ...");
-  if(access(wisdom_file,F_OK)<0) {
 #ifdef __APPLE__
-      int rc;
-      wisdom_sem=sem_open("WISDOM", O_CREAT, 0700, 0);
+  wisdom_sem=sem_open("WISDOM", O_CREAT, 0700, 0);
 #else
-      int rc=sem_init(&wisdom_sem, 0, 0);
+  rc=sem_init(&wisdom_sem, 0, 0);
 #endif
-      rc=pthread_create(&wisdom_thread_id, NULL, wisdom_thread, (void *)wisdom_directory);
+  rc=pthread_create(&wisdom_thread_id, NULL, wisdom_thread, (void *)wisdom_directory);
 #ifdef __APPLE__
-      while(sem_trywait(wisdom_sem)<0) {
+  while(sem_trywait(wisdom_sem)<0) {
 #else
-      while(sem_trywait(&wisdom_sem)<0) {
+  while(sem_trywait(&wisdom_sem)<0) {
 #endif
-        status_text(wisdom_get_status());
-        while (gtk_events_pending ())
-          gtk_main_iteration ();
-        usleep(100000); // 100ms
-      }
+      status_text("WDSP wisdom done.");
+      while (gtk_events_pending ())
+        gtk_main_iteration ();
+      usleep(100000); // 100ms
   }
 
   g_idle_add(ext_discovery,NULL);
