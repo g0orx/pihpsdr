@@ -65,12 +65,6 @@ gint full_screen=1;
 
 static GtkWidget *discovery_dialog;
 
-#ifdef __APPLE__
-static sem_t *wisdom_sem;
-#else
-static sem_t wisdom_sem;
-#endif
-
 static GdkCursor *cursor_arrow;
 static GdkCursor *cursor_watch;
 
@@ -97,16 +91,11 @@ static gint save_cb(gpointer data) {
 }
 
 static pthread_t wisdom_thread_id;
+static int wisdom_running=0;
 
 static void* wisdom_thread(void *arg) {
-  fprintf(stderr,"Securing wisdom file in directory: %s\n", (char *)arg);
-  status_text("Creating FFTW Wisdom file ...");
   WDSPwisdom ((char *)arg);
-#ifdef __APPLE__
-  sem_post(wisdom_sem);
-#else
-  sem_post(&wisdom_sem);
-#endif
+  wisdom_running=0;
   return NULL;
 }
 
@@ -161,7 +150,6 @@ gboolean main_delete (GtkWidget *widget) {
 static int init(void *data) {
   char *res;
   char wisdom_directory[1024];
-  char wisdom_file[1024];
   int rc;
 
   fprintf(stderr,"init\n");
@@ -177,25 +165,21 @@ static int init(void *data) {
   // Let WDSP (via FFTW) check for wisdom file in current dir
   // If there is one, the "wisdom thread" takes no time
   // Depending on the WDSP version, the file is wdspWisdom or wdspWisdom00.
+  // sem_trywait() is not elegant, replaced this with wisdom_running variable.
   //
   res=getcwd(wisdom_directory, sizeof(wisdom_directory));
   strcpy(&wisdom_directory[strlen(wisdom_directory)],"/");
-  strcpy(wisdom_file,wisdom_directory);
-#ifdef __APPLE__
-  wisdom_sem=sem_open("WISDOM", O_CREAT, 0700, 0);
-#else
-  rc=sem_init(&wisdom_sem, 0, 0);
-#endif
-  rc=pthread_create(&wisdom_thread_id, NULL, wisdom_thread, (void *)wisdom_directory);
-#ifdef __APPLE__
-  while(sem_trywait(wisdom_sem)<0) {
-#else
-  while(sem_trywait(&wisdom_sem)<0) {
-#endif
-      status_text("WDSP wisdom done.");
-      while (gtk_events_pending ())
-        gtk_main_iteration ();
+  fprintf(stderr,"Securing wisdom file in directory: %s\n", wisdom_directory);
+  status_text("Creating FFTW Wisdom file ...");
+  wisdom_running=1;
+  rc=pthread_create(&wisdom_thread_id, NULL, wisdom_thread, wisdom_directory);
+  while (wisdom_running) {
+      // wait for the wisdom thread to complete, meanwhile
+      // handling any GTK events.
       usleep(100000); // 100ms
+      while (gtk_events_pending ()) {
+        gtk_main_iteration ();
+      }
   }
 
   g_idle_add(ext_discovery,NULL);

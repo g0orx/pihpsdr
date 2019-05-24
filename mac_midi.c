@@ -49,64 +49,89 @@
 // We process *all* data but only generate calls to layer-2 for Note On/Off
 // and ControllerChange events.
 //
+
+//
+// Although MacOS does all the grouping of MIDI bytes into commands for us,
+// we use here the same state machine as we have in the ALSA MIDI implementation
+// That is, we look at each MIDI byte separately
+//
+
+static enum {
+        STATE_SKIP,		// skip bytes until command bit is set
+        STATE_ARG1,             // one arg byte to come
+        STATE_ARG2,             // two arg bytes to come
+} state=STATE_SKIP;
+
+static enum {
+        CMD_NOTEON,
+        CMD_NOTEOFF,
+        CMD_CTRL,
+        CMD_PITCH,
+} command;
+
 static void ReadMIDIdevice(const MIDIPacketList *pktlist, void *refCon, void *connRefCon) {
-    int i,j,k,command,chan;
+    int i,j,k,byte,chan,arg1,arg2;
     MIDIPacket *packet = (MIDIPacket *)pktlist->packet;
 	
 	
     // loop through all packets in the current list
     for (j=0; j < pktlist->numPackets; ++j) {
-        if (packet->length > 0) { 
-	    for ( i = 0; i<(packet->length); ) {
-		command=packet->data[i];
-                if ((command & 128) != 128) continue;
-                
-                chan = command & 0x0F;
-
-                switch (command & 0xF0) {
-                  case 0x80:  // Note off
-			NewMidiEvent(MIDI_NOTE, chan, packet->data[i+1], 0);
-			//fprintf(stderr,"NOTE OFF: Note=%d Chan=%d Vel=%d\n", packet->data[i+1], chan, packet->data[i+2]);
-			i +=3;
-			break;
-                  case 0x90:  // Note on
-			NewMidiEvent(MIDI_NOTE, chan, packet->data[i+1], 1);
-			//fprintf(stderr,"NOTE ON : Note=%d Chan=%d Vel=%d\n", packet->data[i+1], chan, packet->data[i+2]);
-			i +=3;
-			break;
-                  case 0xA0:  // Polyph. Press.
-			fprintf(stderr,"PolPress: Note=%d Chan=%d Prs=%d\n", packet->data[i+1], chan, packet->data[i+2]);
-			i +=3;
-			break;
-                  case 0xB0:  // Control change
-			NewMidiEvent(MIDI_CTRL, chan, packet->data[i+1], packet->data[i+2]);
-			//fprintf(stderr,"CtlChang: Ctrl=%d Chan=%d Val=%d\n", packet->data[i+1], chan, packet->data[i+2]);
-			i +=3;
-			break;
-                  case 0xC0:  // Program change
-			fprintf(stderr,"PgmChang: Prog=%d Chan=%d\n", packet->data[i+1], chan);
-			i +=2;
-			break;
-                  case 0xD0:  // Channel Pressure
-			fprintf(stderr, "ChanPres: Pres=%d Chan=%d\n", packet->data[i+1], chan);
-			i +=2;
-			break;
-                  case 0xE0:  // Pitch Bend
-			NewMidiEvent(MIDI_PITCH, chan, 0, packet->data[i+1] + 128*packet->data[i+2]);
-			//fprintf(stderr,"Pitch   : val =%d Chan=%d\n", packet->data[i+1] + 128*packet->data[i+2], chan);
-			i +=3;
-			break;
-                  case 0xF0:  
-			fprintf(stderr, "System  : %x", command);
-                        while ((command = (packet->data[++i]) & 128) != 128) {
-                          fprintf(stderr," %x",command);
-                        }
-                        fprintf(stderr,"\n");
-			break;
-                }
-	    } // i-loop through the packet
-	    packet = MIDIPacketNext(packet);
-        } // if packet length > 1
+	for (i=0; i<packet->length; i++) {
+	    byte=packet->data[i];
+            switch (state) {
+                case STATE_SKIP:
+                    chan=byte & 0x0F;
+                    switch (byte & 0xF0) {
+                        case 0x80:      // Note-OFF command
+                            command=CMD_NOTEOFF;
+                            state=STATE_ARG2;
+                            break;
+                        case 0x90:      // Note-ON command
+                            command=CMD_NOTEON;
+                            state=STATE_ARG2;
+                            break;
+                        case 0xB0:      // Controller Change
+                            command=CMD_CTRL;
+                            state=STATE_ARG2;
+                            break;
+                        case 0xE0:      // Pitch Bend
+                            command=CMD_PITCH;
+                            state=STATE_ARG2;
+                            break;
+                        case 0xA0:      // Polyphonic Pressure: skip args
+                        case 0xC0:      // Program change: skip args
+                        case 0xD0:      // Channel pressure: skip args
+                        case 0xF0:      // System Message: skip args
+                        default:	// Remain in STATE_SKIP until "interesting" command seen
+                            break;
+                    }
+                    break;
+                case STATE_ARG2:	// store byte as first argument
+                    arg1=byte;
+                    state=STATE_ARG1;
+                    break;
+                case STATE_ARG1:	// store byte as second argument, process command
+                    arg2=byte;
+                    // We have a command!
+                    switch (command) {
+                        case CMD_NOTEON:
+                           NewMidiEvent(MIDI_NOTE, chan, arg1, 1);
+                           break;
+                        case CMD_NOTEOFF:
+                           NewMidiEvent(MIDI_NOTE, chan, arg1, 0);
+                           break;
+                        case CMD_CTRL:
+                           NewMidiEvent(MIDI_CTRL, chan, arg1, arg2);
+                           break;
+                        case CMD_PITCH:
+                           NewMidiEvent(MIDI_PITCH, chan, 0, arg1+128*arg2);
+                           break;
+                    }
+                    state=STATE_SKIP;
+                    break;
+            }
+	} // i-loop through the packet
+	packet = MIDIPacketNext(packet);
     } // j-loop through the list of packets
 }
 

@@ -5,7 +5,7 @@
 # The key is suitable for radios with a step (ALEX) attenuator, the wheel
 # fits best for radios with a programmable attenuator (0-31 dB)
 #
-DEVICE=CMD PL 1
+DEVICE=CMD PL-1
 CTRL=31 WHEEL THR=59 61 63 65 67 69 ACTION=VFO           # Big wheel:    : main VFO knob
 PITCH ACTION=AFGAIN                                      # Big slider    : AF gain
 KEY=16 ACTION=PREAMP					 # Key 1         : Cycle through Preamp settings

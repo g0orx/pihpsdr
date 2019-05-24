@@ -760,6 +760,7 @@ static void rxtx(int state) {
     SetChannelState(transmitter->id,1,0);
     tx_set_displaying(transmitter,1);
   } else {
+    // switch to rx
     SetChannelState(transmitter->id,0,1);
     if(protocol==NEW_PROTOCOL) {
       schedule_high_priority();

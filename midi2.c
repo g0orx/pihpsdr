@@ -160,9 +160,11 @@ void MIDIstartup() {
       if (cp) *cp=0;               // ignore trailing comment
 
       if ((cp = strstr(zeile, "DEVICE="))) {
-        // Delete trailing blanks and newlines
+        // Delete comments and trailing blanks
 	cq=cp+7;
-        while (*cq != 0 && *cq != '\n' && *cq != ' ' && *cq != '\t') cq++;
+	while (*cq != 0 && *cq != '#') cq++;
+	*cq--=0;
+	while (cq > cp+7 && (*cq == ' ' || *cq == '\t')) cq--;
 	*cq=0;
 	register_midi_device(cp+7);
         continue; // nothing more in this line
