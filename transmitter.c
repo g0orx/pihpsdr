@@ -842,8 +842,8 @@ static void full_tx_buffer(TRANSMITTER *tx) {
     // These are the I/Q samples that describe our CW signal
     // The only use we make of it is displaying the spectrum.
     for (j = 0; j < tx->output_samples; j++) {
-      *dp++ = cw_shape_buffer[j];
       *dp++ = 0.0;
+      *dp++ = cw_shape_buffer[j];
     }
   } else {
     update_vox(tx);
@@ -879,7 +879,7 @@ static void full_tx_buffer(TRANSMITTER *tx) {
     }
 
 //
-//  When doing CW, we do not need WDSP since I(t) = cw_shape_buffer(t) and Q(t)=0
+//  When doing CW, we do not need WDSP since Q(t) = cw_shape_buffer(t) and I(t)=0
 //  For the old protocol where the IQ and audio samples are tied together, we can
 //  easily generate a synchronous side tone (and use the function
 //  old_protocol_iq_samples_with_sidetone for this purpose).
@@ -895,10 +895,10 @@ static void full_tx_buffer(TRANSMITTER *tx) {
         // SetTXAPostGen functions are not needed for CW!
 	//
         sidevol= 258.0 * cw_keyer_sidetone_volume;  // between 0.0 and 32766.0
-	qsample=0;				    // will be constantly zero
+	isample=0;				    // will be constantly zero
         for(j=0;j<tx->output_samples;j++) {
 	    ramp=cw_shape_buffer[j];	    	    // between 0.0 and 1.0
-	    isample=floor(gain*ramp+0.5);           // always non-negative, isample is just the pulse envelope
+	    qsample=floor(gain*ramp+0.5);           // always non-negative, isample is just the pulse envelope
 	    switch(protocol) {
 		case ORIGINAL_PROTOCOL:
 		    //
@@ -1106,7 +1106,6 @@ void tx_set_ps(TRANSMITTER *tx,int state) {
 }
 
 void tx_set_twotone(TRANSMITTER *tx,int state) {
-  fprintf(stderr,"TX TWO TONE new state=%d\n", state);
   transmitter->twotone=state;
   if(state) {
     // set frequencies and levels

@@ -550,9 +550,10 @@ static gpointer rigctl_cw_thread(gpointer data)
         g_idle_add(ext_mox_update ,(gpointer)1);
 	// have to wait until it is really there
 	// Note that if out-of-band, we would wait
-	// forever here, so allow at most 100 msec
+	// forever here, so allow at most 200 msec
+	// We also have to wait for cw_not_ready becoming zero
 	i=100;
-        while (!mox && i-- > 0) usleep(1000L);
+        while ((!mox || cw_not_ready) && i-- > 0) usleep(1000L);
 	// still no MOX? --> silently discard CW character and give up
 	if (!mox) {
 	    CAT_cw_is_active=0;
