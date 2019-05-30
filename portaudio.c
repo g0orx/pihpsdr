@@ -1,9 +1,12 @@
 #ifdef PORTAUDIO
 //
-// DL1YCF: if PortAudio is NOT used, this file is empty, and audio.c
-//         is used instead.
-//         Here we also implement two (hopefully useful) functions:
-//         - a dummy two-tone 'Microphone' device
+// Contribution from DL1YCF (Christoph van Wullen)
+//
+// Alternate "audio" module using PORTAUDIO instead of ALSA
+// (e.g. on MacOS)
+//
+// If PortAudio is NOT used, this file is empty, and audio.c
+// is used instead.
 //
 
 #include <gtk/gtk.h>

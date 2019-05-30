@@ -13,24 +13,33 @@
  *
  * RF1: ADC noise (16-bit ADC) plus a  800 Hz signal at -100dBm
  * RF2: ADC noise (16-bit ADC) plus a 2000 Hz signal at - 80dBm
- * RF3: TX feedback signal with some distortion. Signal strength
- *      according to the "TX drive" and "TX ATT" settings.
- * RF4: normalized undistorted TX signal with a peak value of 0.400
+ * RF3: TX feedback signal with some distortion.
+ * RF4: normalized undistorted TX signal with a peak value of 0.407
  *
- * RF1 and RF2 respect the Preamp and Attenuator settings
+ * RF1 and RF2 signal strenght vary according to Preamp and Attenuator settings
+ * RF3 signal strength varies according to TX-drive and TX-ATT settings
+ * RF4 signal strength is normalized to amplitude of 0.407
  *
- * Depending on the device type, the receivers see different signals
- * (This is necessary for PURESIGNAL). We chose the association such that
- * it works both with and without PURESIGNAL. Upon receiving, the association
- * is as follows:
- * RX1=RF1, RX2=RF2, RX3=RF2, 
+ * RF1 and RF2 are associated with ADC1 and ADC2.
+ * RF3 also goes to ADC1 upon TX
+ * RF4 is the TX DAC signal. Upon TX, it goes to RX2 for Metis, RX4 for Hermes, and RX5 beyond.
  *
- * The connection upon transmitting depends on the DEVICE, namely
+ * The SDR application has to make the proper ADC settings!
  *
- * DEVICE=METIS:    RX1=RF3, RX2=RF4
- * DEVICE=HERMES:   RX3=RF3, RX4=RF4  (also for DEVICE=StemLab)
- * DEVICE=ORION2:   RX4=RF3, RX5=RF5  (also for DEVICE=ANGELIA and ORION)
+ * Without PURESIGNAL, the standard association is:
+ * RX1=ADC1, RX2=ADC2  (ADC2 not present for METIS and ANAN-10/10E/100)
  *
+ * When using PURESIGNAL, the standard association is:
+ *
+ * DEVICE=METIS:  RX1=ADC1, RX2=TX-DAC
+ * DEVICE=HERMES: RX1=ADC1, RX2=ADC1, RX3=ADC2, RX4=TX-DAC
+ * DEVICE=ORION:  RX1=ADC1, RX2=ADC1, RX3=ADC3, RX4=ADC1, RX5=TX-DAC (also for ANGELIA and ORION2)
+ *
+ * Note that for STEMlab (RedPitaya) based SDRs, there is usually a fixed association
+ *
+ * RX1=ADC1, RX2=ADC2, RX3=ADC2, RX4=TX-DAC
+ *
+ * And this setting is NOT AFFECTED by the ADC settings in the HPSDR protocol.
  *
  * Audio sent to the "radio" is played via the first available output channel.
  * This works on MacOS (PORTAUDIO) and Linux (ALSA).
@@ -131,7 +140,7 @@ static int		lna6m=-1;
 static int		alexTRdisable=-1;
 static int		vna=-1;
 static int		c25_ext_board_i2c_data=-1;
-static int		rx_adc[7]={0,1,1,2,-1,-1,-1};
+static int		rx_adc[7]={-1,-1,-1,-1,-1,-1,-1};
 static int		cw_hang = -1;
 static int		cw_reversed = -1;
 static int		cw_speed = -1;
@@ -262,7 +271,7 @@ int main(int argc, char *argv[])
 	    if (!strncmp(argv[1],"-orion2" ,7))  DEVICE=10;   // Anan7000 in old protocol
 	    if (!strncmp(argv[1],"-c25"    ,8))  DEVICE=100;  // the same as hermes
         }
-	ismetis=ishermes=isorion=isc25;
+	ismetis=ishermes=isorion=isc25=0;
 	switch (DEVICE) {
 	    case   0: fprintf(stderr,"DEVICE is METIS\n");   ismetis=1;  break;
 	    case   1: fprintf(stderr,"DEVICE is HERMES\n");  ishermes=1; break;
@@ -855,6 +864,12 @@ void process_ep2(uint8_t *frame)
             chk_data((frame[2] & 0x30) >> 4, rx_adc[6], "RX7 ADC");
 	    chk_data((frame[3] & 0x1f), txatt, "TX ATT");
 	    txatt_dbl=pow(10.0, -0.05*(double) txatt);
+	    if (isc25) {
+		// RedPitaya: Hard-wired ADC settings.
+		rx_adc[0]=0;
+		rx_adc[1]=1;
+		rx_adc[2]=1;
+	    }
 	    break;
 
 	case 30:
@@ -1009,80 +1024,60 @@ void *handler_ep6(void *arg)
 		    pointer += 8;
 		    memset(pointer, 0, 504);
 		    for (j=0; j<n; j++) {
-			//
-			// Define samples of our sources RF1 through RF4
-			//
-			rf1isample= noiseItab[noiseIQpt] * 8388607.0;			// Noise
-			rf1isample += T0800Itab[pt0800] * 83.886070 *rxatt_dbl[0];	// tone 100 dB below peak
-			rf1qsample=noiseQtab[noiseIQpt] * 8388607.0;
-			rf1qsample += T0800Qtab[pt0800] * 83.886070 *rxatt_dbl[0];
-			//
+			// ADC1: noise + weak tone on RX, feedback sig. on TX
+		        if (ptt) {
+			  i1=isample[rxptr]*txdrv_dbl;
+			  q1=qsample[rxptr]*txdrv_dbl;
+			  fac=IM3a+IM3b*(i1*i1+q1*q1);
+			  rf1isample= (txatt_dbl*i1*fac+noiseItab[noiseIQpt]) * 8388607.0;
+			  rf1qsample= (txatt_dbl*q1*fac+noiseItab[noiseIQpt]) * 8388607.0;
+			} else {
+			  rf1isample= noiseItab[noiseIQpt] * 8388607.0;			// Noise
+			  rf1isample += T0800Itab[pt0800] * 83.886070 *rxatt_dbl[0];	// tone 100 dB below peak
+			  rf1qsample=noiseQtab[noiseIQpt] * 8388607.0;
+			  rf1qsample += T0800Qtab[pt0800] * 83.886070 *rxatt_dbl[0];
+			}
 			rf2isample= noiseItab[noiseIQpt] * 8388607.0;			// Noise
 			rf2isample += T2000Itab[pt2000] * 838.86070 * rxatt_dbl[1];	// tone 80 dB below peak
 			rf2qsample=noiseQtab[noiseIQpt] * 8388607.0;
 			rf2qsample += T2000Qtab[pt2000] * 838.86070 * rxatt_dbl[1];
-			//
-			// RF3: TX signal distorted, with some ADC noise
-			//
-			i1=isample[rxptr]*txdrv_dbl;
-			q1=qsample[rxptr]*txdrv_dbl;
-			fac=IM3a+IM3b*(i1*i1+q1*q1);
-			rf3isample= (txatt_dbl*i1*fac+noiseItab[noiseIQpt]) * 8388607.0;
-			rf3qsample= (txatt_dbl*q1*fac+noiseItab[noiseIQpt]) * 8388607.0;
 			//
 			// RF4: TX signal with peak=0.4
 			//
 			rf4isample= isample[rxptr] * 0.400 * 8388607.0;
 			rf4qsample= qsample[rxptr] * 0.400 * 8388607.0;
 
-
-
 			for (k=0; k< receivers; k++) {
 			    myisample=0;
 			    myqsample=0;
-			    switch (k) {
-			      case 0: // RX1
-				if (ptt && ismetis) {
-				    myisample=rf3isample;
-				    myqsample=rf3qsample;
-				} else {
-				    myisample=rf1isample;
-				    myqsample=rf1qsample;
-				}
+			    switch (rx_adc[k]) {
+			      case 0: // ADC1
+				myisample=rf1isample;
+				myqsample=rf1qsample;
 				break;
-			      case 1: // RX2
-				if (ptt && ismetis) {
-				    myisample=rf4isample;
-				    myqsample=rf4qsample;
-				} else {
-				    myisample=rf2isample;
-				    myqsample=rf2qsample;
-				}
+			      case 1: // ADC2
+				myisample=rf2isample;
+				myqsample=rf2qsample;
 				break;
-			      case 2:
-                                if (ptt && ishermes) {
-				    myisample=rf3isample;
-				    myqsample=rf3qsample;
-                                } else {
-				    myisample=rf2isample;
-				    myqsample=rf2qsample;
-				}
+			      default:
+				myisample=0;
+				myqsample=0;
 				break;
-			      case 3: // RX4
-                        	if (ptt && ishermes) {
-				    myisample=rf4isample;
-				    myqsample=rf4qsample;
-                               	} else if (ptt && isorion) {
-				    myisample=rf3isample;
-				    myqsample=rf3qsample;
-				}
-				break;
-			      case 4: // RX5
-                               	if (ptt && isorion) {
-				    myisample=rf4isample;
-				    myqsample=rf4qsample;
-				}
-				break;
+			    }
+			    if (ismetis && ptt && (k==1)) {
+				// METIS: TX DAC signal goes to RX2 when TXing
+				myisample=rf4isample;
+				myqsample=rf4qsample;
+			    }
+			    if (ishermes && ptt && (k==3)) {
+				// HERMES: TX DAC signal goes to RX4 when TXing
+				myisample=rf4isample;
+				myqsample=rf4qsample;
+			    }
+			    if (isorion && ptt && (k==4)) {
+				// ANGELIA and beyond: TX DAC signal goes to RX5 when TXing
+				myisample=rf4isample;
+				myqsample=rf4qsample;
 			    }
 			    *pointer++ = (myisample >> 16) & 0xFF;
 			    *pointer++ = (myisample >>  8) & 0xFF;

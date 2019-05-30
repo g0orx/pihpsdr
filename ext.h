@@ -63,6 +63,8 @@ int ext_set_mic_gain(void *data);
 int ext_set_agc_gain(void *data);
 int ext_set_drive(void *data);
 int ext_vfo_a_swap_b(void *data);
+int ext_vfo_a_to_b(void *data);
+int ext_vfo_b_to_a(void *data);
 int ext_update_att_preamp(void *data);
 int ext_set_alex_attenuation(void *data);
 int ext_set_attenuation_value(void *data);

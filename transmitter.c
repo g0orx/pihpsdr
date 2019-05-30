@@ -173,6 +173,9 @@ void transmitter_save_state(TRANSMITTER *tx) {
   sprintf(name,"transmitter.%d.feedback",tx->id);
   sprintf(value,"%d",tx->feedback);
   setProperty(name,value);
+  sprintf(name,"transmitter.%d.attenuation",tx->id);
+  sprintf(value,"%d",tx->attenuation);
+  setProperty(name,value);
 #endif
   sprintf(name,"transmitter.%d.ctcss",tx->id);
   sprintf(value,"%d",tx->ctcss);
@@ -259,6 +262,9 @@ void transmitter_restore_state(TRANSMITTER *tx) {
   sprintf(name,"transmitter.%d.feedback",tx->id);
   value=getProperty(name);
   if(value) tx->feedback=atoi(value);
+  sprintf(name,"transmitter.%d.attenuation",tx->id);
+  value=getProperty(name);
+  if(value) tx->attenuation=atoi(value);
 #endif
   sprintf(name,"transmitter.%d.ctcss",tx->id);
   value=getProperty(name);
@@ -1087,19 +1093,23 @@ void tx_set_displaying(TRANSMITTER *tx,int state) {
 
 #ifdef PURESIGNAL
 void tx_set_ps(TRANSMITTER *tx,int state) {
-  tx->puresignal=state;
   if(state) {
+    tx->puresignal=1;
     SetPSControl(tx->id, 0, 0, 1, 0);
   } else {
     SetPSControl(tx->id, 1, 0, 0, 0);
+    // wait a moment for PS to shut down
+    usleep(100000);
+    tx->puresignal=0;
   }
   vfo_update();
 }
 
 void tx_set_twotone(TRANSMITTER *tx,int state) {
+  fprintf(stderr,"TX TWO TONE new state=%d\n", state);
   transmitter->twotone=state;
   if(state) {
-    // DL1YCF: set frequencies and levels
+    // set frequencies and levels
     switch(tx->mode) {
       case modeCWL:
       case modeLSB:
@@ -1130,13 +1140,13 @@ void tx_set_ps_sample_rate(TRANSMITTER *tx,int rate) {
 //
 void cw_hold_key(int state) {
   if (state) {
-    cw_key_down = 4800000;    // up to 100 sec
+    cw_key_down = 480000;    // up to 10 sec
   } else {
     cw_key_down = 0;
   }
 }
 
-// DL1YCF:
+// Sine tone generator:
 // somewhat improved, and provided two siblings
 // for generating side tones simultaneously on the
 // HPSDR board and local audio.

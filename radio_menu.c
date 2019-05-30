@@ -101,14 +101,14 @@ static void load_filters(void) {
 
   if(filter_board==ALEX || filter_board==APOLLO) {
     BAND *band=band_get_current_band();
-    BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
-    setFrequency(entry->frequency);
+    // mode and filters have nothing to do with the filter board
+    //BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
+    //setFrequency(entry->frequency);
     //setMode(entry->mode);
-    set_mode(active_receiver,entry->mode);
-    FILTER* band_filters=filters[entry->mode];
-    FILTER* band_filter=&band_filters[entry->filter];
-    //setFilter(band_filter->low,band_filter->high);
-    set_filter(active_receiver,band_filter->low,band_filter->high);
+    //set_mode(active_receiver,entry->mode);
+    //FILTER* band_filters=filters[entry->mode];
+    //FILTER* band_filter=&band_filters[entry->filter];
+    //set_filter(active_receiver,band_filter->low,band_filter->high);
     if(active_receiver->id==0) {
       set_alex_rx_antenna(band->alexRxAntenna);
       set_alex_tx_antenna(band->alexTxAntenna);

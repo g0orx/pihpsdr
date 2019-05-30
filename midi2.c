@@ -63,7 +63,6 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
 		    if (desc->type == MIDI_KNOB) {
 			// normalize value to 0 - 100
 			new = (val*100)/16383;
-			fprintf(stderr,"PITCH calc: val=%d new=%d\n", val,new);
 			DoTheMidi(desc->action, desc->type, new);
 		    }
 		    break;
@@ -74,6 +73,12 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
 	} else {
 	    desc=desc->next;
 	}
+    }
+    if (!desc) {
+      // Nothing found. This is nothing to worry about, but log the key to stderr
+      if (event == MIDI_PITCH) fprintf(stderr, "Unassigned PitchBend Value=%d\n", val);
+      if (event == MIDI_NOTE ) fprintf(stderr, "Unassigned Key Note=%d Val=%d\n", note, val);
+      if (event == MIDI_CTRL ) fprintf(stderr, "Unassigned Controller Ctl=%d Val=%d\n", note, val);
     }
 }
 
@@ -86,27 +91,38 @@ static struct {
   enum MIDIaction action;
   const char *str;
 } ActionTable[] = {
-        { VFO,          "VFO"},
-        { TUNE,         "TUNE"},
-        { MOX,          "MOX"},
         { AF_GAIN,      "AFGAIN"},
-        { MIC_VOLUME,   "MICGAIN"},
-        { TX_DRIVE,     "RFPOWER"},
-        { ATT,          "ATT"},
-        { PRE,          "PREAMP"},
         { AGC,          "AGC"},
+	{ AGCATTACK,   	"AGCATTACK"},
+        { ATT,          "ATT"},
+        { BAND_DOWN,    "BANDDOWN"},
+        { BAND_UP,      "BANDUP"},
         { COMPRESS,     "COMPRESS"},
-        { RIT_ONOFF,    "RITTOGGLE"},
-        { RIT_VAL,      "RITVAL"},
+	{ CTUN,  	"CTUN"},
+        { FILTER_DOWN,  "FILTERDOWN"},
+        { FILTER_UP,    "FILTERUP"},
+	{ LOCK,    	"LOCK"},
+        { MIC_VOLUME,   "MICGAIN"},
+	{ MODE_DOWN,	"MODEDOWN"},
+	{ MODE_UP,	"MODEUP"},
+        { MOX,          "MOX"},
+	{ NB,    	"NOISEBLANKER"},
+	{ NR,    	"NOISEREDUCTION"},
         { PAN_HIGH,     "PANHIGH"},
         { PAN_LOW,      "PANLOW"},
-        { BAND_UP,      "BANDUP"},
-        { BAND_DOWN,    "BANDDOWN"},
-        { FILTER_UP,    "FILTERUP"},
-        { FILTER_DOWN,  "FILTERDOWN"},
-	{ MODE_UP,	"MODEUP"},
-	{ MODE_DOWN,	"MODEDOWN"},
+        { PRE,          "PREAMP"},
+	{ PS,    	"PURESIGNAL"},
+        { RIT_CLEAR,    "RITCLEAR"},
+        { RIT_VAL,      "RITVAL"},
+	{ SPLIT,  	"SPLIT"},
 	{ SWAP_VFO,	"SWAPVFO"},
+        { TUNE,         "TUNE"},
+        { TX_DRIVE,     "RFPOWER"},
+        { VFO,          "VFO"},
+	{ VFO_A2B,	"VFOA2B"},
+	{ VFO_B2A,	"VFOB2A"},
+	{ VOX,   	"VOX"},
+        { ACTION_NONE,  "NONE"},
         { ACTION_NONE,  NULL}
 };
 
@@ -118,7 +134,10 @@ static enum MIDIaction keyword2action(char *s) {
     int i=0;
 
     for (i=0; 1; i++) {
-	if (ActionTable[i].str == NULL) return ACTION_NONE;
+	if (ActionTable[i].str == NULL) {
+	  fprintf(stderr,"MIDI: action keyword %s NOT FOUND.\n", s);
+	  return ACTION_NONE;
+	}
 	if (!strcmp(s, ActionTable[i].str)) return ActionTable[i].action;
    }
    /* NOTREACHED */
@@ -170,8 +189,8 @@ void MIDIstartup() {
         continue; // nothing more in this line
       }
       chan=-1;  // default: any channel
-      lt3=lt2=lt1=0;
-      ut3=ut2=ut1=127;
+      lt3=lt2=lt1=-1;
+      ut3=ut2=ut1=128;
       onoff=0;
       event=EVENT_NONE;
       type=TYPE_NONE;

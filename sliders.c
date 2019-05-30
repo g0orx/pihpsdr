@@ -230,8 +230,8 @@ static gboolean load_att_type_cb(gpointer data) {
 static void c25_att_combobox_changed(GtkWidget *widget, gpointer data) {
   int val = atoi(gtk_combo_box_get_active_id(GTK_COMBO_BOX(widget)));
   if (active_receiver->id == 0) {
-    //DL1YCF: this button is only valid for the first receiver
-    //        store attenuation, such that in meter.c the correct level is displayed
+    // this button is only valid for the first receiver
+    // store attenuation, such that in meter.c the correct level is displayed
     adc_attenuation[active_receiver->adc] = 12*val;
     set_alex_attenuation(val);
   } else {
@@ -245,9 +245,9 @@ static void c25_att_combobox_changed(GtkWidget *widget, gpointer data) {
 static void c25_preamp_combobox_changed(GtkWidget *widget, gpointer data) {
   int val = atoi(gtk_combo_box_get_active_id(GTK_COMBO_BOX(widget)));
   if (active_receiver->id == 0) {
-    //DL1YCF: This button is only valid for the first receiver
-    //        dither and preamp are "misused" to store the PreAmp value.
-    //        this has to be exploited in meter.c
+    // This button is only valid for the first receiver
+    // dither and preamp are "misused" to store the PreAmp value.
+    // this has to be exploited in meter.c
     active_receiver->dither = (val >= 2);  // second preamp ON
     active_receiver->preamp = (val >= 1);  // first  preamp ON
   } else{

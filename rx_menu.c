@@ -112,7 +112,6 @@ static void mute_radio_cb(GtkWidget *widget, gpointer data) {
 }
 
 //
-// DL1YCF:
 // possible the device has been changed:
 // call audo_close_output with old device, audio_open_output with new one
 //
@@ -290,45 +289,8 @@ void rx_menu(GtkWidget *parent) {
     }
   }
 
-  // Number of ADCs. 
-  int n_adc=1;
-  switch(protocol) {
-    case ORIGINAL_PROTOCOL:
-      switch(device) {
-        case DEVICE_METIS:
-          n_adc=1;  // No support for multiple MERCURY cards on a single ATLAS bus.
-          break;
-        case DEVICE_HERMES:
-        case DEVICE_HERMES_LITE:
-          n_adc=1;
-          break;
-        default: 
-          n_adc=2;
-          break;
-      }
-      break;
-    case NEW_PROTOCOL:
-      switch(device) {
-        case NEW_DEVICE_ATLAS:
-          n_adc=1; // No support for multiple MERCURY cards on a single ATLAS bus.
-          break;
-        case NEW_DEVICE_HERMES:
-        case NEW_DEVICE_HERMES2:
-        case NEW_DEVICE_HERMES_LITE:
-          n_adc=1;
-          break;
-        default:
-          n_adc=2;
-          break;
-      }
-      break;
-    default:
-      break;
-  }
-
   // If there is more than one ADC, let the user associate an ADC
-  // with the current receiver. Note: for PURESIGNAL, ADC0 has to
-  // be associated with the first receiver.
+  // with the current receiver.
   if(n_adc>1) {
     for(i=0;i<n_adc;i++) {
       sprintf(label,"ADC-%d",i);

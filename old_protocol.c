@@ -565,7 +565,6 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
   int nreceivers;
 
 #ifdef PURESIGNAL
-    // DL1YCF:
     // for PureSignal, the number of receivers needed is hard-coded below.
     // we need at least 3 (for RX), and up to 5 for Orion2 boards, since
     // the TX DAC channel is hard-wired to RX5.
@@ -849,7 +848,6 @@ void ozy_send_buffer() {
   int nreceivers;
 
 #ifdef PURESIGNAL
-    // DL1YCF:
     // for PureSignal, the number of receivers needed is hard-coded below.
     // we need at least 3 (for RX), and up to 5 for Orion2 boards, since
     // the TX DAC channel is hard-wired to RX5.
@@ -957,22 +955,23 @@ void ozy_send_buffer() {
     // Upon TX, we might have to activate a different RX path for the
     // attenuated feedback signal. Use feedback_antenna == 0, if
     // the feedback signal is routed automatically/internally
+    // If feedback is to the second ADC, leave RX1 ANT settings untouched
     //
-    if (isTransmitting() && transmitter->puresignal) i=receiver[PS_RX_FEEDBACK]->feedback_antenna;
+    if (isTransmitting() && transmitter->puresignal && receiver[PS_RX_FEEDBACK]->adc == 0) i=receiver[PS_RX_FEEDBACK]->feedback_antenna;
 #endif
     switch(i) {
-      case 3:  // Alex: RX2 IN, ANAN: EXT1, ANAN7000: EXT
-        output_buffer[C3]|=0xC0;
+      case 3:  // Alex: RX2 IN, ANAN: EXT1, ANAN7000: still uses internal feedback 
+        output_buffer[C3]|=0x80;
         break;
       case 4:  // Alex: RX1 IN, ANAN: EXT2, ANAN7000: RX BYPASS
         output_buffer[C3]|=0xA0;
         break;
       default:
+	// RX1_OUT and RX1_ANT bits remain zero
         break;
     }
 
 
-// TODO - add Alex TX relay, duplex, receivers Mercury board frequency
     output_buffer[C4]=0x04;  // duplex
 
     // 0 ... 7 maps on 1 ... 8 receivers
@@ -1051,8 +1050,8 @@ void ozy_send_buffer() {
           output_buffer[C0]=0x04+(current_rx*2);
 #ifdef PURESIGNAL
           int v=receiver[current_rx/2]->id;
-	  // DL1YCF: for the "last" receiver, v is out of range. In this case,
-	  //         use TX frequency also while receiving
+	  // for the "last" receiver, v is out of range. In this case,
+	  // use TX frequency also while receiving
           if((isTransmitting() && transmitter->puresignal) || (v >= MAX_VFOS)) {
             long long txFrequency;
             if(active_receiver->id==VFO_A) {
@@ -1178,7 +1177,7 @@ void ozy_send_buffer() {
         output_buffer[C4]=0x00;
   
         if(radio->device==DEVICE_HERMES || radio->device==DEVICE_ANGELIA || radio->device==DEVICE_ORION || radio->device==DEVICE_ORION2) {
-	  // DL1YCF: if attenuation is zero, then disable attenuator
+	  // if attenuation is zero, then disable attenuator
 	  i = adc_attenuation[receiver[0]->adc] & 0x1F;
           if (i >0) output_buffer[C4]=0x20| i;
         } else {
@@ -1193,7 +1192,7 @@ void ozy_send_buffer() {
         output_buffer[C1]=0x00;
         if(receivers==2) {
           if(radio->device==DEVICE_HERMES || radio->device==DEVICE_ANGELIA || radio->device==DEVICE_ORION || radio->device==DEVICE_ORION2) {
-	    // DL1YCF: if attenuation is zero, then disable attenuator
+	    // if attenuation is zero, then disable attenuator
 	    i = adc_attenuation[receiver[1]->adc] & 0x1F;
             if (i > 0) output_buffer[C1]=0x20|i;
           }
@@ -1209,33 +1208,20 @@ void ozy_send_buffer() {
         // need to add tx attenuation and rx ADC selection
         output_buffer[C0]=0x1C;
         output_buffer[C1]=0x00;
-#ifdef PURESIGNAL
-
-	// The whole setup here implicitly assumes
-	// that receiver[0]->adc is 0 and receiver[1]->adc is 1
-
-	// This is the correct setting for DEVICE_METIS and DEVICE_HERMES
-        output_buffer[C1]|=receiver[0]->adc;		// RX1 bound to ADC0
-        output_buffer[C1]|=(receiver[0]->adc<<2);	// RX2 bound to ADC0
-        output_buffer[C1]|=receiver[1]->adc<<4;		// RX3 bound to ADC1
-
-	// DL1YCF:
-	// For Orion, Angelia and OrionMk2 RX4 must show the FeedBack signal.
-        // In most cases this is routed back to RX1 so we need ADC0 for RX4
-	// Since I could test this only on my ANAN7000, I changed to code
-	// to associate RX4 with ADC0 only on Orion2 -- but I guess this will
-	// be necessary for other SDRs as well.
-
-        if (device == DEVICE_ORION2) {
-          output_buffer[C1]|=(receiver[0]->adc<<6);   // This works on ANAN7000
-	} else {
-          output_buffer[C1]|=(receiver[1]->adc<<6);   // Does this work for somebody?
-	}
         output_buffer[C2]=0x00;
-        if(transmitter->puresignal) {
-	  // This should not be necessary since RX5 is hard-wired to the TX DAC on TX
-          output_buffer[C2]|=receiver[2]->adc;
-        }
+#ifdef PURESIGNAL
+        // if n_adc == 1, there is only a single ADC, so we can leave everything
+        // set to zero
+	if (n_adc  > 1) {
+	    // Angelia, Orion, Orion2 have two ADCs, so we use the ADC settings from the menu
+            output_buffer[C1]|=receiver[0]->adc;			// RX1 bound to ADC of first receiver
+            output_buffer[C1]|=(receiver[1]->adc<<2);			// RX2 actually unsused with PURESIGNAL
+            output_buffer[C1]|=receiver[1]->adc<<4;			// RX3 bound to ADC of second receiver
+            output_buffer[C1]|=(receiver[PS_RX_FEEDBACK]->adc<<6);	// RX4 is PS_RX_Feedbacka
+									// Usually ADC0, but if feedback is to
+									// RX2 input it must be ADC1 (see ps_menu.c)
+	    // RX5 is hard-wired to the TX DAC and needs no ADC setting.
+	}
 #else
         output_buffer[C1]|=receiver[0]->adc;
         output_buffer[C1]|=(receiver[1]->adc<<2);
@@ -1282,8 +1268,19 @@ void ozy_send_buffer() {
       case 10:
         output_buffer[C0]=0x24;
         output_buffer[C1]=0x00;
+
         if(isTransmitting()) {
-          output_buffer[C1]|=0x80; // ground RX2 on transmit, bit0-6 are Alex2 filters
+#ifdef PURESIGNAL
+	  // If we are using the RX2 jack for PURESIGNAL RX feedback, then we MUST NOT ground
+	  // the ADC2 input upon TX.
+	  if (transmitter->puresignal && receiver[PS_RX_FEEDBACK]->adc == 1) {
+	    // Note that this statement seems to have no effect since
+	    // one cannot goto to "manual filter setting" for the ALEX2 board individually
+            output_buffer[C1]|=0x40; // Set ADC2 filter board to "ByPass"
+	  } else
+#endif
+
+            output_buffer[C1]|=0x80; // ground RX2 on transmit, bit0-6 are Alex2 filters
         }
         output_buffer[C2]=0x00;
         if(receiver[0]->alex_antenna==5) { // XVTR
@@ -1453,7 +1450,7 @@ static void metis_restart() {
   current_rx=0;
   command=1;
 #else
-  // DL1YCF this is the original code, which does not do what it pretends ....
+  // DL1YCF: this is the original code, which does not do what it pretends ....
   // send commands twice
   command=1;
   do {

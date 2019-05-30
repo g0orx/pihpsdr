@@ -179,6 +179,16 @@ int ext_vfo_a_swap_b(void *data) {
   return 0;
 }
 
+int ext_vfo_a_to_b(void *data) {
+  vfo_a_to_b();
+  return 0;
+}
+
+int ext_vfo_b_to_a(void *data) {
+  vfo_b_to_a();
+  return 0;
+}
+
 int ext_update_att_preamp(void *data) {
   update_att_preamp();
   return 0;

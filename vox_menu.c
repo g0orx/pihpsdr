@@ -91,7 +91,6 @@ static gpointer level_thread(gpointer arg) {
     g_idle_add(level_update,NULL);
     usleep(100000); // 100ms
   }
-  // DL1YCF added return statement to make compilers happy.
   return NULL;
 }
 

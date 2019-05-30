@@ -44,30 +44,41 @@
 
 //
 // MIDIaction encodes the "action" to be taken in Layer3
+// (sorted alphabetically)
 //
 enum MIDIaction {
-  ACTION_NONE=0,
-  VFO,
-  TUNE,
-  MOX,
-  AF_GAIN,
-  MIC_VOLUME,
-  TX_DRIVE,
-  ATT,
-  PRE,
-  AGC,
-  COMPRESS,
-  RIT_ONOFF,
-  RIT_VAL,
-  PAN_HIGH,
-  PAN_LOW,
-  BAND_UP,
-  BAND_DOWN,
-  FILTER_UP,
-  FILTER_DOWN,
-  MODE_UP,
-  MODE_DOWN,
-  SWAP_VFO
+  ACTION_NONE=0,	// No-Op (unassigned key)
+  AGC,			// AGC level
+  AGCATTACK,		// AGC ATTACK (cycle fast/med/slow etc.)
+  ATT,			// Step attenuator or Programmable attenuator
+  AF_GAIN,		// AF gain
+  BAND_DOWN,		// cycle through bands downwards
+  BAND_UP,		// cycle through bands upwards
+  COMPRESS,		// TX compressor value
+  CTUN,			// CTUN on/off
+  FILTER_UP,		// cycle through filters upwards
+  FILTER_DOWN,		// cycle through filters downwards
+  MIC_VOLUME,		// MIC gain
+  LOCK,			// disable frequency changes
+  MODE_UP,		// cycle through modes upwards
+  MODE_DOWN,		// cycle through modes downwards
+  MOX,			// toggle "mox" state
+  NB,			// cycle through NoiseBlanker states (none, NB, NB2)
+  NR,			// cycle through NoiseReduction states (none, NR, NR2)
+  PRE,			// preamp on/off
+  PAN_HIGH,		// "high" value of current panadapter
+  PAN_LOW,		// "low" value of current panadapter
+  PS,			// PURESIGNAL on/off
+  RIT_CLEAR,		// clear RIT value
+  RIT_VAL,		// change RIT value
+  SPLIT,		// Split on/off
+  SWAP_VFO,		// swap VFO A/B frequency
+  TUNE,			// toggle "tune" state
+  TX_DRIVE,		// RF output power
+  VFO,			// change VFO frequency
+  VFO_A2B,		// VFO A -> B
+  VFO_B2A,		// VFO B -> A
+  VOX 			// VOX on/off
 };
 
 //
@@ -153,9 +164,9 @@ struct desc {
    int               up_thr1;     // Wheel only: If controller value is <= this value, generate "          up  "
    int               up_thr2;     // Wheel only: If controller value is <= this value, generate "     fast up  "
    int               up_thr3;     // Wheel only: If controller value is <= this value, generate "very fast up  "
-   int		     delay;       // Wheel only: delay (msec)
+   int		     delay;       // Wheel only: delay (msec) before next message is given upstream
    enum MIDIaction   action;	  // SDR "action" to generate
-   struct desc       *next;       // Next defined action for a controller/key with that note value.
+   struct desc       *next;       // Next defined action for a controller/key with that note value (NULL for end of list)
 };
 
 struct {
@@ -186,7 +197,8 @@ void MIDIstartup();
 //
 // Layer-3 entry point (called by Layer2). In Layer-3, all the pihpsdr
 // actions (such as changing the VFO frequency) are performed.
-// The implementation of DoTheMIDI is tightly bound to pihpsr.
+// The implementation of DoTheMIDI is tightly bound to pihpsr and contains
+// tons of invocations of g_idle_add with routines from ext.c
 //
 
 void DoTheMidi(enum MIDIaction code, enum MIDItype type, int val);

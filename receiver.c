@@ -480,7 +480,7 @@ fprintf(stderr,"reconfigure_receiver: panadapter_init: width:%d height:%d\n",rx-
       gtk_fixed_put(GTK_FIXED(rx->panel),rx->panadapter,0,y);
     } else {
        // set the size
-fprintf(stderr,"reconfigure_receiver: panadapter set_size_request: width:%d height:%d\n",rx->width,height);
+//fprintf(stderr,"reconfigure_receiver: panadapter set_size_request: width:%d height:%d\n",rx->width,height);
       gtk_widget_set_size_request(rx->panadapter, rx->width, height);
       // move the current one
       gtk_fixed_move(GTK_FIXED(rx->panel),rx->panadapter,0,y);

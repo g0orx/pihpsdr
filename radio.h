@@ -244,6 +244,7 @@ extern double vox_hang;
 extern int vox;
 extern int CAT_cw_is_active;
 extern int cw_key_hit;
+extern int n_adc;
 
 extern int diversity_enabled;
 extern double i_rotate[2];

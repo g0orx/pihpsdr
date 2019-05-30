@@ -59,10 +59,12 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 
 static void comp_enable_cb(GtkWidget *widget, gpointer data) {
   transmitter->compressor=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
+  g_idle_add(ext_vfo_update, NULL);
 }
 
 static void comp_cb(GtkWidget *widget, gpointer data) {
   transmitter_set_compressor_level(transmitter,gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget)));
+  g_idle_add(ext_vfo_update, NULL);
 }
 
 static void tx_spin_low_cb (GtkWidget *widget, gpointer data) {
@@ -160,9 +162,6 @@ static void local_input_changed_cb(GtkWidget *widget, gpointer data) {
 static gboolean emp_cb (GtkWidget *widget, gpointer data) {
   pre_emphasize=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
   tx_set_pre_emphasize(transmitter,pre_emphasize);
-  // DL1YCF added return statement to make the compiler happy.
-  // however I am unsure about the correct return value.
-  // I would have coded this as a void function.
   return FALSE;
 }
 

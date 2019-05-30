@@ -294,6 +294,7 @@ double vox_hang=250.0;
 int vox=0;
 int CAT_cw_is_active=0;
 int cw_key_hit=0;
+int n_adc=1;
 
 int diversity_enabled=0;
 double i_rotate[2]={1.0,1.0};
@@ -327,8 +328,8 @@ void reconfigure_radio() {
     } else {
       gtk_fixed_move(GTK_FIXED(fixed),sliders,0,y);
     }
-    gtk_widget_show_all(sliders);  // DL1YCF this shows both C25 and Alex ATT/Preamp sliders
-    att_type_changed();            // DL1YCF added here to hide the „wrong“ ones.
+    gtk_widget_show_all(sliders);  // ... this shows both C25 and Alex ATT/Preamp sliders
+    att_type_changed();            // ... and this hides the „wrong“ ones.
   } else {
     if(sliders!=NULL) {
       gtk_container_remove(GTK_CONTAINER(fixed),sliders); 
@@ -421,7 +422,7 @@ void start_radio() {
                           radio->info.network.mac_address[5],
                           radio->info.network.interface_name);
 
-fprintf(stderr,"title: length=%d\n", (int)strlen(text));
+//fprintf(stderr,"title: length=%d\n", (int)strlen(text));
 
   gtk_window_set_title (GTK_WINDOW (top_window), text);
 
@@ -482,6 +483,41 @@ fprintf(stderr,"title: length=%d\n", (int)strlen(text));
       break;
   }
  
+  // Code moved here from rx_menu because n_adc is of general interest:
+  // Determine Number of ADCs.
+  switch(protocol) {
+    case ORIGINAL_PROTOCOL:
+      switch(device) {
+        case DEVICE_METIS:
+          n_adc=1;  // No support for multiple MERCURY cards on a single ATLAS bus.
+          break;
+        case DEVICE_HERMES:
+        case DEVICE_HERMES_LITE:
+          n_adc=1;
+          break;
+        default:
+          n_adc=2;
+          break;
+      }
+      break;
+    case NEW_PROTOCOL:
+      switch(device) {
+        case NEW_DEVICE_ATLAS:
+          n_adc=1; // No support for multiple MERCURY cards on a single ATLAS bus.
+          break;
+        case NEW_DEVICE_HERMES:
+        case NEW_DEVICE_HERMES2:
+        case NEW_DEVICE_HERMES_LITE:
+          n_adc=1;
+          break;
+        default:
+          n_adc=2;
+          break;
+      }
+      break;
+    default:
+      break;
+  }
 
   adc_attenuation[0]=0;
   adc_attenuation[1]=0;
@@ -531,15 +567,22 @@ fprintf(stderr,"title: length=%d\n", (int)strlen(text));
   rx_height=rx_height/receivers;
 
 
-fprintf(stderr,"Create %d receivers: height=%d\n",receivers,rx_height);
+//fprintf(stderr,"Create %d receivers: height=%d\n",receivers,rx_height);
   for(i=0;i<RECEIVERS;i++) {
-    receiver[i]=create_receiver(i, buffer_size, fft_size, display_width, updates_per_second, display_width, rx_height);
-    setSquelch(receiver[i]);
+    // A receiver may be un-unsed upon program start, but can be activated through the radio menu later.
+    // Create it here with height 0. Make sure to call g_object_ref for this one as well,
+    // this cures the seg-faults observed when switching beteen 1 and 2 RX in the radio menu.
     if(i<receivers) {
-      receiver[i]->x=0;
-      receiver[i]->y=y;
-      gtk_fixed_put(GTK_FIXED(fixed),receiver[i]->panel,0,y);
-      g_object_ref((gpointer)receiver[i]->panel);
+      receiver[i]=create_receiver(i, buffer_size, fft_size, display_width, updates_per_second, display_width, rx_height);
+    } else {
+      receiver[i]=create_receiver(i, buffer_size, fft_size, display_width, updates_per_second, display_width, 0        );
+    }
+    setSquelch(receiver[i]);
+    receiver[i]->x=0;
+    receiver[i]->y=y;
+    gtk_fixed_put(GTK_FIXED(fixed),receiver[i]->panel,0,y);
+    g_object_ref((gpointer)receiver[i]->panel);
+    if (i<receivers) {
       set_displaying(receiver[i],1);
       y+=rx_height;
     } else {
@@ -553,7 +596,7 @@ fprintf(stderr,"Create %d receivers: height=%d\n",receivers,rx_height);
 
   active_receiver=receiver[0];
 
-  fprintf(stderr,"Create transmitter\n");
+  //fprintf(stderr,"Create transmitter\n");
   transmitter=create_transmitter(CHANNEL_TX, buffer_size, fft_size, updates_per_second, display_width, tx_height);
   transmitter->x=0;
   transmitter->y=VFO_HEIGHT;
@@ -604,7 +647,7 @@ fprintf(stderr,"Create %d receivers: height=%d\n",receivers,rx_height);
 //#endif
 
   if(display_sliders) {
-fprintf(stderr,"create sliders\n");
+//fprintf(stderr,"create sliders\n");
     sliders = sliders_init(display_width,SLIDERS_HEIGHT);
     gtk_fixed_put(GTK_FIXED(fixed),sliders,0,y);
     y+=SLIDERS_HEIGHT;
@@ -664,20 +707,21 @@ void disable_rigctl() {
  
 
 void radio_change_receivers(int r) {
+  // The button in the radio menu will call this function even if the
+  // number of receivers has not changed.
+  if (receivers == r) return;
   fprintf(stderr,"radio_change_receivers: from %d to %d\n",receivers,r);
   switch(r) {
     case 1:
-      if(receivers==2) {
-        set_displaying(receiver[1],0);
-        gtk_container_remove(GTK_CONTAINER(fixed),receiver[1]->panel);
-      }
-      receivers=1;
-      break;
+	set_displaying(receiver[1],0);
+	gtk_container_remove(GTK_CONTAINER(fixed),receiver[1]->panel);
+	receivers=1;
+	break;
     case 2:
-      gtk_fixed_put(GTK_FIXED(fixed),receiver[1]->panel,0,0);
-      set_displaying(receiver[1],1);
-      receivers=2;
-      break;
+	gtk_fixed_put(GTK_FIXED(fixed),receiver[1]->panel,0,0);
+	set_displaying(receiver[1],1);
+	receivers=2;
+	break;
   }
   reconfigure_radio();
   active_receiver=receiver[0];
@@ -688,16 +732,21 @@ void radio_change_receivers(int r) {
 
 void radio_change_sample_rate(int rate) {
   int i;
+  
   switch(protocol) {
     case ORIGINAL_PROTOCOL:
-      old_protocol_stop();
-      for(i=0;i<receivers;i++) {
-        receiver_change_sample_rate(receiver[i],rate);
-      }
-      old_protocol_set_mic_sample_rate(rate);
-      old_protocol_run();
+      // The radio menu calls this function even if the sample rate
+      // has not changed. Do nothing in this case.
+      if (receiver[0]->sample_rate != rate) {
+        old_protocol_stop();
+        for(i=0;i<receivers;i++) {
+          receiver_change_sample_rate(receiver[i],rate);
+        }
+        old_protocol_set_mic_sample_rate(rate);
+        old_protocol_run();
 #ifdef PURESIGNAL
-      tx_set_ps_sample_rate(transmitter,rate);
+        tx_set_ps_sample_rate(transmitter,rate);
+      }
 #endif
       break;
 #ifdef LIMESDR
@@ -876,10 +925,11 @@ void setTune(int state) {
       }
       pre_tune_mode=mode;
 
-      // DL1YCF: in USB/DIGU/DSB, tune 1000 Hz above carrier
-      //         in LSB/DIGL,     tune 1000 Hz below carrier
-      //         all other (CW, AM, FM): tune on carrier freq.
-      //         Note: do not look at CW sidetone freq here.
+      //
+      // in USB/DIGU/DSB, tune 1000 Hz above carrier
+      // in LSB/DIGL,     tune 1000 Hz below carrier
+      // all other (CW, AM, FM): tune on carrier freq.
+      //
       switch(mode) {
         case modeLSB:
         case modeDIGL:
@@ -1524,7 +1574,7 @@ void calculate_display_average(RECEIVER *rx) {
 void set_filter_type(int filter_type) {
   int i;
 
-  fprintf(stderr,"set_filter_type: %d\n",filter_type);
+  //fprintf(stderr,"set_filter_type: %d\n",filter_type);
   for(i=0;i<RECEIVERS;i++) {
     receiver[i]->low_latency=filter_type;
     RXASetMP(receiver[i]->id, filter_type);
@@ -1536,7 +1586,7 @@ void set_filter_type(int filter_type) {
 void set_filter_size(int filter_size) {
   int i;
 
-  fprintf(stderr,"set_filter_size: %d\n",filter_size);
+  //fprintf(stderr,"set_filter_size: %d\n",filter_size);
   for(i=0;i<RECEIVERS;i++) {
     receiver[i]->fft_size=filter_size;
     RXASetNC(receiver[i]->id, filter_size);

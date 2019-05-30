@@ -2216,7 +2216,7 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
         else if((strcmp(cmd_str,"KY")==0) && (zzid_flag == 0))
 				    { 
 					if (cw_busy < 0) cat_cw_seen=1;
-					// DL1YCF:
+					//
 					// Hamlib produces timeout errors if we are busy here for
 					// seconds. Therefore we just move the data into a buffer
 					// that is processed by a separate thread.
@@ -2228,9 +2228,10 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
 					//  - if we can accept new data (buffer space available) : "KY0;"
 					//  - if buffer is full: "KY1;"
 					//
-					// Note: cw_buse == -1 indicates a "purge KY" situation, where
+					// Note: cw_busy == -1 indicates a "purge KY" situation, where
 					//       all KY commands are accepted and data is discared silently
 					//       In this case cw_busy is left untouched here.
+					//
                                         if (len <= 2) {
 					    if (cw_busy == 1) {
 						send_resp(client_sock,"KY1;");

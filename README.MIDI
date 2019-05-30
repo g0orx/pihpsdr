@@ -136,33 +136,44 @@ drive could be used with a knob (CTRL but no WHEEL), with a wheel
 
 Here is a list of actions currently implemented, in alphabetical
 order. We also give for which types of MIDI events (KEY, KNOB,
-WHEEL, PITCH) this action is defined
+WHEEL) this action is defined. We further have a "dummy" action
+NONE which means that there is nothing to do.
 
 
 Action         Event                Explanation
 ----------------------------------------------------------------------------------------------
 AFGAIN         KNOB,WHEEL           AF audio volume
 AGC            KNOB,WHEEL           AGC level
+AGCATTACK      KEY                  cycle through AGC settings (fast/slow, etc.)
 ATT            KEY                  cycle  through "ALEX attenuator" settings
 ATT            KNOB,WHEEL           set RX attenuation (0-31dB)
 BANDUP         KEY,WHEEL            cycle through the bands (upwards)
 BANDDOWN       KEY,WHEEL            cycle through the bands (downwards)
-COMPRESS       KNOB,WHEEL           set TX compression level (if compression is activated)
+COMPRESS       KNOB,WHEEL           set TX compression level
+CTUN           KEY                  toggle CTUN mode
 FILTERUP       KEY,WHEEL            cycle through the filters (upwards)
 FILTERDOWN     KEY,WHEEL            cycle through the filster (downwards)
+LOCK           KEY                  lock VFO(s)
 MICGAIN        KNOB,WHEEL           MIC gain
 MODEUP         KEY,WHEEL            cycle through the modes (upwards)
 MODEDOWN       KEY,WHEEL            cycle through the modes (downwards)
 MOX            KEY                  MOX on/off
+NB             KEY                  cycle through NoiseBlanker settings
+NR             KEY                  cycle through NoiseReduction settings
 PANHIGH        WHEEL                change "high" level of current pan-adapter
 PANLOW         WHEEL                change "bottom" level of current pan-adapter
 PREAMP         KEY                  cycle through preamp settings (only available for CHARLY25 filter boards)
-RITTOGGLE      KEY                  RIT on/off
+PURESIGNAL     KEY                  toggle PURESIGNAL (on/off)
+RITCLEAR       KEY                  clear RIT frequency
 RITVAL         WHEEL                change RIT frequency offset
 RFPOWER        KNOB,WHEEL           TX power
+SPLIT          KEY                  toggle Split mode
 SWAPVFO        KEY                  Swap VFO-A/VFO-B
 TUNE           KEY                  Tune on/off
 VFO            WHEEL                change VFO frequency
+VFOA2B         KEY                  frequency VFO A -> VFO B
+VFOB2A         KEY                  frequency VFO B -> VFO A
+VOX            KEY                  toggle VOX (on/off)
  
 
 If you need more or different type of actions, the implementation should be straightforward.
