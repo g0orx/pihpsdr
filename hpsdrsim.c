@@ -20,26 +20,18 @@
  * RF3 signal strength varies according to TX-drive and TX-ATT settings
  * RF4 signal strength is normalized to amplitude of 0.407
  *
- * RF1 and RF2 are associated with ADC1 and ADC2.
- * RF3 also goes to ADC1 upon TX
+ * The connection with the ADCs are:
+ * first  ADC: RF1 upon receive, RF3 upon transmit
+ * second ADC: RF2
+ *
  * RF4 is the TX DAC signal. Upon TX, it goes to RX2 for Metis, RX4 for Hermes, and RX5 beyond.
+ * Since the feedback runs at the RX sample rate while the TX sample rate is fixed (48000 Hz),
+ * we have to re-sample and do this in a very stupid way (linear interpolation).
  *
- * The SDR application has to make the proper ADC settings!
- *
- * Without PURESIGNAL, the standard association is:
- * RX1=ADC1, RX2=ADC2  (ADC2 not present for METIS and ANAN-10/10E/100)
- *
- * When using PURESIGNAL, the standard association is:
- *
- * DEVICE=METIS:  RX1=ADC1, RX2=TX-DAC
- * DEVICE=HERMES: RX1=ADC1, RX2=ADC1, RX3=ADC2, RX4=TX-DAC
- * DEVICE=ORION:  RX1=ADC1, RX2=ADC1, RX3=ADC3, RX4=ADC1, RX5=TX-DAC (also for ANGELIA and ORION2)
- *
- * Note that for STEMlab (RedPitaya) based SDRs, there is usually a fixed association
- *
+ * The SDR application has to make the proper ADC settings, except for STEMlab
+ * (RedPitaya based SDRs), where there is a fixed association
  * RX1=ADC1, RX2=ADC2, RX3=ADC2, RX4=TX-DAC
- *
- * And this setting is NOT AFFECTED by the ADC settings in the HPSDR protocol.
+ * and the PURESIGNAL feedback signal is connected to the second ADC.
  *
  * Audio sent to the "radio" is played via the first available output channel.
  * This works on MacOS (PORTAUDIO) and Linux (ALSA).
@@ -172,8 +164,10 @@ int          envptr=0;
 #ifdef MICSAMPLES
 //
 // Raw audio data (48000 16-bit int words) is read from a file and stored.
-// As soon as the ALEX attenuators are engaged, these mic samples are
-// sent to the SDR program ONCE.
+// As soon as the attenuation of RX1 goes above 20dB, these samples are
+// sent to the SDR (one shot), and when the attenuation goes below 10dB, this system
+// is reset, so playing with the ALEX ATT buttons or with the ATT slider you can
+// send mic samples to the SDR application and do some testing.
 //
 static int16_t micsamples[48000];
 int micsamples_ptr=-2;
@@ -318,8 +312,6 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
-	fprintf(stderr, "DEBUG_TCP: RP <--> PC: sock_TCP_Server: %d\n", sock_TCP_Server);
-
 	setsockopt(sock_TCP_Server, SOL_SOCKET, SO_REUSEADDR, (void *)&yes, sizeof(yes));
 
 	int tcpmaxseg = 1032;
@@ -340,7 +332,7 @@ int main(int argc, char *argv[])
 	}
 
 	listen(sock_TCP_Server, 1024);
-	fprintf(stderr, "DEBUG_TCP: RP <--> PC: Listening for TCP client connection request\n");
+	fprintf(stderr, "Listening for TCP client connection request\n");
 
         int flags = fcntl(sock_TCP_Server, F_GETFL, 0);
         fcntl(sock_TCP_Server, F_SETFL, flags | O_NONBLOCK);
@@ -437,7 +429,7 @@ int main(int argc, char *argv[])
                 {
                         if((sock_TCP_Client = accept(sock_TCP_Server, NULL, NULL)) > -1)
                         {
-                                fprintf(stderr, "DEBUG_TCP: RP <--> PC: sock_TCP_Client: %d connected to sock_TCP_Server: %d\n", sock_TCP_Client, sock_TCP_Server);
+                                fprintf(stderr,"sock_TCP_Client: %d connected to sock_TCP_Server: %d\n", sock_TCP_Client, sock_TCP_Server);
                         }
 			// This avoids firing accept() too often if it constantly fails
 			udp_retries=0;
@@ -453,7 +445,7 @@ int main(int argc, char *argv[])
 				// processing an invalid packet is too dangerous -- skip it!
 				if (bytes_read != 1032)
 				{
-					fprintf(stderr,"DEBUG_PROT: RvcMsg Code=0x%08x Len=%d\n", code, (int)bytes_read);
+					fprintf(stderr,"InvalidLength: RvcMsg Code=0x%08x Len=%d\n", code, (int)bytes_read);
 					break;
 				}
 
@@ -462,7 +454,7 @@ int main(int argc, char *argv[])
 
 				if (seqnum != last_seqnum + 1)
 				{
-					fprintf(stderr,"DEBUG_SEQ: SEQ ERROR: last %ld, recvd %ld\n", (long)last_seqnum, (long)seqnum);
+					fprintf(stderr,"SEQ ERROR: last %ld, recvd %ld\n", (long)last_seqnum, (long)seqnum);
 				}
 
 				last_seqnum = seqnum;
@@ -567,12 +559,12 @@ int main(int argc, char *argv[])
 				// respond to an incoming Metis detection request
 				case 0x0002feef:
 
-				fprintf(stderr, "DEBUG_PROT: RP -> PC: respond to an incoming Metis detection request / code: 0x%08x\n", code);
+				fprintf(stderr, "Respond to an incoming Metis detection request / code: 0x%08x\n", code);
 
 				// processing an invalid packet is too dangerous -- skip it!
 				if (bytes_read != 63)
 				{
-					fprintf(stderr,"DEBUG_PROT: RvcMsg Code=0x%08x Len=%d\n", code, (int)bytes_read);
+					fprintf(stderr,"InvalidLength: RvcMsg Code=0x%08x Len=%d\n", code, (int)bytes_read);
 					break;
 				}
 				reply[2] = 2 + active_thread;
@@ -588,7 +580,7 @@ int main(int argc, char *argv[])
 					{
 					    if (send(sock_TCP_Client, buffer, 60, 0) < 0)
 					    {
-						fprintf(stderr, "DEBUG_TCP: RP -> PC: TCP send error occurred when responding to an incoming Metis detection request!\n");
+						fprintf(stderr, "TCP send error occurred when responding to an incoming Metis detection request!\n");
 					    }
 					    // close the TCP socket which was only used for the detection
 					    close(sock_TCP_Client);
@@ -605,12 +597,12 @@ int main(int argc, char *argv[])
 				// stop the Red Pitaya to PC transmission via handler_ep6
 				case 0x0004feef:
 
-				fprintf(stderr, "DEBUG_PROT: RP -> PC: stop the transmission via handler_ep6 / code: 0x%08x\n", code);
+				fprintf(stderr, "STOP the transmission via handler_ep6 / code: 0x%08x\n", code);
 
 				// processing an invalid packet is too dangerous -- skip it!
 				if (bytes_read != 64)
 				{
-					fprintf(stderr,"DEBUG_PROT: RvcMsg Code=0x%08x Len=%d\n", code, bytes_read);
+					fprintf(stderr,"InvalidLength: RvcMsg Code=0x%08x Len=%d\n", code, bytes_read);
 					break;
 				}
 
@@ -629,7 +621,7 @@ int main(int argc, char *argv[])
 				//// This special code 0x11 is no longer needed, is does exactly the same thing
 				//// as the other start codes 0x01, 0x02, 0x03
 
-				fprintf(stderr, "DEBUG_TCP: PC -> RP: TCP METIS-start message received / code: 0x%08x\n", code);
+				fprintf(stderr, "TCP METIS-start message received / code: 0x%08x\n", code);
 
 				/* FALLTHROUGH */
 
@@ -637,12 +629,12 @@ int main(int argc, char *argv[])
 				case 0x0204feef:
 				case 0x0304feef:
 
-				fprintf(stderr, "DEBUG_PROT: RP <--> PC: start the handler_ep6 thread / code: 0x%08x\n", code);
+				fprintf(stderr, "START the handler_ep6 thread / code: 0x%08x\n", code);
 
 				// processing an invalid packet is too dangerous -- skip it!
 				if (bytes_read != 64)
 				{
-					fprintf(stderr,"DEBUG_PROT: RvcMsg Code=0x%08x Len=%d\n", code, bytes_read);
+					fprintf(stderr,"InvalidLength: RvcMsg Code=0x%08x Len=%d\n", code, bytes_read);
 					break;
 				}
 
@@ -653,6 +645,11 @@ int main(int argc, char *argv[])
 				addr_ep6.sin_addr.s_addr = addr_from.sin_addr.s_addr;
 				addr_ep6.sin_port = addr_from.sin_port;
 
+				//
+				// The initial value of txptr defines the delay between
+				// TX samples sent to the SDR and PURESIGNAL feedback
+				// samples arriving
+				//
                                 txptr=(25 << rate) * 126;  // must be even multiple of 63
                                 rxptr=0;
 				memset(isample, 0, RTXLEN*sizeof(double));
@@ -672,11 +669,11 @@ int main(int argc, char *argv[])
 				// Possibly a discovery packet of the New protocol, otherwise a severe error
 				if (bytes_read == 60 && code == 0 && buffer[4] == 0x02)
 				{
-					fprintf(stderr,"DEBUG_PROT: PC -> RP: NewProtocol discovery packet received (no response)\n");
+					fprintf(stderr,"NewProtocol discovery packet received (we won't respond)\n");
 				}
 				else
 				{
-					fprintf(stderr,"DEBUG_PROT: PC -> RP: invalid code: 0x%08x (Len=%d)\n", code, bytes_read);
+					fprintf(stderr,"PackedInvalidCode: 0x%08x (Len=%d)\n", code, bytes_read);
 				}
 				break;
 			}
@@ -921,10 +918,9 @@ void *handler_ep6(void *arg)
 		127, 127, 127, 24, 0, 0, 0, 0,
 		127, 127, 127, 32, 66, 66, 66, 66
 	};
-        int32_t rf1isample,rf1qsample;
-        int32_t rf2isample,rf2qsample;
-        int32_t rf3isample,rf3qsample;
-        int32_t rf4isample,rf4qsample;
+        int32_t adc1isample,adc1qsample;
+        int32_t adc2isample,adc2qsample;
+        int32_t dacisample,dacqsample;
 
 	int32_t myisample,myqsample;
         int16_t ssample;
@@ -1024,40 +1020,49 @@ void *handler_ep6(void *arg)
 		    pointer += 8;
 		    memset(pointer, 0, 504);
 		    for (j=0; j<n; j++) {
-			// ADC1: noise + weak tone on RX, feedback sig. on TX
-		        if (ptt) {
+			// ADC1: noise + weak tone on RX, feedback sig. on TX (except STEMlab)
+		        if (ptt && !isc25) {
 			  i1=isample[rxptr]*txdrv_dbl;
 			  q1=qsample[rxptr]*txdrv_dbl;
 			  fac=IM3a+IM3b*(i1*i1+q1*q1);
-			  rf1isample= (txatt_dbl*i1*fac+noiseItab[noiseIQpt]) * 8388607.0;
-			  rf1qsample= (txatt_dbl*q1*fac+noiseItab[noiseIQpt]) * 8388607.0;
+			  adc1isample= (txatt_dbl*i1*fac+noiseItab[noiseIQpt]) * 8388607.0;
+			  adc1qsample= (txatt_dbl*q1*fac+noiseItab[noiseIQpt]) * 8388607.0;
 			} else {
-			  rf1isample= noiseItab[noiseIQpt] * 8388607.0;			// Noise
-			  rf1isample += T0800Itab[pt0800] * 83.886070 *rxatt_dbl[0];	// tone 100 dB below peak
-			  rf1qsample=noiseQtab[noiseIQpt] * 8388607.0;
-			  rf1qsample += T0800Qtab[pt0800] * 83.886070 *rxatt_dbl[0];
+			  adc1isample= noiseItab[noiseIQpt] * 8388607.0;			// Noise
+			  adc1isample += T0800Itab[pt0800] * 83.886070 *rxatt_dbl[0];	// tone 100 dB below peak
+			  adc1qsample=noiseQtab[noiseIQpt] * 8388607.0;
+			  adc1qsample += T0800Qtab[pt0800] * 83.886070 *rxatt_dbl[0];
 			}
-			rf2isample= noiseItab[noiseIQpt] * 8388607.0;			// Noise
-			rf2isample += T2000Itab[pt2000] * 838.86070 * rxatt_dbl[1];	// tone 80 dB below peak
-			rf2qsample=noiseQtab[noiseIQpt] * 8388607.0;
-			rf2qsample += T2000Qtab[pt2000] * 838.86070 * rxatt_dbl[1];
+			// ADC2: noise + stronger tone on RX, feedback sig. on TX (only STEMlab)
+			if (ptt && isc25) {
+			  i1=isample[rxptr]*txdrv_dbl;
+			  q1=qsample[rxptr]*txdrv_dbl;
+			  fac=IM3a+IM3b*(i1*i1+q1*q1);
+			  adc2isample= (txatt_dbl*i1*fac+noiseItab[noiseIQpt]) * 8388607.0;
+			  adc2qsample= (txatt_dbl*q1*fac+noiseItab[noiseIQpt]) * 8388607.0;
+			} else {
+			  adc2isample= noiseItab[noiseIQpt] * 8388607.0;			// Noise
+			  adc2isample += T2000Itab[pt2000] * 838.86070 * rxatt_dbl[1];	// tone 80 dB below peak
+			  adc2qsample=noiseQtab[noiseIQpt] * 8388607.0;
+			  adc2qsample += T2000Qtab[pt2000] * 838.86070 * rxatt_dbl[1];
+			}
 			//
-			// RF4: TX signal with peak=0.4
+			// TX signal with peak=0.4
 			//
-			rf4isample= isample[rxptr] * 0.400 * 8388607.0;
-			rf4qsample= qsample[rxptr] * 0.400 * 8388607.0;
+			dacisample= isample[rxptr] * 0.400 * 8388607.0;
+			dacqsample= qsample[rxptr] * 0.400 * 8388607.0;
 
 			for (k=0; k< receivers; k++) {
 			    myisample=0;
 			    myqsample=0;
 			    switch (rx_adc[k]) {
 			      case 0: // ADC1
-				myisample=rf1isample;
-				myqsample=rf1qsample;
+				myisample=adc1isample;
+				myqsample=adc1qsample;
 				break;
 			      case 1: // ADC2
-				myisample=rf2isample;
-				myqsample=rf2qsample;
+				myisample=adc2isample;
+				myqsample=adc2qsample;
 				break;
 			      default:
 				myisample=0;
@@ -1066,18 +1071,18 @@ void *handler_ep6(void *arg)
 			    }
 			    if (ismetis && ptt && (k==1)) {
 				// METIS: TX DAC signal goes to RX2 when TXing
-				myisample=rf4isample;
-				myqsample=rf4qsample;
+				myisample=dacisample;
+				myqsample=dacqsample;
 			    }
 			    if (ishermes && ptt && (k==3)) {
 				// HERMES: TX DAC signal goes to RX4 when TXing
-				myisample=rf4isample;
-				myqsample=rf4qsample;
+				myisample=dacisample;
+				myqsample=dacqsample;
 			    }
 			    if (isorion && ptt && (k==4)) {
 				// ANGELIA and beyond: TX DAC signal goes to RX5 when TXing
-				myisample=rf4isample;
-				myqsample=rf4qsample;
+				myisample=dacisample;
+				myqsample=dacqsample;
 			    }
 			    *pointer++ = (myisample >> 16) & 0xFF;
 			    *pointer++ = (myisample >>  8) & 0xFF;
@@ -1141,7 +1146,7 @@ void *handler_ep6(void *arg)
 		{
 			if (sendmsg(sock_TCP_Client, &msghdr, 0) < 0)
 			{
-				fprintf(stderr, "DEBUG_TCP: RP -> PC: TCP sendmsg error occurred at sequence number: %u !\n", counter);
+				fprintf(stderr, "TCP sendmsg error occurred at sequence number: %u !\n", counter);
 			}
 		}
 		else
@@ -1314,7 +1319,7 @@ void audio_get_cards() {
     descr = snd_device_name_get_hint(*n, "DESC");
     io = snd_device_name_get_hint(*n, "IOID");
     
-    if(strncmp("dmix:", name, 5)==0/* || strncmp("pulse", name, 5)==0*/) {
+    if(strncmp("dmix:", name, 5)==0) {
       fprintf(stderr,"name=%s descr=%s io=%s\n",name, descr, io);
       device_id=malloc(64);
       

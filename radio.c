@@ -1534,8 +1534,8 @@ void radioSaveState() {
       receiver_save_state(receiver[i]);
     }
 #ifdef PURESIGNAL
-    // There is little to save.
-    // An exception is the feedback_antenna stored in PS_RX_FEEDBACK
+    // The only variables of interest in this receiver are
+    // the alex_antenna an the adc
     receiver_save_state(receiver[PS_RX_FEEDBACK]);
 #endif
     transmitter_save_state(transmitter);

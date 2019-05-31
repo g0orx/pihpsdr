@@ -1139,7 +1139,7 @@ void tx_set_ps_sample_rate(TRANSMITTER *tx,int rate) {
 //
 void cw_hold_key(int state) {
   if (state) {
-    cw_key_down = 480000;    // up to 10 sec
+    cw_key_down = 960000;    // up to 20 sec
   } else {
     cw_key_down = 0;
   }

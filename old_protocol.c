@@ -953,11 +953,11 @@ void ozy_send_buffer() {
 #ifdef PURESIGNAL
     //
     // Upon TX, we might have to activate a different RX path for the
-    // attenuated feedback signal. Use feedback_antenna == 0, if
+    // attenuated feedback signal. Use alex_antenna == 0, if
     // the feedback signal is routed automatically/internally
     // If feedback is to the second ADC, leave RX1 ANT settings untouched
     //
-    if (isTransmitting() && transmitter->puresignal && receiver[PS_RX_FEEDBACK]->adc == 0) i=receiver[PS_RX_FEEDBACK]->feedback_antenna;
+    if (isTransmitting() && transmitter->puresignal && receiver[PS_RX_FEEDBACK]->adc == 0) i=receiver[PS_RX_FEEDBACK]->alex_antenna;
 #endif
     switch(i) {
       case 3:  // Alex: RX2 IN, ANAN: EXT1, ANAN7000: still uses internal feedback 

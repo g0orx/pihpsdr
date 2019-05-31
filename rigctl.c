@@ -552,7 +552,7 @@ static gpointer rigctl_cw_thread(gpointer data)
 	// Note that if out-of-band, we would wait
 	// forever here, so allow at most 200 msec
 	// We also have to wait for cw_not_ready becoming zero
-	i=100;
+	i=200;
         while ((!mox || cw_not_ready) && i-- > 0) usleep(1000L);
 	// still no MOX? --> silently discard CW character and give up
 	if (!mox) {

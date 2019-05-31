@@ -199,11 +199,6 @@ void receiver_save_state(RECEIVER *rx) {
   sprintf(value,"%d",rx->waterfall_automatic);
   setProperty(name,value);
   
-#ifdef PURESIGNAL
-  sprintf(name,"receiver.%d.feedback_antenna",rx->id);
-  sprintf(value,"%d",rx->feedback_antenna);
-  setProperty(name,value);
-#endif
   sprintf(name,"receiver.%d.alex_antenna",rx->id);
   sprintf(value,"%d",rx->alex_antenna);
   setProperty(name,value);
@@ -360,11 +355,6 @@ fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
   value=getProperty(name);
   if(value) rx->waterfall_automatic=atoi(value);
 
-#ifdef PURESIGNAL
-  sprintf(name,"receiver.%d.feedback_antenna",rx->id);
-  value=getProperty(name);
-  if(value) rx->feedback_antenna=atoi(value);
-#endif
   sprintf(name,"receiver.%d.alex_antenna",rx->id);
   value=getProperty(name);
   if(value) rx->alex_antenna=atoi(value);
@@ -798,7 +788,6 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
   rx->nr2_npe_method=0;
   rx->nr2_ae=1;
   
-  rx->feedback_antenna=0;
   rx->alex_antenna=0;
   rx->alex_attenuation=0;
 
@@ -817,7 +806,7 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
 
   rx->low_latency=0;
 
-  // not much to be restored, except feedback_antenna
+  // not much to be restored, except alex_antenna and adc
   if (id == PS_RX_FEEDBACK) receiver_restore_state(rx);
 
   int result;
@@ -931,10 +920,6 @@ fprintf(stderr,"create_receiver: id=%d default ddc=%d adc=%d\n",rx->id, rx->ddc,
   rx->nr2_npe_method=0;
   rx->nr2_ae=1;
   
-#ifdef PURESIGNAL
-  rx->feedback_antenna=0;
-#endif
-
   BAND *b=band_get_band(vfo[rx->id].band);
   rx->alex_antenna=b->alexRxAntenna;
   rx->alex_attenuation=b->alexAttenuation;

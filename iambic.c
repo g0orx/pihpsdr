@@ -357,8 +357,6 @@ static void* keyer_thread(void *arg) {
     int old_volume;
     struct sched_param param;
 
-    // In Linux, the new scheduling policy will be effective for the
-   //  calling thread only.
     param.sched_priority = MY_PRIORITY;
     if(sched_setscheduler((pid_t)0, SCHED_FIFO, &param) == -1) {
             perror("sched_setscheduler failed");
@@ -381,9 +379,9 @@ static void* keyer_thread(void *arg) {
           // firing up the TX. This induces a small delay when hitting the key for
           // the first time, but excludes that the first dot is swallowed.
           // Note: if out-of-band, mox will never come, therefore
-          // give up after 100 msec.
-          i=100;
-          while (!mox && i-- > 0) usleep(1000);
+          // give up after 200 msec.
+          i=200;
+          while ((!mox || cw_not_ready) && i-- > 0) usleep(1000L);
           cwvox=(int) cw_keyer_hang_time;
 	}
 
