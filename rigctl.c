@@ -302,8 +302,6 @@ static long dashlen;
 static int  dotsamples;
 static int  dashsamples;
 
-extern int cw_key_up, cw_key_down, cw_not_ready;
-
 //
 // send_dash()         send a "key-down" of a dashlen, followed by a "key-up" of a dotlen
 // send_dot()          send a "key-down" of a dotlen,  followed by a "key-up" of a dotlen

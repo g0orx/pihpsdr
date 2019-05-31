@@ -481,7 +481,9 @@ hpsdrsim:       hpsdrsim.o
 #       =========
 #       Upon starting a freshly built application in an "app" bundle,
 #       it will do the FFT calculations required for wdsp-Wisdom, since
-#       this is then stored *within* the app bundle.
+#       this is then stored *within* the app bundle. For experimentation,
+#       use "make localapp", this will copy such run-time files (WDSP wisom,
+#       ".props" files and the definition of the MIDI device) to the app bundle.
 #
 #############################################################################
 app:	$(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) \

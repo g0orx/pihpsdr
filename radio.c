@@ -564,30 +564,22 @@ void start_radio() {
     rx_height-=SLIDERS_HEIGHT;
   }
   int tx_height=rx_height;
-  rx_height=rx_height/receivers;
+  rx_height=rx_height/RECEIVERS;
 
 
-//fprintf(stderr,"Create %d receivers: height=%d\n",receivers,rx_height);
+  //
+  // To be on the safe side, we create ALL receiver panels here
+  // If upon startup, we only should display one panel, we do the switch below
+  //
   for(i=0;i<RECEIVERS;i++) {
-    // A receiver may be un-unsed upon program start, but can be activated through the radio menu later.
-    // Create it here with height 0. Make sure to call g_object_ref for this one as well,
-    // this cures the seg-faults observed when switching beteen 1 and 2 RX in the radio menu.
-    if(i<receivers) {
-      receiver[i]=create_receiver(i, buffer_size, fft_size, display_width, updates_per_second, display_width, rx_height);
-    } else {
-      receiver[i]=create_receiver(i, buffer_size, fft_size, display_width, updates_per_second, display_width, 0        );
-    }
+    receiver[i]=create_receiver(i, buffer_size, fft_size, display_width, updates_per_second, display_width, rx_height);
     setSquelch(receiver[i]);
     receiver[i]->x=0;
     receiver[i]->y=y;
     gtk_fixed_put(GTK_FIXED(fixed),receiver[i]->panel,0,y);
     g_object_ref((gpointer)receiver[i]->panel);
-    if (i<receivers) {
-      set_displaying(receiver[i],1);
-      y+=rx_height;
-    } else {
-      set_displaying(receiver[i],0);
-    }
+    set_displaying(receiver[i],1);
+    y+=rx_height;
   }
 
   if((protocol==ORIGINAL_PROTOCOL) && (RECEIVERS==2) && (receiver[0]->sample_rate!=receiver[1]->sample_rate)) {
@@ -657,6 +649,18 @@ void start_radio() {
   toolbar = toolbar_init(display_width,TOOLBAR_HEIGHT,top_window);
   gtk_fixed_put(GTK_FIXED(fixed),toolbar,0,y);
   y+=TOOLBAR_HEIGHT;
+
+//
+// Now, if there should only one receiver be displayed
+// at startup, do the change. We must momentarily fake
+// the number of receivers otherwise radio_change_receivers
+// will do nothing.
+//
+  if (receivers != RECEIVERS) {
+    i=receivers,
+    receivers=RECEIVERS;
+    radio_change_receivers(i);
+  }
 
   gtk_widget_show_all (fixed);
 //#ifdef FREEDV
@@ -746,8 +750,8 @@ void radio_change_sample_rate(int rate) {
         old_protocol_run();
 #ifdef PURESIGNAL
         tx_set_ps_sample_rate(transmitter,rate);
-      }
 #endif
+      }
       break;
 #ifdef LIMESDR
     case LIMESDR_PROTOCOL:
