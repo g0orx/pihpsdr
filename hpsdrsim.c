@@ -1,5 +1,7 @@
+//#define MICSAMPLES   // define to send microphone samples (triggered by attenuator slider)
+//#define TX_ENVELOPE  // define to dump TX envelope 1 sec after first PTT
 /*
- * HPSDR simulator, (C) Christoph van Wuellen, April 2019
+ * HPSDR simulator, (C) Christoph van Wuellen, April/Mai 2019
  *
  * This program simulates a HPSDR board.
  * If an SDR program such as phipsdr "connects" with this program, it
@@ -11,25 +13,32 @@
  *
  * RF1: ADC noise (16-bit ADC) plus a  800 Hz signal at -100dBm
  * RF2: ADC noise (16-bit ADC) plus a 2000 Hz signal at - 80dBm
- * RF3: (upon TX with sample rate=48000): TX feedback signal with some distortion. This signal is modulated
- *      according to the "TX drive" and "TX ATT" settings.
- * RF4: (upon TX with sample rate=48000): TX signal with a peak value of 0.400
+ * RF3: TX feedback signal with some distortion.
+ * RF4: normalized undistorted TX signal with a peak value of 0.407
  *
- * RF1 and RF2 are attenuated according to the preamp/attenuator settings.
- * RF3 respects the "TX drive" and "TX ATT" settings
- * RF4 is the TX signal multiplied with 0.4 (ignores TX_DRIVE and TX_ATT).
+ * RF1 and RF2 signal strenght vary according to Preamp and Attenuator settings
+ * RF3 signal strength varies according to TX-drive and TX-ATT settings
+ * RF4 signal strength is normalized to amplitude of 0.407
  *
- * We support 4 receivers, they see
- * RX1:  RF1
- * RX2:  RF2 while receiving, RF3 while transmitting/48000
- * RX3:  RF2 while receiving, RF3 while transmitting/48000
- * RX4:  RF3 
+ * The connection with the ADCs are:
+ * first  ADC: RF1 upon receive, RF3 upon transmit
+ * second ADC: RF2
  *
- * RX5 to RX8: no signal
- * 
- * This is the setting for PURESIGNAL with HERMES boards.
- * To simulate Orion2 boards (Anan7000 etc), we should connect RX4 with RF2 and RX5 with RF3.
+ * RF4 is the TX DAC signal. Upon TX, it goes to RX2 for Metis, RX4 for Hermes, and RX5 beyond.
+ * Since the feedback runs at the RX sample rate while the TX sample rate is fixed (48000 Hz),
+ * we have to re-sample and do this in a very stupid way (linear interpolation).
  *
+ * The SDR application has to make the proper ADC settings, except for STEMlab
+ * (RedPitaya based SDRs), where there is a fixed association
+ * RX1=ADC1, RX2=ADC2, RX3=ADC2, RX4=TX-DAC
+ * and the PURESIGNAL feedback signal is connected to the second ADC.
+ *
+ * Audio sent to the "radio" is played via the first available output channel.
+ * This works on MacOS (PORTAUDIO) and Linux (ALSA).
+ *
+ * Additional feature include the recording of the TX envelope of the first second
+ * of TXing, and the possiblity to read a file with mic samples and "send"
+ * them to the SDR. Both features are meant for testing RX/TX timings.
  */
 #include <stdio.h>
 #include <errno.h>
@@ -50,6 +59,18 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
+#ifdef PORTAUDIO
+#include "portaudio.h"
+#else
+#include <alsa/asoundlib.h>
+#endif
+
+// Forward declarations for the audio functions
+void audio_get_cards(void);
+void audio_open_output();
+void audio_write(int16_t, int16_t);
+
+
 #ifndef __APPLE__
 // using clock_nanosleep of librt
 extern int clock_nanosleep(clockid_t __clock_id, int __flags,
@@ -66,75 +87,102 @@ static int sock_TCP_Client = -1;
  * Whenevery they are changed, this is reported.
  */
 
-int		AlexTXrel = -1;
-int		alexRXout = -1;
-int		alexRXant = -1;
-int		MicTS = -1;
-int		duplex = -1;
-int		receivers = -1;
-int		rate = -1;
-int             preamp = -1;
-int		LTdither = -1;
-int		LTrandom = -1;
-int		AlexRXant = -1;
-int		AlexRXout = -1;
-int             ref10 = -1;
-int		src122 = -1;
-int		PMconfig = -1;
-int		MicSrc = -1;
-int		txdrive = 0;
-int		txatt = 0;
-int		sidetone_volume = -1;
-int		cw_internal = -1;
-int		rx_att[2] = {-1,-1};
-int		rx1_attE = -1;
-int             rx_preamp[4] = {-1,-1,-1,-1};
-int		MerTxATT0 = -1;
-int		MerTxATT1 = -1;
-int		MetisDB9 = -1;
-int		PeneSel = -1;
-int		PureSignal = -1;
-int		LineGain = -1;
-int		MicPTT = -1;
-int		tip_ring = -1;
-int		MicBias = -1;
-int		ptt=-1;
-int		att=-1;
-int		TX_class_E = -1;
-int		OpenCollectorOutputs=-1;
-long		tx_freq=-1;
-long		rx_freq[7] = {-1,-1,-1,-1,-1,-1,-1};
-int		hermes_config=-1;
-int		alex_lpf=-1;
-int		alex_hpf=-1;
-int		c25_ext_board_i2c_data=-1;
-int		rx_adc[7]={0,1,1,2,-1,-1,-1};
-int		cw_hang = -1;
-int		cw_reversed = -1;
-int		cw_speed = -1;
-int		cw_mode = -1;
-int		cw_weight = -1;
-int		cw_spacing = -1;
-int		cw_delay = -1;
-int		CommonMercuryFreq = -1;
-int             freq=-1;
+static int		AlexTXrel = -1;
+static int		alexRXout = -1;
+static int		alexRXant = -1;
+static int		MicTS = -1;
+static int		duplex = -1;
+static int		receivers = -1;
+static int		rate = -1;
+static int              preamp = -1;
+static int		LTdither = -1;
+static int		LTrandom = -1;
+static int              ref10 = -1;
+static int		src122 = -1;
+static int		PMconfig = -1;
+static int		MicSrc = -1;
+static int		txdrive = 0;
+static int		txatt = 0;
+static int		sidetone_volume = -1;
+static int		cw_internal = -1;
+static int		rx_att[2] = {-1,-1};
+static int		rx1_attE = -1;
+static int              rx_preamp[4] = {-1,-1,-1,-1};
+static int		MerTxATT0 = -1;
+static int		MerTxATT1 = -1;
+static int		MetisDB9 = -1;
+static int		PeneSel = -1;
+static int		PureSignal = -1;
+static int		LineGain = -1;
+static int		MicPTT = -1;
+static int		tip_ring = -1;
+static int		MicBias = -1;
+static int		ptt=0;
+static int		AlexAtt=-1;
+static int		TX_class_E = -1;
+static int		OpenCollectorOutputs=-1;
+static long		tx_freq=-1;
+static long		rx_freq[7] = {-1,-1,-1,-1,-1,-1,-1};
+static int		hermes_config=-1;
+static int		alex_lpf=-1;
+static int		alex_hpf=-1;
+static int		alex_manual=-1;
+static int		alex_bypass=-1;
+static int		lna6m=-1;
+static int		alexTRdisable=-1;
+static int		vna=-1;
+static int		c25_ext_board_i2c_data=-1;
+static int		rx_adc[7]={-1,-1,-1,-1,-1,-1,-1};
+static int		cw_hang = -1;
+static int		cw_reversed = -1;
+static int		cw_speed = -1;
+static int		cw_mode = -1;
+static int		cw_weight = -1;
+static int		cw_spacing = -1;
+static int		cw_delay = -1;
+static int		CommonMercuryFreq = -1;
+static int              freq=-1;
 
 
 // floating-point represeners of TX att, RX att, and RX preamp settings
 
-double txdrv_dbl = 1.0;
-double txatt_dbl = 1.0;
-double rxatt_dbl[4] = {1.0, 1.0, 1.0, 1.0};   // this reflects both ATT and PREAMP
+static double txdrv_dbl = 0.99;
+static double txatt_dbl = 1.0;
+static double rxatt_dbl[4] = {1.0, 1.0, 1.0, 1.0};   // this reflects both ATT and PREAMP
 
-int sock_ep2;
+#ifdef TX_ENVELOPE
+//
+// This records the size of the first MAXENV TX samples after the first RX-TX transition.
+// This can be used to detect whether RX/TX transitions are fast enough not to chop
+// the first part of an SSB transmission using VOX, or of the first CW element.
+//
+#define MAXENV 48000
+static float envelope[MAXENV];
+int          envptr=0;
+#endif
 
-struct sockaddr_in addr_ep6;
+#ifdef MICSAMPLES
+//
+// Raw audio data (48000 16-bit int words) is read from a file and stored.
+// As soon as the attenuation of RX1 goes above 20dB, these samples are
+// sent to the SDR (one shot), and when the attenuation goes below 10dB, this system
+// is reset, so playing with the ALEX ATT buttons or with the ATT slider you can
+// send mic samples to the SDR application and do some testing.
+//
+static int16_t micsamples[48000];
+int micsamples_ptr=-2;
+int micsamples_rate=0;
+#endif
+
+static int sock_ep2;
+
+static struct sockaddr_in addr_ep6;
 
 /*
  * These two variables monitor whether the TX thread is active
  */
-int enable_thread = 0;
-int active_thread = 0;
+static int enable_thread = 0;
+static int active_thread = 0;
 
 void process_ep2(uint8_t *frame);
 void *handler_ep6(void *arg);
@@ -144,12 +192,20 @@ void *handler_ep6(void *arg);
  * The TX data ring buffer
  */
 
-// 63 * 130,  RTXLEN must be an even multiple of 63!
-#define RTXLEN 8190
-double  isample[RTXLEN];
-double  qsample[RTXLEN];
-int  txptr=0;
-int  rxptr=0;
+// RTXLEN must be an sixteen-fold multiple of 63
+// because we have 63 samples per 512-byte METIS packet,
+// and two METIS packets per TCP/UDP packet,
+// and two/four/eight-fold up-sampling if the TX sample
+// rate is 96000/192000/384000
+#define RTXLEN 64512
+static double  isample[RTXLEN];
+static double  qsample[RTXLEN];
+static double  last_i_sample=0.0;
+static double  last_q_sample=0.0;
+static int  txptr=0;
+static int  rxptr=0;
+
+static int ismetis,isorion,ishermes,isc25;
 
 int main(int argc, char *argv[])
 {
@@ -157,12 +213,13 @@ int main(int argc, char *argv[])
 	struct sched_param param;
 	pthread_attr_t attr;
 	pthread_t thread;
+        int DEVICE;
 
 	uint8_t reply[11] = { 0xef, 0xfe, 2, 0, 0, 0, 0, 0, 0, 32, 1 };
 
 	uint8_t id[4] = { 0xef, 0xfe, 1, 6 };
 	uint32_t code;
-        int16_t  sample;
+        int16_t  sample,l,r;
 
 	struct sockaddr_in addr_ep2, addr_from;
 	uint8_t buffer[1032];
@@ -178,6 +235,45 @@ int main(int argc, char *argv[])
 	int udp_retries=0;
 	int bytes_read, bytes_left;
 	uint32_t *code0 = (uint32_t *) buffer;  // fast access to code of first buffer
+        int fd;
+
+#ifdef MICSAMPLES
+        fd=open("micsamples", O_RDONLY);
+        if (fd >= 0) {
+	  if (read(fd, micsamples, 48000*sizeof(int16_t)) == 48000*sizeof(int16_t)) {
+	    fprintf(stderr,"MIC SAMPLES available\n");
+	    micsamples_ptr=-1;
+	  }
+	}
+#endif
+        
+	audio_get_cards();
+        audio_open_output();
+/*
+ *      Examples for METIS:	Mercury/Penelope boards
+ *      Examples for HERMES:	ANAN10, ANAN100
+ *      Examples for ANGELIA:   ANAN100D
+ *	Examples for ORION:	ANAN200D
+ *	Examples for ORION2:	ANAN7000D, ANAN8000D
+ */
+
+	DEVICE=1; // default is Hermes
+        if (argc > 1) {
+	    if (!strncmp(argv[1],"-metis"  ,6))  DEVICE=0;
+	    if (!strncmp(argv[1],"-hermes" ,7))  DEVICE=1;
+	    if (!strncmp(argv[1],"-orion" , 6))  DEVICE=5;
+	    if (!strncmp(argv[1],"-orion2" ,7))  DEVICE=10;   // Anan7000 in old protocol
+	    if (!strncmp(argv[1],"-c25"    ,8))  DEVICE=100;  // the same as hermes
+        }
+	ismetis=ishermes=isorion=isc25=0;
+	switch (DEVICE) {
+	    case   0: fprintf(stderr,"DEVICE is METIS\n");   ismetis=1;  break;
+	    case   1: fprintf(stderr,"DEVICE is HERMES\n");  ishermes=1; break;
+	    case   5: fprintf(stderr,"DEVICE is ORION\n");   isorion=1;  break;
+	    case  10: fprintf(stderr,"DEVICE is ORION2\n");  isorion=1;  break;
+	    case 100: fprintf(stderr,"DEVICE is StemLab\n"); ishermes=1;  isc25=1; break;
+	}
+	reply[10]=DEVICE;
 
 	if ((sock_ep2 = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
 	{
@@ -216,8 +312,6 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
-	fprintf(stderr, "DEBUG_TCP: RP <--> PC: sock_TCP_Server: %d\n", sock_TCP_Server);
-
 	setsockopt(sock_TCP_Server, SOL_SOCKET, SO_REUSEADDR, (void *)&yes, sizeof(yes));
 
 	int tcpmaxseg = 1032;
@@ -238,7 +332,7 @@ int main(int argc, char *argv[])
 	}
 
 	listen(sock_TCP_Server, 1024);
-	fprintf(stderr, "DEBUG_TCP: RP <--> PC: Listening for TCP client connection request\n");
+	fprintf(stderr, "Listening for TCP client connection request\n");
 
         int flags = fcntl(sock_TCP_Server, F_GETFL, 0);
         fcntl(sock_TCP_Server, F_SETFL, flags | O_NONBLOCK);
@@ -335,7 +429,7 @@ int main(int argc, char *argv[])
                 {
                         if((sock_TCP_Client = accept(sock_TCP_Server, NULL, NULL)) > -1)
                         {
-                                fprintf(stderr, "DEBUG_TCP: RP <--> PC: sock_TCP_Client: %d connected to sock_TCP_Server: %d\n", sock_TCP_Client, sock_TCP_Server);
+                                fprintf(stderr,"sock_TCP_Client: %d connected to sock_TCP_Server: %d\n", sock_TCP_Client, sock_TCP_Server);
                         }
 			// This avoids firing accept() too often if it constantly fails
 			udp_retries=0;
@@ -351,7 +445,7 @@ int main(int argc, char *argv[])
 				// processing an invalid packet is too dangerous -- skip it!
 				if (bytes_read != 1032)
 				{
-					fprintf(stderr,"DEBUG_PROT: RvcMsg Code=0x%08x Len=%d\n", code, (int)bytes_read);
+					fprintf(stderr,"InvalidLength: RvcMsg Code=0x%08x Len=%d\n", code, (int)bytes_read);
 					break;
 				}
 
@@ -360,73 +454,123 @@ int main(int argc, char *argv[])
 
 				if (seqnum != last_seqnum + 1)
 				{
-					fprintf(stderr,"DEBUG_SEQ: SEQ ERROR: last %ld, recvd %ld\n", (long)last_seqnum, (long)seqnum);
+					fprintf(stderr,"SEQ ERROR: last %ld, recvd %ld\n", (long)last_seqnum, (long)seqnum);
 				}
 
 				last_seqnum = seqnum;
 
-                                // Put TX IQ samples into the ring buffer
-				// In the old protocol, samples come in groups of 8 bytes L1 L0 R1 R0 I1 I0 Q1 Q0
-				// Here, L1/L0 and R1/R0 are audio samples, and I1/I0 and Q1/Q0 are the TX iq samples
-				// I1 contains bits 8-15 and I0 bits 0-7 of a signed 16-bit integer. We convert this
-				// here to double
-                                if (ptt) {
-                                   bp=buffer+16;  // skip 8 header and 8 SYNC/C&C bytes
-                                   for (j=0; j<63; j++) {
-					bp += 4;  // skip microphone samples
-					sample  = (int)((signed char) *bp++)<<8;
-					sample |= (int) ((signed char) *bp++ & 0xFF);
-                                        isample[txptr]=(double) sample/ 32768.0;
-					sample  = (int)((signed char) *bp++)<<8;
-					sample |= (int) ((signed char) *bp++ & 0xFF);
-					qsample[txptr]=(double) sample/32768.0;
-					txptr++;
-                                   }
-                                   bp+=8; // skip 8  SYNC/C&C bytes of second 512-byte-block
-                                   for (j=0; j<63; j++) {
-					bp += 4;  // skip microphone samples
-					sample  = (int)((signed char) *bp++)<<8;
-					sample |= (int)((signed char) *bp++ & 0xFF);
-                                        isample[txptr]=(double) sample/32768.0;
-					sample  = (int)((signed char) *bp++)<<8;
-					sample |= (int) ((signed char) *bp++ & 0xFF);
-					qsample[txptr]=(double) sample/32768.0;
-					txptr++;
-                                   }
-                                } else {
-				   // put silence into TX buffer
-				   for (j=0; j<126; j++) {
-					isample[txptr]=0.0;
-					qsample[txptr++]=0.0;
-				   }	
-				}
-				// wrap-around of ring buffer
-                                if (txptr >= RTXLEN) txptr=0;
-
 				process_ep2(buffer + 11);
 				process_ep2(buffer + 523);
+
+				if (active_thread) {
+                                  // Put TX IQ samples into the ring buffer
+				  // In the old protocol, samples come in groups of 8 bytes L1 L0 R1 R0 I1 I0 Q1 Q0
+				  // Here, L1/L0 and R1/R0 are audio samples, and I1/I0 and Q1/Q0 are the TX iq samples
+				  // I1 contains bits 8-15 and I0 bits 0-7 of a signed 16-bit integer. We convert this
+				  // here to double. If the RX sample rate is larger than the TX on, we perform a
+				  // simple linear interpolation between the last and current sample.
+				  // Note that this interpolation causes weak "sidebands" at 48/96/... kHz distance (the
+				  // strongest ones at 48 kHz).
+				  double disample,dqsample,idelta,qdelta;
+                                  bp=buffer+16;  // skip 8 header and 8 SYNC/C&C bytes
+                                  for (j=0; j<126; j++) {
+					// write audio samples
+					r  = (int)((signed char) *bp++)<<8;
+					r |= (int)((signed char) *bp++ & 0xFF);
+					l  = (int)((signed char) *bp++)<<8;
+					l |= (int)((signed char) *bp++ & 0xFF);
+                                        audio_write(r,l);
+					sample  = (int)((signed char) *bp++)<<8;
+					sample |= (int) ((signed char) *bp++ & 0xFF);
+					disample=(double) sample / 32768.0;
+					sample  = (int)((signed char) *bp++)<<8;
+					sample |= (int) ((signed char) *bp++ & 0xFF);
+					dqsample=(double) sample / 32768.0;
+
+#ifdef TX_ENVELOPE
+					if (ptt || envptr > 0) {
+					  if (envptr < MAXENV) envelope[envptr++]=(disample*disample+dqsample*dqsample);
+					  if (envptr == MAXENV) {
+					    fd=open("dump.envelope", O_RDWR | O_CREAT | O_TRUNC, (mode_t) 0777);
+					    if (fd >= 0) {
+					      write (fd, envelope, MAXENV*sizeof(float));
+					      close (fd);
+					      fprintf(stderr,"TX ENV dumped\n");
+					    }
+					    envptr++;
+					  }
+					}
+#endif
+					switch (rate) {
+					    case 0:  // RX sample rate = TX sample rate = 48000
+                                        	isample[txptr  ]=disample;
+						qsample[txptr++]=dqsample;
+						break;
+					    case 1: // RX sample rate = 96000; TX sample rate = 48000
+						idelta=0.5*(disample-last_i_sample);
+						qdelta=0.5*(dqsample-last_q_sample);
+                                        	isample[txptr  ]=last_i_sample+idelta;
+						qsample[txptr++]=last_q_sample+qdelta;
+                                        	isample[txptr  ]=disample;
+						qsample[txptr++]=dqsample;
+						break;
+					    case 2: // RX sample rate = 192000; TX sample rate = 48000
+						idelta=0.25*(disample-last_i_sample);
+						qdelta=0.25*(dqsample-last_q_sample);
+                                        	isample[txptr  ]=last_i_sample+idelta;
+						qsample[txptr++]=last_q_sample+qdelta;
+                                        	isample[txptr  ]=last_i_sample+2.0*idelta;
+						qsample[txptr++]=last_q_sample+2.0*qdelta;
+                                        	isample[txptr  ]=last_i_sample+3.0*idelta;
+						qsample[txptr++]=last_q_sample+3.0*qdelta;
+                                        	isample[txptr  ]=disample;
+						qsample[txptr++]=dqsample;
+						break;
+					    case 3: // RX sample rate = 384000; TX sample rate = 48000
+						idelta=0.125*(disample-last_i_sample);
+						qdelta=0.125*(dqsample-last_q_sample);
+                                        	isample[txptr  ]=last_i_sample+idelta;
+						qsample[txptr++]=last_q_sample+qdelta;
+                                        	isample[txptr  ]=last_i_sample+2.0*idelta;
+						qsample[txptr++]=last_q_sample+2.0*qdelta;
+                                        	isample[txptr  ]=last_i_sample+3.0*idelta;
+						qsample[txptr++]=last_q_sample+3.0*qdelta;
+                                        	isample[txptr  ]=last_i_sample+4.0*idelta;
+						qsample[txptr++]=last_q_sample+4.0*qdelta;
+                                        	isample[txptr  ]=last_i_sample+5.0*idelta;
+						qsample[txptr++]=last_q_sample+5.0*qdelta;
+                                        	isample[txptr  ]=last_i_sample+6.0*idelta;
+						qsample[txptr++]=last_q_sample+6.0*qdelta;
+                                        	isample[txptr  ]=last_i_sample+7.0*idelta;
+						qsample[txptr++]=last_q_sample+7.0*qdelta;
+                                        	isample[txptr  ]=disample;
+						qsample[txptr++]=dqsample;
+						break;
+					}
+					last_i_sample=disample;
+					last_q_sample=dqsample;
+					if (j == 62) bp+=8; // skip 8 SYNC/C&C bytes of second block
+                                 }
+				 // wrap-around of ring buffer
+                                 if (txptr >= RTXLEN) txptr=0;
+				}
 				break;
 
 				// respond to an incoming Metis detection request
 				case 0x0002feef:
 
-				fprintf(stderr, "DEBUG_PROT: RP -> PC: respond to an incoming Metis detection request / code: 0x%08x\n", code);
+				fprintf(stderr, "Respond to an incoming Metis detection request / code: 0x%08x\n", code);
 
 				// processing an invalid packet is too dangerous -- skip it!
 				if (bytes_read != 63)
 				{
-					fprintf(stderr,"DEBUG_PROT: RvcMsg Code=0x%08x Len=%d\n", code, (int)bytes_read);
+					fprintf(stderr,"InvalidLength: RvcMsg Code=0x%08x Len=%d\n", code, (int)bytes_read);
 					break;
 				}
 				reply[2] = 2 + active_thread;
 				memset(buffer, 0, 60);
 				memcpy(buffer, reply, 11);
 
-				// ab-use some of the "unused" bytes in the reply block to indicate we can do TCP
-				// This information can be used by SDR programs
-				buffer[11]='T';
-				buffer[12]='C';
-				buffer[13]='P';
 				if (sock_TCP_Client > -1)
 				{
 					// We will get into trouble if we respond via TCP while the radio is
@@ -436,7 +580,7 @@ int main(int argc, char *argv[])
 					{
 					    if (send(sock_TCP_Client, buffer, 60, 0) < 0)
 					    {
-						fprintf(stderr, "DEBUG_TCP: RP -> PC: TCP send error occurred when responding to an incoming Metis detection request!\n");
+						fprintf(stderr, "TCP send error occurred when responding to an incoming Metis detection request!\n");
 					    }
 					    // close the TCP socket which was only used for the detection
 					    close(sock_TCP_Client);
@@ -453,12 +597,12 @@ int main(int argc, char *argv[])
 				// stop the Red Pitaya to PC transmission via handler_ep6
 				case 0x0004feef:
 
-				fprintf(stderr, "DEBUG_PROT: RP -> PC: stop the transmission via handler_ep6 / code: 0x%08x\n", code);
+				fprintf(stderr, "STOP the transmission via handler_ep6 / code: 0x%08x\n", code);
 
 				// processing an invalid packet is too dangerous -- skip it!
 				if (bytes_read != 64)
 				{
-					fprintf(stderr,"DEBUG_PROT: RvcMsg Code=0x%08x Len=%d\n", code, bytes_read);
+					fprintf(stderr,"InvalidLength: RvcMsg Code=0x%08x Len=%d\n", code, bytes_read);
 					break;
 				}
 
@@ -477,7 +621,7 @@ int main(int argc, char *argv[])
 				//// This special code 0x11 is no longer needed, is does exactly the same thing
 				//// as the other start codes 0x01, 0x02, 0x03
 
-				fprintf(stderr, "DEBUG_TCP: PC -> RP: TCP METIS-start message received / code: 0x%08x\n", code);
+				fprintf(stderr, "TCP METIS-start message received / code: 0x%08x\n", code);
 
 				/* FALLTHROUGH */
 
@@ -485,12 +629,12 @@ int main(int argc, char *argv[])
 				case 0x0204feef:
 				case 0x0304feef:
 
-				fprintf(stderr, "DEBUG_PROT: RP <--> PC: start the handler_ep6 thread / code: 0x%08x\n", code);
+				fprintf(stderr, "START the handler_ep6 thread / code: 0x%08x\n", code);
 
 				// processing an invalid packet is too dangerous -- skip it!
 				if (bytes_read != 64)
 				{
-					fprintf(stderr,"DEBUG_PROT: RvcMsg Code=0x%08x Len=%d\n", code, bytes_read);
+					fprintf(stderr,"InvalidLength: RvcMsg Code=0x%08x Len=%d\n", code, bytes_read);
 					break;
 				}
 
@@ -501,7 +645,12 @@ int main(int argc, char *argv[])
 				addr_ep6.sin_addr.s_addr = addr_from.sin_addr.s_addr;
 				addr_ep6.sin_port = addr_from.sin_port;
 
-                                txptr=3150;  // must be even multiple of 63
+				//
+				// The initial value of txptr defines the delay between
+				// TX samples sent to the SDR and PURESIGNAL feedback
+				// samples arriving
+				//
+                                txptr=(25 << rate) * 126;  // must be even multiple of 63
                                 rxptr=0;
 				memset(isample, 0, RTXLEN*sizeof(double));
 				memset(qsample, 0, RTXLEN*sizeof(double));
@@ -520,11 +669,11 @@ int main(int argc, char *argv[])
 				// Possibly a discovery packet of the New protocol, otherwise a severe error
 				if (bytes_read == 60 && code == 0 && buffer[4] == 0x02)
 				{
-					fprintf(stderr,"DEBUG_PROT: PC -> RP: NewProtocol discovery packet received (no response)\n");
+					fprintf(stderr,"NewProtocol discovery packet received (we won't respond)\n");
 				}
 				else
 				{
-					fprintf(stderr,"DEBUG_PROT: PC -> RP: invalid code: 0x%08x (Len=%d)\n", code, bytes_read);
+					fprintf(stderr,"PackedInvalidCode: 0x%08x (Len=%d)\n", code, bytes_read);
 				}
 				break;
 			}
@@ -566,10 +715,10 @@ void process_ep2(uint8_t *frame)
           chk_data(frame[2] & 1, TX_class_E, "TX CLASS-E");
           chk_data((frame[2] & 0xfe) >> 1, OpenCollectorOutputs,"OpenCollector");
 
-          chk_data((frame[3] & 0x03) >> 0, att, "ALEX Attenuator");
+          chk_data((frame[3] & 0x03) >> 0, AlexAtt, "ALEX Attenuator");
           chk_data((frame[3] & 0x04) >> 2, preamp, "ALEX preamp");
-          chk_data((frame[3] & 0x08) >> 2, LTdither, "LT2208 Dither");
-          chk_data((frame[3] & 0x10) >> 2, LTrandom, "LT2208 Random");
+          chk_data((frame[3] & 0x08) >> 3, LTdither, "LT2208 Dither");
+          chk_data((frame[3] & 0x10) >> 4, LTrandom, "LT2208 Random");
           chk_data((frame[3] & 0x60) >> 5, alexRXant, "ALEX RX ant");
           chk_data((frame[3] & 0x80) >> 7, alexRXout, "ALEX RX out");
 
@@ -578,6 +727,18 @@ void process_ep2(uint8_t *frame)
           chk_data(((frame[4] >> 3) & 7) + 1, receivers, "RECEIVERS");
           chk_data(((frame[4] >> 6) & 1), MicTS, "TimeStampMic");
           chk_data(((frame[4] >> 7) & 1), CommonMercuryFreq,"Common Mercury Freq");
+
+	  if (isc25) {
+              // Charly25: has two 18-dB preamps that are switched with "preamp" and "dither"
+              //           and two attenuators encoded in Alex-ATT
+	      //           Both only applies to RX1!
+              rxatt_dbl[0]=pow(10.0, -0.05*(12*AlexAtt-18*LTdither-18*preamp));
+              rxatt_dbl[1]=1.0;
+          } else {
+	      // Assume that it has ALEX attenuators in addition to the Step Attenuators
+              rxatt_dbl[0]=pow(10.0, -0.05*(10*AlexAtt+rx_att[0]));
+              rxatt_dbl[1]=1.0;
+          }
 	  break;
 
         case 2:
@@ -623,11 +784,16 @@ void process_ep2(uint8_t *frame)
 	case 18:
 	case 19:
 	   chk_data(frame[1],txdrive,"TX DRIVE");
-	   chk_data(frame[2],hermes_config,"HERMES CONFIG");
-	   chk_data(frame[3],alex_hpf,"ALEX HPF");
+	   chk_data(frame[2] & 0x3F,hermes_config,"HERMES CONFIG");
+	   chk_data(frame[2] & 0x40, alex_manual,"ALEX manual HPF/LPF");
+	   chk_data(frame[2] & 0x70, vna     ,"VNA mode");
+	   chk_data(frame[3] & 0x1F,alex_hpf,"ALEX HPF");
+	   chk_data(frame[3] & 0x20,alex_bypass,"ALEX Bypass HPFs");
+	   chk_data(frame[3] & 0x40,lna6m,"ALEX 6m LNA");
+	   chk_data(frame[3] & 0x80,alexTRdisable,"ALEX T/R disable");
 	   chk_data(frame[4],alex_lpf,"ALEX LPF");
-           // reset TX level
-	   txdrv_dbl=(double) txdrive / 255.0;
+           // reset TX level. Leve a little head-room for noise
+	   txdrv_dbl=(double) txdrive / 256.0;
 	   break;
 
 	case 20:
@@ -651,11 +817,17 @@ void process_ep2(uint8_t *frame)
    	   chk_data((frame[4] & 0x1F) >> 0, rx_att[0], "RX1 ATT");
    	   chk_data((frame[4] & 0x20) >> 5, rx1_attE, "RX1 ATT enable");
 
-	   // Set RX amplification factors. Assume 20 dB preamps
-           rxatt_dbl[0]=pow(10.0, -0.05*(rx_att[0]-20*rx_preamp[0]));
-           rxatt_dbl[1]=pow(10.0, -0.05*(rx_att[1]-20*rx_preamp[1]));
-           rxatt_dbl[2]=pow(10.0, (double) rx_preamp[2]);
-           rxatt_dbl[3]=pow(10.0, (double) rx_preamp[3]);
+#ifdef MICSAMPLES
+	  if (rx_att[0] > 20 && micsamples_ptr == -1) micsamples_ptr =  0;
+	  if (rx_att[0] < 10 && micsamples_ptr == 48000) micsamples_ptr = -1;
+#endif
+	   if (!isc25) {
+	     // Set RX amplification factors. No switchable preamps available normally.
+             rxatt_dbl[0]=pow(10.0, -0.05*(10*AlexAtt+rx_att[0]));
+             rxatt_dbl[1]=pow(10.0, -0.05*(rx_att[1]));
+             rxatt_dbl[2]=1.0;
+             rxatt_dbl[3]=1.0;
+	   }
 	   break;
 
 	case 22:
@@ -667,8 +839,8 @@ void process_ep2(uint8_t *frame)
            chk_data(frame[4] & 127, cw_weight,"CW WEIGHT");
            chk_data((frame[4] >> 7) & 1, cw_spacing, "CW SPACING");
 
-	   // Set RX amplification factors. Assume 20 dB preamps
-           rxatt_dbl[1]=pow(10.0, -0.05*(rx_att[1]-20*rx_preamp[1]));
+	   // Set RX amplification factors.
+           rxatt_dbl[1]=pow(10.0, -0.05*(rx_att[1]));
 	   break;
 
 	case 24:
@@ -689,6 +861,12 @@ void process_ep2(uint8_t *frame)
             chk_data((frame[2] & 0x30) >> 4, rx_adc[6], "RX7 ADC");
 	    chk_data((frame[3] & 0x1f), txatt, "TX ATT");
 	    txatt_dbl=pow(10.0, -0.05*(double) txatt);
+	    if (isc25) {
+		// RedPitaya: Hard-wired ADC settings.
+		rx_adc[0]=0;
+		rx_adc[1]=1;
+		rx_adc[2]=1;
+	    }
 	    break;
 
 	case 30:
@@ -740,7 +918,13 @@ void *handler_ep6(void *arg)
 		127, 127, 127, 24, 0, 0, 0, 0,
 		127, 127, 127, 32, 66, 66, 66, 66
 	};
-        int32_t sample;
+        int32_t adc1isample,adc1qsample;
+        int32_t adc2isample,adc2qsample;
+        int32_t dacisample,dacqsample;
+
+	int32_t myisample,myqsample;
+        int16_t ssample;
+
         struct timespec delay;
 #ifdef __APPLE__
 	struct timespec now;
@@ -820,9 +1004,11 @@ void *handler_ep6(void *arg)
 
 //
 //		This defines the distortion as well as the amplification
+//              Use PA settings such that there is full drive at full
+//              power (39 dB)
 //
-#define IM3a  0.70
-#define IM3b  0.15
+#define IM3a  0.60
+#define IM3b  0.20
 
 		for (i = 0; i < 2; ++i)
 		{
@@ -834,83 +1020,95 @@ void *handler_ep6(void *arg)
 		    pointer += 8;
 		    memset(pointer, 0, 504);
 		    for (j=0; j<n; j++) {
+			// ADC1: noise + weak tone on RX, feedback sig. on TX (except STEMlab)
+		        if (ptt && !isc25) {
+			  i1=isample[rxptr]*txdrv_dbl;
+			  q1=qsample[rxptr]*txdrv_dbl;
+			  fac=IM3a+IM3b*(i1*i1+q1*q1);
+			  adc1isample= (txatt_dbl*i1*fac+noiseItab[noiseIQpt]) * 8388607.0;
+			  adc1qsample= (txatt_dbl*q1*fac+noiseItab[noiseIQpt]) * 8388607.0;
+			} else {
+			  adc1isample= noiseItab[noiseIQpt] * 8388607.0;			// Noise
+			  adc1isample += T0800Itab[pt0800] * 83.886070 *rxatt_dbl[0];	// tone 100 dB below peak
+			  adc1qsample=noiseQtab[noiseIQpt] * 8388607.0;
+			  adc1qsample += T0800Qtab[pt0800] * 83.886070 *rxatt_dbl[0];
+			}
+			// ADC2: noise + stronger tone on RX, feedback sig. on TX (only STEMlab)
+			if (ptt && isc25) {
+			  i1=isample[rxptr]*txdrv_dbl;
+			  q1=qsample[rxptr]*txdrv_dbl;
+			  fac=IM3a+IM3b*(i1*i1+q1*q1);
+			  adc2isample= (txatt_dbl*i1*fac+noiseItab[noiseIQpt]) * 8388607.0;
+			  adc2qsample= (txatt_dbl*q1*fac+noiseItab[noiseIQpt]) * 8388607.0;
+			} else {
+			  adc2isample= noiseItab[noiseIQpt] * 8388607.0;			// Noise
+			  adc2isample += T2000Itab[pt2000] * 838.86070 * rxatt_dbl[1];	// tone 80 dB below peak
+			  adc2qsample=noiseQtab[noiseIQpt] * 8388607.0;
+			  adc2qsample += T2000Qtab[pt2000] * 838.86070 * rxatt_dbl[1];
+			}
+			//
+			// TX signal with peak=0.4
+			//
+			dacisample= isample[rxptr] * 0.400 * 8388607.0;
+			dacqsample= qsample[rxptr] * 0.400 * 8388607.0;
+
 			for (k=0; k< receivers; k++) {
-			    switch (k) {
-				case 0: // RX1 sees RF1
-				    //
-				    // RF1: noise + weak 800 Hz tone
-				    //
-				    sample= noiseItab[noiseIQpt] * 8388607.0;
-			  	    sample += T0800Itab[pt0800] * 83.886070 *rxatt_dbl[0];  // 100 dB below peak
-			   	    *pointer++ = (sample >> 16) & 0xFF;
-				    *pointer++ = (sample >>  8) & 0xFF;
-				    *pointer++ = (sample >>  0) & 0xFF;
-				    sample=noiseQtab[noiseIQpt] * 8388607.0;
-			  	    sample += T0800Qtab[pt0800] * 83.886070 *rxatt_dbl[0];  // 100 dB below peak
-				    *pointer++ = (sample >> 16) & 0xFF;
-				    *pointer++ = (sample >>  8) & 0xFF;
-				    *pointer++ = (sample >>  0) & 0xFF;
-				    break;
-			  	case 1: // RX2 and RX3 see RF2 upon receiving, RF3 upon transmitting
-				case 2:
-                                    if (rate == 0 && ptt) {
-                                    	//
-					// RF3:
-                                    	// Distorted (feed-back) TX signal
-                                    	// Note we first add distortion, then adjust level
-                                    	// Therefore we first multiply with txdrv_dbl, then
-                                    	// distort, and then attenuate with txatt_dbl.
-                                   	//
-                                        i1=isample[rxptr]*txdrv_dbl;
-                                        q1=qsample[rxptr]*txdrv_dbl;
-                                        fac=IM3a+IM3b*(i1*i1+q1*q1);
-                                        sample= txatt_dbl*i1*fac * 8388607.0;
-                                        *pointer++ = (sample >> 16) & 0xFF;
-                                        *pointer++ = (sample >>  8) & 0xFF;
-                                        *pointer++ = (sample >>  0) & 0xFF;
-                                        sample= txatt_dbl*q1*fac * 8388607.0;
-                                        *pointer++ = (sample >> 16) & 0xFF;
-                                        *pointer++ = (sample >>  8) & 0xFF;
-                                        *pointer++ = (sample >>  0) & 0xFF;
-                                    } else {
-				    	//
-				    	// RF2: noise + weak 2000 Hz tone
-				    	//
-				    	sample= noiseItab[noiseIQpt] * 8388607.0;
-			  	    	sample += T2000Itab[pt2000] * 838.86070 * rxatt_dbl[1];  // 80 dB below peak
-				    	*pointer++ = (sample >> 16) & 0xFF;
-				    	*pointer++ = (sample >>  8) & 0xFF;
-				    	*pointer++ = (sample >>  0) & 0xFF;
-				    	sample=noiseQtab[noiseIQpt] * 8388607.0;
-			  	    	sample += T2000Qtab[pt2000] * 838.86070 * rxatt_dbl[1];  // 80 dB below peak
-				    	*pointer++ = (sample >> 16) & 0xFF;
-				    	*pointer++ = (sample >>  8) & 0xFF;
-				    	*pointer++ = (sample >>  0) & 0xFF;
-				    }
-				    break;
-				case 3: // RX4 sees TX outgoing signal (no distortion, no attenuation)
-				    //
-				    // RF4: TX signal with HWPeak = 0.4
-				    //
-                        	    if (rate == 0 && ptt) {
-                                  	sample= isample[rxptr] * 0.400 * 8388607.0;
-                                  	*pointer++ = (sample >> 16) & 0xFF;
-                                  	*pointer++ = (sample >>  8) & 0xFF;
-                                  	*pointer++ = (sample >>  0) & 0xFF;
-                                  	sample= qsample[rxptr] * 0.400 * 8388607.0;
-                                  	*pointer++ = (sample >> 16) & 0xFF;
-                                  	*pointer++ = (sample >>  8) & 0xFF;
-                                  	*pointer++ = (sample >>  0) & 0xFF;
-                               	    } else {
-				  	pointer +=6;
-				    }
-				    break;
-				default:
-				    pointer +=6;
+			    myisample=0;
+			    myqsample=0;
+			    switch (rx_adc[k]) {
+			      case 0: // ADC1
+				myisample=adc1isample;
+				myqsample=adc1qsample;
+				break;
+			      case 1: // ADC2
+				myisample=adc2isample;
+				myqsample=adc2qsample;
+				break;
+			      default:
+				myisample=0;
+				myqsample=0;
+				break;
 			    }
+			    if (ismetis && ptt && (k==1)) {
+				// METIS: TX DAC signal goes to RX2 when TXing
+				myisample=dacisample;
+				myqsample=dacqsample;
+			    }
+			    if (ishermes && ptt && (k==3)) {
+				// HERMES: TX DAC signal goes to RX4 when TXing
+				myisample=dacisample;
+				myqsample=dacqsample;
+			    }
+			    if (isorion && ptt && (k==4)) {
+				// ANGELIA and beyond: TX DAC signal goes to RX5 when TXing
+				myisample=dacisample;
+				myqsample=dacqsample;
+			    }
+			    *pointer++ = (myisample >> 16) & 0xFF;
+			    *pointer++ = (myisample >>  8) & 0xFF;
+			    *pointer++ = (myisample >>  0) & 0xFF;
+			    *pointer++ = (myqsample >> 16) & 0xFF;
+			    *pointer++ = (myqsample >>  8) & 0xFF;
+			    *pointer++ = (myqsample >>  0) & 0xFF;
 		        }
+#ifdef MICSAMPLES
+			if (micsamples_ptr >= 0 && micsamples_ptr < 48000) {
+			  ssample=micsamples[micsamples_ptr];
+			  *pointer++ = (ssample >> 8) & 0xFF;
+			  *pointer++ = (ssample     ) & 0xFF;
+			  micsamples_rate++;
+			  if (micsamples_rate == 1 << rate) {
+				micsamples_rate=0;
+				micsamples_ptr++;
+			  }
+			} else {
+			  *pointer++ = 0;
+			  *pointer++ = 0;
+			}
+#else
 			// Microphone samples: silence
 			pointer += 2;
+#endif
 			rxptr++;     if (rxptr >= RTXLEN) rxptr=0;
 			noiseIQpt++; if (noiseIQpt == LENNOISE) noiseIQpt=rand() / NOISEDIV;
 			pt2000++;    if (pt2000 == len2000) pt2000=0;
@@ -948,7 +1146,7 @@ void *handler_ep6(void *arg)
 		{
 			if (sendmsg(sock_TCP_Client, &msghdr, 0) < 0)
 			{
-				fprintf(stderr, "DEBUG_TCP: RP -> PC: TCP sendmsg error occurred at sequence number: %u !\n", counter);
+				fprintf(stderr, "TCP sendmsg error occurred at sequence number: %u !\n", counter);
 			}
 		}
 		else
@@ -960,3 +1158,305 @@ void *handler_ep6(void *arg)
 	active_thread = 0;
 	return NULL;
 }
+
+#ifdef PORTAUDIO
+// PORTAUDIO output function
+
+static int padev = -1;
+static float playback_buffer[256];
+static PaStream  *playback_handle=NULL;
+int playback_offset;
+
+
+void audio_get_cards()
+{
+  int i, numDevices;
+  const PaDeviceInfo *deviceInfo;
+  PaStreamParameters inputParameters, outputParameters;
+
+  PaError err;
+
+  err = Pa_Initialize();
+  if( err != paNoError )
+  {
+        fprintf(stderr, "PORTAUDIO ERROR: Pa_Initialize: %s\n", Pa_GetErrorText(err));
+        return;
+  }
+  numDevices = Pa_GetDeviceCount();
+  if( numDevices < 0 ) return;
+
+  for( i=0; i<numDevices; i++ )
+  {
+        deviceInfo = Pa_GetDeviceInfo( i );
+
+        outputParameters.device = i;
+        outputParameters.channelCount = 1;
+        outputParameters.sampleFormat = paFloat32;
+        outputParameters.suggestedLatency = 0; /* ignored by Pa_IsFormatSupported() */
+        outputParameters.hostApiSpecificStreamInfo = NULL;
+        if (Pa_IsFormatSupported(NULL, &outputParameters, 48000.0) == paFormatIsSupported) {
+          padev=i;
+          fprintf(stderr,"PORTAUDIO OUTPUT DEVICE, No=%d, Name=%s\n", i, deviceInfo->name);
+	  return;
+        }
+  }
+}
+
+void audio_open_output()
+{
+  PaError err;
+  PaStreamParameters outputParameters;
+  long framesPerBuffer=256;
+
+  bzero( &outputParameters, sizeof( outputParameters ) ); //not necessary if you are filling in all the fields
+  outputParameters.channelCount = 1;   // Always MONO
+  outputParameters.device = padev;
+  outputParameters.hostApiSpecificStreamInfo = NULL;
+  outputParameters.sampleFormat = paFloat32;
+  outputParameters.suggestedLatency = Pa_GetDeviceInfo(padev)->defaultLowOutputLatency ;
+  outputParameters.hostApiSpecificStreamInfo = NULL; //See you specific host's API docs for info on using this field
+
+  // Try using AudioWrite without a call-back function
+
+  playback_offset=0;
+  err = Pa_OpenStream(&(playback_handle), NULL, &outputParameters, 48000.0, framesPerBuffer, paNoFlag, NULL, NULL);
+  if (err != paNoError) {
+    fprintf(stderr,"PORTAUDIO ERROR: AOO open stream: %s\n",Pa_GetErrorText(err));
+    playback_handle = NULL;
+    return;
+  }
+
+  err = Pa_StartStream(playback_handle);
+  if (err != paNoError) {
+    fprintf(stderr,"PORTAUDIO ERROR: AOO start stream:%s\n",Pa_GetErrorText(err));
+    playback_handle=NULL;
+    return;
+  }
+  // Write one buffer to avoid under-flow errors
+  // (this gives us 5 msec to pass before we have to call audio_write the first time)
+  bzero(playback_buffer, (size_t) (256*sizeof(float)));
+  err=Pa_WriteStream(playback_handle, (void *) playback_buffer, (unsigned long) 256);
+
+  return;
+}
+
+void audio_write (int16_t l, int16_t r)
+{
+  PaError err;
+  if (playback_handle != NULL) {
+    playback_buffer[playback_offset++] = (r + l) *0.000015259;  //   65536 --> 1.0
+    if (playback_offset == 256) {
+      playback_offset=0;
+      err=Pa_WriteStream(playback_handle, (void *) playback_buffer, (unsigned long) 256);
+    }
+  }
+}
+
+#else
+//
+// Audio functions based on LINUX ALSA
+//
+
+static snd_pcm_t *playback_handle = NULL;
+static unsigned char playback_buffer[1024]; // 256 samples, left-and-right, two bytes per sample
+static int playback_offset;
+
+static char *device_id = NULL;
+
+void audio_get_cards() {
+  snd_ctl_card_info_t *info;
+  snd_pcm_info_t *pcminfo;
+  snd_ctl_card_info_alloca(&info);
+  snd_pcm_info_alloca(&pcminfo);
+  int i;
+  int card = -1;
+
+
+  while (snd_card_next(&card) >= 0 && card >= 0) {
+    int err = 0;
+    snd_ctl_t *handle;
+    char name[20];
+    snprintf(name, sizeof(name), "hw:%d", card);
+    if ((err = snd_ctl_open(&handle, name, 0)) < 0) {
+      continue;
+    }
+
+    if ((err = snd_ctl_card_info(handle, info)) < 0) {
+      snd_ctl_close(handle);
+      continue;
+    }
+
+    int dev = -1;
+
+    while (snd_ctl_pcm_next_device(handle, &dev) >= 0 && dev >= 0 && device_id == NULL) {
+      snd_pcm_info_set_device(pcminfo, dev);
+      snd_pcm_info_set_subdevice(pcminfo, 0);
+
+      // ouput devices
+      snd_pcm_info_set_stream(pcminfo, SND_PCM_STREAM_PLAYBACK);
+      if ((err = snd_ctl_pcm_info(handle, pcminfo)) == 0) {
+        device_id=malloc(64);
+        snprintf(device_id, 64, "plughw:%d,%d %s", card, dev, snd_ctl_card_info_get_name(info));
+        fprintf(stderr,"ALSA output_device: %s\n",device_id);
+      }
+    }
+
+    snd_ctl_close(handle);
+   
+  }
+
+  if (device_id != NULL) return; // found one
+
+  // look for dmix
+  void **hints, **n;
+  char *name, *descr, *io;
+
+  if (snd_device_name_hint(-1, "pcm", &hints) < 0)
+    return;
+  n = hints;
+  while (*n != NULL && device_id == NULL) {
+    name = snd_device_name_get_hint(*n, "NAME");
+    descr = snd_device_name_get_hint(*n, "DESC");
+    io = snd_device_name_get_hint(*n, "IOID");
+    
+    if(strncmp("dmix:", name, 5)==0) {
+      fprintf(stderr,"name=%s descr=%s io=%s\n",name, descr, io);
+      device_id=malloc(64);
+      
+      snprintf(device_id, 64, "%s", name);
+      fprintf(stderr,"ALSA output_device: %s\n",device_id);
+    }
+
+    if (name != NULL)
+      free(name);
+    if (descr != NULL)
+      free(descr);
+    if (io != NULL)
+      free(io);
+    n++;
+  }
+  snd_device_name_free_hint(hints);
+}
+
+
+void audio_open_output() {
+  int err;
+  snd_pcm_hw_params_t *hw_params;
+  int rate=48000;
+  int dir=0;
+
+  int i;
+  char hw[64];
+  char *selected=device_id;
+ 
+  i=0;
+  while(selected[i]!=' ') {
+    hw[i]=selected[i];
+    i++;
+  }
+  hw[i]='\0';
+  
+  if ((err = snd_pcm_open (&playback_handle, hw, SND_PCM_STREAM_PLAYBACK, 0)) < 0) {
+    fprintf (stderr, "audio_open_output: cannot open audio device %s (%s)\n", 
+            hw,
+            snd_strerror (err));
+    playback_handle = NULL;
+    return;
+  }
+
+  if ((err = snd_pcm_hw_params_malloc (&hw_params)) < 0) {
+    fprintf (stderr, "audio_open_output: cannot allocate hardware parameter structure (%s)\n",
+            snd_strerror (err));
+    playback_handle=NULL;
+    return;
+  }
+
+  if ((err = snd_pcm_hw_params_any (playback_handle, hw_params)) < 0) {
+    fprintf (stderr, "audio_open_output: cannot initialize hardware parameter structure (%s)\n",
+            snd_strerror (err));
+    playback_handle=NULL;
+    return;
+  }
+
+  if ((err = snd_pcm_hw_params_set_access (playback_handle, hw_params, SND_PCM_ACCESS_RW_INTERLEAVED)) < 0) {
+    fprintf (stderr, "audio_open_output: cannot set access type (%s)\n",
+            snd_strerror (err));
+    playback_handle=NULL;
+    return;
+  }
+	
+  if ((err = snd_pcm_hw_params_set_format (playback_handle, hw_params, SND_PCM_FORMAT_S16_LE)) < 0) {
+    fprintf (stderr, "audio_open_output: cannot set sample format (%s)\n",
+            snd_strerror (err));
+    playback_handle=NULL;
+    return;
+  }
+	
+
+  if ((err = snd_pcm_hw_params_set_rate_near (playback_handle, hw_params, &rate, &dir)) < 0) {
+    fprintf (stderr, "audio_open_output: cannot set sample rate (%s)\n",
+            snd_strerror (err));
+    playback_handle=NULL;
+    return;
+  }
+	
+  if ((err = snd_pcm_hw_params_set_channels (playback_handle, hw_params, 2)) < 0) {
+    fprintf (stderr, "audio_open_output: cannot set channel count (%s)\n",
+            snd_strerror (err));
+    playback_handle=NULL;
+    return;
+  }
+	
+  if ((err = snd_pcm_hw_params (playback_handle, hw_params)) < 0) {
+    fprintf (stderr, "audio_open_output: cannot set parameters (%s)\n",
+            snd_strerror (err));
+    playback_handle=NULL;
+    return;
+  }
+	
+  snd_pcm_hw_params_free (hw_params);
+
+  playback_offset=0;
+  
+  return;
+}
+
+void audio_write(int16_t left_sample,int16_t right_sample) {
+  snd_pcm_sframes_t delay;
+  int error;
+  long trim;
+
+  if(playback_handle!=NULL) {
+    playback_buffer[playback_offset++]=right_sample;
+    playback_buffer[playback_offset++]=right_sample>>8;
+    playback_buffer[playback_offset++]=left_sample;
+    playback_buffer[playback_offset++]=left_sample>>8;
+
+    if(playback_offset==1024) {
+      trim=0;
+
+      if(snd_pcm_delay(playback_handle,&delay)==0) {
+        if(delay>2048) {
+          trim=delay-2048;
+        }
+      }
+
+      if ((error = snd_pcm_writei (playback_handle, playback_buffer, 256-trim)) != 256-trim) {
+        if(error==-EPIPE) {
+          if ((error = snd_pcm_prepare (playback_handle)) < 0) {
+            fprintf (stderr, "audio_write: cannot prepare audio interface for use (%s)\n",
+                    snd_strerror (error));
+            return;
+          }
+          if ((error = snd_pcm_writei (playback_handle, playback_buffer, 256-trim)) != 256) {
+            fprintf (stderr, "audio_write: write to audio interface failed (%s)\n",
+                    snd_strerror (error));
+            return;
+          }
+        }
+      }
+      playback_offset=0;
+    }
+  }
+}
+#endif

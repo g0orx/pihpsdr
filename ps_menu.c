@@ -106,15 +106,8 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 }
 
 //
-//
-// DL1YCF: had repeated seg-faults, possibly this is not thread-safe.
-//         executing it at regular intervals in the glib main loop
-//         does the same thing.
-//         We now call this function every 100 msec, therefore we can
-//         adjust the tx attenuation upon each invocation.
-//         The massive alloc/free of the label is completely unnecessary
-//         and has been removed, the small string to be displayed is
-//         prepeared in "label".
+// This is called every 100 msec and therefore
+// must be a state machine
 //
 static int info_thread(gpointer arg) {
   static int info[INFO_SIZE];
@@ -221,17 +214,18 @@ static int info_thread(gpointer arg) {
 
     if (transmitter->auto_on) {
       double ddb;
-      int new_att;
+      static int new_att;
       int newcal=info[5]!=old5_2;
       old5_2=info[5];
       switch(state) {
         case 0:
           if(newcal && (info[4]>181 || (info[4]<=128 && transmitter->attenuation>0))) {
-            ddb= 20.0 * log10((double)info[4]/152.293);
-            if(isnan(ddb)) {
-		// this means feedback lvl is < 1, switch OFF attenuation
-                ddb=-100.0;
-            }
+	    if (info[4] > 0) {
+              ddb= 20.0 * log10((double)info[4]/152.293);
+	    } else {
+	      // This happens when the "Drive" slider is moved to zero
+	      ddb= -100.0;
+	    }
             new_att=transmitter->attenuation + (int)ddb;
 	    // keep new value of attenuation in allowed range
 	    if (new_att <  0) new_att= 0;
@@ -244,6 +238,7 @@ static int info_thread(gpointer arg) {
 	    // Actually, we first adjust the attenuation (state=0),
 	    // then do a PS reset (state=1), and then restart PS (state=2).
             if (transmitter->attenuation != new_att) {
+              SetPSControl(transmitter->id, 1, 0, 0, 0);
 	      transmitter->attenuation=new_att;
               state=1;
 	    }
@@ -262,20 +257,48 @@ static int info_thread(gpointer arg) {
     return TRUE;
 }
 
+//
+// Set "RX1 ANT", "RX1 OUT", and ADC settings for the PS feedback signal
+//
+static void ps_ant_cb(GtkWidget *widget, gpointer data) {
+  int val = (int) (uintptr_t) data;
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
+    switch (val) {
+      case 0:	// AUTO (Internal), feedback goes to first ADC
+      case 3:	// EXT1,            feedback goes to first ADC
+      case 4:	// EXT2,            feedback goes to first ADC
+	receiver[PS_RX_FEEDBACK]->alex_antenna = (int) (uintptr_t) data;
+	receiver[PS_RX_FEEDBACK]->adc              = 0;
+	break;
+      case 99:	// RX2,              feedback goes to second ADC
+	receiver[PS_RX_FEEDBACK]->alex_antenna = 0;
+	receiver[PS_RX_FEEDBACK]->adc              = 1;
+	break;
+    }
+  }
+}
+
 static void enable_cb(GtkWidget *widget, gpointer data) {
   g_idle_add(ext_tx_set_ps,(gpointer)(long)gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)));
 }
 
 static void auto_cb(GtkWidget *widget, gpointer data) {
   transmitter->auto_on=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
-  if(transmitter->auto_on) {
-    transmitter->attenuation=31;
-  } else {
+  // switching OFF auto sets the attenuation to zero
+  if(!transmitter->auto_on) {
     transmitter->attenuation=0;
   }
+
 }
 
 static void resume_cb(GtkWidget *widget, gpointer data) {
+  // Set the attenuation to zero if auto-adjusting and resuming.
+  // A very high attenuation value here could lead to no PS calculation
+  // done in WDSP, and hence no attenuation adjustment.
+  // If not auto-adjusting, do not change attenuation value.
+  if(transmitter->auto_on) {
+    transmitter->attenuation=0;
+  }
   SetPSControl(transmitter->id, 0, 0, 1, 0);
 }
 
@@ -290,7 +313,6 @@ static void feedback_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void reset_cb(GtkWidget *widget, gpointer data) {
-  transmitter->attenuation=0;
   SetPSControl(transmitter->id, 1, 0, 0, 0);
 }
 
@@ -358,7 +380,6 @@ void ps_menu(GtkWidget *parent) {
     set_button_text_color(twotone_b,"red");
   }
 
-  
   col++;
 
   GtkWidget *auto_b=gtk_check_button_new_with_label("Auto Attenuate");
@@ -392,6 +413,55 @@ void ps_menu(GtkWidget *parent) {
   row++;
   col=0;
 
+  //
+  // Selection of feedback path for PURESIGNAL
+  //
+  // AUTO		Using internal feedback (to ADC0)
+  // EXT1		Using EXT1 jacket (to ADC0), ANAN-7000: still uses AUTO
+  // EXT2		Using EXT2 jacket (to ADC0), ANAN-7000: "EXT2 is called RX Bypass"
+  // RX2		Using RX2  jacket (to ADC1)
+  //
+  GtkWidget *ps_ant_label=gtk_label_new("PS FeedBk ANT:");
+  gtk_widget_show(ps_ant_label);
+  gtk_grid_attach(GTK_GRID(grid), ps_ant_label, col, row, 1, 1);
+  col++;
+
+  GtkWidget *ps_ant_auto=gtk_radio_button_new_with_label(NULL,"AUTO");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ps_ant_auto), 
+    (receiver[PS_RX_FEEDBACK]->alex_antenna == 0) && (receiver[PS_RX_FEEDBACK]->adc == 0));
+  gtk_widget_show(ps_ant_auto);
+  gtk_grid_attach(GTK_GRID(grid), ps_ant_auto, col, row, 1, 1);
+  g_signal_connect(ps_ant_auto,"toggled", G_CALLBACK(ps_ant_cb), (gpointer) (long) 0);
+  col++;
+
+  GtkWidget *ps_ant_ext1=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(ps_ant_auto),"EXT1");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ps_ant_ext1),
+    (receiver[PS_RX_FEEDBACK]->alex_antenna==3) && (receiver[PS_RX_FEEDBACK]->adc == 0));
+  gtk_widget_show(ps_ant_ext1);
+  gtk_grid_attach(GTK_GRID(grid), ps_ant_ext1, col, row, 1, 1);
+  g_signal_connect(ps_ant_ext1,"toggled", G_CALLBACK(ps_ant_cb), (gpointer) (long) 3);
+  col++;
+
+  GtkWidget *ps_ant_ext2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(ps_ant_auto),"EXT2");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ps_ant_ext2),
+    (receiver[PS_RX_FEEDBACK]->alex_antenna==4) && (receiver[PS_RX_FEEDBACK]->adc == 0));
+  gtk_widget_show(ps_ant_ext2);
+  gtk_grid_attach(GTK_GRID(grid), ps_ant_ext2, col, row, 1, 1);
+  g_signal_connect(ps_ant_ext2,"toggled", G_CALLBACK(ps_ant_cb), (gpointer) (long) 4);
+  col++;
+
+  if (n_adc > 1) {
+    // If there are two ADCs, we may choose to use the second ADC for PS_RX_FEEDBACK
+    GtkWidget *ps_ant_rx2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(ps_ant_auto),"RX2");
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ps_ant_rx2), receiver[PS_RX_FEEDBACK]->adc==1);
+    gtk_widget_show(ps_ant_rx2);
+    gtk_grid_attach(GTK_GRID(grid), ps_ant_rx2, col, row, 1, 1);
+    g_signal_connect(ps_ant_rx2,"toggled", G_CALLBACK(ps_ant_cb), (gpointer) (long) 99);
+  }
+
+  row++;
+
+  col=0;
   feedback_l=gtk_label_new("Feedback Lvl");
   gtk_widget_show(feedback_l);
   gtk_grid_attach(GTK_GRID(grid),feedback_l,col,row,1,1);
@@ -484,9 +554,11 @@ void ps_menu(GtkWidget *parent) {
 
 // DL1YCF: This is not the default setting,
 // but in my experience in behaves better in difficult situations.
-  ints=8;
-  spi=512;
-  ampdelay=100e-9;
+// This is commented out because it is not recommended by the
+// WDSP manual.
+//  ints=8;
+//  spi=512;
+//  ampdelay=100e-9;
 
   SetPSIntsAndSpi(transmitter->id, ints, spi);
   SetPSStabilize(transmitter->id, stbl);

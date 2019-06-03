@@ -87,7 +87,7 @@ extern void cw_audio_write(double sample);
 static gint update_out_of_band(gpointer data) {
   TRANSMITTER *tx=(TRANSMITTER *)data;
   tx->out_of_band=0;
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
   return FALSE;
 }
 
@@ -172,6 +172,9 @@ void transmitter_save_state(TRANSMITTER *tx) {
   setProperty(name,value);
   sprintf(name,"transmitter.%d.feedback",tx->id);
   sprintf(value,"%d",tx->feedback);
+  setProperty(name,value);
+  sprintf(name,"transmitter.%d.attenuation",tx->id);
+  sprintf(value,"%d",tx->attenuation);
   setProperty(name,value);
 #endif
   sprintf(name,"transmitter.%d.ctcss",tx->id);
@@ -259,6 +262,9 @@ void transmitter_restore_state(TRANSMITTER *tx) {
   sprintf(name,"transmitter.%d.feedback",tx->id);
   value=getProperty(name);
   if(value) tx->feedback=atoi(value);
+  sprintf(name,"transmitter.%d.attenuation",tx->id);
+  value=getProperty(name);
+  if(value) tx->attenuation=atoi(value);
 #endif
   sprintf(name,"transmitter.%d.ctcss",tx->id);
   value=getProperty(name);
@@ -317,10 +323,61 @@ static gboolean update_display(gpointer data) {
     // if "MON" button is active (tx->feedback is TRUE),
     // then obtain spectrum pixels from PS_RX_FEEDBACK,
     // that is, display the (attenuated) TX signal from the "antenna"
+    //
+    // POSSIBLE MISMATCH OF SAMPLE RATES:
+    // TX sample rate is fixed 48 kHz, but RX sample rate can be
+    // 2*, 4*, or even 8* larger. In this case, the spectrum shown
+    // here is squeezed, so we have to extend the pixels.
+    // So the feedback spectrum is not nice to look at with 192000 Hz
+    // sample rate (low-res), but at least it is correct.
+    // For the sake of saving CPU cycles, we do not interpolate.
+    //
+    // This correction is applied her for the V1 protocol only, because
+    // there might be non-integer ratios using the new protocol.
+    //
     if(tx->puresignal && tx->feedback) {
       RECEIVER *rx_feedback=receiver[PS_RX_FEEDBACK];
       GetPixels(rx_feedback->id,0,rx_feedback->pixel_samples,&rc);
-      memcpy(tx->pixel_samples,rx_feedback->pixel_samples,sizeof(float)*tx->pixels);
+      if (protocol == ORIGINAL_PROTOCOL && (active_receiver->sample_rate != 48000)) {
+        int ratio = active_receiver->sample_rate / 48000;
+        int width = tx->pixels / ratio;         // number of pixels to copy from the feedback spectrum
+        int start = (tx->pixels - width) >> 1;  // Copy from start ... (end-1) 
+        int end   = start + width;
+        int i;
+        float *tfp=tx->pixel_samples;
+	float *rfp=rx_feedback->pixel_samples+start;
+        switch (ratio) {
+          case 8:
+            for (i=start; i < end; i++) {
+		*tfp++ = *rfp;
+		*tfp++ = *rfp;
+		*tfp++ = *rfp;
+		*tfp++ = *rfp;
+		*tfp++ = *rfp;
+		*tfp++ = *rfp;
+		*tfp++ = *rfp;
+		*tfp++ = *rfp++;
+            }
+	    break;
+          case 4:
+            for (i=start; i < end; i++) {
+		*tfp++ = *rfp;
+		*tfp++ = *rfp;
+		*tfp++ = *rfp;
+		*tfp++ = *rfp++;
+            }
+	    break;
+          case 2:
+            for (i=start; i < end; i++) {
+		*tfp++ = *rfp;
+		*tfp++ = *rfp++;
+            }
+	    break;
+	}
+      } else {
+	// TX and feedback sample rates are equal -- just copy
+        memcpy(tx->pixel_samples,rx_feedback->pixel_samples,sizeof(float)*tx->pixels);
+      }
     } else {
 #endif
       GetPixels(tx->id,0,tx->pixel_samples,&rc);
@@ -785,8 +842,8 @@ static void full_tx_buffer(TRANSMITTER *tx) {
     // These are the I/Q samples that describe our CW signal
     // The only use we make of it is displaying the spectrum.
     for (j = 0; j < tx->output_samples; j++) {
-      *dp++ = cw_shape_buffer[j];
       *dp++ = 0.0;
+      *dp++ = cw_shape_buffer[j];
     }
   } else {
     update_vox(tx);
@@ -822,7 +879,7 @@ static void full_tx_buffer(TRANSMITTER *tx) {
     }
 
 //
-//  When doing CW, we do not need WDSP since I(t) = cw_shape_buffer(t) and Q(t)=0
+//  When doing CW, we do not need WDSP since Q(t) = cw_shape_buffer(t) and I(t)=0
 //  For the old protocol where the IQ and audio samples are tied together, we can
 //  easily generate a synchronous side tone (and use the function
 //  old_protocol_iq_samples_with_sidetone for this purpose).
@@ -838,10 +895,10 @@ static void full_tx_buffer(TRANSMITTER *tx) {
         // SetTXAPostGen functions are not needed for CW!
 	//
         sidevol= 258.0 * cw_keyer_sidetone_volume;  // between 0.0 and 32766.0
-	qsample=0;				    // will be constantly zero
+	isample=0;				    // will be constantly zero
         for(j=0;j<tx->output_samples;j++) {
 	    ramp=cw_shape_buffer[j];	    	    // between 0.0 and 1.0
-	    isample=floor(gain*ramp+0.5);           // always non-negative, isample is just the pulse envelope
+	    qsample=floor(gain*ramp+0.5);           // always non-negative, isample is just the pulse envelope
 	    switch(protocol) {
 		case ORIGINAL_PROTOCOL:
 		    //
@@ -890,12 +947,11 @@ void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
   int i,s;
 
 //
-// silence TX audio if not transmitting, if tuning, or
-// when doing CW. Note: CW side tone added later on by a
-// separate mechanism.
+// silence TX audio if tuning, or when doing CW.
+// (in order not to fire VOX)
 //
 
-  if (tune || !isTransmitting() || mode==modeCWL || mode==modeCWU) {
+  if (tune || mode==modeCWL || mode==modeCWU) {
     mic_sample_double=0.0;
   } else {
     mic_sample_double=(double)mic_sample/32768.0;
@@ -1037,19 +1093,22 @@ void tx_set_displaying(TRANSMITTER *tx,int state) {
 
 #ifdef PURESIGNAL
 void tx_set_ps(TRANSMITTER *tx,int state) {
-  tx->puresignal=state;
   if(state) {
+    tx->puresignal=1;
     SetPSControl(tx->id, 0, 0, 1, 0);
   } else {
     SetPSControl(tx->id, 1, 0, 0, 0);
+    // wait a moment for PS to shut down
+    usleep(100000);
+    tx->puresignal=0;
   }
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 }
 
 void tx_set_twotone(TRANSMITTER *tx,int state) {
   transmitter->twotone=state;
   if(state) {
-    // DL1YCF: set frequencies and levels
+    // set frequencies and levels
     switch(tx->mode) {
       case modeCWL:
       case modeLSB:
@@ -1080,13 +1139,13 @@ void tx_set_ps_sample_rate(TRANSMITTER *tx,int rate) {
 //
 void cw_hold_key(int state) {
   if (state) {
-    cw_key_down = 4800000;    // up to 100 sec
+    cw_key_down = 960000;    // up to 20 sec
   } else {
     cw_key_down = 0;
   }
 }
 
-// DL1YCF:
+// Sine tone generator:
 // somewhat improved, and provided two siblings
 // for generating side tones simultaneously on the
 // HPSDR board and local audio.

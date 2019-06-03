@@ -303,7 +303,7 @@ void vfo_band_changed(int b) {
     tx_set_mode(transmitter,vfo[VFO_A].mode);
   }
   calcDriveLevel();
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 }
 
 void vfo_bandstack_changed(int b) {
@@ -342,7 +342,7 @@ void vfo_bandstack_changed(int b) {
     tx_set_mode(transmitter,vfo[VFO_A].mode);
   }
   calcDriveLevel();
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 
 }
 
@@ -380,7 +380,7 @@ void vfo_mode_changed(int m) {
     tx_set_mode(transmitter,vfo[VFO_A].mode);
   }
 
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 }
 
 void vfo_filter_changed(int f) {
@@ -401,7 +401,7 @@ void vfo_filter_changed(int f) {
       break;
   }
 
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 }
 
 void vfo_a_to_b() {
@@ -421,7 +421,7 @@ void vfo_a_to_b() {
   if(split) {
     tx_set_mode(transmitter,vfo[VFO_B].mode);
   }
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 }
 
 void vfo_b_to_a() {
@@ -438,7 +438,7 @@ void vfo_b_to_a() {
   if(!split) {
     tx_set_mode(transmitter,vfo[VFO_B].mode);
   }
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 }
 
 void vfo_a_swap_b() {
@@ -491,7 +491,7 @@ void vfo_a_swap_b() {
   } else {
     tx_set_mode(transmitter,vfo[VFO_A].mode);
   }
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 }
 
 void vfo_step(int steps) {
@@ -507,7 +507,7 @@ void vfo_step(int steps) {
     BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
     setFrequency(active_receiver->frequency+(steps*step));
 #endif
-    vfo_update();
+    g_idle_add(ext_vfo_update,NULL);
   }
 }
 
@@ -529,7 +529,7 @@ void vfo_move(long long hz) {
         break;
     }
     receiver_frequency_changed(active_receiver);
-    vfo_update();
+    g_idle_add(ext_vfo_update,NULL);
   }
 }
 
@@ -586,7 +586,7 @@ void vfo_move_to(long long hz) {
     }
 #endif
 #endif
-    vfo_update();
+    g_idle_add(ext_vfo_update,NULL);
   }
 }
 
@@ -601,9 +601,6 @@ vfo_scroll_event_cb (GtkWidget      *widget,
   } else {
     vfo_move(-step);
   }
-  // DL1YCF added return statement to make the compiler happy.
-  // however I am unsure about the correct return value.
-  // I would have coded this as a void function.
   return FALSE;
 }
 
@@ -690,7 +687,7 @@ void vfo_update() {
         }
         cairo_show_text(cr, temp_text);
 
-	// DL1YCF: in what follows, we want to display the VFO frequency
+	// In what follows, we want to display the VFO frequency
 	// on which we currently transmit a signal with red colour.
 	// If it is out-of-band, we display "Out of band" in red.
         // Frequencies we are not transmitting on are displayed in green
@@ -745,39 +742,35 @@ void vfo_update() {
         cairo_set_font_size(cr, 12);
         cairo_show_text(cr, temp_text);
 
+	// NB and NB2 are mutually exclusive, therefore
+	// they are put to the same place in order to save
+	// some space
         cairo_move_to(cr, 150, 50);
         if(active_receiver->nb) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
-        } else {
-          cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
-        }
-        cairo_show_text(cr, "NB");
-
-        cairo_move_to(cr, 175, 50);
-        if(active_receiver->nb2) {
+          cairo_show_text(cr, "NB");
+        } else if (active_receiver->nb2) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
-        } else {
+          cairo_show_text(cr, "NB2");
+	} else {
           cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
+          cairo_show_text(cr, "NB");
         }
-        cairo_show_text(cr, "NB2");
 
-        cairo_move_to(cr, 200, 50);  
+	// NR and NR2 are mutually exclusive
+        cairo_move_to(cr, 180, 50);  
         if(active_receiver->nr) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
-        } else {
-          cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
-        }
-        cairo_show_text(cr, "NR");
-
-        cairo_move_to(cr, 225, 50);  
-        if(active_receiver->nr2) {
+          cairo_show_text(cr, "NR");
+        } else if (active_receiver->nr2) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
-        } else {
+          cairo_show_text(cr, "NR2");
+	} else {
           cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
+          cairo_show_text(cr, "NR2");
         }
-        cairo_show_text(cr, "NR2");
 
-        cairo_move_to(cr, 250, 50);  
+        cairo_move_to(cr, 210, 50);  
         if(active_receiver->anf) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         } else {
@@ -785,7 +778,7 @@ void vfo_update() {
         }
         cairo_show_text(cr, "ANF");
 
-        cairo_move_to(cr, 275, 50);  
+        cairo_move_to(cr, 240, 50);  
         if(active_receiver->snb) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         } else {
@@ -793,7 +786,7 @@ void vfo_update() {
         }
         cairo_show_text(cr, "SNB");
 
-        cairo_move_to(cr, 350, 50);  
+        cairo_move_to(cr, 300, 50);  
         switch(active_receiver->agc) {
           case AGC_OFF:
             cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
@@ -809,13 +802,27 @@ void vfo_update() {
             break;
           case AGC_MEDIUM:
             cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
-            cairo_show_text(cr, "AGC MEDIUM");
+            cairo_show_text(cr, "AGC MED");
             break;
           case AGC_FAST:
             cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
             cairo_show_text(cr, "AGC FAST");
             break;
         }
+
+	//
+	// Since we can now change it by a MIDI controller,
+	// we should display the compressor (level)
+	//
+        cairo_move_to(cr, 400, 50);  
+	if (transmitter->compressor) {
+	    sprintf(temp_text,"CMPR %d dB",(int) transmitter->compressor_level);
+            cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
+            cairo_show_text(cr, temp_text);
+	} else {
+            cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
+            cairo_show_text(cr, "CMPR OFF");
+	}
 
         int s=0;
         while(steps[s]!=step && steps[s]!=0) {
@@ -897,7 +904,7 @@ vfo_step_select_cb (GtkWidget *widget,
                gpointer        data)
 {
   step=steps[(int)data];
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 }
 */
 

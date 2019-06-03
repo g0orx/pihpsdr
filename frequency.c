@@ -436,7 +436,7 @@ char* getFrequencyInfo(long long frequency,int filter_low,int filter_high) {
             break;
         } else if ((info->maxFrequency +1) == ((info+1)->minFrequency) &&
                    flow>=info->minFrequency && fhigh <= (info+1)->maxFrequency) {
-            // DL1YCF:
+            //
 	    // Sometimes in DigiMode operation, the nominal USB TX channel crosses
 	    // a sub-band boundary. Example: FT8 on 17m, VFO set to 18099 kHz because
 	    // FT8 signal is generated at 18100.8 kHz with an AF signal of 1800 Hz.
@@ -445,6 +445,7 @@ char* getFrequencyInfo(long long frequency,int filter_low,int filter_high) {
 	    // either sub-band. We can return the info for the lower sub-band if
 	    // the band and transmit data is the same in both cases. If they are
 	    // different, we have found no match so far.
+	    //
 	    if ((info->band == (info+1)->band) && (info->transmit == (info+1)->transmit)) {
 	  	result = info->info;
 		break;

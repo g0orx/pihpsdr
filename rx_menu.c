@@ -59,7 +59,6 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 
 static void dither_cb(GtkWidget *widget, gpointer data) {
   active_receiver->dither=active_receiver->dither==1?0:1;
-  update_att_preamp();
 }
 
 static void random_cb(GtkWidget *widget, gpointer data) {
@@ -68,7 +67,6 @@ static void random_cb(GtkWidget *widget, gpointer data) {
 
 static void preamp_cb(GtkWidget *widget, gpointer data) {
   active_receiver->preamp=active_receiver->preamp==1?0:1;
-  update_att_preamp();
 }
 
 static void alex_att_cb(GtkWidget *widget, gpointer data) {
@@ -114,7 +112,6 @@ static void mute_radio_cb(GtkWidget *widget, gpointer data) {
 }
 
 //
-// DL1YCF:
 // possible the device has been changed:
 // call audo_close_output with old device, audio_open_output with new one
 //
@@ -238,9 +235,20 @@ void rx_menu(GtkWidget *parent) {
       break;
 #endif
   }
-
+ 
+  //
   // The CHARLY25 board (with RedPitaya) has no support for dither or random,
-  // so those are left out. PreAmps and Alex Attenuator are controlled via sliders.
+  // so those are left out. For Charly25, PreAmps and Alex Attenuator are controlled via
+  // the sliders menu.
+  // On SDRs other than CHARLY25, preamps or Alex attenuators may be present or not, and we
+  // do not try to find out whether they are. This would overload the code, and we then
+  // also must have a menu to check e.g. which ANAN model is actually present.
+  // Instead, we offer these checkboxes in either case and must rely on the user
+  // not playing around with features that are not there.
+  //
+  // NOTE: Preamps are not present on most current HPSDR models, and ALEX attenuators
+  //       are not present e.g. in ANAN-7000.
+  //
   if (filter_board != CHARLY25) {
     switch(protocol) {
       case ORIGINAL_PROTOCOL:
@@ -256,17 +264,11 @@ void rx_menu(GtkWidget *parent) {
           gtk_grid_attach(GTK_GRID(grid),random_b,x,3,1,1);
           g_signal_connect(random_b,"toggled",G_CALLBACK(random_cb),NULL);
 
-          if((protocol==ORIGINAL_PROTOCOL && device==DEVICE_METIS) ||
-#ifdef USBOZY
-              (protocol==ORIGINAL_PROTOCOL && device==DEVICE_OZY) ||
-#endif
-              (protocol==NEW_PROTOCOL && device==NEW_DEVICE_ATLAS)) {
+          GtkWidget *preamp_b=gtk_check_button_new_with_label("Preamp");
+          gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (preamp_b), active_receiver->preamp);
+          gtk_grid_attach(GTK_GRID(grid),preamp_b,x,4,1,1);
+          g_signal_connect(preamp_b,"toggled",G_CALLBACK(preamp_cb),NULL);
 
-            GtkWidget *preamp_b=gtk_check_button_new_with_label("Preamp");
-            gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (preamp_b), active_receiver->preamp);
-            gtk_grid_attach(GTK_GRID(grid),preamp_b,x,4,1,1);
-            g_signal_connect(preamp_b,"toggled",G_CALLBACK(preamp_cb),NULL);
-          }
           GtkWidget *alex_att_label=gtk_label_new("Alex Attenuator");
           gtk_grid_attach(GTK_GRID(grid), alex_att_label, x, 5, 1, 1);
           GtkWidget *last_alex_att_b = NULL;
@@ -287,41 +289,8 @@ void rx_menu(GtkWidget *parent) {
     }
   }
 
-  int n_adc=1;
-  switch(protocol) {
-    case ORIGINAL_PROTOCOL:
-      switch(device) {
-        case DEVICE_METIS:
-          n_adc=1;  // FIX for multiple Mercury cards
-          break;
-        case DEVICE_HERMES:
-        case DEVICE_HERMES_LITE:
-          n_adc=1;
-          break;
-        default: 
-          n_adc=2;
-          break;
-      }
-      break;
-    case NEW_PROTOCOL:
-      switch(device) {
-        case NEW_DEVICE_ATLAS:
-          n_adc=1; // FIX for multiple Mercury cards
-          break;
-        case NEW_DEVICE_HERMES:
-        case NEW_DEVICE_HERMES2:
-        case NEW_DEVICE_HERMES_LITE:
-          n_adc=1;
-          break;
-        default:
-          n_adc=2;
-          break;
-      }
-      break;
-    default:
-      break;
-  }
-
+  // If there is more than one ADC, let the user associate an ADC
+  // with the current receiver.
   if(n_adc>1) {
     for(i=0;i<n_adc;i++) {
       sprintf(label,"ADC-%d",i);

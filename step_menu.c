@@ -26,6 +26,7 @@
 #include "new_menu.h"
 #include "radio.h"
 #include "vfo.h"
+#include "ext.h"
 
 static GtkWidget *parent_window=NULL;
 
@@ -51,10 +52,7 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 
 static gboolean step_select_cb (GtkWidget *widget, gpointer        data) {
   step=steps[(uintptr_t)data];
-  vfo_update();
-  // DL1YCF added return statement to make the compiler happy.
-  // however I am unsure about the correct return value.
-  // I would have coded this as a void function.
+  g_idle_add(ext_vfo_update,NULL);
   return FALSE;
 }
 

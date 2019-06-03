@@ -79,7 +79,6 @@ int connect_cnt = 0;
 
 int rigctlGetFilterLow();
 int rigctlGetFilterHigh();
-// DL1YCF changed next to function to void
 void rigctlSetFilterLow(int val);
 void rigctlSetFilterHigh(int val);
 int new_level;
@@ -197,7 +196,6 @@ static gpointer set_rigctl_timer (gpointer data) {
       // Wait throttle time
       usleep(RIGCTL_TIMER_DELAY);
       rigctl_timer = 0;
-      // DL1YCF added return statement to make compiler happy.
       return NULL;
 }
 
@@ -303,8 +301,6 @@ static long dotlen;
 static long dashlen;
 static int  dotsamples;
 static int  dashsamples;
-
-extern int cw_key_up, cw_key_down, cw_not_ready;
 
 //
 // send_dash()         send a "key-down" of a dashlen, followed by a "key-up" of a dotlen
@@ -549,12 +545,13 @@ static gpointer rigctl_cw_thread(gpointer data)
     CAT_cw_is_active=1;
     if (!mox) {
 	// activate PTT
-        g_idle_add(ext_ptt_update ,(gpointer)1);
+        g_idle_add(ext_mox_update ,(gpointer)1);
 	// have to wait until it is really there
 	// Note that if out-of-band, we would wait
-	// forever here, so allow at most 500 msec
-	i=10;
-        while (!mox && (i--) > 0) usleep(50000L);
+	// forever here, so allow at most 200 msec
+	// We also have to wait for cw_not_ready becoming zero
+	i=200;
+        while ((!mox || cw_not_ready) && i-- > 0) usleep(1000L);
 	// still no MOX? --> silently discard CW character and give up
 	if (!mox) {
 	    CAT_cw_is_active=0;
@@ -571,7 +568,7 @@ static gpointer rigctl_cw_thread(gpointer data)
        // If a CW key has been hit, we continue in TX mode.
        // Otherwise, switch PTT off.
        if (!cw_key_hit && mox) {
-         g_idle_add(ext_ptt_update ,(gpointer)0);
+         g_idle_add(ext_mox_update ,(gpointer)0);
        }
        // Let the CAT system swallow incoming CW commands by setting cw_busy to -1.
        // Do so until no CAT CW message has arrived for 1 second
@@ -596,7 +593,7 @@ static gpointer rigctl_cw_thread(gpointer data)
       if (cw_busy || num_buf > 0) continue;
       CAT_cw_is_active=0;
       if (!cw_key_hit) {
-        g_idle_add(ext_ptt_update ,(gpointer)0);
+        g_idle_add(ext_mox_update ,(gpointer)0);
         // wait up to 500 msec for MOX having gone
         // otherwise there might be a race condition when sending
         // the next character really soon
@@ -614,7 +611,7 @@ static gpointer rigctl_cw_thread(gpointer data)
   cw_busy=0;
   if (CAT_cw_is_active) {
     CAT_cw_is_active=0;
-    g_idle_add(ext_ptt_update ,(gpointer)0);
+    g_idle_add(ext_mox_update ,(gpointer)0);
   }
   return NULL;
 }
@@ -2101,16 +2098,16 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                     
                                                 if(agc_resp == 0) {
                                                    active_receiver->agc = AGC_OFF;
-                                                } else if((agc_resp >0 && agc_resp <= 5) || (agc_resp == 84)) {       // DL1YCF: added () to improve readability
+                                                } else if((agc_resp >0 && agc_resp <= 5) || (agc_resp == 84)) {
                                                    active_receiver->agc = AGC_FAST;
                                                   //  fprintf(stderr,"GT command FAST\n");
-                                                } else if((agc_resp >6 && agc_resp <= 10) || (agc_resp == 2*84)) {    // DL1YCF: added () to improve readability
+                                                } else if((agc_resp >6 && agc_resp <= 10) || (agc_resp == 2*84)) {
                                                    active_receiver->agc = AGC_MEDIUM;
                                                   // fprintf(stderr,"GT command MED\n");
-                                                } else if((agc_resp >11 && agc_resp <= 15) || (agc_resp == 3*84)) {   // DL1YCF: added () to improve readability
+                                                } else if((agc_resp >11 && agc_resp <= 15) || (agc_resp == 3*84)) {
                                                    active_receiver->agc = AGC_SLOW;
                                                    //fprintf(stderr,"GT command SLOW\n");
-                                                } else if((agc_resp >16 && agc_resp <= 20) || (agc_resp == 4*84)) {   // DL1YCF: added () to improve readability
+                                                } else if((agc_resp >16 && agc_resp <= 20) || (agc_resp == 4*84)) {
                                                    active_receiver->agc = AGC_LONG;
                                                    // fprintf(stderr,"GT command LONG\n");
                                                 }
@@ -2218,7 +2215,7 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
         else if((strcmp(cmd_str,"KY")==0) && (zzid_flag == 0))
 				    { 
 					if (cw_busy < 0) cat_cw_seen=1;
-					// DL1YCF:
+					//
 					// Hamlib produces timeout errors if we are busy here for
 					// seconds. Therefore we just move the data into a buffer
 					// that is processed by a separate thread.
@@ -2230,9 +2227,10 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
 					//  - if we can accept new data (buffer space available) : "KY0;"
 					//  - if buffer is full: "KY1;"
 					//
-					// Note: cw_buse == -1 indicates a "purge KY" situation, where
+					// Note: cw_busy == -1 indicates a "purge KY" situation, where
 					//       all KY commands are accepted and data is discared silently
 					//       In this case cw_busy is left untouched here.
+					//
                                         if (len <= 2) {
 					    if (cw_busy == 1) {
 						send_resp(client_sock,"KY1;");
@@ -2445,10 +2443,9 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
 						       } else {
 							  int tval = atoi(&cmd_input[2]);                
 							  new_vol = (double) (tval * 60/100) - 10; 
-							  //set_mic_gain(new_vol); 
 							  double *p_mic_gain=malloc(sizeof(double));
 							  *p_mic_gain=new_vol;
-							  g_idle_add(update_mic_gain,(void *)p_mic_gain);
+							  g_idle_add(ext_set_mic_gain,(void *)p_mic_gain);
 						       }
 						    } else {
 						       if(len <=2) {
@@ -2459,7 +2456,7 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                                           if((new_vol >= -10) && (new_vol <= 50)) {
 							     double *p_mic_gain=malloc(sizeof(double));
 							     *p_mic_gain=new_vol;
-							     g_idle_add(update_mic_gain,(void *)p_mic_gain);
+							     g_idle_add(ext_set_mic_gain,(void *)p_mic_gain);
                                                           } else {
                                                              send_resp(client_sock,"?;");
                                                           }

@@ -18,14 +18,16 @@
 */
 
 
+//
 // The following calls functions can be called usig g_idle_add
+// Use these calls from within the rigclt daemon, or the GPIO or MIDI stuff
+//
 
 extern int ext_discovery(void *data);
 extern int ext_vfo_update(void *data);
 extern int ext_set_frequency(void *data);
 extern int ext_vfo_filter_changed(void *data);
 extern int ext_band_update(void *data);
-extern int ext_ptt_update(void *data);
 extern int ext_mox_update(void *data);
 extern int ext_tune_update(void *data);
 extern int ext_linein_changed(void *data);
@@ -52,5 +54,16 @@ extern int ext_noise_update(void *data);
 extern int ext_tx_set_ps(void *data);
 extern int ext_ps_twotone(void *data);
 #endif
+
 int ext_vfo_step(void *data);
 int ext_vfo_mode_changed(void *data);
+int ext_set_af_gain(void *data);
+int ext_set_mic_gain(void *data);
+int ext_set_agc_gain(void *data);
+int ext_set_drive(void *data);
+int ext_vfo_a_swap_b(void *data);
+int ext_vfo_a_to_b(void *data);
+int ext_vfo_b_to_a(void *data);
+int ext_update_att_preamp(void *data);
+int ext_set_alex_attenuation(void *data);
+int ext_set_attenuation_value(void *data);

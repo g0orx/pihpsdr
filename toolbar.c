@@ -88,7 +88,7 @@ static gboolean rit_timer_cb(gpointer data) {
   if(protocol==NEW_PROTOCOL) {
     schedule_high_priority();
   }
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
   return TRUE;
 }
 
@@ -195,7 +195,7 @@ void ctun_cb (GtkWidget *widget, gpointer data) {
   }
   vfo[id].ctun_frequency=vfo[id].frequency;
   set_offset(active_receiver,vfo[id].offset);
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 }
 
 static void atob_cb (GtkWidget *widget, gpointer data) {
@@ -217,7 +217,7 @@ static void split_cb (GtkWidget *widget, gpointer data) {
   } else {
     tx_set_mode(transmitter,vfo[VFO_A].mode);
   }
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 }
 
 static void rit_enable_cb(GtkWidget *widget, gpointer data) {
@@ -225,7 +225,7 @@ static void rit_enable_cb(GtkWidget *widget, gpointer data) {
   if(protocol==NEW_PROTOCOL) {
     schedule_high_priority();
   }
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 }
 
 static void rit_cb(GtkWidget *widget, gpointer data) {
@@ -236,7 +236,7 @@ static void rit_cb(GtkWidget *widget, gpointer data) {
   if(protocol==NEW_PROTOCOL) {
     schedule_high_priority();
   }
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
   if(i<0) {
     rit_minus_timer=g_timeout_add(200,rit_timer_cb,(gpointer)(long)i);
   } else {
@@ -246,7 +246,7 @@ static void rit_cb(GtkWidget *widget, gpointer data) {
 
 static void rit_clear_cb(GtkWidget *widget, gpointer data) {
   vfo[active_receiver->id].rit=0;
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 }
 
 static void freq_cb(GtkWidget *widget, gpointer data) {
@@ -259,7 +259,7 @@ static void mem_cb(GtkWidget *widget, gpointer data) {
 
 static void vox_cb(GtkWidget *widget, gpointer data) {
   vox_enabled=vox_enabled==1?0:1;
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 }
 
 static void stop() {
@@ -332,7 +332,7 @@ static void exit_cb(GtkWidget *widget, gpointer data) {
 
 void lock_cb(GtkWidget *widget, gpointer data) {
   locked=locked==1?0:1;
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 }
 
 void mox_cb(GtkWidget *widget, gpointer data) {
@@ -342,9 +342,6 @@ void mox_cb(GtkWidget *widget, gpointer data) {
   }
   if(getMox()==1) {
     setMox(0);
-    if(ptt) {
-      ptt=0;
-    }
   } else if(canTransmit() || tx_out_of_band) {
     setMox(1);
   } else {
@@ -367,10 +364,6 @@ void mox_update(int state) {
     setMox(state);
   }
   g_idle_add(ext_vfo_update,NULL);
-}
-
-void ptt_update(int state) {
-  mox_update(state);
 }
 
 void tune_cb(GtkWidget *widget, gpointer data) {
@@ -632,7 +625,7 @@ void sim_function_cb(GtkWidget *widget, gpointer data) {
     function=0;
   }
   update_toolbar_labels();
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 }
 
 GtkWidget *toolbar_init(int my_width, int my_height, GtkWidget* parent) {

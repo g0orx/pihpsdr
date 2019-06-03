@@ -31,6 +31,8 @@
 #include <ifaddrs.h>
 #include <string.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <sys/select.h>
 
 #include "discovered.h"
 #include "discovery.h"
@@ -55,6 +57,11 @@ static void discover(struct ifaddrs* iface) {
     struct sockaddr_in to_addr={0};
     int flags;
     struct timeval tv;
+    int optval;
+    socklen_t optlen;
+    fd_set fds;
+    unsigned char buffer[1032];
+    int i, len;
 
     if (iface == NULL) {
 	//
@@ -79,17 +86,59 @@ static void discover(struct ifaddrs* iface) {
             return;
 	}
 	//
-	// We make a time-out of 3 secs, otherwise we might "hang" in connect()
+	// Here I tried a bullet-proof approach to connect() such that the program
+        // does not "hang" under any circumstances.
+	// - First, one makes the socket non-blocking. Then, the connect() will
+        //   immediately return with error EINPROGRESS.
+	// - Then, one uses select() to look for *writeability* and check
+	//   the socket error if everything went right. Since one calls select()
+        //   with a time-out, one either succeed within this time or gives up.
+        // - Do not forget to make the socket blocking again.
 	//
-        tv.tv_sec=3;
-	tv.tv_usec=0;
-	setsockopt(discovery_socket, SOL_SOCKET, SO_RCVTIMEO, (void *)&tv, sizeof(tv));
-
-        if (connect(discovery_socket, (const struct sockaddr *)&to_addr, sizeof(to_addr)) < 0) {
+        // Step 1. Make socket non-blocking and connect()
+	flags=fcntl(discovery_socket, F_GETFL, 0);
+	fcntl(discovery_socket, F_SETFL, flags | O_NONBLOCK);
+	rc=connect(discovery_socket, (const struct sockaddr *)&to_addr, sizeof(to_addr));
+        if ((errno != EINPROGRESS) && (rc < 0)) {
             perror("discover: connect() failed for TCP discovery_socket:");
 	    close(discovery_socket);
 	    return;
 	}
+	// Step 2. Use select to wait for the connection
+        tv.tv_sec=3;
+	tv.tv_usec=0;
+	FD_ZERO(&fds);
+	FD_SET(discovery_socket, &fds);
+	rc=select(discovery_socket+1, NULL, &fds, NULL, &tv);
+        if (rc < 0) {
+            perror("discover: select() failed on TCP discovery_socket:");
+	    close(discovery_socket);
+	    return;
+        }
+	// If no connection occured, return
+	if (rc == 0) {
+	    // select timed out
+	    fprintf(stderr,"discover: select() timed out on TCP discovery socket\n");
+	    close(discovery_socket);
+	    return;
+	}
+	// Step 3. select() succeeded. Check success of connect()
+	optlen=sizeof(int);
+	rc=getsockopt(discovery_socket, SOL_SOCKET, SO_ERROR, &optval, &optlen);
+	if (rc < 0) {
+	    // this should very rarely happen
+            perror("discover: getsockopt() failed on TCP discovery_socket:");
+	    close(discovery_socket);
+	    return;
+	}
+	if (optval != 0) {
+	    // connect did not succeed
+	    fprintf(stderr,"discover: connect() on TCP socket did not succeed\n");
+	    close(discovery_socket);
+	    return;
+	}
+	// Step 4. reset the socket to normal (blocking) mode
+	fcntl(discovery_socket, F_SETFL, flags &  ~O_NONBLOCK);
     } else {
 
         strcpy(interface_name,iface->ifa_name);
@@ -131,7 +180,7 @@ static void discover(struct ifaddrs* iface) {
         to_addr.sin_port=htons(DISCOVERY_PORT);
         to_addr.sin_addr.s_addr=htonl(INADDR_BROADCAST);
     }
-    int optval = 1;
+    optval = 1;
     setsockopt(discovery_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
     setsockopt(discovery_socket, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval));
 
@@ -148,13 +197,11 @@ static void discover(struct ifaddrs* iface) {
 
     // send discovery packet
     // If this is a TCP connection, send a "long" packet
-    unsigned char buffer[1032];
-    int len=63;
+    len=63;
     if (iface == NULL) len=1032;
     buffer[0]=0xEF;
     buffer[1]=0xFE;
     buffer[2]=0x02;
-    int i;
     for(i=3;i<len;i++) {
         buffer[i]=0x00;
     }
@@ -421,7 +468,6 @@ fprintf(stderr,"discover_receive_thread\n");
     }
     fprintf(stderr,"discovery: exiting discover_receive_thread\n");
     g_thread_exit(NULL);
-    // DL1YCF added return statement to make compiler happy.
     return NULL;
 }
 

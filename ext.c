@@ -54,13 +54,23 @@ int ext_set_frequency(void *data) {
   return 0;
 }
 
-int ext_vfo_update(void *data) {
+static guint vfo_timeout=0;
+
+static int vfo_timeout_cb(void * data) {
+  vfo_timeout=0;
   vfo_update();
   return 0;
 }
 
+int ext_vfo_update(void *data) {
+  if (vfo_timeout ==0) {
+    vfo_timeout=g_timeout_add(100, vfo_timeout_cb, NULL);
+  }
+  return 0;
+}
+
 int ext_vfo_filter_changed(void *data) {
-  vfo_filter_changed((uintptr_t)data);
+  vfo_filter_changed((int)(uintptr_t)data);
   return 0;
 }
 
@@ -75,39 +85,31 @@ int ext_band_update(void *data) {
 
 int ext_mode_update(void *data) {
   start_mode();
-  // DL1YCF added return statement
   return 0;
 }
 
 int ext_filter_update(void *data) {
   start_filter();
-  // DL1YCF added return statement
   return 0;
 }
 
 int ext_noise_update(void *data) {
   start_noise();
-  // DL1YCF added return statement
-  return 0;
-}
-
-int ext_ptt_update(void *data) {
-  ptt_update((uintptr_t)data);
   return 0;
 }
 
 int ext_mox_update(void *data) {
-  mox_update((uintptr_t)data);
+  mox_update((int)(uintptr_t)data);
   return 0;
 }
 
 int ext_tune_update(void *data) {
-  tune_update((uintptr_t)data);
+  tune_update((int)(uintptr_t)data);
   return 0;
 }
 
 int ext_vox_changed(void *data) {
-  vox_changed((uintptr_t)data);
+  vox_changed((int)(uintptr_t)data);
   return 0;
 }
 
@@ -128,17 +130,17 @@ int ext_calc_drive_level(void *data) {
 }
 
 int ext_vfo_band_changed(void *data) {
-  vfo_band_changed((uintptr_t)data);
+  vfo_band_changed((int)(uintptr_t)data);
   return 0;
 }
 
 int ext_radio_change_sample_rate(void *data) {
-  radio_change_sample_rate((uintptr_t)data);
+  radio_change_sample_rate((int)(uintptr_t)data);
   return 0;
 }
 
 int ext_update_squelch(void *data) {
-  set_squelch(active_receiver);
+  set_squelch();
   return 0;
 }
 
@@ -158,5 +160,59 @@ int ext_tx_set_ps(void *data) {
 int ext_vfo_step(void *data) {
   int step=(int)(long)data;
   vfo_step(step);
+  return 0;
+}
+
+int ext_set_mic_gain(void * data) {
+  double d=*(double *)data;
+  set_mic_gain(d);
+  free(data);
+  return 0;
+}
+
+int ext_set_agc_gain(void *data) {
+  double d=*(double *)data;
+  set_agc_gain(d);
+  free(data);
+  return 0;
+}
+ 
+int ext_set_drive(void *data) {
+  double d=*(double *)data;
+  set_drive(d);
+  free(data);
+  return 0;
+}
+
+int ext_vfo_a_swap_b(void *data) {
+  vfo_a_swap_b();
+  return 0;
+}
+
+int ext_vfo_a_to_b(void *data) {
+  vfo_a_to_b();
+  return 0;
+}
+
+int ext_vfo_b_to_a(void *data) {
+  vfo_b_to_a();
+  return 0;
+}
+
+int ext_update_att_preamp(void *data) {
+  update_att_preamp();
+  return 0;
+}
+
+int ext_set_alex_attenuation(void *data) {
+  int val=(int)(uintptr_t)data;
+  set_alex_attenuation(val);
+  return 0;
+}
+
+int ext_set_attenuation_value(void *data) {
+  double d=*(double *)data;
+  set_attenuation_value(d);
+  free(data);
   return 0;
 }

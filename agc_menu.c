@@ -60,9 +60,6 @@ static gboolean agc_select_cb (GtkWidget *widget, gpointer        data) {
   //wdsp_set_agc(CHANNEL_RX0, agc);
   set_agc(active_receiver, active_receiver->agc);
   vfo_update();
-  // DL1YCF added return statement to make the compiler happy.
-  // however I am unsure about the correct return value.
-  // I would have coded this as a void function.
   return FALSE;
 }
 

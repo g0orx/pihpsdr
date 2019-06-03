@@ -97,10 +97,6 @@
 #define SPEED_384K                0x03
 #define MODE_CLASS_E              0x01
 #define MODE_OTHERS               0x00
-#define ALEX_ATTENUATION_0DB      0x00
-#define ALEX_ATTENUATION_10DB     0x01
-#define ALEX_ATTENUATION_20DB     0x02
-#define ALEX_ATTENUATION_30DB     0x03
 #define LT2208_GAIN_OFF           0x00
 #define LT2208_GAIN_ON            0x04
 #define LT2208_DITHER_OFF         0x00
@@ -561,11 +557,27 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
   double right_sample_double_rx;
   double left_sample_double_tx;
   double right_sample_double_tx;
-  int nreceivers;
 
   int id=active_receiver->id;
 
   int tx_vfo=split?VFO_B:VFO_A;
+
+  int num_hpsdr_receivers;
+
+#ifdef PURESIGNAL
+    // for PureSignal, the number of receivers needed is hard-coded below.
+    // we need at least 3 (for RX), and up to 5 for Orion2 boards, since
+    // the TX DAC channel is hard-wired to RX5.
+    num_hpsdr_receivers=3;
+    if (device == DEVICE_HERMES) num_hpsdr_receivers=4;
+    if (device == DEVICE_ANGELIA || device == DEVICE_ORION || device == DEVICE_ORION2) num_hpsdr_receivers=5;
+#else
+#if defined(RADIOBERRY) || defined(PI_SDR)
+	num_hpsdr_receivers = receivers;
+#else
+	num_hpsdr_receivers=RECEIVERS;
+#endif
+#endif
 
   if(buffer[b++]==SYNC && buffer[b++]==SYNC && buffer[b++]==SYNC) {
     // extract control bytes
@@ -575,20 +587,22 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
     control_in[3]=buffer[b++];
     control_in[4]=buffer[b++];
 
+    // do not set ptt. In PURESIGNAL, this would stop the
+    // receiver sending samples to WDSP abruptly.
+    // Do the RX-TX change only via ext_mox_update.
     previous_ptt=local_ptt;
     previous_dot=dot;
     previous_dash=dash;
-    ptt=(control_in[0]&0x01)==0x01;
+    local_ptt=(control_in[0]&0x01)==0x01;
     dash=(control_in[0]&0x02)==0x02;
     dot=(control_in[0]&0x04)==0x04;
 
-    local_ptt=ptt;
     if (dot || dash) cw_key_hit=1;
     if(vfo[tx_vfo].mode==modeCWL || vfo[tx_vfo].mode==modeCWU) {
-      local_ptt=ptt|dot|dash;
+      local_ptt=local_ptt|dot|dash;
     }
     if(previous_ptt!=local_ptt) {
-      g_idle_add(ext_ptt_update,(gpointer)(long)(local_ptt));
+      g_idle_add(ext_mox_update,(gpointer)(long)(local_ptt));
     }
 
 
@@ -625,21 +639,10 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
         break;
     }
 
-
-#ifdef PURESIGNAL
-    nreceivers=(RECEIVERS*2)+1;
-#else
-	#if defined(RADIOBERRY) || defined(PI_SDR)
-		nreceivers = receivers;
-	#else
-		nreceivers=RECEIVERS;
-	#endif
-#endif
-
-    int iq_samples=(512-8)/((nreceivers*6)+2);
+    int iq_samples=(512-8)/((num_hpsdr_receivers*6)+2);
 
     for(i=0;i<iq_samples;i++) {
-      for(r=0;r<nreceivers;r++) {
+      for(r=0;r<num_hpsdr_receivers;r++) {
         left_sample   = (int)((signed char) buffer[b++])<<16;
         left_sample  |= (int)((((unsigned char)buffer[b++])<<8)&0xFF00);
         left_sample  |= (int)((unsigned char)buffer[b++]&0xFF);
@@ -814,13 +817,9 @@ void old_protocol_process_local_mic(unsigned char *buffer,int le) {
     // avoid pointer increments in logical-or constructs, as the sequence
     // is undefined
     if(le) {
-      // DL1YCF: changed this to two statements such that the order of pointer increments
-      //         becomes clearly defined.
       sample = (short) (buffer[b++]&0xFF);
       sample |= (short) (buffer[b++]<<8);
     } else {
-      // DL1YCF: changed this to two statements such that the order of pointer increments
-      //         becomes clearly defined.
       sample = (short)(buffer[b++]<<8);
       sample |=  (short) (buffer[b++]&0xFF);
     }
@@ -846,13 +845,31 @@ void ozy_send_buffer() {
   int mode;
   int i;
   BAND *band;
-  int nreceivers;
+  int num_hpsdr_receivers;
+
+#ifdef PURESIGNAL
+    // for PureSignal, the number of receivers needed is hard-coded below.
+    // we need at least 3 (for RX), and up to 5 for Orion2 boards, since
+    // the TX DAC channel is hard-wired to RX5.
+    num_hpsdr_receivers=3;
+    if (device == DEVICE_HERMES) num_hpsdr_receivers=4;
+    if (device == DEVICE_ANGELIA || device == DEVICE_ORION || device == DEVICE_ORION2) num_hpsdr_receivers=5;
+#else
+#if defined(RADIOBERRY) || defined(PI_SDR)
+	num_hpsdr_receivers = receivers;
+#else
+	num_hpsdr_receivers=RECEIVERS;
+#endif
+#endif
 
   output_buffer[SYNC0]=SYNC;
   output_buffer[SYNC1]=SYNC;
   output_buffer[SYNC2]=SYNC;
 
   if(metis_offset==8) {
+    //
+    // Every second packet is a "C0=0" packet
+    //
     output_buffer[C0]=0x00;
     output_buffer[C1]=0x00;
     switch(active_receiver->sample_rate) {
@@ -912,7 +929,6 @@ void ozy_send_buffer() {
       output_buffer[C2]|=band->OCrx<<1;
     }
 
-// TODO - add Alex Antenna
     output_buffer[C3] = (receiver[0]->alex_attenuation) & 0x03;  // do not set higher bits
     if(active_receiver->random) {
       output_buffer[C3]|=LT2208_RANDOM_ON;
@@ -933,44 +949,41 @@ void ozy_send_buffer() {
       output_buffer[C3]|=LT2208_GAIN_ON;
     }
 
-    switch(receiver[0]->alex_antenna) {
-      case 0:  // ANT 1
+    //
+    // Set ALEX RX1_ANT and RX1_OUT
+    //
+    i=receiver[0]->alex_antenna;
+#ifdef PURESIGNAL
+    //
+    // Upon TX, we might have to activate a different RX path for the
+    // attenuated feedback signal. Use alex_antenna == 0, if
+    // the feedback signal is routed automatically/internally
+    // If feedback is to the second ADC, leave RX1 ANT settings untouched
+    //
+    if (isTransmitting() && transmitter->puresignal && receiver[PS_RX_FEEDBACK]->adc == 0) i=receiver[PS_RX_FEEDBACK]->alex_antenna;
+#endif
+    switch(i) {
+      case 3:  // Alex: RX2 IN, ANAN: EXT1, ANAN7000: still uses internal feedback 
+        output_buffer[C3]|=0x80;
         break;
-      case 1:  // ANT 2
-        break;
-      case 2:  // ANT 3
-        break;
-      case 3:  // EXT 1
-        //output_buffer[C3]|=0xA0;
-        output_buffer[C3]|=0xC0;
-        break;
-      case 4:  // EXT 2
-        //output_buffer[C3]|=0xC0;
+      case 4:  // Alex: RX1 IN, ANAN: EXT2, ANAN7000: RX BYPASS
         output_buffer[C3]|=0xA0;
         break;
       case 5:  // XVTR
         output_buffer[C3]|=0xE0;
         break;
       default:
+	// RX1_OUT and RX1_ANT bits remain zero
         break;
     }
 
 
-// TODO - add Alex TX relay, duplex, receivers Mercury board frequency
     output_buffer[C4]=0x04;  // duplex
-#ifdef PURESIGNAL
-    nreceivers=(RECEIVERS*2)-1;
-    nreceivers+=1; // for PS TX Feedback
-#else
-	#ifdef RADIOBERRY
-		nreceivers = receivers-1;
-	#else
-		nreceivers=RECEIVERS-1;
-	#endif
-#endif
 
-    output_buffer[C4]|=nreceivers<<3;
+    // 0 ... 7 maps on 1 ... 8 receivers
+    output_buffer[C4]|=(num_hpsdr_receivers-1)<<3;
     
+    // Set ALEX TX_RELAX (that is, TX_ANT)
     if(isTransmitting()) {
       switch(transmitter->alex_antenna) {
         case 0:  // ANT 1
@@ -1014,6 +1027,9 @@ void ozy_send_buffer() {
       }
     }
   } else {
+    //
+    // metis_offset !=8: send the other C&C packets in round-robin
+    // RX frequency commands are repeated for each RX
     switch(command) {
       case 1: // tx frequency
         output_buffer[C0]=0x02;
@@ -1037,22 +1053,12 @@ void ozy_send_buffer() {
         output_buffer[C4]=txFrequency;
         break;
       case 2: // rx frequency
-#ifdef PURESIGNAL
-        nreceivers=(RECEIVERS*2)+1;
-#else
-		#ifdef RADIOBERRY
-			nreceivers = receivers;
-		#else
-			nreceivers=RECEIVERS;
-		#endif
-#endif
-
-        if(current_rx<nreceivers) {
+        if(current_rx<num_hpsdr_receivers) {
           output_buffer[C0]=0x04+(current_rx*2);
 #ifdef PURESIGNAL
           int v=receiver[current_rx/2]->id;
-	  // DL1YCF: for the "last" receiver, v is out of range. In this case,
-	  //         use TX frequency also while receiving
+	  // for the "last" receiver, v is out of range. In this case,
+	  // use TX frequency also while receiving
           if((isTransmitting() && transmitter->puresignal) || (v >= MAX_VFOS)) {
             long long txFrequency;
             if(active_receiver->id==VFO_A) {
@@ -1094,7 +1100,7 @@ void ozy_send_buffer() {
 #endif
           current_rx++;
         }
-        if(current_rx>=nreceivers) {
+        if(current_rx>=num_hpsdr_receivers) {
           current_rx=0;
         }
         break;
@@ -1175,28 +1181,30 @@ void ozy_send_buffer() {
         }
 #endif
         output_buffer[C3]=0x00;
+        output_buffer[C4]=0x00;
   
         if(radio->device==DEVICE_HERMES || radio->device==DEVICE_ANGELIA || radio->device==DEVICE_ORION || radio->device==DEVICE_ORION2) {
-          output_buffer[C4]=0x20|adc_attenuation[receiver[0]->adc];
+	  // if attenuation is zero, then disable attenuator
+	  i = adc_attenuation[receiver[0]->adc] & 0x1F;
+          if (i >0) output_buffer[C4]=0x20| i;
         } else {
 #ifdef RADIOBERRY
-		  int att = 63 - rx_gain_slider[active_receiver->adc];
+	  int att = 63 - rx_gain_slider[active_receiver->adc];
           output_buffer[C4]=0x20|att;
-#else
-		  output_buffer[C4]=0x00;
 #endif
         }
         break;
       case 5:
-        // need to add adc 2 and 3 attenuation
         output_buffer[C0]=0x16;
         output_buffer[C1]=0x00;
         if(receivers==2) {
           if(radio->device==DEVICE_HERMES || radio->device==DEVICE_ANGELIA || radio->device==DEVICE_ORION || radio->device==DEVICE_ORION2) {
-            output_buffer[C1]=0x20|adc_attenuation[receiver[1]->adc];
+	    // if attenuation is zero, then disable attenuator
+	    i = adc_attenuation[receiver[1]->adc] & 0x1F;
+            if (i > 0) output_buffer[C1]=0x20|i;
           }
         }
-        output_buffer[C2]=0x00;
+        output_buffer[C2]=0x00; // ADC3 attenuator disabled.
         if(cw_keys_reversed!=0) {
           output_buffer[C2]|=0x40;
         }
@@ -1207,15 +1215,20 @@ void ozy_send_buffer() {
         // need to add tx attenuation and rx ADC selection
         output_buffer[C0]=0x1C;
         output_buffer[C1]=0x00;
-#ifdef PURESIGNAL
-        output_buffer[C1]|=receiver[0]->adc;
-        output_buffer[C1]|=(receiver[0]->adc<<2);
-        output_buffer[C1]|=receiver[1]->adc<<4;
-        output_buffer[C1]|=(receiver[1]->adc<<6);
         output_buffer[C2]=0x00;
-        if(transmitter->puresignal) {
-          output_buffer[C2]|=receiver[2]->adc;
-        }
+#ifdef PURESIGNAL
+        // if n_adc == 1, there is only a single ADC, so we can leave everything
+        // set to zero
+	if (n_adc  > 1) {
+	    // Angelia, Orion, Orion2 have two ADCs, so we use the ADC settings from the menu
+            output_buffer[C1]|=receiver[0]->adc;			// RX1 bound to ADC of first receiver
+            output_buffer[C1]|=(receiver[1]->adc<<2);			// RX2 actually unsused with PURESIGNAL
+            output_buffer[C1]|=receiver[1]->adc<<4;			// RX3 bound to ADC of second receiver
+            output_buffer[C1]|=(receiver[PS_RX_FEEDBACK]->adc<<6);	// RX4 is PS_RX_Feedbacka
+									// Usually ADC0, but if feedback is to
+									// RX2 input it must be ADC1 (see ps_menu.c)
+	    // RX5 is hard-wired to the TX DAC and needs no ADC setting.
+	}
 #else
         output_buffer[C1]|=receiver[0]->adc;
         output_buffer[C1]|=(receiver[1]->adc<<2);
@@ -1262,15 +1275,31 @@ void ozy_send_buffer() {
       case 10:
         output_buffer[C0]=0x24;
         output_buffer[C1]=0x00;
+
         if(isTransmitting()) {
-          output_buffer[C1]|=0x80; // ground RX1 on transmit
+#ifdef PURESIGNAL
+	  // If we are using the RX2 jack for PURESIGNAL RX feedback, then we MUST NOT ground
+	  // the ADC2 input upon TX.
+	  if (transmitter->puresignal && receiver[PS_RX_FEEDBACK]->adc == 1) {
+	    // Note that this statement seems to have no effect since
+	    // one cannot goto to "manual filter setting" for the ALEX2 board individually
+            output_buffer[C1]|=0x40; // Set ADC2 filter board to "ByPass"
+	  } else
+#endif
+
+            output_buffer[C1]|=0x80; // ground RX2 on transmit, bit0-6 are Alex2 filters
         }
         output_buffer[C2]=0x00;
         if(receiver[0]->alex_antenna==5) { // XVTR
-          output_buffer[C2]=0x02;
+          output_buffer[C2]=0x02;          // Alex2 XVTR enable
         }
-        output_buffer[C3]=0x00;
-        output_buffer[C4]=0x00;
+#ifdef PURESIGNAL
+        if(transmitter->puresignal) {
+          output_buffer[C2]|=0x40;	   // Synchronize RX5 and TX frequency on transmit
+        }
+#endif
+        output_buffer[C3]=0x00;            // Alex2 filters
+        output_buffer[C4]=0x00;            // Alex2 filters
         break;
     }
 
@@ -1428,7 +1457,7 @@ static void metis_restart() {
   current_rx=0;
   command=1;
 #else
-  // DL1YCF this is the original code, which does not do what it pretends ....
+  // DL1YCF: this is the original code, which does not do what it pretends ....
   // send commands twice
   command=1;
   do {

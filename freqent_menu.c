@@ -31,6 +31,7 @@
 #include "receiver.h"
 #include "vfo.h"
 #include "button_text.h"
+#include "ext.h"
 
 static GtkWidget *parent_window=NULL;
 static GtkWidget *dialog=NULL;
@@ -140,13 +141,12 @@ static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
               }
             }
             setFrequency(f);
-            vfo_update();
+            g_idle_add(ext_vfo_update,NULL);
       
             set = 1;
         }
     }
-    vfo_update();
-    // DL1YCF added return statement
+    g_idle_add(ext_vfo_update,NULL);
     return FALSE;
 }
 

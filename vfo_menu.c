@@ -155,15 +155,12 @@ static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
         }
       }
       setFrequency(f);
-      vfo_update();
+      g_idle_add(ext_vfo_update,NULL);
     
       set = 1;
     }
   }
-  vfo_update();
-  // DL1YCF added return statement to make the compiler happy.
-  // however I am unsure about the correct return value.
-  // I would have coded this as a void function.
+  g_idle_add(ext_vfo_update,NULL);
   return FALSE;
 }
 
@@ -179,12 +176,12 @@ static void rit_cb(GtkComboBox *widget,gpointer data) {
       rit_increment=100;
       break;
   }
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 }
 
 static void vfo_cb(GtkComboBox *widget,gpointer data) {
   step=steps[gtk_combo_box_get_active(widget)];
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 }
 
 #ifdef FREEDV
@@ -210,7 +207,7 @@ static void set_btn_state() {
 static void lock_cb(GtkWidget *widget, gpointer data) {
   locked=locked==1?0:1;
   set_btn_state();
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 }
 
 static GtkWidget *last_mode;

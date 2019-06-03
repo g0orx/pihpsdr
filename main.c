@@ -54,6 +54,7 @@
 #include "discovery.h"
 #include "new_protocol.h"
 #include "old_protocol.h"
+#include "frequency.h"   // for canTransmit
 #include "ext.h"
 
 struct utsname unameData;
@@ -63,12 +64,6 @@ gint display_height;
 gint full_screen=1;
 
 static GtkWidget *discovery_dialog;
-
-#ifdef __APPLE__
-static sem_t *wisdom_sem;
-#else
-static sem_t wisdom_sem;
-#endif
 
 static GdkCursor *cursor_arrow;
 static GdkCursor *cursor_watch;
@@ -96,17 +91,37 @@ static gint save_cb(gpointer data) {
 }
 
 static pthread_t wisdom_thread_id;
+static int wisdom_running=0;
 
 static void* wisdom_thread(void *arg) {
-fprintf(stderr,"Creating wisdom file: %s\n", (char *)arg);
-  status_text("Creating FFTW Wisdom file ...");
   WDSPwisdom ((char *)arg);
-#ifdef __APPLE__
-  sem_post(wisdom_sem);
-#else
-  sem_post(&wisdom_sem);
-#endif
+  wisdom_running=0;
   return NULL;
+}
+
+//
+// handler for key press events.
+// SpaceBar presses toggle MOX, everything else downstream
+// code to switch mox copied from mox_cb() in toolbar.c,
+// but added the correct return values.
+//
+gboolean keypress_cb(GtkWidget *widget, GdkEventKey *event, gpointer data) {
+
+  if (event->keyval == GDK_KEY_space && radio != NULL) {
+    if(getTune()==1) {
+      setTune(0);
+    }
+    if(getMox()==1) {
+      setMox(0);
+    } else if(canTransmit() || tx_out_of_band) {
+      setMox(1);
+    } else {
+      transmitter_set_out_of_band(transmitter);
+    }
+    g_idle_add(ext_vfo_update,NULL);
+    return TRUE;
+  }
+  return FALSE;
 }
 
 gboolean main_delete (GtkWidget *widget) {
@@ -135,9 +150,9 @@ gboolean main_delete (GtkWidget *widget) {
 static int init(void *data) {
   char *res;
   char wisdom_directory[1024];
-  char wisdom_file[1024];
+  int rc;
 
-  fprintf(stderr,"init\n");
+  //fprintf(stderr,"init\n");
 
   audio_get_cards();
 
@@ -146,29 +161,24 @@ static int init(void *data) {
 
   gdk_window_set_cursor(gtk_widget_get_window(top_window),cursor_watch);
 
-  // check if wisdom file exists
+  //
+  // Let WDSP (via FFTW) check for wisdom file in current dir
+  // If there is one, the "wisdom thread" takes no time
+  // Depending on the WDSP version, the file is wdspWisdom or wdspWisdom00.
+  // sem_trywait() is not elegant, replaced this with wisdom_running variable.
+  //
   res=getcwd(wisdom_directory, sizeof(wisdom_directory));
   strcpy(&wisdom_directory[strlen(wisdom_directory)],"/");
-  strcpy(wisdom_file,wisdom_directory);
-  strcpy(&wisdom_file[strlen(wisdom_file)],"wdspWisdom");
-  status_text("Checking FFTW Wisdom file ...");
-  if(access(wisdom_file,F_OK)<0) {
-#ifdef __APPLE__
-      int rc;
-      wisdom_sem=sem_open("WISDOM", O_CREAT, 0700, 0);
-#else
-      int rc=sem_init(&wisdom_sem, 0, 0);
-#endif
-      rc=pthread_create(&wisdom_thread_id, NULL, wisdom_thread, (void *)wisdom_directory);
-#ifdef __APPLE__
-      while(sem_trywait(wisdom_sem)<0) {
-#else
-      while(sem_trywait(&wisdom_sem)<0) {
-#endif
-        status_text(wisdom_get_status());
-        while (gtk_events_pending ())
-          gtk_main_iteration ();
-        usleep(100000); // 100ms
+  fprintf(stderr,"Securing wisdom file in directory: %s\n", wisdom_directory);
+  status_text("Creating FFTW Wisdom file ...");
+  wisdom_running=1;
+  rc=pthread_create(&wisdom_thread_id, NULL, wisdom_thread, wisdom_directory);
+  while (wisdom_running) {
+      // wait for the wisdom thread to complete, meanwhile
+      // handling any GTK events.
+      usleep(100000); // 100ms
+      while (gtk_events_pending ()) {
+        gtk_main_iteration ();
       }
   }
 
@@ -211,17 +221,17 @@ fprintf(stderr,"width=%d height=%d\n", display_width, display_height);
 
 fprintf(stderr,"display_width=%d display_height=%d\n", display_width, display_height);
 
-  fprintf(stderr,"create top level window\n");
+  //fprintf(stderr,"create top level window\n");
   top_window = gtk_application_window_new (app);
   if(full_screen) {
-fprintf(stderr,"full screen\n");
+    fprintf(stderr,"full screen\n");
     gtk_window_fullscreen(GTK_WINDOW(top_window));
   }
   gtk_widget_set_size_request(top_window, display_width, display_height);
   gtk_window_set_title (GTK_WINDOW (top_window), "piHPSDR");
   gtk_window_set_position(GTK_WINDOW(top_window),GTK_WIN_POS_CENTER_ALWAYS);
   gtk_window_set_resizable(GTK_WINDOW(top_window), FALSE);
-  fprintf(stderr,"setting top window icon\n");
+  //fprintf(stderr,"setting top window icon\n");
   GError *error;
   if(!gtk_window_set_icon_from_file (GTK_WINDOW(top_window), "hpsdr.png", &error)) {
     fprintf(stderr,"Warning: failed to set icon for top_window\n");
@@ -232,45 +242,52 @@ fprintf(stderr,"full screen\n");
   g_signal_connect (top_window, "delete-event", G_CALLBACK (main_delete), NULL);
   //g_signal_connect (top_window,"draw", G_CALLBACK (main_draw_cb), NULL);
 
+  //
+  // We want to use the space-bar as an alternative to go to TX
+  //
+  gtk_widget_add_events(top_window, GDK_KEY_PRESS_MASK);
+  g_signal_connect(top_window, "key_press_event", G_CALLBACK(keypress_cb), NULL);
+
+
 //fprintf(stderr,"create fixed container\n");
   //fixed=gtk_fixed_new();
   //gtk_container_add(GTK_CONTAINER(top_window), fixed);
 
-fprintf(stderr,"create grid\n");
+//fprintf(stderr,"create grid\n");
   grid = gtk_grid_new();
   gtk_widget_set_size_request(grid, display_width, display_height);
   gtk_grid_set_row_homogeneous(GTK_GRID(grid),FALSE);
   gtk_grid_set_column_homogeneous(GTK_GRID(grid),FALSE);
-fprintf(stderr,"add grid\n");
+//fprintf(stderr,"add grid\n");
   gtk_container_add (GTK_CONTAINER (top_window), grid);
 
-fprintf(stderr,"create image\n");
+//fprintf(stderr,"create image\n");
   GtkWidget  *image=gtk_image_new_from_file("hpsdr.png");
-fprintf(stderr,"add image to grid\n");
+//fprintf(stderr,"add image to grid\n");
   gtk_grid_attach(GTK_GRID(grid), image, 0, 0, 1, 4);
 
-fprintf(stderr,"create pi label\n");
+//fprintf(stderr,"create pi label\n");
   char build[64];
   sprintf(build,"build: %s %s",build_date, version);
   GtkWidget *pi_label=gtk_label_new("piHPSDR by John Melton g0orx/n6lyt");
   gtk_label_set_justify(GTK_LABEL(pi_label),GTK_JUSTIFY_LEFT);
   gtk_widget_show(pi_label);
-fprintf(stderr,"add pi label to grid\n");
+//fprintf(stderr,"add pi label to grid\n");
   gtk_grid_attach(GTK_GRID(grid),pi_label,1,0,1,1);
 
-fprintf(stderr,"create build label\n");
+//fprintf(stderr,"create build label\n");
   GtkWidget *build_date_label=gtk_label_new(build);
   gtk_label_set_justify(GTK_LABEL(build_date_label),GTK_JUSTIFY_LEFT);
   gtk_widget_show(build_date_label);
-fprintf(stderr,"add build label to grid\n");
+//fprintf(stderr,"add build label to grid\n");
   gtk_grid_attach(GTK_GRID(grid),build_date_label,1,1,1,1);
 
-fprintf(stderr,"create status\n");
+//fprintf(stderr,"create status\n");
   status=gtk_label_new("");
   gtk_label_set_justify(GTK_LABEL(status),GTK_JUSTIFY_LEFT);
   //gtk_widget_override_font(status, pango_font_description_from_string("FreeMono 18"));
   gtk_widget_show(status);
-fprintf(stderr,"add status to grid\n");
+//fprintf(stderr,"add status to grid\n");
   gtk_grid_attach(GTK_GRID(grid), status, 1, 3, 1, 1);
 
 /*
@@ -298,12 +315,12 @@ int main(int argc,char **argv) {
 
   sprintf(name,"org.g0orx.pihpsdr.pid%d",getpid());
 
-fprintf(stderr,"gtk_application_new: %s\n",name);
+//fprintf(stderr,"gtk_application_new: %s\n",name);
 
   pihpsdr=gtk_application_new(name, G_APPLICATION_FLAGS_NONE);
   g_signal_connect(pihpsdr, "activate", G_CALLBACK(activate_pihpsdr), NULL);
   status=g_application_run(G_APPLICATION(pihpsdr), argc, argv);
-fprintf(stderr,"exiting ...\n");
+  fprintf(stderr,"exiting ...\n");
   g_object_unref(pihpsdr);
   return status;
 }

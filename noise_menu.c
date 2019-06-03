@@ -34,6 +34,7 @@
 #include "radio.h"
 #include "vfo.h"
 #include "button_text.h"
+#include "ext.h"
 
 static GtkWidget *parent_window=NULL;
 
@@ -66,7 +67,7 @@ void update_noise() {
   SetRXAEMNRRun(active_receiver->id, active_receiver->nr2);
   SetRXAANFRun(active_receiver->id, active_receiver->anf);
   SetRXASNBARun(active_receiver->id, active_receiver->snb);
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 }
 
 static void nb_none_cb(GtkWidget *widget, gpointer data) {

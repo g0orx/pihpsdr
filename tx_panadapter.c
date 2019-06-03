@@ -164,9 +164,6 @@ tx_panadapter_scroll_event_cb (GtkWidget      *widget,
   } else {
     vfo_move(-step);
   }
-  // DL1YCF added return statement to make the compiler happy.
-  // however I am unsure about the correct return value.
-  // I would have coded this as a void function.
   return FALSE;
 }
 
@@ -208,25 +205,34 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   cairo_rectangle(cr, filter_left, 0.0, filter_right-filter_left, (double)display_height);
   cairo_fill(cr);
 
-  // plot the levels
-  int V = (int)(tx->panadapter_high - tx->panadapter_low);
-  int numSteps = V / 20;
-  for (i = 1; i < numSteps; i++) {
-    int num = tx->panadapter_high - i * 20;
-    int y = (int)floor((tx->panadapter_high - num) * display_height / V);
-    cairo_set_source_rgb (cr, 0.0, 1.0, 1.0);
-    cairo_set_line_width(cr, 1.0);
-    cairo_move_to(cr,0.0,(double)y);
-    cairo_line_to(cr,(double)display_width,(double)y);
+  // plot the levels 0, -20, 40, ... dBm (green line with label)
+  // also plot gray lines at -10, -30, -50, ... dBm (without label)
+  double dbm_per_line=(double)display_height/((double)tx->panadapter_high-(double)tx->panadapter_low);
+  cairo_set_source_rgb (cr, 0.00, 1.00, 1.00);
+  cairo_set_line_width(cr, 1.0);
+  cairo_select_font_face(cr, "FreeMono", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
+  cairo_set_font_size(cr, 12);
 
-    cairo_set_source_rgb (cr, 0.0, 1.0, 1.0);
-    cairo_select_font_face(cr, "FreeMono", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
-    cairo_set_font_size(cr, 12);
+  for(i=tx->panadapter_high;i>=tx->panadapter_low;i--) {
     char v[32];
-    sprintf(v,"%d dBm",num);
-    cairo_move_to(cr, 1, (double)y);  
-    cairo_show_text(cr, v);
-    cairo_stroke(cr);
+    if((abs(i)%10) ==0) {
+      double y = (double)(tx->panadapter_high-i)*dbm_per_line;
+      if ((abs(i) % 20) == 0) {
+        cairo_set_source_rgb (cr, 0.00, 1.00, 1.00);
+        cairo_move_to(cr,0.0,y);
+        cairo_line_to(cr,(double)display_width,y);
+
+        sprintf(v,"%d dBm",i);
+        cairo_move_to(cr, 1, y);
+        cairo_show_text(cr, v);
+        cairo_stroke(cr);
+      } else {
+        cairo_set_source_rgb (cr, 0.25, 0.25, 0.25);
+        cairo_move_to(cr,0.0,y);
+        cairo_line_to(cr,(double)display_width,y);
+        cairo_stroke(cr);
+      }
+    }
   }
 
   // plot frequency markers

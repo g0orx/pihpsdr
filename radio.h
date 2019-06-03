@@ -183,7 +183,6 @@ extern int mox;
 extern int tune;
 extern int memory_tune;
 extern int full_tune;
-extern int ptt;
 extern int dot;
 extern int dash;
 extern int adc_overload;
@@ -245,6 +244,7 @@ extern double vox_hang;
 extern int vox;
 extern int CAT_cw_is_active;
 extern int cw_key_hit;
+extern int n_adc;
 
 extern int diversity_enabled;
 extern double i_rotate[2];
@@ -262,7 +262,6 @@ extern void setMox(int state);
 extern int getMox();
 extern void setTune(int state);
 extern int getTune();
-extern void setVox(int state);
 extern void vox_changed(int state);
 extern double getDrive();
 extern void setDrive(double d);
@@ -289,10 +288,6 @@ extern void calculate_display_average();
 
 extern void set_filter_type(int filter_type);
 extern void set_filter_size(int filter_size);
-
-extern void radio_cw_setup();
-
-extern void radio_cw_key(int state);
 
 #ifdef FREEDV
 extern void set_freedv(int state);

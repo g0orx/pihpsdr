@@ -312,11 +312,6 @@ void keyer_event(int left, int state) {
     if (state) {
         // This is for aborting CAT CW messages if a key is hit.
 	cw_key_hit = 1;
-        // do PTT already here, unless TX mode was activated before
-        if (running && !cwvox && !mox) {
-	   g_idle_add(ext_mox_update, (gpointer)(long) 1);
-	}
-        cwvox=(int) cw_keyer_hang_time;
     }
     if (left) {
       // left paddle hit or released
@@ -362,8 +357,6 @@ static void* keyer_thread(void *arg) {
     int old_volume;
     struct sched_param param;
 
-    // In Linux, the new scheduling policy will be effective for the
-   //  calling thread only.
     param.sched_priority = MY_PRIORITY;
     if(sched_setscheduler((pid_t)0, SCHED_FIFO, &param) == -1) {
             perror("sched_setscheduler failed");
@@ -377,10 +370,29 @@ static void* keyer_thread(void *arg) {
         sem_wait(&cw_event);
 #endif
 
+	// swallow any cw_events posted during the last "cw hang" time.
+        if (!kcwl && !kcwr) continue;
+
+        if (!mox) {
+          g_idle_add(ext_mox_update, (gpointer)(long) 1);
+          // Wait for mox, that is, wait for WDSP shutting down the RX and
+          // firing up the TX. This induces a small delay when hitting the key for
+          // the first time, but excludes that the first dot is swallowed.
+          // Note: if out-of-band, mox will never come, therefore
+          // give up after 200 msec.
+          i=200;
+          while ((!mox || cw_not_ready) && i-- > 0) usleep(1000L);
+          cwvox=(int) cw_keyer_hang_time;
+	}
+
         key_state = CHECK;
 
         clock_gettime(CLOCK_MONOTONIC, &loop_delay);
         while (key_state != EXITLOOP || cwvox > 0) {
+	  //
+	  // if key_state == EXITLOOP and cwvox == 0, then
+	  // just leave the while-loop without removing MOX
+	  //
 	  // re-trigger VOX if *not* busy-spinning
           if (cwvox > 0 && key_state != EXITLOOP && key_state != CHECK) cwvox=(int) cw_keyer_hang_time;
 

@@ -58,7 +58,6 @@ static char ipaddr_tcp_buf[IPADDR_LEN] = "10.10.10.10";
 char *ipaddr_tcp = &ipaddr_tcp_buf[0];
 
 static gboolean start_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-fprintf(stderr,"start_cb: %p\n",data);
   radio=(DISCOVERED *)data;
 #ifdef STEMLAB_DISCOVERY
   // We need to start the STEMlab app before destroying the dialog, since
@@ -117,7 +116,7 @@ static gboolean tcp_cb (GtkWidget *widget, GdkEventButton *event, gpointer data)
 	      if (ipaddr_tcp[len] != '\n') break;
 	      ipaddr_tcp[len]=0;
 	    }
-	    fprintf(stderr,"New TCP addr = %s.\n", ipaddr_tcp);
+	    //fprintf(stderr,"New TCP addr = %s.\n", ipaddr_tcp);
 	    // save this value to config file
 	    FILE *fp = fopen("ip.addr", "w");
 	    if (fp) {
@@ -130,7 +129,7 @@ static gboolean tcp_cb (GtkWidget *widget, GdkEventButton *event, gpointer data)
 	}
 
 void discovery() {
-fprintf(stderr,"discovery\n");
+//fprintf(stderr,"discovery\n");
   selected_device=0;
   devices=0;
 

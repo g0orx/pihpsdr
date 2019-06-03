@@ -64,9 +64,6 @@ gboolean band_select_cb (GtkWidget *widget, gpointer        data) {
   last_band=widget;
   set_button_text_color(last_band,"orange");
   vfo_band_changed(b);
-  // DL1YCF added return statement to make the compiler happy.
-  // however I am unsure about the correct return value.
-  // I would have coded this as a void function.
   return FALSE;
 }
 

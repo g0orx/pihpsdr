@@ -121,6 +121,12 @@ extern TRANSMITTER *create_transmitter(int id, int buffer_size, int fft_size, in
 
 void reconfigure_transmitter(TRANSMITTER *tx,int height);
 
+//
+// CW pulse shaper variables, needed by rigctl (CAT CW) and iambic.c (LOCALCW)
+//
+extern int cw_key_up;
+extern int cw_key_down;
+extern int cw_not_ready;
 
 extern void tx_set_mode(TRANSMITTER* tx,int m);
 extern void tx_set_filter(TRANSMITTER *tx,int low,int high);

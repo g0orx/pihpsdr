@@ -18,8 +18,8 @@
 */
 
 //
-// DL1YCF: If PortAudio is used instead of ALSO (e.g. on MacOS),
-//         this file is not used (and replaced by portaudio.c).
+// If PortAudio is used instead of ALSA (e.g. on MacOS),
+// this file is not used (and replaced by portaudio.c).
 
 #ifndef PORTAUDIO 
 
