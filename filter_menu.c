@@ -31,6 +31,7 @@
 #include "receiver.h"
 #include "vfo.h"
 #include "button_text.h"
+#include "ext.h"
 
 static GtkWidget *parent_window=NULL;
 
@@ -87,7 +88,7 @@ static gboolean deviation_select_cb (GtkWidget *widget, gpointer data) {
   set_button_text_color(last_filter,"black");
   last_filter=widget;
   set_button_text_color(last_filter,"orange");
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
   return FALSE;
 }
 

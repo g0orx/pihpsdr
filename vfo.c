@@ -303,7 +303,7 @@ void vfo_band_changed(int b) {
     tx_set_mode(transmitter,vfo[VFO_A].mode);
   }
   calcDriveLevel();
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 }
 
 void vfo_bandstack_changed(int b) {
@@ -342,7 +342,7 @@ void vfo_bandstack_changed(int b) {
     tx_set_mode(transmitter,vfo[VFO_A].mode);
   }
   calcDriveLevel();
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 
 }
 
@@ -380,7 +380,7 @@ void vfo_mode_changed(int m) {
     tx_set_mode(transmitter,vfo[VFO_A].mode);
   }
 
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 }
 
 void vfo_filter_changed(int f) {
@@ -401,7 +401,7 @@ void vfo_filter_changed(int f) {
       break;
   }
 
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 }
 
 void vfo_a_to_b() {
@@ -421,7 +421,7 @@ void vfo_a_to_b() {
   if(split) {
     tx_set_mode(transmitter,vfo[VFO_B].mode);
   }
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 }
 
 void vfo_b_to_a() {
@@ -438,7 +438,7 @@ void vfo_b_to_a() {
   if(!split) {
     tx_set_mode(transmitter,vfo[VFO_B].mode);
   }
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 }
 
 void vfo_a_swap_b() {
@@ -491,7 +491,7 @@ void vfo_a_swap_b() {
   } else {
     tx_set_mode(transmitter,vfo[VFO_A].mode);
   }
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 }
 
 void vfo_step(int steps) {
@@ -507,7 +507,7 @@ void vfo_step(int steps) {
     BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
     setFrequency(active_receiver->frequency+(steps*step));
 #endif
-    vfo_update();
+    g_idle_add(ext_vfo_update,NULL);
   }
 }
 
@@ -529,7 +529,7 @@ void vfo_move(long long hz) {
         break;
     }
     receiver_frequency_changed(active_receiver);
-    vfo_update();
+    g_idle_add(ext_vfo_update,NULL);
   }
 }
 
@@ -586,7 +586,7 @@ void vfo_move_to(long long hz) {
     }
 #endif
 #endif
-    vfo_update();
+    g_idle_add(ext_vfo_update,NULL);
   }
 }
 
@@ -903,7 +903,7 @@ vfo_step_select_cb (GtkWidget *widget,
                gpointer        data)
 {
   step=steps[(int)data];
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 }
 */
 

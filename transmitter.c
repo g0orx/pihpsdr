@@ -87,7 +87,7 @@ extern void cw_audio_write(double sample);
 static gint update_out_of_band(gpointer data) {
   TRANSMITTER *tx=(TRANSMITTER *)data;
   tx->out_of_band=0;
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
   return FALSE;
 }
 
@@ -1102,7 +1102,7 @@ void tx_set_ps(TRANSMITTER *tx,int state) {
     usleep(100000);
     tx->puresignal=0;
   }
-  vfo_update();
+  g_idle_add(ext_vfo_update,NULL);
 }
 
 void tx_set_twotone(TRANSMITTER *tx,int state) {

@@ -54,8 +54,18 @@ int ext_set_frequency(void *data) {
   return 0;
 }
 
-int ext_vfo_update(void *data) {
+static guint vfo_timeout=0;
+
+static int vfo_timeout_cb(void * data) {
+  vfo_timeout=0;
   vfo_update();
+  return 0;
+}
+
+int ext_vfo_update(void *data) {
+  if (vfo_timeout ==0) {
+    vfo_timeout=g_timeout_add(100, vfo_timeout_cb, NULL);
+  }
   return 0;
 }
 

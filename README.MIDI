@@ -23,9 +23,7 @@ provided as an example. The basic rules for the file are
 
   DEVICE=CMD PL
 
-  will accept the "CMD PL-1" MIDI controller. Note that events are processed
-  without looking at the channel number. This is so because for the Behringer
-  controller, one can accidentally change the channel number by hitting a key.
+  will accept the "CMD PL-1" MIDI controller.
 
 - The following lines all must contain one of the strings
   "KEY=", "CTRL=", or "PITCH=". The syntax is as follows:
@@ -35,10 +33,15 @@ provided as an example. The basic rules for the file are
 
   The syntay is 
 
-  KEY=<nr> ACTION=<action> <modifier>
+  KEY=<nr> CHAN=<chan> ACTION=<action> <modifier>
 
-  where <nr> is the Number of the Midi Note
-  and <action> is the key-word for a SDR "action" (see below)
+  where <nr> is the Number of the Midi Note, <chan> is the MIDI
+  channel where the event is expected.
+
+  The key words with the line can be given in any order. If
+  CHAN=  is omitted, MIDI events from any channel are accepted.
+
+   <action> is the key-word for a SDR "action" (see below)
   and <modifier> can be omitted, or can be the string "ONOFF".
   If the "ONOFF" modifier is there, an action is taken both upon
   Note-On and Note-Off events (usually: when pressing and releasing
@@ -107,6 +110,12 @@ provided as an example. The basic rules for the file are
   changes the AGC value by a constant amount for each MIDI message
   generated, since the controller values are always in the range
   0-127 and the threshold for fast and very-fast are never reached.
+
+  For wheels, there can be an additional directive DELAY=<delay>,
+  if this is given, it specifies a delay time (in msec) in which no
+  further WHEEL event is processed. If a wheel is used, for example,
+  to cycle through the filter settings, a delay takes care that this
+  does not go too fast.
 
   PITCH: MIDI PITCH sliders
   =========================

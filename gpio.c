@@ -1364,7 +1364,7 @@ static void encoder_changed(int action,int pos) {
       if(protocol==NEW_PROTOCOL) {
         schedule_high_priority();
       }
-      vfo_update();
+      g_idle_add(ext_vfo_update,NULL);
       break;
     case ENCODER_CW_SPEED:
       value=(double)cw_keyer_speed;
@@ -1375,7 +1375,7 @@ static void encoder_changed(int action,int pos) {
         value=60.0;
       }
       cw_keyer_speed=(int)value;
-      vfo_update();
+      g_idle_add(ext_vfo_update,NULL);
       break;
     case ENCODER_CW_FREQUENCY:
       value=(double)cw_keyer_sidetone_frequency;
@@ -1386,7 +1386,7 @@ static void encoder_changed(int action,int pos) {
         value=1000.0;
       }
       cw_keyer_sidetone_frequency=(int)value;
-      vfo_update();
+      g_idle_add(ext_vfo_update,NULL);
       break;
     case ENCODER_PANADAPTER_HIGH:
       value=(double)active_receiver->panadapter_high;
