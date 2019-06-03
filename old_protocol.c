@@ -562,20 +562,20 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
 
   int tx_vfo=split?VFO_B:VFO_A;
 
-  int nreceivers;
+  int num_hpsdr_receivers;
 
 #ifdef PURESIGNAL
     // for PureSignal, the number of receivers needed is hard-coded below.
     // we need at least 3 (for RX), and up to 5 for Orion2 boards, since
     // the TX DAC channel is hard-wired to RX5.
-    nreceivers=3;
-    if (device == DEVICE_HERMES) nreceivers=4;
-    if (device == DEVICE_ANGELIA || device == DEVICE_ORION || device == DEVICE_ORION2) nreceivers=5;
+    num_hpsdr_receivers=3;
+    if (device == DEVICE_HERMES) num_hpsdr_receivers=4;
+    if (device == DEVICE_ANGELIA || device == DEVICE_ORION || device == DEVICE_ORION2) num_hpsdr_receivers=5;
 #else
 #if defined(RADIOBERRY) || defined(PI_SDR)
-	nreceivers = receivers;
+	num_hpsdr_receivers = receivers;
 #else
-	nreceivers=RECEIVERS;
+	num_hpsdr_receivers=RECEIVERS;
 #endif
 #endif
 
@@ -639,10 +639,10 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
         break;
     }
 
-    int iq_samples=(512-8)/((nreceivers*6)+2);
+    int iq_samples=(512-8)/((num_hpsdr_receivers*6)+2);
 
     for(i=0;i<iq_samples;i++) {
-      for(r=0;r<nreceivers;r++) {
+      for(r=0;r<num_hpsdr_receivers;r++) {
         left_sample   = (int)((signed char) buffer[b++])<<16;
         left_sample  |= (int)((((unsigned char)buffer[b++])<<8)&0xFF00);
         left_sample  |= (int)((unsigned char)buffer[b++]&0xFF);
@@ -845,20 +845,20 @@ void ozy_send_buffer() {
   int mode;
   int i;
   BAND *band;
-  int nreceivers;
+  int num_hpsdr_receivers;
 
 #ifdef PURESIGNAL
     // for PureSignal, the number of receivers needed is hard-coded below.
     // we need at least 3 (for RX), and up to 5 for Orion2 boards, since
     // the TX DAC channel is hard-wired to RX5.
-    nreceivers=3;
-    if (device == DEVICE_HERMES) nreceivers=4;
-    if (device == DEVICE_ANGELIA || device == DEVICE_ORION || device == DEVICE_ORION2) nreceivers=5;
+    num_hpsdr_receivers=3;
+    if (device == DEVICE_HERMES) num_hpsdr_receivers=4;
+    if (device == DEVICE_ANGELIA || device == DEVICE_ORION || device == DEVICE_ORION2) num_hpsdr_receivers=5;
 #else
 #if defined(RADIOBERRY) || defined(PI_SDR)
-	nreceivers = receivers;
+	num_hpsdr_receivers = receivers;
 #else
-	nreceivers=RECEIVERS;
+	num_hpsdr_receivers=RECEIVERS;
 #endif
 #endif
 
@@ -949,6 +949,9 @@ void ozy_send_buffer() {
       output_buffer[C3]|=LT2208_GAIN_ON;
     }
 
+    //
+    // Set ALEX RX1_ANT and RX1_OUT
+    //
     i=receiver[0]->alex_antenna;
 #ifdef PURESIGNAL
     //
@@ -966,6 +969,9 @@ void ozy_send_buffer() {
       case 4:  // Alex: RX1 IN, ANAN: EXT2, ANAN7000: RX BYPASS
         output_buffer[C3]|=0xA0;
         break;
+      case 5:  // XVTR
+        output_buffer[C3]|=0xE0;
+        break;
       default:
 	// RX1_OUT and RX1_ANT bits remain zero
         break;
@@ -975,8 +981,9 @@ void ozy_send_buffer() {
     output_buffer[C4]=0x04;  // duplex
 
     // 0 ... 7 maps on 1 ... 8 receivers
-    output_buffer[C4]|=(nreceivers-1)<<3;
+    output_buffer[C4]|=(num_hpsdr_receivers-1)<<3;
     
+    // Set ALEX TX_RELAX (that is, TX_ANT)
     if(isTransmitting()) {
       switch(transmitter->alex_antenna) {
         case 0:  // ANT 1
@@ -1046,7 +1053,7 @@ void ozy_send_buffer() {
         output_buffer[C4]=txFrequency;
         break;
       case 2: // rx frequency
-        if(current_rx<nreceivers) {
+        if(current_rx<num_hpsdr_receivers) {
           output_buffer[C0]=0x04+(current_rx*2);
 #ifdef PURESIGNAL
           int v=receiver[current_rx/2]->id;
@@ -1093,7 +1100,7 @@ void ozy_send_buffer() {
 #endif
           current_rx++;
         }
-        if(current_rx>=nreceivers) {
+        if(current_rx>=num_hpsdr_receivers) {
           current_rx=0;
         }
         break;
@@ -1288,7 +1295,7 @@ void ozy_send_buffer() {
         }
 #ifdef PURESIGNAL
         if(transmitter->puresignal) {
-          output_buffer[C2]|=0x40;	   // Synchronize RX5 andh TX frequency on transmit
+          output_buffer[C2]|=0x40;	   // Synchronize RX5 and TX frequency on transmit
         }
 #endif
         output_buffer[C3]=0x00;            // Alex2 filters

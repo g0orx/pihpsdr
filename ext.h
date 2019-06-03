@@ -28,7 +28,6 @@ extern int ext_vfo_update(void *data);
 extern int ext_set_frequency(void *data);
 extern int ext_vfo_filter_changed(void *data);
 extern int ext_band_update(void *data);
-extern int ext_ptt_update(void *data);
 extern int ext_mox_update(void *data);
 extern int ext_tune_update(void *data);
 extern int ext_linein_changed(void *data);

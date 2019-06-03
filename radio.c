@@ -849,14 +849,15 @@ static void rxtx(int state) {
 
 void setMox(int state) {
   vox_cancel();  // remove time-out
-  if (vox) {     // if VOX active, turn it off
-    rxtx(0);
-    vox=0;
-  }
   if(mox!=state) {
-    rxtx(state);
+    if (state && vox) {
+      // Suppress RX-TX transition if VOX was active
+    } else {
+      rxtx(state);
+    }
     mox=state;
   }
+  vox=0;
 }
 
 int getMox() {

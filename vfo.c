@@ -743,7 +743,8 @@ void vfo_update() {
         cairo_show_text(cr, temp_text);
 
 	// NB and NB2 are mutually exclusive, therefore
-	// they are put to the same place
+	// they are put to the same place in order to save
+	// some space
         cairo_move_to(cr, 150, 50);
         if(active_receiver->nb) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
