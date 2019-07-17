@@ -17,20 +17,13 @@ To make piHPSDR work on MacOS, I had to do two major things:
 a) Semaphores: MacOS does not have sem_t variables, only
    sem_t pointers that must not be dereferences. Therefore
    it has no working sem_init.
-   On MacOS one must use sem_open instead and use sem_t
+   On MacOS one must use sem_unlink+sem_open instead and use sem_t
    pointers instead of sem_t variable throughout. This is
    not recommended for LINUX, since named semaphores stay
-   alive even when the program terminates (on MacOS, all
-   semaphores are automatically destroyed). Therefore
+   alive even when the program terminates (hence the sem_unlink
+   before each sem_open) Therefore
    *every* declaration of sem_t variable and *every*
-   call to semaphore functions had to be modified. Everything
-   is coded as
-
-#ifdef __APPLE__
-  use sem_t pointers
-#else
-  usem_t variables
-#endif
+   call to semaphore functions had to be modified.
 
    NOTE this change also applies to WDSP.
 
