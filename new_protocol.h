@@ -73,6 +73,7 @@ extern int send_general;
 extern void schedule_high_priority();
 extern void schedule_general();
 extern void schedule_receive_specific();
+extern void schedule_transmit_specific();
 
 extern void new_protocol_init(int pixels);
 extern void new_protocol_stop();
