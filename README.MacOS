@@ -87,6 +87,20 @@ there, "make -f Makefile.mac install" will put libwdsp.dylib in /usr/local/lib.
 This is needed by piHPSDR. The pihpsdr Makefile.mac assumes that WDSP can
 be linked with simply through the "-lwdsp" linker option.
 
+The following shell scripts installs all these prerequisites. At the beginning
+you have to give the administrator password. If the MacOS keychain ask you for
+permission, just answer with "Don't allow".
+
+#!/bin/sh
+
+xcode-select --install
+/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+brew install portaudio
+brew install fftw
+brew install gtk+3
+brew install pkg-config
+brew install git
+
 ===================
 COMPILE and INSTALL
 ===================

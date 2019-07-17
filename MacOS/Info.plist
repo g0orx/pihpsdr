@@ -12,5 +12,7 @@
 	<string>APPL</string>
         <key>CFBundleSignature</key>
 	<string>BNDL</string>
+        <key>NSMicrophoneUsageDescription</key>
+        <string>Allow for using Sound input devices</string>
 </dict>
 </plist>
