@@ -165,6 +165,18 @@ void receiver_save_state(RECEIVER *rx) {
   char name[128];
   char value[128];
 
+  sprintf(name,"receiver.%d.alex_antenna",rx->id);
+  sprintf(value,"%d",rx->alex_antenna);
+  setProperty(name,value);
+
+#ifdef PURESIGNAL
+  //
+  // for PS_RX_RECEIVER, *only* save the ALEX antenna setting
+  // and then return quickly.
+  //
+  if (rx->id == PS_RX_FEEDBACK) return;
+#endif
+
   sprintf(name,"receiver.%d.sample_rate",rx->id);
   sprintf(value,"%d",rx->sample_rate);
   setProperty(name,value);
@@ -199,9 +211,6 @@ void receiver_save_state(RECEIVER *rx) {
   sprintf(value,"%d",rx->waterfall_automatic);
   setProperty(name,value);
   
-  sprintf(name,"receiver.%d.alex_antenna",rx->id);
-  sprintf(value,"%d",rx->alex_antenna);
-  setProperty(name,value);
   sprintf(name,"receiver.%d.alex_attenuation",rx->id);
   sprintf(value,"%d",rx->alex_attenuation);
   setProperty(name,value);
@@ -304,6 +313,18 @@ void receiver_restore_state(RECEIVER *rx) {
   char *value;
 
 fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
+  sprintf(name,"receiver.%d.alex_antenna",rx->id);
+  value=getProperty(name);
+  if(value) rx->alex_antenna=atoi(value);
+
+#ifdef PURESIGNAL
+  //
+  // for PS_RX_RECEIVER, *only* restore the ALEX antenna and setting
+  // and then return quickly
+  //
+  if (rx->id == PS_RX_FEEDBACK) return;
+#endif
+
   sprintf(name,"receiver.%d.sample_rate",rx->id);
   value=getProperty(name);
   if(value) rx->sample_rate=atoi(value);
@@ -355,9 +376,6 @@ fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
   value=getProperty(name);
   if(value) rx->waterfall_automatic=atoi(value);
 
-  sprintf(name,"receiver.%d.alex_antenna",rx->id);
-  value=getProperty(name);
-  if(value) rx->alex_antenna=atoi(value);
   sprintf(name,"receiver.%d.alex_attenuation",rx->id);
   value=getProperty(name);
   if(value) rx->alex_attenuation=atoi(value);
@@ -738,13 +756,14 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
   RECEIVER *rx=malloc(sizeof(RECEIVER));
   rx->id=id;
 
-  rx->ddc=4;
-  rx->adc=0;  // one more than actual adc
+  // Note that fixed DDC/ADC settings are used in old_protocol and new_protocol.
+  rx->ddc=0;   // unused in old protocol
+  rx->adc=0;
 
   rx->sample_rate=sample_rate;
   rx->buffer_size=buffer_size;
   rx->fft_size=fft_size;
-  rx->pixels=pixels;   // need this for the "MON" button
+  rx->pixels=0;
   rx->fps=0;
 
   rx->width=0;
@@ -752,12 +771,22 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
   rx->display_panadapter=0;
   rx->display_waterfall=0;
 
+  if (id == PS_RX_FEEDBACK) {
+    //
+    // need a buffer for pixels for the spectrum of the feedback
+    // signal (MON button).
+    // NewProtocol: Since we want to display only 48 kHz instead of
+    // 192 kHz, we make a spectrum with four times the pixels and then
+    // display only the central part.
+    // 
+    rx->pixels = (protocol == ORIGINAL_PROTOCOL) ? pixels : 4*pixels;
+  }
   // allocate buffers
   rx->iq_sequence=0;
   rx->iq_input_buffer=malloc(sizeof(double)*2*rx->buffer_size);
   rx->audio_buffer=NULL;
   rx->audio_sequence=0L;
-  rx->pixel_samples=malloc(sizeof(float)*pixels);
+  rx->pixel_samples=malloc(sizeof(float)*(rx->pixels));
 
   rx->samples=0;
   rx->displaying=0;
