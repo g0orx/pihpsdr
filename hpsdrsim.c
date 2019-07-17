@@ -1,5 +1,3 @@
-//#define MICSAMPLES   // define to send microphone samples (triggered by attenuator slider)
-//#define TX_ENVELOPE  // define to dump TX envelope 1 sec after first PTT
 /*
  * HPSDR simulator, (C) Christoph van Wuellen, April/Mai 2019
  *
@@ -34,7 +32,7 @@
  * and the PURESIGNAL feedback signal is connected to the second ADC.
  *
  * Audio sent to the "radio" is played via the first available output channel.
- * This works on MacOS (PORTAUDIO) and Linux (ALSA).
+ * This works on MacOS (PORTAUDIO) and Linux (ALSASOUND).
  *
  * Additional feature include the recording of the TX envelope of the first second
  * of TXing, and the possiblity to read a file with mic samples and "send"
@@ -59,10 +57,15 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
+#define NEED_DUMMY_AUDIO 1
+
 #ifdef PORTAUDIO
 #include "portaudio.h"
-#else
+#undef NEED_DUMMY_AUDIO
+#endif
+#ifdef ALSASOUND
 #include <alsa/asoundlib.h>
+#undef NEED_DUMMY_AUDIO
 #endif
 
 // Forward declarations for the audio functions
@@ -81,6 +84,18 @@ extern int clock_nanosleep(clockid_t __clock_id, int __flags,
 
 static int sock_TCP_Server = -1;
 static int sock_TCP_Client = -1;
+
+//
+// Forward declarations for new protocol stuff
+//
+void   new_protocol_general_packet(unsigned char *buffer);
+int    new_protocol_running(void);
+
+#define LENNOISE 192000
+#define NOISEDIV (RAND_MAX / 96000)
+
+double noiseItab[LENNOISE];
+double noiseQtab[LENNOISE];
 
 /*
  * These variables store the state of the SDR.
@@ -150,33 +165,12 @@ static double txdrv_dbl = 0.99;
 static double txatt_dbl = 1.0;
 static double rxatt_dbl[4] = {1.0, 1.0, 1.0, 1.0};   // this reflects both ATT and PREAMP
 
-#ifdef TX_ENVELOPE
-//
-// This records the size of the first MAXENV TX samples after the first RX-TX transition.
-// This can be used to detect whether RX/TX transitions are fast enough not to chop
-// the first part of an SSB transmission using VOX, or of the first CW element.
-//
-#define MAXENV 48000
-static float envelope[MAXENV];
-int          envptr=0;
-#endif
-
-#ifdef MICSAMPLES
-//
-// Raw audio data (48000 16-bit int words) is read from a file and stored.
-// As soon as the attenuation of RX1 goes above 20dB, these samples are
-// sent to the SDR (one shot), and when the attenuation goes below 10dB, this system
-// is reset, so playing with the ALEX ATT buttons or with the ATT slider you can
-// send mic samples to the SDR application and do some testing.
-//
-static int16_t micsamples[48000];
-int micsamples_ptr=-2;
-int micsamples_rate=0;
-#endif
-
-static int sock_ep2;
-
-static struct sockaddr_in addr_ep6;
+/*
+ * Socket for communicating with the "PC side"
+ */
+static int sock_udp;
+struct sockaddr_in addr_new; // shared by newhpsdrsim.c
+static struct sockaddr_in addr_old;
 
 /*
  * These two variables monitor whether the TX thread is active
@@ -197,23 +191,37 @@ void *handler_ep6(void *arg);
 // and two METIS packets per TCP/UDP packet,
 // and two/four/eight-fold up-sampling if the TX sample
 // rate is 96000/192000/384000
+//
+// In the new protocol, TX samples come in bunches of
+// 240 samples. So NEWRTXLEN is defined as a multiple of
+// 240 not exceeding RTXLEN
+//
 #define RTXLEN 64512
-static double  isample[RTXLEN];
-static double  qsample[RTXLEN];
+#define NEWRTXLEN 64320
+double  isample[RTXLEN];  // shared with newhpsdrsim
+double  qsample[RTXLEN];  // shared with newhpsdrsim
 static double  last_i_sample=0.0;
 static double  last_q_sample=0.0;
 static int  txptr=0;
 static int  rxptr=0;
 
-static int ismetis,isorion,ishermes,isc25;
+
+#define DEVICE_ATLAS      0
+#define DEVICE_HERMES     1
+#define DEVICE_HERMES2    2
+#define DEVICE_ANGELIA    3
+#define DEVICE_ORION      4
+#define DEVICE_ORION2     5
+#define DEVICE_HERMESLITE 6
+#define DEVICE_C25        100
+static int DEVICE=DEVICE_HERMES;
 
 int main(int argc, char *argv[])
 {
-	int j, size;
+	int i, j, size;
 	struct sched_param param;
 	pthread_attr_t attr;
 	pthread_t thread;
-        int DEVICE;
 
 	uint8_t reply[11] = { 0xef, 0xfe, 2, 0, 0, 0, 0, 0, 0, 32, 1 };
 
@@ -221,14 +229,15 @@ int main(int argc, char *argv[])
 	uint32_t code;
         int16_t  sample,l,r;
 
-	struct sockaddr_in addr_ep2, addr_from;
+	struct sockaddr_in addr_udp;
 	uint8_t buffer[1032];
-	struct iovec iovec;
-	struct msghdr msghdr;
 	struct timeval tv;
 	struct timespec ts;
 	int yes = 1;
         uint8_t *bp;
+        unsigned long checksum;
+        socklen_t lenaddr;
+        struct sockaddr_in addr_from;
 
 	uint32_t last_seqnum = 0xffffffff, seqnum;  // sequence number of received packet
 
@@ -236,17 +245,18 @@ int main(int argc, char *argv[])
 	int bytes_read, bytes_left;
 	uint32_t *code0 = (uint32_t *) buffer;  // fast access to code of first buffer
         int fd;
+        long cnt;
 
-#ifdef MICSAMPLES
-        fd=open("micsamples", O_RDONLY);
-        if (fd >= 0) {
-	  if (read(fd, micsamples, 48000*sizeof(int16_t)) == 48000*sizeof(int16_t)) {
-	    fprintf(stderr,"MIC SAMPLES available\n");
-	    micsamples_ptr=-1;
-	  }
-	}
-#endif
-        
+        // Produce some noise
+        j=RAND_MAX / 2;
+        for (i=0; i<LENNOISE; i++) {
+          noiseItab[i]= ((double) rand() / j - 1.0) * 0.00003;
+          noiseQtab[i]= ((double) rand() / j - 1.0) * 0.00003;
+        }
+
+	memset (isample, 0, RTXLEN*sizeof(double));
+	memset (qsample, 0, RTXLEN*sizeof(double));
+
 	audio_get_cards();
         audio_open_output();
 /*
@@ -257,25 +267,28 @@ int main(int argc, char *argv[])
  *	Examples for ORION2:	ANAN7000D, ANAN8000D
  */
 
-	DEVICE=1; // default is Hermes
         if (argc > 1) {
-	    if (!strncmp(argv[1],"-metis"  ,6))  DEVICE=0;
-	    if (!strncmp(argv[1],"-hermes" ,7))  DEVICE=1;
-	    if (!strncmp(argv[1],"-orion" , 6))  DEVICE=5;
-	    if (!strncmp(argv[1],"-orion2" ,7))  DEVICE=10;   // Anan7000 in old protocol
-	    if (!strncmp(argv[1],"-c25"    ,8))  DEVICE=100;  // the same as hermes
+	    if (!strncmp(argv[1],"-atlas"  ,      6))  DEVICE=DEVICE_ATLAS;
+	    if (!strncmp(argv[1],"-hermes" ,      7))  DEVICE=DEVICE_HERMES;
+	    if (!strncmp(argv[1],"-hermes2" ,     8))  DEVICE=DEVICE_HERMES2;
+	    if (!strncmp(argv[1],"-angelia" ,     8))  DEVICE=DEVICE_ANGELIA;
+	    if (!strncmp(argv[1],"-orion" ,       6))  DEVICE=DEVICE_ORION;
+	    if (!strncmp(argv[1],"-orion2" ,      7))  DEVICE=DEVICE_ORION2;
+	    if (!strncmp(argv[1],"-hermeslite" , 11))  DEVICE=DEVICE_ORION2;
+	    if (!strncmp(argv[1],"-c25"    ,      4))  DEVICE=DEVICE_C25;
         }
-	ismetis=ishermes=isorion=isc25=0;
 	switch (DEVICE) {
-	    case   0: fprintf(stderr,"DEVICE is METIS\n");   ismetis=1;  break;
-	    case   1: fprintf(stderr,"DEVICE is HERMES\n");  ishermes=1; break;
-	    case   5: fprintf(stderr,"DEVICE is ORION\n");   isorion=1;  break;
-	    case  10: fprintf(stderr,"DEVICE is ORION2\n");  isorion=1;  break;
-	    case 100: fprintf(stderr,"DEVICE is StemLab\n"); ishermes=1;  isc25=1; break;
+	    case   DEVICE_ATLAS:   fprintf(stderr,"DEVICE is ATLASS\n");      break;
+	    case   DEVICE_HERMES:  fprintf(stderr,"DEVICE is HERMES\n");      break;
+	    case   DEVICE_HERMES2: fprintf(stderr,"DEVICE is HERMES (2)\n");  break;
+	    case   DEVICE_ANGELIA: fprintf(stderr,"DEVICE is ANGELIA\n");     break;
+	    case   DEVICE_ORION:   fprintf(stderr,"DEVICE is ORION\n");       break;
+	    case   DEVICE_ORION2:  fprintf(stderr,"DEVICE is ORION-II\n");    break;
+	    case   DEVICE_C25:     fprintf(stderr,"DEVICE is STEMlab/C25\n"); break;
 	}
 	reply[10]=DEVICE;
 
-	if ((sock_ep2 = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+	if ((sock_udp = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
 	{
 		perror("socket");
 		return EXIT_FAILURE;
@@ -289,18 +302,18 @@ int main(int argc, char *argv[])
 	reply[7]=0xEE;
 	reply[8]=0xFF;
 
-	setsockopt(sock_ep2, SOL_SOCKET, SO_REUSEADDR, (void *)&yes, sizeof(yes));
+	setsockopt(sock_udp, SOL_SOCKET, SO_REUSEADDR, (void *)&yes, sizeof(yes));
 
 	tv.tv_sec = 0;
 	tv.tv_usec = 1000;
-	setsockopt(sock_ep2, SOL_SOCKET, SO_RCVTIMEO, (void *)&tv, sizeof(tv));
+	setsockopt(sock_udp, SOL_SOCKET, SO_RCVTIMEO, (void *)&tv, sizeof(tv));
 
-	memset(&addr_ep2, 0, sizeof(addr_ep2));
-	addr_ep2.sin_family = AF_INET;
-	addr_ep2.sin_addr.s_addr = htonl(INADDR_ANY);
-	addr_ep2.sin_port = htons(1024);
+	memset(&addr_udp, 0, sizeof(addr_udp));
+	addr_udp.sin_family = AF_INET;
+	addr_udp.sin_addr.s_addr = htonl(INADDR_ANY);
+	addr_udp.sin_port = htons(1024);
 
-	if (bind(sock_ep2, (struct sockaddr *)&addr_ep2, sizeof(addr_ep2)) < 0)
+	if (bind(sock_udp, (struct sockaddr *)&addr_udp, sizeof(addr_udp)) < 0)
 	{
 		perror("bind");
 		return EXIT_FAILURE;
@@ -325,7 +338,7 @@ int main(int argc, char *argv[])
 	tv.tv_usec = 1000;
 	setsockopt(sock_TCP_Server, SOL_SOCKET, SO_RCVTIMEO, (void *)&tv, sizeof(tv));
 
-	if (bind(sock_TCP_Server, (struct sockaddr *)&addr_ep2, sizeof(addr_ep2)) < 0)
+	if (bind(sock_TCP_Server, (struct sockaddr *)&addr_udp, sizeof(addr_udp)) < 0)
 	{
 		perror("bind tcp");
 		return EXIT_FAILURE;
@@ -339,16 +352,7 @@ int main(int argc, char *argv[])
 
 	while (1)
 	{
-		memset(&iovec, 0, sizeof(iovec));
-		memset(&msghdr, 0, sizeof(msghdr));
-
 		memcpy(buffer, id, 4);
-		iovec.iov_base = buffer;
-		iovec.iov_len = 1032;
-		msghdr.msg_iov = &iovec;
-		msghdr.msg_iovlen = 1;
-		msghdr.msg_name = &addr_from;
-		msghdr.msg_namelen = sizeof(addr_from);
 
 		ts.tv_sec = 0;
 		ts.tv_nsec = 1000000;
@@ -405,7 +409,8 @@ int main(int argc, char *argv[])
 		}
 		else
 		{
-			bytes_read = recvmsg(sock_ep2, &msghdr, 0);
+			lenaddr=sizeof(addr_from);
+			bytes_read = recvfrom(sock_udp, buffer, 1032, 0, (struct sockaddr *)&addr_from, &lenaddr);
 			if (bytes_read > 0)
 			{
 				udp_retries=0;
@@ -439,8 +444,8 @@ int main(int argc, char *argv[])
 
 			switch (code)
 			{
-				// PC to Red Pitaya transmission via process_ep2
-				case 0x0201feef:
+			    // PC to Red Pitaya transmission via process_ep2
+			    case 0x0201feef:
 
 				// processing an invalid packet is too dangerous -- skip it!
 				if (bytes_read != 1032)
@@ -472,7 +477,9 @@ int main(int argc, char *argv[])
 				  // Note that this interpolation causes weak "sidebands" at 48/96/... kHz distance (the
 				  // strongest ones at 48 kHz).
 				  double disample,dqsample,idelta,qdelta;
+				  double sum;
                                   bp=buffer+16;  // skip 8 header and 8 SYNC/C&C bytes
+				  sum=0.0;
                                   for (j=0; j<126; j++) {
 					// write audio samples
 					r  = (int)((signed char) *bp++)<<8;
@@ -482,25 +489,12 @@ int main(int argc, char *argv[])
                                         audio_write(r,l);
 					sample  = (int)((signed char) *bp++)<<8;
 					sample |= (int) ((signed char) *bp++ & 0xFF);
-					disample=(double) sample / 32768.0;
+					disample=(double) sample * 0.000030517578125;  // division by 32768
 					sample  = (int)((signed char) *bp++)<<8;
 					sample |= (int) ((signed char) *bp++ & 0xFF);
-					dqsample=(double) sample / 32768.0;
+					dqsample=(double) sample * 0.000030517578125;
+					sum += (disample*disample+dqsample*dqsample);
 
-#ifdef TX_ENVELOPE
-					if (ptt || envptr > 0) {
-					  if (envptr < MAXENV) envelope[envptr++]=(disample*disample+dqsample*dqsample);
-					  if (envptr == MAXENV) {
-					    fd=open("dump.envelope", O_RDWR | O_CREAT | O_TRUNC, (mode_t) 0777);
-					    if (fd >= 0) {
-					      write (fd, envelope, MAXENV*sizeof(float));
-					      close (fd);
-					      fprintf(stderr,"TX ENV dumped\n");
-					    }
-					    envptr++;
-					  }
-					}
-#endif
 					switch (rate) {
 					    case 0:  // RX sample rate = TX sample rate = 48000
                                         	isample[txptr  ]=disample;
@@ -551,13 +545,14 @@ int main(int argc, char *argv[])
 					last_q_sample=dqsample;
 					if (j == 62) bp+=8; // skip 8 SYNC/C&C bytes of second block
                                  }
+				 fprintf(stderr,"LEVEL=%f\n", sum*0.007936508);
 				 // wrap-around of ring buffer
                                  if (txptr >= RTXLEN) txptr=0;
 				}
 				break;
 
-				// respond to an incoming Metis detection request
-				case 0x0002feef:
+			    // respond to an incoming Metis detection request
+			    case 0x0002feef:
 
 				fprintf(stderr, "Respond to an incoming Metis detection request / code: 0x%08x\n", code);
 
@@ -589,13 +584,13 @@ int main(int argc, char *argv[])
 				}
 				else
 				{
-					sendto(sock_ep2, buffer, 60, 0, (struct sockaddr *)&addr_from, sizeof(addr_from));
+					sendto(sock_udp, buffer, 60, 0, (struct sockaddr *)&addr_from, sizeof(addr_from));
 				}
 
 				break;
 
-				// stop the Red Pitaya to PC transmission via handler_ep6
-				case 0x0004feef:
+			    // stop the Red Pitaya to PC transmission via handler_ep6
+			    case 0x0004feef:
 
 				fprintf(stderr, "STOP the transmission via handler_ep6 / code: 0x%08x\n", code);
 
@@ -616,18 +611,16 @@ int main(int argc, char *argv[])
 				}
 				break;
 
-				// start the Red Pitaya to PC transmission via handler_ep6
-				case 0x1104feef:
-				//// This special code 0x11 is no longer needed, is does exactly the same thing
-				//// as the other start codes 0x01, 0x02, 0x03
+			    // start the Red Pitaya to PC transmission via handler_ep6
+			    case 0x1104feef:
 
 				fprintf(stderr, "TCP METIS-start message received / code: 0x%08x\n", code);
 
 				/* FALLTHROUGH */
 
-				case 0x0104feef:
-				case 0x0204feef:
-				case 0x0304feef:
+			    case 0x0104feef:
+			    case 0x0204feef:
+			    case 0x0304feef:
 
 				fprintf(stderr, "START the handler_ep6 thread / code: 0x%08x\n", code);
 
@@ -640,10 +633,10 @@ int main(int argc, char *argv[])
 
 				enable_thread = 0;
 				while (active_thread) usleep(1000);
-				memset(&addr_ep6, 0, sizeof(addr_ep6));
-				addr_ep6.sin_family = AF_INET;
-				addr_ep6.sin_addr.s_addr = addr_from.sin_addr.s_addr;
-				addr_ep6.sin_port = addr_from.sin_port;
+				memset(&addr_old, 0, sizeof(addr_old));
+				addr_old.sin_family = AF_INET;
+				addr_old.sin_addr.s_addr = addr_from.sin_addr.s_addr;
+				addr_old.sin_port = addr_from.sin_port;
 
 				//
 				// The initial value of txptr defines the delay between
@@ -659,27 +652,175 @@ int main(int argc, char *argv[])
 				CommonMercuryFreq = 0;
 				if (pthread_create(&thread, NULL, handler_ep6, NULL) < 0)
 				{
-					perror("pthread_create");
+					perror("create old protocol thread");
 					return EXIT_FAILURE;
 				}
 				pthread_detach(thread);
 				break;
 
-				default:
-				// Possibly a discovery packet of the New protocol, otherwise a severe error
-				if (bytes_read == 60 && code == 0 && buffer[4] == 0x02)
-				{
-					fprintf(stderr,"NewProtocol discovery packet received (we won't respond)\n");
+			    default:
+				/*
+				 * Here we end up with several possible packets from the new protocol
+				 * These are processed here.
+				 */
+				if (bytes_read == 264 && buffer[0] == 0xEF && buffer[1] == 0xFE && buffer[2] == 0x03 && buffer[3] == 0x01) {
+				  static long cnt=0;
+				  unsigned long blks=(buffer[4] << 24) + (buffer[5] << 16) + (buffer[6] << 8) + buffer[7];
+				  fprintf(stderr,"OldProtocol Program blks=%lu count=%ld\r", blks, ++cnt);
+				  usleep(1000);
+				  memset(buffer, 0, 60);
+				  buffer[0]=0xEF;
+				  buffer[1]=0xFE;
+				  buffer[2]=0x04;
+				  buffer[3]=0xAA;
+				  buffer[4]=0xBB;
+				  buffer[5]=0xCC;
+				  buffer[6]=0xDD;
+				  buffer[7]=0xEE;
+				  buffer[8]=0xFF;
+				  sendto(sock_udp, buffer, 60, 0, (struct sockaddr *)&addr_from, sizeof(addr_from));
+				  if (blks == cnt) fprintf(stderr,"\n\n Programming Done!\n");
+				  break;
+				}
+				if (bytes_read == 64 && buffer[0] == 0xEF && buffer[1] == 0xFE && buffer[2] == 0x03 && buffer[3] == 0x02) {
+				  fprintf(stderr,"OldProtocol Erase packet received:\n");
+				  sleep(1);
+				  cnt=0;
+				  memset(buffer, 0, 60);
+				  buffer[0]=0xEF;
+				  buffer[1]=0xFE;
+				  buffer[2]=0x03;
+				  buffer[3]=0xAA;
+				  buffer[4]=0xBB;
+				  buffer[5]=0xCC;
+				  buffer[6]=0xDD;
+				  buffer[7]=0xEE;
+				  buffer[8]=0xFF;
+				  sendto(sock_udp, buffer, 60, 0, (struct sockaddr *)&addr_from, sizeof(addr_from));
+				  break;
+				
+				}
+				if (bytes_read == 63 && buffer[0] == 0xEF && buffer[1] == 0xFE && buffer[2] == 0x03) {
+				  fprintf(stderr,"OldProtocol SetIP packet received:\n");
+				  fprintf(stderr,"MAC address is %02x:%02x:%02x:%02x:%02x:%02x\n", buffer[3], buffer[4], buffer[5], buffer[6], buffer[7], buffer[8]);
+				  fprintf(stderr,"IP  address is %03d:%03d:%03d:%03d\n", buffer[9], buffer[10], buffer[11], buffer[12]);
+ 				  buffer[2]=0x02;
+				  memset(buffer+9, 0, 54);
+				  sendto(sock_udp, buffer, 63, 0, (struct sockaddr *)&addr_from, sizeof(addr_from));
+				  break;
+				}
+		   	    	if (code == 0 && buffer[4] == 0x02) {
+				  fprintf(stderr,"NewProtocol discovery packet received\n");
+				  // prepeare response
+				  memset(buffer, 0, 60);
+				  buffer [4]=0x02+new_protocol_running();
+				  buffer [5]=0xAA;
+				  buffer[ 6]=0xBB;
+				  buffer[ 7]=0xCC;
+				  buffer[ 8]=0xDD;
+				  buffer[ 9]=0xEE;
+				  buffer[10]=0xFF;
+				  buffer[11]=DEVICE;
+				  buffer[12]=38;
+				  buffer[13]=103;
+				  buffer[20]=2;
+				  buffer[21]=1;
+				  buffer[22]=3;
+				  sendto(sock_udp, buffer, 60, 0, (struct sockaddr *)&addr_from, sizeof(addr_from));
+				  break;
+				}
+		   	    	if (code == 0 && buffer[4] == 0x04) {
+				  fprintf(stderr,"NewProtocol erase packet received\n");
+                                  memset(buffer, 0, 60);
+                                  buffer [4]=0x02+active_thread;
+                                  buffer [5]=0xAA;
+                                  buffer[ 6]=0xBB;
+                                  buffer[ 7]=0xCC;
+                                  buffer[ 8]=0xDD;
+                                  buffer[ 9]=0xEE;
+                                  buffer[10]=0xFF;
+                                  buffer[11]=DEVICE;
+                                  buffer[12]=38;
+                                  buffer[13]=103;
+                                  buffer[20]=2;
+                                  buffer[21]=1;
+                                  buffer[22]=3;
+                                  sendto(sock_udp, buffer, 60, 0, (struct sockaddr *)&addr_from, sizeof(addr_from));
+				  sleep(5); // pretend erase takes 5 seconds
+                                  sendto(sock_udp, buffer, 60, 0, (struct sockaddr *)&addr_from, sizeof(addr_from));
+				  break;
+				}
+		   	    	if (bytes_read == 265 && buffer[4] == 0x05) {
+				  unsigned long seq, blk;
+				  seq=(buffer[0] << 24) + (buffer[1] << 16) + (buffer[2] << 8) + buffer[3];
+				  blk=(buffer[5] << 24) + (buffer[6] << 16) + (buffer[7] << 8) + buffer[8];
+				  fprintf(stderr,"NewProtocol Program packet received: seq=%lu blk=%lu\r",seq,blk);
+				  if (seq == 0) checksum=0;
+				  for (j=9; j<=264; j++) checksum += buffer[j];
+                                  memset(buffer+4, 0, 56); // keep seq. no
+				  buffer[4]=0x04;
+                                  buffer [5]=0xAA;
+                                  buffer[ 6]=0xBB;
+                                  buffer[ 7]=0xCC;
+                                  buffer[ 8]=0xDD;
+                                  buffer[ 9]=0xEE;
+                                  buffer[10]=0xFF;
+				  buffer[11]=103;
+				  buffer[12]=DEVICE;
+				  buffer[13]=(checksum >> 8) & 0xFF;
+				  buffer[14]=(checksum     ) & 0xFF;
+				  sendto(sock_udp, buffer, 60, 0, (struct sockaddr *)&addr_from, sizeof(addr_from));
+				  if (seq+1 == blk) fprintf(stderr,"\n\nProgramming Done!\n");
+				  break;
+				}
+		   	    	if (bytes_read == 60 && code == 0 && buffer[4] == 0x06) {
+				  fprintf(stderr,"NewProtocol SetIP packet received for MAC %2x:%2x:%2x:%2x%2x:%2x IP=%d:%d:%d:%d\n",
+                                          buffer[5],buffer[6],buffer[7],buffer[8],buffer[9],buffer[10],
+					  buffer[11],buffer[12],buffer[13],buffer[14]);
+ 				  // only respond if this is for OUR device
+				  if (buffer[ 5] != 0xAA) break;
+				  if (buffer[ 6] != 0xBB) break;
+				  if (buffer[ 7] != 0xCC) break;
+				  if (buffer[ 8] != 0xDD) break;
+				  if (buffer[ 9] != 0xEE) break;
+				  if (buffer[10] != 0xFF) break;
+                                  memset(buffer, 0, 60);
+                                  buffer [4]=0x02+active_thread;
+                                  buffer [5]=0xAA;
+                                  buffer[ 6]=0xBB;
+                                  buffer[ 7]=0xCC;
+                                  buffer[ 8]=0xDD;
+                                  buffer[ 9]=0xEE;
+                                  buffer[10]=0xFF;
+                                  buffer[11]=DEVICE;
+                                  buffer[12]=38;
+                                  buffer[13]=103;
+                                  buffer[20]=2;
+                                  buffer[21]=1;
+                                  buffer[22]=3;
+                                  sendto(sock_udp, buffer, 60, 0, (struct sockaddr *)&addr_from, sizeof(addr_from));
+				  break;
+				}
+		   	    	if (bytes_read == 60 && buffer[4] == 0x00) {
+				  // handle general packet
+				  memset(&addr_new, 0, sizeof(addr_new));
+				  addr_new.sin_family = AF_INET;
+				  addr_new.sin_addr.s_addr = addr_from.sin_addr.s_addr;
+				  addr_new.sin_port = addr_from.sin_port;
+				  new_protocol_general_packet(buffer);
+				  break;
 				}
 				else
 				{
-					fprintf(stderr,"PackedInvalidCode: 0x%08x (Len=%d)\n", code, bytes_read);
+					fprintf(stderr,"Invalid packet (len=%d) detected: ",bytes_read);
+					for (i=0; i<16; i++) fprintf(stderr,"%02x ",buffer[i]);
+					fprintf(stderr,"\n");
 				}
 				break;
 			}
 	}
 
-	close(sock_ep2);
+	close(sock_udp);
 
 	if (sock_TCP_Client > -1)
 	{
@@ -728,7 +869,7 @@ void process_ep2(uint8_t *frame)
           chk_data(((frame[4] >> 6) & 1), MicTS, "TimeStampMic");
           chk_data(((frame[4] >> 7) & 1), CommonMercuryFreq,"Common Mercury Freq");
 
-	  if (isc25) {
+	  if (DEVICE == DEVICE_C25) {
               // Charly25: has two 18-dB preamps that are switched with "preamp" and "dither"
               //           and two attenuators encoded in Alex-ATT
 	      //           Both only applies to RX1!
@@ -793,7 +934,7 @@ void process_ep2(uint8_t *frame)
 	   chk_data(frame[3] & 0x80,alexTRdisable,"ALEX T/R disable");
 	   chk_data(frame[4],alex_lpf,"ALEX LPF");
            // reset TX level. Leve a little head-room for noise
-	   txdrv_dbl=(double) txdrive / 256.0;
+	   txdrv_dbl=(double) txdrive * 0.00390625;  // div. by. 256
 	   break;
 
 	case 20:
@@ -817,11 +958,7 @@ void process_ep2(uint8_t *frame)
    	   chk_data((frame[4] & 0x1F) >> 0, rx_att[0], "RX1 ATT");
    	   chk_data((frame[4] & 0x20) >> 5, rx1_attE, "RX1 ATT enable");
 
-#ifdef MICSAMPLES
-	  if (rx_att[0] > 20 && micsamples_ptr == -1) micsamples_ptr =  0;
-	  if (rx_att[0] < 10 && micsamples_ptr == 48000) micsamples_ptr = -1;
-#endif
-	   if (!isc25) {
+	   if (DEVICE != DEVICE_C25) {
 	     // Set RX amplification factors. No switchable preamps available normally.
              rxatt_dbl[0]=pow(10.0, -0.05*(10*AlexAtt+rx_att[0]));
              rxatt_dbl[1]=pow(10.0, -0.05*(rx_att[1]));
@@ -861,7 +998,7 @@ void process_ep2(uint8_t *frame)
             chk_data((frame[2] & 0x30) >> 4, rx_adc[6], "RX7 ADC");
 	    chk_data((frame[3] & 0x1f), txatt, "TX ATT");
 	    txatt_dbl=pow(10.0, -0.05*(double) txatt);
-	    if (isc25) {
+	    if (DEVICE == DEVICE_C25) {
 		// RedPitaya: Hard-wired ADC settings.
 		rx_adc[0]=0;
 		rx_adc[1]=1;
@@ -885,15 +1022,6 @@ void process_ep2(uint8_t *frame)
 	}
 }
 
-//
-// The "RX" signal. This is some noise, and some frequencies
-//
-#define LENNOISE 48000
-#define NOISEDIV (RAND_MAX / 24000)
-
-static double noiseItab[LENNOISE];
-static double noiseQtab[LENNOISE];
-
 static double T0800Itab[480];
 static double T0800Qtab[480];
 static double T2000Itab[192];
@@ -904,11 +1032,8 @@ void *handler_ep6(void *arg)
 	int i, j, k, n, size;
 	int data_offset, header_offset;
 	uint32_t counter;
-	uint16_t audio[512];
 	uint8_t buffer[1032];
 	uint8_t *pointer;
-	struct iovec iovec;
-	struct msghdr msghdr;
 	uint8_t id[4] = { 0xef, 0xfe, 1, 6 };
 	uint8_t header[40] =
 	{
@@ -936,17 +1061,7 @@ void *handler_ep6(void *arg)
         double run,inc;
         double i1,q1,fac;
 
-	memset(audio, 0, sizeof(audio));
-	memset(&iovec, 0, sizeof(iovec));
-	memset(&msghdr, 0, sizeof(msghdr));
-
-	memcpy(buffer + i * 1032, id, 4);
-	iovec.iov_base = buffer;
-	iovec.iov_len = 1032;
-	msghdr.msg_iov = &iovec;
-	msghdr.msg_iovlen = 1;
-	msghdr.msg_name = &addr_ep6;
-	msghdr.msg_namelen = sizeof(addr_ep6);
+	memcpy(buffer, id, 4);
 
 	header_offset = 0;
 	counter = 0;
@@ -954,13 +1069,6 @@ void *handler_ep6(void *arg)
         //
         // Produce RX data
         //
-        // a) noise from a 16-bit ADC
-        //
-        k=RAND_MAX / 2;
-        for (i=0; i<LENNOISE; i++) {
-	  noiseItab[i]= ((double) rand() / k - 1.0) * 0.00003;
-	  noiseQtab[i]= ((double) rand() / k - 1.0) * 0.00003;
-        }
 	noiseIQpt=0;
 	//
 	// b) some tones in the upper side band (one wave)
@@ -1021,7 +1129,7 @@ void *handler_ep6(void *arg)
 		    memset(pointer, 0, 504);
 		    for (j=0; j<n; j++) {
 			// ADC1: noise + weak tone on RX, feedback sig. on TX (except STEMlab)
-		        if (ptt && !isc25) {
+		        if (ptt && (DEVICE != DEVICE_C25)) {
 			  i1=isample[rxptr]*txdrv_dbl;
 			  q1=qsample[rxptr]*txdrv_dbl;
 			  fac=IM3a+IM3b*(i1*i1+q1*q1);
@@ -1034,7 +1142,7 @@ void *handler_ep6(void *arg)
 			  adc1qsample += T0800Qtab[pt0800] * 83.886070 *rxatt_dbl[0];
 			}
 			// ADC2: noise + stronger tone on RX, feedback sig. on TX (only STEMlab)
-			if (ptt && isc25) {
+			if (ptt && (DEVICE == DEVICE_C25)) {
 			  i1=isample[rxptr]*txdrv_dbl;
 			  q1=qsample[rxptr]*txdrv_dbl;
 			  fac=IM3a+IM3b*(i1*i1+q1*q1);
@@ -1069,17 +1177,17 @@ void *handler_ep6(void *arg)
 				myqsample=0;
 				break;
 			    }
-			    if (ismetis && ptt && (k==1)) {
+			    if (DEVICE == DEVICE_ATLAS && ptt && (k==1)) {
 				// METIS: TX DAC signal goes to RX2 when TXing
 				myisample=dacisample;
 				myqsample=dacqsample;
 			    }
-			    if (ishermes && ptt && (k==3)) {
+			    if ((DEVICE==DEVICE_HERMES || DEVICE==DEVICE_HERMES2 || DEVICE==DEVICE_C25) && ptt && (k==3)) {
 				// HERMES: TX DAC signal goes to RX4 when TXing
 				myisample=dacisample;
 				myqsample=dacqsample;
 			    }
-			    if (isorion && ptt && (k==4)) {
+			    if ((DEVICE==DEVICE_ANGELIA || DEVICE == DEVICE_ORION || DEVICE== DEVICE_ORION2) && ptt && (k==4)) {
 				// ANGELIA and beyond: TX DAC signal goes to RX5 when TXing
 				myisample=dacisample;
 				myqsample=dacqsample;
@@ -1091,24 +1199,8 @@ void *handler_ep6(void *arg)
 			    *pointer++ = (myqsample >>  8) & 0xFF;
 			    *pointer++ = (myqsample >>  0) & 0xFF;
 		        }
-#ifdef MICSAMPLES
-			if (micsamples_ptr >= 0 && micsamples_ptr < 48000) {
-			  ssample=micsamples[micsamples_ptr];
-			  *pointer++ = (ssample >> 8) & 0xFF;
-			  *pointer++ = (ssample     ) & 0xFF;
-			  micsamples_rate++;
-			  if (micsamples_rate == 1 << rate) {
-				micsamples_rate=0;
-				micsamples_ptr++;
-			  }
-			} else {
-			  *pointer++ = 0;
-			  *pointer++ = 0;
-			}
-#else
 			// Microphone samples: silence
 			pointer += 2;
-#endif
 			rxptr++;     if (rxptr >= RTXLEN) rxptr=0;
 			noiseIQpt++; if (noiseIQpt == LENNOISE) noiseIQpt=rand() / NOISEDIV;
 			pt2000++;    if (pt2000 == len2000) pt2000=0;
@@ -1144,14 +1236,14 @@ void *handler_ep6(void *arg)
 
 		if (sock_TCP_Client > -1)
 		{
-			if (sendmsg(sock_TCP_Client, &msghdr, 0) < 0)
+			if (sendto(sock_TCP_Client, buffer, 1032, 0, (struct sockaddr *)&addr_old, sizeof(addr_old)) < 0)
 			{
 				fprintf(stderr, "TCP sendmsg error occurred at sequence number: %u !\n", counter);
 			}
 		}
 		else
 		{
-			sendmsg(sock_ep2, &msghdr, 0);
+			sendto(sock_udp, buffer, 1032, 0, (struct sockaddr *)&addr_old, sizeof(addr_old));
 		}
 
 	}
@@ -1251,8 +1343,8 @@ void audio_write (int16_t l, int16_t r)
     }
   }
 }
-
-#else
+#endif
+#ifdef ALSASOUND
 //
 // Audio functions based on LINUX ALSA
 //
@@ -1458,5 +1550,20 @@ void audio_write(int16_t left_sample,int16_t right_sample) {
       playback_offset=0;
     }
   }
+}
+#endif
+
+//
+// Dummy audio functions if this is compiled without audio support
+//
+#ifdef NEED_DUMMY_AUDIO
+void audio_get_cards()
+{
+}
+void audio_open_output()
+{
+}
+void audio_write (int16_t l, int16_t r)
+{
 }
 #endif

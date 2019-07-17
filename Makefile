@@ -475,7 +475,10 @@ release: $(PROGRAM)
 #############################################################################
 
 hpsdrsim.o:	hpsdrsim.c
-	$(CC) -c -O hpsdrsim.c
+	$(CC) -c -O -DALSASOUND hpsdrsim.c
 
-hpsdrsim:	hpsdrsim.o
-	$(LINK) -o hpsdrsim hpsdrsim.o $(AUDIO_LIBS) -lm -lpthread
+newhpsdrsim.o:	newhpsdrsim.c
+	$(CC) -c -O newhpsdrsim.c
+
+hpsdrsim:	hpsdrsim.o newhpsdrsim.o
+	$(LINK) -o hpsdrsim hpsdrsim.o newhpsdrsim.o -lasound -lm -lpthread
