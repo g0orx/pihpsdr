@@ -702,7 +702,8 @@ int keyer_init() {
 
     running = 1;
 #ifdef __APPLE__
-    cw_event=sem_open("CW", O_CREAT, 0700, 0);
+    sem_unlink("CW");
+    cw_event=sem_open("CW", O_CREAT | O_EXCL), 0700, 0);
     rc = (cw_event == SEM_FAILED);
 #else
     rc = sem_init(&cw_event, 0, 0);

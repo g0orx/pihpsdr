@@ -162,7 +162,7 @@ static void discover(struct ifaddrs* iface) {
         interface_addr.sin_port = htons(0); // system assigned port
         if(bind(discovery_socket,(struct sockaddr*)&interface_addr,sizeof(interface_addr))<0) {
             perror("discover: bind socket failed for discovery_socket:");
-            exit(-1);
+            return;
         }
 
         fprintf(stderr,"discover: bound to %s\n",interface_name);
@@ -208,7 +208,7 @@ static void discover(struct ifaddrs* iface) {
 
     if(sendto(discovery_socket,buffer,len,0,(struct sockaddr*)&to_addr,sizeof(to_addr))<0) {
         perror("discover: sendto socket failed for discovery_socket:");
-        exit(-1);
+        return;
     }
 
     // wait for receive thread to complete
