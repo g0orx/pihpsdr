@@ -545,7 +545,6 @@ int main(int argc, char *argv[])
 					last_q_sample=dqsample;
 					if (j == 62) bp+=8; // skip 8 SYNC/C&C bytes of second block
                                  }
-				 fprintf(stderr,"LEVEL=%f\n", sum*0.007936508);
 				 // wrap-around of ring buffer
                                  if (txptr >= RTXLEN) txptr=0;
 				}

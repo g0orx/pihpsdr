@@ -999,7 +999,6 @@ void *tx_thread(void * data) {
         sum += (di*di+dq*dq);
      }
      txlevel=sum * txdrv_dbl * txdrv_dbl * 0.0041667;
-     fprintf(stderr,"LEV1=%f LEV2=%f\n", sum*0.0041667, txlevel);
   }
   return NULL;
 }
