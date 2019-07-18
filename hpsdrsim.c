@@ -205,16 +205,30 @@ static double  last_q_sample=0.0;
 static int  txptr=0;
 static int  rxptr=0;
 
+//
+// Unfortunately, the code number of the gear
+// differes in old and new protocol
+//
 
-#define DEVICE_ATLAS      0
-#define DEVICE_HERMES     1
-#define DEVICE_HERMES2    2
-#define DEVICE_ANGELIA    3
-#define DEVICE_ORION      4
-#define DEVICE_ORION2     5
-#define DEVICE_HERMESLITE 6
-#define DEVICE_C25        100
-static int DEVICE=DEVICE_HERMES;
+#define DEVICE_ATLAS           0
+#define DEVICE_HERMES          1
+#define DEVICE_HERMES2         2
+#define DEVICE_ANGELIA         4
+#define DEVICE_ORION           5
+#define DEVICE_HERMES_LITE     6
+#define DEVICE_ORION2         10
+#define DEVICE_C25           100
+
+#define NEW_DEVICE_ATLAS       0
+#define NEW_DEVICE_HERMES      1
+#define NEW_DEVICE_HERMES2     2
+#define NEW_DEVICE_ANGELIA     3
+#define NEW_DEVICE_ORION       4
+#define NEW_DEVICE_ORION2      5
+#define NEW_DEVICE_HERMES_LITE 6
+
+static int OLDDEVICE=DEVICE_HERMES;
+static int NEWDEVICE=NEW_DEVICE_HERMES;
 
 int main(int argc, char *argv[])
 {
@@ -268,16 +282,16 @@ int main(int argc, char *argv[])
  */
 
         if (argc > 1) {
-	    if (!strncmp(argv[1],"-atlas"  ,      6))  DEVICE=DEVICE_ATLAS;
-	    if (!strncmp(argv[1],"-hermes" ,      7))  DEVICE=DEVICE_HERMES;
-	    if (!strncmp(argv[1],"-hermes2" ,     8))  DEVICE=DEVICE_HERMES2;
-	    if (!strncmp(argv[1],"-angelia" ,     8))  DEVICE=DEVICE_ANGELIA;
-	    if (!strncmp(argv[1],"-orion" ,       6))  DEVICE=DEVICE_ORION;
-	    if (!strncmp(argv[1],"-orion2" ,      7))  DEVICE=DEVICE_ORION2;
-	    if (!strncmp(argv[1],"-hermeslite" , 11))  DEVICE=DEVICE_ORION2;
-	    if (!strncmp(argv[1],"-c25"    ,      4))  DEVICE=DEVICE_C25;
+	    if (!strncmp(argv[1],"-atlas"  ,      6))  {OLDDEVICE=DEVICE_ATLAS;       NEWDEVICE=NEW_DEVICE_ATLAS;}
+	    if (!strncmp(argv[1],"-hermes" ,      7))  {OLDDEVICE=DEVICE_HERMES;      NEWDEVICE=NEW_DEVICE_HERMES;}
+	    if (!strncmp(argv[1],"-hermes2" ,     8))  {OLDDEVICE=DEVICE_HERMES2;     NEWDEVICE=NEW_DEVICE_HERMES2;}
+	    if (!strncmp(argv[1],"-angelia" ,     8))  {OLDDEVICE=DEVICE_ANGELIA;     NEWDEVICE=NEW_DEVICE_ANGELIA;}
+	    if (!strncmp(argv[1],"-orion" ,       6))  {OLDDEVICE=DEVICE_ORION;       NEWDEVICE=NEW_DEVICE_ORION;}
+	    if (!strncmp(argv[1],"-orion2" ,      7))  {OLDDEVICE=DEVICE_ORION2;      NEWDEVICE=NEW_DEVICE_ORION2;}
+	    if (!strncmp(argv[1],"-hermeslite" , 11))  {OLDDEVICE=DEVICE_HERMES_LITE; NEWDEVICE=NEW_DEVICE_HERMES_LITE;}
+	    if (!strncmp(argv[1],"-c25"    ,      4))  {OLDDEVICE=DEVICE_C25;         NEWDEVICE=NEW_DEVICE_HERMES;}
         }
-	switch (DEVICE) {
+	switch (OLDDEVICE) {
 	    case   DEVICE_ATLAS:   fprintf(stderr,"DEVICE is ATLASS\n");      break;
 	    case   DEVICE_HERMES:  fprintf(stderr,"DEVICE is HERMES\n");      break;
 	    case   DEVICE_HERMES2: fprintf(stderr,"DEVICE is HERMES (2)\n");  break;
@@ -286,7 +300,7 @@ int main(int argc, char *argv[])
 	    case   DEVICE_ORION2:  fprintf(stderr,"DEVICE is ORION-II\n");    break;
 	    case   DEVICE_C25:     fprintf(stderr,"DEVICE is STEMlab/C25\n"); break;
 	}
-	reply[10]=DEVICE;
+	reply[10]=OLDDEVICE;
 
 	if ((sock_udp = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
 	{
@@ -719,7 +733,7 @@ int main(int argc, char *argv[])
 				  buffer[ 8]=0xDD;
 				  buffer[ 9]=0xEE;
 				  buffer[10]=0xFF;
-				  buffer[11]=DEVICE;
+				  buffer[11]=NEWDEVICE;
 				  buffer[12]=38;
 				  buffer[13]=103;
 				  buffer[20]=2;
@@ -738,7 +752,7 @@ int main(int argc, char *argv[])
                                   buffer[ 8]=0xDD;
                                   buffer[ 9]=0xEE;
                                   buffer[10]=0xFF;
-                                  buffer[11]=DEVICE;
+                                  buffer[11]=NEWDEVICE;
                                   buffer[12]=38;
                                   buffer[13]=103;
                                   buffer[20]=2;
@@ -765,7 +779,7 @@ int main(int argc, char *argv[])
                                   buffer[ 9]=0xEE;
                                   buffer[10]=0xFF;
 				  buffer[11]=103;
-				  buffer[12]=DEVICE;
+				  buffer[12]=NEWDEVICE;
 				  buffer[13]=(checksum >> 8) & 0xFF;
 				  buffer[14]=(checksum     ) & 0xFF;
 				  sendto(sock_udp, buffer, 60, 0, (struct sockaddr *)&addr_from, sizeof(addr_from));
@@ -791,7 +805,7 @@ int main(int argc, char *argv[])
                                   buffer[ 8]=0xDD;
                                   buffer[ 9]=0xEE;
                                   buffer[10]=0xFF;
-                                  buffer[11]=DEVICE;
+                                  buffer[11]=NEWDEVICE;
                                   buffer[12]=38;
                                   buffer[13]=103;
                                   buffer[20]=2;
@@ -868,7 +882,7 @@ void process_ep2(uint8_t *frame)
           chk_data(((frame[4] >> 6) & 1), MicTS, "TimeStampMic");
           chk_data(((frame[4] >> 7) & 1), CommonMercuryFreq,"Common Mercury Freq");
 
-	  if (DEVICE == DEVICE_C25) {
+	  if (OLDDEVICE == DEVICE_C25) {
               // Charly25: has two 18-dB preamps that are switched with "preamp" and "dither"
               //           and two attenuators encoded in Alex-ATT
 	      //           Both only applies to RX1!
@@ -957,7 +971,7 @@ void process_ep2(uint8_t *frame)
    	   chk_data((frame[4] & 0x1F) >> 0, rx_att[0], "RX1 ATT");
    	   chk_data((frame[4] & 0x20) >> 5, rx1_attE, "RX1 ATT enable");
 
-	   if (DEVICE != DEVICE_C25) {
+	   if (OLDDEVICE != DEVICE_C25) {
 	     // Set RX amplification factors. No switchable preamps available normally.
              rxatt_dbl[0]=pow(10.0, -0.05*(10*AlexAtt+rx_att[0]));
              rxatt_dbl[1]=pow(10.0, -0.05*(rx_att[1]));
@@ -997,7 +1011,7 @@ void process_ep2(uint8_t *frame)
             chk_data((frame[2] & 0x30) >> 4, rx_adc[6], "RX7 ADC");
 	    chk_data((frame[3] & 0x1f), txatt, "TX ATT");
 	    txatt_dbl=pow(10.0, -0.05*(double) txatt);
-	    if (DEVICE == DEVICE_C25) {
+	    if (OLDDEVICE == DEVICE_C25) {
 		// RedPitaya: Hard-wired ADC settings.
 		rx_adc[0]=0;
 		rx_adc[1]=1;
@@ -1128,7 +1142,7 @@ void *handler_ep6(void *arg)
 		    memset(pointer, 0, 504);
 		    for (j=0; j<n; j++) {
 			// ADC1: noise + weak tone on RX, feedback sig. on TX (except STEMlab)
-		        if (ptt && (DEVICE != DEVICE_C25)) {
+		        if (ptt && (OLDDEVICE != DEVICE_C25)) {
 			  i1=isample[rxptr]*txdrv_dbl;
 			  q1=qsample[rxptr]*txdrv_dbl;
 			  fac=IM3a+IM3b*(i1*i1+q1*q1);
@@ -1141,7 +1155,7 @@ void *handler_ep6(void *arg)
 			  adc1qsample += T0800Qtab[pt0800] * 83.886070 *rxatt_dbl[0];
 			}
 			// ADC2: noise + stronger tone on RX, feedback sig. on TX (only STEMlab)
-			if (ptt && (DEVICE == DEVICE_C25)) {
+			if (ptt && (OLDDEVICE == DEVICE_C25)) {
 			  i1=isample[rxptr]*txdrv_dbl;
 			  q1=qsample[rxptr]*txdrv_dbl;
 			  fac=IM3a+IM3b*(i1*i1+q1*q1);
@@ -1176,17 +1190,17 @@ void *handler_ep6(void *arg)
 				myqsample=0;
 				break;
 			    }
-			    if (DEVICE == DEVICE_ATLAS && ptt && (k==1)) {
+			    if (OLDDEVICE == DEVICE_ATLAS && ptt && (k==1)) {
 				// METIS: TX DAC signal goes to RX2 when TXing
 				myisample=dacisample;
 				myqsample=dacqsample;
 			    }
-			    if ((DEVICE==DEVICE_HERMES || DEVICE==DEVICE_HERMES2 || DEVICE==DEVICE_C25) && ptt && (k==3)) {
+			    if ((OLDDEVICE==DEVICE_HERMES || OLDDEVICE==DEVICE_HERMES2 || OLDDEVICE==DEVICE_C25) && ptt && (k==3)) {
 				// HERMES: TX DAC signal goes to RX4 when TXing
 				myisample=dacisample;
 				myqsample=dacqsample;
 			    }
-			    if ((DEVICE==DEVICE_ANGELIA || DEVICE == DEVICE_ORION || DEVICE== DEVICE_ORION2) && ptt && (k==4)) {
+			    if ((OLDDEVICE==DEVICE_ANGELIA || OLDDEVICE == DEVICE_ORION || OLDDEVICE== DEVICE_ORION2) && ptt && (k==4)) {
 				// ANGELIA and beyond: TX DAC signal goes to RX5 when TXing
 				myisample=dacisample;
 				myqsample=dacqsample;

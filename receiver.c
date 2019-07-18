@@ -751,7 +751,7 @@ fprintf(stderr,"receiver: waterfall_init: height=%d y=%d %p\n",height,y,rx->wate
 }
 
 #ifdef PURESIGNAL
-RECEIVER *create_pure_signal_receiver(int id, int buffer_size,int sample_rate,int pixels) {
+RECEIVER *create_pure_signal_receiver(int id, int buffer_size,int sample_rate,int width) {
 fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_size);
   RECEIVER *rx=malloc(sizeof(RECEIVER));
   rx->id=id;
@@ -766,7 +766,7 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
   rx->pixels=0;
   rx->fps=0;
 
-  rx->width=0;
+  rx->width=width;  // save for later use, e.g. when changing the sample rate
   rx->height=0;
   rx->display_panadapter=0;
   rx->display_waterfall=0;
@@ -779,7 +779,11 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
     // 192 kHz, we make a spectrum with four times the pixels and then
     // display only the central part.
     // 
-    rx->pixels = (protocol == ORIGINAL_PROTOCOL) ? pixels : 4*pixels;
+    if (protocol == ORIGINAL_PROTOCOL) {
+	rx->pixels=(sample_rate/48000) * width;
+    } else {
+      rx->pixels = 4*width;
+    }
   }
   // allocate buffers
   rx->iq_sequence=0;
@@ -1102,21 +1106,51 @@ void receiver_change_adc(RECEIVER *rx,int adc) {
 
 void receiver_change_sample_rate(RECEIVER *rx,int sample_rate) {
 
-  SetChannelState(rx->id,0,1);
+//
+// This must be done also for PS_RX_FEEDBACK to change
+// the number of pixels in the display (needed for
+// conversion from higher sample rates to 48K
+//
+// However, some of these operations must only be done
+// if this is a "normal" receiver
+//
+  int normal=(rx->id != PS_RX_FEEDBACK);
+  float *fp, *ofp;
 
   rx->sample_rate=sample_rate;
   int scale=rx->sample_rate/48000;
   rx->output_samples=rx->buffer_size/scale;
-  free(rx->audio_output_buffer);
-  rx->audio_output_buffer=malloc(sizeof(double)*2*rx->output_samples);
-  rx->audio_buffer=malloc(AUDIO_BUFFER_SIZE);
   rx->hz_per_pixel=(double)rx->sample_rate/(double)rx->width;
-  SetInputSamplerate(rx->id, sample_rate);
+
+  if (!normal) {
+    if (protocol == ORIGINAL_PROTOCOL) {
+      rx->pixels = scale * rx->width;
+    } else {
+      // We should never arrive here, since the sample rate of the
+      // PS feedback receiver is fixed.
+      rx->pixels = 4 * rx->width;
+    }
+    // make sure the pixel samples are always valid
+    // ... probably pure DL1YCF's paranoia
+    fp=malloc(sizeof(float)*rx->pixels);
+    ofp=rx->pixel_samples;
+    rx->pixel_samples=fp;
+    free(ofp);
+  }
   init_analyzer(rx);
-  SetEXTANBSamplerate (rx->id, sample_rate);
-  SetEXTNOBSamplerate (rx->id, sample_rate);
+
+  if (normal) {
+    SetChannelState(rx->id,0,1);
+    free(rx->audio_output_buffer);
+    rx->audio_output_buffer=malloc(sizeof(double)*2*rx->output_samples);
+    rx->audio_buffer=malloc(AUDIO_BUFFER_SIZE);
+    SetInputSamplerate(rx->id, sample_rate);
+    SetEXTANBSamplerate (rx->id, sample_rate);
+    SetEXTNOBSamplerate (rx->id, sample_rate);
+    SetChannelState(rx->id,1,0);
+  }
+
 fprintf(stderr,"receiver_change_sample_rate: id=%d rate=%d buffer_size=%d output_samples=%d\n",rx->id, rx->sample_rate, rx->buffer_size, rx->output_samples);
-  SetChannelState(rx->id,1,0);
 }
 
 void receiver_frequency_changed(RECEIVER *rx) {

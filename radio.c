@@ -748,6 +748,9 @@ void radio_change_sample_rate(int rate) {
         for(i=0;i<receivers;i++) {
           receiver_change_sample_rate(receiver[i],rate);
         }
+#ifdef PURESIGNAL
+        receiver_change_sample_rate(receiver[PS_RX_FEEDBACK],rate);
+#endif
         old_protocol_set_mic_sample_rate(rate);
         old_protocol_run();
 #ifdef PURESIGNAL

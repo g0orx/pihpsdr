@@ -324,60 +324,24 @@ static gboolean update_display(gpointer data) {
     // then obtain spectrum pixels from PS_RX_FEEDBACK,
     // that is, display the (attenuated) TX signal from the "antenna"
     //
-    // POSSIBLE MISMATCH OF SAMPLE RATES:
+    // POSSIBLE MISMATCH OF SAMPLE RATES IN ORIGINAL PROTOCOL:
     // TX sample rate is fixed 48 kHz, but RX sample rate can be
-    // 2*, 4*, or even 8* larger. In this case, the spectrum shown
-    // here is squeezed, so we have to extend the pixels.
-    // So the feedback spectrum is not nice to look at with 192000 Hz
-    // sample rate (low-res), but at least it is correct.
-    // For the sake of saving CPU cycles, we do not interpolate.
-    //
-    // This correction is applied her for the V1 protocol only, because
-    // there might be non-integer ratios using the new protocol.
+    // 2*, 4*, or even 8* larger. The analyzer has been set up to use
+    // more pixels in this case, so we just need to copy the
+    // inner part of the spectrum.
+    // If both spectra have the same number of pixels, this code
+    // just copies all of them
     //
     if(tx->puresignal && tx->feedback) {
       RECEIVER *rx_feedback=receiver[PS_RX_FEEDBACK];
       GetPixels(rx_feedback->id,0,rx_feedback->pixel_samples,&rc);
-      if (protocol == ORIGINAL_PROTOCOL && (active_receiver->sample_rate != 48000)) {
-        int ratio = active_receiver->sample_rate / 48000;
-        int width = tx->pixels / ratio;         // number of pixels to copy from the feedback spectrum
-        int start = (tx->pixels - width) >> 1;  // Copy from start ... (end-1) 
-        int end   = start + width;
-        int i;
-        float *tfp=tx->pixel_samples;
-	float *rfp=rx_feedback->pixel_samples+start;
-        switch (ratio) {
-          case 8:
-            for (i=start; i < end; i++) {
-		*tfp++ = *rfp;
-		*tfp++ = *rfp;
-		*tfp++ = *rfp;
-		*tfp++ = *rfp;
-		*tfp++ = *rfp;
-		*tfp++ = *rfp;
-		*tfp++ = *rfp;
-		*tfp++ = *rfp++;
-            }
-	    break;
-          case 4:
-            for (i=start; i < end; i++) {
-		*tfp++ = *rfp;
-		*tfp++ = *rfp;
-		*tfp++ = *rfp;
-		*tfp++ = *rfp++;
-            }
-	    break;
-          case 2:
-            for (i=start; i < end; i++) {
-		*tfp++ = *rfp;
-		*tfp++ = *rfp++;
-            }
-	    break;
-	}
-      } else {
-	// TX and feedback sample rates are equal -- just copy
-        memcpy(tx->pixel_samples,rx_feedback->pixel_samples,sizeof(float)*tx->pixels);
-      }
+      int full  = rx_feedback->pixels;  // number of pixels in the feedback spectrum
+      int width = tx->pixels;           // number of pixels to copy from the feedback spectrum
+      int start = (full-width) /2;      // Copy from start ... (end-1) 
+      float *tfp=tx->pixel_samples;
+      float *rfp=rx_feedback->pixel_samples+start;
+      // if full == width, then we just copy all samples
+      memcpy(tfp, rfp, width*sizeof(float));
     } else {
 #endif
       GetPixels(tx->id,0,tx->pixel_samples,&rc);
