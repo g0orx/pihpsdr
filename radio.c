@@ -370,7 +370,8 @@ void start_radio() {
 #endif
 
 #ifdef __APPLE__
-  property_sem=sem_open("PROPERTY", O_CREAT, 0700, 0);
+  sem_unlink("PROPERTY");
+  property_sem=sem_open("PROPERTY", O_CREAT | O_EXCL, 0700, 0);
   rc=(property_sem == SEM_FAILED);
 #else
   rc=sem_init(&property_sem, 0, 0);
@@ -598,6 +599,7 @@ void start_radio() {
   tx_set_ps_sample_rate(transmitter,protocol==NEW_PROTOCOL?192000:active_receiver->sample_rate);
   receiver[PS_TX_FEEDBACK]=create_pure_signal_receiver(PS_TX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
   receiver[PS_RX_FEEDBACK]=create_pure_signal_receiver(PS_RX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
+  SetPSHWPeak(transmitter->id, protocol==ORIGINAL_PROTOCOL? 0.4067 : 0.2899);
 #endif
 
 #ifdef AUDIO_WATERFALL
@@ -746,6 +748,9 @@ void radio_change_sample_rate(int rate) {
         for(i=0;i<receivers;i++) {
           receiver_change_sample_rate(receiver[i],rate);
         }
+#ifdef PURESIGNAL
+        receiver_change_sample_rate(receiver[PS_RX_FEEDBACK],rate);
+#endif
         old_protocol_set_mic_sample_rate(rate);
         old_protocol_run();
 #ifdef PURESIGNAL
@@ -793,10 +798,6 @@ static void rxtx(int state) {
       SetChannelState(receiver[i]->id,0,i==(receivers-1));
 #endif
       set_displaying(receiver[i],0);
-      if(protocol==NEW_PROTOCOL) {
-        schedule_high_priority();
-        schedule_receive_specific();
-      }
       g_object_ref((gpointer)receiver[i]->panel);
       g_object_ref((gpointer)receiver[i]->panadapter);
       if(receiver[i]->waterfall!=NULL) {
@@ -815,10 +816,6 @@ static void rxtx(int state) {
   } else {
     // switch to rx
     SetChannelState(transmitter->id,0,1);
-    if(protocol==NEW_PROTOCOL) {
-      schedule_high_priority();
-      schedule_receive_specific();
-    }
     tx_set_displaying(transmitter,0);
     g_object_ref((gpointer)transmitter->panel);
     g_object_ref((gpointer)transmitter->panadapter);
@@ -851,13 +848,17 @@ void setMox(int state) {
   vox_cancel();  // remove time-out
   if(mox!=state) {
     if (state && vox) {
-      // Suppress RX-TX transition if VOX was active
+      // Suppress RX-TX transition if VOX was already active
     } else {
       rxtx(state);
     }
     mox=state;
   }
   vox=0;
+  if(protocol==NEW_PROTOCOL) {
+      schedule_high_priority();
+      schedule_receive_specific();
+  }
 }
 
 int getMox() {
@@ -869,6 +870,10 @@ void vox_changed(int state) {
     rxtx(state);
   }
   vox=state;
+  if(protocol==NEW_PROTOCOL) {
+      schedule_high_priority();
+      schedule_receive_specific();
+  }
 }
 
 
@@ -978,6 +983,10 @@ void setTune(int state) {
     }
     tune=state;
   }
+  if(protocol==NEW_PROTOCOL) {
+    schedule_high_priority();
+    schedule_receive_specific();
+  }
 }
 
 int getTune() {
@@ -1076,7 +1085,7 @@ static int calcLevel(double d) {
 
 void calcDriveLevel() {
     transmitter->drive_level=calcLevel(transmitter->drive);
-    if(mox && protocol==NEW_PROTOCOL) {
+    if(isTransmitting()  && protocol==NEW_PROTOCOL) {
       schedule_high_priority();
     }
 //fprintf(stderr,"calcDriveLevel: drive=%d drive_level=%d\n",transmitter->drive,transmitter->drive_level);

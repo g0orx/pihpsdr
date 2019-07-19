@@ -103,7 +103,7 @@ static int data_addr_length[MAX_RECEIVERS];
 static GThread *new_protocol_thread_id;
 static GThread *new_protocol_timer_thread_id;
 
-static long rx_sequence = 0;
+static long ps_rx_sequence = 0;
 
 static long high_priority_sequence = 0;
 static long general_sequence = 0;
@@ -133,7 +133,10 @@ static int SPECTRUM_UPDATES_PER_SECOND=10;
 
 static float phase = 0.0F;
 
-static long response_sequence;
+static long response_sequence=0;
+static long highprio_rcvd_sequence=0;
+static long micsamples_sequence=0;
+
 static int response;
 
 //static sem_t send_high_priority_sem;
@@ -190,11 +193,12 @@ static int psk_samples=0;
 static int psk_resample=6;  // convert from 48000 to 8000
 #endif
 
-#define NET_BUFFER_SIZE 2048
-// Network buffers
+// Use this to determine the source port of messages received
 static struct sockaddr_in addr;
-static socklen_t length;
-//static unsigned char buffer[NET_BUFFER_SIZE];
+static socklen_t length=sizeof(addr);
+
+// Network buffers
+#define NET_BUFFER_SIZE 2048
 static unsigned char *iq_buffer[MAX_RECEIVERS];
 static unsigned char *command_response_buffer;
 static unsigned char *high_priority_buffer;
@@ -206,11 +210,23 @@ static unsigned char high_priority_buffer_to_radio[1444];
 static unsigned char transmit_specific_buffer[60];
 static unsigned char receive_specific_buffer[1444];
 
+// DL1YCF
+// new_protocol_receive_specific and friends are not thread-safe, but called
+// periodically from  timer thread and asynchronously from everywhere else
+// therefore we need to implement a critical section for each of these functions.
+// It seems that this is not necessary for the audio and TX-IQ buffers.
+
+static pthread_mutex_t rx_spec_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t tx_spec_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t hi_prio_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t general_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 static int local_ptt=0;
 
 static void new_protocol_high_priority();
 static void new_protocol_general();
 static void new_protocol_receive_specific();
+static void new_protocol_transmit_specific();
 static gpointer new_protocol_thread(gpointer data);
 static gpointer new_protocol_timer_thread(gpointer data);
 static gpointer command_response_thread(gpointer data);
@@ -222,7 +238,7 @@ static gpointer ps_iq_thread(gpointer data);
 #endif
 static void  process_iq_data(RECEIVER *rx);
 #ifdef PURESIGNAL
-static void  process_ps_iq_data(RECEIVER *rx);
+static void  process_ps_iq_data(void);
 #endif
 static void  process_command_response();
 static void  process_high_priority();
@@ -263,6 +279,10 @@ void schedule_general() {
 
 void schedule_receive_specific() {
     new_protocol_receive_specific();
+}
+
+void schedule_transmit_specific() {
+    new_protocol_transmit_specific();
 }
 
 void filter_board_changed() {
@@ -313,7 +333,9 @@ void new_protocol_init(int pixels) {
 #endif
 
 #ifdef __APPLE__
-    response_sem=sem_open("RESPONSE", O_CREAT, 0700, 0);
+    sem_unlink("RESPONSE");
+    response_sem=sem_open("RESPONSE", O_CREAT | O_EXCL, 0700, 0);
+    if (response_sem == SEM_FAILED) perror("ResponseSemaphore");
 #else
     rc=sem_init(&response_sem, 0, 0);
 #endif
@@ -321,8 +343,12 @@ void new_protocol_init(int pixels) {
     //rc=sem_init(&send_general_sem, 0, 1);
 
 #ifdef __APPLE__
-    command_response_sem_ready=sem_open("COMMRESREADY", O_CREAT, 0700, 0);
-    command_response_sem_buffer=sem_open("COMMRESBUF", O_CREAT, 0700, 0);
+    sem_unlink("COMMRESREADY");
+    command_response_sem_ready=sem_open("COMMRESREADY", O_CREAT | O_EXCL, 0700, 0);
+    if (command_response_sem_ready == SEM_FAILED) perror("CommandResponseReadySemaphore");
+    sem_unlink("COMMRESBUF");
+    command_response_sem_buffer=sem_open("COMMRESBUF", O_CREAT | O_EXCL, 0700, 0);
+    if (command_response_sem_buffer == SEM_FAILED) perror("CommandResponseBufferSemaphore");
 #else
     rc=sem_init(&command_response_sem_ready, 0, 0);
     rc=sem_init(&command_response_sem_buffer, 0, 0);
@@ -334,8 +360,12 @@ void new_protocol_init(int pixels) {
     }
     fprintf(stderr, "command_response_thread: id=%p\n",command_response_thread_id);
 #ifdef __APPLE__
-    high_priority_sem_ready=sem_open("HIGHREADY", O_CREAT, 0700, 0);
-    high_priority_sem_buffer=sem_open("HIGHBUF",   O_CREAT, 0700, 0);
+    sem_unlink("HIGHREADY");
+    high_priority_sem_ready=sem_open("HIGHREADY", O_CREAT | O_EXCL, 0700, 0);
+    if (high_priority_sem_ready == SEM_FAILED) perror("HighPriorityReadySemaphore");
+    sem_unlink("HIGHBUF");
+    high_priority_sem_buffer=sem_open("HIGHBUF",   O_CREAT | O_EXCL, 0700, 0);
+    if (high_priority_sem_buffer == SEM_FAILED) perror("HIGHPriorityBufferSemaphore");
 #else
     rc=sem_init(&high_priority_sem_ready, 0, 0);
     rc=sem_init(&high_priority_sem_buffer, 0, 0);
@@ -347,8 +377,12 @@ void new_protocol_init(int pixels) {
     }
     fprintf(stderr, "high_priority_thread: id=%p\n",high_priority_thread_id);
 #ifdef __APPLE__
-    mic_line_sem_ready=sem_open("MICREADY", O_CREAT, 0700, 0);
-    mic_line_sem_buffer=sem_open("MICBUF",   O_CREAT, 0700, 0);
+    sem_unlink("MICREADY");
+    mic_line_sem_ready=sem_open("MICREADY", O_CREAT | O_EXCL, 0700, 0);
+    if (mic_line_sem_ready == SEM_FAILED) perror("MicLineReadySemaphore");
+    sem_unlink("MICBUF");
+    mic_line_sem_buffer=sem_open("MICBUF",   O_CREAT | O_EXCL, 0700, 0);
+    if (mic_line_sem_buffer == SEM_FAILED) perror("MicLineBufferSemaphore");
 #else
     rc=sem_init(&mic_line_sem_ready, 0, 0);
     rc=sem_init(&mic_line_sem_buffer, 0, 0);
@@ -367,41 +401,53 @@ void new_protocol_init(int pixels) {
       ddc=receiver[i]->ddc;
 #ifdef __APPLE__
       sprintf(sname,"IQREADY%03d", ddc);
-      iq_sem_ready[ddc]=sem_open(sname, O_CREAT, 0700, 0);
+      sem_unlink(sname);
+      iq_sem_ready[ddc]=sem_open(sname, O_CREAT | O_EXCL, 0700, 0);
+      if (iq_sem_ready[ddc] == SEM_FAILED) {
+        fprintf(stderr,"SEM=%s, ",sname);
+        perror("IQreadySemaphore");
+      }
       sprintf(sname,"IQBUF%03d", ddc);
-      iq_sem_buffer[ddc]=sem_open(sname, O_CREAT, 0700, 0);
+      sem_unlink(sname);
+      iq_sem_buffer[ddc]=sem_open(sname, O_CREAT| O_EXCL, 0700, 0);
+      if (iq_sem_buffer[ddc] == SEM_FAILED) {
+        fprintf(stderr,"SEM=%s, ",sname);
+        perror("IQbufferSemaphore");
+      }
 #else
       rc=sem_init(&iq_sem_ready[ddc], 0, 0);
       rc=sem_init(&iq_sem_buffer[ddc], 0, 0);
 #endif
       iq_thread_id[ddc] = g_thread_new( "iq thread", iq_thread, (gpointer)(long)i);
-      fprintf(stderr, "iq_thread: rx=%d ddc=%d thread=%p\n",i, ddc, iq_thread_id);
     }
 
 #ifdef PURESIGNAL
-    // for PS the two feedback streams are synced on the one DDC
     if(device!=NEW_DEVICE_HERMES) {
+      // for PS the two feedback streams are DDC0 and DDC1 and synced on DDC0
+      // so only packets from DDC0 will arrive.
+      // This code *assumes* that DDC0 is un-used for RX
 #ifdef __APPLE__
-      char sname[12];
-#endif
-      ddc=receiver[PS_TX_FEEDBACK]->ddc;
-#ifdef __APPLE__
-      sprintf(sname,"IQREADY%03d", ddc);
-      iq_sem_ready[ddc]=sem_open(sname, O_CREAT, 0700, 0);
-      sprintf(sname,"IQBUF%03d", ddc);
-      iq_sem_buffer[ddc]=sem_open(sname, O_CREAT, 0700, 0);
+      sem_unlink("PSIQREADY");
+      iq_sem_ready[0]=sem_open("PSIQREADY", O_CREAT | O_EXCL, 0700, 0);
+      if (iq_sem_ready[0] == SEM_FAILED) {
+        perror("PS-IQreadySemaphore");
+      }
+      sem_unlink("PSIQBUF");
+      iq_sem_buffer[0]=sem_open("PSIQBUF", O_CREAT | O_EXCL, 0700, 0);
+      if (iq_sem_buffer[0] == SEM_FAILED) {
+        perror("PS-IQbufferSemaphore");
+      }
 #else
-      rc=sem_init(&iq_sem_ready[ddc], 0, 0);
-      rc=sem_init(&iq_sem_buffer[ddc], 0, 0);
+      rc=sem_init(&iq_sem_ready[0], 0, 0);
+      rc=sem_init(&iq_sem_buffer[0], 0, 0);
 #endif
-      iq_thread_id[ddc] = g_thread_new( "ps iq thread", ps_iq_thread, (gpointer)(long)PS_TX_FEEDBACK);
-      fprintf(stderr, "iq_thread: id=%p\n",iq_thread_id);
+      iq_thread_id[0] = g_thread_new( "ps iq thread", ps_iq_thread, NULL);
     }
 #endif
 
 data_socket=socket(PF_INET,SOCK_DGRAM,IPPROTO_UDP);
     if(data_socket<0) {
-        fprintf(stderr,"metis: create socket failed for data_socket\n");
+        fprintf(stderr,"NewProtocol: create socket failed for data_socket\n");
         exit(-1);
     }
 
@@ -464,6 +510,7 @@ fprintf(stderr,"new_protocol_thread: high_priority_addr setup for port %d\n",HIG
 static void new_protocol_general() {
     BAND *band;
 
+    pthread_mutex_lock(&general_mutex);
     if(split) {
       band=band_get_band(vfo[VFO_B].band);
     } else {
@@ -486,7 +533,7 @@ static void new_protocol_general() {
       general_buffer[58]=0x01;  // enable PA
     }
 
-fprintf(stderr,"new_protocol_general: PA Enable=%02X\n",general_buffer[58]);
+// fprintf(stderr,"new_protocol_general: PA Enable=%02X\n",general_buffer[58]);
 
     if(filter_board==APOLLO) {
       general_buffer[58]|=0x02; // enable APOLLO tuner
@@ -500,7 +547,7 @@ fprintf(stderr,"new_protocol_general: PA Enable=%02X\n",general_buffer[58]);
       }
     }
 
-fprintf(stderr,"Alex Enable=%02X\n",general_buffer[59]);
+//fprintf(stderr,"Alex Enable=%02X\n",general_buffer[59]);
 
     if(sendto(data_socket,general_buffer,sizeof(general_buffer),0,(struct sockaddr*)&base_addr,base_addr_length)<0) {
         fprintf(stderr,"sendto socket failed for general\n");
@@ -508,6 +555,7 @@ fprintf(stderr,"Alex Enable=%02X\n",general_buffer[59]);
     }
 
     general_sequence++;
+    pthread_mutex_unlock(&general_mutex);
 }
 
 static void new_protocol_high_priority() {
@@ -524,6 +572,7 @@ static void new_protocol_high_priority() {
       return;
     }
 
+    pthread_mutex_lock(&hi_prio_mutex);
     memset(high_priority_buffer_to_radio, 0, sizeof(high_priority_buffer_to_radio));
 
     high_priority_buffer_to_radio[0]=high_priority_sequence>>24;
@@ -613,7 +662,7 @@ static void new_protocol_high_priority() {
 
 #ifdef PURESIGNAL
     if(isTransmitting() && transmitter->puresignal) {
-      // set puresignal rx to transmit frequency
+      // set DDC0 and DDC1 frequency to transmit frequency
       high_priority_buffer_to_radio[9]=phase>>24;
       high_priority_buffer_to_radio[10]=phase>>16;
       high_priority_buffer_to_radio[11]=phase>>8;
@@ -651,6 +700,7 @@ static void new_protocol_high_priority() {
         band=band_get_band(vfo[VFO_A].band);
         xvtr=vfo[VFO_A].band>=BANDS;
       }
+      // TODO: set word 1400 for ANAN-8000
       high_priority_buffer_to_radio[1401]=band->OCtx<<1;
       if(tune) {
         if(OCmemory_tune_time!=0) {
@@ -669,6 +719,7 @@ static void new_protocol_high_priority() {
       high_priority_buffer_to_radio[1401]=band->OCrx<<1;
     }
 
+    // TODO: here protocol is NEVER P1, so delete this
     if((protocol==ORIGINAL_PROTOCOL && device==DEVICE_METIS) ||
 #ifdef USBOZY
        (protocol==ORIGINAL_PROTOCOL && device==DEVICE_OZY) ||
@@ -683,10 +734,10 @@ static void new_protocol_high_priority() {
     long filters=0x00000000;
 
     if(isTransmitting()) {
-      filters=0x08000000;
+      filters=0x08000000;               // Bit 27
 #ifdef PURESIGNAL
       if(transmitter->puresignal) {
-        filters|=0x00040000;
+        filters|=0x00040000;            // Bit 18
       }
 #endif
     }
@@ -841,6 +892,7 @@ static void new_protocol_high_priority() {
       }
     }
 
+    // TODO: ALEX1 bits 0-15 for ANAN-7000 and ANAN-8000 in 1430 and 1431
     high_priority_buffer_to_radio[1432]=(filters>>24)&0xFF;
     high_priority_buffer_to_radio[1433]=(filters>>16)&0xFF;
     high_priority_buffer_to_radio[1434]=(filters>>8)&0xFF;
@@ -913,6 +965,7 @@ static void new_protocol_high_priority() {
     }
 
     high_priority_sequence++;
+    pthread_mutex_unlock(&hi_prio_mutex);
 }
 
 static unsigned char last_50=0;
@@ -920,6 +973,7 @@ static unsigned char last_50=0;
 static void new_protocol_transmit_specific() {
     int mode;
 
+    pthread_mutex_lock(&tx_spec_mutex);
     memset(transmit_specific_buffer, 0, sizeof(transmit_specific_buffer));
 
     transmit_specific_buffer[0]=tx_specific_sequence>>24;
@@ -990,12 +1044,16 @@ fprintf(stderr,"tx_specific: 50=%02X\n",transmit_specific_buffer[50]);
     // 0..31
     transmit_specific_buffer[51]=linein_gain;
 
+    // Attenuator for ADC0 upon TX
+    transmit_specific_buffer[59]=transmitter->attenuation;
+
     if(sendto(data_socket,transmit_specific_buffer,sizeof(transmit_specific_buffer),0,(struct sockaddr*)&transmitter_addr,transmitter_addr_length)<0) {
         fprintf(stderr,"sendto socket failed for tx specific\n");
         exit(1);
     }
 
     tx_specific_sequence++;
+    pthread_mutex_unlock(&tx_spec_mutex);
 
 }
 
@@ -1003,6 +1061,7 @@ static void new_protocol_receive_specific() {
     int i;
     int ddc;
 
+    pthread_mutex_lock(&rx_spec_mutex);
     memset(receive_specific_buffer, 0, sizeof(receive_specific_buffer));
 
     receive_specific_buffer[0]=rx_specific_sequence>>24;
@@ -1010,8 +1069,10 @@ static void new_protocol_receive_specific() {
     receive_specific_buffer[2]=rx_specific_sequence>>8;
     receive_specific_buffer[3]=rx_specific_sequence;
 
-    receive_specific_buffer[4]=2; // 2 ADCs
+    receive_specific_buffer[4]=n_adc; 	// number of ADCs
 
+    // note that for HERMES, receiver[i]->ddc == i but beyone
+    // (that is, ANGELIA, ORION, ORION2) receiver[i]->ddc should be 2+i
     for(i=0;i<receivers;i++) {
       ddc=receiver[i]->ddc;
       receive_specific_buffer[5]|=receiver[i]->dither<<ddc; // dither enable
@@ -1025,27 +1086,29 @@ static void new_protocol_receive_specific() {
 
 #ifdef PURESIGNAL
     if(transmitter->puresignal && isTransmitting()) {
-      int ps_rate=192000;
-
-      ddc=receiver[PS_RX_FEEDBACK]->ddc;
-      receive_specific_buffer[5]|=receiver[PS_RX_FEEDBACK]->dither<<ddc; // dither enable
-      receive_specific_buffer[6]|=receiver[PS_RX_FEEDBACK]->random<<ddc; // random enable
-      receive_specific_buffer[17+(ddc*6)]=receiver[PS_RX_FEEDBACK]->adc;
-      receive_specific_buffer[18+(ddc*6)]=((ps_rate/1000)>>8)&0xFF;
-      receive_specific_buffer[19+(ddc*6)]=(ps_rate/1000)&0xFF;
-      receive_specific_buffer[22+(ddc*6)]=24;
-
-      ddc=receiver[PS_TX_FEEDBACK]->ddc;
-      receive_specific_buffer[5]|=receiver[PS_TX_FEEDBACK]->dither<<ddc; // dither enable
-      receive_specific_buffer[6]|=receiver[PS_TX_FEEDBACK]->random<<ddc; // random enable
-      receive_specific_buffer[17+(ddc*6)]=receiver[PS_TX_FEEDBACK]->adc;
-      receive_specific_buffer[18+(ddc*6)]=((ps_rate/1000)>>8)&0xFF;
-      receive_specific_buffer[19+(ddc*6)]=(ps_rate/1000)&0xFF;
-      receive_specific_buffer[22+(ddc*6)]=24;
-      receive_specific_buffer[1363]=0x02; // sync DDC1 to DDC0
-
+//
+//    Some things are fixed.
+//    the sample rate is always 192.
+//    the DDC for PS_RX_FEEDBACK is always DDC0, and the ADC is ADC0
+//    the DDC for PS_TX_FEEDBACK is always DDC1, and the ADC is nadc (ADC1 for HERMES, ADC2 beyond)
+//    dither and random are always off
+//    there are 24 bits per sample
+//
       ddc=0;
-      receive_specific_buffer[7]|=(1<<ddc); // DDC enable
+      receive_specific_buffer[17+(ddc*6)]=0;		// ADC associated with DDC0
+      receive_specific_buffer[18+(ddc*6)]=0;		// sample rate MSB
+      receive_specific_buffer[19+(ddc*6)]=192;		// sample rate LSB
+      receive_specific_buffer[22+(ddc*6)]=24;		// bits per sample
+
+      ddc=1;
+      receive_specific_buffer[17+(ddc*6)]=n_adc;	// ADC associated with DDC1
+      receive_specific_buffer[18+(ddc*6)]=0;		// sample rate MSB
+      receive_specific_buffer[19+(ddc*6)]=192;		// sample rate LSB
+      receive_specific_buffer[22+(ddc*6)]=24;		// bits per sample
+      receive_specific_buffer[1363]=0x02;       	// sync DDC1 to DDC0
+
+      receive_specific_buffer[7]&=0xFD; 		// disable DDC1
+      receive_specific_buffer[7]|=1; 			// enable  DDC0
     }
 #endif
 
@@ -1056,6 +1119,7 @@ static void new_protocol_receive_specific() {
     }
 
     rx_specific_sequence++;
+    pthread_mutex_unlock(&rx_spec_mutex);
 }
 
 static void new_protocol_start() {
@@ -1256,8 +1320,8 @@ fprintf(stderr,"new_protocol_thread: Unknown port %d\n",sourceport);
 }
 
 static gpointer command_response_thread(gpointer data) {
+  fprintf(stderr,"command_response_thread\n");
   while(1) {
-fprintf(stderr,"command_response_thread\n");
 #ifdef __APPLE__
     sem_post(command_response_sem_ready);
     sem_wait(command_response_sem_buffer);
@@ -1305,7 +1369,7 @@ fprintf(stderr,"mic_line_thread\n");
 static gpointer iq_thread(gpointer data) {
   int rx=(uintptr_t)data;
   int ddc=receiver[rx]->ddc;
-fprintf(stderr,"iq_thread: rx=%d ddc=%d\n",rx,ddc);
+  fprintf(stderr,"iq_thread: rx=%d ddc=%d\n",rx,ddc);
   while(1) {
 #ifdef __APPLE__
     sem_post(iq_sem_ready[ddc]);
@@ -1314,26 +1378,25 @@ fprintf(stderr,"iq_thread: rx=%d ddc=%d\n",rx,ddc);
     sem_post(&iq_sem_ready[ddc]);
     sem_wait(&iq_sem_buffer[ddc]);
 #endif
+    if (iq_buffer[ddc] == NULL) continue;
     process_iq_data(receiver[rx]);
     free(iq_buffer[ddc]);
   }
 }
 
 #ifdef PURESIGNAL
-static gpointer ps_iq_thread(gpointer data) {
-  int rx=(uintptr_t)data;
-  int ddc=receiver[rx]->ddc;
-fprintf(stderr,"ps_iq_thread: rx=%d ddc=%d\n",rx,ddc);
+static gpointer ps_iq_thread(void * data) {
+fprintf(stderr,"ps_iq_thread\n");
   while(1) {
 #ifdef __APPLE__
-    sem_post(iq_sem_ready[ddc]);
-    sem_wait(iq_sem_buffer[ddc]);
+    sem_post(iq_sem_ready[0]);
+    sem_wait(iq_sem_buffer[0]);
 #else
-    sem_post(&iq_sem_ready[ddc]);
-    sem_wait(&iq_sem_buffer[ddc]);
+    sem_post(&iq_sem_ready[0]);
+    sem_wait(&iq_sem_buffer[0]);
 #endif
-    process_ps_iq_data(receiver[rx]);
-    free(iq_buffer[ddc]);
+    process_ps_iq_data();
+    free(iq_buffer[0]);
   }
 }
 #endif
@@ -1355,13 +1418,19 @@ static void process_iq_data(RECEIVER *rx) {
   sequence=((buffer[0]&0xFF)<<24)+((buffer[1]&0xFF)<<16)+((buffer[2]&0xFF)<<8)+(buffer[3]&0xFF);
 
   if(rx->iq_sequence!=sequence) {
-    //fprintf(stderr,"rx %d sequence error: expected %ld got %ld\n",rx->id,rx->iq_sequence,sequence);
+    fprintf(stderr,"rx %d sequence error: expected %ld got %ld\n",rx->id,rx->iq_sequence,sequence);
     rx->iq_sequence=sequence;
   }
   rx->iq_sequence++;
 
-  timestamp=((long long)(buffer[4]&0xFF)<<56)+((long long)(buffer[5]&0xFF)<<48)+((long long)(buffer[6]&0xFF)<<40)+((long long)(buffer[7]&0xFF)<<32)+
-  ((long long)(buffer[8]&0xFF)<<24)+((long long)(buffer[9]&0xFF)<<16)+((long long)(buffer[10]&0xFF)<<8)+(long long)(buffer[11]&0xFF);
+  timestamp=((long long)(buffer[4]&0xFF)<<56)
+           +((long long)(buffer[5]&0xFF)<<48)
+           +((long long)(buffer[6]&0xFF)<<40)
+           +((long long)(buffer[7]&0xFF)<<32)
+           +((long long)(buffer[8]&0xFF)<<24)
+           +((long long)(buffer[9]&0xFF)<<16)
+           +((long long)(buffer[10]&0xFF)<<8)
+           +((long long)(buffer[11]&0xFF)   );
   bitspersample=((buffer[12]&0xFF)<<8)+(buffer[13]&0xFF);
   samplesperframe=((buffer[14]&0xFF)<<8)+(buffer[15]&0xFF);
 
@@ -1386,7 +1455,7 @@ static void process_iq_data(RECEIVER *rx) {
 }
 
 #ifdef PURESIGNAL
-static void process_ps_iq_data(RECEIVER *rx) {
+static void process_ps_iq_data() {
   long sequence;
   long long timestamp;
   int bitspersample;
@@ -1407,22 +1476,29 @@ static void process_ps_iq_data(RECEIVER *rx) {
   int min_sample1;
   int max_sample1;
 
-  buffer=iq_buffer[rx->ddc];
+  buffer=iq_buffer[0];
 
   sequence=((buffer[0]&0xFF)<<24)+((buffer[1]&0xFF)<<16)+((buffer[2]&0xFF)<<8)+(buffer[3]&0xFF);
 
-  if(rx->iq_sequence!=sequence) {
-    //fprintf(stderr,"rx %d sequence error: expected %ld got %ld\n",rx->id,rx->iq_sequence,sequence);
-    rx->iq_sequence=sequence;
+  if(ps_rx_sequence!=sequence) {
+    fprintf(stderr,"PS-RX sequence error: expected %ld got %ld\n",ps_rx_sequence,sequence);
+    ps_rx_sequence=sequence;
   }
-  rx->iq_sequence++;
+  ps_rx_sequence++;
 
-  timestamp=((long long)(buffer[4]&0xFF)<<56)+((long long)(buffer[5]&0xFF)<<48)+((long long)(buffer[6]&0xFF)<<40)+((long long)(buffer[7]&0xFF)<<32)+
-  ((long long)(buffer[8]&0xFF)<<24)+((long long)(buffer[9]&0xFF)<<16)+((long long)(buffer[10]&0xFF)<<8)+(long long)(buffer[11]&0xFF);
+  timestamp=((long long)(buffer[ 4]&0xFF)<<56)
+           +((long long)(buffer[ 5]&0xFF)<<48)
+           +((long long)(buffer[ 6]&0xFF)<<40)
+           +((long long)(buffer[ 7]&0xFF)<<32)
+           +((long long)(buffer[ 8]&0xFF)<<24)
+           +((long long)(buffer[ 9]&0xFF)<<16)
+           +((long long)(buffer[10]&0xFF)<< 8)
+           +((long long)(buffer[11]&0xFF)    );
+
   bitspersample=((buffer[12]&0xFF)<<8)+(buffer[13]&0xFF);
   samplesperframe=((buffer[14]&0xFF)<<8)+(buffer[15]&0xFF);
 
-//fprintf(stderr,"process_ps_iq_data: rx=%d seq=%ld bitspersample=%d samplesperframe=%d\n",rx->id, sequence,bitspersample,samplesperframe);
+//fprintf(stderr,"process_ps_iq_data: seq=%ld bitspersample=%d samplesperframe=%d\n", sequence,bitspersample,samplesperframe);
   b=16;
   int i;
   for(i=0;i<samplesperframe;i+=2) {
@@ -1433,8 +1509,8 @@ static void process_ps_iq_data(RECEIVER *rx) {
     rightsample0 |= (int)((((unsigned char)buffer[b++])<<8)&0xFF00);
     rightsample0 |= (int)((unsigned char)buffer[b++]&0xFF);
 
-    leftsampledouble0=(double)leftsample0/8388607.0; // for 24 bits
-    rightsampledouble0=(double)rightsample0/8388607.0; // for 24 bits
+    leftsampledouble0=(double)leftsample0/8388608.0; // for 24 bits
+    rightsampledouble0=(double)rightsample0/8388608.0; // for 24 bits
 
     leftsample1   = (int)((signed char) buffer[b++])<<16;
     leftsample1  |= (int)((((unsigned char)buffer[b++])<<8)&0xFF00);
@@ -1443,13 +1519,13 @@ static void process_ps_iq_data(RECEIVER *rx) {
     rightsample1 |= (int)((((unsigned char)buffer[b++])<<8)&0xFF00);
     rightsample1 |= (int)((unsigned char)buffer[b++]&0xFF);
 
-    leftsampledouble1=(double)leftsample1/8388607.0; // for 24 bits
-    rightsampledouble1=(double)rightsample1/8388607.0; // for 24 bits
+    leftsampledouble1=(double)leftsample1/8388608.0; // for 24 bits
+    rightsampledouble1=(double)rightsample1/8388608.0; // for 24 bits
 
-    add_ps_iq_samples(transmitter, leftsampledouble0,rightsampledouble0,leftsampledouble1,rightsampledouble1);
+    add_ps_iq_samples(transmitter, leftsampledouble1,rightsampledouble1,leftsampledouble0,rightsampledouble0);
 
 //fprintf(stderr,"%06x,%06x %06x,%06x\n",leftsample0,rightsample0,leftsample1,rightsample1);
-/*
+#if 0
     if(i==0) {
       min_sample0=leftsample0;
       max_sample0=leftsample0;
@@ -1469,18 +1545,23 @@ static void process_ps_iq_data(RECEIVER *rx) {
         max_sample1=leftsample1;
       }
     }
-*/
+#endif
   }
-//fprintf(stderr,"0 - min=%d max=%d  1 - min=%d max=%d\n",min_sample0,max_sample0,min_sample1,max_sample1);
 
 }
 #endif
 
 
 static void process_command_response() {
-    response_sequence=((command_response_buffer[0]&0xFF)<<24)+((command_response_buffer[1]&0xFF)<<16)+((command_response_buffer[2]&0xFF)<<8)+(command_response_buffer[3]&0xFF);
+    long sequence;
+    sequence=((command_response_buffer[0]&0xFF)<<24)+((command_response_buffer[1]&0xFF)<<16)+((command_response_buffer[2]&0xFF)<<8)+(command_response_buffer[3]&0xFF);
+    if (sequence != response_sequence) {
+	fprintf(stderr,"CommRes SeqErr: expected=%ld seen=%ld\n", response_sequence, sequence);
+	response_sequence=sequence;
+    }
+    response_sequence++;
     response=command_response_buffer[4]&0xFF;
-    fprintf(stderr,"response_sequence=%ld response=%d\n",response_sequence,response);
+    fprintf(stderr,"CommandResponse with seq=%ld and command=%d\n",sequence,response);
 #ifdef __APPLE__
     sem_post(response_sem);
 #else
@@ -1497,6 +1578,11 @@ static void process_high_priority(unsigned char *buffer) {
     int id=active_receiver->id;
 
     sequence=((high_priority_buffer[0]&0xFF)<<24)+((high_priority_buffer[1]&0xFF)<<16)+((high_priority_buffer[2]&0xFF)<<8)+(high_priority_buffer[3]&0xFF);
+    if (sequence != highprio_rcvd_sequence) {
+	fprintf(stderr,"HighPrio SeqErr Expected=%ld Seen=%ld\n", highprio_rcvd_sequence, sequence);
+	highprio_rcvd_sequence=sequence;
+    }
+    highprio_rcvd_sequence++;
 
     previous_ptt=local_ptt;
     previous_dot=dot;
@@ -1528,6 +1614,11 @@ static void process_mic_data(int bytes) {
   short sample;
 
   sequence=((mic_line_buffer[0]&0xFF)<<24)+((mic_line_buffer[1]&0xFF)<<16)+((mic_line_buffer[2]&0xFF)<<8)+(mic_line_buffer[3]&0xFF);
+  if (sequence != micsamples_sequence) {
+    fprintf(stderr,"MicSample SeqErr Expected=%ld Seen=%ld\n", micsamples_sequence, sequence);
+    micsamples_sequence=sequence;
+  }
+  micsamples_sequence++;
   b=4;
   for(i=0;i<MIC_SAMPLES;i++) {
     sample=(short)(mic_line_buffer[b++]<<8);

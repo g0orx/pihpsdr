@@ -240,6 +240,9 @@ static int info_thread(gpointer arg) {
             if (transmitter->attenuation != new_att) {
               SetPSControl(transmitter->id, 1, 0, 0, 0);
 	      transmitter->attenuation=new_att;
+	      if (protocol == NEW_PROTOCOL) {
+		schedule_transmit_specific();
+	      }
               state=1;
 	    }
           }
@@ -267,12 +270,7 @@ static void ps_ant_cb(GtkWidget *widget, gpointer data) {
       case 0:	// AUTO (Internal), feedback goes to first ADC
       case 3:	// EXT1,            feedback goes to first ADC
       case 4:	// EXT2,            feedback goes to first ADC
-	receiver[PS_RX_FEEDBACK]->alex_antenna = (int) (uintptr_t) data;
-	receiver[PS_RX_FEEDBACK]->adc              = 0;
-	break;
-      case 99:	// RX2,              feedback goes to second ADC
-	receiver[PS_RX_FEEDBACK]->alex_antenna = 0;
-	receiver[PS_RX_FEEDBACK]->adc              = 1;
+	receiver[PS_RX_FEEDBACK]->alex_antenna = val;
 	break;
     }
   }
@@ -428,7 +426,7 @@ void ps_menu(GtkWidget *parent) {
 
   GtkWidget *ps_ant_auto=gtk_radio_button_new_with_label(NULL,"AUTO");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ps_ant_auto), 
-    (receiver[PS_RX_FEEDBACK]->alex_antenna == 0) && (receiver[PS_RX_FEEDBACK]->adc == 0));
+    (receiver[PS_RX_FEEDBACK]->alex_antenna == 0) );
   gtk_widget_show(ps_ant_auto);
   gtk_grid_attach(GTK_GRID(grid), ps_ant_auto, col, row, 1, 1);
   g_signal_connect(ps_ant_auto,"toggled", G_CALLBACK(ps_ant_cb), (gpointer) (long) 0);
@@ -436,7 +434,7 @@ void ps_menu(GtkWidget *parent) {
 
   GtkWidget *ps_ant_ext1=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(ps_ant_auto),"EXT1");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ps_ant_ext1),
-    (receiver[PS_RX_FEEDBACK]->alex_antenna==3) && (receiver[PS_RX_FEEDBACK]->adc == 0));
+    (receiver[PS_RX_FEEDBACK]->alex_antenna==3) );
   gtk_widget_show(ps_ant_ext1);
   gtk_grid_attach(GTK_GRID(grid), ps_ant_ext1, col, row, 1, 1);
   g_signal_connect(ps_ant_ext1,"toggled", G_CALLBACK(ps_ant_cb), (gpointer) (long) 3);
@@ -444,20 +442,11 @@ void ps_menu(GtkWidget *parent) {
 
   GtkWidget *ps_ant_ext2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(ps_ant_auto),"EXT2");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ps_ant_ext2),
-    (receiver[PS_RX_FEEDBACK]->alex_antenna==4) && (receiver[PS_RX_FEEDBACK]->adc == 0));
+    (receiver[PS_RX_FEEDBACK]->alex_antenna==4) );
   gtk_widget_show(ps_ant_ext2);
   gtk_grid_attach(GTK_GRID(grid), ps_ant_ext2, col, row, 1, 1);
   g_signal_connect(ps_ant_ext2,"toggled", G_CALLBACK(ps_ant_cb), (gpointer) (long) 4);
   col++;
-
-  if (n_adc > 1) {
-    // If there are two ADCs, we may choose to use the second ADC for PS_RX_FEEDBACK
-    GtkWidget *ps_ant_rx2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(ps_ant_auto),"RX2");
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ps_ant_rx2), receiver[PS_RX_FEEDBACK]->adc==1);
-    gtk_widget_show(ps_ant_rx2);
-    gtk_grid_attach(GTK_GRID(grid), ps_ant_rx2, col, row, 1, 1);
-    g_signal_connect(ps_ant_rx2,"toggled", G_CALLBACK(ps_ant_cb), (gpointer) (long) 99);
-  }
 
   row++;
 

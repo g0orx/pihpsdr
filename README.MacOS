@@ -17,20 +17,13 @@ To make piHPSDR work on MacOS, I had to do two major things:
 a) Semaphores: MacOS does not have sem_t variables, only
    sem_t pointers that must not be dereferences. Therefore
    it has no working sem_init.
-   On MacOS one must use sem_open instead and use sem_t
+   On MacOS one must use sem_unlink+sem_open instead and use sem_t
    pointers instead of sem_t variable throughout. This is
    not recommended for LINUX, since named semaphores stay
-   alive even when the program terminates (on MacOS, all
-   semaphores are automatically destroyed). Therefore
+   alive even when the program terminates (hence the sem_unlink
+   before each sem_open) Therefore
    *every* declaration of sem_t variable and *every*
-   call to semaphore functions had to be modified. Everything
-   is coded as
-
-#ifdef __APPLE__
-  use sem_t pointers
-#else
-  usem_t variables
-#endif
+   call to semaphore functions had to be modified.
 
    NOTE this change also applies to WDSP.
 
@@ -86,6 +79,20 @@ Before you compile piHPSDR, you need to compile wdsp. Using the Mac-Makefile
 there, "make -f Makefile.mac install" will put libwdsp.dylib in /usr/local/lib.
 This is needed by piHPSDR. The pihpsdr Makefile.mac assumes that WDSP can
 be linked with simply through the "-lwdsp" linker option.
+
+The following shell scripts installs all these prerequisites. At the beginning
+you have to give the administrator password. If the MacOS keychain ask you for
+permission, just answer with "Don't allow".
+
+#!/bin/sh
+
+xcode-select --install
+/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+brew install portaudio
+brew install fftw
+brew install gtk+3
+brew install pkg-config
+brew install git
 
 ===================
 COMPILE and INSTALL

@@ -171,7 +171,7 @@ void new_discover(struct ifaddrs* iface) {
 
     if(sendto(discovery_socket,buffer,60,0,(struct sockaddr*)&to_addr,sizeof(to_addr))<0) {
         perror("new_discover: sendto socket failed for discovery_socket\n");
-        exit(-1);
+        return;
     }
 
     // wait for receive thread to complete

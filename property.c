@@ -47,16 +47,19 @@ void loadProperties(char* filename) {
             if(string[0]!='#') {
                 name=strtok(string,"=");
                 value=strtok(NULL,"\n");
-                property=malloc(sizeof(PROPERTY));
-                property->name=malloc(strlen(name)+1);
-                strcpy(property->name,name);
-                property->value=malloc(strlen(value)+1);
-                strcpy(property->value,value);
-                property->next_property=properties;
-                properties=property;
-                if(strcmp(name,"property_version")==0) {
-                  version=atof(value);
-                }
+		// Beware of "illegal" lines in corrupted files
+		if (name != NULL && value != NULL) {
+                  property=malloc(sizeof(PROPERTY));
+                  property->name=malloc(strlen(name)+1);
+                  strcpy(property->name,name);
+                  property->value=malloc(strlen(value)+1);
+                  strcpy(property->value,value);
+                  property->next_property=properties;
+                  properties=property;
+                  if(strcmp(name,"property_version")==0) {
+                    version=atof(value);
+                  }
+		}
             }
         }
         fclose(f);

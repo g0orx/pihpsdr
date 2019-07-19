@@ -456,11 +456,14 @@ release: $(PROGRAM)
 #
 #############################################################################
 
-hpsdrsim.o:     hpsdrsim.c
-	$(CC) -c -O $(PORTAUDIO_OPTIONS) hpsdrsim.c
+hpsdrsim.o:     hpsdrsim.c 
+	$(CC) -c -O -DPORTAUDIO hpsdrsim.c
         
-hpsdrsim:       hpsdrsim.o
-	$(LINK) -o hpsdrsim hpsdrsim.o $(AUDIO_LIBS) -lm -lpthread
+newhpsdrsim.o:	newhpsdrsim.c
+	$(CC) -c -O newhpsdrsim.c
+
+hpsdrsim:       hpsdrsim.o newhpsdrsim.o
+	$(LINK) -o hpsdrsim hpsdrsim.o newhpsdrsim.o -lportaudio -lm -lpthread
 
 #############################################################################
 #
@@ -507,17 +510,18 @@ app:	$(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) \
 	  libfn="`basename $$lib`"; \
 	  cp "$$lib" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
 	  chmod u+w "pihpsdr.app/Contents/Frameworks/$$libfn"; \
-	  install_name_tool -id "@executable_path/../Frameworks/$libfn" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
+	  install_name_tool -id "@executable_path/../Frameworks/$$libfn" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
 	  install_name_tool -change "$$lib" "@executable_path/../Frameworks/$$libfn" pihpsdr.app/Contents/MacOS/pihpsdr-bin; \
 	done
-#
-# Make "app" and copy local files app bundle
-#
-localapp:	app
-	cp wdspWisdom00 pihpsdr.app/Contents/Resources
-	cp *.props      pihpsdr.app/Contents/Resources
-	cp midi.inp     pihpsdr.app/Contents/Resources
-	cp ip.addr      pihpsdr.app/Contents/Resources
-
+	@# once more to install libraries on which libs just copied depend (such as wdsp -> fftw)
+	@for file in pihpsdr.app/Contents/Frameworks/*.dylib; do \
+	  for lib in `otool -L pihpsdr.app/Contents/Frameworks/*.dylib | grep -v pihpsdr.app | grep -v "executable_path" | grep dylib | sed -e "s/ (.*//" | grep -Ev "/(usr/lib|System)" | grep -Ev /libg  | grep -Ev pango | grep -Ev cairo`; do \
+	    libfn="`basename $$lib`"; \
+	    cp "$$lib" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
+	    chmod u+w "pihpsdr.app/Contents/Frameworks/$$libfn"; \
+	    install_name_tool -id "@executable_path/../Frameworks/$$libfn" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
+	    install_name_tool -change "$$lib" "@executable_path/../Frameworks/$$libfn" $$file; \
+	  done; \
+	done
 #############################################################################
 

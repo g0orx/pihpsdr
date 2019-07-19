@@ -299,9 +299,11 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    g_idle_add(ext_vfo_update, NULL);
 	    break;
 	case PS:
+#ifdef PURESIGNAL
 	    // toggle PURESIGNAL
 	    new=!(transmitter->puresignal);
 	    g_idle_add(ext_tx_set_ps,(gpointer) (uintptr_t) new);
+#endif
 	    break;
 	case SPLIT:
 	    // toggle split mode

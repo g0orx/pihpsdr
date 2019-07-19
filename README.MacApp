@@ -1,0 +1,29 @@
+Using a pre-compiled "app" on MacOS
+===================================
+
+If you get this file together with a pre-compiled
+MacOS click-able "app" file, you need to install
+support files for the GTK graphical user interface.
+
+This can be done by the following sequence of commands, that
+have to by typed in after opening a terminal window (the terminal
+application resides in the "Utilities" folder within the MacOS
+"Applications" folder):
+
+  xcode-select --install
+  curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install > brew.install
+  chmod 700 brew.install
+  ./brew.install
+  brew install gtk+3
+
+You will be asked once for the Mac administrator password, if you are asked
+later for MacOS keychain access, you can click "Don't allow".
+
+After this, double-click the pihpsdr application symbol. A window should open
+with the text "Creating FFTW Wisdom file". Be patient, this takes about 15
+minutes and will be skipped upon later invocations of pihpsdr.
+
+Then the discovery process starts, and if everything is hooked up correctly,
+you "see" your SDR and can click the "Start" button.
+
+Christoph van W"ullen, DL1YCF.

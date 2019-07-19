@@ -960,7 +960,7 @@ void ozy_send_buffer() {
     // the feedback signal is routed automatically/internally
     // If feedback is to the second ADC, leave RX1 ANT settings untouched
     //
-    if (isTransmitting() && transmitter->puresignal && receiver[PS_RX_FEEDBACK]->adc == 0) i=receiver[PS_RX_FEEDBACK]->alex_antenna;
+    if (isTransmitting() && transmitter->puresignal) i=receiver[PS_RX_FEEDBACK]->alex_antenna;
 #endif
     switch(i) {
       case 3:  // Alex: RX2 IN, ANAN: EXT1, ANAN7000: still uses internal feedback 
@@ -1224,10 +1224,8 @@ void ozy_send_buffer() {
             output_buffer[C1]|=receiver[0]->adc;			// RX1 bound to ADC of first receiver
             output_buffer[C1]|=(receiver[1]->adc<<2);			// RX2 actually unsused with PURESIGNAL
             output_buffer[C1]|=receiver[1]->adc<<4;			// RX3 bound to ADC of second receiver
-            output_buffer[C1]|=(receiver[PS_RX_FEEDBACK]->adc<<6);	// RX4 is PS_RX_Feedbacka
-									// Usually ADC0, but if feedback is to
-									// RX2 input it must be ADC1 (see ps_menu.c)
-	    // RX5 is hard-wired to the TX DAC and needs no ADC setting.
+            								// RX4 is PS_RX_Feedback and bound to ADC0
+	    								// RX5 is hard-wired to the TX DAC and needs no ADC setting.
 	}
 #else
         output_buffer[C1]|=receiver[0]->adc;
@@ -1277,16 +1275,6 @@ void ozy_send_buffer() {
         output_buffer[C1]=0x00;
 
         if(isTransmitting()) {
-#ifdef PURESIGNAL
-	  // If we are using the RX2 jack for PURESIGNAL RX feedback, then we MUST NOT ground
-	  // the ADC2 input upon TX.
-	  if (transmitter->puresignal && receiver[PS_RX_FEEDBACK]->adc == 1) {
-	    // Note that this statement seems to have no effect since
-	    // one cannot goto to "manual filter setting" for the ALEX2 board individually
-            output_buffer[C1]|=0x40; // Set ADC2 filter board to "ByPass"
-	  } else
-#endif
-
             output_buffer[C1]|=0x80; // ground RX2 on transmit, bit0-6 are Alex2 filters
         }
         output_buffer[C2]=0x00;
