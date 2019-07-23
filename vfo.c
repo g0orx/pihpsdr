@@ -379,7 +379,10 @@ void vfo_mode_changed(int m) {
   } else {
     tx_set_mode(transmitter,vfo[VFO_A].mode);
   }
-
+  // changing from CWL to CWU changes BFO frequency.
+  if (protocol == NEW_PROTOCOL) {
+    schedule_high_priority();
+  }
   g_idle_add(ext_vfo_update,NULL);
 }
 

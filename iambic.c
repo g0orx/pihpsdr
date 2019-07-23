@@ -224,7 +224,7 @@ static int dot_memory = 0;
 static int dash_memory = 0;
 static int dot_held = 0;
 static int dash_held = 0;
-int key_state = 0;
+static int key_state = 0;
 static int dot_length = 0;
 static int dash_length = 0;
 static int kcwl = 0;
@@ -241,8 +241,6 @@ static sem_t cw_event;
 #endif
 
 static int cwvox = 0;
-
-int keyer_out = 0;
 
 // using clock_nanosleep of librt
 extern int clock_nanosleep(clockid_t __clock_id, int __flags,
@@ -332,18 +330,19 @@ void keyer_event(int left, int state) {
 }
 
 void set_keyer_out(int state) {
-    if (keyer_out != state) {
-        keyer_out = state;
-        if(protocol==NEW_PROTOCOL) schedule_high_priority(9);
-        if (state) {
-	    cw_hold_key(1); // this starts a CW pulse in transmitter.c
-        } else {
-	    cw_hold_key(0); // this stops a CW pulse in transmitter.c
-        }
-    } else {
-	// We should not arrive here in a properly designed keyer
-        fprintf(stderr,"SET KEYER OUT: state unchanged: %d", state);
-    }
+  switch (protocol) {
+    case ORIGINAL_PROTOCOL:
+      if (state) {
+        cw_hold_key(1); // this starts a CW pulse in transmitter.c
+      } else {
+        cw_hold_key(0); // this stops a CW pulse in transmitter.c
+      }
+      break;
+    case NEW_PROTOCOL:
+      cw_key_state = state;
+      schedule_high_priority();
+      break;
+  }
 }
 
 static void* keyer_thread(void *arg) {

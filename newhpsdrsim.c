@@ -14,11 +14,22 @@ extern void audio_write(int16_t r, int16_t l);
 
 #define NUMRECEIVERS 8
 
-#define LENNOISE 192000
-#define NOISEDIV (RAND_MAX / 96000)
+#define LENNOISE 1536000
+#define NOISEDIV (RAND_MAX / 768000)
 
-extern double noiseItab[LENNOISE];
-extern double noiseQtab[LENNOISE];
+double noiseItab[LENNOISE];
+double noiseQtab[LENNOISE];
+
+extern int diversity;
+
+#define LENDIV 16000
+double divtab[LENDIV];
+
+#define LENTONE 15360
+extern double toneItab[LENTONE];
+extern double toneQtab[LENTONE];
+
+extern double c1, c2;
 
 #define IM3a  0.60
 #define IM3b  0.20
@@ -86,7 +97,7 @@ static int txatt=0;
 
 //stat from high-priority packet
 static int run=0;
-static int ptt[4];
+static int ptt=0;
 static int cwx=0;
 static int dot=0;
 static int dash=0;
@@ -298,7 +309,6 @@ void new_protocol_general_packet(unsigned char *buffer) {
   memset(rxfreq, 0, NUMRECEIVERS*sizeof(unsigned long));
   memset(alex0, 0, 32*sizeof(int));
   memset(alex1, 0, 32*sizeof(int));
-  memset(ptt  , 0, 4*sizeof(int));
   }
 }
 
@@ -356,14 +366,14 @@ void *ddc_specific_thread(void *data) {
        adc=buffer[4];
        fprintf(stderr,"RX: Number of ADCs: %d\n",adc);
      }
-     for (i=0; i<8; i++) {
+     for (i=0; i<adc; i++) {
        rc=(buffer[5] >> i) & 0x01;
        if (rc != adcdither[i]) {
          adcdither[i]=rc;
 	 fprintf(stderr,"RX: ADC%d dither=%d\n",i,rc);
        }
      }
-     for (i=0; i<8; i++) {
+     for (i=0; i<adc; i++) {
        rc=(buffer[6] >> i) & 0x01;
        if (rc != adcrandom[i]) {
          adcrandom[i]=rc;
@@ -405,6 +415,21 @@ void *ddc_specific_thread(void *data) {
        if (modified) {
 	 fprintf(stderr,"RX: DDC%d Enable=%d ADC%d Rate=%d SyncMap=%02x\n",
 		i,ddcenable[i], adcmap[i], rxrate[i], syncddc[i]);
+	 rc=0;
+	 for (i=0; i<8; i++) {
+	   rc += (syncddc[i] >> i) & 0x01;
+	 }
+	 if (rc > 1) {
+	   fprintf(stderr,"WARNING:\n");
+	   fprintf(stderr,"WARNING:\n");
+	   fprintf(stderr,"WARNING:\n");
+	   fprintf(stderr,"WARNING: more than two DDC sync'ed\n");
+	   fprintf(stderr,"WARNING: this simulator is not prepeared to handle this case\n");
+	   fprintf(stderr,"WARNING: so are most of SDRs around!\n");
+	   fprintf(stderr,"WARNING:\n");
+	   fprintf(stderr,"WARNING:\n");
+	   fprintf(stderr,"WARNING:\n");
+	 }
        }
      }
   }
@@ -600,7 +625,7 @@ void *highprio_thread(void *data) {
           if (pthread_create(&audio_thread_id, NULL, audio_thread, NULL) < 0) {
             perror("***** ERROR: Create Audio thread");
           }
-        } else {
+	} else {
           pthread_join(ddc_specific_thread_id, NULL);
           pthread_join(duc_specific_thread_id, NULL);
           for (i=0; i<NUMRECEIVERS; i++) {
@@ -610,14 +635,16 @@ void *highprio_thread(void *data) {
           pthread_join(tx_thread_id, NULL);
           pthread_join(mic_thread_id, NULL);
           pthread_join(audio_thread_id, NULL);
-        }
+	}
      }
-     for (i=0; i<4; i++) {
-       rc=(buffer[4] >> (i+1)) & 0x01;
-       if (rc != ptt[i]) {
-	ptt[i]=rc;
-	fprintf(stderr,"HP: PTT%d=%d\n", i, rc);
-      }
+     rc=(buffer[4] >> 1) & 0x01;
+     if (rc != ptt) {
+       ptt=rc;
+       fprintf(stderr,"HP: PTT=%d\n", rc);
+       if (ptt == 0) {
+	 memset(isample, 0, sizeof(float)*NEWRTXLEN);
+	 memset(qsample, 0, sizeof(float)*NEWRTXLEN);
+       }
      }
      rc=(buffer[5] >> 0) & 0x01;
      if (rc != cwx) {
@@ -729,13 +756,14 @@ void *rx_thread(void *data) {
   double fac;
   int sample;
   unsigned char *p;
-  int noisept;
+  int noisept,tonept;
   int myddc;
   long myrate;
   int sync,size;
   int myadc, syncadc;
   int ps=0;
   int rxptr;
+  int decimation;
   
   struct timespec delay;
 #ifdef __APPLE__
@@ -765,7 +793,7 @@ void *rx_thread(void *data) {
     return NULL;
   }
 
-  noisept=0;
+  tonept=noisept=0;
   clock_gettime(CLOCK_MONOTONIC, &delay);
   fprintf(stderr,"RX thread %d, enabled=%d\n", myddc, ddcenable[myddc]);
   rxptr=txptr-5000;  
@@ -778,6 +806,7 @@ void *rx_thread(void *data) {
 	  if (rxptr < 0) rxptr += NEWRTXLEN;
           continue;
         }
+	decimation=1536/rxrate[myddc];
 	myadc=adcmap[myddc];
         // for simplicity, we only allow for a single "synchronized" DDC,
         // this well covers the PURESIGNAL and DIVERSITY cases
@@ -800,12 +829,14 @@ void *rx_thread(void *data) {
           wait=238000000L/rxrate[myddc]; // time for these samples in nano-secs
 	}
 	//
-	// ADC0: noise   (+ distorted TX signal upon TXing)
-	// ADC1: noise   20 dB stronger
-	// ADC2:         original TX signal (ADC1 on HERMES)
+	// ADC0 RX: noise + 800Hz signal at -100 dBm
+	// ADC0 TX: noise + distorted TX signal
+	// ADC1 RX: noise
+	// ADC1 TX: HERMES only: original TX signal
+	// ADC2   : original TX signal
 	//
 	  
-        ps=(sync && (rxrate[myadc]==192) && ptt[0] && (syncadc == adc));
+        ps=(sync && (rxrate[myadc]==192) && ptt && (syncadc == adc));
         p=buffer;
         *p++ =(seqnum >> 24) & 0xFF;
         *p++ =(seqnum >> 16) & 0xFF;
@@ -831,12 +862,8 @@ void *rx_thread(void *data) {
 	  // produce noise depending on the ADC
 	  //
 	  i1sample=i0sample=noiseItab[noisept];
-	  q1sample=q0sample=noiseItab[noisept++];
+	  q1sample=q0sample=noiseQtab[noisept++];
           if (noisept == LENNOISE) noisept=rand() / NOISEDIV;
-	  if (myadc == 1) {
-	    i0sample=i0sample*10.0;   // 20 dB more noise on ADC1
-	    q0sample=q0sample*10.0;
-          }
 	  //
 	  // PS: produce sample PAIRS,
 	  // a) distorted TX data (with Drive and Attenuation) 
@@ -851,12 +878,16 @@ void *rx_thread(void *data) {
 	      i0sample += irsample*fac;
 	      q0sample += qrsample*fac;
 	    }
+	  } else if (myddc == 0) {
+	    i0sample += toneItab[tonept] * 0.00001 * rxatt0_dbl;
+	    q0sample += toneQtab[tonept] * 0.00001 * rxatt0_dbl;
+	    tonept += decimation; if (tonept >= LENTONE) tonept=0;
 	  }
 	  if (sync) {
 	    if (ps) {
 	      // synchronized stream: undistorted TX signal with constant max. amplitude
-	      i1sample = irsample * 0.329;
-	      q1sample = qrsample * 0.329;
+	      i1sample = irsample * 0.2899;
+	      q1sample = qrsample * 0.2899;
 	    }
 	    sample=i0sample * 8388607.0;
 	    *p++=(sample >> 16) & 0xFF;
@@ -988,6 +1019,13 @@ void *tx_thread(void * data) {
         sample |= (int)((unsigned char)(*p++)&0xFF);
 	dq = (double) sample / 8388608.0;
 //
+//      I don't know why (perhaps the CFFIR in the SDR program)
+//      but somehow I must multiply the samples to get the correct
+//      strength
+//
+	di *= 1.118;
+	dq *= 1.118;
+//
 //      put TX samples into ring buffer
 //
 	isample[txptr]=di;
@@ -1055,7 +1093,7 @@ void *send_highprio_thread(void *data) {
  
     p +=6;
 
-    rc=(int) (800.0*sqrt(10*txlevel));    
+    rc=(int) ((4095.0/c1)*sqrt(100.0*txlevel*c2));    
     *p++ = (rc >> 8) & 0xFF;
     *p++ = (rc     ) & 0xFF;
 

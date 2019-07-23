@@ -59,9 +59,6 @@
 #ifdef FREEDV
 #include "freedv.h"
 #endif
-#ifdef LOCALCW
-#include "iambic.h"
-#endif
 #include "vox.h"
 #include "ext.h"
 
@@ -587,18 +584,16 @@ static void new_protocol_high_priority() {
     }
     high_priority_buffer_to_radio[4]=running;
     if(mode==modeCWU || mode==modeCWL) {
-      if(tune) {
+      if(tune || CAT_cw_is_active) {
         high_priority_buffer_to_radio[4]|=0x02;
       }
 #ifdef LOCALCW
       if (cw_keyer_internal == 0) {
         // set the ptt if we're not in breakin mode and mox is on
         if(cw_breakin == 0 && getMox()) high_priority_buffer_to_radio[4]|=0x02;
-        high_priority_buffer_to_radio[5]|=(keyer_out) ? 0x01 : 0;
-        high_priority_buffer_to_radio[5]|=(key_state==SENDDOT) ? 0x02 : 0;
-        high_priority_buffer_to_radio[5]|=(key_state==SENDDASH) ? 0x04 : 0;
       }
 #endif
+      if (cw_key_state) high_priority_buffer_to_radio[5]|= 0x01;
     } else {
       if(isTransmitting()) {
         high_priority_buffer_to_radio[4]|=0x02;
@@ -615,7 +610,6 @@ static void new_protocol_high_priority() {
         rxFrequency+=vfo[v].rit;
       }
 
-/*
       switch(vfo[v].mode) {
         case modeCWU:
           rxFrequency-=cw_keyer_sidetone_frequency;
@@ -626,7 +620,7 @@ static void new_protocol_high_priority() {
         default:
           break;
       }
-*/
+  
       phase=(long)((4294967296.0*(double)rxFrequency)/122880000.0);
       high_priority_buffer_to_radio[9+(ddc*4)]=phase>>24;
       high_priority_buffer_to_radio[10+(ddc*4)]=phase>>16;
@@ -647,6 +641,7 @@ static void new_protocol_high_priority() {
       }
     }
 
+/*
     switch(vfo[active_receiver->id].mode) {
         case modeCWU:
           txFrequency+=cw_keyer_sidetone_frequency;
@@ -657,6 +652,7 @@ static void new_protocol_high_priority() {
         default:
           break;
       }
+*/
 
     phase=(long)((4294967296.0*(double)txFrequency)/122880000.0);
 
@@ -718,18 +714,6 @@ static void new_protocol_high_priority() {
       band=band_get_band(vfo[VFO_A].band);
       high_priority_buffer_to_radio[1401]=band->OCrx<<1;
     }
-
-    // TODO: here protocol is NEVER P1, so delete this
-    if((protocol==ORIGINAL_PROTOCOL && device==DEVICE_METIS) ||
-#ifdef USBOZY
-       (protocol==ORIGINAL_PROTOCOL && device==DEVICE_OZY) ||
-#endif
-       (protocol==NEW_PROTOCOL && device==NEW_DEVICE_ATLAS)) {
-      for(r=0;r<receivers;r++) {
-        high_priority_buffer_to_radio[1403]|=receiver[i]->preamp;
-      }
-    }
-
 
     long filters=0x00000000;
 
@@ -1139,6 +1123,7 @@ void new_protocol_stop() {
     running=0;
     new_protocol_high_priority();
     usleep(100000); // 100 ms
+    close (data_socket);
 }
 
 void new_protocol_run() {
@@ -1315,7 +1300,6 @@ fprintf(stderr,"new_protocol_thread: Unknown port %d\n",sourceport);
         }
     }
 
-    close(data_socket);
     return NULL;
 }
 
@@ -1591,18 +1575,20 @@ static void process_high_priority(unsigned char *buffer) {
     local_ptt=high_priority_buffer[4]&0x01;
     dot=(high_priority_buffer[4]>>1)&0x01;
     dash=(high_priority_buffer[4]>>2)&0x01;
-    pll_locked=(high_priority_buffer[4]>>3)&0x01;
+    pll_locked=(high_priority_buffer[4]>>4)&0x01;
     adc_overload=high_priority_buffer[5]&0x01;
     exciter_power=((high_priority_buffer[6]&0xFF)<<8)|(high_priority_buffer[7]&0xFF);
     alex_forward_power=((high_priority_buffer[14]&0xFF)<<8)|(high_priority_buffer[15]&0xFF);
     alex_reverse_power=((high_priority_buffer[22]&0xFF)<<8)|(high_priority_buffer[23]&0xFF);
     supply_volts=((high_priority_buffer[49]&0xFF)<<8)|(high_priority_buffer[50]&0xFF);
 
+    if (dash || dot) cw_key_hit=1;
+
     int tx_vfo=split?VFO_B:VFO_A;
     if(vfo[tx_vfo].mode==modeCWL || vfo[tx_vfo].mode==modeCWU) {
       local_ptt=local_ptt|dot|dash;
     }
-    if(previous_ptt!=local_ptt) {
+    if(previous_ptt!=local_ptt && !CAT_cw_is_active) {
       g_idle_add(ext_mox_update,(gpointer)(long)(local_ptt));
     }
 }
@@ -1689,6 +1675,29 @@ void new_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right
     audioindex=4;
     audiosequence++;
   }
+}
+
+void new_protocol_flush_iq_samples() {
+//
+// this is called at the end of a TX phase:
+// zero out "rest" of TX IQ buffer and send it
+//
+  while (iqindex < sizeof(iqbuffer)) {
+    iqbuffer[iqindex++]=0;
+  }
+
+  iqbuffer[0]=tx_iq_sequence>>24;
+  iqbuffer[1]=tx_iq_sequence>>16;
+  iqbuffer[2]=tx_iq_sequence>>8;
+  iqbuffer[3]=tx_iq_sequence;
+
+  // send the buffer
+  if(sendto(data_socket,iqbuffer,sizeof(iqbuffer),0,(struct sockaddr*)&iq_addr,iq_addr_length)<0) {
+    fprintf(stderr,"sendto socket failed for iq\n");
+    exit(1);
+  }
+  iqindex=4;
+  tx_iq_sequence++;
 }
 
 void new_protocol_iq_samples(int isample,int qsample) {

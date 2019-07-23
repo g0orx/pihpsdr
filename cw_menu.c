@@ -125,6 +125,10 @@ static void cw_keyer_sidetone_frequency_value_changed_cb(GtkWidget *widget, gpoi
 */
   cw_changed();
   receiver_filter_changed(active_receiver);
+  // changing the side tone frequency affects BFO frequency offsets
+  if (protocol == NEW_PROTOCOL) {
+    schedule_high_priority();
+  }
 }
 
 void cw_menu(GtkWidget *parent) {

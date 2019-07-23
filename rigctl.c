@@ -52,6 +52,10 @@
 #include "store.h"
 #include "ext.h"
 #include "rigctl_menu.h"
+#include "new_protocol.h"
+#ifdef LOCALCW
+#include "iambic.h"              // declare keyer_update()
+#endif
 #include <math.h>
 
 // IP stuff below
@@ -297,10 +301,10 @@ static char cw_buf[30];
 static int  cw_busy=0;
 static int  cat_cw_seen=0;
 
-static long dotlen;
-static long dashlen;
-static int  dotsamples;
-static int  dashsamples;
+static int dotlen;
+static int dashlen;
+static int dotsamples;
+static int dashsamples;
 
 //
 // send_dash()         send a "key-down" of a dashlen, followed by a "key-up" of a dotlen
@@ -314,55 +318,80 @@ static int  dashsamples;
 //
 void send_dash() {
   int TimeToGo;
-  for(;;) {
-    TimeToGo=cw_key_up+cw_key_down;
-    // TimeToGo is invalid if local CW keying has set in
+  if (protocol == ORIGINAL_PROTOCOL) {
+    for(;;) {
+      TimeToGo=cw_key_up+cw_key_down;
+      // TimeToGo is invalid if local CW keying has set in
+      if (cw_key_hit || cw_not_ready) return;
+      if (TimeToGo == 0) break;
+      // sleep until 10 msec before ignition
+      if (TimeToGo > 500) usleep((long)(TimeToGo-500)*20L);
+      // sleep 1 msec
+      usleep(1000L);
+    }
+    // If local CW keying has set in, do not interfere
     if (cw_key_hit || cw_not_ready) return;
-    if (TimeToGo == 0) break;
-    // sleep until 10 msec before ignition
-    if (TimeToGo > 500) usleep((long)(TimeToGo-500)*20L);
-    // sleep 1 msec
-    usleep(1000L);
+    cw_key_down = dashsamples;
+    cw_key_up   = dotsamples;
+  } else {
+    if (cw_key_hit || cw_not_ready) return;
+    cw_key_state=1;
+    schedule_high_priority();
+    usleep(dashlen);
+    cw_key_state=0;
+    schedule_high_priority();
+    usleep(dotlen);
   }
-  // If local CW keying has set in, do not interfere
-  if (cw_key_hit || cw_not_ready) return;
-  cw_key_down = dashsamples;
-  cw_key_up   = dotsamples;
 }
 
 void send_dot() {
   int TimeToGo;
-  for(;;) {
-    TimeToGo=cw_key_up+cw_key_down;
-    // TimeToGo is invalid if local CW keying has set in
+  if (protocol == ORIGINAL_PROTOCOL) {
+    for(;;) {
+      TimeToGo=cw_key_up+cw_key_down;
+      // TimeToGo is invalid if local CW keying has set in
+      if (cw_key_hit || cw_not_ready) return;
+      if (TimeToGo == 0) break;
+      // sleep until 10 msec before ignition
+      if (TimeToGo > 500) usleep((long)(TimeToGo-500)*20L);
+      // sleep 1 msec
+      usleep(1000L);
+    }
+    // If local CW keying has set in, do not interfere
     if (cw_key_hit || cw_not_ready) return;
-    if (TimeToGo == 0) break;
-    // sleep until 10 msec before ignition
-    if (TimeToGo > 500) usleep((long)(TimeToGo-500)*20L);
-    // sleep 1 msec
-    usleep(1000L);
+    cw_key_down = dotsamples;
+    cw_key_up   = dotsamples;
+  } else {
+    if (cw_key_hit || cw_not_ready) return;
+    cw_key_state=1;
+    schedule_high_priority();
+    usleep(dotlen);
+    cw_key_state=0;
+    schedule_high_priority();
+    usleep(dotlen);
   }
-  // If local CW keying has set in, do not interfere
-  if (cw_key_hit || cw_not_ready) return;
-  cw_key_down = dotsamples;
-  cw_key_up   = dotsamples;
 }
 
 void send_space(int len) {
   int TimeToGo;
-  for(;;) {
-    TimeToGo=cw_key_up+cw_key_down;
-    // TimeToGo is invalid if local CW keying has set in
+  if (protocol == ORIGINAL_PROTOCOL) {
+    for(;;) {
+      TimeToGo=cw_key_up+cw_key_down;
+      // TimeToGo is invalid if local CW keying has set in
+      if (cw_key_hit || cw_not_ready) return;
+      if (TimeToGo == 0) break;
+      // sleep until 10 msec before ignition
+      if (TimeToGo > 500) usleep((long)(TimeToGo-500)*20L);
+      // sleep 1 msec
+      usleep(1000L);
+    }
+    // If local CW keying has set in, do not interfere
     if (cw_key_hit || cw_not_ready) return;
-    if (TimeToGo == 0) break;
-    // sleep until 10 msec before ignition
-    if (TimeToGo > 500) usleep((long)(TimeToGo-500)*20L);
-    // sleep 1 msec
-    usleep(1000L);
+    cw_key_up = len*dotsamples;
+  } else {
+    if (cw_key_hit || cw_not_ready) return;
+    usleep(len*dotlen);
   }
-  // If local CW keying has set in, do not interfere
-  if (cw_key_hit || cw_not_ready) return;
-  cw_key_up = len*dotsamples;
 }
 
 void rigctl_send_cw_char(char cw_char) {
@@ -2206,6 +2235,10 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                                 #endif
                                                 if(key_speed >= 1 && key_speed <= 60) {
                                                    cw_keyer_speed=key_speed;
+#ifdef LOCALCW
+						   // tell keyer
+						   keyer_update();
+#endif
                                                    g_idle_add(ext_vfo_update,NULL);
                                                 } else {
                                                    send_resp(client_sock,"?;");

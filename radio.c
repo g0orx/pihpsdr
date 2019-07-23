@@ -294,6 +294,7 @@ double vox_hang=250.0;
 int vox=0;
 int CAT_cw_is_active=0;
 int cw_key_hit=0;
+int cw_key_state=0;
 int n_adc=1;
 
 int diversity_enabled=0;
@@ -527,6 +528,23 @@ void start_radio() {
 
 //fprintf(stderr,"meter_calibration=%f display_calibration=%f\n", meter_calibration, display_calibration);
   radioRestoreState();
+
+//
+//  DL1YCF: we send one buffer of TX samples in one shot. For the old
+//          protocol, their number is buffer_size, but for the new
+//          protocol, the number is 4*buffer_size.
+//          Since current hardware has a FIFO of 4096 IQ sample pairs,
+//          buffer_size should be limited to 2048 for the old protocol and
+//          to 512 for the new protocol.
+//
+  switch (protocol) {
+    case ORIGINAL_PROTOCOL:
+      if (buffer_size > 2048) buffer_size=2048;
+      break;
+    case NEW_PROTOCOL:
+      if (buffer_size > 512) buffer_size=512;
+      break;
+  }
 
   radio_change_region(region);
 
