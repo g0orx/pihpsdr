@@ -329,7 +329,6 @@ static gboolean update_display(gpointer data) {
       }
     }
 #endif
-#ifdef PURESIGNAL
     // if "MON" button is active (tx->feedback is TRUE),
     // then obtain spectrum pixels from PS_RX_FEEDBACK,
     // that is, display the (attenuated) TX signal from the "antenna"
@@ -353,11 +352,8 @@ static gboolean update_display(gpointer data) {
       // if full == width, then we just copy all samples
       memcpy(tfp, rfp, width*sizeof(float));
     } else {
-#endif
       GetPixels(tx->id,0,tx->pixel_samples,&rc);
-#ifdef PURESIGNAL
     }
-#endif
     if(rc) {
       tx_panadapter_update(tx);
     }
@@ -582,12 +578,10 @@ fprintf(stderr,"create_transmitter: id=%d buffer_size=%d mic_sample_rate=%d mic_
   tx->low_latency=0;
 
   tx->twotone=0;
-#ifdef PURESIGNAL
   tx->puresignal=0;
   tx->feedback=0;
   tx->auto_on=0;
   tx->single_on=0;
-#endif
 
   tx->attenuation=0;
   tx->ctcss=0;
@@ -844,11 +838,7 @@ static void full_tx_buffer(TRANSMITTER *tx) {
     }
   }
 
-#ifdef PURESIGNAL
   if(tx->displaying && !(tx->puresignal && tx->feedback)) {
-#else
-  if(tx->displaying) {
-#endif
     Spectrum0(1, tx->id, 0, 0, tx->iq_output_buffer);
   }
 
@@ -1058,8 +1048,11 @@ void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
 #endif
 }
 
-#ifdef PURESIGNAL
 void add_ps_iq_samples(TRANSMITTER *tx, double i_sample_tx,double q_sample_tx, double i_sample_rx, double q_sample_rx) {
+//
+// If not compiled for PURESIGNAL, make this a dummy function
+//
+#ifdef PURESIGNAL
   RECEIVER *tx_feedback=receiver[PS_TX_FEEDBACK];
   RECEIVER *rx_feedback=receiver[PS_RX_FEEDBACK];
 
@@ -1083,8 +1076,8 @@ void add_ps_iq_samples(TRANSMITTER *tx, double i_sample_tx,double q_sample_tx, d
     rx_feedback->samples=0;
     tx_feedback->samples=0;
   }
-}
 #endif
+}
 
 #ifdef FREEDV
 void add_freedv_mic_sample(TRANSMITTER *tx, short mic_sample) {
@@ -1119,8 +1112,8 @@ void tx_set_displaying(TRANSMITTER *tx,int state) {
   }
 }
 
-#ifdef PURESIGNAL
 void tx_set_ps(TRANSMITTER *tx,int state) {
+#ifdef PURESIGNAL
   if(state) {
     tx->puresignal=1;
     SetPSControl(tx->id, 0, 0, 1, 0);
@@ -1130,7 +1123,12 @@ void tx_set_ps(TRANSMITTER *tx,int state) {
     usleep(100000);
     tx->puresignal=0;
   }
+  if (protocol == NEW_PROTOCOL) {
+    schedule_high_priority();
+    schedule_receive_specific();
+  }
   g_idle_add(ext_vfo_update,NULL);
+#endif
 }
 
 void tx_set_twotone(TRANSMITTER *tx,int state) {
@@ -1157,9 +1155,10 @@ void tx_set_twotone(TRANSMITTER *tx,int state) {
 }
 
 void tx_set_ps_sample_rate(TRANSMITTER *tx,int rate) {
+#ifdef PURESIGNAL
   SetPSFeedbackRate (tx->id,rate);
-}
 #endif
+}
 
 //
 // This is the old key-down/key-up interface for iambic.c

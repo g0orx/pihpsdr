@@ -535,6 +535,29 @@ static gpointer receive_thread(gpointer arg) {
   return NULL;
 }
 
+static int how_many_receivers() {
+  //
+  // Depending on how the program is compiled and which board we have,
+  // we use a FIXED number of receivers except for RADIOBERRY and PI_SDR,
+  // where the number may be dynamically changed
+  //
+  int num;
+#if defined(RADIOBERRY) || defined(PI_SDR)
+        num = receivers;   // 1 or 2
+#else
+        num = RECEIVERS;     // 2
+#endif
+
+#ifdef PURESIGNAL
+    // for PureSignal, the number of receivers needed is hard-coded below.
+    // we need at least 3 (for RX), and up to 5 for Orion2 boards, since
+    // the TX DAC channel is hard-wired to RX5.
+    num = 3;
+    if (device == DEVICE_HERMES) num = 4;
+    if (device == DEVICE_ANGELIA || device == DEVICE_ORION || device == DEVICE_ORION2) num = 5;
+#endif
+    return num;
+}
 static void process_ozy_input_buffer(unsigned char  *buffer) {
   int i,j;
   int r;
@@ -562,22 +585,7 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
 
   int tx_vfo=split?VFO_B:VFO_A;
 
-  int num_hpsdr_receivers;
-
-#ifdef PURESIGNAL
-    // for PureSignal, the number of receivers needed is hard-coded below.
-    // we need at least 3 (for RX), and up to 5 for Orion2 boards, since
-    // the TX DAC channel is hard-wired to RX5.
-    num_hpsdr_receivers=3;
-    if (device == DEVICE_HERMES) num_hpsdr_receivers=4;
-    if (device == DEVICE_ANGELIA || device == DEVICE_ORION || device == DEVICE_ORION2) num_hpsdr_receivers=5;
-#else
-#if defined(RADIOBERRY) || defined(PI_SDR)
-	num_hpsdr_receivers = receivers;
-#else
-	num_hpsdr_receivers=RECEIVERS;
-#endif
-#endif
+  int num_hpsdr_receivers=how_many_receivers();
 
   if(buffer[b++]==SYNC && buffer[b++]==SYNC && buffer[b++]==SYNC) {
     // extract control bytes
@@ -654,22 +662,10 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
         right_sample_double=(double)right_sample/8388607.0; // 24 bit sample 2^23-1
 
 #ifdef PURESIGNAL
-        if(!isTransmitting() || (isTransmitting() && !transmitter->puresignal)) {
-          switch(r) {
-            case 0:
-              add_iq_samples(receiver[0], left_sample_double,right_sample_double);
-              break;
-            case 1:
-              break;
-            case 2:
-              add_iq_samples(receiver[1], left_sample_double,right_sample_double);
-              break;
-            case 3:
-              break;
-            case 4:
-              break;
-          }
-        } else {
+	if (isTransmitting() && transmitter->puresignal) {
+	  //
+	  // case: transmitting with PURESIGNAL. Get sample pairs and feed to pscc
+	  //
           switch(r) {
             case 0:
               if(device==DEVICE_METIS)  {
@@ -709,8 +705,68 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
               break;
           }
         }
+        if (!isTransmitting() && diversity_enabled) {
+	  //
+	  // case: compiled for PURESIGNAL and RX with DIVERSITY. Feed sample pair to diversity mixer for RX1 and original RX2 sample to RX2
+	  //
+          switch(r) {
+            case 0:
+              left_sample_double_rx=left_sample_double;
+              right_sample_double_rx=right_sample_double;
+              break;
+            case 2:
+              left_sample_double_tx=left_sample_double;
+              right_sample_double_tx=right_sample_double;
+              add_div_iq_samples(receiver[0], left_sample_double_rx,right_sample_double_rx,left_sample_double_tx,right_sample_double_tx);
+              if (receivers >1) add_iq_samples(receiver[1], left_sample_double,right_sample_double);
+              break;
+          }
+        }
+        if (!isTransmitting() && !diversity_enabled) {
+	  //
+	  // case: compiled for PURESIGNAL and RX without DIVERSITY. Feed samples to RX1 and RX2
+	  //
+          switch(r) {
+            case 0:
+              add_iq_samples(receiver[0], left_sample_double,right_sample_double);
+              break;
+            case 2:
+              if (receivers >1) add_iq_samples(receiver[1], left_sample_double,right_sample_double);
+              break;
+          }
+        }
 #else
-        add_iq_samples(receiver[r], left_sample_double,right_sample_double);
+        // no PURESIGNAL
+        if (diversity_enabled) {
+	  //
+	  // case: compiled without PURESIGNAL and using DIVERSITY: Feed sample pair to diversity mixer for RX1 and original RX2 sample to RX2
+	  //
+          switch(r) {
+            case 0:
+              left_sample_double_rx=left_sample_double;
+              right_sample_double_rx=right_sample_double;
+              break;
+            case 1:
+              left_sample_double_tx=left_sample_double;
+              right_sample_double_tx=right_sample_double;
+              add_div_iq_samples(receiver[0], left_sample_double_rx,right_sample_double_rx,left_sample_double_tx,right_sample_double_tx);
+              if (receivers >1) add_iq_samples(receiver[1], left_sample_double,right_sample_double);
+              break;
+          }
+        }
+        if (!diversity_enabled) {
+	  //
+	  // case: compiled without PURESIGNAL and not using DIVERSITY: Feed samples to RX1 and RX2
+	  //
+          switch(r) {
+            case 0:
+              add_iq_samples(receiver[0], left_sample_double,right_sample_double);
+              break;
+            case 1:
+              if (receivers >1) add_iq_samples(receiver[1], left_sample_double,right_sample_double);
+              break;
+          }
+	}
 #endif
       }
 
@@ -845,22 +901,7 @@ void ozy_send_buffer() {
   int mode;
   int i;
   BAND *band;
-  int num_hpsdr_receivers;
-
-#ifdef PURESIGNAL
-    // for PureSignal, the number of receivers needed is hard-coded below.
-    // we need at least 3 (for RX), and up to 5 for Orion2 boards, since
-    // the TX DAC channel is hard-wired to RX5.
-    num_hpsdr_receivers=3;
-    if (device == DEVICE_HERMES) num_hpsdr_receivers=4;
-    if (device == DEVICE_ANGELIA || device == DEVICE_ORION || device == DEVICE_ORION2) num_hpsdr_receivers=5;
-#else
-#if defined(RADIOBERRY) || defined(PI_SDR)
-	num_hpsdr_receivers = receivers;
-#else
-	num_hpsdr_receivers=RECEIVERS;
-#endif
-#endif
+  int num_hpsdr_receivers=how_many_receivers();
 
   output_buffer[SYNC0]=SYNC;
   output_buffer[SYNC1]=SYNC;
@@ -953,7 +994,6 @@ void ozy_send_buffer() {
     // Set ALEX RX1_ANT and RX1_OUT
     //
     i=receiver[0]->alex_antenna;
-#ifdef PURESIGNAL
     //
     // Upon TX, we might have to activate a different RX path for the
     // attenuated feedback signal. Use alex_antenna == 0, if
@@ -961,7 +1001,6 @@ void ozy_send_buffer() {
     // If feedback is to the second ADC, leave RX1 ANT settings untouched
     //
     if (isTransmitting() && transmitter->puresignal) i=receiver[PS_RX_FEEDBACK]->alex_antenna;
-#endif
     switch(i) {
       case 3:  // Alex: RX2 IN, ANAN: EXT1, ANAN7000: still uses internal feedback 
         output_buffer[C3]|=0x80;
@@ -1175,11 +1214,9 @@ void ozy_send_buffer() {
         }
         output_buffer[C2]=0x00;
         output_buffer[C2]|=linein_gain;
-#ifdef PURESIGNAL
         if(transmitter->puresignal) {
           output_buffer[C2]|=0x40;
         }
-#endif
         output_buffer[C3]=0x00;
         output_buffer[C4]=0x00;
   
@@ -1281,11 +1318,9 @@ void ozy_send_buffer() {
         if(receiver[0]->alex_antenna==5) { // XVTR
           output_buffer[C2]=0x02;          // Alex2 XVTR enable
         }
-#ifdef PURESIGNAL
         if(transmitter->puresignal) {
           output_buffer[C2]|=0x40;	   // Synchronize RX5 and TX frequency on transmit
         }
-#endif
         output_buffer[C3]=0x00;            // Alex2 filters
         output_buffer[C4]=0x00;            // Alex2 filters
         break;

@@ -708,11 +708,9 @@ void start_radio() {
 
   calcDriveLevel();
 
-#ifdef PURESIGNAL
   if(transmitter->puresignal) {
     tx_set_ps(transmitter,transmitter->puresignal);
   }
-#endif
 
   if(protocol==NEW_PROTOCOL) {
     schedule_high_priority();
@@ -771,9 +769,7 @@ void radio_change_sample_rate(int rate) {
 #endif
         old_protocol_set_mic_sample_rate(rate);
         old_protocol_run();
-#ifdef PURESIGNAL
         tx_set_ps_sample_rate(transmitter,rate);
-#endif
       }
       break;
 #ifdef LIMESDR
@@ -803,18 +799,12 @@ static void rxtx(int state) {
 #endif
 
     for(i=0;i<receivers;i++) {
-#ifdef PURESIGNAL
-      // When using PURESIGNAL, delivery of RX samples
-      // to WDSP via fexchange0() comes to an abrupt stop
-      // since they go through add_ps_iq_samples()
-      // rather than add_iq_samples().
+      // Delivery of RX samples
+      // to WDSP via fexchange0() may come to an abrupt stop
+      // (especially with PURESIGNAL or DIVERSITY).
       // Therefore, wait for *all* receivers to complete
       // their slew-down before going TX.
       SetChannelState(receiver[i]->id,0,1);
-#else
-      // Original code: wait for WDSP only for the last RX
-      SetChannelState(receiver[i]->id,0,i==(receivers-1));
-#endif
       set_displaying(receiver[i],0);
       g_object_ref((gpointer)receiver[i]->panel);
       g_object_ref((gpointer)receiver[i]->panadapter);
@@ -929,18 +919,12 @@ void setTune(int state) {
     }
     if(state) {
       for(i=0;i<receivers;i++) {
-#ifdef PURESIGNAL
-        // When using PURESIGNAL, delivery of RX samples
-        // to WDSP via fexchange0() comes to an abrupt stop
-        // since they go through add_ps_iq_samples()
-        // rather than add_iq_samples().
+        // Delivery of RX samples
+        // to WDSP via fexchange0() may come to an abrupt stop
+        // (especially with PURESIGNAL or DIVERSITY)
         // Therefore, wait for *all* receivers to complete
         // their slew-down before going TX.
         SetChannelState(receiver[i]->id,0,1);
-#else
-	// wait only for the last RX
-        SetChannelState(receiver[i]->id,0,i==(receivers-1));
-#endif
         set_displaying(receiver[i],0);
         if(protocol==NEW_PROTOCOL) {
           schedule_high_priority();

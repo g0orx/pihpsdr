@@ -27,7 +27,7 @@
 #include "new_menu.h"
 #include "diversity_menu.h"
 #include "radio.h"
-#include <wdsp.h>
+#include "new_protocol.h"
 
 static GtkWidget *parent_window=NULL;
 
@@ -55,17 +55,18 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 
 static void diversity_cb(GtkWidget *widget, gpointer data) {
   diversity_enabled=diversity_enabled==1?0:1;
-  SetEXTDIVRun(0,diversity_enabled);
+  if (protocol == NEW_PROTOCOL) {
+    schedule_high_priority();
+    schedule_receive_specific();
+  }
 }
 
 static void i_rotate_value_changed_cb(GtkWidget *widget, gpointer data) {
   i_rotate[1]=gtk_range_get_value(GTK_RANGE(widget));
-  SetEXTDIVRotate (0, 2, &i_rotate[0], &q_rotate[0]);
 }
 
 static void q_rotate_value_changed_cb(GtkWidget *widget, gpointer data) {
   q_rotate[1]=gtk_range_get_value(GTK_RANGE(widget));
-  SetEXTDIVRotate (0, 2, &i_rotate[0], &q_rotate[0]);
 }
 
 void diversity_menu(GtkWidget *parent) {

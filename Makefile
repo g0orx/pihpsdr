@@ -474,10 +474,10 @@ release: $(PROGRAM)
 #
 #############################################################################
 
-hpsdrsim.o:	hpsdrsim.c
+hpsdrsim.o:	hpsdrsim.c hpsdrsim.h
 	$(CC) -c -O -DALSASOUND hpsdrsim.c
 
-newhpsdrsim.o:	newhpsdrsim.c
+newhpsdrsim.o:	newhpsdrsim.c hpsdrsim.h
 	$(CC) -c -O newhpsdrsim.c
 
 hpsdrsim:	hpsdrsim.o newhpsdrsim.o

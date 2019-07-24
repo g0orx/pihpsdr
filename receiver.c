@@ -331,6 +331,10 @@ fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
   sprintf(name,"receiver.%d.adc",rx->id);
   value=getProperty(name);
   if(value) rx->adc=atoi(value);
+  //
+  // Do not specify a second ADC if there is only one
+  //
+  if (n_adc == 1) rx->adc=0;
   sprintf(name,"receiver.%d.filter_low",rx->id);
   value=getProperty(name);
   if(value) rx->filter_low=atoi(value);
@@ -756,8 +760,6 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
   RECEIVER *rx=malloc(sizeof(RECEIVER));
   rx->id=id;
 
-  // Note that fixed DDC/ADC settings are used in old_protocol and new_protocol.
-  rx->ddc=0;   // unused in old protocol
   rx->adc=0;
 
   rx->sample_rate=sample_rate;
@@ -786,7 +788,6 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
     }
   }
   // allocate buffers
-  rx->iq_sequence=0;
   rx->iq_input_buffer=malloc(sizeof(double)*2*rx->buffer_size);
   rx->audio_buffer=NULL;
   rx->audio_sequence=0L;
@@ -863,19 +864,9 @@ fprintf(stderr,"create_receiver: id=%d buffer_size=%d fft_size=%d pixels=%d fps=
   rx->id=id;
   switch(id) {
     case 0:
-      if(protocol==NEW_PROTOCOL && device==NEW_DEVICE_HERMES) {
-        rx->ddc=0;
-      } else {
-        rx->ddc=2;
-      }
       rx->adc=0;
       break;
     default:
-      if(protocol==NEW_PROTOCOL && device==NEW_DEVICE_HERMES) {
-        rx->ddc=1;
-      } else {
-        rx->ddc=3;
-      }
       switch(protocol) {
         case ORIGINAL_PROTOCOL:
           switch(device) {
@@ -902,7 +893,7 @@ fprintf(stderr,"create_receiver: id=%d buffer_size=%d fft_size=%d pixels=%d fps=
           break;
       }
   }
-fprintf(stderr,"create_receiver: id=%d default ddc=%d adc=%d\n",rx->id, rx->ddc, rx->adc);
+fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
   rx->sample_rate=48000;
   rx->buffer_size=buffer_size;
   rx->fft_size=fft_size;
@@ -999,7 +990,7 @@ fprintf(stderr,"create_receiver: id=%d output_samples=%d\n",rx->id,rx->output_sa
 
   // setup wdsp for this receiver
 
-fprintf(stderr,"create_receiver: id=%d after restore ddc=%d adc=%d\n",rx->id, rx->ddc, rx->adc);
+fprintf(stderr,"create_receiver: id=%d after restore adc=%d\n",rx->id, rx->adc);
 
 fprintf(stderr,"create_receiver: OpenChannel id=%d buffer_size=%d fft_size=%d sample_rate=%d\n",
         rx->id,
@@ -1063,11 +1054,6 @@ fprintf(stderr,"RXASetMP %d\n",rx->low_latency);
     SetRXAEQRun(rx->id, 0);
   }
 
-  // setup for diversity
-  create_divEXT(0,0,2,rx->buffer_size);
-  SetEXTDIVRotate(0, 2, &i_rotate[0], &q_rotate[0]);
-  SetEXTDIVRun(0,diversity_enabled);
-  
   receiver_mode_changed(rx);
   //set_mode(rx,vfo[rx->id].mode);
   //set_filter(rx,rx->filter_low,rx->filter_high);
@@ -1391,6 +1377,24 @@ static int rx_buffer_seen=0;
 static int tx_buffer_seen=0;
 
 void add_iq_samples(RECEIVER *rx, double i_sample,double q_sample) {
+  rx->iq_input_buffer[rx->samples*2]=i_sample;
+  rx->iq_input_buffer[(rx->samples*2)+1]=q_sample;
+  rx->samples=rx->samples+1;
+  if(rx->samples>=rx->buffer_size) {
+    full_rx_buffer(rx);
+    rx->samples=0;
+  }
+}
+
+//
+// Note that we sum such that the first channel has a factor of 1,
+// so we do not use but rather hard-code the values
+// i_rotate[0]=1 and q_rotate[0]=0.
+//
+void add_div_iq_samples(RECEIVER *rx, double i0, double q0, double i1, double q1) {
+  double i_sample, q_sample;
+  i_sample = i0 + i_rotate[1]*i1 - q_rotate[1]*q1;
+  q_sample = q0 + q_rotate[1]*i1 + i_rotate[1]*q1;
   rx->iq_input_buffer[rx->samples*2]=i_sample;
   rx->iq_input_buffer[(rx->samples*2)+1]=q_sample;
   rx->samples=rx->samples+1;

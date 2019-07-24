@@ -60,13 +60,16 @@ extern char property_path[];
 
 extern int region;
 
-// specify how many receivers
-#define MAX_RECEIVERS 8
+// specify how many receivers: for PURESIGNAL need two extra
 #define RECEIVERS 2
 #ifdef PURESIGNAL
+#define MAX_RECEIVERS (RECEIVERS+2)
 #define PS_TX_FEEDBACK (RECEIVERS)
 #define PS_RX_FEEDBACK (RECEIVERS+1)
+#else
+#define MAX_RECEIVERS RECEIVERS
 #endif
+#define MAX_DDC (RECEIVERS+2)
 
 extern RECEIVER *receiver[];
 extern RECEIVER *active_receiver;

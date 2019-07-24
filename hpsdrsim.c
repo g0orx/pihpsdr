@@ -75,50 +75,11 @@
 #undef NEED_DUMMY_AUDIO
 #endif
 
-// Forward declarations for the audio functions
-void audio_get_cards(void);
-void audio_open_output();
-void audio_write(int16_t, int16_t);
+#define EXTERN 
+#include "hpsdrsim.h"
 
-
-#ifndef __APPLE__
-// using clock_nanosleep of librt
-extern int clock_nanosleep(clockid_t __clock_id, int __flags,
-      __const struct timespec *__req,
-      struct timespec *__rem);
-#endif
-
-
-static int sock_TCP_Server = -1;
-static int sock_TCP_Client = -1;
-
-//
-// Forward declarations for new protocol stuff
-//
-void   new_protocol_general_packet(unsigned char *buffer);
-int    new_protocol_running(void);
-
-#define LENNOISE 1536000
-#define NOISEDIV (RAND_MAX / 768000)
-
-double noiseItab[LENNOISE];
-double noiseQtab[LENNOISE];
-
-int diversity=0;
-
-#define LENDIV 16000
-double divtab[LENDIV];
-//
-// The tone is recorded with a sample rate of 1536 kHz. For lower TX
-// sample rates, one has to decimate it
-//
-#define LENTONE 15360
-double toneItab[LENTONE];
-double toneQtab[LENTONE];
-
-double c1,c2;  // shared. needed for power conversion
 /*
- * These variables store the state of the SDR.
+ * These variables store the state of the "old protocol" SDR.
  * Whenevery they are changed, this is reported.
  */
 
@@ -188,9 +149,9 @@ static double rxatt_dbl[4] = {1.0, 1.0, 1.0, 1.0};   // this reflects both ATT a
 /*
  * Socket for communicating with the "PC side"
  */
+static int sock_TCP_Server = -1;
+static int sock_TCP_Client = -1;
 static int sock_udp;
-struct sockaddr_in addr_new; // shared by newhpsdrsim.c
-static struct sockaddr_in addr_old;
 
 /*
  * These two variables monitor whether the TX thread is active
@@ -198,28 +159,10 @@ static struct sockaddr_in addr_old;
 static int enable_thread = 0;
 static int active_thread = 0;
 
-void process_ep2(uint8_t *frame);
-void *handler_ep6(void *arg);
+static void process_ep2(uint8_t *frame);
+static void *handler_ep6(void *arg);
 
 
-/*
- * The TX data ring buffer
- */
-
-// RTXLEN must be an sixteen-fold multiple of 63
-// because we have 63 samples per 512-byte METIS packet,
-// and two METIS packets per TCP/UDP packet,
-// and two/four/eight-fold up-sampling if the TX sample
-// rate is 96000/192000/384000
-//
-// In the new protocol, TX samples come in bunches of
-// 240 samples. So NEWRTXLEN is defined as a multiple of
-// 240 not exceeding RTXLEN
-//
-#define RTXLEN 64512
-#define NEWRTXLEN 64320
-double  isample[RTXLEN];  // shared with newhpsdrsim
-double  qsample[RTXLEN];  // shared with newhpsdrsim
 static double  last_i_sample=0.0;
 static double  last_q_sample=0.0;
 static int  txptr=0;
@@ -245,9 +188,6 @@ static int  txptr=0;
 #define NEW_DEVICE_ORION       4
 #define NEW_DEVICE_ORION2      5
 #define NEW_DEVICE_HERMES_LITE 6
-
-static int OLDDEVICE=DEVICE_HERMES;
-static int NEWDEVICE=NEW_DEVICE_HERMES;
 
 int main(int argc, char *argv[])
 {
@@ -291,6 +231,10 @@ int main(int argc, char *argv[])
  *      Examples for C25:	RedPitaya based boards with fixed ADC connections
  */
 
+        diversity=0;
+        OLDDEVICE=DEVICE_ORION2;
+        NEWDEVICE=NEW_DEVICE_ORION2;
+
         for (i=1; i<argc; i++) {
             if (!strncmp(argv[i],"-atlas"  ,      6))  {OLDDEVICE=DEVICE_ATLAS;       NEWDEVICE=NEW_DEVICE_ATLAS;}
             if (!strncmp(argv[i],"-hermes" ,      7))  {OLDDEVICE=DEVICE_HERMES;      NEWDEVICE=NEW_DEVICE_HERMES;}
@@ -313,6 +257,9 @@ int main(int argc, char *argv[])
             case   DEVICE_C25:     fprintf(stderr,"DEVICE is STEMlab/C25\n"); c1=3.3; c2=0.090; break;
         }
 
+//
+//      Initialize the data in the sample tables
+//
 	fprintf(stderr,".... producing random noise\n");
         // Produce some noise
         j=RAND_MAX / 2;
@@ -356,8 +303,11 @@ int main(int argc, char *argv[])
 	  }
 	}
 	
-	memset (isample, 0, RTXLEN*sizeof(double));
-	memset (qsample, 0, RTXLEN*sizeof(double));
+//
+//      clear TX fifo
+//
+	memset (isample, 0, OLDRTXLEN*sizeof(double));
+	memset (qsample, 0, OLDRTXLEN*sizeof(double));
 
 	audio_get_cards();
         audio_open_output();
@@ -612,7 +562,7 @@ int main(int argc, char *argv[])
 					if (j == 62) bp+=8; // skip 8 SYNC/C&C bytes of second block
                                  }
 				 // wrap-around of ring buffer
-                                 if (txptr >= RTXLEN) txptr=0;
+                                 if (txptr >= OLDRTXLEN) txptr=0;
 				}
 				break;
 
@@ -708,9 +658,9 @@ int main(int argc, char *argv[])
 				// TX samples sent to the SDR and PURESIGNAL feedback
 				// samples arriving
 				//
-                                txptr=RTXLEN/2;
-				memset(isample, 0, RTXLEN*sizeof(double));
-				memset(qsample, 0, RTXLEN*sizeof(double));
+                                txptr=OLDRTXLEN/2;
+				memset(isample, 0, OLDRTXLEN*sizeof(double));
+				memset(qsample, 0, OLDRTXLEN*sizeof(double));
 				enable_thread = 1;
 				active_thread = 1;
 				CommonMercuryFreq = 0;
@@ -1134,10 +1084,10 @@ void *handler_ep6(void *arg)
 	toneIQpt=0;
 	divpt=0;
 	// The rxptr should never "overtake" the txptr, but
-	// it also must not lag behind by too much. We choose
-	// about 50 msec
-        rxptr=txptr-(2500<<rate);
-        if (rxptr < 0) rxptr += RTXLEN;
+	// it also must not lag behind by too much. Let's take
+	// the typical TX FIFO size
+        rxptr=txptr-4096;
+        if (rxptr < 0) rxptr += OLDRTXLEN;
         
         clock_gettime(CLOCK_MONOTONIC, &delay);
 	while (1)
@@ -1159,8 +1109,6 @@ void *handler_ep6(void *arg)
 //              Use PA settings such that there is full drive at full
 //              power (39 dB)
 //
-#define IM3a  0.60
-#define IM3b  0.20
 
 		//  48 kHz   decimation=32
 		//  96 kHz   decimation=16
@@ -1179,7 +1127,7 @@ void *handler_ep6(void *arg)
 		    fac1=rxatt_dbl[0]*0.00001;		// Amplitude of 800-Hz-signal to ADC1
 		    if (diversity) {
 			fac2=0.0001*rxatt_dbl[0];	// Amplitude of broad "man-made" noise to ADC1
-			fac4=0.0002*rxatt_dbl[1];	// Amplitude of broad "man-made" noise to ADC2 (phase shifted 90 deg.)
+			fac4=0.0003*rxatt_dbl[1];	// Amplitude of broad "man-made" noise to ADC2 (phase shifted 90 deg. and three times stronger)
 		    }
 		    for (j=0; j<n; j++) {
 			// ADC1: noise + weak tone on RX, feedback sig. on TX (except STEMlab)
@@ -1189,7 +1137,7 @@ void *handler_ep6(void *arg)
 			  fac3=IM3a+IM3b*(i1*i1+q1*q1);
 			  adc1isample= (txatt_dbl*i1*fac3+noiseItab[noiseIQpt]) * 8388607.0;
 			  adc1qsample= (txatt_dbl*q1*fac3+noiseItab[noiseIQpt]) * 8388607.0;
-			} else  if (diversity) {
+			} else if (diversity) {
 			  // man made noise only to I samples
 			  adc1isample= (noiseItab[noiseIQpt]+toneItab[toneIQpt]*fac1+divtab[divpt]*fac2) * 8388607.0;
 			  adc1qsample= (noiseQtab[noiseIQpt]+toneQtab[toneIQpt]*fac1                   ) * 8388607.0;
@@ -1206,7 +1154,7 @@ void *handler_ep6(void *arg)
 			  adc2qsample= (txatt_dbl*q1*fac3+noiseItab[noiseIQpt]) * 8388607.0;
 			} else if (diversity) {
 			  // man made noise to Q channel only
-			  adc2isample= noiseItab[noiseIQpt] * 8388607.0;			// Noise
+			  adc2isample= noiseItab[noiseIQpt]                      * 8388607.0;		// Noise
 			  adc2qsample= (noiseQtab[noiseIQpt]+divtab[divpt]*fac4) * 8388607.0;
 			} else {
 			  adc2isample= noiseItab[noiseIQpt] * 8388607.0;			// Noise
@@ -1259,7 +1207,7 @@ void *handler_ep6(void *arg)
 		        }
 			// Microphone samples: silence
 			pointer += 2;
-			rxptr++;              if (rxptr >= RTXLEN) rxptr=0;
+			rxptr++;              if (rxptr >= OLDRTXLEN) rxptr=0;
 			noiseIQpt++;          if (noiseIQpt >= LENNOISE) noiseIQpt=rand() / NOISEDIV;
 			toneIQpt+=decimation; if (toneIQpt >= LENTONE) toneIQpt=0;
 			divpt+=decimation;    if (divpt >= LENDIV) divpt=0;
@@ -1625,3 +1573,4 @@ void audio_write (int16_t l, int16_t r)
 {
 }
 #endif
+

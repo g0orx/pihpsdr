@@ -9,36 +9,10 @@
 #include <arpa/inet.h>
 #include <math.h>
 
-extern struct sockaddr_in addr_new;
-extern void audio_write(int16_t r, int16_t l);
+#define EXTERN extern
+#include "hpsdrsim.h"
 
-#define NUMRECEIVERS 8
-
-#define LENNOISE 1536000
-#define NOISEDIV (RAND_MAX / 768000)
-
-double noiseItab[LENNOISE];
-double noiseQtab[LENNOISE];
-
-extern int diversity;
-
-#define LENDIV 16000
-double divtab[LENDIV];
-
-#define LENTONE 15360
-extern double toneItab[LENTONE];
-extern double toneQtab[LENTONE];
-
-extern double c1, c2;
-
-#define IM3a  0.60
-#define IM3b  0.20
-
-#define RTXLEN 64512
-#define NEWRTXLEN 64320
-extern double  isample[RTXLEN];  // shared with newhpsdrsim
-extern double  qsample[RTXLEN];  // shared with newhpsdrsim
-static int txptr = 10000;
+#define NUMRECEIVERS 4
 
 /*
  * These variables represent the state of the machine
@@ -123,6 +97,8 @@ static double txdrv_dbl = 0.0;
 
 // End of state variables
 
+static int txptr = 10000;
+
 static pthread_t ddc_specific_thread_id;
 static pthread_t duc_specific_thread_id;
 static pthread_t rx_thread_id[NUMRECEIVERS];
@@ -148,14 +124,14 @@ int new_protocol_running() {
 }
 
 void new_protocol_general_packet(unsigned char *buffer) {
-  static unsigned long seqnum=0;
+  static unsigned long gp_seqnum=0;
   unsigned long seqold;
   int rc;
 
-  seqold = seqnum;
-  seqnum = (buffer[0] >> 24) + (buffer[1] << 16) + (buffer[2] << 8) + buffer[3];
-  if (seqnum != 0 && seqnum != seqold+1 ) {
-    fprintf(stderr,"GP: SEQ ERROR, old=%lu new=%lu\n", seqold, seqnum);
+  seqold = gp_seqnum;
+  gp_seqnum = (buffer[0] >> 24) + (buffer[1] << 16) + (buffer[2] << 8) + buffer[3];
+  if (gp_seqnum != 0 && gp_seqnum != seqold+1 ) {
+    fprintf(stderr,"GP: SEQ ERROR, old=%lu new=%lu\n", seqold, gp_seqnum);
   }
 
   rc=(buffer[5] << 8) + buffer[6];
@@ -346,6 +322,7 @@ void *ddc_specific_thread(void *data) {
     return NULL;
   }
 
+  seqnum=0;
   while(run) {
      rc = recvfrom(sock, buffer, 1444, 0,(struct sockaddr *)&addr, &lenaddr);
      if (rc < 0 && errno != EAGAIN) {
@@ -354,13 +331,13 @@ void *ddc_specific_thread(void *data) {
      }
      if (rc < 0) continue;
      if (rc != 1444) {
-       fprintf(stderr,"RX: Received DDC specific packet with incorrect length");
+       fprintf(stderr,"RXspec: Received DDC specific packet with incorrect length");
        break;
      }
      seqold = seqnum;
      seqnum = (buffer[0] >> 24) + (buffer[1] << 16) + (buffer[2] << 8) + buffer[3];
-     if (seqnum != 0 &&seqnum != seqold+1 ) {
-       fprintf(stderr,"GP: SEQ ERROR, old=%lu new=%lu\n", seqold, seqnum);
+     if (seqnum != 0 && seqnum != seqold+1 ) {
+       fprintf(stderr,"RXspec: SEQ ERROR, old=%lu new=%lu\n", seqold, seqnum);
      }
      if (adc != buffer[4]) {
        adc=buffer[4];
@@ -384,12 +361,6 @@ void *ddc_specific_thread(void *data) {
      for (i=0; i<NUMRECEIVERS; i++) {
        int modified=0;
 
-       rc=(buffer[7 + (i/8)] >> (i % 8)) & 0x01;
-       if (rc != ddcenable[i]) {
-	 modified=1;
-	 ddcenable[i]=rc;
-       }
-       
        rc=buffer[17+6*i];
        if (rc != adcmap[i]) {
 	 modified=1;
@@ -416,7 +387,7 @@ void *ddc_specific_thread(void *data) {
 	 fprintf(stderr,"RX: DDC%d Enable=%d ADC%d Rate=%d SyncMap=%02x\n",
 		i,ddcenable[i], adcmap[i], rxrate[i], syncddc[i]);
 	 rc=0;
-	 for (i=0; i<8; i++) {
+	 for (j=0; j<8; j++) {
 	   rc += (syncddc[i] >> i) & 0x01;
 	 }
 	 if (rc > 1) {
@@ -465,19 +436,19 @@ void *duc_specific_thread(void *data) {
   addr.sin_port = htons(duc_port);
 
   if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-    perror("***** ERROR: TX specific: bind");
+    perror("***** ERROR: TXspec: bind");
     return NULL;
   }
 
   while(run) {
      rc = recvfrom(sock, buffer, 60, 0,(struct sockaddr *)&addr, &lenaddr);
      if (rc < 0 && errno != EAGAIN) {
-       perror("***** ERROR: DUC specific thread: recvmsg");
+       perror("***** ERROR: TXspec: recvmsg");
        break;
      }
      if (rc < 0) continue;
      if (rc != 60) {
-	fprintf(stderr,"TX: DUC Specific: wrong length\n");
+	fprintf(stderr,"TXspec: wrong length\n");
         break;
      }
      seqold = seqnum;
@@ -594,7 +565,7 @@ void *highprio_thread(void *data) {
      seqold = seqnum;
      seqnum = (buffer[0] >> 24) + (buffer[1] << 16) + (buffer[2] << 8) + buffer[3];
      if (seqnum != 0 &&seqnum != seqold+1 ) {
-       fprintf(stderr,"GP: SEQ ERROR, old=%lu new=%lu\n", seqold, seqnum);
+       fprintf(stderr,"HP: SEQ ERROR, old=%lu new=%lu\n", seqold, seqnum);
      }
      rc=(buffer[4] >> 0) & 0x01;
      if (rc != run) {
@@ -761,8 +732,8 @@ void *rx_thread(void *data) {
   long myrate;
   int sync,size;
   int myadc, syncadc;
-  int ps=0;
   int rxptr;
+  int divptr;
   int decimation;
   
   struct timespec delay;
@@ -796,13 +767,14 @@ void *rx_thread(void *data) {
   tonept=noisept=0;
   clock_gettime(CLOCK_MONOTONIC, &delay);
   fprintf(stderr,"RX thread %d, enabled=%d\n", myddc, ddcenable[myddc]);
-  rxptr=txptr-5000;  
+  rxptr=txptr-4096;  
   if (rxptr < 0) rxptr += NEWRTXLEN;
+  divptr=0;
   while (run) {
 	if (!ddcenable[myddc] || rxrate[myddc] == 0 || rxfreq[myddc] == 0) {
 	  usleep(5000);
           clock_gettime(CLOCK_MONOTONIC, &delay);
-	  rxptr=txptr-5000;  
+	  rxptr=txptr-4096;  
 	  if (rxptr < 0) rxptr += NEWRTXLEN;
           continue;
         }
@@ -836,7 +808,6 @@ void *rx_thread(void *data) {
 	// ADC2   : original TX signal
 	//
 	  
-        ps=(sync && (rxrate[myadc]==192) && ptt && (syncadc == adc));
         p=buffer;
         *p++ =(seqnum >> 24) & 0xFF;
         *p++ =(seqnum >> 16) & 0xFF;
@@ -869,7 +840,11 @@ void *rx_thread(void *data) {
 	  // a) distorted TX data (with Drive and Attenuation) 
 	  // b) original TX data (normalized)
 	  //
-	  if (ps) {
+	  // DIV: produce sample PAIRS,
+	  // a) add man-made-noise on I-sample of RX channel
+	  // b) add man-made-noise on Q-sample of "synced" channel
+	  //
+	  if (sync && (rxrate[myadc]==192) && ptt && (syncadc == adc)) {
 	    irsample = isample[rxptr];
 	    qrsample = qsample[rxptr++];
 	    if (rxptr >= NEWRTXLEN) rxptr=0;
@@ -878,17 +853,27 @@ void *rx_thread(void *data) {
 	      i0sample += irsample*fac;
 	      q0sample += qrsample*fac;
 	    }
-	  } else if (myddc == 0) {
+	    i1sample = irsample * 0.2899;
+	    q1sample = qrsample * 0.2899;
+	  } else if (myadc == 0) {
 	    i0sample += toneItab[tonept] * 0.00001 * rxatt0_dbl;
 	    q0sample += toneQtab[tonept] * 0.00001 * rxatt0_dbl;
 	    tonept += decimation; if (tonept >= LENTONE) tonept=0;
 	  }
+	  if (diversity && !sync && myadc == 0) {
+	    i0sample += 0.0001 * rxatt0_dbl * divtab[divptr];
+	    divptr += decimation; if (divptr >= LENDIV) divptr=0;
+	  }
+	  if (diversity && !sync && myadc == 1) {
+	    q0sample += 0.0002 * rxatt1_dbl * divtab[divptr];
+	    divptr += decimation; if (divptr >= LENDIV) divptr=0;
+	  }
+	  if (diversity && sync && !ptt) {
+	    if (myadc == 0)   i0sample += 0.0001 * rxatt0_dbl * divtab[divptr];
+	    if (syncadc == 1) q1sample += 0.0002 * rxatt1_dbl * divtab[divptr];
+	    divptr += decimation; if (divptr >= LENDIV) divptr=0;
+	  }
 	  if (sync) {
-	    if (ps) {
-	      // synchronized stream: undistorted TX signal with constant max. amplitude
-	      i1sample = irsample * 0.2899;
-	      q1sample = qrsample * 0.2899;
-	    }
 	    sample=i0sample * 8388607.0;
 	    *p++=(sample >> 16) & 0xFF;
 	    *p++=(sample >>  8) & 0xFF;
@@ -1104,7 +1089,7 @@ void *send_highprio_thread(void *data) {
        break;
     }
     seqnum++;
-    usleep(50000); // wait 50 msec
+    usleep(50000); // wait 50 msec then send again
   }
   close(sock);
   return NULL;
@@ -1179,8 +1164,7 @@ void *audio_thread(void *data) {
 }
 
 //
-// The microphone thread generates
-// a two-tone signal
+// The microphone thread just sends silence
 //
 void *mic_thread(void *data) {
   int sock;
@@ -1191,25 +1175,11 @@ void *mic_thread(void *data) {
   int yes = 1;
   int rc;
   int i;
-  double arg1,arg2;
-  int sintab[480];  // microphone data
-  int sinptr = 0;
   struct timespec delay;
 #ifdef __APPLE__
   struct timespec now;
 #endif
 
-#define FREQ900  0.11780972450961724644234912687298
-#define FREQ1700 0.22252947962927702105777057298230
-
-  seqnum=0;
-  arg1=0.0;
-  arg2=0.0;
-  for (i=0; i<480; i++) {
-    sintab[i]=(int) round((sin(arg1)+sin(arg2)) * 5000.0);
-    arg1 += FREQ900;
-    arg2 += FREQ1700;
-  }
 
   sock=socket(AF_INET, SOCK_DGRAM, 0);
   if (sock < 0) {
@@ -1241,13 +1211,6 @@ void *mic_thread(void *data) {
     *p++ = (seqnum >>  8) & 0xFF;
     *p++ = (seqnum >>  0) & 0xFF;
     seqnum++;
-    // take periodic data from sintab as "microphone samples"
-    for (i=0; i< 64; i++) {
-	rc=sintab[sinptr++];
-        if (sinptr == 480) sinptr=0;
-        *p++ = (rc >> 8)  & 0xff;
-        *p++ = (rc & 0xff);
-    }
     // 64 samples with 48000 kHz, makes 1333333 nsec
     delay.tv_nsec += 1333333;
     while (delay.tv_nsec >= 1000000000) {
@@ -1280,5 +1243,3 @@ void *mic_thread(void *data) {
   close(sock);
   return NULL;
 }
-  
-
