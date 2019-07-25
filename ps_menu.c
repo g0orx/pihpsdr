@@ -64,7 +64,7 @@ extern void SetPSMapMode (int channel, int map);
 extern void SetPSPinMode (int channel, int pin);
 
 //
-// Todo: create buttons to change these value
+// Todo: create buttons to change these values
 //
 
 
