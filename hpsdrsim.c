@@ -211,6 +211,7 @@ int main(int argc, char *argv[])
         unsigned long checksum;
         socklen_t lenaddr;
         struct sockaddr_in addr_from;
+        unsigned int seed;
 
 	uint32_t last_seqnum = 0xffffffff, seqnum;  // sequence number of received packet
 
@@ -231,6 +232,8 @@ int main(int argc, char *argv[])
  *      Examples for C25:	RedPitaya based boards with fixed ADC connections
  */
 
+	// seed value for random number generator
+	seed = ((uintptr_t) &seed) & 0xffffff;
         diversity=0;
         OLDDEVICE=DEVICE_ORION2;
         NEWDEVICE=NEW_DEVICE_ORION2;
@@ -264,8 +267,8 @@ int main(int argc, char *argv[])
         // Produce some noise
         j=RAND_MAX / 2;
         for (i=0; i<LENNOISE; i++) {
-          noiseItab[i]= ((double) rand() / j - 1.0) * 0.00003;
-          noiseQtab[i]= ((double) rand() / j - 1.0) * 0.00003;
+          noiseItab[i]= ((double) rand_r(&seed) / j - 1.0) * 0.00003;
+          noiseQtab[i]= ((double) rand_r(&seed) / j - 1.0) * 0.00003;
         }
 
 	fprintf(stderr,".... producing an 800 Hz signal\n");
@@ -1074,6 +1077,9 @@ void *handler_ep6(void *arg)
         int noiseIQpt,toneIQpt,divpt,rxptr;
         double i1,q1,fac1,fac2,fac3,fac4;
         int decimation;  // for converting 1536 kHz samples to 48, 192, 384, ....
+        unsigned int seed;
+
+	seed=((uintptr_t) &seed) & 0xffffff;
 
 	memcpy(buffer, id, 4);
 
@@ -1127,7 +1133,8 @@ void *handler_ep6(void *arg)
 		    fac1=rxatt_dbl[0]*0.00001;		// Amplitude of 800-Hz-signal to ADC1
 		    if (diversity) {
 			fac2=0.0001*rxatt_dbl[0];	// Amplitude of broad "man-made" noise to ADC1
-			fac4=0.0003*rxatt_dbl[1];	// Amplitude of broad "man-made" noise to ADC2 (phase shifted 90 deg. and three times stronger)
+			fac4=0.0002*rxatt_dbl[1];	// Amplitude of broad "man-made" noise to ADC2
+							// (phase shifted 90 deg., 6 dB stronger)
 		    }
 		    for (j=0; j<n; j++) {
 			// ADC1: noise + weak tone on RX, feedback sig. on TX (except STEMlab)
@@ -1208,7 +1215,7 @@ void *handler_ep6(void *arg)
 			// Microphone samples: silence
 			pointer += 2;
 			rxptr++;              if (rxptr >= OLDRTXLEN) rxptr=0;
-			noiseIQpt++;          if (noiseIQpt >= LENNOISE) noiseIQpt=rand() / NOISEDIV;
+			noiseIQpt++;          if (noiseIQpt >= LENNOISE) noiseIQpt=rand_r(&seed) / NOISEDIV;
 			toneIQpt+=decimation; if (toneIQpt >= LENTONE) toneIQpt=0;
 			divpt+=decimation;    if (divpt >= LENDIV) divpt=0;
 		    }

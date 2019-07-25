@@ -735,6 +735,7 @@ void *rx_thread(void *data) {
   int rxptr;
   int divptr;
   int decimation;
+  unsigned int seed;
   
   struct timespec delay;
 #ifdef __APPLE__
@@ -744,6 +745,8 @@ void *rx_thread(void *data) {
   myddc=(int) (uintptr_t) data;
   if (myddc < 0 || myddc >= NUMRECEIVERS) return NULL;
   seqnum=0;
+  // unique seed value for random number generator
+  seed = ((uintptr_t) &seed) & 0xffffff;
 
   sock=socket(AF_INET, SOCK_DGRAM, 0);
   if (sock < 0) {
@@ -834,7 +837,7 @@ void *rx_thread(void *data) {
 	  //
 	  i1sample=i0sample=noiseItab[noisept];
 	  q1sample=q0sample=noiseQtab[noisept++];
-          if (noisept == LENNOISE) noisept=rand() / NOISEDIV;
+          if (noisept == LENNOISE) noisept=rand_r(&seed) / NOISEDIV;
 	  //
 	  // PS: produce sample PAIRS,
 	  // a) distorted TX data (with Drive and Attenuation) 
