@@ -39,7 +39,6 @@ typedef enum _audio_t audio_t;
 typedef struct _receiver {
   int id;
 
-  int ddc;
   int adc;
 
   double volume;

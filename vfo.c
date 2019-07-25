@@ -303,6 +303,13 @@ void vfo_band_changed(int b) {
     tx_set_mode(transmitter,vfo[VFO_A].mode);
   }
   calcDriveLevel();
+//
+// New protocol: communicate changes to radio
+//               HighPrio is scheduled anyway through calcDriveLevel
+//
+  if (protocol == NEW_PROTOCOL) {
+    schedule_general();		// for PA disable
+  }
   g_idle_add(ext_vfo_update,NULL);
 }
 
@@ -379,9 +386,13 @@ void vfo_mode_changed(int m) {
   } else {
     tx_set_mode(transmitter,vfo[VFO_A].mode);
   }
-  // changing from CWL to CWU changes BFO frequency.
+  //
+  // changing modes may change BFO frequency
+  // and SDR need to be informed about "CW or not CW"
+  //
   if (protocol == NEW_PROTOCOL) {
-    schedule_high_priority();
+    schedule_high_priority();		// update frequencies
+    schedule_transmit_specific();	// update "CW" flag
   }
   g_idle_add(ext_vfo_update,NULL);
 }

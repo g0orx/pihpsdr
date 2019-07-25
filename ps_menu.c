@@ -271,6 +271,9 @@ static void ps_ant_cb(GtkWidget *widget, gpointer data) {
       case 3:	// EXT1,            feedback goes to first ADC
       case 4:	// EXT2,            feedback goes to first ADC
 	receiver[PS_RX_FEEDBACK]->alex_antenna = val;
+	if (protocol == NEW_PROTOCOL) {
+	  schedule_high_priority();
+	}
 	break;
     }
   }
@@ -327,6 +330,7 @@ static void twotone_cb(GtkWidget *widget, gpointer data) {
 void ps_menu(GtkWidget *parent) {
   GtkWidget *b;
   int i;
+  const char *cp;
 
   parent_window=parent;
 
@@ -440,7 +444,12 @@ void ps_menu(GtkWidget *parent) {
   g_signal_connect(ps_ant_ext1,"toggled", G_CALLBACK(ps_ant_cb), (gpointer) (long) 3);
   col++;
 
-  GtkWidget *ps_ant_ext2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(ps_ant_auto),"EXT2");
+  cp="EXT2";
+  // On ANAN-7000 there is no EXT2 jacket. This function is now called "RX ByPass"
+  // On ANAN-8000 this must be done by physical re-wiring
+  if ((protocol == ORIGINAL_PROTOCOL && device == DEVICE_ORION2) || 
+      (protocol == NEW_PROTOCOL      && device == NEW_DEVICE_ORION2))  cp="RxByPass";
+  GtkWidget *ps_ant_ext2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(ps_ant_auto),cp);
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ps_ant_ext2),
     (receiver[PS_RX_FEEDBACK]->alex_antenna==4) );
   gtk_widget_show(ps_ant_ext2);
