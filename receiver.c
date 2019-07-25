@@ -908,7 +908,6 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
   rx->height=height;
 
   // allocate buffers
-  rx->iq_sequence=0;
   rx->iq_input_buffer=malloc(sizeof(double)*2*rx->buffer_size);
   rx->audio_buffer=malloc(AUDIO_BUFFER_SIZE);
   rx->audio_sequence=0L;
@@ -1387,16 +1386,11 @@ void add_iq_samples(RECEIVER *rx, double i_sample,double q_sample) {
 }
 
 //
-// Note that we sum such that the first channel has a factor of 1,
-// so we do not use but rather hard-code the values
-// i_rotate[0]=1 and q_rotate[0]=0.
+// Note that we sum the second channel onto the first one.
 //
 void add_div_iq_samples(RECEIVER *rx, double i0, double q0, double i1, double q1) {
-  double i_sample, q_sample;
-  i_sample = i0 + i_rotate[1]*i1 - q_rotate[1]*q1;
-  q_sample = q0 + q_rotate[1]*i1 + i_rotate[1]*q1;
-  rx->iq_input_buffer[rx->samples*2]=i_sample;
-  rx->iq_input_buffer[(rx->samples*2)+1]=q_sample;
+  rx->iq_input_buffer[rx->samples*2]    = i0 + (div_cos*i1 - div_sin*q1);
+  rx->iq_input_buffer[(rx->samples*2)+1]= q0 + (div_sin*i1 + div_cos*q1);
   rx->samples=rx->samples+1;
   if(rx->samples>=rx->buffer_size) {
     full_rx_buffer(rx);

@@ -298,8 +298,10 @@ int cw_key_state=0;
 int n_adc=1;
 
 int diversity_enabled=0;
-double i_rotate[2]={1.0,1.0};
-double q_rotate[2]={0.0,0.0};
+double div_cos=1.0;        // I factor for diversity
+double div_sin=1.0;	   // Q factor for diversity
+double div_gain=0.0;	   // gain for diversity (in dB)
+double div_phase=0.0;	   // phase for diversity (in degrees, 0 ... 360)
 
 double meter_calibration=0.0;
 double display_calibration=0.0;

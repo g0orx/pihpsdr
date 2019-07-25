@@ -251,8 +251,8 @@ extern int cw_key_state;
 extern int n_adc;
 
 extern int diversity_enabled;
-extern double i_rotate[2];
-extern double q_rotate[2];
+extern double div_cos, div_sin;
+extern double div_gain, div_phase;
 
 extern double meter_calibration;
 extern double display_calibration;
