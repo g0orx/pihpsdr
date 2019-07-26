@@ -492,9 +492,7 @@ void start_radio() {
   switch(protocol) {
     case ORIGINAL_PROTOCOL:
       switch(device) {
-        case DEVICE_METIS:
-          n_adc=1;  // No support for multiple MERCURY cards on a single ATLAS bus.
-          break;
+        case DEVICE_METIS: // No support for multiple MERCURY cards on a single ATLAS bus.
         case DEVICE_HERMES:
         case DEVICE_HERMES_LITE:
           n_adc=1;

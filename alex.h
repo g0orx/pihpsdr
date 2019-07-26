@@ -28,11 +28,21 @@
 // For ANAN-7000/8000, there are furthermore ALEX1 bits for the filter
 // board of the second RX.
 //
+// One note about bit 11 (controlling relay K36)
+//
+// On older (Rev 15/16) filter boards, K36 switches an output (ByPass)
+// On newer (Rev 24)    filter boards, K36 switches an input  (ByPass)
+//
+// That is, we use bit 11 ONLY when "RX BYPASS" is selected as the *input*
+// for the PS feedback signal. If you select "RX BYPASS" for the old
+// ANAN-100 boards PS will not work, you have to use EXT1.
+//
+//
 #define ALEX_RX_ANTENNA_NONE   0x00000000		// route Ant1,2,2 to RX1
-#define ALEX_RX_ANTENNA_XVTR   0x00000900		// route XVTR-in  to RX1
-#define ALEX_RX_ANTENNA_EXT1   0x00000A00		// route EXT1     to RX1
-#define ALEX_RX_ANTENNA_EXT2   0x00000C00		// jOUTE EXT2     to RX1
-#define ALEX_RX_ANTENNA_BYPASS 0x00000800		// disconnect RX1 from Ant1,2,3
+#define ALEX_RX_ANTENNA_XVTR   0x00000100		// route XVTR-in  to RX1 (bit 8)
+#define ALEX_RX_ANTENNA_EXT1   0x00000200		// route EXT1     to RX1 (bit 9)
+#define ALEX_RX_ANTENNA_EXT2   0x00000400		// route EXT2     to RX1 (bit 10)
+#define ALEX_RX_ANTENNA_BYPASS 0x00000800		// connect BYPASS to RX1 (bit 11)
 
 #define ALEX_TX_ANTENNA_1      0x01000000		// route TX to ANT1
 #define ALEX_TX_ANTENNA_2      0x02000000		// route TX to ANT2

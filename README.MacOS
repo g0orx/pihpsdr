@@ -107,7 +107,6 @@ That's easy. Just adjust the Makefile according to the instructions found there
 and type "make". In my case (I have a HAMLAB RedPitaya-based SDR box), I need
 the following options in the Makefile (and have all others commented out):
 
-STEMLAB_FIX_OPTION=-DSTEMLAB_FIX
 STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_MAC
 
 

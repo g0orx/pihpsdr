@@ -816,6 +816,31 @@ static void new_protocol_high_priority() {
     long alex0=0x00000000;
     long alex1=0x00000000;
 
+    if (device != NEW_DEVICE_ORION2) {
+      //
+      // ANAN7000 and 8000 do not have ALEX attenuators.
+      // Even worse, ALEX0(14) bit used to control these attenuators
+      // on ANAN-10/100/200 is now used differently.
+      //
+      // Note: ALEX attenuators are not much used anyway since we
+      //       have step attenuators on most boards.
+      //
+      switch (receiver[0]->alex_attenuation) {
+	case 0:
+	  alex0 |= ALEX_ATTENUATION_0dB;
+	  break;
+	case 1:
+	  alex0 |= ALEX_ATTENUATION_10dB;
+	  break;
+	case 2:
+	  alex0 |= ALEX_ATTENUATION_20dB;
+	  break;
+	case 3:
+	  alex0 |= ALEX_ATTENUATION_30dB;
+	  break;
+      }
+    }
+
     if(isTransmitting()) {
       alex0 |= ALEX_TX_RELAY;
       if(transmitter->puresignal) {
@@ -856,8 +881,14 @@ static void new_protocol_high_priority() {
       default:
 //
 //	Old (ANAN-100/200) high-pass filters
+//      Bypass HPFs while using EXT1 for PURESIGNAL feedback!
 //
-        if(rxFrequency<1800000L) {
+	i=0;  // flag used here for "filter bypass"
+	if (rxFrequency<1800000L) i=1;
+#ifdef PURESIGNAL
+	if (isTransmitting() && transmitter->puresignal && receiver[PS_RX_FEEDBACK]->alex_antenna == 6) i=1;
+#endif
+        if (i) {
           alex0|=ALEX_BYPASS_HPF;
         } else if(rxFrequency<6500000L) {
           alex0|=ALEX_1_5MHZ_HPF;
@@ -929,12 +960,15 @@ static void new_protocol_high_priority() {
 //  ANAN-7000 routes signals differently (these bits have no function on ANAN-80000)
 //            and uses ALEX0(14) to connnect Ext/XvrtIn to the RX.
 //
-    i=receiver[0]->alex_antenna;
+    i=receiver[0]->alex_antenna;			// 0,1,2  or 3,4,5
+#ifdef PURESIGNAL
     if (isTransmitting() && transmitter->puresignal) {
-	i=receiver[PS_RX_FEEDBACK]->alex_antenna;   // 0, 3, or 4
+	i=receiver[PS_RX_FEEDBACK]->alex_antenna;   	// 0, 6, or 7
     }
+#endif
     if (device == NEW_DEVICE_ORION2) i +=100;
     switch(i) {
+	case 6:  // EXT 1 for PS feedback
         case 3:  // EXT 1
           alex0|=ALEX_RX_ANTENNA_EXT1;
           break;
@@ -944,32 +978,33 @@ static void new_protocol_high_priority() {
         case 5:  // XVTR
             alex0|=ALEX_RX_ANTENNA_XVTR;
           break;
+	case 7: // RX_Bypass_In for PS feedback
+          alex0|=ALEX_RX_ANTENNA_BYPASS;
+          break;
 	case 103:	// EXT1 on ANAN-7000
+	case 106:	// EXT1 on ANAN-7000 for PS feedback
 	  alex0|=ALEX_ANAN7000_RX_ANT_EXT1;
 	  break;
-	case 104:	// EXT2 means RxBypass on ANAN-7000
-	  alex0|=ALEX_ANAN7000_RX_ANT_BYPASS;
+	case 104:
+	  // no EXT2 jacket on ANAN7000!
 	  break;
 	case 105:
 	  alex0|=ALEX_ANAN7000_RX_ANT_XVTR;
+	  break;
+	case 107:	// RxBypassIn on ANAN-7000
+	  alex0|=ALEX_ANAN7000_RX_ANT_BYPASS;
 	  break;
     }
 
 //
 //  Now we set the bits for Ant1/2/3 (RX and TX may be different)
-//  If RX is from none of Ant1/2/3, do not switch (leave these relays
-//  in TX state)
 //
-    if(isTransmitting() || (receiver[0]->alex_antenna > 2)) {
+    if(isTransmitting()) {
       i=transmitter->alex_antenna;
     } else {
       i=receiver[0]->alex_antenna;
     }
-    // i has value 0, 1, or 2.
     switch(i) {
-      default:
-	// should not happen, ignore silently and connect to ANT1
-	/* FALLTHROUGH */
       case 0:  // ANT 1
         alex0|=ALEX_TX_ANTENNA_1;
         break;
@@ -979,6 +1014,15 @@ static void new_protocol_high_priority() {
       case 2:  // ANT 3
         alex0|=ALEX_TX_ANTENNA_3;
         break;
+      default:
+	// this should not happen in TX case. Out of paranoia,
+        // connect ANT1 in this case
+	if (isTransmitting()) {
+	  fprintf(stderr,"WARNING: illegal TX antenna chosen, using ANT1\n");
+	  transmitter->alex_antenna=0;
+          alex0|=ALEX_TX_ANTENNA_1;
+	}
+	break;
     }
 
     high_priority_buffer_to_radio[1432]=(alex0>>24)&0xFF;
@@ -992,7 +1036,15 @@ static void new_protocol_high_priority() {
 //  Orion2 boards: set RX2 filters according ro VFOB frequency
 //
     if (device == NEW_DEVICE_ORION2) {
-        rxFrequency=vfo[VFO_B].frequency-vfo[VFO_B].lo;
+	//
+	// Note that while using DIVERSITY, the second RX filter settings must match
+	// those of the first RX
+	//
+	if (diversity_enabled) {
+          rxFrequency=vfo[VFO_A].frequency-vfo[VFO_A].lo;
+	} else {
+          rxFrequency=vfo[VFO_B].frequency-vfo[VFO_B].lo;
+	}
 //
 //      new ANAN-7000/8000 band-pass RX filters
 //      This info comes from file bpf2_select.v in the

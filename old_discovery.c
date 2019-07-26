@@ -428,8 +428,8 @@ fprintf(stderr,"discover_receive_thread\n");
                             strcpy(discovered[devices].name,"Orion2");
                             break;
 			case DEVICE_STEMLAB:
-			    // This is in principle the same as HERMES so pretend a HERMES
-			    discovered[devices].device = DEVICE_HERMES;
+			    // This is in principle the same as HERMES but has two ADCs
+			    // (and therefore, can do DIVERSITY).
                             strcpy(discovered[devices].name,"STEMlab");
                             break;
                         default:

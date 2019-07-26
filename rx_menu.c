@@ -32,6 +32,7 @@
 #include "radio.h"
 #include "receiver.h"
 #include "sliders.h"
+#include "new_protocol.h"
 
 static GtkWidget *parent_window=NULL;
 
@@ -59,14 +60,23 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 
 static void dither_cb(GtkWidget *widget, gpointer data) {
   active_receiver->dither=active_receiver->dither==1?0:1;
+  if (protocol == NEW_PROTOCOL) {
+    schedule_high_priority();
+  }
 }
 
 static void random_cb(GtkWidget *widget, gpointer data) {
   active_receiver->random=active_receiver->random==1?0:1;
+  if (protocol == NEW_PROTOCOL) {
+    schedule_high_priority();
+  }
 }
 
 static void preamp_cb(GtkWidget *widget, gpointer data) {
   active_receiver->preamp=active_receiver->preamp==1?0:1;
+  if (protocol == NEW_PROTOCOL) {
+    schedule_high_priority();
+  }
 }
 
 static void alex_att_cb(GtkWidget *widget, gpointer data) {
@@ -243,8 +253,7 @@ void rx_menu(GtkWidget *parent) {
   // On SDRs other than CHARLY25, preamps or Alex attenuators may be present or not, and we
   // do not try to find out whether they are. This would overload the code, and we then
   // also must have a menu to check e.g. which ANAN model is actually present.
-  // Instead, we offer these checkboxes in either case and must rely on the user
-  // not playing around with features that are not there.
+  // Instead, we offer these checkboxes in either case.
   //
   // NOTE: Preamps are not present on most current HPSDR models, and ALEX attenuators
   //       are not present e.g. in ANAN-7000.
