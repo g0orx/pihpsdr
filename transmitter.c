@@ -341,6 +341,7 @@ static gboolean update_display(gpointer data) {
     // If both spectra have the same number of pixels, this code
     // just copies all of them
     //
+#ifdef PURESIGNAL
     if(tx->puresignal && tx->feedback) {
       RECEIVER *rx_feedback=receiver[PS_RX_FEEDBACK];
       GetPixels(rx_feedback->id,0,rx_feedback->pixel_samples,&rc);
@@ -352,8 +353,11 @@ static gboolean update_display(gpointer data) {
       // if full == width, then we just copy all samples
       memcpy(tfp, rfp, width*sizeof(float));
     } else {
+#endif
       GetPixels(tx->id,0,tx->pixel_samples,&rc);
+#ifdef PURESIGNAL
     }
+#endif
     if(rc) {
       tx_panadapter_update(tx);
     }

@@ -543,7 +543,8 @@ static gpointer receive_thread(gpointer arg) {
 // These are FIXED numbers and depend on the device and whether the code
 // is compiled with or without PURESIGNAL
 // Furthermore, we provide a function that determines the frequency for
-// a given (HPSDR) receiver. This makes the code below much more transparent.
+// a given (HPSDR) receiver and for the transmitter.
+//
 //
 
 static int rx_feedback_receiver() {
@@ -572,7 +573,7 @@ static int rx_feedback_receiver() {
 
 static int tx_feedback_receiver() {
   //
-  // Depending on the device, return channel number of RX feedback receiver
+  // Depending on the device, return channel number of TX feedback receiver
   //
   int ret;
   switch (device) {
@@ -597,7 +598,7 @@ static int tx_feedback_receiver() {
 static int first_receiver() {
   //
   // Depending on the device and whether we compiled for PURESIGNAL,
-  // return the number of the first receiver
+  // return the channel number of the first receiver
   //
   return 0;
 }
@@ -605,7 +606,7 @@ static int first_receiver() {
 static int second_receiver() {
   //
   // Depending on the device and whether we compiled for PURESIGNAL,
-  // return the number of the second receiver
+  // return the channel number of the second receiver
   //
 #ifdef PURESIGNAL
   return 2;
@@ -625,7 +626,13 @@ static long long channel_freq(int chan) {
   //
   // This function returns the TX frequency if chan is
   // outside the allowed range, and thus can be used
-  // to determine the TX frequency.
+  // to set the TX frequency.
+  //
+  // If transmitting with PURESIGNAL, the frequency of
+  // the "antenna" feedback channel is set to the TX freq.
+  //
+  // This subroutine is the ONLY place here where the VFO
+  // frequencies are looked at.
   //
   int v;
   long long freq;
@@ -657,11 +664,15 @@ static long long channel_freq(int chan) {
       break;
 #endif
   }
+  //
+  // When transmitting with PURESIGNAL, set frequency of PS feedback channel to tx freq
+  //
+  if (isTransmitting() && transmitter->puresignal && chan == rx_feedback_receiver()) {
+    v = -1;
+  }
   if (v < 0) {
     //
-    // v=-1 indicates that there is no VFO associated,
-    // in this case we take the TX frequency. So we can use this
-    // function also to determine the TX frequency
+    // v=-1 indicates that we should use the TX frequency.
     //
     if(active_receiver->id==VFO_A) {
       if(split) {
