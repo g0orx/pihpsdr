@@ -867,7 +867,7 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
 	  //
           if (r == rx1channel) {
              add_iq_samples(receiver[0], left_sample_double,right_sample_double);
-          } else if (r == rx2channel ]] receivers > 1) {
+          } else if (r == rx2channel && receivers > 1) {
              add_iq_samples(receiver[1], left_sample_double,right_sample_double);
           }
         }
@@ -1105,7 +1105,9 @@ void ozy_send_buffer() {
     // the feedback signal is routed automatically/internally
     // If feedback is to the second ADC, leave RX1 ANT settings untouched
     //
+#ifdef PURESIGNAL
     if (isTransmitting() && transmitter->puresignal) i=receiver[PS_RX_FEEDBACK]->alex_antenna;
+#endif
     switch(i) {
       case 6:  // EXT1 used for PS feedback
       case 3:  // EXT1 (RX2_IN)
