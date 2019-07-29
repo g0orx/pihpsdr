@@ -258,7 +258,6 @@ agc_menu.c \
 vox_menu.c \
 fft_menu.c \
 diversity_menu.c \
-freqent_menu.c \
 tx_menu.c \
 vfo_menu.c \
 test_menu.c \
@@ -331,7 +330,6 @@ agc_menu.h \
 vox_menu.h \
 fft_menu.h \
 diversity_menu.h \
-freqent_menu.h \
 tx_menu.h \
 vfo_menu.h \
 test_menu.h \
@@ -400,7 +398,6 @@ agc_menu.o \
 vox_menu.o \
 fft_menu.o \
 diversity_menu.o \
-freqent_menu.o \
 tx_menu.o \
 vfo_menu.o \
 test_menu.o \

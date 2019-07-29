@@ -53,7 +53,6 @@
 #include "test_menu.h"
 #include "vox_menu.h"
 #include "diversity_menu.h"
-#include "freqent_menu.h"
 #include "tx_menu.h"
 #include "ps_menu.h"
 #include "encoder_menu.h"
@@ -318,16 +317,6 @@ void start_diversity() {
 
 static gboolean diversity_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   start_diversity();
-  return TRUE;
-}
-
-void start_freqent() {
-  cleanup();
-  freqent_menu(top_window);
-}
-
-static gboolean freqent_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  start_freqent();
   return TRUE;
 }
 

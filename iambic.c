@@ -79,6 +79,8 @@
  *   mlockall and munlockall still apply process-wide and are therefore executed in
  *   keyer_init/keyer_close.
  *
+ *   APPLE MacOS: if we run this in MacOS, most likely we are not "root". Therefore no locking/scheduling.
+ *
  * b) SIDE TONE GENERATION
  * =======================
  *
@@ -242,18 +244,16 @@ static sem_t cw_event;
 
 static int cwvox = 0;
 
+#ifndef __APPLE__
 // using clock_nanosleep of librt
 extern int clock_nanosleep(clockid_t __clock_id, int __flags,
       __const struct timespec *__req,
       struct timespec *__rem);
+#endif
 
 #ifndef GPIO
 //
-// It makes absolutely no sense to activate LOCALCW but not GPIO.
-// However, if this is done, the code should compile although it does
-// not do anything. Therefore we provide dummy functions related to
-// GPIO side tone generation. Without GPIO, keyer_event is never
-// called so the keyer_thread does nothing.
+// Dummy functions if compiled without GPIO
 //
 int gpio_cw_sidetone_enabled() { return 0; }
 void gpio_cw_sidetone_set(int level) {}
@@ -306,8 +306,14 @@ void keyer_update() {
 // state=0: paddle has been released
 // state=1: paddle has been hit
 //
+static int enforce_cw_vox;
+
 void keyer_event(int left, int state) {
+    if (!running) return;
     if (state) {
+        // This is to remember whether the key stroke interrupts a running CAT CW 
+	// Since in this case we return to RX after vox delay.
+	if (CAT_cw_is_active) enforce_cw_vox=1;
         // This is for aborting CAT CW messages if a key is hit.
 	cw_key_hit = 1;
     }
@@ -330,18 +336,10 @@ void keyer_event(int left, int state) {
 }
 
 void set_keyer_out(int state) {
-  switch (protocol) {
-    case ORIGINAL_PROTOCOL:
-      if (state) {
-        cw_hold_key(1); // this starts a CW pulse in transmitter.c
-      } else {
-        cw_hold_key(0); // this stops a CW pulse in transmitter.c
-      }
-      break;
-    case NEW_PROTOCOL:
-      cw_key_state = state;
-      schedule_high_priority();
-      break;
+  if (state) {
+    cw_hold_key(1); // this starts a CW pulse in transmitter.c
+  } else {
+    cw_hold_key(0); // this stops a CW pulse in transmitter.c
   }
 }
 
@@ -354,15 +352,21 @@ static void* keyer_thread(void *arg) {
     int i;
     int kdelay;
     int old_volume;
-    struct sched_param param;
+#ifdef __APPLE__
+    struct timespec now;
+#endif
 
+#ifndef __APPLE__
+    struct sched_param param;
     param.sched_priority = MY_PRIORITY;
     if(sched_setscheduler((pid_t)0, SCHED_FIFO, &param) == -1) {
             perror("sched_setscheduler failed");
     }
+#endif
 
     fprintf(stderr,"keyer_thread  state running= %d\n", running);
     while(running) {
+        enforce_cw_vox=0;
 #ifdef __APPLE__
         sem_wait(cw_event);
 #else
@@ -383,6 +387,8 @@ static void* keyer_thread(void *arg) {
           while ((!mox || cw_not_ready) && i-- > 0) usleep(1000L);
           cwvox=(int) cw_keyer_hang_time;
 	}
+	// Trigger VOX if CAT CW was active and we have interrupted it by hitting a key
+	if (enforce_cw_vox) cwvox=(int) cw_keyer_hang_time;
 
         key_state = CHECK;
 
@@ -439,7 +445,18 @@ static void* keyer_thread(void *arg) {
                 	    loop_delay.tv_nsec -= NSEC_PER_SEC;
                 	    loop_delay.tv_sec++;
             		  }
+#ifdef __APPLE__
+                	  clock_gettime(CLOCK_MONOTONIC, &now);
+                	  now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
+                	  now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
+                	  while (now.tv_nsec < 0) {
+                    	    now.tv_nsec += 1000000000;
+                    	    now.tv_sec--;
+                	  }
+                	  nanosleep(&now, NULL);
+#else
             		  clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
+#endif
                     	  gpio_cw_sidetone_set(0);
 			  loop_delay.tv_nsec += sidewait;
             		  while (loop_delay.tv_nsec >= NSEC_PER_SEC) {
@@ -447,7 +464,18 @@ static void* keyer_thread(void *arg) {
                 	    loop_delay.tv_sec++;
             		  }
 			  if (!*kdash) break;
+#ifdef __APPLE__
+                	  clock_gettime(CLOCK_MONOTONIC, &now);
+                	  now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
+                	  now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
+                	  while (now.tv_nsec < 0) {
+                    	    now.tv_nsec += 1000000000;
+                    	    now.tv_sec--;
+                	  }
+                	  nanosleep(&now, NULL);
+#else
             		  clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
+#endif
 		        }
 		      } else {
 			// No-GPIO-sidetone case:
@@ -459,7 +487,18 @@ static void* keyer_thread(void *arg) {
                 	    loop_delay.tv_sec++;
             		  }
 			  if (!*kdash) break;
+#ifdef __APPLE__
+                	  clock_gettime(CLOCK_MONOTONIC, &now);
+                	  now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
+                	  now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
+                	  while (now.tv_nsec < 0) {
+                    	    now.tv_nsec += 1000000000;
+                    	    now.tv_sec--;
+                	  }
+                	  nanosleep(&now, NULL);
+#else
             		  clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
+#endif
 			}
                       }
 		      // dash released.
@@ -472,7 +511,18 @@ static void* keyer_thread(void *arg) {
                 	    loop_delay.tv_nsec -= NSEC_PER_SEC;
                 	    loop_delay.tv_sec++;
             		  }
+#ifdef __APPLE__
+                	  clock_gettime(CLOCK_MONOTONIC, &now);
+                	  now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
+                	  now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
+                	  while (now.tv_nsec < 0) {
+                    	    now.tv_nsec += 1000000000;
+                    	    now.tv_sec--;
+                	  }
+                	  nanosleep(&now, NULL);
+#else
             		  clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
+#endif
 			  cw_keyer_sidetone_volume=old_volume;
                       }
                     }
@@ -508,14 +558,36 @@ static void* keyer_thread(void *arg) {
                       loop_delay.tv_nsec -= NSEC_PER_SEC;
                       loop_delay.tv_sec++;
                     } 
+#ifdef __APPLE__
+                    clock_gettime(CLOCK_MONOTONIC, &now);
+                    now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
+                    now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
+                    while (now.tv_nsec < 0) {
+                      now.tv_nsec += 1000000000;
+                      now.tv_sec--;
+                    }
+                    nanosleep(&now, NULL);
+#else
                     clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
+#endif
                     gpio_cw_sidetone_set(0);
                     loop_delay.tv_nsec += sidewait;
                     while (loop_delay.tv_nsec >= NSEC_PER_SEC) {
                       loop_delay.tv_nsec -= NSEC_PER_SEC;
                       loop_delay.tv_sec++;
 		    }
+#ifdef __APPLE__
+                    clock_gettime(CLOCK_MONOTONIC, &now);
+                    now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
+                    now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
+                    while (now.tv_nsec < 0) {
+                      now.tv_nsec += 1000000000;
+                      now.tv_sec--;
+                    }
+                    nanosleep(&now, NULL);
+#else
                     clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
+#endif
                   }
 		} else {
 		  // No-GPIO-sidetone case: just wait
@@ -524,7 +596,18 @@ static void* keyer_thread(void *arg) {
                     loop_delay.tv_nsec -= NSEC_PER_SEC;
                     loop_delay.tv_sec++;
 		  }
+#ifdef __APPLE__
+                    clock_gettime(CLOCK_MONOTONIC, &now);
+                    now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
+                    now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
+                    while (now.tv_nsec < 0) {
+                      now.tv_nsec += 1000000000;
+                      now.tv_sec--;
+                    }
+                    nanosleep(&now, NULL);
+#else
                   clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
+#endif
 		}
                 set_keyer_out(0);
                 key_state = DOTDELAY;       // add inter-character spacing of one dot length
@@ -585,14 +668,36 @@ static void* keyer_thread(void *arg) {
                       loop_delay.tv_nsec -= NSEC_PER_SEC;
                       loop_delay.tv_sec++;
                     }
+#ifdef __APPLE__
+                    clock_gettime(CLOCK_MONOTONIC, &now);
+                    now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
+                    now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
+                    while (now.tv_nsec < 0) {
+                      now.tv_nsec += 1000000000;
+                      now.tv_sec--;
+                    }
+                    nanosleep(&now, NULL);
+#else
                     clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
+#endif
                     gpio_cw_sidetone_set(0);
                     loop_delay.tv_nsec += sidewait;
                     while (loop_delay.tv_nsec >= NSEC_PER_SEC) {
                       loop_delay.tv_nsec -= NSEC_PER_SEC;
                       loop_delay.tv_sec++;
                     }
+#ifdef __APPLE__
+                    clock_gettime(CLOCK_MONOTONIC, &now);
+                    now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
+                    now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
+                    while (now.tv_nsec < 0) {
+                      now.tv_nsec += 1000000000;
+                      now.tv_sec--;
+                    }
+                    nanosleep(&now, NULL);
+#else
                     clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
+#endif
                   }
 		} else {
 		  // No-GPIO-sidetone case: just wait
@@ -601,7 +706,18 @@ static void* keyer_thread(void *arg) {
                     loop_delay.tv_nsec -= NSEC_PER_SEC;
                     loop_delay.tv_sec++;
                   }
+#ifdef __APPLE__
+                    clock_gettime(CLOCK_MONOTONIC, &now);
+                    now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
+                    now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
+                    while (now.tv_nsec < 0) {
+                      now.tv_nsec += 1000000000;
+                      now.tv_sec--;
+                    }
+                    nanosleep(&now, NULL);
+#else
                   clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
+#endif
 		}
                 set_keyer_out(0);
                 key_state = DASHDELAY;       // add inter-character spacing of one dot length
@@ -663,13 +779,27 @@ static void* keyer_thread(void *arg) {
                 loop_delay.tv_nsec -= NSEC_PER_SEC;
                 loop_delay.tv_sec++;
             }
+#ifdef __APPLE__
+            clock_gettime(CLOCK_MONOTONIC, &now);
+            now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
+            now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
+            while (now.tv_nsec < 0) {
+              now.tv_nsec += 1000000000;
+              now.tv_sec--;
+            }
+            nanosleep(&now, NULL);
+#else
             clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
+#endif
         }
 
     }
     fprintf(stderr,"keyer_thread: EXIT\n");
+#ifndef __APPLE__
     param.sched_priority = 0;
     sched_setscheduler((pid_t) 0, SCHED_OTHER, &param);
+#endif
+    return NULL;
 }
 
 void keyer_close() {
@@ -687,7 +817,10 @@ void keyer_close() {
 #else
     sem_close(&cw_event);
 #endif
+
+#ifndef __APPLE__
     munlockall();
+#endif
 }
 
 int keyer_init() {
@@ -695,18 +828,20 @@ int keyer_init() {
 
     fprintf(stderr,".... starting keyer thread.\n");
     
+#ifndef __APPLE__
     if(mlockall(MCL_CURRENT|MCL_FUTURE) == -1) {
             perror("mlockall failed");
     }
+#endif
 
-    running = 1;
 #ifdef __APPLE__
     sem_unlink("CW");
-    cw_event=sem_open("CW", O_CREAT | O_EXCL), 0700, 0);
+    cw_event=sem_open("CW", O_CREAT | O_EXCL, 0700, 0);
     rc = (cw_event == SEM_FAILED);
 #else
     rc = sem_init(&cw_event, 0, 0);
 #endif
+    running = 1;
     rc |= pthread_create(&keyer_thread_id, NULL, keyer_thread, NULL);
     if(rc < 0) {
         fprintf(stderr,"pthread_create for keyer_thread failed %d\n", rc);

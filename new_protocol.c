@@ -61,6 +61,7 @@
 #endif
 #include "vox.h"
 #include "ext.h"
+#include "iambic.h"
 
 #define min(x,y) (x<y?x:y)
 
@@ -82,6 +83,9 @@ static int rxid  [MAX_DDC];
 int data_socket=-1;
 
 static int running;
+
+static int dash=0;
+static int dot=0;
 
 #ifdef __APPLE__
 sem_t *response_sem;
@@ -631,17 +635,11 @@ static void new_protocol_high_priority() {
       mode=vfo[0].mode;
     }
     high_priority_buffer_to_radio[4]=running;
+//
+//  ??? why not setting the bit if transmitting in *all* cases ===
+//
     if(mode==modeCWU || mode==modeCWL) {
-      if(tune || CAT_cw_is_active) {
-        high_priority_buffer_to_radio[4]|=0x02;
-      }
-#ifdef LOCALCW
-      if (cw_keyer_internal == 0) {
-        // set the ptt if we are not in breakin mode and mox is on
-        if(cw_breakin == 0 && getMox()) high_priority_buffer_to_radio[4]|=0x02;
-      }
-#endif
-      if (cw_key_state) high_priority_buffer_to_radio[5]|= 0x01;
+      if (isTransmitting() && (!cw_keyer_internal || !cw_breakin || CAT_cw_is_active)) high_priority_buffer_to_radio[4]|=0x02;
     } else {
       if(isTransmitting()) {
         high_priority_buffer_to_radio[4]|=0x02;
@@ -1130,8 +1128,10 @@ static void new_protocol_transmit_specific() {
     transmit_specific_buffer[4]=1; // 1 DAC
     transmit_specific_buffer[5]=0; //  default no CW
     // may be using local pihpsdr OR hpsdr CW
-    if(mode==modeCWU || mode==modeCWL) {
+    if (mode==modeCWU || mode==modeCWL) {
+      if (cw_keyer_internal) {
         transmit_specific_buffer[5]|=0x02;
+      }
     }
     if(cw_keys_reversed) {
         transmit_specific_buffer[5]|=0x04;
@@ -1142,7 +1142,7 @@ static void new_protocol_transmit_specific() {
     if(cw_keyer_mode==KEYER_MODE_B) {
         transmit_specific_buffer[5]|=0x28;
     }
-    if(cw_keyer_sidetone_volume!=0) {
+    if(cw_keyer_sidetone_volume!=0 && cw_keyer_internal) {
         transmit_specific_buffer[5]|=0x10;
     }
     if(cw_keyer_spacing) {
@@ -1160,6 +1160,7 @@ static void new_protocol_transmit_specific() {
     transmit_specific_buffer[11]=cw_keyer_hang_time>>8;
     transmit_specific_buffer[12]=cw_keyer_hang_time; // cw hang delay
     transmit_specific_buffer[13]=0; // rf delay
+
     transmit_specific_buffer[50]=0;
     if(mic_linein) {
       transmit_specific_buffer[50]|=0x01;
@@ -1786,12 +1787,20 @@ static void process_high_priority(unsigned char *buffer) {
     alex_reverse_power=((high_priority_buffer[22]&0xFF)<<8)|(high_priority_buffer[23]&0xFF);
     supply_volts=((high_priority_buffer[49]&0xFF)<<8)|(high_priority_buffer[50]&0xFF);
 
+#ifdef LOCALCW
+#ifndef GPIO
     if (dash || dot) cw_key_hit=1;
+    if (!cw_keyer_internal) {
+      if (dash != previous_dash) keyer_event(0, dash);
+      if (dot  != previous_dot ) keyer_event(1, dot );
+    }
+#endif
+#endif
 
     int tx_vfo=split?VFO_B:VFO_A;
-    if(vfo[tx_vfo].mode==modeCWL || vfo[tx_vfo].mode==modeCWU) {
-      local_ptt=local_ptt|dot|dash;
-    }
+    //if(vfo[tx_vfo].mode==modeCWL || vfo[tx_vfo].mode==modeCWU) {
+    //  local_ptt=local_ptt|dot|dash;
+    //}
     if(previous_ptt!=local_ptt && !CAT_cw_is_active) {
       g_idle_add(ext_mox_update,(gpointer)(long)(local_ptt));
     }
@@ -1852,9 +1861,46 @@ void new_protocol_process_local_mic(unsigned char *buffer,int le) {
 
 }
 
+void new_protocol_cw_audio_samples(short left_audio_sample,short right_audio_sample) {
+  int rc;
+  int mode=transmitter->mode;
+  //
+  // Only process samples if transmitting in CW
+  if (isTransmitting() && (mode==modeCWU || mode==modeCWL)) {
+
+  // insert the samples
+  audiobuffer[audioindex++]=left_audio_sample>>8;
+  audiobuffer[audioindex++]=left_audio_sample;
+  audiobuffer[audioindex++]=right_audio_sample>>8;
+  audiobuffer[audioindex++]=right_audio_sample;
+
+  if(audioindex>=sizeof(audiobuffer)) {
+
+    // insert the sequence
+    audiobuffer[0]=audiosequence>>24;
+    audiobuffer[1]=audiosequence>>16;
+    audiobuffer[2]=audiosequence>>8;
+    audiobuffer[3]=audiosequence;
+
+    // send the buffer
+
+    rc=sendto(data_socket,audiobuffer,sizeof(audiobuffer),0,(struct sockaddr*)&audio_addr,audio_addr_length);
+    if(rc!=sizeof(audiobuffer)) {
+      fprintf(stderr,"sendto socket failed for %ld bytes of audio: %d\n",sizeof(audiobuffer),rc);
+    }
+    audioindex=4;
+    audiosequence++;
+  }
+  }
+}
+
 
 void new_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right_audio_sample) {
   int rc;
+  int mode=transmitter->mode;
+  //
+  // Only process samples if NOT transmitting in CW
+  if (isTransmitting() && (mode==modeCWU || mode==modeCWL)) return;
 
   // insert the samples
   audiobuffer[audioindex++]=left_audio_sample>>8;
@@ -1929,22 +1975,47 @@ void new_protocol_iq_samples(int isample,int qsample) {
 }
 
 void* new_protocol_timer_thread(void* arg) {
-  int specific=0;
-fprintf(stderr,"new_protocol_timer_thread\n");
+  //
+  // We now sent HighPriority as well as General packets
+  // in addition. General packet re-sending is, for example,
+  // required if the band changes (band->disblePA), and HighPrio
+  // packets are necessary at very many instances when changing
+  // something in the menus, and then a small delay does no harm
+  //
+  // Of course, in time-critical situations (RX-TX transition etc.)
+  // it is still possible to explicitly send a packet.
+  //
+  // We send high prio packets every 100 msec
+  //         RX spec   packets every 200 msec
+  //         TX spec   packets every 200 msec
+  //         General   packets every 800 msec
+  //
+  int cycling=0;
+  usleep(100000);				// wait for things to settle down
   while(running) {
-    usleep(100000); // 100ms
-//    if(running) {
-//      switch(specific) {
-//        case 0:
-          new_protocol_transmit_specific();
-//          specific=1;
-//          break;
-//        case 1:
-          new_protocol_receive_specific();
-//          specific=0;
-//          break;
-//      }
-//    }
+    cycling++;
+    switch (cycling) {
+      case 1:
+      case 3:
+      case 5:
+      case 7:
+	new_protocol_high_priority();		// every 100 msec
+	new_protocol_transmit_specific();	// every 200 msec
+	break;
+      case 2:
+      case 4:
+      case 6:
+	new_protocol_high_priority();		// every 100 msec
+	new_protocol_transmit_specific();	// every 200 msec
+        break;
+      case 8:
+	new_protocol_high_priority();		// every 100 msec
+	new_protocol_receive_specific();	// every 200 msec
+	new_protocol_general();			// every 800 msec
+	cycling=0;
+	break;
+    }
+    usleep(100000);
   }
   return NULL;
 }

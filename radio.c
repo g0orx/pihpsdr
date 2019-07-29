@@ -275,6 +275,7 @@ int tx_filter_low=150;
 int tx_filter_high=2850;
 
 static int pre_tune_mode;
+static int pre_tune_cw_internal;
 static int pre_tune_filter_low;
 static int pre_tune_filter_high;
 
@@ -294,7 +295,6 @@ double vox_hang=250.0;
 int vox=0;
 int CAT_cw_is_active=0;
 int cw_key_hit=0;
-int cw_key_state=0;
 int n_adc=1;
 
 int diversity_enabled=0;
@@ -936,6 +936,7 @@ void setTune(int state) {
         mode=vfo[VFO_B].mode;
       }
       pre_tune_mode=mode;
+      pre_tune_cw_internal=cw_keyer_internal;
 
       //
       // in USB/DIGU/DSB, tune 1000 Hz above carrier
@@ -979,7 +980,7 @@ void setTune(int state) {
         case modeCWL:
         case modeCWU:
           tx_set_mode(transmitter,pre_tune_mode);
-          cw_keyer_internal=1;
+          cw_keyer_internal=pre_tune_cw_internal;
           break;
       }
     }

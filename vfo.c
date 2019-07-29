@@ -302,13 +302,14 @@ void vfo_band_changed(int b) {
   } else {
     tx_set_mode(transmitter,vfo[VFO_A].mode);
   }
-  calcDriveLevel();
-//
-// New protocol: communicate changes to radio
-//               HighPrio is scheduled anyway through calcDriveLevel
-//
+  //
+  // If the band has changed, it is necessary to re-calculate
+  // the drive level. Furthermore, possibly the "PA disable"
+  // status has changed.
+  //
+  calcDriveLevel();  // sends HighPrio packet if in new protocol
   if (protocol == NEW_PROTOCOL) {
-    schedule_general();		// for PA disable
+    schedule_general();
   }
   g_idle_add(ext_vfo_update,NULL);
 }
@@ -348,7 +349,14 @@ void vfo_bandstack_changed(int b) {
   } else {
     tx_set_mode(transmitter,vfo[VFO_A].mode);
   }
-  calcDriveLevel();
+  //
+  // I do not think the band can change within this function.
+  // But out of paranoia, I consider this possiblity here
+  //
+  calcDriveLevel();  // sends HighPrio packet if in new protocol
+  if (protocol == NEW_PROTOCOL) {
+    schedule_general();		// for PA disable
+  }
   g_idle_add(ext_vfo_update,NULL);
 
 }

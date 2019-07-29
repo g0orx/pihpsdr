@@ -44,6 +44,7 @@ static GtkWidget *dialog=NULL;
 void cw_changed() {
 // inform the local keyer about CW parameter changes
 // (only if LOCALCW is active).
+// NewProtocol: rely on periodically sent HighPrio packets
 #ifdef LOCALCW
   keyer_update();
 #endif

@@ -82,7 +82,8 @@ int cw_not_ready=1;
 // and the pulses must be shaped. This is done via "cw_shape_buffer".
 // The TX mic samples buffer could possibly be used for this as well.
 //
-static double *cw_shape_buffer = NULL;
+static double *cw_shape_buffer48 = NULL;
+static double *cw_shape_buffer192 = NULL;
 static int cw_shape = 0;
 //
 // cwramp is the function defining the "ramp" of the CW pulse.
@@ -90,7 +91,8 @@ static int cw_shape = 0;
 // is hard-coded. We currently use the impulse response of a
 // Blackman-Harris window.
 //
-extern double cwramp[];  // see cwramp.c
+extern double cwramp48[];		// see cwramp.c, for 48 kHz sample rate
+extern double cwramp192[];		// see cwramp.c, for 192 kHz sample rate
 
 extern void cw_audio_write(double sample);
 
@@ -618,10 +620,11 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%d iq_output_buf
   tx->iq_output_buffer=malloc(sizeof(double)*2*tx->output_samples);
   tx->samples=0;
   tx->pixel_samples=malloc(sizeof(float)*tx->pixels);
-  // The CW shape buffer is only used in the old protocol
-  if (protocol == ORIGINAL_PROTOCOL) {
-    if (cw_shape_buffer) free(cw_shape_buffer);
-    cw_shape_buffer=malloc(sizeof(double)*tx->buffer_size);
+  if (cw_shape_buffer48) free(cw_shape_buffer48);
+  if (cw_shape_buffer192) free(cw_shape_buffer192);
+  cw_shape_buffer48=malloc(sizeof(double)*tx->buffer_size);
+  if (protocol == NEW_PROTOCOL) {
+    cw_shape_buffer192=malloc(sizeof(double)*tx->output_samples);
   }
 fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%p iq_output_buffer=%p pixels=%p\n",tx->mic_input_buffer,tx->iq_output_buffer,tx->pixel_samples);
 
@@ -790,6 +793,8 @@ static void full_tx_buffer(TRANSMITTER *tx) {
   int cwmode;
   int sidetone=0;
   static int txflag=0;
+  static long last_qsample=0;
+  long delta;
 
   // It is important to query tx->mode and tune only *once* within this function, to assure that
   // the two "if (cwmode)" clauses give the same result.
@@ -817,20 +822,19 @@ static void full_tx_buffer(TRANSMITTER *tx) {
     // also becomes visible on *our* TX spectrum display.
     //
     dp=tx->iq_output_buffer;
+    // These are the I/Q samples that describe our CW signal
+    // The only use we make of it is displaying the spectrum.
     switch (protocol) {
       case ORIGINAL_PROTOCOL:
-        // These are the I/Q samples that describe our CW signal
-        // The only use we make of it is displaying the spectrum.
         for (j = 0; j < tx->output_samples; j++) {
 	    *dp++ = 0.0;
-	    *dp++ = cw_shape_buffer[j];
+	    *dp++ = cw_shape_buffer48[j];
         }
 	break;
       case NEW_PROTOCOL:
-	// Produce zero TX signal for "empty" spectrum
         for (j = 0; j < tx->output_samples; j++) {
 	    *dp++ = 0.0;
-	    *dp++ = 0.0;
+	    *dp++ = cw_shape_buffer192[j];
         }
 	break;
     }
@@ -863,15 +867,6 @@ static void full_tx_buffer(TRANSMITTER *tx) {
       }
     }
 
-//
-//  When doing CW, we do not need WDSP since Q(t) = cw_shape_buffer(t) and I(t)=0
-//  For the old protocol where the IQ and audio samples are tied together, we can
-//  easily generate a synchronous side tone (and use the function
-//  old_protocol_iq_samples_with_sidetone for this purpose).
-//
-//  Note that the CW shape buffer is tied to the mic sample rate (48 kHz).
-//
-
     if (txflag == 0 && protocol == NEW_PROTOCOL) {
 	//
 	// this is the first time (after a pause) that we send TX samples
@@ -882,6 +877,14 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 	}	
     }
     txflag=1;
+//
+//  When doing CW, we do not need WDSP since Q(t) = cw_shape_buffer(t) and I(t)=0
+//  For the old protocol where the IQ and audio samples are tied together, we can
+//  easily generate a synchronous side tone (and use the function
+//  old_protocol_iq_samples_with_sidetone for this purpose).
+//
+//  Note that the CW shape buffer is tied to the mic sample rate (48 kHz).
+//
     if (cwmode) {
 	//
 	// "pulse shape case":
@@ -899,17 +902,22 @@ static void full_tx_buffer(TRANSMITTER *tx) {
             sidevol= 258.0 * cw_keyer_sidetone_volume;  // between 0.0 and 32766.0
 	    isample=0;				    // will be constantly zero
             for(j=0;j<tx->output_samples;j++) {
-	      ramp=cw_shape_buffer[j];	    	    // between 0.0 and 1.0
+	      ramp=cw_shape_buffer48[j];	    	    // between 0.0 and 1.0
 	      qsample=floor(gain*ramp+0.5);         // always non-negative, isample is just the pulse envelope
 	      sidetone=sidevol * ramp * getNextInternalSideToneSample();
 	      old_protocol_iq_samples_with_sidetone(isample,qsample,sidetone);
 	    }
 	    break;
 	  case NEW_PROTOCOL:
+	    //
 	    // Note: tx->output_samples is larger than tx->buffer_size
+	    // therefore we do a linear interpolation within the ramp
+	    // this is probably not necessary)
+	    //
 	    isample=0;
-	    qsample=0;
-	    for(j=0;j<tx->output_samples;j++) {
+            for(j=0;j<tx->output_samples;j++) {
+	      ramp=cw_shape_buffer192[j];	    		// between 0.0 and 1.0
+	      qsample=floor(gain*ramp+0.5);         	    	// always non-negative, isample is just the pulse envelope
 	      new_protocol_iq_samples(isample,qsample);
 	    }
 	    break;
@@ -971,48 +979,53 @@ void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
 //
 //	We HAVE TO shape the signal to avoid hard clicks to be
 //	heard way beside our frequency. The envelope (ramp function)
-//      is stored in cwramp[0::200], so we "move" cw_shape between these
+//      is stored in cwramp48[0::200], so we "move" cw_shape between these
 //      values. The ramp width is 200 samples (4.16 msec)
+//
+//      In the new protocol, we use this ramp for the side tone, but
+//      must use values from cwramp192 for the TX iq signal.
 //
 //      Note that usually, the pulse is much broader than the ramp,
 //      that is, cw_key_down and cw_key_up are much larger than 200.
 //
 	cw_not_ready=0;
-	switch (protocol) {
-	  case ORIGINAL_PROTOCOL:
-	    if (cw_key_down > 0 ) {
-	      if (cw_shape < 200) cw_shape++;	// walk up the ramp
-	      cw_key_down--;			// decrement key-up counter
-	    } else {
-	      if (cw_key_up >= 0) {
+	if (cw_key_down > 0 ) {
+	  if (cw_shape < 200) cw_shape++;	// walk up the ramp
+	  cw_key_down--;			// decrement key-up counter
+	} else {
+	  if (cw_key_up >= 0) {
 		// dig into this even if cw_key_up is already zero, to ensure
 		// that we reach the bottom of the ramp for very small pauses
 		if (cw_shape > 0) cw_shape--;	// walk down the ramp
 		if (cw_key_up > 0) cw_key_up--; // decrement key-down counter
-	      }
-	    }
-	    //
-	    // store the ramp value in cw_shape_buffer, but also use it for shaping the "local"
-	    // side tone
-	    ramp=cwramp[cw_shape];
-	    cw_audio_write(0.0078 * getNextSideToneSample() * cw_keyer_sidetone_volume * ramp);
-            cw_shape_buffer[tx->samples]=ramp;
-	    break;
-	  case NEW_PROTOCOL:
-	    //
-	    // In the new protocol, we only need to generate a side tone (for local audio) here.
-	    // We "climb" the ramp upon "key down", and we "descend" upon "key up"
-	    //
-	    if (cw_key_state) {
-	      // climb up the ramp
-	      if (cw_shape < 200) cw_shape++;
-	    } else {
-	      // walk down the ramp
-	      if (cw_shape > 0) cw_shape--;
-	    }
-	    ramp=cwramp[cw_shape];
-	    cw_audio_write(0.0078 * getNextSideToneSample() * cw_keyer_sidetone_volume * ramp);
-	    break;
+	  }
+	}
+	//
+	// store the ramp value in cw_shape_buffer, but also use it for shaping the "local"
+	// side tone
+	ramp=cwramp48[cw_shape];
+	sample=0.0078 * getNextSideToneSample() * cw_keyer_sidetone_volume * ramp;
+	cw_audio_write(sample);
+        cw_shape_buffer48[tx->samples]=ramp;
+	//
+	// In the new protocol, we MUST maintain a constant flow of audio samples to the radio
+	// (at least for ANAN-200D and ANAN-7000 internal side tone generation)
+	// So we ship out audio: silence if CW is internal, side tone if CW is local.
+	//
+	// Furthermore, for each audio sample we have to create four TX samples. If we are at
+	// the beginning of the ramp, these are four zero samples, if we are at the, it is
+	// four unit samples, and in-between, we use the values from cwramp192.
+	// Note that this ramp has been extended a little, such that it begins with four zeros
+	// and ends with four times 1.0.
+	//
+        if (protocol == NEW_PROTOCOL) {
+ 	    s=0;
+ 	    if (!cw_keyer_internal || CAT_cw_is_active) s=(int) (sample * 32767.0);
+	    new_protocol_cw_audio_samples(s, s);
+	    cw_shape_buffer192[4*tx->samples+0]=cwramp192[4*cw_shape+0];
+	    cw_shape_buffer192[4*tx->samples+1]=cwramp192[4*cw_shape+1];
+	    cw_shape_buffer192[4*tx->samples+2]=cwramp192[4*cw_shape+2];
+	    cw_shape_buffer192[4*tx->samples+3]=cwramp192[4*cw_shape+3];
 	}
   } else {
 //
@@ -1025,7 +1038,13 @@ void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
 	cw_key_up=0;
 	cw_key_down=0;
 	cw_shape=0;
-  	if (protocol == ORIGINAL_PROTOCOL) cw_shape_buffer[tx->samples]=0.0;
+  	cw_shape_buffer48[tx->samples]=0.0;
+	if (protocol == NEW_PROTOCOL) {
+	  cw_shape_buffer192[4*tx->samples+0]=0.0;
+	  cw_shape_buffer192[4*tx->samples+1]=0.0;
+	  cw_shape_buffer192[4*tx->samples+2]=0.0;
+	  cw_shape_buffer192[4*tx->samples+3]=0.0;
+	}
   }
   tx->mic_input_buffer[tx->samples*2]=mic_sample_double;
   tx->mic_input_buffer[(tx->samples*2)+1]=0.0; //mic_sample_double;
@@ -1188,7 +1207,7 @@ static long asteps = 0;
 static long bsteps = 0;
 
 double getNextSideToneSample() {
-	double angle = (asteps*cw_keyer_sidetone_frequency)*TWOPIOVERSAMPLERATE;
+  	double angle = (asteps*cw_keyer_sidetone_frequency)*TWOPIOVERSAMPLERATE;
 	if (++asteps == 48000) asteps = 0;
 	return sin(angle);
 }

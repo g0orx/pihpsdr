@@ -85,6 +85,17 @@ static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
   double  mult;
   long long f;
   static int set = 0;
+  int id, b;
+
+  // Instead of messing with LOCALE settings,
+  // we print a "0.0" and look what the decimal
+  // point is. What comes out of sprintf should be
+  // OK for atof.
+  char decimalpoint;
+  mult=0.0;
+  sprintf(output,"%1.1f",mult);
+  decimalpoint=output[1];
+
 
   if (set) {
     set = 0;
@@ -100,7 +111,13 @@ static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
 
   if (isdigit (str[0]) || str[0] == '.') {
 
-    buffer[len] = (gchar) str[0];
+    // substitute decimal point by the LOCALE character for the decimal point
+    // otherwise atof() does not understand it.
+    if (str[0] == '.') {
+      buffer[len] = (gchar) decimalpoint;
+    } else {
+      buffer[len] = (gchar) str[0];
+    }
     buffer[len+1] = (gchar) 0;
 
     len = (buffer[0] == '0') ? 1 : 0;
@@ -134,29 +151,21 @@ static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
       f = ((long long)(atof(buffer)*mult)+5)/10;
       sprintf(output, "<big>%lld</big>", f);
       gtk_label_set_markup (GTK_LABEL (label), output);
-      int b=get_band_from_frequency(f);
-      if(b<0) {
-        fprintf(stderr,"get_band_from_frequency: failed for f=%lld\n",f);
-        b=bandGen;
+      id=active_receiver->id;
+      b = get_band_from_frequency(f);
+      if (b < 0) {
+	b=bandGen;
       }
-      if(b!=band_get_current()) {
-        BAND *band=band_set_current(b);
-        BANDSTACK_ENTRY *entry=bandstack_entry_get_current();
-        //setMode(entry->mode);
-        set_mode(active_receiver,entry->mode);
-        FILTER* band_filters=filters[entry->mode];
-        FILTER* band_filter=&band_filters[entry->filter];
-        //setFilter(band_filter->low,band_filter->high);
-        set_filter(active_receiver,band_filter->low,band_filter->high);
-        if(active_receiver->id==0) {
-          set_alex_rx_antenna(band->alexRxAntenna);
-          set_alex_tx_antenna(band->alexTxAntenna);
-          set_alex_attenuation(band->alexAttenuation);
-        }
+      //
+      // If new frequency is outside of current band,
+      // behave as if the user had chosen the new band
+      // via the menu prior to changing the frequency
+      //
+      if (b != vfo[id].band) {
+        g_idle_add(ext_vfo_band_changed, (gpointer) (uintptr_t) b);
       }
       setFrequency(f);
       g_idle_add(ext_vfo_update,NULL);
-    
       set = 1;
     }
   }

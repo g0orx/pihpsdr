@@ -144,6 +144,8 @@ static int psk_divisor=6;
 #endif
 
 static int local_ptt=0;
+static int dash=0;
+static int dot=0;
 
 static double micinputbuffer[MAX_BUFFER_SIZE*2];
 

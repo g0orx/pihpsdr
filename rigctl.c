@@ -73,7 +73,8 @@ static const int TelnetPortA = 19090;
 static const int TelnetPortB = 19091;
 static const int TelnetPortC = 19092;
 
-#define RIGCTL_TIMER_DELAY  15000
+#define RIGCTL_THROTTLE_NSEC    15000000L
+#define NSEC_PER_SEC          1000000000L
 
 // max number of bytes we can get at once
 #define MAXDATASIZE 2000
@@ -110,7 +111,6 @@ FILTER * band_filter;
 
 #define MAX_CLIENTS 3
 static GThread *rigctl_server_thread_id = NULL;
-static GThread *rigctl_set_timer_thread_id = NULL;
 static GThread *rigctl_cw_thread_id = NULL;
 static int server_running;
 
@@ -191,16 +191,6 @@ void close_rigctl_ports() {
     close(server_socket);
     server_socket=-1;
   }
-}
-
-// RigCtl Timer - to throttle passes through the parser...
-// Sets rigctl_timer while waiting - clears and exits thread.
-static gpointer set_rigctl_timer (gpointer data) {
-      rigctl_timer = 1;
-      // Wait throttle time
-      usleep(RIGCTL_TIMER_DELAY);
-      rigctl_timer = 0;
-      return NULL;
 }
 
 //
@@ -318,80 +308,55 @@ static int dashsamples;
 //
 void send_dash() {
   int TimeToGo;
-  if (protocol == ORIGINAL_PROTOCOL) {
-    for(;;) {
-      TimeToGo=cw_key_up+cw_key_down;
-      // TimeToGo is invalid if local CW keying has set in
-      if (cw_key_hit || cw_not_ready) return;
-      if (TimeToGo == 0) break;
-      // sleep until 10 msec before ignition
-      if (TimeToGo > 500) usleep((long)(TimeToGo-500)*20L);
-      // sleep 1 msec
-      usleep(1000L);
-    }
-    // If local CW keying has set in, do not interfere
+  for(;;) {
+    TimeToGo=cw_key_up+cw_key_down;
+    // TimeToGo is invalid if local CW keying has set in
     if (cw_key_hit || cw_not_ready) return;
-    cw_key_down = dashsamples;
-    cw_key_up   = dotsamples;
-  } else {
-    if (cw_key_hit || cw_not_ready) return;
-    cw_key_state=1;
-    schedule_high_priority();
-    usleep(dashlen);
-    cw_key_state=0;
-    schedule_high_priority();
-    usleep(dotlen);
+    if (TimeToGo == 0) break;
+    // sleep until 10 msec before ignition
+    if (TimeToGo > 500) usleep((long)(TimeToGo-500)*20L);
+    // sleep 1 msec
+    usleep(1000L);
   }
+  // If local CW keying has set in, do not interfere
+  if (cw_key_hit || cw_not_ready) return;
+  cw_key_down = dashsamples;
+  cw_key_up   = dotsamples;
 }
 
 void send_dot() {
   int TimeToGo;
-  if (protocol == ORIGINAL_PROTOCOL) {
-    for(;;) {
-      TimeToGo=cw_key_up+cw_key_down;
-      // TimeToGo is invalid if local CW keying has set in
-      if (cw_key_hit || cw_not_ready) return;
-      if (TimeToGo == 0) break;
-      // sleep until 10 msec before ignition
-      if (TimeToGo > 500) usleep((long)(TimeToGo-500)*20L);
-      // sleep 1 msec
-      usleep(1000L);
-    }
-    // If local CW keying has set in, do not interfere
+  for(;;) {
+    TimeToGo=cw_key_up+cw_key_down;
+    // TimeToGo is invalid if local CW keying has set in
     if (cw_key_hit || cw_not_ready) return;
-    cw_key_down = dotsamples;
-    cw_key_up   = dotsamples;
-  } else {
-    if (cw_key_hit || cw_not_ready) return;
-    cw_key_state=1;
-    schedule_high_priority();
-    usleep(dotlen);
-    cw_key_state=0;
-    schedule_high_priority();
-    usleep(dotlen);
+    if (TimeToGo == 0) break;
+    // sleep until 10 msec before ignition
+    if (TimeToGo > 500) usleep((long)(TimeToGo-500)*20L);
+    // sleep 1 msec
+    usleep(1000L);
   }
+  // If local CW keying has set in, do not interfere
+  if (cw_key_hit || cw_not_ready) return;
+  cw_key_down = dotsamples;
+  cw_key_up   = dotsamples;
 }
 
 void send_space(int len) {
   int TimeToGo;
-  if (protocol == ORIGINAL_PROTOCOL) {
     for(;;) {
-      TimeToGo=cw_key_up+cw_key_down;
-      // TimeToGo is invalid if local CW keying has set in
-      if (cw_key_hit || cw_not_ready) return;
-      if (TimeToGo == 0) break;
-      // sleep until 10 msec before ignition
-      if (TimeToGo > 500) usleep((long)(TimeToGo-500)*20L);
-      // sleep 1 msec
-      usleep(1000L);
-    }
-    // If local CW keying has set in, do not interfere
+    TimeToGo=cw_key_up+cw_key_down;
+    // TimeToGo is invalid if local CW keying has set in
     if (cw_key_hit || cw_not_ready) return;
-    cw_key_up = len*dotsamples;
-  } else {
-    if (cw_key_hit || cw_not_ready) return;
-    usleep(len*dotlen);
+    if (TimeToGo == 0) break;
+    // sleep until 10 msec before ignition
+    if (TimeToGo > 500) usleep((long)(TimeToGo-500)*20L);
+    // sleep 1 msec
+    usleep(1000L);
   }
+  // If local CW keying has set in, do not interfere
+  if (cw_key_hit || cw_not_ready) return;
+  cw_key_up = len*dotsamples;
 }
 
 void rigctl_send_cw_char(char cw_char) {
@@ -896,27 +861,26 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
         //int space = command.indexOf(' ');
         //char cmd_char = com_head->cmd_string[0]; // Assume the command is first thing!
         char cmd_str[3];
+        struct timespec nap;
+        static struct timespec throttle={0,0};
 
-        // Put in throtle check here - we have an issue with issuing to many 
-        // GUI commands - the idea is to create a separate thread that maintains a 200ms clock
-        // and use the Mutex mechanism to wait here till we process the next command
-
-        while(rigctl_timer != 0) {  // Wait here till the timer expires
-            usleep(1000);
-        }
- 
-        // Start a new timer...
 	
-        rigctl_set_timer_thread_id = g_thread_new( "Rigctl Timer", set_rigctl_timer, NULL);
+        // Put in a throttle here - we have an issue with issuing to many 
+        // GUI commands.
 
-        while(rigctl_timer != 1) {  // Wait here till the timer sets!
-            usleep(1000);
-        }
-
-        usleep(1000);
-
-	// Clean up the thread
-	g_thread_unref(rigctl_set_timer_thread_id);
+	if ((throttle.tv_sec !=0) || (throttle.tv_nsec != 0)) {
+          clock_gettime(CLOCK_MONOTONIC, &nap);
+	  // calculate amount of time we should go for a nap.
+          nap.tv_sec =throttle.tv_sec  - nap.tv_sec;
+          nap.tv_nsec=throttle.tv_nsec - nap.tv_nsec + RIGCTL_THROTTLE_NSEC;
+          while (nap.tv_nsec < 0) {
+            nap.tv_nsec += NSEC_PER_SEC;
+            nap.tv_sec--;
+          }
+          nanosleep(&nap, NULL);
+	}
+	// set new time stamp
+	clock_gettime(CLOCK_MONOTONIC, &throttle);
 
         // On with the rest of the show..
         cmd_str[0] = cmd_input[0];
