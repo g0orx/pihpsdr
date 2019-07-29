@@ -956,6 +956,7 @@ void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
   double sample;
   double mic_sample_double, ramp;
   int i,s;
+  int updown;
 
 //
 // silence TX audio if tuning, or when doing CW.
@@ -992,13 +993,13 @@ void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
 	if (cw_key_down > 0 ) {
 	  if (cw_shape < 200) cw_shape++;	// walk up the ramp
 	  cw_key_down--;			// decrement key-up counter
+	  updown=1;
 	} else {
-	  if (cw_key_up >= 0) {
-		// dig into this even if cw_key_up is already zero, to ensure
-		// that we reach the bottom of the ramp for very small pauses
-		if (cw_shape > 0) cw_shape--;	// walk down the ramp
-		if (cw_key_up > 0) cw_key_up--; // decrement key-down counter
-	  }
+	  // dig into this even if cw_key_up is already zero, to ensure
+	  // that we reach the bottom of the ramp for very small pauses
+	  if (cw_shape > 0) cw_shape--;	// walk down the ramp
+	  if (cw_key_up > 0) cw_key_up--; // decrement key-down counter
+	  updown=0;
 	}
 	//
 	// store the ramp value in cw_shape_buffer, but also use it for shaping the "local"
@@ -1022,10 +1023,23 @@ void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
  	    s=0;
  	    if (!cw_keyer_internal || CAT_cw_is_active) s=(int) (sample * 32767.0);
 	    new_protocol_cw_audio_samples(s, s);
-	    cw_shape_buffer192[4*tx->samples+0]=cwramp192[4*cw_shape+0];
-	    cw_shape_buffer192[4*tx->samples+1]=cwramp192[4*cw_shape+1];
-	    cw_shape_buffer192[4*tx->samples+2]=cwramp192[4*cw_shape+2];
-	    cw_shape_buffer192[4*tx->samples+3]=cwramp192[4*cw_shape+3];
+	    s=4*cw_shape;
+	    i=4*tx->samples;
+	    // The 192kHz-ramp is constructed such that for cw_shape==0 or cw_shape==200,
+	    // the two following cases create the same shape.
+	    if (updown) {
+	      // climbing up...
+	      cw_shape_buffer192[i+0]=cwramp192[s+0];
+	      cw_shape_buffer192[i+1]=cwramp192[s+1];
+	      cw_shape_buffer192[i+2]=cwramp192[s+2];
+	      cw_shape_buffer192[i+3]=cwramp192[s+3];
+	   } else {
+	      // descending...
+	      cw_shape_buffer192[i+0]=cwramp192[s+3];
+	      cw_shape_buffer192[i+1]=cwramp192[s+2];
+	      cw_shape_buffer192[i+2]=cwramp192[s+1];
+	      cw_shape_buffer192[i+3]=cwramp192[s+0];
+	   }
 	}
   } else {
 //
