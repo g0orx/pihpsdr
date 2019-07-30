@@ -636,7 +636,7 @@ static void new_protocol_high_priority() {
     }
     high_priority_buffer_to_radio[4]=running;
 //
-//  ??? why not setting the bit if transmitting in *all* cases ===
+//  We need not set PTT of doing internal CW with break-in
 //
     if(mode==modeCWU || mode==modeCWL) {
       if (isTransmitting() && (!cw_keyer_internal || !cw_breakin || CAT_cw_is_active)) high_priority_buffer_to_radio[4]|=0x02;
@@ -1127,29 +1127,30 @@ static void new_protocol_transmit_specific() {
     }
     transmit_specific_buffer[4]=1; // 1 DAC
     transmit_specific_buffer[5]=0; //  default no CW
-    // may be using local pihpsdr OR hpsdr CW
-    if (mode==modeCWU || mode==modeCWL) {
-      if (cw_keyer_internal) {
-        transmit_specific_buffer[5]|=0x02;
-      }
-    }
-    if(cw_keys_reversed) {
+
+    if ((mode==modeCWU || mode==modeCWL) && cw_keyer_internal) {
+      //
+      // Set this byte only if in CW, and if using the "internal" keyer
+      //
+      transmit_specific_buffer[5]|=0x02;
+      if(cw_keys_reversed) {
         transmit_specific_buffer[5]|=0x04;
-    }
-    if(cw_keyer_mode==KEYER_MODE_A) {
+      }
+      if(cw_keyer_mode==KEYER_MODE_A) {
         transmit_specific_buffer[5]|=0x08;
-    }
-    if(cw_keyer_mode==KEYER_MODE_B) {
+      }
+      if(cw_keyer_mode==KEYER_MODE_B) {
         transmit_specific_buffer[5]|=0x28;
-    }
-    if(cw_keyer_sidetone_volume!=0 && cw_keyer_internal) {
+      }
+      if(cw_keyer_sidetone_volume!=0) {
         transmit_specific_buffer[5]|=0x10;
-    }
-    if(cw_keyer_spacing) {
+      }
+      if(cw_keyer_spacing) {
         transmit_specific_buffer[5]|=0x40;
-    }
-    if(cw_breakin) {
+      }
+      if(cw_breakin) {
         transmit_specific_buffer[5]|=0x80;
+      }
     }
 
     transmit_specific_buffer[6]=cw_keyer_sidetone_volume; // sidetone off
@@ -1787,21 +1788,24 @@ static void process_high_priority(unsigned char *buffer) {
     alex_reverse_power=((high_priority_buffer[22]&0xFF)<<8)|(high_priority_buffer[23]&0xFF);
     supply_volts=((high_priority_buffer[49]&0xFF)<<8)|(high_priority_buffer[50]&0xFF);
 
+    if (cw_keyer_internal) {
+      // Stops CAT cw transmission if paddle hit in "internal" CW
+      if ((dash || dot) && cw_keyer_internal) cw_key_hit=1;
+    } else {
 #ifdef LOCALCW
-#ifndef GPIO
-    if (dash || dot) cw_key_hit=1;
-    if (!cw_keyer_internal) {
+      //
+      // report "key hit" event to the local keyer
+      // (local keyer will stop CAT cw if necessary)
       if (dash != previous_dash) keyer_event(0, dash);
       if (dot  != previous_dot ) keyer_event(1, dot );
+#endif
     }
-#endif
-#endif
 
     int tx_vfo=split?VFO_B:VFO_A;
     //if(vfo[tx_vfo].mode==modeCWL || vfo[tx_vfo].mode==modeCWU) {
     //  local_ptt=local_ptt|dot|dash;
     //}
-    if(previous_ptt!=local_ptt && !CAT_cw_is_active) {
+    if(previous_ptt!=local_ptt) {
       g_idle_add(ext_mox_update,(gpointer)(long)(local_ptt));
     }
 }
