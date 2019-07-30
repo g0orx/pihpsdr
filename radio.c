@@ -275,6 +275,7 @@ int tx_filter_low=150;
 int tx_filter_high=2850;
 
 static int pre_tune_mode;
+static int pre_tune_cw_internal;
 static int pre_tune_filter_low;
 static int pre_tune_filter_high;
 
@@ -297,8 +298,10 @@ int cw_key_hit=0;
 int n_adc=1;
 
 int diversity_enabled=0;
-double i_rotate[2]={1.0,1.0};
-double q_rotate[2]={0.0,0.0};
+double div_cos=1.0;        // I factor for diversity
+double div_sin=1.0;	   // Q factor for diversity
+double div_gain=0.0;	   // gain for diversity (in dB)
+double div_phase=0.0;	   // phase for diversity (in degrees, 0 ... 360)
 
 double meter_calibration=0.0;
 double display_calibration=0.0;
@@ -489,9 +492,7 @@ void start_radio() {
   switch(protocol) {
     case ORIGINAL_PROTOCOL:
       switch(device) {
-        case DEVICE_METIS:
-          n_adc=1;  // No support for multiple MERCURY cards on a single ATLAS bus.
-          break;
+        case DEVICE_METIS: // No support for multiple MERCURY cards on a single ATLAS bus.
         case DEVICE_HERMES:
         case DEVICE_HERMES_LITE:
           n_adc=1;
@@ -527,6 +528,23 @@ void start_radio() {
 
 //fprintf(stderr,"meter_calibration=%f display_calibration=%f\n", meter_calibration, display_calibration);
   radioRestoreState();
+
+//
+//  DL1YCF: we send one buffer of TX samples in one shot. For the old
+//          protocol, their number is buffer_size, but for the new
+//          protocol, the number is 4*buffer_size.
+//          Since current hardware has a FIFO of 4096 IQ sample pairs,
+//          buffer_size should be limited to 2048 for the old protocol and
+//          to 512 for the new protocol.
+//
+  switch (protocol) {
+    case ORIGINAL_PROTOCOL:
+      if (buffer_size > 2048) buffer_size=2048;
+      break;
+    case NEW_PROTOCOL:
+      if (buffer_size > 512) buffer_size=512;
+      break;
+  }
 
   radio_change_region(region);
 
@@ -690,11 +708,9 @@ void start_radio() {
 
   calcDriveLevel();
 
-#ifdef PURESIGNAL
   if(transmitter->puresignal) {
     tx_set_ps(transmitter,transmitter->puresignal);
   }
-#endif
 
   if(protocol==NEW_PROTOCOL) {
     schedule_high_priority();
@@ -753,9 +769,7 @@ void radio_change_sample_rate(int rate) {
 #endif
         old_protocol_set_mic_sample_rate(rate);
         old_protocol_run();
-#ifdef PURESIGNAL
         tx_set_ps_sample_rate(transmitter,rate);
-#endif
       }
       break;
 #ifdef LIMESDR
@@ -785,18 +799,12 @@ static void rxtx(int state) {
 #endif
 
     for(i=0;i<receivers;i++) {
-#ifdef PURESIGNAL
-      // When using PURESIGNAL, delivery of RX samples
-      // to WDSP via fexchange0() comes to an abrupt stop
-      // since they go through add_ps_iq_samples()
-      // rather than add_iq_samples().
+      // Delivery of RX samples
+      // to WDSP via fexchange0() may come to an abrupt stop
+      // (especially with PURESIGNAL or DIVERSITY).
       // Therefore, wait for *all* receivers to complete
       // their slew-down before going TX.
       SetChannelState(receiver[i]->id,0,1);
-#else
-      // Original code: wait for WDSP only for the last RX
-      SetChannelState(receiver[i]->id,0,i==(receivers-1));
-#endif
       set_displaying(receiver[i],0);
       g_object_ref((gpointer)receiver[i]->panel);
       g_object_ref((gpointer)receiver[i]->panadapter);
@@ -911,18 +919,12 @@ void setTune(int state) {
     }
     if(state) {
       for(i=0;i<receivers;i++) {
-#ifdef PURESIGNAL
-        // When using PURESIGNAL, delivery of RX samples
-        // to WDSP via fexchange0() comes to an abrupt stop
-        // since they go through add_ps_iq_samples()
-        // rather than add_iq_samples().
+        // Delivery of RX samples
+        // to WDSP via fexchange0() may come to an abrupt stop
+        // (especially with PURESIGNAL or DIVERSITY)
         // Therefore, wait for *all* receivers to complete
         // their slew-down before going TX.
         SetChannelState(receiver[i]->id,0,1);
-#else
-	// wait only for the last RX
-        SetChannelState(receiver[i]->id,0,i==(receivers-1));
-#endif
         set_displaying(receiver[i],0);
         if(protocol==NEW_PROTOCOL) {
           schedule_high_priority();
@@ -934,6 +936,7 @@ void setTune(int state) {
         mode=vfo[VFO_B].mode;
       }
       pre_tune_mode=mode;
+      pre_tune_cw_internal=cw_keyer_internal;
 
       //
       // in USB/DIGU/DSB, tune 1000 Hz above carrier
@@ -977,7 +980,7 @@ void setTune(int state) {
         case modeCWL:
         case modeCWU:
           tx_set_mode(transmitter,pre_tune_mode);
-          cw_keyer_internal=1;
+          cw_keyer_internal=pre_tune_cw_internal;
           break;
       }
     }

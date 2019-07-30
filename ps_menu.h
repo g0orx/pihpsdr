@@ -16,5 +16,3 @@
 */
 
 extern void ps_menu(GtkWidget *parent);
-
-extern void ps_twotone(int state);

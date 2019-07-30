@@ -33,9 +33,6 @@ GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 # uncomment the line below to include support for STEMlab discovery (WITHOUT AVAHI)
 #STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_NOAVAHI
 
-# uncommment this line for circumventing problems with RedPitya HPSDR apps.
-#STEMLAB_FIX_OPTION=-DSTEMLAB_FIX
-
 # uncomment the line below to include support for Pi SDR
 #PI_SDR_INCLUDE=PI_SDR
 
@@ -214,7 +211,7 @@ AUDIO_LIBS=-lasound
 
 OPTIONS=-g -Wno-deprecated-declarations $(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) \
 	$(I2C_OPTIONS) $(GPIO_OPTIONS) $(LIMESDR_OPTIONS) $(FREEDV_OPTIONS) $(LOCALCW_OPTIONS) $(RADIOBERRY_OPTIONS) \
-	$(PI_SDR_OPTIONS) $(PSK_OPTIONS) $(STEMLAB_OPTIONS) $(STEMLAB_FIX_OPTION) \
+	$(PI_SDR_OPTIONS) $(PSK_OPTIONS) $(STEMLAB_OPTIONS) \
 	-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION) -O3
 
 LIBS=-lrt -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(PSKLIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS) $(STEMLAB_LIBS) $(MIDI_LIBS)
@@ -261,7 +258,6 @@ agc_menu.c \
 vox_menu.c \
 fft_menu.c \
 diversity_menu.c \
-freqent_menu.c \
 tx_menu.c \
 vfo_menu.c \
 test_menu.c \
@@ -334,7 +330,6 @@ agc_menu.h \
 vox_menu.h \
 fft_menu.h \
 diversity_menu.h \
-freqent_menu.h \
 tx_menu.h \
 vfo_menu.h \
 test_menu.h \
@@ -403,7 +398,6 @@ agc_menu.o \
 vox_menu.o \
 fft_menu.o \
 diversity_menu.o \
-freqent_menu.o \
 tx_menu.o \
 vfo_menu.o \
 test_menu.o \
@@ -474,10 +468,10 @@ release: $(PROGRAM)
 #
 #############################################################################
 
-hpsdrsim.o:	hpsdrsim.c
+hpsdrsim.o:	hpsdrsim.c hpsdrsim.h
 	$(CC) -c -O -DALSASOUND hpsdrsim.c
 
-newhpsdrsim.o:	newhpsdrsim.c
+newhpsdrsim.o:	newhpsdrsim.c hpsdrsim.h
 	$(CC) -c -O newhpsdrsim.c
 
 hpsdrsim:	hpsdrsim.o newhpsdrsim.o

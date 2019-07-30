@@ -421,8 +421,12 @@ if(analog_meter) {
       cairo_move_to(cr, 80, meter_height-22);
       cairo_show_text(cr, sf);
 
-      double swr=(max_level+reverse)/(max_level-reverse);
-      if(swr<0.0) swr=1.0;
+      double swr;
+      if (max_level > reverse) {
+        swr=(max_level+reverse)/(max_level-reverse);
+      } else {
+        swr=999.9;
+      }
       sprintf(sf,"SWR: %1.1f:1",swr);
       cairo_move_to(cr, 60, meter_height-12);
       cairo_show_text(cr, sf);
@@ -674,7 +678,12 @@ if(analog_meter) {
       cairo_move_to(cr, 10, 35);
       cairo_show_text(cr, sf);
 
-      double swr=(max_level+reverse)/(max_level-reverse);
+      double swr;
+      if (max_level > reverse) {
+        swr=(max_level+reverse)/(max_level-reverse);
+      } else {
+        swr=999.9;
+      }
       cairo_select_font_face(cr, "FreeMono",
             CAIRO_FONT_SLANT_NORMAL,
             CAIRO_FONT_WEIGHT_BOLD);

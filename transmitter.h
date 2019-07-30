@@ -76,12 +76,10 @@ typedef struct _transmitter {
   int low_latency;
 
   int twotone;
-#ifdef PURESIGNAL
   int puresignal;
   int feedback;
   int auto_on;
   int single_on;
-#endif
 
   double ctcss_frequency;
   int ctcss;

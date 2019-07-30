@@ -39,7 +39,6 @@ typedef enum _audio_t audio_t;
 typedef struct _receiver {
   int id;
 
-  int ddc;
   int adc;
 
   double volume;
@@ -56,7 +55,6 @@ typedef struct _receiver {
   int pixels;
   int samples;
   int output_samples;
-  long iq_sequence;
   double *iq_input_buffer;
   double *audio_output_buffer;
   unsigned char *audio_buffer;
@@ -158,6 +156,7 @@ extern void set_offset(RECEIVER *rx, long long offset);
 extern void set_deviation(RECEIVER *rx);
 
 extern void add_iq_samples(RECEIVER *rx, double i_sample,double q_sample);
+extern void add_div_iq_samples(RECEIVER *rx, double i0,double q0, double i1, double q1);
 
 extern void reconfigure_receiver(RECEIVER *rx,int height);
 

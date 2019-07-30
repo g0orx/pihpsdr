@@ -149,7 +149,7 @@ static enum MIDIaction keyword2action(char *s) {
  */
 
 void MIDIstartup() {
-    FILE *fpin,*fpout;
+    FILE *fpin;
     char zeile[255];
     char *cp,*cq;
     int key;
@@ -167,7 +167,6 @@ void MIDIstartup() {
     MidiCommandsTable.pitch=NULL;
 
     fpin=fopen("midi.inp", "r");
-    fpout=stderr;
     if (!fpin) return;
 
     for (;;) {
@@ -239,8 +238,7 @@ void MIDIstartup() {
       }
       if (event == EVENT_NONE || type == TYPE_NONE || key < 0 || key > 127) continue;
       // Now all entries of the line have been read. Construct descriptor
-      fprintf(fpout,"K=%d C=%d T=%d E=%d A=%d OnOff=%d THRs=%d %d %d %d %d %d\n",
-	 key,chan,type, event, action, onoff, lt3,lt2,lt1,ut1,ut2,ut3);
+//fprintf(stderr,"K=%d C=%d T=%d E=%d A=%d OnOff=%d THRs=%d %d %d %d %d %d\n", key,chan,type, event, action, onoff, lt3,lt2,lt1,ut1,ut2,ut3);
       desc = (struct desc *) malloc(sizeof(struct desc));
       desc->next = NULL;
       desc->action = action;

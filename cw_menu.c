@@ -44,6 +44,7 @@ static GtkWidget *dialog=NULL;
 void cw_changed() {
 // inform the local keyer about CW parameter changes
 // (only if LOCALCW is active).
+// NewProtocol: rely on periodically sent HighPrio packets
 #ifdef LOCALCW
   keyer_update();
 #endif
@@ -125,6 +126,10 @@ static void cw_keyer_sidetone_frequency_value_changed_cb(GtkWidget *widget, gpoi
 */
   cw_changed();
   receiver_filter_changed(active_receiver);
+  // changing the side tone frequency affects BFO frequency offsets
+  if (protocol == NEW_PROTOCOL) {
+    schedule_high_priority();
+  }
 }
 
 void cw_menu(GtkWidget *parent) {

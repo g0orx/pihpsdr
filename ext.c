@@ -33,6 +33,7 @@
 #ifdef PURESIGNAL
 #include "ps_menu.h"
 #endif
+#include "band.h"
 
 // The following calls functions can be called usig g_idle_add
 
@@ -49,7 +50,19 @@ int ext_discovery(void *data) {
 }
 
 int ext_set_frequency(void *data) {
-  setFrequency(*(long long *)data);
+  //
+  // If new frequency is outside of current band,
+  // behave as if the user had chosen the new band
+  // via the menu prior to changing the frequency
+  //
+  long long freq = *(long long *)data;
+  int id=active_receiver->id;
+  int b = get_band_from_frequency(freq);
+  if (b < 0) b=bandGen;
+  if (b != vfo[id].band) {
+    vfo_band_changed(b);
+  }
+  setFrequency(freq);
   free(data);
   return 0;
 }

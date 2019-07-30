@@ -53,7 +53,6 @@
 #include "test_menu.h"
 #include "vox_menu.h"
 #include "diversity_menu.h"
-#include "freqent_menu.h"
 #include "tx_menu.h"
 #include "ps_menu.h"
 #include "encoder_menu.h"
@@ -321,16 +320,6 @@ static gboolean diversity_cb (GtkWidget *widget, GdkEventButton *event, gpointer
   return TRUE;
 }
 
-void start_freqent() {
-  cleanup();
-  freqent_menu(top_window);
-}
-
-static gboolean freqent_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  start_freqent();
-  return TRUE;
-}
-
 void start_vfo() {
   cleanup();
   vfo_menu(top_window);
@@ -557,14 +546,15 @@ void new_menu()
     gtk_grid_attach(GTK_GRID(grid),about_b,(i%5),i/5,1,1);
     i++;
 
-#ifdef DIVERSITY
-    if(RECEIVERS==2) {
+//
+//  We need at least two receivers and two ADCs to do DIVERSITY
+//
+    if(RECEIVERS==2 && n_adc > 1) {
       GtkWidget *diversity_b=gtk_button_new_with_label("Diversity");
       g_signal_connect (diversity_b, "button-press-event", G_CALLBACK(diversity_cb), NULL);
       gtk_grid_attach(GTK_GRID(grid),diversity_b,(i%5),i/5,1,1);
       i++;
     }
-#endif
 
     gtk_container_add(GTK_CONTAINER(content),grid);
 

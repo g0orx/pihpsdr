@@ -196,7 +196,7 @@ int pa_mic_cb(const void *inputBuffer, void *outputBuffer, unsigned long framesP
     }
   } else {
     for (i=0; i<framesPerBuffer; i++) {
-      isample=(short) (in[i]*32768.0);
+      isample=(short) (in[i]*32767.0);
       *p++   = (isample & 0xFF);         // LittleEndian
       *p++   = (isample >> 8)& 0xFF;
     }

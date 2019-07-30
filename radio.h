@@ -60,13 +60,16 @@ extern char property_path[];
 
 extern int region;
 
-// specify how many receivers
-#define MAX_RECEIVERS 8
+// specify how many receivers: for PURESIGNAL need two extra
 #define RECEIVERS 2
 #ifdef PURESIGNAL
+#define MAX_RECEIVERS (RECEIVERS+2)
 #define PS_TX_FEEDBACK (RECEIVERS)
 #define PS_RX_FEEDBACK (RECEIVERS+1)
+#else
+#define MAX_RECEIVERS RECEIVERS
 #endif
+#define MAX_DDC (RECEIVERS+2)
 
 extern RECEIVER *receiver[];
 extern RECEIVER *active_receiver;
@@ -183,8 +186,6 @@ extern int mox;
 extern int tune;
 extern int memory_tune;
 extern int full_tune;
-extern int dot;
-extern int dash;
 extern int adc_overload;
 extern int pll_locked;
 extern unsigned int exciter_power;
@@ -247,8 +248,8 @@ extern int cw_key_hit;
 extern int n_adc;
 
 extern int diversity_enabled;
-extern double i_rotate[2];
-extern double q_rotate[2];
+extern double div_cos, div_sin;
+extern double div_gain, div_phase;
 
 extern double meter_calibration;
 extern double display_calibration;

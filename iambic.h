@@ -11,9 +11,6 @@ enum {
     EXITLOOP
 };
 
-extern int keyer_out;
-extern int key_state;
-
 void keyer_event(int left, int state);
 void keyer_update();
 void keyer_close();

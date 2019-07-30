@@ -64,7 +64,7 @@ extern void SetPSMapMode (int channel, int map);
 extern void SetPSPinMode (int channel, int pin);
 
 //
-// Todo: create buttons to change these value
+// Todo: create buttons to change these values
 //
 
 
@@ -261,16 +261,25 @@ static int info_thread(gpointer arg) {
 }
 
 //
-// Set "RX1 ANT", "RX1 OUT", and ADC settings for the PS feedback signal
+// select route for PS feedback signal.
+// note: we need new code numbers such that we can
+//       distinguish "normal RX" and "feedback" use
+//       of EXT1. In the latter case, any RX filters have
+//       to by bypassed, which is of particular importance
+//       on the 6m band.
+//       
 //
 static void ps_ant_cb(GtkWidget *widget, gpointer data) {
   int val = (int) (uintptr_t) data;
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
     switch (val) {
-      case 0:	// AUTO (Internal), feedback goes to first ADC
-      case 3:	// EXT1,            feedback goes to first ADC
-      case 4:	// EXT2,            feedback goes to first ADC
+      case 0:	// Internal
+      case 6:	// EXT1; RX filters switched to "BYPASS"
+      case 7:	// Bypass
 	receiver[PS_RX_FEEDBACK]->alex_antenna = val;
+	if (protocol == NEW_PROTOCOL) {
+	  schedule_high_priority();
+	}
 	break;
     }
   }
@@ -416,15 +425,17 @@ void ps_menu(GtkWidget *parent) {
   //
   // AUTO		Using internal feedback (to ADC0)
   // EXT1		Using EXT1 jacket (to ADC0), ANAN-7000: still uses AUTO
-  // EXT2		Using EXT2 jacket (to ADC0), ANAN-7000: "EXT2 is called RX Bypass"
-  // RX2		Using RX2  jacket (to ADC1)
+  // BYPASS		Using BYPASS. Not available with ANAN-100/200 up to Rev. 16 filter boards
+  //
+  // In fact, we provide the possibility of using EXT1 only to support these older
+  // (before February, 2015) ANAN-100/200 devices.
   //
   GtkWidget *ps_ant_label=gtk_label_new("PS FeedBk ANT:");
   gtk_widget_show(ps_ant_label);
   gtk_grid_attach(GTK_GRID(grid), ps_ant_label, col, row, 1, 1);
   col++;
 
-  GtkWidget *ps_ant_auto=gtk_radio_button_new_with_label(NULL,"AUTO");
+  GtkWidget *ps_ant_auto=gtk_radio_button_new_with_label(NULL,"Internal");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ps_ant_auto), 
     (receiver[PS_RX_FEEDBACK]->alex_antenna == 0) );
   gtk_widget_show(ps_ant_auto);
@@ -434,18 +445,18 @@ void ps_menu(GtkWidget *parent) {
 
   GtkWidget *ps_ant_ext1=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(ps_ant_auto),"EXT1");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ps_ant_ext1),
-    (receiver[PS_RX_FEEDBACK]->alex_antenna==3) );
+    (receiver[PS_RX_FEEDBACK]->alex_antenna==6) );
   gtk_widget_show(ps_ant_ext1);
   gtk_grid_attach(GTK_GRID(grid), ps_ant_ext1, col, row, 1, 1);
-  g_signal_connect(ps_ant_ext1,"toggled", G_CALLBACK(ps_ant_cb), (gpointer) (long) 3);
+  g_signal_connect(ps_ant_ext1,"toggled", G_CALLBACK(ps_ant_cb), (gpointer) (long) 6);
   col++;
 
-  GtkWidget *ps_ant_ext2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(ps_ant_auto),"EXT2");
+  GtkWidget *ps_ant_ext2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(ps_ant_auto),"ByPass IN");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ps_ant_ext2),
-    (receiver[PS_RX_FEEDBACK]->alex_antenna==4) );
+    (receiver[PS_RX_FEEDBACK]->alex_antenna==7) );
   gtk_widget_show(ps_ant_ext2);
   gtk_grid_attach(GTK_GRID(grid), ps_ant_ext2, col, row, 1, 1);
-  g_signal_connect(ps_ant_ext2,"toggled", G_CALLBACK(ps_ant_cb), (gpointer) (long) 4);
+  g_signal_connect(ps_ant_ext2,"toggled", G_CALLBACK(ps_ant_cb), (gpointer) (long) 7);
   col++;
 
   row++;

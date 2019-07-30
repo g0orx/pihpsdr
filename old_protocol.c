@@ -144,6 +144,8 @@ static int psk_divisor=6;
 #endif
 
 static int local_ptt=0;
+static int dash=0;
+static int dot=0;
 
 static double micinputbuffer[MAX_BUFFER_SIZE*2];
 
@@ -535,6 +537,200 @@ static gpointer receive_thread(gpointer arg) {
   return NULL;
 }
 
+//
+// To avoid overloading code with handling all the different cases
+// at various places,
+// we define here the channel number of the receivers, as well as the
+// number of HPSDR receivers to use (up to 5)
+// These are FIXED numbers and depend on the device and whether the code
+// is compiled with or without PURESIGNAL
+// Furthermore, we provide a function that determines the frequency for
+// a given (HPSDR) receiver and for the transmitter.
+//
+//
+
+static int rx_feedback_receiver() {
+  //
+  // Depending on the device, return channel number of RX feedback receiver
+  //
+  int ret;
+  switch (device) {
+    case DEVICE_METIS:
+      ret=0;
+      break;
+    case DEVICE_HERMES:
+    case DEVICE_STEMLAB:
+      ret=2;
+      break;
+    case DEVICE_ANGELIA:
+    case DEVICE_ORION:
+    case DEVICE_ORION2:
+      ret=3;
+    default:
+      ret=0;
+      break;
+  }
+  return ret;
+}
+
+static int tx_feedback_receiver() {
+  //
+  // Depending on the device, return channel number of TX feedback receiver
+  //
+  int ret;
+  switch (device) {
+    case DEVICE_METIS:
+      ret=1;
+      break;
+    case DEVICE_HERMES:
+    case DEVICE_STEMLAB:
+      ret=3;
+      break;
+    case DEVICE_ANGELIA:
+    case DEVICE_ORION:
+    case DEVICE_ORION2:
+      ret=4;
+    default:
+      ret=1;
+      break;
+  }
+  return ret;
+}
+
+static int first_receiver() {
+  //
+  // Depending on the device and whether we compiled for PURESIGNAL,
+  // return the channel number of the first receiver
+  //
+  return 0;
+}
+
+static int second_receiver() {
+  //
+  // Depending on the device and whether we compiled for PURESIGNAL,
+  // return the channel number of the second receiver
+  //
+#ifdef PURESIGNAL
+  return 2;
+#else
+  return 1;
+#endif
+}
+
+static long long channel_freq(int chan) {
+  //
+  // Depending on PURESIGNAL and DIVERSITY, return
+  // the frequency associated with the current HPSDR
+  // RX channel (0 <= chan <= 4).
+  // Note that for the RX channels which the firmware
+  // associates with the TX DAC the frequency need not
+  // be set.
+  //
+  // This function returns the TX frequency if chan is
+  // outside the allowed range, and thus can be used
+  // to set the TX frequency.
+  //
+  // If transmitting with PURESIGNAL, the frequency of
+  // the "antenna" feedback channel is set to the TX freq.
+  //
+  // This subroutine is the ONLY place here where the VFO
+  // frequencies are looked at.
+  //
+  int v;
+  long long freq;
+
+  switch (chan) {
+#ifdef PURESIGNAL
+    case 0:
+    case 1:
+      v=receiver[0]->id;
+      break;
+    case 2:
+    case 3:
+      if (diversity_enabled) {
+	v=receiver[0]->id;
+      } else {
+	v=receiver[1]->id;
+      }
+      break;
+#else
+    case 0:
+      v=receiver[0]->id;
+      break;
+    case 1:
+      if (diversity_enabled) {
+	v=receiver[0]->id;
+      } else {
+	v=receiver[1]->id;
+      }
+      break;
+#endif
+  }
+  //
+  // When transmitting with PURESIGNAL, set frequency of PS feedback channel to tx freq
+  //
+  if (isTransmitting() && transmitter->puresignal && chan == rx_feedback_receiver()) {
+    v = -1;
+  }
+  if (v < 0) {
+    //
+    // v=-1 indicates that we should use the TX frequency.
+    //
+    if(active_receiver->id==VFO_A) {
+      if(split) {
+	freq=vfo[VFO_B].frequency-vfo[VFO_B].lo+vfo[VFO_B].offset;
+      } else {
+	freq=vfo[VFO_A].frequency-vfo[VFO_A].lo+vfo[VFO_A].offset;
+      }
+    } else {
+      if(split) {
+	freq=vfo[VFO_A].frequency-vfo[VFO_A].lo+vfo[VFO_A].offset;
+      } else {
+	freq=vfo[VFO_B].frequency-vfo[VFO_B].lo+vfo[VFO_B].offset;
+      }
+    }
+  } else {
+    //
+    // determine frequency associated with VFO v
+    //
+    freq=vfo[v].frequency-vfo[v].lo;
+    if(vfo[v].rit_enabled) {
+      freq+=vfo[v].rit;
+    }
+    if(vfo[v].mode==modeCWU) {
+      freq-=(long long)cw_keyer_sidetone_frequency;
+    } else if(vfo[v].mode==modeCWL) {
+      freq+=(long long)cw_keyer_sidetone_frequency;
+    }
+  }
+  return freq;
+}
+
+static int how_many_receivers() {
+  //
+  // Depending on how the program is compiled and which board we have,
+  // we use a FIXED number of receivers except for RADIOBERRY and PI_SDR,
+  // where the number may be dynamically changed
+  //
+  int ret;
+#if defined(RADIOBERRY) || defined(PI_SDR)
+        ret = receivers;     // 1 or 2
+#else
+        ret = RECEIVERS;     // 2
+#endif
+
+#ifdef PURESIGNAL
+    // for PureSignal, the number of receivers needed is hard-coded below.
+    // we need at least 2, and up to 5 for Orion2 boards. This is so because
+    // the TX DAC is hard-wired to RX4 for HERMES,STEMLAB and to RX5 for ANGELIA
+    // and beyond.
+    ret = 2;  // METIS?
+    if (device == DEVICE_HERMES  || device == DEVICE_STEMLAB) ret = 4;
+    if (device == DEVICE_ANGELIA || device == DEVICE_ORION || device == DEVICE_ORION2) ret = 5;
+#endif
+    return ret;
+}
+
 static void process_ozy_input_buffer(unsigned char  *buffer) {
   int i,j;
   int r;
@@ -562,22 +758,11 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
 
   int tx_vfo=split?VFO_B:VFO_A;
 
-  int num_hpsdr_receivers;
-
-#ifdef PURESIGNAL
-    // for PureSignal, the number of receivers needed is hard-coded below.
-    // we need at least 3 (for RX), and up to 5 for Orion2 boards, since
-    // the TX DAC channel is hard-wired to RX5.
-    num_hpsdr_receivers=3;
-    if (device == DEVICE_HERMES) num_hpsdr_receivers=4;
-    if (device == DEVICE_ANGELIA || device == DEVICE_ORION || device == DEVICE_ORION2) num_hpsdr_receivers=5;
-#else
-#if defined(RADIOBERRY) || defined(PI_SDR)
-	num_hpsdr_receivers = receivers;
-#else
-	num_hpsdr_receivers=RECEIVERS;
-#endif
-#endif
+  int num_hpsdr_receivers=how_many_receivers();
+  int rxfdbk = rx_feedback_receiver();
+  int txfdbk = tx_feedback_receiver();
+  int rx1channel = first_receiver();
+  int rx2channel = second_receiver();
 
   if(buffer[b++]==SYNC && buffer[b++]==SYNC && buffer[b++]==SYNC) {
     // extract control bytes
@@ -653,66 +838,55 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
         left_sample_double=(double)left_sample/8388607.0; // 24 bit sample 2^23-1
         right_sample_double=(double)right_sample/8388607.0; // 24 bit sample 2^23-1
 
-#ifdef PURESIGNAL
-        if(!isTransmitting() || (isTransmitting() && !transmitter->puresignal)) {
-          switch(r) {
-            case 0:
-              add_iq_samples(receiver[0], left_sample_double,right_sample_double);
-              break;
-            case 1:
-              break;
-            case 2:
-              add_iq_samples(receiver[1], left_sample_double,right_sample_double);
-              break;
-            case 3:
-              break;
-            case 4:
-              break;
+	if (isTransmitting() && transmitter->puresignal) {
+	  //
+	  // transmitting with PURESIGNAL. Get sample pairs and feed to pscc
+	  //
+	  if (r == rxfdbk) {
+            left_sample_double_rx=left_sample_double;
+            right_sample_double_rx=right_sample_double;
+          } else if (r == txfdbk) {
+            left_sample_double_tx=left_sample_double;
+            right_sample_double_tx=right_sample_double;
           }
-        } else {
-          switch(r) {
-            case 0:
-              if(device==DEVICE_METIS)  {
-                left_sample_double_rx=left_sample_double;
-                right_sample_double_rx=right_sample_double;
-              }
-              break;
-            case 1:
-              if(device==DEVICE_METIS)  {
-                left_sample_double_tx=left_sample_double;
-                right_sample_double_tx=right_sample_double;
-                add_ps_iq_samples(transmitter, left_sample_double_tx,right_sample_double_tx,left_sample_double_rx,right_sample_double_rx);
-              }
-              break;
-            case 2:
-              if(device==DEVICE_HERMES)  {
-                left_sample_double_rx=left_sample_double;
-                right_sample_double_rx=right_sample_double;
-              }
-              break;
-            case 3:
-              if(device==DEVICE_HERMES)  {
-                left_sample_double_tx=left_sample_double;
-                right_sample_double_tx=right_sample_double;
-                add_ps_iq_samples(transmitter, left_sample_double_tx,right_sample_double_tx,left_sample_double_rx,right_sample_double_rx);
-              } else if(device==DEVICE_ANGELIA || device==DEVICE_ORION || device==DEVICE_ORION2) {
-                left_sample_double_rx=left_sample_double;
-                right_sample_double_rx=right_sample_double;
-              }
-              break;
-            case 4:
-              if(device==DEVICE_ANGELIA || device==DEVICE_ORION || device==DEVICE_ORION2) {
-                left_sample_double_tx=left_sample_double;
-                right_sample_double_tx=right_sample_double;
-                add_ps_iq_samples(transmitter, left_sample_double_tx,right_sample_double_tx,left_sample_double_rx,right_sample_double_rx);
-              }
-              break;
+	  // this is pure paranoia, it allows for txfdbk < rxfdbk
+          if (r+1 == num_hpsdr_receivers) {
+            add_ps_iq_samples(transmitter, left_sample_double_tx,right_sample_double_tx,left_sample_double_rx,right_sample_double_rx);
           }
         }
-#else
-        add_iq_samples(receiver[r], left_sample_double,right_sample_double);
-#endif
-      }
+
+	if (!isTransmitting() && diversity_enabled) {
+	  //
+	  // receiving with DIVERSITY. Get sample pairs and feed to diversity mixer
+	  //
+          if (r == rx1channel) {
+            left_sample_double_rx=left_sample_double;
+            right_sample_double_rx=right_sample_double;
+          } else if (r == rx2channel) {
+            left_sample_double_tx=left_sample_double;
+            right_sample_double_tx=right_sample_double;
+          }
+	  // this is pure paranoia, it allows for div_main < div_aux
+          if (r+1 == num_hpsdr_receivers) {
+            add_div_iq_samples(receiver[0], left_sample_double_rx,right_sample_double_rx,left_sample_double_tx,right_sample_double_tx);
+	    // if we have a second receiver, display "auxiliary" receiver as well
+            if (receivers >1) add_iq_samples(receiver[1], left_sample_double_tx,right_sample_double_tx);
+          }
+	}
+
+        if (!isTransmitting() && !diversity_enabled) {
+	  //
+	  // RX without DIVERSITY. Feed samples to RX1 and RX2
+	  //
+          if (r == rx1channel) {
+             add_iq_samples(receiver[0], left_sample_double,right_sample_double);
+          } else if (r == rx2channel && receivers > 1) {
+             add_iq_samples(receiver[1], left_sample_double,right_sample_double);
+          }
+        }
+      } // end of loop over the receiver channels
+
+      // TX without PURESIGNAL: receivers are shut down -- do nothing
 
       mic_sample  = (short)(buffer[b++]<<8);
       mic_sample |= (short)(buffer[b++]&0xFF);
@@ -845,22 +1019,7 @@ void ozy_send_buffer() {
   int mode;
   int i;
   BAND *band;
-  int num_hpsdr_receivers;
-
-#ifdef PURESIGNAL
-    // for PureSignal, the number of receivers needed is hard-coded below.
-    // we need at least 3 (for RX), and up to 5 for Orion2 boards, since
-    // the TX DAC channel is hard-wired to RX5.
-    num_hpsdr_receivers=3;
-    if (device == DEVICE_HERMES) num_hpsdr_receivers=4;
-    if (device == DEVICE_ANGELIA || device == DEVICE_ORION || device == DEVICE_ORION2) num_hpsdr_receivers=5;
-#else
-#if defined(RADIOBERRY) || defined(PI_SDR)
-	num_hpsdr_receivers = receivers;
-#else
-	num_hpsdr_receivers=RECEIVERS;
-#endif
-#endif
+  int num_hpsdr_receivers=how_many_receivers();
 
   output_buffer[SYNC0]=SYNC;
   output_buffer[SYNC1]=SYNC;
@@ -953,27 +1112,31 @@ void ozy_send_buffer() {
     // Set ALEX RX1_ANT and RX1_OUT
     //
     i=receiver[0]->alex_antenna;
-#ifdef PURESIGNAL
     //
     // Upon TX, we might have to activate a different RX path for the
     // attenuated feedback signal. Use alex_antenna == 0, if
     // the feedback signal is routed automatically/internally
     // If feedback is to the second ADC, leave RX1 ANT settings untouched
     //
+#ifdef PURESIGNAL
     if (isTransmitting() && transmitter->puresignal) i=receiver[PS_RX_FEEDBACK]->alex_antenna;
 #endif
     switch(i) {
-      case 3:  // Alex: RX2 IN, ANAN: EXT1, ANAN7000: still uses internal feedback 
-        output_buffer[C3]|=0x80;
+      case 6:  // EXT1 used for PS feedback
+      case 3:  // EXT1 (RX2_IN)
+        output_buffer[C3]|=0x40;
         break;
-      case 4:  // Alex: RX1 IN, ANAN: EXT2, ANAN7000: RX BYPASS
-        output_buffer[C3]|=0xA0;
+      case 4:  // EXT2 (RX1_IN)
+        output_buffer[C3]|=0x20;
         break;
       case 5:  // XVTR
-        output_buffer[C3]|=0xE0;
+        output_buffer[C3]|=0x60;
         break;
+      case 7:  // RX Bypass In
+        output_buffer[C3]|=0x80;
+	break;
       default:
-	// RX1_OUT and RX1_ANT bits remain zero
+	// RX1_ANT bits remain zero
         break;
     }
 
@@ -1033,20 +1196,7 @@ void ozy_send_buffer() {
     switch(command) {
       case 1: // tx frequency
         output_buffer[C0]=0x02;
-        long long txFrequency;
-        if(active_receiver->id==VFO_A) {
-          if(split) {
-            txFrequency=vfo[VFO_B].frequency-vfo[VFO_B].lo+vfo[VFO_B].offset;
-          } else {
-            txFrequency=vfo[VFO_A].frequency-vfo[VFO_A].lo+vfo[VFO_A].offset;
-          }
-        } else {
-          if(split) {
-            txFrequency=vfo[VFO_A].frequency-vfo[VFO_A].lo+vfo[VFO_A].offset;
-          } else {
-            txFrequency=vfo[VFO_B].frequency-vfo[VFO_B].lo+vfo[VFO_B].offset;
-          }
-        }
+        long long txFrequency=channel_freq(-1);
         output_buffer[C1]=txFrequency>>24;
         output_buffer[C2]=txFrequency>>16;
         output_buffer[C3]=txFrequency>>8;
@@ -1055,51 +1205,14 @@ void ozy_send_buffer() {
       case 2: // rx frequency
         if(current_rx<num_hpsdr_receivers) {
           output_buffer[C0]=0x04+(current_rx*2);
-#ifdef PURESIGNAL
-          int v=receiver[current_rx/2]->id;
-	  // for the "last" receiver, v is out of range. In this case,
-	  // use TX frequency also while receiving
-          if((isTransmitting() && transmitter->puresignal) || (v >= MAX_VFOS)) {
-            long long txFrequency;
-            if(active_receiver->id==VFO_A) {
-              if(split) {
-                txFrequency=vfo[VFO_B].frequency-vfo[VFO_B].lo+vfo[VFO_B].offset;
-              } else {
-                txFrequency=vfo[VFO_A].frequency-vfo[VFO_A].lo+vfo[VFO_A].offset;
-              }
-            } else {
-              if(split) {
-                txFrequency=vfo[VFO_A].frequency-vfo[VFO_A].lo+vfo[VFO_A].offset;
-              } else {
-                txFrequency=vfo[VFO_B].frequency-vfo[VFO_B].lo+vfo[VFO_B].offset;
-              }
-            }
-            output_buffer[C1]=txFrequency>>24;
-            output_buffer[C2]=txFrequency>>16;
-            output_buffer[C3]=txFrequency>>8;
-            output_buffer[C4]=txFrequency;
-          } else {
-#else
-          int v=receiver[current_rx]->id;
-#endif
-            long long rxFrequency=vfo[v].frequency-vfo[v].lo;
-            if(vfo[v].rit_enabled) {
-              rxFrequency+=vfo[v].rit;
-            }
-            if(vfo[v].mode==modeCWU) {
-              rxFrequency-=(long long)cw_keyer_sidetone_frequency;
-            } else if(vfo[v].mode==modeCWL) {
-              rxFrequency+=(long long)cw_keyer_sidetone_frequency;
-            }
-            output_buffer[C1]=rxFrequency>>24;
-            output_buffer[C2]=rxFrequency>>16;
-            output_buffer[C3]=rxFrequency>>8;
-            output_buffer[C4]=rxFrequency;
-#ifdef PURESIGNAL
-          }
-#endif
+	  long long rxFrequency=channel_freq(current_rx);
+          output_buffer[C1]=rxFrequency>>24;
+          output_buffer[C2]=rxFrequency>>16;
+          output_buffer[C3]=rxFrequency>>8;
+          output_buffer[C4]=rxFrequency;
           current_rx++;
         }
+	// if we have reached the last RX channel, wrap around
         if(current_rx>=num_hpsdr_receivers) {
           current_rx=0;
         }
@@ -1108,7 +1221,6 @@ void ozy_send_buffer() {
         {
         BAND *band=band_get_current_band();
         int power=0;
-#ifdef STEMLAB_FIX
 	//
 	// Some HPSDR apps for the RedPitaya generate CW inside the FPGA, but while
 	// doing this, DriveLevel changes are processed by the server, but do not become effective.
@@ -1123,9 +1235,6 @@ void ozy_send_buffer() {
           mode=vfo[0].mode;
         }
         if(isTransmitting() || (mode == modeCWU) || (mode == modeCWL)) {
-#else
-        if(isTransmitting()) {
-#endif
           if(tune && !transmitter->tune_use_drive) {
             power=(int)((double)transmitter->drive_level/100.0*(double)transmitter->tune_percent);
           } else {
@@ -1175,15 +1284,14 @@ void ozy_send_buffer() {
         }
         output_buffer[C2]=0x00;
         output_buffer[C2]|=linein_gain;
-#ifdef PURESIGNAL
         if(transmitter->puresignal) {
           output_buffer[C2]|=0x40;
         }
-#endif
         output_buffer[C3]=0x00;
         output_buffer[C4]=0x00;
   
-        if(radio->device==DEVICE_HERMES || radio->device==DEVICE_ANGELIA || radio->device==DEVICE_ORION || radio->device==DEVICE_ORION2) {
+        if(device==DEVICE_HERMES || device==DEVICE_ANGELIA || device==DEVICE_ORION
+                                 || device==DEVICE_ORION2  || device == DEVICE_STEMLAB) {
 	  // if attenuation is zero, then disable attenuator
 	  i = adc_attenuation[receiver[0]->adc] & 0x1F;
           if (i >0) output_buffer[C4]=0x20| i;
@@ -1198,7 +1306,8 @@ void ozy_send_buffer() {
         output_buffer[C0]=0x16;
         output_buffer[C1]=0x00;
         if(receivers==2) {
-          if(radio->device==DEVICE_HERMES || radio->device==DEVICE_ANGELIA || radio->device==DEVICE_ORION || radio->device==DEVICE_ORION2) {
+          if(device==DEVICE_HERMES || device==DEVICE_ANGELIA || device==DEVICE_ORION
+                                   || device==DEVICE_ORION2  || device==DEVICE_STEMLAB) {
 	    // if attenuation is zero, then disable attenuator
 	    i = adc_attenuation[receiver[1]->adc] & 0x1F;
             if (i > 0) output_buffer[C1]=0x20|i;
@@ -1281,11 +1390,9 @@ void ozy_send_buffer() {
         if(receiver[0]->alex_antenna==5) { // XVTR
           output_buffer[C2]=0x02;          // Alex2 XVTR enable
         }
-#ifdef PURESIGNAL
         if(transmitter->puresignal) {
           output_buffer[C2]|=0x40;	   // Synchronize RX5 and TX frequency on transmit
         }
-#endif
         output_buffer[C3]=0x00;            // Alex2 filters
         output_buffer[C4]=0x00;            // Alex2 filters
         break;
@@ -1414,6 +1521,7 @@ static int metis_write(unsigned char ep,unsigned char* buffer,int length) {
 }
 
 static void metis_restart() {
+  int i;
   //
   // In TCP-ONLY mode, we possibly need to re-connect
   // since if we come from a METIS-stop, the server
@@ -1428,34 +1536,17 @@ static void metis_restart() {
   // reset current rx
   current_rx=0;
 
-#ifdef STEMLAB_FIX
   // 
   // Some (older) HPSDR apps on the RedPitaya have very small
   // buffers that over-run if too much data is sent
   // to the RedPitaya *before* sending a METIS start packet.
-  // Therefore we send only four OZY buffers here.
+  // We fill the DUC FIFO here with about 500 samples before
+  // starting.
   //
-  command=1;   // ship out a "C0=0" and a "set tx" command
-  ozy_send_buffer();
-  ozy_send_buffer();
-  command=2;  // ship out a "C0=0" and a "set rx" command for RX1
-  ozy_send_buffer();
-  ozy_send_buffer();
-
-  current_rx=0;
   command=1;
-#else
-  // DL1YCF: this is the original code, which does not do what it pretends ....
-  // send commands twice
-  command=1;
-  do {
+  for (i=1; i<8; i++) {
     ozy_send_buffer();
-  } while (command!=1);
-
-  do {
-    ozy_send_buffer();
-  } while (command!=1);
-#endif
+  }
 
   sleep(1);
 

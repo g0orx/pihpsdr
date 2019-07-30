@@ -59,19 +59,33 @@
 #ifdef FREEDV
 #include "freedv.h"
 #endif
-#ifdef LOCALCW
-#include "iambic.h"
-#endif
 #include "vox.h"
 #include "ext.h"
+#include "iambic.h"
 
 #define min(x,y) (x<y?x:y)
 
 #define PI 3.1415926535897932F
 
+/*
+ * A new 'action table' defines what to to
+ * with a sample packet received from a DDC
+ */
+
+#define RXACTION_SKIP   0    // skip samples
+#define RXACTION_NORMAL 1    // deliver 238 samples to a receiver
+#define RXACTION_PS     2    // deliver 2*119 samples to PS engine
+#define RXACTION_DIV    3    // take 2*119 samples, mix them, deliver to a receiver
+
+static int rxcase[MAX_DDC];
+static int rxid  [MAX_DDC];
+
 int data_socket=-1;
 
 static int running;
+
+static int dash=0;
+static int dot=0;
 
 #ifdef __APPLE__
 sem_t *response_sem;
@@ -97,18 +111,17 @@ static int audio_addr_length;
 static struct sockaddr_in iq_addr;
 static int iq_addr_length;
 
-static struct sockaddr_in data_addr[MAX_RECEIVERS];
-static int data_addr_length[MAX_RECEIVERS];
+static struct sockaddr_in data_addr[MAX_DDC];
+static int data_addr_length[MAX_DDC];
 
 static GThread *new_protocol_thread_id;
 static GThread *new_protocol_timer_thread_id;
-
-static long ps_rx_sequence = 0;
 
 static long high_priority_sequence = 0;
 static long general_sequence = 0;
 static long rx_specific_sequence = 0;
 static long tx_specific_sequence = 0;
+static long ddc_sequence[MAX_DDC];
 
 //static int buffer_size=BUFFER_SIZE;
 //static int fft_size=4096;
@@ -169,15 +182,14 @@ static sem_t mic_line_sem_buffer;
 #endif
 static GThread *mic_line_thread_id;
 #ifdef __APPLE__
-static sem_t *iq_sem_ready[MAX_RECEIVERS];
-static sem_t *iq_sem_buffer[MAX_RECEIVERS];
+static sem_t *iq_sem_ready[MAX_DDC];
+static sem_t *iq_sem_buffer[MAX_DDC];
 #else
-static sem_t iq_sem_ready[MAX_RECEIVERS];
-static sem_t iq_sem_buffer[MAX_RECEIVERS];
+static sem_t iq_sem_ready[MAX_DDC];
+static sem_t iq_sem_buffer[MAX_DDC];
 #endif
-static GThread *iq_thread_id[MAX_RECEIVERS];
+static GThread *iq_thread_id[MAX_DDC];
 
-static int samples[MAX_RECEIVERS];
 #ifdef INCLUDED
 static int outputsamples;
 #endif
@@ -199,7 +211,7 @@ static socklen_t length=sizeof(addr);
 
 // Network buffers
 #define NET_BUFFER_SIZE 2048
-static unsigned char *iq_buffer[MAX_RECEIVERS];
+static unsigned char *iq_buffer[MAX_DDC];
 static unsigned char *command_response_buffer;
 static unsigned char *high_priority_buffer;
 static unsigned char *mic_line_buffer;
@@ -233,13 +245,9 @@ static gpointer command_response_thread(gpointer data);
 static gpointer high_priority_thread(gpointer data);
 static gpointer mic_line_thread(gpointer data);
 static gpointer iq_thread(gpointer data);
-#ifdef PURESIGNAL
-static gpointer ps_iq_thread(gpointer data);
-#endif
-static void  process_iq_data(RECEIVER *rx);
-#ifdef PURESIGNAL
-static void  process_ps_iq_data(void);
-#endif
+static void  process_iq_data(unsigned char *buffer, RECEIVER *rx);
+static void  process_ps_iq_data(unsigned char *buffer);
+static void process_div_iq_data(unsigned char *buffer);
 static void  process_command_response();
 static void  process_high_priority();
 static void  process_mic_data(int bytes);
@@ -299,13 +307,78 @@ void tuner_changed() {
 }
 */
 
+void update_action_table() {
+  //
+  // Depending on the values of mox, puresignal, and diversity,
+  // determine the actions to be taken when a DDC packet arrives
+  //
+  int flag;
+  flag=0;
+  if (device==NEW_DEVICE_ANGELIA || device==NEW_DEVICE_ORION || device == NEW_DEVICE_ORION2) flag +=1000;
+  if (isTransmitting())                                                                      flag +=100;
+  if (transmitter->puresignal)                                                               flag +=10;
+  if (diversity_enabled)                                                                     flag +=1;
+
+  //
+  // Set up rxcase and rxid for each of the 16 possible cases
+  // note that rxid[i] can be left unspecified if rxcase[i] == RXACTION_SKIP
+  //
+  rxcase[0] = RXACTION_SKIP;
+  rxcase[1] = RXACTION_SKIP;
+  rxcase[2] = RXACTION_SKIP;
+  rxcase[3] = RXACTION_SKIP;
+  switch (flag) {
+    case    0:								// HERMES, RX, no DIVERSITY
+    case   10:
+	rxid[0]=0;
+	rxcase[0] = RXACTION_NORMAL;
+        if (receivers > 1) {
+	  rxid[1]=1;
+	  rxcase[1] = RXACTION_NORMAL;
+        }
+	break;
+    case    1:								// HERMES, RX, DIVERSITY
+    case   11:								// ORION, RX, DIVERSITY
+    case 1001:
+    case 1011:
+	rxid[0]=0;
+	rxcase[0] = RXACTION_DIV;
+	break;
+    case  100:								// HERMES, TX, no PURESIGNAL
+    case  101:
+    case 1100:								// ORION, TX, no PURESIGNAL
+    case 1101:								// ORION, TX, no PURESIGNAL
+	// just skip samples
+	break;
+    case  110:								// HERMES, TX, PURESIGNAL
+    case  111:
+    case 1110:								// ORION, TX, PURESIGNAL
+    case 1111:
+	rxcase[0] = RXACTION_PS;
+	break;
+    case 1000:								// ORION, RX, no DIVERSITY
+    case 1010:
+	rxid[2]=0;
+	rxcase[2] = RXACTION_NORMAL;
+        if (receivers > 1) {
+	  rxid[3]=1;
+	  rxcase[3] = RXACTION_NORMAL;
+        }
+	break;
+  }
+}
+
 void new_protocol_init(int pixels) {
     int i;
     int rc;
-    int ddc;
     spectrumWIDTH=pixels;
 
     fprintf(stderr,"new_protocol_init: MIC_SAMPLES=%d\n",MIC_SAMPLES);
+
+    memset(rxcase      , 0, MAX_DDC*sizeof(int));
+    memset(rxid        , 0, MAX_DDC*sizeof(int));
+    memset(ddc_sequence, 0, MAX_DDC*sizeof(long));
+    update_action_table();
 
 #ifdef INCLUDED
     outputsamples=buffer_size;
@@ -394,56 +467,34 @@ void new_protocol_init(int pixels) {
     }
     fprintf(stderr, "mic_line_thread: id=%p\n",mic_line_thread_id);
 
-    for(i=0;i<RECEIVERS;i++) {
+//
+//  Spawn off one IQ reading thread for each DDC to be used
+//  Note that IQ reading threads are associated with DDCs and
+//  not with RECEIVERs.
+//
+    for(i=0;i<MAX_DDC;i++) {
 #ifdef __APPLE__
       char sname[12];
-#endif
-      ddc=receiver[i]->ddc;
-#ifdef __APPLE__
-      sprintf(sname,"IQREADY%03d", ddc);
+      sprintf(sname,"IQREADY%03d", i);
       sem_unlink(sname);
-      iq_sem_ready[ddc]=sem_open(sname, O_CREAT | O_EXCL, 0700, 0);
-      if (iq_sem_ready[ddc] == SEM_FAILED) {
+      iq_sem_ready[i]=sem_open(sname, O_CREAT | O_EXCL, 0700, 0);
+      if (iq_sem_ready[i] == SEM_FAILED) {
         fprintf(stderr,"SEM=%s, ",sname);
         perror("IQreadySemaphore");
       }
-      sprintf(sname,"IQBUF%03d", ddc);
+      sprintf(sname,"IQBUF%03d", i);
       sem_unlink(sname);
-      iq_sem_buffer[ddc]=sem_open(sname, O_CREAT| O_EXCL, 0700, 0);
-      if (iq_sem_buffer[ddc] == SEM_FAILED) {
+      iq_sem_buffer[i]=sem_open(sname, O_CREAT| O_EXCL, 0700, 0);
+      if (iq_sem_buffer[i] == SEM_FAILED) {
         fprintf(stderr,"SEM=%s, ",sname);
         perror("IQbufferSemaphore");
       }
 #else
-      rc=sem_init(&iq_sem_ready[ddc], 0, 0);
-      rc=sem_init(&iq_sem_buffer[ddc], 0, 0);
+      rc=sem_init(&iq_sem_ready[i], 0, 0);
+      rc=sem_init(&iq_sem_buffer[i], 0, 0);
 #endif
-      iq_thread_id[ddc] = g_thread_new( "iq thread", iq_thread, (gpointer)(long)i);
+      iq_thread_id[i] = g_thread_new( "iq thread", iq_thread, (gpointer)(long)i);
     }
-
-#ifdef PURESIGNAL
-    if(device!=NEW_DEVICE_HERMES) {
-      // for PS the two feedback streams are DDC0 and DDC1 and synced on DDC0
-      // so only packets from DDC0 will arrive.
-      // This code *assumes* that DDC0 is un-used for RX
-#ifdef __APPLE__
-      sem_unlink("PSIQREADY");
-      iq_sem_ready[0]=sem_open("PSIQREADY", O_CREAT | O_EXCL, 0700, 0);
-      if (iq_sem_ready[0] == SEM_FAILED) {
-        perror("PS-IQreadySemaphore");
-      }
-      sem_unlink("PSIQBUF");
-      iq_sem_buffer[0]=sem_open("PSIQBUF", O_CREAT | O_EXCL, 0700, 0);
-      if (iq_sem_buffer[0] == SEM_FAILED) {
-        perror("PS-IQbufferSemaphore");
-      }
-#else
-      rc=sem_init(&iq_sem_ready[0], 0, 0);
-      rc=sem_init(&iq_sem_buffer[0], 0, 0);
-#endif
-      iq_thread_id[0] = g_thread_new( "ps iq thread", ps_iq_thread, NULL);
-    }
-#endif
 
 data_socket=socket(PF_INET,SOCK_DGRAM,IPPROTO_UDP);
     if(data_socket<0) {
@@ -490,11 +541,10 @@ fprintf(stderr,"new_protocol_thread: high_priority_addr setup for port %d\n",HIG
     iq_addr.sin_port=htons(TX_IQ_FROM_HOST_PORT);
 
 
-    for(i=0;i<MAX_RECEIVERS;i++) {
+    for(i=0;i<MAX_DDC;i++) {
         memcpy(&data_addr[i],&radio->info.network.address,radio->info.network.address_length);
         data_addr_length[i]=radio->info.network.address_length;
         data_addr[i].sin_port=htons(RX_IQ_TO_HOST_PORT_0+i);
-        samples[i]=0;
     }
 
     new_protocol_thread_id = g_thread_new( "new protocol", new_protocol_thread, NULL);
@@ -559,9 +609,8 @@ static void new_protocol_general() {
 }
 
 static void new_protocol_high_priority() {
-    int i, r;
+    int i;
     BAND *band;
-    int xvtr;
     long long rxFrequency;
     long long txFrequency;
     long phase;
@@ -586,55 +635,89 @@ static void new_protocol_high_priority() {
       mode=vfo[0].mode;
     }
     high_priority_buffer_to_radio[4]=running;
+//
+//  ??? why not setting the bit if transmitting in *all* cases ===
+//
     if(mode==modeCWU || mode==modeCWL) {
-      if(tune) {
-        high_priority_buffer_to_radio[4]|=0x02;
-      }
-#ifdef LOCALCW
-      if (cw_keyer_internal == 0) {
-        // set the ptt if we're not in breakin mode and mox is on
-        if(cw_breakin == 0 && getMox()) high_priority_buffer_to_radio[4]|=0x02;
-        high_priority_buffer_to_radio[5]|=(keyer_out) ? 0x01 : 0;
-        high_priority_buffer_to_radio[5]|=(key_state==SENDDOT) ? 0x02 : 0;
-        high_priority_buffer_to_radio[5]|=(key_state==SENDDASH) ? 0x04 : 0;
-      }
-#endif
+      if (isTransmitting() && (!cw_keyer_internal || !cw_breakin || CAT_cw_is_active)) high_priority_buffer_to_radio[4]|=0x02;
     } else {
       if(isTransmitting()) {
         high_priority_buffer_to_radio[4]|=0x02;
       }
     }
 
-// rx
+//
+//  Set DDC frequencies
+//
 
-    for(r=0;r<receivers;r++) {
-      int ddc=receiver[r]->ddc;
-      int v=receiver[r]->id;
-      rxFrequency=vfo[v].frequency-vfo[v].lo;
-      if(vfo[v].rit_enabled) {
-        rxFrequency+=vfo[v].rit;
-      }
+    if (diversity_enabled) {
+	//
+	// Use frequency of RX1 for both DDC0 and DDC1
+	// This is overridden later if we do PURESIGNAL TX
+	//
+        rxFrequency=vfo[0].frequency-vfo[0].lo;
+        if(vfo[0].rit_enabled) {
+          rxFrequency+=vfo[0].rit;
+        }
 
-/*
-      switch(vfo[v].mode) {
-        case modeCWU:
-          rxFrequency-=cw_keyer_sidetone_frequency;
-          break;
-        case modeCWL:
-          rxFrequency+=cw_keyer_sidetone_frequency;
-          break;
-        default:
-          break;
+        switch(vfo[0].mode) {
+          case modeCWU:
+            rxFrequency-=cw_keyer_sidetone_frequency;
+            break;
+          case modeCWL:
+            rxFrequency+=cw_keyer_sidetone_frequency;
+            break;
+          default:
+            break;
+        }
+ 
+        phase=(long)((4294967296.0*(double)rxFrequency)/122880000.0);
+        high_priority_buffer_to_radio[ 9]=phase>>24;
+        high_priority_buffer_to_radio[10]=phase>>16;
+        high_priority_buffer_to_radio[11]=phase>>8;
+        high_priority_buffer_to_radio[12]=phase;
+        high_priority_buffer_to_radio[13]=phase>>24;
+        high_priority_buffer_to_radio[14]=phase>>16;
+        high_priority_buffer_to_radio[15]=phase>>8;
+        high_priority_buffer_to_radio[16]=phase;
+    } else {
+	//
+	// Set frequencies for all receivers
+	//
+	for(i=0;i<receivers;i++) {
+          // note that for HERMES, receiver[i] is associated with DDC(i) but beyond
+          // (that is, ANGELIA, ORION, ORION2) receiver[i] is associated with DDC(i+2)
+          ddc=i;
+          if (device==NEW_DEVICE_ANGELIA || device==NEW_DEVICE_ORION || device == NEW_DEVICE_ORION2) ddc=2+i;
+          int v=receiver[i]->id;
+          rxFrequency=vfo[v].frequency-vfo[v].lo;
+          if(vfo[v].rit_enabled) {
+            rxFrequency+=vfo[v].rit;
+          }
+
+          switch(vfo[v].mode) {
+            case modeCWU:
+              rxFrequency-=cw_keyer_sidetone_frequency;
+              break;
+            case modeCWL:
+              rxFrequency+=cw_keyer_sidetone_frequency;
+              break;
+            default:
+              break;
+	}
+
+	phase=(long)((4294967296.0*(double)rxFrequency)/122880000.0);
+	high_priority_buffer_to_radio[9+(ddc*4)]=phase>>24;
+	high_priority_buffer_to_radio[10+(ddc*4)]=phase>>16;
+	high_priority_buffer_to_radio[11+(ddc*4)]=phase>>8;
+	high_priority_buffer_to_radio[12+(ddc*4)]=phase;
       }
-*/
-      phase=(long)((4294967296.0*(double)rxFrequency)/122880000.0);
-      high_priority_buffer_to_radio[9+(ddc*4)]=phase>>24;
-      high_priority_buffer_to_radio[10+(ddc*4)]=phase>>16;
-      high_priority_buffer_to_radio[11+(ddc*4)]=phase>>8;
-      high_priority_buffer_to_radio[12+(ddc*4)]=phase;
     }
 
-    // tx
+//
+//  Set DUC frequency
+//
+
     if(active_receiver->id==VFO_A) {
       txFrequency=vfo[VFO_A].frequency-vfo[VFO_A].lo;
       if(split) {
@@ -647,6 +730,7 @@ static void new_protocol_high_priority() {
       }
     }
 
+/*
     switch(vfo[active_receiver->id].mode) {
         case modeCWU:
           txFrequency+=cw_keyer_sidetone_frequency;
@@ -657,12 +741,14 @@ static void new_protocol_high_priority() {
         default:
           break;
       }
+*/
 
     phase=(long)((4294967296.0*(double)txFrequency)/122880000.0);
 
-#ifdef PURESIGNAL
     if(isTransmitting() && transmitter->puresignal) {
-      // set DDC0 and DDC1 frequency to transmit frequency
+      //
+      // Set DDC0 and DDC1 (synchronized) to the transmit frequency
+      //
       high_priority_buffer_to_radio[9]=phase>>24;
       high_priority_buffer_to_radio[10]=phase>>16;
       high_priority_buffer_to_radio[11]=phase>>8;
@@ -673,7 +759,6 @@ static void new_protocol_high_priority() {
       high_priority_buffer_to_radio[15]=phase>>8;
       high_priority_buffer_to_radio[16]=phase;
     }
-#endif
 
     high_priority_buffer_to_radio[329]=phase>>24;
     high_priority_buffer_to_radio[330]=phase>>16;
@@ -695,12 +780,9 @@ static void new_protocol_high_priority() {
 
       if(split) {
         band=band_get_band(vfo[VFO_B].band);
-        xvtr=vfo[VFO_B].band>=BANDS;
       } else {
         band=band_get_band(vfo[VFO_A].band);
-        xvtr=vfo[VFO_A].band>=BANDS;
       }
-      // TODO: set word 1400 for ANAN-8000
       high_priority_buffer_to_radio[1401]=band->OCtx<<1;
       if(tune) {
         if(OCmemory_tune_time!=0) {
@@ -719,244 +801,300 @@ static void new_protocol_high_priority() {
       high_priority_buffer_to_radio[1401]=band->OCrx<<1;
     }
 
-    // TODO: here protocol is NEVER P1, so delete this
-    if((protocol==ORIGINAL_PROTOCOL && device==DEVICE_METIS) ||
-#ifdef USBOZY
-       (protocol==ORIGINAL_PROTOCOL && device==DEVICE_OZY) ||
-#endif
-       (protocol==NEW_PROTOCOL && device==NEW_DEVICE_ATLAS)) {
-      for(r=0;r<receivers;r++) {
-        high_priority_buffer_to_radio[1403]|=receiver[i]->preamp;
-      }
+//
+//  ANAN-7000/8000: route TXout to XvtrOut out when not using PA
+//
+    if ((device==NEW_DEVICE_ORION2) && band->disablePA) {
+      high_priority_buffer_to_radio[1400] |= ANAN7000_XVTR_OUT;
     }
 
+//
+//  ALEX bits
+//
+    long alex0=0x00000000;
+    long alex1=0x00000000;
 
-    long filters=0x00000000;
+    if (device != NEW_DEVICE_ORION2) {
+      //
+      // ANAN7000 and 8000 do not have ALEX attenuators.
+      // Even worse, ALEX0(14) bit used to control these attenuators
+      // on ANAN-10/100/200 is now used differently.
+      //
+      // Note: ALEX attenuators are not much used anyway since we
+      //       have step attenuators on most boards.
+      //
+      switch (receiver[0]->alex_attenuation) {
+	case 0:
+	  alex0 |= ALEX_ATTENUATION_0dB;
+	  break;
+	case 1:
+	  alex0 |= ALEX_ATTENUATION_10dB;
+	  break;
+	case 2:
+	  alex0 |= ALEX_ATTENUATION_20dB;
+	  break;
+	case 3:
+	  alex0 |= ALEX_ATTENUATION_30dB;
+	  break;
+      }
+    }
 
     if(isTransmitting()) {
-      filters=0x08000000;               // Bit 27
-#ifdef PURESIGNAL
+      alex0 |= ALEX_TX_RELAY;
       if(transmitter->puresignal) {
-        filters|=0x00040000;            // Bit 18
+        alex0 |= ALEX_PS_BIT;            // Bit 18
       }
-#endif
     }
 
+//
+//  The following code is based upon the assumption that
+//  the frequency of VFO_A is used with ADC0, and that the
+//  frequency of VFO_B can safely be used to control the
+//  filters of ADC1 (if there are any).
+//
     rxFrequency=vfo[VFO_A].frequency-vfo[VFO_A].lo;
     switch(device) {
       case NEW_DEVICE_ORION2:
+//
+//	new ANAN-7000/8000 band-pass RX filters
+//      This info comes from file bpf2_select.v in the
+//      P1 firmware
+//
         if(rxFrequency<1500000L) {
-          filters|=ALEX_BYPASS_HPF;
+          alex0|=ALEX_ANAN7000_RX_BYPASS_BPF;
         } else if(rxFrequency<2100000L) {
-          filters|=ALEX_1_5MHZ_HPF;
+          alex0|=ALEX_ANAN7000_RX_160_BPF;
         } else if(rxFrequency<5500000L) {
-          filters|=ALEX_6_5MHZ_HPF;
+          alex0|=ALEX_ANAN7000_RX_80_60_BPF;
         } else if(rxFrequency<11000000L) {
-          filters|=ALEX_9_5MHZ_HPF;
-        } else if(rxFrequency<22000000L) {
-          filters|=ALEX_13MHZ_HPF;
+          alex0|=ALEX_ANAN7000_RX_40_30_BPF;
+        } else if(rxFrequency<20900000L) {
+          alex0|=ALEX_ANAN7000_RX_30_20_17_BPF;
         } else if(rxFrequency<35000000L) {
-          filters|=ALEX_20MHZ_HPF;
+          alex0|=ALEX_ANAN7000_RX_15_12_BPF;
         } else {
-          filters|=ALEX_6M_PREAMP;
+          alex0|=ALEX_ANAN7000_RX_10_6_PRE_BPF;
         }
         break;
       default:
-        if(rxFrequency<1800000L) {
-          filters|=ALEX_BYPASS_HPF;
+//
+//	Old (ANAN-100/200) high-pass filters
+//      Bypass HPFs while using EXT1 for PURESIGNAL feedback!
+//
+	i=0;  // flag used here for "filter bypass"
+	if (rxFrequency<1800000L) i=1;
+#ifdef PURESIGNAL
+	if (isTransmitting() && transmitter->puresignal && receiver[PS_RX_FEEDBACK]->alex_antenna == 6) i=1;
+#endif
+        if (i) {
+          alex0|=ALEX_BYPASS_HPF;
         } else if(rxFrequency<6500000L) {
-          filters|=ALEX_1_5MHZ_HPF;
+          alex0|=ALEX_1_5MHZ_HPF;
         } else if(rxFrequency<9500000L) {
-          filters|=ALEX_6_5MHZ_HPF;
+          alex0|=ALEX_6_5MHZ_HPF;
         } else if(rxFrequency<13000000L) {
-          filters|=ALEX_9_5MHZ_HPF;
+          alex0|=ALEX_9_5MHZ_HPF;
         } else if(rxFrequency<20000000L) {
-          filters|=ALEX_13MHZ_HPF;
+          alex0|=ALEX_13MHZ_HPF;
         } else if(rxFrequency<50000000L) {
-          filters|=ALEX_20MHZ_HPF;
+          alex0|=ALEX_20MHZ_HPF;
         } else {
-          filters|=ALEX_6M_PREAMP;
+          alex0|=ALEX_6M_PREAMP;
         }
         break;
     }
 
+//
+//   Pre-Orion2 boards: If using Ant1/2/3, the RX signal goes through the TX low-pass
+//                      filters. Therefore we must set these according to the ADC0
+//			(receive) frequency while RXing.
+//
+    if (!isTransmitting() && device != NEW_DEVICE_ORION2 && receiver[0]->alex_antenna < 3) {
+	txFrequency = rxFrequency;
+    }
     switch(device) {
       case NEW_DEVICE_ORION2:
         if(txFrequency>32000000) {
-          filters|=ALEX_6_BYPASS_LPF;
+          alex0|=ALEX_6_BYPASS_LPF;
         } else if(txFrequency>22000000) {
-          filters|=ALEX_12_10_LPF;
+          alex0|=ALEX_12_10_LPF;
         } else if(txFrequency>15000000) {
-          filters|=ALEX_17_15_LPF;
+          alex0|=ALEX_17_15_LPF;
         } else if(txFrequency>8000000) {
-          filters|=ALEX_30_20_LPF;
+          alex0|=ALEX_30_20_LPF;
         } else if(txFrequency>4500000) {
-          filters|=ALEX_60_40_LPF;
+          alex0|=ALEX_60_40_LPF;
         } else if(txFrequency>2400000) {
-          filters|=ALEX_80_LPF;
+          alex0|=ALEX_80_LPF;
         } else {
-          filters|=ALEX_160_LPF;
+          alex0|=ALEX_160_LPF;
         }
         break;
       default:
         if(txFrequency>35600000) {
-          filters|=ALEX_6_BYPASS_LPF;
+          alex0|=ALEX_6_BYPASS_LPF;
         } else if(txFrequency>24000000) {
-          filters|=ALEX_12_10_LPF;
+          alex0|=ALEX_12_10_LPF;
         } else if(txFrequency>16500000) {
-          filters|=ALEX_17_15_LPF;
+          alex0|=ALEX_17_15_LPF;
         } else if(txFrequency>8000000) {
-          filters|=ALEX_30_20_LPF;
+          alex0|=ALEX_30_20_LPF;
         } else if(txFrequency>5000000) {
-          filters|=ALEX_60_40_LPF;
+          alex0|=ALEX_60_40_LPF;
         } else if(txFrequency>2500000) {
-          filters|=ALEX_80_LPF;
+          alex0|=ALEX_80_LPF;
         } else {
-          filters|=ALEX_160_LPF;
+          alex0|=ALEX_160_LPF;
         }
         break;
-
     }
 
-    switch(receiver[0]->alex_antenna) {
-        case 0:  // ANT 1
-          break;
-        case 1:  // ANT 2
-          break;
-        case 2:  // ANT 3
-          break;
+//
+//  Set bits that route Ext1/Ext2/XVRTin to the RX
+//
+//  If transmitting with PURESIGNAL, we must use the alex_antenna
+//  settings of the PS_RX_FEEDBACK receiver
+//
+//  ANAN-7000 routes signals differently (these bits have no function on ANAN-80000)
+//            and uses ALEX0(14) to connnect Ext/XvrtIn to the RX.
+//
+    i=receiver[0]->alex_antenna;			// 0,1,2  or 3,4,5
+#ifdef PURESIGNAL
+    if (isTransmitting() && transmitter->puresignal) {
+	i=receiver[PS_RX_FEEDBACK]->alex_antenna;   	// 0, 6, or 7
+    }
+#endif
+    if (device == NEW_DEVICE_ORION2) i +=100;
+    switch(i) {
+	case 6:  // EXT 1 for PS feedback
         case 3:  // EXT 1
-          filters|=ALEX_RX_ANTENNA_EXT2;
+          alex0|=ALEX_RX_ANTENNA_EXT1;
           break;
         case 4:  // EXT 2
-          filters|=ALEX_RX_ANTENNA_EXT1;
+          alex0|=ALEX_RX_ANTENNA_EXT2;
           break;
         case 5:  // XVTR
-          if(!xvtr) {
-            filters|=ALEX_RX_ANTENNA_XVTR;
-          }
+            alex0|=ALEX_RX_ANTENNA_XVTR;
           break;
-        default:
-          // invalid value - set to 0
-          band->alexRxAntenna=0;
+	case 7: // RX_Bypass_In for PS feedback
+          alex0|=ALEX_RX_ANTENNA_BYPASS;
           break;
+	case 103:	// EXT1 on ANAN-7000
+	case 106:	// EXT1 on ANAN-7000 for PS feedback
+	  alex0|=ALEX_ANAN7000_RX_ANT_EXT1;
+	  break;
+	case 104:
+	  // no EXT2 jacket on ANAN7000!
+	  break;
+	case 105:
+	  alex0|=ALEX_ANAN7000_RX_ANT_XVTR;
+	  break;
+	case 107:	// RxBypassIn on ANAN-7000
+	  alex0|=ALEX_ANAN7000_RX_ANT_BYPASS;
+	  break;
     }
 
+//
+//  Now we set the bits for Ant1/2/3 (RX and TX may be different)
+//
     if(isTransmitting()) {
-      if(!xvtr) {
-        switch(transmitter->alex_antenna) {
-          case 0:  // ANT 1
-            filters|=ALEX_TX_ANTENNA_1;
-            break;
-          case 1:  // ANT 2
-            filters|=ALEX_TX_ANTENNA_2;
-            break;
-          case 2:  // ANT 3
-            filters|=ALEX_TX_ANTENNA_3;
-            break;
-          default:
-            // invalid value - set to 0
-            filters|=ALEX_TX_ANTENNA_1;
-            band->alexRxAntenna=0;
-            break;
-        }
-      }
+      i=transmitter->alex_antenna;
     } else {
-      switch(receiver[0]->alex_antenna) {
-        case 0:  // ANT 1
-          filters|=ALEX_TX_ANTENNA_1;
-          break;
-        case 1:  // ANT 2
-          filters|=ALEX_TX_ANTENNA_2;
-          break;
-        case 2:  // ANT 3
-          filters|=ALEX_TX_ANTENNA_3;
-          break;
-        case 3:  // EXT 1
-        case 4:  // EXT 2
-        case 5:  // XVTR
-          if(!xvtr) {
-            switch(transmitter->alex_antenna) {
-              case 0:  // ANT 1
-                filters|=ALEX_TX_ANTENNA_1;
-                break;
-              case 1:  // ANT 2
-                filters|=ALEX_TX_ANTENNA_2;
-                break;
-              case 2:  // ANT 3
-                filters|=ALEX_TX_ANTENNA_3;
-                break;
-            }
-          }
-          break;
-      }
+      i=receiver[0]->alex_antenna;
     }
-
-    // TODO: ALEX1 bits 0-15 for ANAN-7000 and ANAN-8000 in 1430 and 1431
-    high_priority_buffer_to_radio[1432]=(filters>>24)&0xFF;
-    high_priority_buffer_to_radio[1433]=(filters>>16)&0xFF;
-    high_priority_buffer_to_radio[1434]=(filters>>8)&0xFF;
-    high_priority_buffer_to_radio[1435]=filters&0xFF;
-
-//fprintf(stderr,"filters: txrx0: %02X %02X %02X %02X for rx=%lld tx=%lld\n",high_priority_buffer_to_radio[1432],high_priority_buffer_to_radio[1433],high_priority_buffer_to_radio[1434],high_priority_buffer_to_radio[1435],rxFrequency,txFrequency);
-
-    filters=0x00000000;
-    rxFrequency=vfo[VFO_B].frequency-vfo[VFO_B].lo;
-
-    switch(device) {
-      case NEW_DEVICE_ORION2:
-        if(rxFrequency<1500000L) {
-          filters|=ALEX_BYPASS_HPF;
-        } else if(rxFrequency<2100000L) {
-          filters|=ALEX_1_5MHZ_HPF;
-        } else if(rxFrequency<5500000L) {
-          filters|=ALEX_6_5MHZ_HPF;
-        } else if(rxFrequency<11000000L) {
-          filters|=ALEX_9_5MHZ_HPF;
-        } else if(rxFrequency<22000000L) {
-          filters|=ALEX_13MHZ_HPF;
-        } else if(rxFrequency<35000000L) {
-          filters|=ALEX_20MHZ_HPF;
-        } else {
-          filters|=ALEX_6M_PREAMP;
-        }
+    switch(i) {
+      case 0:  // ANT 1
+        alex0|=ALEX_TX_ANTENNA_1;
+        break;
+      case 1:  // ANT 2
+         alex0|=ALEX_TX_ANTENNA_2;
+         break;
+      case 2:  // ANT 3
+        alex0|=ALEX_TX_ANTENNA_3;
         break;
       default:
-        if(rxFrequency<1800000L) {
-          filters|=ALEX_BYPASS_HPF;
-        } else if(rxFrequency<6500000L) {
-          filters|=ALEX_1_5MHZ_HPF;
-        } else if(rxFrequency<9500000L) {
-          filters|=ALEX_6_5MHZ_HPF;
-        } else if(rxFrequency<13000000L) {
-          filters|=ALEX_9_5MHZ_HPF;
-        } else if(rxFrequency<20000000L) {
-          filters|=ALEX_13MHZ_HPF;
-        } else if(rxFrequency<50000000L) {
-          filters|=ALEX_20MHZ_HPF;
-        } else {
-          filters|=ALEX_6M_PREAMP;
-        }
-        break;
+	// this should not happen in TX case. Out of paranoia,
+        // connect ANT1 in this case
+	if (isTransmitting()) {
+	  fprintf(stderr,"WARNING: illegal TX antenna chosen, using ANT1\n");
+	  transmitter->alex_antenna=0;
+          alex0|=ALEX_TX_ANTENNA_1;
+	}
+	break;
     }
 
-    //high_priority_buffer_to_radio[1428]=(filters>>24)&0xFF;
-    //high_priority_buffer_to_radio[1429]=(filters>>16)&0xFF;
-    high_priority_buffer_to_radio[1430]=(filters>>8)&0xFF;
-    high_priority_buffer_to_radio[1431]=filters&0xFF;
+    high_priority_buffer_to_radio[1432]=(alex0>>24)&0xFF;
+    high_priority_buffer_to_radio[1433]=(alex0>>16)&0xFF;
+    high_priority_buffer_to_radio[1434]=(alex0>>8)&0xFF;
+    high_priority_buffer_to_radio[1435]=alex0&0xFF;
 
-//fprintf(stderr,"filters: rx1: %02X %02X for rx=%lld\n",high_priority_buffer_to_radio[1430],high_priority_buffer_to_radio[1431],rxFrequency);
+//fprintf(stderr,"ALEX0 bits:  %02X %02X %02X %02X for rx=%lld tx=%lld\n",high_priority_buffer_to_radio[1432],high_priority_buffer_to_radio[1433],high_priority_buffer_to_radio[1434],high_priority_buffer_to_radio[1435],rxFrequency,txFrequency);
 
-//fprintf(stderr,"new_protocol_high_priority: OC=%02X filters=%04X for frequency=%lld\n", high_priority_buffer_to_radio[1401], filters, rxFrequency);
+//
+//  Orion2 boards: set RX2 filters according ro VFOB frequency
+//
+    if (device == NEW_DEVICE_ORION2) {
+	//
+	// Note that while using DIVERSITY, the second RX filter settings must match
+	// those of the first RX
+	//
+	if (diversity_enabled) {
+          rxFrequency=vfo[VFO_A].frequency-vfo[VFO_A].lo;
+	} else {
+          rxFrequency=vfo[VFO_B].frequency-vfo[VFO_B].lo;
+	}
+//
+//      new ANAN-7000/8000 band-pass RX filters
+//      This info comes from file bpf2_select.v in the
+//      P1 firmware
+//
+        if(rxFrequency<1500000L) {
+          alex1|=ALEX_ANAN7000_RX_BYPASS_BPF;
+        } else if(rxFrequency<2100000L) {
+          alex1|=ALEX_ANAN7000_RX_160_BPF;
+        } else if(rxFrequency<5500000L) {
+          alex1|=ALEX_ANAN7000_RX_80_60_BPF;
+        } else if(rxFrequency<11000000L) {
+          alex1|=ALEX_ANAN7000_RX_40_30_BPF;
+        } else if(rxFrequency<20900000L) {
+          alex1|=ALEX_ANAN7000_RX_30_20_17_BPF;
+        } else if(rxFrequency<35000000L) {
+          alex1|=ALEX_ANAN7000_RX_15_12_BPF;
+        } else {
+          alex1|=ALEX_ANAN7000_RX_10_6_PRE_BPF;
+        }
 
+//
+//      The main purpose of RX2 is DIVERSITY. Therefore,
+//      ground RX2 upon TX *always*
+//
+	if (isTransmitting()) {
+	  alex1|=ALEX1_ANAN7000_RX_GNDonTX;
+	}
+
+        high_priority_buffer_to_radio[1430]=(alex1>>8)&0xFF;
+        high_priority_buffer_to_radio[1431]=alex1&0xFF;
+//fprintf(stderr,"ALEX1 bits: rx1: %02X %02X for rx=%lld\n",high_priority_buffer_to_radio[1430],high_priority_buffer_to_radio[1431],rxFrequency);
+    }
+
+
+//
+//  Upon transmitting, set the attenuator of ADC0 to the "transmitter attenuation"
+//  (used in PURESIGNAL signal strength adjustment) and the attenuator of ADC1
+//  to the maximum value (to protect RX2 in DIVERSITY setups).
+//
 
     if(isTransmitting()) {
       high_priority_buffer_to_radio[1443]=transmitter->attenuation;
+      high_priority_buffer_to_radio[1442]=31;
     } else {
       high_priority_buffer_to_radio[1443]=adc_attenuation[0];
       high_priority_buffer_to_radio[1442]=adc_attenuation[1];
     }
 
+//
+//  Voila mes amis. Envoyons les 1444 octets "high priority" au radio
+//
     int rc;
     if((rc=sendto(data_socket,high_priority_buffer_to_radio,sizeof(high_priority_buffer_to_radio),0,(struct sockaddr*)&high_priority_addr,high_priority_addr_length))<0) {
         fprintf(stderr,"sendto socket failed for high priority: rc=%d errno=%d\n",rc,errno);
@@ -965,6 +1103,7 @@ static void new_protocol_high_priority() {
     }
 
     high_priority_sequence++;
+    update_action_table();
     pthread_mutex_unlock(&hi_prio_mutex);
 }
 
@@ -989,8 +1128,10 @@ static void new_protocol_transmit_specific() {
     transmit_specific_buffer[4]=1; // 1 DAC
     transmit_specific_buffer[5]=0; //  default no CW
     // may be using local pihpsdr OR hpsdr CW
-    if(mode==modeCWU || mode==modeCWL) {
+    if (mode==modeCWU || mode==modeCWL) {
+      if (cw_keyer_internal) {
         transmit_specific_buffer[5]|=0x02;
+      }
     }
     if(cw_keys_reversed) {
         transmit_specific_buffer[5]|=0x04;
@@ -1001,7 +1142,7 @@ static void new_protocol_transmit_specific() {
     if(cw_keyer_mode==KEYER_MODE_B) {
         transmit_specific_buffer[5]|=0x28;
     }
-    if(cw_keyer_sidetone_volume!=0) {
+    if(cw_keyer_sidetone_volume!=0 && cw_keyer_internal) {
         transmit_specific_buffer[5]|=0x10;
     }
     if(cw_keyer_spacing) {
@@ -1019,6 +1160,7 @@ static void new_protocol_transmit_specific() {
     transmit_specific_buffer[11]=cw_keyer_hang_time>>8;
     transmit_specific_buffer[12]=cw_keyer_hang_time; // cw hang delay
     transmit_specific_buffer[13]=0; // rf delay
+
     transmit_specific_buffer[50]=0;
     if(mic_linein) {
       transmit_specific_buffer[50]|=0x01;
@@ -1071,20 +1213,23 @@ static void new_protocol_receive_specific() {
 
     receive_specific_buffer[4]=n_adc; 	// number of ADCs
 
-    // note that for HERMES, receiver[i]->ddc == i but beyone
-    // (that is, ANGELIA, ORION, ORION2) receiver[i]->ddc should be 2+i
     for(i=0;i<receivers;i++) {
-      ddc=receiver[i]->ddc;
-      receive_specific_buffer[5]|=receiver[i]->dither<<ddc; // dither enable
-      receive_specific_buffer[6]|=receiver[i]->random<<ddc; // random enable
-      receive_specific_buffer[7]|=(1<<ddc); // DDC enable
-      receive_specific_buffer[17+(ddc*6)]=receiver[i]->adc;
-      receive_specific_buffer[18+(ddc*6)]=((receiver[i]->sample_rate/1000)>>8)&0xFF;
-      receive_specific_buffer[19+(ddc*6)]=(receiver[i]->sample_rate/1000)&0xFF;
-      receive_specific_buffer[22+(ddc*6)]=24;
+	// note that for HERMES, receiver[i] is associated with DDC(i) but beyond
+	// (that is, ANGELIA, ORION, ORION2) receiver[i] is associated with DDC(i+2)
+        ddc=i;
+        if (device==NEW_DEVICE_ANGELIA || device==NEW_DEVICE_ORION || device == NEW_DEVICE_ORION2) ddc=2+i;
+        receive_specific_buffer[5]|=receiver[i]->dither<<ddc; // dither enable
+        receive_specific_buffer[6]|=receiver[i]->random<<ddc; // random enable
+	if (!isTransmitting() && !diversity_enabled) {
+	  // Upon TX (with and without PURESIGNAL), and upon diversity reception, deactivate DDCs
+          receive_specific_buffer[7]|=(1<<ddc); // DDC enable
+	}
+        receive_specific_buffer[17+(ddc*6)]=receiver[i]->adc;
+        receive_specific_buffer[18+(ddc*6)]=((receiver[i]->sample_rate/1000)>>8)&0xFF;
+        receive_specific_buffer[19+(ddc*6)]=(receiver[i]->sample_rate/1000)&0xFF;
+        receive_specific_buffer[22+(ddc*6)]=24;
     }
 
-#ifdef PURESIGNAL
     if(transmitter->puresignal && isTransmitting()) {
 //
 //    Some things are fixed.
@@ -1094,23 +1239,44 @@ static void new_protocol_receive_specific() {
 //    dither and random are always off
 //    there are 24 bits per sample
 //
-      ddc=0;
-      receive_specific_buffer[17+(ddc*6)]=0;		// ADC associated with DDC0
-      receive_specific_buffer[18+(ddc*6)]=0;		// sample rate MSB
-      receive_specific_buffer[19+(ddc*6)]=192;		// sample rate LSB
-      receive_specific_buffer[22+(ddc*6)]=24;		// bits per sample
+      receive_specific_buffer[17]=0;		// ADC0 associated with DDC0
+      receive_specific_buffer[18]=0;		// sample rate MSB
+      receive_specific_buffer[19]=192;		// sample rate LSB
+      receive_specific_buffer[22]=24;		// bits per sample
 
-      ddc=1;
-      receive_specific_buffer[17+(ddc*6)]=n_adc;	// ADC associated with DDC1
-      receive_specific_buffer[18+(ddc*6)]=0;		// sample rate MSB
-      receive_specific_buffer[19+(ddc*6)]=192;		// sample rate LSB
-      receive_specific_buffer[22+(ddc*6)]=24;		// bits per sample
-      receive_specific_buffer[1363]=0x02;       	// sync DDC1 to DDC0
+      receive_specific_buffer[23]=n_adc;	// TX-DAC associated with DDC1
+      receive_specific_buffer[24]=0;		// sample rate MSB
+      receive_specific_buffer[25]=192;		// sample rate LSB
+      receive_specific_buffer[26]=24;		// bits per sample
+      receive_specific_buffer[1363]=0x02;       // sync DDC1 to DDC0
 
-      receive_specific_buffer[7]&=0xFD; 		// disable DDC1
-      receive_specific_buffer[7]|=1; 			// enable  DDC0
+      receive_specific_buffer[7]=1; 		// enable  DDC0 but disable all others
     }
-#endif
+    if (diversity_enabled && ! isTransmitting()) {
+//
+//    Some things are fixed.
+//    We always use DDC0 for the signals from ADC0, and DDC1 for the signals from ADC1
+//    The sample rate of both DDCs is that of receiver[0].
+//    Boths ADCs take the dither/random setting from receiver[0]
+//
+      receive_specific_buffer[5]|=receiver[0]->dither;		// dither DDC0: take value from RX1
+      receive_specific_buffer[5]|=(receiver[0]->dither) << 1;	// dither DDC1: take value from RX1
+      receive_specific_buffer[6]|=receiver[0]->random;		// random DDC0: take value from RX1
+      receive_specific_buffer[6]|=(receiver[0]->random) << 1;	// random DDC1: take value from RX1
+
+      receive_specific_buffer[17]=0;						// ADC0 associated with DDC0
+      receive_specific_buffer[18]=((receiver[0]->sample_rate/1000)>>8)&0xFF;	// sample rate MSB
+      receive_specific_buffer[19]=(receiver[0]->sample_rate/1000)&0xFF;		// sample rate LSB
+      receive_specific_buffer[22]=24;						// bits per sample
+
+      receive_specific_buffer[23]=1;						// ADC1 associated with DDC1
+      receive_specific_buffer[24]=((receiver[0]->sample_rate/1000)>>8)&0xFF;	// sample rate MSB
+      receive_specific_buffer[25]=(receiver[0]->sample_rate/1000)&0xFF;;	// sample rate LSB
+      receive_specific_buffer[26]=24;						// bits per sample
+      receive_specific_buffer[1363]=0x02;       				// sync DDC1 to DDC0
+
+      receive_specific_buffer[7]=1; 						// enable  DDC0 but disable all others
+    }
 
 //fprintf(stderr,"new_protocol_receive_specific: enable=%02X\n",receive_specific_buffer[7]);
     if(sendto(data_socket,receive_specific_buffer,sizeof(receive_specific_buffer),0,(struct sockaddr*)&receiver_addr,receiver_addr_length)<0) {
@@ -1119,6 +1285,7 @@ static void new_protocol_receive_specific() {
     }
 
     rx_specific_sequence++;
+    update_action_table();
     pthread_mutex_unlock(&rx_spec_mutex);
 }
 
@@ -1139,6 +1306,7 @@ void new_protocol_stop() {
     running=0;
     new_protocol_high_priority();
     usleep(100000); // 100 ms
+    close (data_socket);
 }
 
 void new_protocol_run() {
@@ -1213,11 +1381,10 @@ fprintf(stderr,"new_protocol_thread: high_priority_addr setup for port %d\n",HIG
     iq_addr.sin_port=htons(TX_IQ_FROM_HOST_PORT);
 
    
-    for(i=0;i<MAX_RECEIVERS;i++) {
+    for(i=0;i<MAX_DDC;i++) {
         memcpy(&data_addr[i],&radio->info.network.address,radio->info.network.address_length);
         data_addr_length[i]=radio->info.network.address_length;
         data_addr[i].sin_port=htons(RX_IQ_TO_HOST_PORT_0+i);
-        samples[i]=0;
     }
 */
     audioindex=4; // leave space for sequence
@@ -1250,7 +1417,7 @@ fprintf(stderr,"new_protocol_thread: high_priority_addr setup for port %d\n",HIG
             case RX_IQ_TO_HOST_PORT_7:
               ddc=sourceport-RX_IQ_TO_HOST_PORT_0;
 //fprintf(stderr,"iq packet from port=%d ddc=%d\n",sourceport,ddc);
-              if(ddc>=MAX_RECEIVERS)  {
+              if(ddc>=MAX_DDC)  {
                 fprintf(stderr,"unexpected iq data from ddc %d\n",ddc);
               } else {
 #ifdef __APPLE__
@@ -1315,7 +1482,6 @@ fprintf(stderr,"new_protocol_thread: Unknown port %d\n",sourceport);
         }
     }
 
-    close(data_socket);
     return NULL;
 }
 
@@ -1367,9 +1533,10 @@ fprintf(stderr,"mic_line_thread\n");
 }
 
 static gpointer iq_thread(gpointer data) {
-  int rx=(uintptr_t)data;
-  int ddc=receiver[rx]->ddc;
-  fprintf(stderr,"iq_thread: rx=%d ddc=%d\n",rx,ddc);
+  int ddc=(uintptr_t)data;
+  long sequence;
+  unsigned char *buffer;
+  fprintf(stderr,"iq_thread: ddc=%d\n",ddc);
   while(1) {
 #ifdef __APPLE__
     sem_post(iq_sem_ready[ddc]);
@@ -1378,31 +1545,40 @@ static gpointer iq_thread(gpointer data) {
     sem_post(&iq_sem_ready[ddc]);
     sem_wait(&iq_sem_buffer[ddc]);
 #endif
-    if (iq_buffer[ddc] == NULL) continue;
-    process_iq_data(receiver[rx]);
-    free(iq_buffer[ddc]);
+    buffer=iq_buffer[ddc];
+    if (buffer == NULL) continue;
+//
+//  Perform sequence check HERE for all cases
+//
+    sequence=((buffer[0]&0xFF)<<24)+((buffer[1]&0xFF)<<16)+((buffer[2]&0xFF)<<8)+(buffer[3]&0xFF);
+    if(ddc_sequence[ddc] !=sequence) {
+      fprintf(stderr,"DDC %d sequence error: expected %ld got %ld\n",ddc,ddc_sequence[ddc],sequence);
+      ddc_sequence[ddc]=sequence;
+    }
+    ddc_sequence[ddc]++;
+//
+//  Now comes the action table:
+//  for each DDC we have set up which action to be taken
+//  (and, possibly, for which receiver)
+//
+    switch (rxcase[ddc]) {
+	case RXACTION_SKIP:
+	  break;
+	case RXACTION_NORMAL:
+          process_iq_data(buffer,receiver[rxid[ddc]]);
+	  break;
+	case RXACTION_PS:
+	  process_ps_iq_data(buffer);
+	  break;
+	case RXACTION_DIV:
+	  process_div_iq_data(buffer);
+	  break;
+    }
+    free(buffer);
   }
 }
 
-#ifdef PURESIGNAL
-static gpointer ps_iq_thread(void * data) {
-fprintf(stderr,"ps_iq_thread\n");
-  while(1) {
-#ifdef __APPLE__
-    sem_post(iq_sem_ready[0]);
-    sem_wait(iq_sem_buffer[0]);
-#else
-    sem_post(&iq_sem_ready[0]);
-    sem_wait(&iq_sem_buffer[0]);
-#endif
-    process_ps_iq_data();
-    free(iq_buffer[0]);
-  }
-}
-#endif
-
-static void process_iq_data(RECEIVER *rx) {
-  long sequence;
+static void process_iq_data(unsigned char *buffer, RECEIVER *rx) {
   long long timestamp;
   int bitspersample;
   int samplesperframe;
@@ -1411,17 +1587,6 @@ static void process_iq_data(RECEIVER *rx) {
   int rightsample;
   double leftsampledouble;
   double rightsampledouble;
-  unsigned char *buffer;
-
-  buffer=iq_buffer[rx->ddc];
-
-  sequence=((buffer[0]&0xFF)<<24)+((buffer[1]&0xFF)<<16)+((buffer[2]&0xFF)<<8)+(buffer[3]&0xFF);
-
-  if(rx->iq_sequence!=sequence) {
-    fprintf(stderr,"rx %d sequence error: expected %ld got %ld\n",rx->id,rx->iq_sequence,sequence);
-    rx->iq_sequence=sequence;
-  }
-  rx->iq_sequence++;
 
   timestamp=((long long)(buffer[4]&0xFF)<<56)
            +((long long)(buffer[5]&0xFF)<<48)
@@ -1434,7 +1599,7 @@ static void process_iq_data(RECEIVER *rx) {
   bitspersample=((buffer[12]&0xFF)<<8)+(buffer[13]&0xFF);
   samplesperframe=((buffer[14]&0xFF)<<8)+(buffer[15]&0xFF);
 
-//fprintf(stderr,"process_iq_data: rx=%d seq=%ld bitspersample=%d samplesperframe=%d\n",rx->id, sequence,bitspersample,samplesperframe);
+//fprintf(stderr,"process_iq_data: rx=%d bitspersample=%d samplesperframe=%d\n",rx->id, bitspersample,samplesperframe);
   b=16;
   int i;
   for(i=0;i<samplesperframe;i++) {
@@ -1445,17 +1610,20 @@ static void process_iq_data(RECEIVER *rx) {
     rightsample |= (int)((((unsigned char)buffer[b++])<<8)&0xFF00);
     rightsample |= (int)((unsigned char)buffer[b++]&0xFF);
 
-    //leftsampledouble=(double)leftsample/8388607.0; // for 24 bits
-    //rightsampledouble=(double)rightsample/8388607.0; // for 24 bits
-    leftsampledouble=(double)leftsample/16777215.0; // for 24 bits
-    rightsampledouble=(double)rightsample/16777215.0; // for 24 bits
+    leftsampledouble=(double)leftsample/8388608.0; // for 24 bits
+    rightsampledouble=(double)rightsample/8388608.0; // for 24 bits
+    //leftsampledouble=(double)leftsample/16777215.0; // for 24 bits
+    //rightsampledouble=(double)rightsample/16777215.0; // for 24 bits
 
     add_iq_samples(rx, leftsampledouble,rightsampledouble);
   }
 }
 
-#ifdef PURESIGNAL
-static void process_ps_iq_data() {
+//
+// This is the same as process_ps_iq_data except that add_div_iq_samples is called
+// at the end
+//
+static void process_div_iq_data(unsigned char*buffer) {
   long sequence;
   long long timestamp;
   int bitspersample;
@@ -1469,22 +1637,66 @@ static void process_ps_iq_data() {
   int rightsample1;
   double leftsampledouble1;
   double rightsampledouble1;
-  unsigned char *buffer;
+  
+  timestamp=((long long)(buffer[ 4]&0xFF)<<56)
+           +((long long)(buffer[ 5]&0xFF)<<48)
+           +((long long)(buffer[ 6]&0xFF)<<40)
+           +((long long)(buffer[ 7]&0xFF)<<32)
+           +((long long)(buffer[ 8]&0xFF)<<24)
+           +((long long)(buffer[ 9]&0xFF)<<16)
+           +((long long)(buffer[10]&0xFF)<< 8)
+           +((long long)(buffer[11]&0xFF)    );
 
-  int min_sample0;
-  int max_sample0;
-  int min_sample1;
-  int max_sample1;
+  bitspersample=((buffer[12]&0xFF)<<8)+(buffer[13]&0xFF);
+  samplesperframe=((buffer[14]&0xFF)<<8)+(buffer[15]&0xFF);
 
-  buffer=iq_buffer[0];
+  b=16;
+  int i;
+  for(i=0;i<samplesperframe;i+=2) {
+    leftsample0   = (int)((signed char) buffer[b++])<<16;
+    leftsample0  |= (int)((((unsigned char)buffer[b++])<<8)&0xFF00);
+    leftsample0  |= (int)((unsigned char)buffer[b++]&0xFF);
+    rightsample0  = (int)((signed char)buffer[b++]) << 16;
+    rightsample0 |= (int)((((unsigned char)buffer[b++])<<8)&0xFF00);
+    rightsample0 |= (int)((unsigned char)buffer[b++]&0xFF);
+    
+    leftsampledouble0=(double)leftsample0/8388608.0; 
+    rightsampledouble0=(double)rightsample0/8388608.0; 
+    
+    leftsample1   = (int)((signed char) buffer[b++])<<16;
+    leftsample1  |= (int)((((unsigned char)buffer[b++])<<8)&0xFF00);
+    leftsample1  |= (int)((unsigned char)buffer[b++]&0xFF);
+    rightsample1  = (int)((signed char)buffer[b++]) << 16;
+    rightsample1 |= (int)((((unsigned char)buffer[b++])<<8)&0xFF00);
+    rightsample1 |= (int)((unsigned char)buffer[b++]&0xFF);
 
-  sequence=((buffer[0]&0xFF)<<24)+((buffer[1]&0xFF)<<16)+((buffer[2]&0xFF)<<8)+(buffer[3]&0xFF);
+    leftsampledouble1=(double)leftsample1/8388608.0; // for 24 bits
+    rightsampledouble1=(double)rightsample1/8388608.0; // for 24 bits
 
-  if(ps_rx_sequence!=sequence) {
-    fprintf(stderr,"PS-RX sequence error: expected %ld got %ld\n",ps_rx_sequence,sequence);
-    ps_rx_sequence=sequence;
+    add_div_iq_samples(receiver[0], leftsampledouble0,rightsampledouble0,leftsampledouble1,rightsampledouble1);
+    //
+    // if both receivers share the sample rate, we can feed data to RX2
+    //
+    if (receivers > 1 && (receiver[0]->sample_rate == receiver[1]->sample_rate)) {
+      add_iq_samples(receiver[1], leftsampledouble1,rightsampledouble1);
+    }
   }
-  ps_rx_sequence++;
+}
+
+static void process_ps_iq_data(unsigned char *buffer) {
+  long sequence;
+  long long timestamp;
+  int bitspersample;
+  int samplesperframe;
+  int b;
+  int leftsample0;
+  int rightsample0;
+  double leftsampledouble0;
+  double rightsampledouble0;
+  int leftsample1;
+  int rightsample1;
+  double leftsampledouble1;
+  double rightsampledouble1;
 
   timestamp=((long long)(buffer[ 4]&0xFF)<<56)
            +((long long)(buffer[ 5]&0xFF)<<48)
@@ -1498,7 +1710,7 @@ static void process_ps_iq_data() {
   bitspersample=((buffer[12]&0xFF)<<8)+(buffer[13]&0xFF);
   samplesperframe=((buffer[14]&0xFF)<<8)+(buffer[15]&0xFF);
 
-//fprintf(stderr,"process_ps_iq_data: seq=%ld bitspersample=%d samplesperframe=%d\n", sequence,bitspersample,samplesperframe);
+//fprintf(stderr,"process_ps_iq_data: bitspersample=%d samplesperframe=%d\n", bitspersample,samplesperframe);
   b=16;
   int i;
   for(i=0;i<samplesperframe;i+=2) {
@@ -1509,8 +1721,8 @@ static void process_ps_iq_data() {
     rightsample0 |= (int)((((unsigned char)buffer[b++])<<8)&0xFF00);
     rightsample0 |= (int)((unsigned char)buffer[b++]&0xFF);
 
-    leftsampledouble0=(double)leftsample0/8388608.0; // for 24 bits
-    rightsampledouble0=(double)rightsample0/8388608.0; // for 24 bits
+    leftsampledouble0=(double)leftsample0/8388608.0;
+    rightsampledouble0=(double)rightsample0/8388608.0;
 
     leftsample1   = (int)((signed char) buffer[b++])<<16;
     leftsample1  |= (int)((((unsigned char)buffer[b++])<<8)&0xFF00);
@@ -1525,31 +1737,8 @@ static void process_ps_iq_data() {
     add_ps_iq_samples(transmitter, leftsampledouble1,rightsampledouble1,leftsampledouble0,rightsampledouble0);
 
 //fprintf(stderr,"%06x,%06x %06x,%06x\n",leftsample0,rightsample0,leftsample1,rightsample1);
-#if 0
-    if(i==0) {
-      min_sample0=leftsample0;
-      max_sample0=leftsample0;
-      min_sample1=leftsample1;
-      max_sample1=leftsample1;
-    } else {
-      if(leftsample0<min_sample0) {
-        min_sample0=leftsample0;
-      }
-      if(leftsample0>max_sample0) {
-        max_sample0=leftsample0;
-      }
-      if(leftsample1<min_sample1) {
-        min_sample1=leftsample1;
-      }
-      if(leftsample1>max_sample1) {
-        max_sample1=leftsample1;
-      }
-    }
-#endif
   }
-
 }
-#endif
 
 
 static void process_command_response() {
@@ -1591,18 +1780,28 @@ static void process_high_priority(unsigned char *buffer) {
     local_ptt=high_priority_buffer[4]&0x01;
     dot=(high_priority_buffer[4]>>1)&0x01;
     dash=(high_priority_buffer[4]>>2)&0x01;
-    pll_locked=(high_priority_buffer[4]>>3)&0x01;
+    pll_locked=(high_priority_buffer[4]>>4)&0x01;
     adc_overload=high_priority_buffer[5]&0x01;
     exciter_power=((high_priority_buffer[6]&0xFF)<<8)|(high_priority_buffer[7]&0xFF);
     alex_forward_power=((high_priority_buffer[14]&0xFF)<<8)|(high_priority_buffer[15]&0xFF);
     alex_reverse_power=((high_priority_buffer[22]&0xFF)<<8)|(high_priority_buffer[23]&0xFF);
     supply_volts=((high_priority_buffer[49]&0xFF)<<8)|(high_priority_buffer[50]&0xFF);
 
-    int tx_vfo=split?VFO_B:VFO_A;
-    if(vfo[tx_vfo].mode==modeCWL || vfo[tx_vfo].mode==modeCWU) {
-      local_ptt=local_ptt|dot|dash;
+#ifdef LOCALCW
+#ifndef GPIO
+    if (dash || dot) cw_key_hit=1;
+    if (!cw_keyer_internal) {
+      if (dash != previous_dash) keyer_event(0, dash);
+      if (dot  != previous_dot ) keyer_event(1, dot );
     }
-    if(previous_ptt!=local_ptt) {
+#endif
+#endif
+
+    int tx_vfo=split?VFO_B:VFO_A;
+    //if(vfo[tx_vfo].mode==modeCWL || vfo[tx_vfo].mode==modeCWU) {
+    //  local_ptt=local_ptt|dot|dash;
+    //}
+    if(previous_ptt!=local_ptt && !CAT_cw_is_active) {
       g_idle_add(ext_mox_update,(gpointer)(long)(local_ptt));
     }
 }
@@ -1662,9 +1861,46 @@ void new_protocol_process_local_mic(unsigned char *buffer,int le) {
 
 }
 
+void new_protocol_cw_audio_samples(short left_audio_sample,short right_audio_sample) {
+  int rc;
+  int mode=transmitter->mode;
+  //
+  // Only process samples if transmitting in CW
+  if (isTransmitting() && (mode==modeCWU || mode==modeCWL)) {
+
+  // insert the samples
+  audiobuffer[audioindex++]=left_audio_sample>>8;
+  audiobuffer[audioindex++]=left_audio_sample;
+  audiobuffer[audioindex++]=right_audio_sample>>8;
+  audiobuffer[audioindex++]=right_audio_sample;
+
+  if(audioindex>=sizeof(audiobuffer)) {
+
+    // insert the sequence
+    audiobuffer[0]=audiosequence>>24;
+    audiobuffer[1]=audiosequence>>16;
+    audiobuffer[2]=audiosequence>>8;
+    audiobuffer[3]=audiosequence;
+
+    // send the buffer
+
+    rc=sendto(data_socket,audiobuffer,sizeof(audiobuffer),0,(struct sockaddr*)&audio_addr,audio_addr_length);
+    if(rc!=sizeof(audiobuffer)) {
+      fprintf(stderr,"sendto socket failed for %ld bytes of audio: %d\n",sizeof(audiobuffer),rc);
+    }
+    audioindex=4;
+    audiosequence++;
+  }
+  }
+}
+
 
 void new_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right_audio_sample) {
   int rc;
+  int mode=transmitter->mode;
+  //
+  // Only process samples if NOT transmitting in CW
+  if (isTransmitting() && (mode==modeCWU || mode==modeCWL)) return;
 
   // insert the samples
   audiobuffer[audioindex++]=left_audio_sample>>8;
@@ -1689,6 +1925,29 @@ void new_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right
     audioindex=4;
     audiosequence++;
   }
+}
+
+void new_protocol_flush_iq_samples() {
+//
+// this is called at the end of a TX phase:
+// zero out "rest" of TX IQ buffer and send it
+//
+  while (iqindex < sizeof(iqbuffer)) {
+    iqbuffer[iqindex++]=0;
+  }
+
+  iqbuffer[0]=tx_iq_sequence>>24;
+  iqbuffer[1]=tx_iq_sequence>>16;
+  iqbuffer[2]=tx_iq_sequence>>8;
+  iqbuffer[3]=tx_iq_sequence;
+
+  // send the buffer
+  if(sendto(data_socket,iqbuffer,sizeof(iqbuffer),0,(struct sockaddr*)&iq_addr,iq_addr_length)<0) {
+    fprintf(stderr,"sendto socket failed for iq\n");
+    exit(1);
+  }
+  iqindex=4;
+  tx_iq_sequence++;
 }
 
 void new_protocol_iq_samples(int isample,int qsample) {
@@ -1716,22 +1975,47 @@ void new_protocol_iq_samples(int isample,int qsample) {
 }
 
 void* new_protocol_timer_thread(void* arg) {
-  int specific=0;
-fprintf(stderr,"new_protocol_timer_thread\n");
+  //
+  // We now sent HighPriority as well as General packets
+  // in addition. General packet re-sending is, for example,
+  // required if the band changes (band->disblePA), and HighPrio
+  // packets are necessary at very many instances when changing
+  // something in the menus, and then a small delay does no harm
+  //
+  // Of course, in time-critical situations (RX-TX transition etc.)
+  // it is still possible to explicitly send a packet.
+  //
+  // We send high prio packets every 100 msec
+  //         RX spec   packets every 200 msec
+  //         TX spec   packets every 200 msec
+  //         General   packets every 800 msec
+  //
+  int cycling=0;
+  usleep(100000);				// wait for things to settle down
   while(running) {
-    usleep(100000); // 100ms
-//    if(running) {
-//      switch(specific) {
-//        case 0:
-          new_protocol_transmit_specific();
-//          specific=1;
-//          break;
-//        case 1:
-          new_protocol_receive_specific();
-//          specific=0;
-//          break;
-//      }
-//    }
+    cycling++;
+    switch (cycling) {
+      case 1:
+      case 3:
+      case 5:
+      case 7:
+	new_protocol_high_priority();		// every 100 msec
+	new_protocol_transmit_specific();	// every 200 msec
+	break;
+      case 2:
+      case 4:
+      case 6:
+	new_protocol_high_priority();		// every 100 msec
+	new_protocol_transmit_specific();	// every 200 msec
+        break;
+      case 8:
+	new_protocol_high_priority();		// every 100 msec
+	new_protocol_receive_specific();	// every 200 msec
+	new_protocol_general();			// every 800 msec
+	cycling=0;
+	break;
+    }
+    usleep(100000);
   }
   return NULL;
 }
