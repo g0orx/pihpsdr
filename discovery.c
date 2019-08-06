@@ -317,13 +317,13 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
       }
 
       GtkWidget *label=gtk_label_new(text);
-      gtk_widget_override_font(label, pango_font_description_from_string("FreeMono 12"));
+      gtk_widget_override_font(label, pango_font_description_from_string("Sans 11"));
       gtk_widget_set_halign (label, GTK_ALIGN_START);
       gtk_widget_show(label);
       gtk_grid_attach(GTK_GRID(grid),label,0,i,3,1);
 
       GtkWidget *start_button=gtk_button_new_with_label("Start");
-      gtk_widget_override_font(start_button, pango_font_description_from_string("FreeMono 18"));
+      gtk_widget_override_font(start_button, pango_font_description_from_string("Sans 16"));
       gtk_widget_show(start_button);
       gtk_grid_attach(GTK_GRID(grid),start_button,3,i,1,1);
       g_signal_connect(start_button,"button_press_event",G_CALLBACK(start_cb),(gpointer)d);
@@ -347,8 +347,7 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
           gtk_widget_set_sensitive(start_button, FALSE);
         } else {
           apps_combobox[i] = gtk_combo_box_text_new();
-          gtk_widget_override_font(apps_combobox[i],
-              pango_font_description_from_string("FreeMono 12"));
+          gtk_widget_override_font(apps_combobox[i], pango_font_description_from_string("Sans 11"));
           // We want the default selection priority for the STEMlab app to be
           // RP-Trx > HAMlab-Trx > Pavel-Trx > Pavel-Rx, so we add in decreasing order and
           // always set the newly added entry to be active.

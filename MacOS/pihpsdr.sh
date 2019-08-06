@@ -14,9 +14,17 @@
 
 this=`dirname $0` 
 
+#
+# If the things below fail for some reason, stay in $HOME
+#
 cd $HOME
-mkdir .pihpsdr
-cd .pihpsdr         # if this fails, stay in $HOME
+
+localdir="$HOME/Library/Application Support/piHPSDR"
+
+echo $localdir > $HOME/test.out
+
+mkdir -p "$localdir"
+cd       "$localdir"
 
 cp $this/../Resources/hpsdr.png .
 exec $this/pihpsdr-bin

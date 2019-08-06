@@ -306,7 +306,9 @@ static void resume_cb(GtkWidget *widget, gpointer data) {
   if(transmitter->auto_on) {
     transmitter->attenuation=0;
   }
-  SetPSControl(transmitter->id, 0, 0, 1, 0);
+  if (transmitter->puresignal) {
+    SetPSControl(transmitter->id, 0, 0, 1, 0);
+  }
 }
 
 static void feedback_cb(GtkWidget *widget, gpointer data) {
@@ -320,7 +322,9 @@ static void feedback_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void reset_cb(GtkWidget *widget, gpointer data) {
-  SetPSControl(transmitter->id, 1, 0, 0, 0);
+  if (transmitter->puresignal) {
+    SetPSControl(transmitter->id, 1, 0, 0, 0);
+  }
 }
 
 static void twotone_cb(GtkWidget *widget, gpointer data) {

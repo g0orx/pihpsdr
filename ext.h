@@ -66,3 +66,4 @@ int ext_vfo_b_to_a(void *data);
 int ext_update_att_preamp(void *data);
 int ext_set_alex_attenuation(void *data);
 int ext_set_attenuation_value(void *data);
+int ext_set_compression(void *data);

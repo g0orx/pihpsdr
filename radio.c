@@ -1147,6 +1147,15 @@ void set_alex_tx_antenna(int v) {
     }
 }
 
+//
+// There is an error here.
+// The alex att should not be associated with a receiver,
+// but with an ADC. *all* receivers bound to that ADC
+// will experience the same attenuation.
+//
+// This means, alex_attenuation should not be stored in thre
+// receiver, but separately (as is the case with adc_attenuation).
+//
 void set_alex_attenuation(int v) {
     if(active_receiver->id==0) {
       active_receiver->alex_attenuation=v;

@@ -214,10 +214,12 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	case ATT:	// Key for ALEX attenuator, wheel or knob for slider
 	    switch(type) {
 		case MIDI_KEY:
-		    new=active_receiver->alex_attenuation + 1;
-		    if (new > 3) new=0;
-		    g_idle_add(ext_set_alex_attenuation, (gpointer)(uintptr_t)new);
-		    g_idle_add(ext_update_att_preamp, NULL);
+		    if (filter_board == ALEX && active_receiver->adc == 0) {
+		      new=active_receiver->alex_attenuation + 1;
+		      if (new > 3) new=0;
+		      g_idle_add(ext_set_alex_attenuation, (gpointer)(uintptr_t)new);
+		      g_idle_add(ext_update_att_preamp, NULL);
+		    }
 		    break;
 		case MIDI_WHEEL:
 		case MIDI_KNOB:
@@ -250,7 +252,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    transmitter->compressor_level=dnew;
 	    if (dnew < 0.5) transmitter->compressor=0;
 	    if (dnew > 0.5) transmitter->compressor=1;
-	    g_idle_add(ext_vfo_update, NULL);
+	    g_idle_add(ext_set_compression, NULL);
 	    break;
 	case NB:
 	    // cycle through NoiseBlanker settings

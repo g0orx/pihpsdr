@@ -237,6 +237,13 @@ if(analog_meter) {
         if (rx->preamp) level -= 18.0;
         if (rx->dither) level -= 18.0;
       }
+      //
+      // Assume that alex_attenuation is set correctly if we have an ALEX board
+      //
+      if (filter_board == ALEX && rx->adc == 0) {
+	level += 10*rx->alex_attenuation;
+      }
+	    
       offset=210.0;
 
       int i;
@@ -543,6 +550,14 @@ if(analog_meter) {
         if (rx->preamp) level -= 18.0;
         if (rx->dither) level -= 18.0;
       }
+
+      //
+      // Assume that alex_attenuation is set correctly if we have an ALEX board
+      //
+      if (filter_board == ALEX && rx->adc == 0) {
+	level += 10*rx->alex_attenuation;
+      }
+
       if(meter_width>=114) {
         //int db=meter_width/114; // S9+60 (9*6)+60
         //if(db>2) db=2;

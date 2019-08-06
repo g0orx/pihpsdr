@@ -92,7 +92,7 @@ void step_menu(GtkWidget *parent) {
     } else {
       step_rb=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(step_rb),step_labels[i]);
     }
-    gtk_widget_override_font(step_rb, pango_font_description_from_string("FreeMono 18"));
+    gtk_widget_override_font(step_rb, pango_font_description_from_string("Sans 16"));
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (step_rb), steps[i]==step);
     gtk_widget_show(step_rb);
     gtk_grid_attach(GTK_GRID(grid),step_rb,i%5,1+(i/5),1,1);
