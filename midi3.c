@@ -185,6 +185,10 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    break;
 	case PRE:	// only key supported
 	    if (filter_board == CHARLY25) {
+		//
+		// For hardware other than CHARLY25, we do not
+		// switch preamps
+		//
 		new = active_receiver->preamp + active_receiver->dither;
 		new++;
 		if (new >2) new=0;
@@ -203,12 +207,6 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 			break;
 		}
 		g_idle_add(ext_update_att_preamp, NULL);
-	    } else {
-		// Note that these preamps are not present in most
-		// SDR hardware.
-		new=active_receiver->preamp+1;
-		if (new > 1) new=0;
-		active_receiver->preamp= (new == 1);
 	    }
 	    break;
 	case ATT:	// Key for ALEX attenuator, wheel or knob for slider

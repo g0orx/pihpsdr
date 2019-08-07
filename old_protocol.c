@@ -1110,7 +1110,13 @@ void ozy_send_buffer() {
 		output_buffer[C3]|=LT2208_DITHER_ON;
 	}
 #endif
-    if(active_receiver->preamp) {
+    if (filter_board == CHARLY25) {
+      if(active_receiver->preamp) {
+        output_buffer[C3]|=LT2208_GAIN_ON;
+      }
+    } else {
+      // preamp always "on" for non-CHARLY25 hardware
+      // (on modern boards the preamp is hard-wired "on")
       output_buffer[C3]|=LT2208_GAIN_ON;
     }
 
@@ -1276,9 +1282,12 @@ void ozy_send_buffer() {
       case 4:
         output_buffer[C0]=0x14;
         output_buffer[C1]=0x00;
-        for(i=0;i<receivers;i++) {
-          output_buffer[C1]|=(receiver[i]->preamp<<i);
-        }
+        //for(i=0;i<receivers;i++) {
+        //  output_buffer[C1]|=(receiver[i]->preamp<<i);
+        //}
+	// preamps always "on".
+        // (on modern boards the preamp is hard-wired "on")
+        output_buffer[C1]=0x0f;
         if(mic_ptt_enabled==0) {
           output_buffer[C1]|=0x40;
         }
@@ -1298,8 +1307,8 @@ void ozy_send_buffer() {
   
         if(device==DEVICE_HERMES || device==DEVICE_ANGELIA || device==DEVICE_ORION
                                  || device==DEVICE_ORION2  || device == DEVICE_STEMLAB) {
-	  // bit 5 on somee platforms activates a preamp that is hard-wired "on" on
-	  // other platforms, therefore always set it.
+	  // setting bit 5 ("Att enable") disables preamp choice
+          // (on modern boards the preamp is hard-wired "on")
           output_buffer[C4]=0x20 | (adc_attenuation[receiver[0]->adc] & 0x1F);
         } else {
 #ifdef RADIOBERRY
@@ -1314,7 +1323,8 @@ void ozy_send_buffer() {
         if(receivers==2) {
           if(device==DEVICE_HERMES || device==DEVICE_ANGELIA || device==DEVICE_ORION
                                    || device==DEVICE_ORION2  || device==DEVICE_STEMLAB) {
-	    // bit 5 on somee platforms activates a preamp that is hard-wired "on" on
+	    // setting bit 5 ("Att enable") disables preamp choice
+            // (on modern boards the preamp is hard-wired "on")
 	    // other platforms, therefore always set it.
             output_buffer[C1]=0x20 | (adc_attenuation[receiver[1]->adc] & 0x1F);
           }

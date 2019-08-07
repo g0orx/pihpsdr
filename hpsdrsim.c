@@ -644,7 +644,6 @@ int main(int argc, char *argv[])
 				memset(qsample, 0, OLDRTXLEN*sizeof(double));
 				enable_thread = 1;
 				active_thread = 1;
-				CommonMercuryFreq = 0;
 				if (pthread_create(&thread, NULL, handler_ep6, NULL) < 0)
 				{
 					perror("create old protocol thread");
