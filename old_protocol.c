@@ -653,6 +653,9 @@ static long long channel_freq(int chan) {
 	v=receiver[1]->id;
       }
       break;
+    case  4:   // RX5 associated with TX DAC frequency
+      v=-1;
+      break;
 #else
     case 0:
       v=receiver[0]->id;
@@ -665,6 +668,9 @@ static long long channel_freq(int chan) {
       }
       break;
 #endif
+    default:   // hook for determining the TX frequency
+      v=-1;
+      break;
   }
   //
   // When transmitting with PURESIGNAL, set frequency of PS feedback channel to tx freq
@@ -1292,9 +1298,9 @@ void ozy_send_buffer() {
   
         if(device==DEVICE_HERMES || device==DEVICE_ANGELIA || device==DEVICE_ORION
                                  || device==DEVICE_ORION2  || device == DEVICE_STEMLAB) {
-	  // if attenuation is zero, then disable attenuator
-	  i = adc_attenuation[receiver[0]->adc] & 0x1F;
-          if (i >0) output_buffer[C4]=0x20| i;
+	  // bit 5 on somee platforms activates a preamp that is hard-wired "on" on
+	  // other platforms, therefore always set it.
+          output_buffer[C4]=0x20 | (adc_attenuation[receiver[0]->adc] & 0x1F);
         } else {
 #ifdef RADIOBERRY
 	  int att = 63 - rx_gain_slider[active_receiver->adc];
@@ -1308,9 +1314,9 @@ void ozy_send_buffer() {
         if(receivers==2) {
           if(device==DEVICE_HERMES || device==DEVICE_ANGELIA || device==DEVICE_ORION
                                    || device==DEVICE_ORION2  || device==DEVICE_STEMLAB) {
-	    // if attenuation is zero, then disable attenuator
-	    i = adc_attenuation[receiver[1]->adc] & 0x1F;
-            if (i > 0) output_buffer[C1]=0x20|i;
+	    // bit 5 on somee platforms activates a preamp that is hard-wired "on" on
+	    // other platforms, therefore always set it.
+            output_buffer[C1]=0x20 | (adc_attenuation[receiver[1]->adc] & 0x1F);
           }
         }
         output_buffer[C2]=0x00; // ADC3 attenuator disabled.

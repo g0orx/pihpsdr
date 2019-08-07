@@ -17,6 +17,18 @@
 *
 */
 
+//
+// DL1YCF:
+// uncomment the #define line following, then you will get
+// a "TX compression" slider with an enabling checkbox
+// in the bottom right of the sliders area, instead of the
+// sequelch slider and checkbox.
+// This option can also be passed to the compiler with "-D"
+// and thus be activated through the Makefile.
+//
+//#define COMPRESSION_SLIDER_INSTEAD_OF_SQUELCH 1
+//
+
 #include <gtk/gtk.h>
 #include <semaphore.h>
 #include <stdio.h>
@@ -500,7 +512,7 @@ static void compressor_enable_cb(GtkWidget *widget, gpointer data) {
 
 void set_squelch() {
   setSquelch(active_receiver);
-#ifndef COMPRESSION_SLIDER
+#ifndef COMPRESSION_SLIDER_INSTEAD_OF_SQUELCH
   if(display_sliders) {
     gtk_range_set_value (GTK_RANGE(squelch_scale),active_receiver->squelch);
   } else {
@@ -529,13 +541,13 @@ void set_squelch() {
       gtk_range_set_value (GTK_RANGE(squelch_scale),active_receiver->squelch);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
     }
-#ifndef COMPRESSION_SLIDER
+#ifndef COMPRESSION_SLIDER_INSTEAD_OF_SQUELCH
   }
 #endif
 }
 
 void set_compression(TRANSMITTER* tx) {
-#ifdef COMPRESSION_SLIDER
+#ifdef COMPRESSION_SLIDER_INSTEAD_OF_SQUELCH
   if(display_sliders) {
     gtk_range_set_value (GTK_RANGE(comp_scale),tx->compressor_level);
   } else {
@@ -564,7 +576,7 @@ void set_compression(TRANSMITTER* tx) {
       gtk_range_set_value (GTK_RANGE(comp_scale),tx->compressor_level);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
     }
-#ifdef COMPRESSION_SLIDER
+#ifdef COMPRESSION_SLIDER_INSTEAD_OF_SQUELCH
   }
 #endif
   // Now we are also displaying the TX compressor value in the VFO panel
@@ -674,7 +686,7 @@ fprintf(stderr,"sliders_init: width=%d height=%d\n", width,height);
   gtk_grid_attach(GTK_GRID(sliders),drive_scale,4,1,2,1);
   g_signal_connect(G_OBJECT(drive_scale),"value_changed",G_CALLBACK(drive_value_changed_cb),NULL);
 
-#ifndef COMPRESSION_SLIDER
+#ifndef COMPRESSION_SLIDER_INSTEAD_OF_SQUELCH
   squelch_label=gtk_label_new("Squelch:");
   //gtk_widget_override_font(squelch_label, pango_font_description_from_string("Sans 11"));
   gtk_widget_show(squelch_label);
@@ -693,7 +705,7 @@ fprintf(stderr,"sliders_init: width=%d height=%d\n", width,height);
   gtk_grid_attach(GTK_GRID(sliders),squelch_enable,9,1,1,1);
   g_signal_connect(squelch_enable,"toggled",G_CALLBACK(squelch_enable_cb),NULL);
 #else
-  comp_label=gtk_label_new("TX Cmpr:");
+  comp_label=gtk_label_new("COMP:");
   //gtk_widget_override_font(comp_label, pango_font_description_from_string("Sans 11"));
   gtk_widget_show(comp_label);
   gtk_grid_attach(GTK_GRID(sliders),comp_label,6,1,1,1);
