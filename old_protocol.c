@@ -57,6 +57,7 @@
 #endif
 #include "vox.h"
 #include "ext.h"
+#include "iambic.h"
 #include "error_handler.h"
 
 #define min(x,y) (x<y?x:y)
@@ -788,10 +789,22 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
     dash=(control_in[0]&0x02)==0x02;
     dot=(control_in[0]&0x04)==0x04;
 
-    if (dot || dash) cw_key_hit=1;
-    if(vfo[tx_vfo].mode==modeCWL || vfo[tx_vfo].mode==modeCWU) {
-      local_ptt=local_ptt|dot|dash;
+    if (cw_keyer_internal) {
+      // Stops CAT cw transmission if paddle hit in "internal" CW
+      if ((dash || dot) && cw_keyer_internal) cw_key_hit=1;
+    } else {
+#ifdef LOCALCW
+      //
+      // report "key hit" event to the local keyer
+      // (local keyer will stop CAT cw if necessary)
+      if (dash != previous_dash) keyer_event(0, dash);
+      if (dot  != previous_dot ) keyer_event(1, dot );
+#endif
     }
+
+    //if(vfo[tx_vfo].mode==modeCWL || vfo[tx_vfo].mode==modeCWU) {
+    //  local_ptt=local_ptt|dot|dash;
+    // }
     if(previous_ptt!=local_ptt) {
       g_idle_add(ext_mox_update,(gpointer)(long)(local_ptt));
     }
