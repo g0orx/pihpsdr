@@ -55,7 +55,6 @@
 #ifdef PSK
 #include "psk.h"
 #endif
-#include "vox.h"
 #include "ext.h"
 #include "iambic.h"
 #include "error_handler.h"
@@ -1125,13 +1124,7 @@ void ozy_send_buffer() {
 		output_buffer[C3]|=LT2208_DITHER_ON;
 	}
 #endif
-    if (filter_board == CHARLY25) {
-      if(active_receiver->preamp) {
-        output_buffer[C3]|=LT2208_GAIN_ON;
-      }
-    } else {
-      // preamp always "on" for non-CHARLY25 hardware
-      // (on modern boards the preamp is hard-wired "on")
+    if (filter_board == CHARLY25 && active_receiver->preamp) {
       output_buffer[C3]|=LT2208_GAIN_ON;
     }
 
@@ -1151,19 +1144,19 @@ void ozy_send_buffer() {
     switch(i) {
       case 6:  // EXT1 used for PS feedback
       case 3:  // EXT1 (RX2_IN)
-        output_buffer[C3]|=0x40;
+        output_buffer[C3]|=0xC0;
         break;
       case 4:  // EXT2 (RX1_IN)
-        output_buffer[C3]|=0x20;
+        output_buffer[C3]|=0xA0;
         break;
       case 5:  // XVTR
-        output_buffer[C3]|=0x60;
+        output_buffer[C3]|=0xE0;
         break;
       case 7:  // RX Bypass In
         output_buffer[C3]|=0x80;
 	break;
       default:
-	// RX1_ANT bits remain zero
+	// RX1_ANT, RX1_OUT bits remain zero
         break;
     }
 
@@ -1173,7 +1166,7 @@ void ozy_send_buffer() {
     // 0 ... 7 maps on 1 ... 8 receivers
     output_buffer[C4]|=(num_hpsdr_receivers-1)<<3;
     
-    // Set ALEX TX_RELAX (that is, TX_ANT)
+    // Set ALEX TX_RELAY (that is, TX_ANT)
     if(isTransmitting()) {
       switch(transmitter->alex_antenna) {
         case 0:  // ANT 1
@@ -1297,12 +1290,10 @@ void ozy_send_buffer() {
       case 4:
         output_buffer[C0]=0x14;
         output_buffer[C1]=0x00;
+        // All current boards have NO switchable preamps
         //for(i=0;i<receivers;i++) {
         //  output_buffer[C1]|=(receiver[i]->preamp<<i);
         //}
-	// preamps always "on".
-        // (on modern boards the preamp is hard-wired "on")
-        output_buffer[C1]=0x0f;
         if(mic_ptt_enabled==0) {
           output_buffer[C1]|=0x40;
         }
@@ -1320,27 +1311,33 @@ void ozy_send_buffer() {
         output_buffer[C3]=0x00;
         output_buffer[C4]=0x00;
   
-        if(device==DEVICE_HERMES || device==DEVICE_ANGELIA || device==DEVICE_ORION
-                                 || device==DEVICE_ORION2  || device == DEVICE_STEMLAB) {
-	  // setting bit 5 ("Att enable") disables preamp choice
-          // (on modern boards the preamp is hard-wired "on")
-          output_buffer[C4]=0x20 | (adc_attenuation[receiver[0]->adc] & 0x1F);
-        } else {
 #ifdef RADIOBERRY
-	  int att = 63 - rx_gain_slider[active_receiver->adc];
-          output_buffer[C4]=0x20|att;
+	int att = 63 - rx_gain_slider[active_receiver->adc];
+        output_buffer[C4]=0x20|att;
+#else
+	// must set bit 5 ("Att enable") all the time
+	// upon TX, use transmitter->attenuation
+	// Usually the firmware takes care of this, but it is no
+	// harm to do this here as well
+        if (isTransmitting()) {
+          output_buffer[C4]=0x20 | (transmitter->attenuation & 0x1F);
+        } else {
+          output_buffer[C4]=0x20 | (adc_attenuation[0] & 0x1F);
+        } 
 #endif
-        }
-        break;
+	break;
       case 5:
         output_buffer[C0]=0x16;
         output_buffer[C1]=0x00;
-        if(receivers==2) {
-          if(device==DEVICE_HERMES || device==DEVICE_ANGELIA || device==DEVICE_ORION
-                                   || device==DEVICE_ORION2  || device==DEVICE_STEMLAB) {
-	    // setting bit 5 ("Att enable") disables preamp choice
-            // (on modern boards the preamp is hard-wired "on")
-	    // other platforms, therefore always set it.
+        if(n_adc==2) {
+	  // must set bit 5 ("Att enable") all the time
+          // upon transmitting, use high attenuation, since this is
+	  // the best thing you can do when using DIVERSITY to protect
+	  // the second ADC from strong signals from the auxiliary antenna.
+          // (ANAN-7000 firmware does this automatically).
+	  if (isTransmitting()) {
+            output_buffer[C1]=0x3F;
+          } else {
             output_buffer[C1]=0x20 | (adc_attenuation[receiver[1]->adc] & 0x1F);
           }
         }
@@ -1368,11 +1365,11 @@ void ozy_send_buffer() {
 	    								// RX5 is hard-wired to the TX DAC and needs no ADC setting.
 	}
 #else
-        output_buffer[C1]|=receiver[0]->adc;
-        output_buffer[C1]|=(receiver[1]->adc<<2);
+        output_buffer[C1]|=receiver[0]->adc;				// ADC of first receiver
+        output_buffer[C1]|=(receiver[1]->adc<<2);			// ADC of second receiver
 #endif
         output_buffer[C3]=0x00;
-        output_buffer[C3]|=transmitter->attenuation;
+        output_buffer[C3]|=transmitter->attenuation;			// Step attenuator of first ADC, value used when TXing
         output_buffer[C4]=0x00;
         break;
       case 7:
@@ -1383,14 +1380,8 @@ void ozy_send_buffer() {
           mode=vfo[0].mode;
         }
         output_buffer[C1]=0x00;
-        if(mode!=modeCWU && mode!=modeCWL) {
-          // output_buffer[C1]|=0x00;
-        } else {
-          if((tune==1) || (vox==1) || (cw_keyer_internal==0) || (transmitter->twotone==1)) {
-            output_buffer[C1]|=0x00;
-          } else {
-            output_buffer[C1]|=0x01;
-          }
+        if((mode==modeCWU || mode==modeCWL) && !tune && cw_keyer_internal && !transmitter->twotone) {
+          output_buffer[C1]|=0x01;
         }
         output_buffer[C2]=cw_keyer_sidetone_volume;
         output_buffer[C3]=cw_keyer_ptt_delay;
