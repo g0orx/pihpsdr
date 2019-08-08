@@ -1265,6 +1265,8 @@ void ozy_send_buffer() {
         output_buffer[C0]=0x12;
         output_buffer[C1]=power&0xFF;
         output_buffer[C2]=0x00;
+        output_buffer[C3]=0x00;
+        output_buffer[C4]=0x00;
         if(mic_boost) {
           output_buffer[C2]|=0x01;
         }
@@ -1277,14 +1279,23 @@ void ozy_send_buffer() {
         if((filter_board==APOLLO) && tune) {
           output_buffer[C2]|=0x10;
         }
-        output_buffer[C3]=0x00;
         if(band_get_current()==band6) {
           output_buffer[C3]=output_buffer[C3]|0x40; // Alex 6M low noise amplifier
         }
         if(band->disablePA) {
           output_buffer[C3]=output_buffer[C3]|0x80; // disable PA
         }
-        output_buffer[C4]=0x00;
+#ifdef PURESIGNAL
+	//
+	// If using PURESIGNAL and a feedback to EXT1, we have to manually activate the RX HPF/BPF
+	// filters and select "bypass"
+	//
+        if (isTransmitting() && transmitter->puresignal && receiver[PS_RX_FEEDBACK]->alex_antenna == 6) {
+          output_buffer[C2] |= 0x40;  // enable manual filter selection
+          output_buffer[C3] &= 0x80;  // preserve ONLY "PA enable" bit and clear all filters including "6m LNA"
+          output_buffer[C3] |= 0x40;  // bypass all filters
+        }
+#endif
         }
         break;
       case 4:
