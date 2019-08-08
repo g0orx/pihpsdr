@@ -567,6 +567,7 @@ static int rx_feedback_receiver() {
     case DEVICE_ORION:
     case DEVICE_ORION2:
       ret=3;
+      break;
     default:
       ret=0;
       break;
@@ -591,6 +592,7 @@ static int tx_feedback_receiver() {
     case DEVICE_ORION:
     case DEVICE_ORION2:
       ret=4;
+      break;
     default:
       ret=1;
       break;
