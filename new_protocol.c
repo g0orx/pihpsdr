@@ -1002,6 +1002,7 @@ static void new_protocol_high_priority() {
     } else {
       i=receiver[0]->alex_antenna;
     }
+    if (device == NEW_DEVICE_ORION2) device +=100;  // Only valid for ANAN-7000 not ANAN-8000!
     switch(i) {
       case 0:  // ANT 1
         alex0|=ALEX_TX_ANTENNA_1;
@@ -1012,13 +1013,27 @@ static void new_protocol_high_priority() {
       case 2:  // ANT 3
         alex0|=ALEX_TX_ANTENNA_3;
         break;
+      case 100: //ANT 1 on ANAN-7000
+        alex0|=ANAN7000_TX_ANTENNA_1;
+        break;
+      case 101: //ANT 1 on ANAN-7000
+        alex0|=ANAN7000_TX_ANTENNA_2;
+        break;
+      case 102: //ANT 1 on ANAN-7000
+        alex0|=ANAN7000_TX_ANTENNA_3;
+        break;
       default:
-	// this should not happen in TX case. Out of paranoia,
+	// If RXing, this means EXT1 etc. is activated, but
+	// we should not arrive here in TX case. Out of paranoia,
         // connect ANT1 in this case
 	if (isTransmitting()) {
 	  fprintf(stderr,"WARNING: illegal TX antenna chosen, using ANT1\n");
 	  transmitter->alex_antenna=0;
-          alex0|=ALEX_TX_ANTENNA_1;
+	  if (device == NEW_DEVICE_ORION2) {
+            alex0|=ANAN7000_TX_ANTENNA_1;
+	  } else {
+            alex0|=ALEX_TX_ANTENNA_1;
+	  }
 	}
 	break;
     }

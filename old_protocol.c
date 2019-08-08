@@ -1146,14 +1146,18 @@ void ozy_send_buffer() {
       case 3:  // EXT1 (RX2_IN)
         output_buffer[C3]|=0xC0;
         break;
-      case 4:  // EXT2 (RX1_IN)
+      case 4:  // EXT2 (RX1_IN)  (activates ByPass on ANAN-7000)
         output_buffer[C3]|=0xA0;
         break;
       case 5:  // XVTR
         output_buffer[C3]|=0xE0;
         break;
-      case 7:  // RX Bypass In
-        output_buffer[C3]|=0x80;
+      case 7:  // Bypass
+	if (device == DEVICE_ORION2) {
+          output_buffer[C3]|=0x20;    // works on ANAN-7000
+	} else {
+          output_buffer[C3]|=0x80;    // meant to work on ANAN-100/200 with Rev.24 PA board
+        }
 	break;
       default:
 	// RX1_ANT, RX1_OUT bits remain zero

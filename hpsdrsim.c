@@ -928,7 +928,7 @@ void process_ep2(uint8_t *frame)
 	   chk_data(frame[1],txdrive,"TX DRIVE");
 	   chk_data(frame[2] & 0x3F,hermes_config,"HERMES CONFIG");
 	   chk_data(frame[2] & 0x40, alex_manual,"ALEX manual HPF/LPF");
-	   chk_data(frame[2] & 0x70, vna     ,"VNA mode");
+	   chk_data(frame[2] & 0x80, vna     ,"VNA mode");
 	   chk_data(frame[3] & 0x1F,alex_hpf,"ALEX HPF");
 	   chk_data(frame[3] & 0x20,alex_bypass,"ALEX Bypass HPFs");
 	   chk_data(frame[3] & 0x40,lna6m,"ALEX 6m LNA");

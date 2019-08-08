@@ -49,6 +49,12 @@
 #define ALEX_TX_ANTENNA_3      0x04000000		// route TX to ANT3
 
 //
+// Anan-7000 in contrast to ANAN-8000 has the TX relays in series (not parallel)
+//
+#define ANAN7000_TX_ANTENNA_1   0x00000000		// K8 off, K11 off, K14 off
+#define ANAN7000_TX_ANTENNA_2   0x03000000		// K8 on,  K11 on,  K14 off
+#define ANAN7000_TX_ANTENNA_3   0x05000000		// K8 on,  K11 off, K14 on
+
 // Note: DO NOT SET attenuator bits on ANAN-7000/8000
 //       since ALEX0(14) is used for a different purpose!
 //
