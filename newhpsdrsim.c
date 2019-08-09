@@ -1086,7 +1086,7 @@ void *send_highprio_thread(void *data) {
     *p++ = 0;    // no PTT and CW attached
     *p++ = 0;    // no ADC overload
     *p++ = 0;
-    *p++ = 190;  // 500 mw exciter power
+    *p++ = txdrive;
  
     p +=6;
 

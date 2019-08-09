@@ -225,6 +225,7 @@ int vfo_encoder_divisor=15;
 
 int protocol;
 int device;
+int new_pa_board=0; // Indicates Rev.24 PA board for HERMES/ANGELIA/ORION
 int ozy_software_version;
 int mercury_software_version;
 int penelope_software_version;
@@ -529,22 +530,15 @@ void start_radio() {
 //fprintf(stderr,"meter_calibration=%f display_calibration=%f\n", meter_calibration, display_calibration);
   radioRestoreState();
 
+
 //
-//  DL1YCF: we send one buffer of TX samples in one shot. For the old
-//          protocol, their number is buffer_size, but for the new
-//          protocol, the number is 4*buffer_size.
-//          Since current hardware has a FIFO of 4096 IQ sample pairs,
-//          buffer_size should be limited to 2048 for the old protocol and
-//          to 512 for the new protocol.
+// It is possible that an option has been read in
+// which is not compatible with the hardware.
+// Change setting to reasonable value then.
+// 
 //
-  switch (protocol) {
-    case ORIGINAL_PROTOCOL:
-      if (buffer_size > 2048) buffer_size=2048;
-      break;
-    case NEW_PROTOCOL:
-      if (buffer_size > 512) buffer_size=512;
-      break;
-  }
+  if (protocol == ORIGINAL_PROTOCOL && buffer_size > 2048) buffer_size=2048;
+  if (protocol == NEW_PROTOCOL      && buffer_size >  512) buffer_size= 512;
 
   radio_change_region(region);
 
@@ -1176,6 +1170,8 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
 #endif
     loadProperties(property_path);
 
+    value=getProperty("new_pa_board");
+    if (value) new_pa_board=atoi(value);
     value=getProperty("region");
     if(value) region=atoi(value);
     value=getProperty("buffer_size");
@@ -1390,6 +1386,8 @@ void radioSaveState() {
 #else
     sem_wait(&property_sem);
 #endif
+    sprintf(value,"%d",new_pa_board);
+    setProperty("new_pa_board",value);
     sprintf(value,"%d",region);
     setProperty("region",value);
     sprintf(value,"%d",buffer_size);

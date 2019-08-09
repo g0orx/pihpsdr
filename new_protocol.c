@@ -860,6 +860,11 @@ static void new_protocol_high_priority() {
 //      This info comes from file bpf2_select.v in the
 //      P1 firmware
 //
+//	To support the ANAN-8000 we
+//	should bypass BPFs while transmitting in PURESIGNAL,
+//	but this causes unnecessary "relay chatter" on ANAN-7000
+//	So if it should be done, 20 lines below it is shown how.
+//
         if(rxFrequency<1500000L) {
           alex0|=ALEX_ANAN7000_RX_BYPASS_BPF;
         } else if(rxFrequency<2100000L) {
@@ -879,11 +884,12 @@ static void new_protocol_high_priority() {
       default:
 //
 //	Old (ANAN-100/200) high-pass filters
-//      Bypass HPFs while using EXT1 for PURESIGNAL feedback!
 //
 	i=0;  // flag used here for "filter bypass"
 	if (rxFrequency<1800000L) i=1;
 #ifdef PURESIGNAL
+	// Bypass HPFs (only) if using EXT1 for PURESIGNAL feedback!
+	// "relay chatter" is not necessary if using bypass input
 	if (isTransmitting() && transmitter->puresignal && receiver[PS_RX_FEEDBACK]->alex_antenna == 6) i=1;
 #endif
         if (i) {
@@ -965,33 +971,44 @@ static void new_protocol_high_priority() {
     }
 #endif
     if (device == NEW_DEVICE_ORION2) i +=100;
+    if (new_pa_board) i += 1000;
+    //
+    // There are combinations which the user may have selected but do not work,
+    // for example, using EXT1 for PS input on "new PA" or ANAN-7000 (i==106, 1006)
+    // and here we do not set any bit.
+    //
     switch(i) {
-	case 6:  // EXT 1 for PS feedback
-        case 3:  // EXT 1
-          alex0|=ALEX_RX_ANTENNA_EXT1;
+        case 3:		// EXT1 with old pa board
+	case 6:		// EXT1-on-TX with old pa board
+          alex0 |= ALEX_RX_ANTENNA_EXT1 | ALEX_RX_ANTENNA_BYPASS;
           break;
-        case 4:  // EXT 2
-          alex0|=ALEX_RX_ANTENNA_EXT2;
+        case 4:		// EXT with old pa board
+          alex0 |= ALEX_RX_ANTENNA_EXT2 | ALEX_RX_ANTENNA_BYPASS;
           break;
-        case 5:  // XVTR
-            alex0|=ALEX_RX_ANTENNA_XVTR;
+        case 5:		// XVTR with old pa board
+            alex0 |= ALEX_RX_ANTENNA_XVTR | ALEX_RX_ANTENNA_BYPASS;
           break;
-	case 7: // RX_Bypass_In for PS feedback
-          alex0|=ALEX_RX_ANTENNA_BYPASS;
+	case 103:	// EXT1 with ANAN-7000
+          alex0 |= ALEX_RX_ANTENNA_EXT1 | ANAN7000_RX_SELECT;
+	  break;
+	case 105:	// XVTR with ANAN-7000
+	  alex0 |= ALEX_RX_ANTENNA_XVTR | ANAN7000_RX_SELECT;
+	  break;
+	case 107:	// ByPass-on-TX with ANAN-7000
+          alex0 |= ALEX_RX_ANTENNA_BYPASS;
           break;
-	case 103:	// EXT1 on ANAN-7000
-	case 106:	// EXT1 on ANAN-7000 for PS feedback
-	  alex0|=ALEX_ANAN7000_RX_ANT_EXT1;
-	  break;
-	case 104:
-	  // no EXT2 jacket on ANAN7000!
-	  break;
-	case 105:
-	  alex0|=ALEX_ANAN7000_RX_ANT_XVTR;
-	  break;
-	case 107:	// RxBypassIn on ANAN-7000
-	  alex0|=ALEX_ANAN7000_RX_ANT_BYPASS;
-	  break;
+        case 1003:	// EXT1 with new pa board
+          alex0 |= ALEX_RX_ANTENNA_EXT1;
+          break;
+        case 1004:	// EXT 2 with new pa board
+          alex0 |= ALEX_RX_ANTENNA_EXT2;
+          break;
+        case 1005:	// XVTR with new pa board
+            alex0 |= ALEX_RX_ANTENNA_XVTR;
+	    break;
+	case 1007:	// ByPass-on-TX with new pa board
+          alex0 |= ALEX_RX_ANTENNA_BYPASS;
+          break;
     }
 
 //
@@ -999,10 +1016,22 @@ static void new_protocol_high_priority() {
 //
     if(isTransmitting()) {
       i=transmitter->alex_antenna;
+      //
+      // TX antenna outside allowd range: this cannot happen.
+      // Out of paranoia: print warning and choose ANT1
+      //
+      if (i<0 || i>2) {
+	  fprintf(stderr,"WARNING: illegal TX antenna chosen, using ANT1\n");
+	  transmitter->alex_antenna=0;
+	  i=0;
+      }
     } else {
       i=receiver[0]->alex_antenna;
+      //
+      // Not using ANT1,2,3: can leave relais in TX state unless using new PA board
+      //
+      if (i > 2 && !new_pa_board) i=transmitter->alex_antenna;
     }
-    if (device == NEW_DEVICE_ORION2) device +=100;  // Only valid for ANAN-7000 not ANAN-8000!
     switch(i) {
       case 0:  // ANT 1
         alex0|=ALEX_TX_ANTENNA_1;
@@ -1013,29 +1042,6 @@ static void new_protocol_high_priority() {
       case 2:  // ANT 3
         alex0|=ALEX_TX_ANTENNA_3;
         break;
-      case 100: //ANT 1 on ANAN-7000
-        alex0|=ANAN7000_TX_ANTENNA_1;
-        break;
-      case 101: //ANT 1 on ANAN-7000
-        alex0|=ANAN7000_TX_ANTENNA_2;
-        break;
-      case 102: //ANT 1 on ANAN-7000
-        alex0|=ANAN7000_TX_ANTENNA_3;
-        break;
-      default:
-	// If RXing, this means EXT1 etc. is activated, but
-	// we should not arrive here in TX case. Out of paranoia,
-        // connect ANT1 in this case
-	if (isTransmitting()) {
-	  fprintf(stderr,"WARNING: illegal TX antenna chosen, using ANT1\n");
-	  transmitter->alex_antenna=0;
-	  if (device == NEW_DEVICE_ORION2) {
-            alex0|=ANAN7000_TX_ANTENNA_1;
-	  } else {
-            alex0|=ALEX_TX_ANTENNA_1;
-	  }
-	}
-	break;
     }
 
     high_priority_buffer_to_radio[1432]=(alex0>>24)&0xFF;

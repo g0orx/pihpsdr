@@ -179,6 +179,7 @@ extern int vfo_encoder_divisor;
 
 extern int protocol;
 extern int device;
+extern int new_pa_board;
 extern int ozy_software_version;
 extern int mercury_software_version;
 extern int penelope_software_version;

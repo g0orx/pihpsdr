@@ -549,7 +549,7 @@ static gpointer receive_thread(gpointer arg) {
 //
 //
 
-static int rx_feedback_receiver() {
+static int rx_feedback_channel() {
   //
   // Depending on the device, return channel number of RX feedback receiver
   //
@@ -574,7 +574,7 @@ static int rx_feedback_receiver() {
   return ret;
 }
 
-static int tx_feedback_receiver() {
+static int tx_feedback_channel() {
   //
   // Depending on the device, return channel number of TX feedback receiver
   //
@@ -599,7 +599,7 @@ static int tx_feedback_receiver() {
   return ret;
 }
 
-static int first_receiver() {
+static int first_receiver_channel() {
   //
   // Depending on the device and whether we compiled for PURESIGNAL,
   // return the channel number of the first receiver
@@ -607,7 +607,7 @@ static int first_receiver() {
   return 0;
 }
 
-static int second_receiver() {
+static int second_receiver_channel() {
   //
   // Depending on the device and whether we compiled for PURESIGNAL,
   // return the channel number of the second receiver
@@ -624,65 +624,61 @@ static long long channel_freq(int chan) {
   // Depending on PURESIGNAL and DIVERSITY, return
   // the frequency associated with the current HPSDR
   // RX channel (0 <= chan <= 4).
-  // Note that for the RX channels which the firmware
-  // associates with the TX DAC the frequency need not
-  // be set.
   //
   // This function returns the TX frequency if chan is
   // outside the allowed range, and thus can be used
   // to set the TX frequency.
   //
-  // If transmitting with PURESIGNAL, the frequency of
-  // the "antenna" feedback channel is set to the TX freq.
+  // If transmitting with PURESIGNAL, the frequencies of
+  // the feedback and TX DAC channels are set to the TX freq.
   //
   // This subroutine is the ONLY place here where the VFO
   // frequencies are looked at.
   //
-  int v;
+  int vfonum;
   long long freq;
 
   switch (chan) {
 #ifdef PURESIGNAL
     case 0:
     case 1:
-      v=receiver[0]->id;
+      vfonum=receiver[0]->id;
       break;
     case 2:
     case 3:
+    case 4:
       if (diversity_enabled) {
-	v=receiver[0]->id;
+	vfonum=receiver[0]->id;
       } else {
-	v=receiver[1]->id;
+	vfonum=receiver[1]->id;
       }
-      break;
-    case  4:   // RX5 associated with TX DAC frequency
-      v=-1;
       break;
 #else
     case 0:
-      v=receiver[0]->id;
+      vfonum=receiver[0]->id;
       break;
     case 1:
       if (diversity_enabled) {
-	v=receiver[0]->id;
+	vfonum=receiver[0]->id;
       } else {
-	v=receiver[1]->id;
+	vfonum=receiver[1]->id;
       }
       break;
 #endif
     default:   // hook for determining the TX frequency
-      v=-1;
+      vfonum=-1;
       break;
   }
   //
-  // When transmitting with PURESIGNAL, set frequency of PS feedback channel to tx freq
+  // When transmitting with PURESIGNAL, set frequency of PS feedback and TX DAC channels
+  // to the tx frequency
   //
-  if (isTransmitting() && transmitter->puresignal && chan == rx_feedback_receiver()) {
-    v = -1;
+  if (isTransmitting() && transmitter->puresignal && (chan == rx_feedback_channel() || chan == tx_feedback_channel())) {
+    vfonum = -1;
   }
-  if (v < 0) {
+  if (vfonum < 0) {
     //
-    // v=-1 indicates that we should use the TX frequency.
+    // indicates that we should use the TX frequency.
     //
     if(active_receiver->id==VFO_A) {
       if(split) {
@@ -699,15 +695,15 @@ static long long channel_freq(int chan) {
     }
   } else {
     //
-    // determine frequency associated with VFO v
+    // determine frequency associated with VFO #vfonum
     //
-    freq=vfo[v].frequency-vfo[v].lo;
-    if(vfo[v].rit_enabled) {
-      freq+=vfo[v].rit;
+    freq=vfo[vfonum].frequency-vfo[vfonum].lo;
+    if(vfo[vfonum].rit_enabled) {
+      freq+=vfo[vfonum].rit;
     }
-    if(vfo[v].mode==modeCWU) {
+    if(vfo[vfonum].mode==modeCWU) {
       freq-=(long long)cw_keyer_sidetone_frequency;
-    } else if(vfo[v].mode==modeCWL) {
+    } else if(vfo[vfonum].mode==modeCWL) {
       freq+=(long long)cw_keyer_sidetone_frequency;
     }
   }
@@ -767,10 +763,10 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
   int tx_vfo=split?VFO_B:VFO_A;
 
   int num_hpsdr_receivers=how_many_receivers();
-  int rxfdbk = rx_feedback_receiver();
-  int txfdbk = tx_feedback_receiver();
-  int rx1channel = first_receiver();
-  int rx2channel = second_receiver();
+  int rxfdbk = rx_feedback_channel();
+  int txfdbk = tx_feedback_channel();
+  int rx1channel = first_receiver_channel();
+  int rx2channel = second_receiver_channel();
 
   if(buffer[b++]==SYNC && buffer[b++]==SYNC && buffer[b++]==SYNC) {
     // extract control bytes
@@ -803,9 +799,6 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
 #endif
     }
 
-    //if(vfo[tx_vfo].mode==modeCWL || vfo[tx_vfo].mode==modeCWU) {
-    //  local_ptt=local_ptt|dot|dash;
-    // }
     if(previous_ptt!=local_ptt) {
       g_idle_add(ext_mox_update,(gpointer)(long)(local_ptt));
     }
@@ -1141,27 +1134,40 @@ void ozy_send_buffer() {
 #ifdef PURESIGNAL
     if (isTransmitting() && transmitter->puresignal) i=receiver[PS_RX_FEEDBACK]->alex_antenna;
 #endif
+    if (device == DEVICE_ORION2) i +=100;
+    if (new_pa_board) i +=1000;
     switch(i) {
-      case 6:  // EXT1 used for PS feedback
-      case 3:  // EXT1 (RX2_IN)
-        output_buffer[C3]|=0xC0;
+      case 3: 		// EXT1 with old pa board
+      case 6: 		// EXT1-on-TX with old pa board
+        output_buffer[C3] |= 0xC0;
         break;
-      case 4:  // EXT2 (RX1_IN)  (activates ByPass on ANAN-7000)
-        output_buffer[C3]|=0xA0;
+      case 4:		// EXT2 with old pa board
+        output_buffer[C3] |= 0xA0;
         break;
-      case 5:  // XVTR
-        output_buffer[C3]|=0xE0;
+      case 5:		// XVTR with old pa board
+        output_buffer[C3] |= 0xE0;
         break;
-      case 7:  // Bypass
-	if (device == DEVICE_ORION2) {
-          output_buffer[C3]|=0x20;    // works on ANAN-7000
-	} else {
-          output_buffer[C3]|=0x80;    // meant to work on ANAN-100/200 with Rev.24 PA board
-        }
+      case 103:		// EXT1 with ANAN-7000
+        output_buffer[C3]|= 0x40;
+        break;
+      case 105:		// XVTR with ANAN-7000
+        output_buffer[C3]|= 0x60;
+        break;
+      case 107:		// Bypass-on-TX with ANAN-7000
+        output_buffer[C3]|= 0x20;
 	break;
-      default:
-	// RX1_ANT, RX1_OUT bits remain zero
-        break;
+      case 1003:	// EXT1 with new PA board
+        output_buffer[C3] |= 0x40;
+	break;
+      case 1004:	// EXT2 with new PA board
+        output_buffer[C3] |= 0x20;
+	break;
+      case 1005:	// XVRT with new PA board
+        output_buffer[C3] |= 0x60;
+	break;
+      case 1007:	// Bypass-on-TX with new PA board
+        output_buffer[C3] |= 0x80;
+	break;
     }
 
 
@@ -1170,9 +1176,29 @@ void ozy_send_buffer() {
     // 0 ... 7 maps on 1 ... 8 receivers
     output_buffer[C4]|=(num_hpsdr_receivers-1)<<3;
     
-    // Set ALEX TX_RELAY (that is, TX_ANT)
+//
+//  Now we set the bits for Ant1/2/3 (RX and TX may be different)
+//
     if(isTransmitting()) {
-      switch(transmitter->alex_antenna) {
+      i=transmitter->alex_antenna;
+      //
+      // TX antenna outside allowd range: this cannot happen.
+      // Out of paranoia: print warning and choose ANT1
+      //
+      if (i<0 || i>2) {
+          fprintf(stderr,"WARNING: illegal TX antenna chosen, using ANT1\n");
+          transmitter->alex_antenna=0;
+          i=0;
+      }
+    } else {
+      i=receiver[0]->alex_antenna;
+      //
+      // Not using ANT1,2,3: can leave relais in TX state unless using new PA board
+      //
+      if (i > 2 && !new_pa_board) i=transmitter->alex_antenna;
+    }
+
+    switch(i) {
         case 0:  // ANT 1
           output_buffer[C4]|=0x00;
           break;
@@ -1183,36 +1209,12 @@ void ozy_send_buffer() {
           output_buffer[C4]|=0x02;
           break;
         default:
+	  // this happens only with the new pa board and using EXT1/EXT2/XVTR
+	  // here we have to disconnect ANT1,2,3
+          output_buffer[C4]|=0x03;
           break;
-      }
-    } else {
-      switch(receiver[0]->alex_antenna) {
-        case 0:  // ANT 1
-          output_buffer[C4]|=0x00;
-          break;
-        case 1:  // ANT 2
-          output_buffer[C4]|=0x01;
-          break;
-        case 2:  // ANT 3
-          output_buffer[C4]|=0x02;
-          break;
-        case 3:  // EXT 1
-        case 4:  // EXT 2
-        case 5:  // XVTR
-          switch(transmitter->alex_antenna) {
-            case 0:  // ANT 1
-              output_buffer[C4]|=0x00;
-              break;
-            case 1:  // ANT 2
-              output_buffer[C4]|=0x01;
-              break;
-            case 2:  // ANT 3
-              output_buffer[C4]|=0x02;
-              break;
-          }
-          break;
-      }
     }
+    // end of "C0=0" packet
   } else {
     //
     // metis_offset !=8: send the other C&C packets in round-robin
@@ -1252,6 +1254,7 @@ void ozy_send_buffer() {
 	// is sent the next time "command 3" is performed, but this often is too late and
 	// CW is generated with zero DriveLevel.
 	// Therefore, when in CW mode, send the TX drive level also when receiving.
+	// (it would be sufficient to do so only with internal CW).
 	//
         if(split) {
           mode=vfo[1].mode;
@@ -1453,7 +1456,7 @@ void ozy_send_buffer() {
   if (isTransmitting()) {
     if(mode==modeCWU || mode==modeCWL) {
 //
-//    If CW is done on the HPSDR board, we should not set
+//    For "internal" CW, we should not set
 //    the MOX bit, everything is done in the FPGA.
 //
 //    However, if we are doing CAT CW, local CW or tuning/TwoTone,

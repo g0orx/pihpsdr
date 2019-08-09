@@ -42,19 +42,14 @@
 #define ALEX_RX_ANTENNA_XVTR   0x00000100		// route XVTR-in  to RX1 (bit 8)
 #define ALEX_RX_ANTENNA_EXT1   0x00000200		// route EXT1     to RX1 (bit 9)
 #define ALEX_RX_ANTENNA_EXT2   0x00000400		// route EXT2     to RX1 (bit 10)
-#define ALEX_RX_ANTENNA_BYPASS 0x00000800		// connect BYPASS to RX1 (bit 11)
+#define ALEX_RX_ANTENNA_BYPASS 0x00000800		// activate BYPASS       (bit 11)
+#define ANAN7000_RX_SELECT     0x00004000               // Master RX select      (bit 14)
 
 #define ALEX_TX_ANTENNA_1      0x01000000		// route TX to ANT1
 #define ALEX_TX_ANTENNA_2      0x02000000		// route TX to ANT2
 #define ALEX_TX_ANTENNA_3      0x04000000		// route TX to ANT3
 
 //
-// Anan-7000 in contrast to ANAN-8000 has the TX relays in series (not parallel)
-//
-#define ANAN7000_TX_ANTENNA_1   0x00000000		// K8 off, K11 off, K14 off
-#define ANAN7000_TX_ANTENNA_2   0x03000000		// K8 on,  K11 on,  K14 off
-#define ANAN7000_TX_ANTENNA_3   0x05000000		// K8 on,  K11 off, K14 on
-
 // Note: DO NOT SET attenuator bits on ANAN-7000/8000
 //       since ALEX0(14) is used for a different purpose!
 //
@@ -113,10 +108,6 @@
 //
 
 // These bits only have a function on ANAN-7000
-#define ALEX_ANAN7000_RX_ANT_NONE       0x00000000
-#define ALEX_ANAN7000_RX_ANT_EXT1       0x00004200   // bits 9, 14
-#define ALEX_ANAN7000_RX_ANT_XVTR       0x00004100   // bits 8, 14
-#define ALEX_ANAN7000_RX_ANT_BYPASS     0x00000800   // bit  11
 
 #define ALEX_ANAN7000_RX_30_20_17_BPF	0x00000002   // bit 1, 11.0 - 20.9 MHz
 #define ALEX_ANAN7000_RX_15_12_BPF	0x00000004   // bit 2, 21.0 - 26.9 MHz

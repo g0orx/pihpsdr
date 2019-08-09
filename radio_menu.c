@@ -125,6 +125,14 @@ static void none_cb(GtkWidget *widget, gpointer data) {
   }
 }
 
+static void newpa_cb(GtkWidget *widget, gpointer data) {
+  if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
+    new_pa_board=1;
+  } else {
+    new_pa_board=0;
+  }
+}
+
 static void alex_cb(GtkWidget *widget, gpointer data) {
   if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
     filter_board = ALEX;
@@ -355,6 +363,20 @@ void radio_menu(GtkWidget *parent) {
     g_signal_connect(alex_b, "toggled", G_CALLBACK(alex_cb), NULL);
     g_signal_connect(apollo_b, "toggled", G_CALLBACK(apollo_cb), NULL);
     g_signal_connect(charly25_b, "toggled", G_CALLBACK(charly25_cb), NULL);
+
+    if ((protocol == NEW_PROTOCOL      && (device == NEW_DEVICE_HERMES || device == NEW_DEVICE_ANGELIA || device == NEW_DEVICE_ORION)) ||
+        (protocol == ORIGINAL_PROTOCOL && (device == DEVICE_HERMES     || device == DEVICE_ANGELIA     || device == DEVICE_ORION))) {
+
+      //
+      // ANAN-100/200: There is an "old" (Rev. 15/16) and "new" (Rev. 24) PA board
+      //               around which differs in relay settings for using EXT1,2 and
+      //               differs in how to do PS feedback.
+      //
+      GtkWidget *new_pa_b = gtk_check_button_new_with_label("ANAN 100/200 new PA board");
+      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(new_pa_b), new_pa_board);
+      gtk_grid_attach(GTK_GRID(grid), new_pa_b, x, 6, 1, 1);
+      g_signal_connect(new_pa_b, "toggled", G_CALLBACK(newpa_cb), NULL);
+    }
 
     x++;
   }

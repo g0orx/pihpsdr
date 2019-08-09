@@ -9,7 +9,7 @@
  *
  * This device has four "RF sources"
  *
- * RF1: ADC noise plus a  800 Hz signal at -100dBm
+ * RF1: ADC noise plus a  800 Hz signal at -73dBm
  * RF2: ADC noise
  * RF3: TX feedback signal with some distortion.
  * RF4: normalized undistorted TX signal
@@ -166,6 +166,8 @@ static void *handler_ep6(void *arg);
 static double  last_i_sample=0.0;
 static double  last_q_sample=0.0;
 static int  txptr=0;
+
+static double txlevel;
 
 int main(int argc, char *argv[])
 {
@@ -542,6 +544,7 @@ int main(int argc, char *argv[])
 					last_q_sample=dqsample;
 					if (j == 62) bp+=8; // skip 8 SYNC/C&C bytes of second block
                                  }
+				 txlevel=txdrv_dbl*txdrv_dbl*sum * 0.0079365;
 				 // wrap-around of ring buffer
                                  if (txptr >= OLDRTXLEN) txptr=0;
 				}
@@ -1103,11 +1106,41 @@ void *handler_ep6(void *arg)
 		    pointer = buffer + i * 516 - i % 2 * 4 + 8;
 		    memcpy(pointer, header + header_offset, 8);
 
-		    header_offset = header_offset >= 32 ? 0 : header_offset + 8;
-
+		    switch (header_offset) {
+			case 0:
+			    // no CW bits
+			    header_offset=8;
+			    break;
+			case 8:
+			    // AIN5: Exciter power
+			    *(pointer+4)=0;		// about 500 mW
+			    *(pointer+5)=txdrive;
+			    // AIN1: Forward Power
+			    j=(int) ((4095.0/c1)*sqrt(100.0*txlevel*c2));
+			    *(pointer+6)=(j >> 8) & 0xFF;
+			    *(pointer+7)=(j     ) & 0xFF;
+			    header_offset=16;
+			    break;
+			case 16:
+			    // AIN2: Reverse power
+			    // AIN3:
+			    header_offset=24;
+			    break;
+			case 24:
+			    // AIN4:
+			    // AIN5: supply voltage
+			    *(pointer+6) = 0;
+			    *(pointer+7) = 63;	
+			    header_offset=32;
+			    break;
+			case 32:
+			    header_offset=0;
+			    break;
+		    }
+			    
 		    pointer += 8;
 		    memset(pointer, 0, 504);
-		    fac1=rxatt_dbl[0]*0.00001;		// Amplitude of 800-Hz-signal to ADC1
+		    fac1=rxatt_dbl[0]*0.0002239;	// Amplitude of 800-Hz-signal to ADC1
 		    if (diversity) {
 			fac2=0.0001*rxatt_dbl[0];	// Amplitude of broad "man-made" noise to ADC1
 			fac4=0.0002*rxatt_dbl[1];	// Amplitude of broad "man-made" noise to ADC2
