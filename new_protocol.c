@@ -985,8 +985,8 @@ static void new_protocol_high_priority() {
     //
     switch(i) {
       case 3:           // EXT1 with old pa board
-      case 6:           // EXT1-on-TX with old pa board
-      case 1006:        // EXT1-on-TX with new pa board: impossible, *assume* old pa board present
+      case 6:           // EXT1-on-TX: assume old pa board
+      case 1006:
           alex0 |= ALEX_RX_ANTENNA_EXT1 | ALEX_RX_ANTENNA_BYPASS;
           break;
       case 4:           // EXT2 with old pa board
@@ -995,7 +995,7 @@ static void new_protocol_high_priority() {
       case 5:           // XVTR with old pa board
             alex0 |= ALEX_RX_ANTENNA_XVTR | ALEX_RX_ANTENNA_BYPASS;
           break;
-      case 104:         // EXT2 with ANAN-7000: does not exit, use EXT2
+      case 104:         // EXT2 with ANAN-7000: does not exit, use EXT1
       case 103:         // EXT1 with ANAN-7000
           alex0 |= ALEX_RX_ANTENNA_EXT1 | ANAN7000_RX_SELECT;
 	  break;
@@ -1015,8 +1015,8 @@ static void new_protocol_high_priority() {
       case 1005:        // XVRT with new PA board
             alex0 |= ALEX_RX_ANTENNA_XVTR;
 	    break;
-      case 7:           // Bypass-on-TX with old PA board: does not exist, *assume* new pa board present
-      case 1007:        // Bypass-on-TX with new PA board
+      case 7:           // Bypass-on-TX: assume new PA board
+      case 1007:
           alex0 |= ALEX_RX_ANTENNA_BYPASS;
           break;
     }

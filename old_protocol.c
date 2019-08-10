@@ -1150,8 +1150,8 @@ void ozy_send_buffer() {
     //
     switch(i) {
       case 3: 		// EXT1 with old pa board
-      case 6: 		// EXT1-on-TX with old pa board
-      case 1006:	// EXT1-on-TX with new pa board: impossible, *assume* old pa board present
+      case 6: 		// EXT1-on-TX: assume old pa board
+      case 1006:
         output_buffer[C3] |= 0xC0;
         break;
       case 4:		// EXT2 with old pa board
@@ -1160,7 +1160,7 @@ void ozy_send_buffer() {
       case 5:		// XVTR with old pa board
         output_buffer[C3] |= 0xE0;
         break;
-      case 104:		// EXT2 with ANAN-7000: does not exit, use EXT2
+      case 104:		// EXT2 with ANAN-7000: does not exit, use EXT1
       case 103:		// EXT1 with ANAN-7000
         output_buffer[C3]|= 0x40;
         break;
@@ -1180,8 +1180,8 @@ void ozy_send_buffer() {
       case 1005:	// XVRT with new PA board
         output_buffer[C3] |= 0x60;
 	break;
-      case 7:		// Bypass-on-TX with old PA board: does not exist, *assume* new pa board present
-      case 1007:	// Bypass-on-TX with new PA board
+      case 7:		// Bypass-on-TX: assume new PA board
+      case 1007:
         output_buffer[C3] |= 0x80;
 	break;
     }
