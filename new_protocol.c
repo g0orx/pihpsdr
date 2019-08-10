@@ -888,8 +888,7 @@ static void new_protocol_high_priority() {
 	i=0;  // flag used here for "filter bypass"
 	if (rxFrequency<1800000L) i=1;
 #ifdef PURESIGNAL
-	// Bypass HPFs (only) if using EXT1 for PURESIGNAL feedback!
-	// "relay chatter" is not necessary if using bypass input
+	// Bypass HPFs if using EXT1 for PURESIGNAL feedback!
 	if (isTransmitting() && transmitter->puresignal && receiver[PS_RX_FEEDBACK]->alex_antenna == 6) i=1;
 #endif
         if (i) {
@@ -970,43 +969,54 @@ static void new_protocol_high_priority() {
 	i=receiver[PS_RX_FEEDBACK]->alex_antenna;   	// 0, 6, or 7
     }
 #endif
-    if (device == NEW_DEVICE_ORION2) i +=100;
-    if (new_pa_board) i += 1000;
+    if (device == DEVICE_ORION2) {
+      i +=100;
+    } else if (new_pa_board) {
+      // New-PA setting invalid on ANAN-7000,8000
+      i +=1000;
+    }
     //
-    // There are combinations which the user may have selected but do not work,
-    // for example, using EXT1 for PS input on "new PA" or ANAN-7000 (i==106, 1006)
-    // and here we do not set any bit.
+    // There are several combination which do not exist (no jacket present)
+    // or which do not work (using EXT1-on-TX with ANAN-7000).
+    // In these cases, fall back to a "reasonable" case (e.g. use EXT1 if
+    // there is no EXT2).
+    // As a result, the "New PA board" setting is overriden for PURESIGNAL
+    // feedback: EXT1 assumes old PA board and ByPass assumes new PA board.
     //
     switch(i) {
-        case 3:		// EXT1 with old pa board
-	case 6:		// EXT1-on-TX with old pa board
+      case 3:           // EXT1 with old pa board
+      case 6:           // EXT1-on-TX with old pa board
+      case 1006:        // EXT1-on-TX with new pa board: impossible, *assume* old pa board present
           alex0 |= ALEX_RX_ANTENNA_EXT1 | ALEX_RX_ANTENNA_BYPASS;
           break;
-        case 4:		// EXT with old pa board
+      case 4:           // EXT2 with old pa board
           alex0 |= ALEX_RX_ANTENNA_EXT2 | ALEX_RX_ANTENNA_BYPASS;
           break;
-        case 5:		// XVTR with old pa board
+      case 5:           // XVTR with old pa board
             alex0 |= ALEX_RX_ANTENNA_XVTR | ALEX_RX_ANTENNA_BYPASS;
           break;
-	case 103:	// EXT1 with ANAN-7000
+      case 104:         // EXT2 with ANAN-7000: does not exit, use EXT2
+      case 103:         // EXT1 with ANAN-7000
           alex0 |= ALEX_RX_ANTENNA_EXT1 | ANAN7000_RX_SELECT;
 	  break;
-	case 105:	// XVTR with ANAN-7000
+      case 105:         // XVTR with ANAN-7000
 	  alex0 |= ALEX_RX_ANTENNA_XVTR | ANAN7000_RX_SELECT;
 	  break;
-	case 107:	// ByPass-on-TX with ANAN-7000
+      case 106:         // EXT1-on-TX with ANAN-7000: does not exist, use ByPass
+      case 107:         // Bypass-on-TX with ANAN-7000
           alex0 |= ALEX_RX_ANTENNA_BYPASS;
           break;
-        case 1003:	// EXT1 with new pa board
+      case 1003:        // EXT1 with new PA board
           alex0 |= ALEX_RX_ANTENNA_EXT1;
           break;
-        case 1004:	// EXT 2 with new pa board
+      case 1004:        // EXT2 with new PA board
           alex0 |= ALEX_RX_ANTENNA_EXT2;
           break;
-        case 1005:	// XVTR with new pa board
+      case 1005:        // XVRT with new PA board
             alex0 |= ALEX_RX_ANTENNA_XVTR;
 	    break;
-	case 1007:	// ByPass-on-TX with new pa board
+      case 7:           // Bypass-on-TX with old PA board: does not exist, *assume* new pa board present
+      case 1007:        // Bypass-on-TX with new PA board
           alex0 |= ALEX_RX_ANTENNA_BYPASS;
           break;
     }

@@ -1134,11 +1134,24 @@ void ozy_send_buffer() {
 #ifdef PURESIGNAL
     if (isTransmitting() && transmitter->puresignal) i=receiver[PS_RX_FEEDBACK]->alex_antenna;
 #endif
-    if (device == DEVICE_ORION2) i +=100;
-    if (new_pa_board) i +=1000;
+    if (device == DEVICE_ORION2) {
+      i +=100;
+    } else if (new_pa_board) {
+      // New-PA setting invalid on ANAN-7000,8000
+      i +=1000;
+    }
+    //
+    // There are several combination which do not exist (no jacket present)
+    // or which do not work (using EXT1-on-TX with ANAN-7000).
+    // In these cases, fall back to a "reasonable" case (e.g. use EXT1 if
+    // there is no EXT2).
+    // As a result, the "New PA board" setting is overriden for PURESIGNAL
+    // feedback: EXT1 assumes old PA board and ByPass assumes new PA board.
+    //
     switch(i) {
       case 3: 		// EXT1 with old pa board
       case 6: 		// EXT1-on-TX with old pa board
+      case 1006:	// EXT1-on-TX with new pa board: impossible, *assume* old pa board present
         output_buffer[C3] |= 0xC0;
         break;
       case 4:		// EXT2 with old pa board
@@ -1147,12 +1160,14 @@ void ozy_send_buffer() {
       case 5:		// XVTR with old pa board
         output_buffer[C3] |= 0xE0;
         break;
+      case 104:		// EXT2 with ANAN-7000: does not exit, use EXT2
       case 103:		// EXT1 with ANAN-7000
         output_buffer[C3]|= 0x40;
         break;
       case 105:		// XVTR with ANAN-7000
         output_buffer[C3]|= 0x60;
         break;
+      case 106:		// EXT1-on-TX with ANAN-7000: does not exist, use ByPass
       case 107:		// Bypass-on-TX with ANAN-7000
         output_buffer[C3]|= 0x20;
 	break;
@@ -1165,6 +1180,7 @@ void ozy_send_buffer() {
       case 1005:	// XVRT with new PA board
         output_buffer[C3] |= 0x60;
 	break;
+      case 7:		// Bypass-on-TX with old PA board: does not exist, *assume* new pa board present
       case 1007:	// Bypass-on-TX with new PA board
         output_buffer[C3] |= 0x80;
 	break;
@@ -1300,7 +1316,7 @@ void ozy_send_buffer() {
         if (isTransmitting() && transmitter->puresignal && receiver[PS_RX_FEEDBACK]->alex_antenna == 6) {
           output_buffer[C2] |= 0x40;  // enable manual filter selection
           output_buffer[C3] &= 0x80;  // preserve ONLY "PA enable" bit and clear all filters including "6m LNA"
-          output_buffer[C3] |= 0x40;  // bypass all filters
+          output_buffer[C3] |= 0x20;  // bypass all filters
         }
 #endif
         }

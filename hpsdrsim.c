@@ -930,12 +930,12 @@ void process_ep2(uint8_t *frame)
 	case 19:
 	   chk_data(frame[1],txdrive,"TX DRIVE");
 	   chk_data(frame[2] & 0x3F,hermes_config,"HERMES CONFIG");
-	   chk_data(frame[2] & 0x40, alex_manual,"ALEX manual HPF/LPF");
-	   chk_data(frame[2] & 0x80, vna     ,"VNA mode");
+	   chk_data((frame[2] >> 6) & 0x01, alex_manual,"ALEX manual HPF/LPF");
+	   chk_data((frame[2] >> 7) & 0x01, vna     ,"VNA mode");
 	   chk_data(frame[3] & 0x1F,alex_hpf,"ALEX HPF");
-	   chk_data(frame[3] & 0x20,alex_bypass,"ALEX Bypass HPFs");
-	   chk_data(frame[3] & 0x40,lna6m,"ALEX 6m LNA");
-	   chk_data(frame[3] & 0x80,alexTRdisable,"ALEX T/R disable");
+	   chk_data((frame[3] >> 5) & 0x01,alex_bypass,"ALEX Bypass HPFs");
+	   chk_data((frame[3] >> 6) & 0x01,lna6m,"ALEX 6m LNA");
+	   chk_data((frame[3] >> 7) & 0x01,alexTRdisable,"ALEX T/R disable");
 	   chk_data(frame[4],alex_lpf,"ALEX LPF");
            // reset TX level. Leve a little head-room for noise
 	   txdrv_dbl=(double) txdrive * 0.00390625;  // div. by. 256
