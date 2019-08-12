@@ -1447,7 +1447,7 @@ void ozy_send_buffer() {
           output_buffer[C2]=0x02;          // Alex2 XVTR enable
         }
         if(transmitter->puresignal) {
-          output_buffer[C2]|=0x40;	   // Synchronize RX5 and TX frequency on transmit
+          output_buffer[C2]|=0x40;	   // Synchronize RX5 and TX frequency on transmit (ANAN-7000)
         }
         output_buffer[C3]=0x00;            // Alex2 filters
         output_buffer[C4]=0x00;            // Alex2 filters

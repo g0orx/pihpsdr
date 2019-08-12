@@ -719,14 +719,14 @@ static void new_protocol_high_priority() {
 //
 
     if(active_receiver->id==VFO_A) {
-      txFrequency=vfo[VFO_A].frequency-vfo[VFO_A].lo;
+      txFrequency=vfo[VFO_A].frequency-vfo[VFO_A].lo+vfo[VFO_A].offset;
       if(split) {
-        txFrequency=vfo[VFO_B].frequency-vfo[VFO_B].lo;
+        txFrequency=vfo[VFO_B].frequency-vfo[VFO_B].lo+vfo[VFO_B].offset;
       }
     } else {
-      txFrequency=vfo[VFO_B].frequency-vfo[VFO_B].lo;
+      txFrequency=vfo[VFO_B].frequency-vfo[VFO_B].lo+vfo[VFO_B].offset;
       if(split) {
-        txFrequency=vfo[VFO_A].frequency-vfo[VFO_A].lo;
+        txFrequency=vfo[VFO_A].frequency-vfo[VFO_A].lo+vfo[VFO_A].offset;
       }
     }
 
@@ -802,9 +802,13 @@ static void new_protocol_high_priority() {
     }
 
 //
-//  ANAN-7000/8000: route TXout to XvtrOut out when not using PA
+//  ANAN-7000/8000: route TXout to XvtrOut out when using XVTR input
+//                  (this is the condition also implemented in old_protocol)
+//                  Note: the firmware does a logical AND with the T/R bit
+//                  such that upon RX, Xvtr port is input, and on TX, Xvrt port
+//                  is output if the XVTR_OUT bit is set.
 //
-    if ((device==NEW_DEVICE_ORION2) && band->disablePA) {
+    if ((device==NEW_DEVICE_ORION2) && receiver[0]->alex_antenna == 5) {
       high_priority_buffer_to_radio[1400] |= ANAN7000_XVTR_OUT;
     }
 

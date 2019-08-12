@@ -9,7 +9,7 @@
  *
  * This device has four "RF sources"
  *
- * RF1: ADC noise plus a  800 Hz signal at -73dBm
+ * RF1: ADC noise plus a  800 Hz signal plus 5000 Hz signal at -73dBm
  * RF2: ADC noise
  * RF3: TX feedback signal with some distortion.
  * RF4: normalized undistorted TX signal
@@ -251,13 +251,15 @@ int main(int argc, char *argv[])
           noiseQtab[i]= ((double) rand_r(&seed) / j - 1.0) * 0.00003;
         }
 
-	fprintf(stderr,".... producing an 800 Hz signal\n");
+	fprintf(stderr,".... producing signals\n");
 	// Produce an 800 Hz tone at 0 dBm
         run=0.0;
+        off=0.0;
 	for (i=0; i<LENTONE; i++) {
-	  toneQtab[i]=cos(run);
-	  toneItab[i]=sin(run);
+	  toneQtab[i]=cos(run)+cos(off);
+	  toneItab[i]=sin(run)+sin(off);
 	  run += 0.0032724923474893679567319201909161;
+	  off += 0.016362461737446839783659600954581;
 	}
 
 	if (diversity) {
