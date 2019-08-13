@@ -87,10 +87,11 @@ static double *cw_shape_buffer192 = NULL;
 static int cw_shape = 0;
 //
 // cwramp is the function defining the "ramp" of the CW pulse.
-// is *must be* an array with 201 entries. The ramp width (200 samples)
-// is hard-coded. We currently use the impulse response of a
-// Blackman-Harris window.
+// an array with RAMPLEN+1 entries. To change the ramp width,
+// new arrays cwramp48[] and cwramp192[] have to be provided
+// in cwramp.c
 //
+#define RAMPLEN 250			// 200: 4 msec ramp width, 250: 5 msec ramp width
 extern double cwramp48[];		// see cwramp.c, for 48 kHz sample rate
 extern double cwramp192[];		// see cwramp.c, for 192 kHz sample rate
 
@@ -622,8 +623,13 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%d iq_output_buf
   tx->pixel_samples=malloc(sizeof(float)*tx->pixels);
   if (cw_shape_buffer48) free(cw_shape_buffer48);
   if (cw_shape_buffer192) free(cw_shape_buffer192);
+  //
+  // We need this one both for old and new protocol, since
+  // is is also used to shape the audio samples
   cw_shape_buffer48=malloc(sizeof(double)*tx->buffer_size);
   if (protocol == NEW_PROTOCOL) {
+    // We need this buffer for the new protocol only, where it is only
+    // used to shape the TX envelope
     cw_shape_buffer192=malloc(sizeof(double)*tx->output_samples);
   }
 fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%p iq_output_buffer=%p pixels=%p\n",tx->mic_input_buffer,tx->iq_output_buffer,tx->pixel_samples);
@@ -898,7 +904,10 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 	//
 	switch (protocol) {
 	  case ORIGINAL_PROTOCOL:
-	    // Note: tx->output_samples equals tx->buffer_size
+	    //
+	    // tx->output_samples equals tx->buffer_size
+	    // Take TX envelope from the 48kHz shape buffer
+	    //
             sidevol= 258.0 * cw_keyer_sidetone_volume;  // between 0.0 and 32766.0
 	    isample=0;				    // will be constantly zero
             for(j=0;j<tx->output_samples;j++) {
@@ -910,9 +919,8 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 	    break;
 	  case NEW_PROTOCOL:
 	    //
-	    // Note: tx->output_samples is larger than tx->buffer_size
-	    // therefore we do a linear interpolation within the ramp
-	    // this is probably not necessary)
+	    // tx->output_samples if four times tx->buffer_size
+	    // Take TX envelope from the 192kHz shape buffer
 	    //
 	    isample=0;
             for(j=0;j<tx->output_samples;j++) {
@@ -980,18 +988,18 @@ void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
 //
 //	We HAVE TO shape the signal to avoid hard clicks to be
 //	heard way beside our frequency. The envelope (ramp function)
-//      is stored in cwramp48[0::200], so we "move" cw_shape between these
-//      values. The ramp width is 200 samples (4.16 msec)
+//      is stored in cwramp48[0::RAMPLEN], so we "move" cw_shape between these
+//      values. The ramp width is RAMPLEN/48000 seconds.
 //
 //      In the new protocol, we use this ramp for the side tone, but
 //      must use values from cwramp192 for the TX iq signal.
 //
 //      Note that usually, the pulse is much broader than the ramp,
-//      that is, cw_key_down and cw_key_up are much larger than 200.
+//      that is, cw_key_down and cw_key_up are much larger than RAMPLEN.
 //
 	cw_not_ready=0;
 	if (cw_key_down > 0 ) {
-	  if (cw_shape < 200) cw_shape++;	// walk up the ramp
+	  if (cw_shape < RAMPLEN) cw_shape++;	// walk up the ramp
 	  cw_key_down--;			// decrement key-up counter
 	  updown=1;
 	} else {
@@ -1025,7 +1033,7 @@ void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
 	    new_protocol_cw_audio_samples(s, s);
 	    s=4*cw_shape;
 	    i=4*tx->samples;
-	    // The 192kHz-ramp is constructed such that for cw_shape==0 or cw_shape==200,
+	    // The 192kHz-ramp is constructed such that for cw_shape==0 or cw_shape==RAMPLEN,
 	    // the two following cases create the same shape.
 	    if (updown) {
 	      // climbing up...

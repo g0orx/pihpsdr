@@ -2857,6 +2857,7 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
         else if(strcmp(cmd_str,"PA")==0) { 
                                             // TS-2000 - PA - Set/Read Preamp function status
                                             // PiHPSDR - ZZPA - Set/Read Preamp function status
+					    // Note that currently, preamp switching is only done for CHARLY25
                                              if(len <=2) {
                                                 if(zzid_flag == 0) {
                                                    sprintf(msg,"PA%1d%1d;",active_receiver->preamp,active_receiver->preamp);

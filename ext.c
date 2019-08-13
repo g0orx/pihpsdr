@@ -197,6 +197,11 @@ int ext_set_drive(void *data) {
   return 0;
 }
 
+int ext_set_compression(void *data) {
+  set_compression(transmitter);
+  return 0;
+}
+
 int ext_vfo_a_swap_b(void *data) {
   vfo_a_swap_b();
   return 0;

@@ -636,7 +636,7 @@ static void new_protocol_high_priority() {
     }
     high_priority_buffer_to_radio[4]=running;
 //
-//  ??? why not setting the bit if transmitting in *all* cases ===
+//  We need not set PTT of doing internal CW with break-in
 //
     if(mode==modeCWU || mode==modeCWL) {
       if (isTransmitting() && (!cw_keyer_internal || !cw_breakin || CAT_cw_is_active)) high_priority_buffer_to_radio[4]|=0x02;
@@ -719,14 +719,14 @@ static void new_protocol_high_priority() {
 //
 
     if(active_receiver->id==VFO_A) {
-      txFrequency=vfo[VFO_A].frequency-vfo[VFO_A].lo;
+      txFrequency=vfo[VFO_A].frequency-vfo[VFO_A].lo+vfo[VFO_A].offset;
       if(split) {
-        txFrequency=vfo[VFO_B].frequency-vfo[VFO_B].lo;
+        txFrequency=vfo[VFO_B].frequency-vfo[VFO_B].lo+vfo[VFO_B].offset;
       }
     } else {
-      txFrequency=vfo[VFO_B].frequency-vfo[VFO_B].lo;
+      txFrequency=vfo[VFO_B].frequency-vfo[VFO_B].lo+vfo[VFO_B].offset;
       if(split) {
-        txFrequency=vfo[VFO_A].frequency-vfo[VFO_A].lo;
+        txFrequency=vfo[VFO_A].frequency-vfo[VFO_A].lo+vfo[VFO_A].offset;
       }
     }
 
@@ -802,9 +802,13 @@ static void new_protocol_high_priority() {
     }
 
 //
-//  ANAN-7000/8000: route TXout to XvtrOut out when not using PA
+//  ANAN-7000/8000: route TXout to XvtrOut out when using XVTR input
+//                  (this is the condition also implemented in old_protocol)
+//                  Note: the firmware does a logical AND with the T/R bit
+//                  such that upon RX, Xvtr port is input, and on TX, Xvrt port
+//                  is output if the XVTR_OUT bit is set.
 //
-    if ((device==NEW_DEVICE_ORION2) && band->disablePA) {
+    if ((device==NEW_DEVICE_ORION2) && receiver[0]->alex_antenna == 5) {
       high_priority_buffer_to_radio[1400] |= ANAN7000_XVTR_OUT;
     }
 
@@ -857,8 +861,11 @@ static void new_protocol_high_priority() {
       case NEW_DEVICE_ORION2:
 //
 //	new ANAN-7000/8000 band-pass RX filters
-//      This info comes from file bpf2_select.v in the
-//      P1 firmware
+//
+//	To support the ANAN-8000 we
+//	should bypass BPFs while transmitting in PURESIGNAL,
+//	but this causes unnecessary "relay chatter" on ANAN-7000
+//	So if it should be done, 20 lines below it is shown how.
 //
         if(rxFrequency<1500000L) {
           alex0|=ALEX_ANAN7000_RX_BYPASS_BPF;
@@ -868,22 +875,22 @@ static void new_protocol_high_priority() {
           alex0|=ALEX_ANAN7000_RX_80_60_BPF;
         } else if(rxFrequency<11000000L) {
           alex0|=ALEX_ANAN7000_RX_40_30_BPF;
-        } else if(rxFrequency<20900000L) {
-          alex0|=ALEX_ANAN7000_RX_30_20_17_BPF;
+        } else if(rxFrequency<22000000L) {
+          alex0|=ALEX_ANAN7000_RX_20_15_BPF;
         } else if(rxFrequency<35000000L) {
-          alex0|=ALEX_ANAN7000_RX_15_12_BPF;
+          alex0|=ALEX_ANAN7000_RX_12_10_BPF;
         } else {
-          alex0|=ALEX_ANAN7000_RX_10_6_PRE_BPF;
+          alex0|=ALEX_ANAN7000_RX_6_PRE_BPF;
         }
         break;
       default:
 //
 //	Old (ANAN-100/200) high-pass filters
-//      Bypass HPFs while using EXT1 for PURESIGNAL feedback!
 //
 	i=0;  // flag used here for "filter bypass"
 	if (rxFrequency<1800000L) i=1;
 #ifdef PURESIGNAL
+	// Bypass HPFs if using EXT1 for PURESIGNAL feedback!
 	if (isTransmitting() && transmitter->puresignal && receiver[PS_RX_FEEDBACK]->alex_antenna == 6) i=1;
 #endif
         if (i) {
@@ -912,41 +919,20 @@ static void new_protocol_high_priority() {
     if (!isTransmitting() && device != NEW_DEVICE_ORION2 && receiver[0]->alex_antenna < 3) {
 	txFrequency = rxFrequency;
     }
-    switch(device) {
-      case NEW_DEVICE_ORION2:
-        if(txFrequency>32000000) {
-          alex0|=ALEX_6_BYPASS_LPF;
-        } else if(txFrequency>22000000) {
-          alex0|=ALEX_12_10_LPF;
-        } else if(txFrequency>15000000) {
-          alex0|=ALEX_17_15_LPF;
-        } else if(txFrequency>8000000) {
-          alex0|=ALEX_30_20_LPF;
-        } else if(txFrequency>4500000) {
-          alex0|=ALEX_60_40_LPF;
-        } else if(txFrequency>2400000) {
-          alex0|=ALEX_80_LPF;
-        } else {
-          alex0|=ALEX_160_LPF;
-        }
-        break;
-      default:
-        if(txFrequency>35600000) {
-          alex0|=ALEX_6_BYPASS_LPF;
-        } else if(txFrequency>24000000) {
-          alex0|=ALEX_12_10_LPF;
-        } else if(txFrequency>16500000) {
-          alex0|=ALEX_17_15_LPF;
-        } else if(txFrequency>8000000) {
-          alex0|=ALEX_30_20_LPF;
-        } else if(txFrequency>5000000) {
-          alex0|=ALEX_60_40_LPF;
-        } else if(txFrequency>2500000) {
-          alex0|=ALEX_80_LPF;
-        } else {
-          alex0|=ALEX_160_LPF;
-        }
-        break;
+    if(txFrequency>35600000L) {
+      alex0|=ALEX_6_BYPASS_LPF;
+    } else if(txFrequency>24000000L) {
+      alex0|=ALEX_12_10_LPF;
+    } else if(txFrequency>16500000L) {
+      alex0|=ALEX_17_15_LPF;
+    } else if(txFrequency>8000000L) {
+      alex0|=ALEX_30_20_LPF;
+    } else if(txFrequency>5000000L) {
+      alex0|=ALEX_60_40_LPF;
+    } else if(txFrequency>2500000L) {
+      alex0|=ALEX_80_LPF;
+    } else {
+      alex0|=ALEX_160_LPF;
     }
 
 //
@@ -964,34 +950,56 @@ static void new_protocol_high_priority() {
 	i=receiver[PS_RX_FEEDBACK]->alex_antenna;   	// 0, 6, or 7
     }
 #endif
-    if (device == NEW_DEVICE_ORION2) i +=100;
+    if (device == DEVICE_ORION2) {
+      i +=100;
+    } else if (new_pa_board) {
+      // New-PA setting invalid on ANAN-7000,8000
+      i +=1000;
+    }
+    //
+    // There are several combination which do not exist (no jacket present)
+    // or which do not work (using EXT1-on-TX with ANAN-7000).
+    // In these cases, fall back to a "reasonable" case (e.g. use EXT1 if
+    // there is no EXT2).
+    // As a result, the "New PA board" setting is overriden for PURESIGNAL
+    // feedback: EXT1 assumes old PA board and ByPass assumes new PA board.
+    //
     switch(i) {
-	case 6:  // EXT 1 for PS feedback
-        case 3:  // EXT 1
-          alex0|=ALEX_RX_ANTENNA_EXT1;
+      case 3:           // EXT1 with old pa board
+      case 6:           // EXT1-on-TX: assume old pa board
+      case 1006:
+          alex0 |= ALEX_RX_ANTENNA_EXT1 | ALEX_RX_ANTENNA_BYPASS;
           break;
-        case 4:  // EXT 2
-          alex0|=ALEX_RX_ANTENNA_EXT2;
+      case 4:           // EXT2 with old pa board
+          alex0 |= ALEX_RX_ANTENNA_EXT2 | ALEX_RX_ANTENNA_BYPASS;
           break;
-        case 5:  // XVTR
-            alex0|=ALEX_RX_ANTENNA_XVTR;
+      case 5:           // XVTR with old pa board
+            alex0 |= ALEX_RX_ANTENNA_XVTR | ALEX_RX_ANTENNA_BYPASS;
           break;
-	case 7: // RX_Bypass_In for PS feedback
-          alex0|=ALEX_RX_ANTENNA_BYPASS;
+      case 104:         // EXT2 with ANAN-7000: does not exit, use EXT1
+      case 103:         // EXT1 with ANAN-7000
+          alex0 |= ALEX_RX_ANTENNA_EXT1 | ANAN7000_RX_SELECT;
+	  break;
+      case 105:         // XVTR with ANAN-7000
+	  alex0 |= ALEX_RX_ANTENNA_XVTR | ANAN7000_RX_SELECT;
+	  break;
+      case 106:         // EXT1-on-TX with ANAN-7000: does not exist, use ByPass
+      case 107:         // Bypass-on-TX with ANAN-7000
+          alex0 |= ALEX_RX_ANTENNA_BYPASS;
           break;
-	case 103:	// EXT1 on ANAN-7000
-	case 106:	// EXT1 on ANAN-7000 for PS feedback
-	  alex0|=ALEX_ANAN7000_RX_ANT_EXT1;
-	  break;
-	case 104:
-	  // no EXT2 jacket on ANAN7000!
-	  break;
-	case 105:
-	  alex0|=ALEX_ANAN7000_RX_ANT_XVTR;
-	  break;
-	case 107:	// RxBypassIn on ANAN-7000
-	  alex0|=ALEX_ANAN7000_RX_ANT_BYPASS;
-	  break;
+      case 1003:        // EXT1 with new PA board
+          alex0 |= ALEX_RX_ANTENNA_EXT1;
+          break;
+      case 1004:        // EXT2 with new PA board
+          alex0 |= ALEX_RX_ANTENNA_EXT2;
+          break;
+      case 1005:        // XVRT with new PA board
+            alex0 |= ALEX_RX_ANTENNA_XVTR;
+	    break;
+      case 7:           // Bypass-on-TX: assume new PA board
+      case 1007:
+          alex0 |= ALEX_RX_ANTENNA_BYPASS;
+          break;
     }
 
 //
@@ -999,8 +1007,21 @@ static void new_protocol_high_priority() {
 //
     if(isTransmitting()) {
       i=transmitter->alex_antenna;
+      //
+      // TX antenna outside allowd range: this cannot happen.
+      // Out of paranoia: print warning and choose ANT1
+      //
+      if (i<0 || i>2) {
+	  fprintf(stderr,"WARNING: illegal TX antenna chosen, using ANT1\n");
+	  transmitter->alex_antenna=0;
+	  i=0;
+      }
     } else {
       i=receiver[0]->alex_antenna;
+      //
+      // Not using ANT1,2,3: can leave relais in TX state unless using new PA board
+      //
+      if (i > 2 && !new_pa_board) i=transmitter->alex_antenna;
     }
     switch(i) {
       case 0:  // ANT 1
@@ -1012,15 +1033,6 @@ static void new_protocol_high_priority() {
       case 2:  // ANT 3
         alex0|=ALEX_TX_ANTENNA_3;
         break;
-      default:
-	// this should not happen in TX case. Out of paranoia,
-        // connect ANT1 in this case
-	if (isTransmitting()) {
-	  fprintf(stderr,"WARNING: illegal TX antenna chosen, using ANT1\n");
-	  transmitter->alex_antenna=0;
-          alex0|=ALEX_TX_ANTENNA_1;
-	}
-	break;
     }
 
     high_priority_buffer_to_radio[1432]=(alex0>>24)&0xFF;
@@ -1045,8 +1057,6 @@ static void new_protocol_high_priority() {
 	}
 //
 //      new ANAN-7000/8000 band-pass RX filters
-//      This info comes from file bpf2_select.v in the
-//      P1 firmware
 //
         if(rxFrequency<1500000L) {
           alex1|=ALEX_ANAN7000_RX_BYPASS_BPF;
@@ -1056,12 +1066,12 @@ static void new_protocol_high_priority() {
           alex1|=ALEX_ANAN7000_RX_80_60_BPF;
         } else if(rxFrequency<11000000L) {
           alex1|=ALEX_ANAN7000_RX_40_30_BPF;
-        } else if(rxFrequency<20900000L) {
-          alex1|=ALEX_ANAN7000_RX_30_20_17_BPF;
+        } else if(rxFrequency<22000000L) {
+          alex1|=ALEX_ANAN7000_RX_20_15_BPF;
         } else if(rxFrequency<35000000L) {
-          alex1|=ALEX_ANAN7000_RX_15_12_BPF;
+          alex1|=ALEX_ANAN7000_RX_12_10_BPF;
         } else {
-          alex1|=ALEX_ANAN7000_RX_10_6_PRE_BPF;
+          alex1|=ALEX_ANAN7000_RX_6_PRE_BPF;
         }
 
 //
@@ -1127,29 +1137,30 @@ static void new_protocol_transmit_specific() {
     }
     transmit_specific_buffer[4]=1; // 1 DAC
     transmit_specific_buffer[5]=0; //  default no CW
-    // may be using local pihpsdr OR hpsdr CW
-    if (mode==modeCWU || mode==modeCWL) {
-      if (cw_keyer_internal) {
-        transmit_specific_buffer[5]|=0x02;
-      }
-    }
-    if(cw_keys_reversed) {
+
+    if ((mode==modeCWU || mode==modeCWL) && cw_keyer_internal) {
+      //
+      // Set this byte only if in CW, and if using the "internal" keyer
+      //
+      transmit_specific_buffer[5]|=0x02;
+      if(cw_keys_reversed) {
         transmit_specific_buffer[5]|=0x04;
-    }
-    if(cw_keyer_mode==KEYER_MODE_A) {
+      }
+      if(cw_keyer_mode==KEYER_MODE_A) {
         transmit_specific_buffer[5]|=0x08;
-    }
-    if(cw_keyer_mode==KEYER_MODE_B) {
+      }
+      if(cw_keyer_mode==KEYER_MODE_B) {
         transmit_specific_buffer[5]|=0x28;
-    }
-    if(cw_keyer_sidetone_volume!=0 && cw_keyer_internal) {
+      }
+      if(cw_keyer_sidetone_volume!=0) {
         transmit_specific_buffer[5]|=0x10;
-    }
-    if(cw_keyer_spacing) {
+      }
+      if(cw_keyer_spacing) {
         transmit_specific_buffer[5]|=0x40;
-    }
-    if(cw_breakin) {
+      }
+      if(cw_breakin) {
         transmit_specific_buffer[5]|=0x80;
+      }
     }
 
     transmit_specific_buffer[6]=cw_keyer_sidetone_volume; // sidetone off
@@ -1787,21 +1798,24 @@ static void process_high_priority(unsigned char *buffer) {
     alex_reverse_power=((high_priority_buffer[22]&0xFF)<<8)|(high_priority_buffer[23]&0xFF);
     supply_volts=((high_priority_buffer[49]&0xFF)<<8)|(high_priority_buffer[50]&0xFF);
 
+    if (cw_keyer_internal) {
+      // Stops CAT cw transmission if paddle hit in "internal" CW
+      if ((dash || dot) && cw_keyer_internal) cw_key_hit=1;
+    } else {
 #ifdef LOCALCW
-#ifndef GPIO
-    if (dash || dot) cw_key_hit=1;
-    if (!cw_keyer_internal) {
+      //
+      // report "key hit" event to the local keyer
+      // (local keyer will stop CAT cw if necessary)
       if (dash != previous_dash) keyer_event(0, dash);
       if (dot  != previous_dot ) keyer_event(1, dot );
+#endif
     }
-#endif
-#endif
 
     int tx_vfo=split?VFO_B:VFO_A;
     //if(vfo[tx_vfo].mode==modeCWL || vfo[tx_vfo].mode==modeCWU) {
     //  local_ptt=local_ptt|dot|dash;
     //}
-    if(previous_ptt!=local_ptt && !CAT_cw_is_active) {
+    if(previous_ptt!=local_ptt) {
       g_idle_add(ext_mox_update,(gpointer)(long)(local_ptt));
     }
 }

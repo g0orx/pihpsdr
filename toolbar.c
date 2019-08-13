@@ -652,50 +652,50 @@ GtkWidget *toolbar_init(int my_width, int my_height, GtkWidget* parent) {
     gtk_grid_set_column_homogeneous(GTK_GRID(toolbar),TRUE);
 
     sim_mox=gtk_button_new_with_label("Mox");
-    //gtk_widget_override_font(sim_mox, pango_font_description_from_string("Arial 16"));
+    //gtk_widget_override_font(sim_mox, pango_font_description_from_string("Sans 11"));
     g_signal_connect(G_OBJECT(sim_mox),"clicked",G_CALLBACK(sim_mox_cb),NULL);
     gtk_grid_attach(GTK_GRID(toolbar),sim_mox,0,0,4,1);
 
     sim_s1=gtk_button_new_with_label("Band");
     gtk_widget_set_size_request (sim_s1, button_width, 0);
-    //gtk_widget_override_font(sim_s1, pango_font_description_from_string("Arial 16"));
+    //gtk_widget_override_font(sim_s1, pango_font_description_from_string("Sans 11"));
     g_signal_connect(G_OBJECT(sim_s1),"pressed",G_CALLBACK(sim_s1_pressed_cb),NULL);
     g_signal_connect(G_OBJECT(sim_s1),"released",G_CALLBACK(sim_s1_released_cb),NULL);
     gtk_grid_attach(GTK_GRID(toolbar),sim_s1,4,0,4,1);
 
     sim_s2=gtk_button_new_with_label("BStack");
     gtk_widget_set_size_request (sim_s2, button_width, 0);
-    //gtk_widget_override_font(sim_s2, pango_font_description_from_string("Arial 16"));
+    //gtk_widget_override_font(sim_s2, pango_font_description_from_string("Sans 11"));
     g_signal_connect(G_OBJECT(sim_s2),"pressed",G_CALLBACK(sim_s2_pressed_cb),NULL);
     g_signal_connect(G_OBJECT(sim_s2),"released",G_CALLBACK(sim_s2_released_cb),NULL);
     gtk_grid_attach(GTK_GRID(toolbar),sim_s2,8,0,4,1);
 
     sim_s3=gtk_button_new_with_label("Mode");
-    //gtk_widget_override_font(sim_s3, pango_font_description_from_string("Arial 16"));
+    //gtk_widget_override_font(sim_s3, pango_font_description_from_string("Sans 11"));
     g_signal_connect(G_OBJECT(sim_s3),"pressed",G_CALLBACK(sim_s3_pressed_cb),NULL);
     g_signal_connect(G_OBJECT(sim_s3),"released",G_CALLBACK(sim_s3_released_cb),NULL);
     gtk_grid_attach(GTK_GRID(toolbar),sim_s3,12,0,4,1);
 
     sim_s4=gtk_button_new_with_label("Filter");
-    //gtk_widget_override_font(sim_s4, pango_font_description_from_string("Arial 16"));
+    //gtk_widget_override_font(sim_s4, pango_font_description_from_string("Sans 11"));
     g_signal_connect(G_OBJECT(sim_s4),"pressed",G_CALLBACK(sim_s4_pressed_cb),NULL);
     g_signal_connect(G_OBJECT(sim_s4),"released",G_CALLBACK(sim_s4_released_cb),NULL);
     gtk_grid_attach(GTK_GRID(toolbar),sim_s4,16,0,4,1);
 
     sim_s5=gtk_button_new_with_label("Noise");
-    //gtk_widget_override_font(sim_s5, pango_font_description_from_string("Arial 16"));
+    //gtk_widget_override_font(sim_s5, pango_font_description_from_string("Sans 11"));
     g_signal_connect(G_OBJECT(sim_s5),"pressed",G_CALLBACK(sim_s5_pressed_cb),NULL);
     g_signal_connect(G_OBJECT(sim_s5),"released",G_CALLBACK(sim_s5_released_cb),NULL);
     gtk_grid_attach(GTK_GRID(toolbar),sim_s5,20,0,4,1);
 
     sim_s6=gtk_button_new_with_label("AGC");
-    //gtk_widget_override_font(sim_s6, pango_font_description_from_string("Arial 16"));
+    //gtk_widget_override_font(sim_s6, pango_font_description_from_string("Sans 11"));
     g_signal_connect(G_OBJECT(sim_s6),"pressed",G_CALLBACK(sim_s6_pressed_cb),NULL);
     g_signal_connect(G_OBJECT(sim_s6),"released",G_CALLBACK(sim_s6_released_cb),NULL);
     gtk_grid_attach(GTK_GRID(toolbar),sim_s6,24,0,4,1);
 
     sim_function=gtk_button_new_with_label("Function");
-    //gtk_widget_override_font(sim_function, pango_font_description_from_string("Arial 16"));
+    //gtk_widget_override_font(sim_function, pango_font_description_from_string("Sans 11"));
     g_signal_connect(G_OBJECT(sim_function),"clicked",G_CALLBACK(sim_function_cb),NULL);
     gtk_grid_attach(GTK_GRID(toolbar),sim_function,28,0,4,1);
 

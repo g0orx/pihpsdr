@@ -2,7 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-        <key>CFBundleIdentifier</key>
+	<key>CFBundleIdentifier</key>
 	<string>piHPSDR</string>
 	<key>CFBundleExecutable</key>
 	<string>pihpsdr</string>
@@ -10,9 +10,11 @@
 	<string>hpsdr.icns</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
-        <key>CFBundleSignature</key>
+	<key>CFBundleSignature</key>
 	<string>BNDL</string>
-        <key>NSMicrophoneUsageDescription</key>
-        <string>Allow for using Sound input devices</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Allow for using Sound input devices</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
 </dict>
 </plist>

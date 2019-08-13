@@ -293,7 +293,7 @@ void keyer_update() {
     if (cw_keyer_internal == 0) {
       if (!running) keyer_init();
     } else {
-      keyer_close();
+      if (running) keyer_close();
     }
 }
 

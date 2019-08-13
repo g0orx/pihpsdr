@@ -11,6 +11,28 @@
 //
 ///////////////////////////////////////////////////////////////////////////
 
+//
+// Unfortunately, the code number of the gear
+// differes in old and new protocol
+//
+
+#define DEVICE_ATLAS           0
+#define DEVICE_HERMES          1
+#define DEVICE_HERMES2         2
+#define DEVICE_ANGELIA         4
+#define DEVICE_ORION           5
+#define DEVICE_HERMES_LITE     6
+#define DEVICE_ORION2         10
+#define DEVICE_C25           100
+
+#define NEW_DEVICE_ATLAS       0
+#define NEW_DEVICE_HERMES      1
+#define NEW_DEVICE_HERMES2     2
+#define NEW_DEVICE_ANGELIA     3
+#define NEW_DEVICE_ORION       4
+#define NEW_DEVICE_ORION2      5
+#define NEW_DEVICE_HERMES_LITE 6
+
 EXTERN int OLDDEVICE;
 EXTERN int NEWDEVICE;
 
@@ -94,6 +116,8 @@ extern int clock_nanosleep(clockid_t __clock_id, int __flags,
 
 //
 // Constants defining the distortion of the TX signal
+// These give about -24 dBc at full drive, that is
+// about the value a reasonable amp gives.
 //
 #define IM3a  0.60
 #define IM3b  0.20

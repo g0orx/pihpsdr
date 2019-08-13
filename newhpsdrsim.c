@@ -319,6 +319,7 @@ void *ddc_specific_thread(void *data) {
 
   if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
     perror("***** ERROR: RX specific: bind");
+    close(sock);
     return NULL;
   }
 
@@ -437,6 +438,7 @@ void *duc_specific_thread(void *data) {
 
   if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
     perror("***** ERROR: TXspec: bind");
+    close(sock);
     return NULL;
   }
 
@@ -548,6 +550,7 @@ void *highprio_thread(void *data) {
 
   if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
     perror("***** ERROR: HP: bind");
+    close(sock);
     return NULL;
   }
 
@@ -702,8 +705,13 @@ void *highprio_thread(void *data) {
      rc=buffer[1443];
      if (rc != stepatt0) {
 	stepatt0=rc;
-	rxatt0_dbl=pow(10.0, -0.05*stepatt0);
 	fprintf(stderr,"HP: StepAtt0 = %d\n", stepatt0);
+     }
+     // rxatt0 depends both on ALEX att and Step Att, so re-calc. it each time
+     if (NEWDEVICE == NEW_DEVICE_ORION2) {
+	rxatt0_dbl=pow(10.0, -0.05*stepatt0);
+     } else {
+	rxatt0_dbl=pow(10.0, -0.05*(stepatt0+10*alex0[14]+20*alex0[13]));
      }
   }
   return NULL;
@@ -804,7 +812,7 @@ void *rx_thread(void *data) {
           wait=238000000L/rxrate[myddc]; // time for these samples in nano-secs
 	}
 	//
-	// ADC0 RX: noise + 800Hz signal at -100 dBm
+	// ADC0 RX: noise + 800Hz signal at -73 dBm
 	// ADC0 TX: noise + distorted TX signal
 	// ADC1 RX: noise
 	// ADC1 TX: HERMES only: original TX signal
@@ -859,8 +867,8 @@ void *rx_thread(void *data) {
 	    i1sample = irsample * 0.2899;
 	    q1sample = qrsample * 0.2899;
 	  } else if (myadc == 0) {
-	    i0sample += toneItab[tonept] * 0.00001 * rxatt0_dbl;
-	    q0sample += toneQtab[tonept] * 0.00001 * rxatt0_dbl;
+	    i0sample += toneItab[tonept] * 0.0002239 * rxatt0_dbl;
+	    q0sample += toneQtab[tonept] * 0.0002239 * rxatt0_dbl;
 	    tonept += decimation; if (tonept >= LENTONE) tonept=0;
 	  }
 	  if (diversity && !sync && myadc == 0) {
@@ -1026,6 +1034,7 @@ void *tx_thread(void * data) {
      }
      txlevel=sum * txdrv_dbl * txdrv_dbl * 0.0041667;
   }
+  close(sock);
   return NULL;
 }
 
@@ -1077,7 +1086,7 @@ void *send_highprio_thread(void *data) {
     *p++ = 0;    // no PTT and CW attached
     *p++ = 0;    // no ADC overload
     *p++ = 0;
-    *p++ = 190;  // 500 mw exciter power
+    *p++ = txdrive;
  
     p +=6;
 

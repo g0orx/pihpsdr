@@ -306,7 +306,9 @@ static void resume_cb(GtkWidget *widget, gpointer data) {
   if(transmitter->auto_on) {
     transmitter->attenuation=0;
   }
-  SetPSControl(transmitter->id, 0, 0, 1, 0);
+  if (transmitter->puresignal) {
+    SetPSControl(transmitter->id, 0, 0, 1, 0);
+  }
 }
 
 static void feedback_cb(GtkWidget *widget, gpointer data) {
@@ -320,7 +322,9 @@ static void feedback_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void reset_cb(GtkWidget *widget, gpointer data) {
-  SetPSControl(transmitter->id, 1, 0, 0, 0);
+  if (transmitter->puresignal) {
+    SetPSControl(transmitter->id, 1, 0, 0, 0);
+  }
 }
 
 static void twotone_cb(GtkWidget *widget, gpointer data) {
@@ -436,24 +440,29 @@ void ps_menu(GtkWidget *parent) {
   col++;
 
   GtkWidget *ps_ant_auto=gtk_radio_button_new_with_label(NULL,"Internal");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ps_ant_auto), 
-    (receiver[PS_RX_FEEDBACK]->alex_antenna == 0) );
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ps_ant_auto), (receiver[PS_RX_FEEDBACK]->alex_antenna == 0) );
   gtk_widget_show(ps_ant_auto);
   gtk_grid_attach(GTK_GRID(grid), ps_ant_auto, col, row, 1, 1);
   g_signal_connect(ps_ant_auto,"toggled", G_CALLBACK(ps_ant_cb), (gpointer) (long) 0);
   col++;
 
+  //
+  // ANAN-7000:           you can use both EXT1 and ByPass (although Bypass is to be preferred),
+  // ANAN-100/200 old PA: you can only use EXT1
+  // ANAN-100/200 new PA: you can only use ByPass
+  //
+  // We would need much logic at various places to guarantee that non-reasonable settings
+  // cannot become effective, therefore we let the user choose both possibilities on all hardware
+  //
   GtkWidget *ps_ant_ext1=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(ps_ant_auto),"EXT1");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ps_ant_ext1),
-    (receiver[PS_RX_FEEDBACK]->alex_antenna==6) );
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ps_ant_ext1), (receiver[PS_RX_FEEDBACK]->alex_antenna==6) );
   gtk_widget_show(ps_ant_ext1);
   gtk_grid_attach(GTK_GRID(grid), ps_ant_ext1, col, row, 1, 1);
   g_signal_connect(ps_ant_ext1,"toggled", G_CALLBACK(ps_ant_cb), (gpointer) (long) 6);
   col++;
 
-  GtkWidget *ps_ant_ext2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(ps_ant_auto),"ByPass IN");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ps_ant_ext2),
-    (receiver[PS_RX_FEEDBACK]->alex_antenna==7) );
+  GtkWidget *ps_ant_ext2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(ps_ant_auto),"ByPass");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ps_ant_ext2), (receiver[PS_RX_FEEDBACK]->alex_antenna==7) );
   gtk_widget_show(ps_ant_ext2);
   gtk_grid_attach(GTK_GRID(grid), ps_ant_ext2, col, row, 1, 1);
   g_signal_connect(ps_ant_ext2,"toggled", G_CALLBACK(ps_ant_cb), (gpointer) (long) 7);

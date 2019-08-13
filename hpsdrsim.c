@@ -9,7 +9,7 @@
  *
  * This device has four "RF sources"
  *
- * RF1: ADC noise plus a  800 Hz signal at -100dBm
+ * RF1: ADC noise plus a  800 Hz signal plus 5000 Hz signal at -73dBm
  * RF2: ADC noise
  * RF3: TX feedback signal with some distortion.
  * RF4: normalized undistorted TX signal
@@ -167,27 +167,7 @@ static double  last_i_sample=0.0;
 static double  last_q_sample=0.0;
 static int  txptr=0;
 
-//
-// Unfortunately, the code number of the gear
-// differes in old and new protocol
-//
-
-#define DEVICE_ATLAS           0
-#define DEVICE_HERMES          1
-#define DEVICE_HERMES2         2
-#define DEVICE_ANGELIA         4
-#define DEVICE_ORION           5
-#define DEVICE_HERMES_LITE     6
-#define DEVICE_ORION2         10
-#define DEVICE_C25           100
-
-#define NEW_DEVICE_ATLAS       0
-#define NEW_DEVICE_HERMES      1
-#define NEW_DEVICE_HERMES2     2
-#define NEW_DEVICE_ANGELIA     3
-#define NEW_DEVICE_ORION       4
-#define NEW_DEVICE_ORION2      5
-#define NEW_DEVICE_HERMES_LITE 6
+static double txlevel;
 
 int main(int argc, char *argv[])
 {
@@ -271,13 +251,15 @@ int main(int argc, char *argv[])
           noiseQtab[i]= ((double) rand_r(&seed) / j - 1.0) * 0.00003;
         }
 
-	fprintf(stderr,".... producing an 800 Hz signal\n");
+	fprintf(stderr,".... producing signals\n");
 	// Produce an 800 Hz tone at 0 dBm
         run=0.0;
+        off=0.0;
 	for (i=0; i<LENTONE; i++) {
-	  toneQtab[i]=cos(run);
-	  toneItab[i]=sin(run);
+	  toneQtab[i]=cos(run)+cos(off);
+	  toneItab[i]=sin(run)+sin(off);
 	  run += 0.0032724923474893679567319201909161;
+	  off += 0.016362461737446839783659600954581;
 	}
 
 	if (diversity) {
@@ -564,6 +546,7 @@ int main(int argc, char *argv[])
 					last_q_sample=dqsample;
 					if (j == 62) bp+=8; // skip 8 SYNC/C&C bytes of second block
                                  }
+				 txlevel=txdrv_dbl*txdrv_dbl*sum * 0.0079365;
 				 // wrap-around of ring buffer
                                  if (txptr >= OLDRTXLEN) txptr=0;
 				}
@@ -666,7 +649,6 @@ int main(int argc, char *argv[])
 				memset(qsample, 0, OLDRTXLEN*sizeof(double));
 				enable_thread = 1;
 				active_thread = 1;
-				CommonMercuryFreq = 0;
 				if (pthread_create(&thread, NULL, handler_ep6, NULL) < 0)
 				{
 					perror("create old protocol thread");
@@ -865,8 +847,12 @@ void process_ep2(uint8_t *frame)
 {
 
 	uint16_t data;
+        int rc;
+        int mod_ptt;
+        int mod;
 
-        chk_data(frame[0] & 1, ptt, "PTT");
+        
+	chk_data(frame[0] & 1, ptt, "PTT");
 	switch (frame[0])
 	{
 	case 0:
@@ -874,24 +860,61 @@ void process_ep2(uint8_t *frame)
 	  chk_data((frame[1] & 0x03) >> 0, rate, "SampleRate");
 	  chk_data((frame[1] & 0x0C) >> 3, ref10, "Ref10MHz");
   	  chk_data((frame[1] & 0x10) >> 4, src122, "Source122MHz");
-  	  chk_data((frame[1] & 0x60) >> 5, PMconfig, "Pen/Mer config");
+  	  chk_data((frame[1] & 0x60) >> 5, PMconfig, "Penelope/Mercury config");
   	  chk_data((frame[1] & 0x80) >> 7, MicSrc, "MicSource");
 
           chk_data(frame[2] & 1, TX_class_E, "TX CLASS-E");
           chk_data((frame[2] & 0xfe) >> 1, OpenCollectorOutputs,"OpenCollector");
 
-          chk_data((frame[3] & 0x03) >> 0, AlexAtt, "ALEX Attenuator");
-          chk_data((frame[3] & 0x04) >> 2, preamp, "ALEX preamp");
-          chk_data((frame[3] & 0x08) >> 3, LTdither, "LT2208 Dither");
-          chk_data((frame[3] & 0x10) >> 4, LTrandom, "LT2208 Random");
-          chk_data((frame[3] & 0x60) >> 5, alexRXant, "ALEX RX ant");
-          chk_data((frame[3] & 0x80) >> 7, alexRXout, "ALEX RX out");
-
-          chk_data(((frame[4] >> 0) & 3), AlexTXrel, "ALEX TX relay");
-          chk_data(((frame[4] >> 2) & 1), duplex,    "DUPLEX");
           chk_data(((frame[4] >> 3) & 7) + 1, receivers, "RECEIVERS");
           chk_data(((frame[4] >> 6) & 1), MicTS, "TimeStampMic");
           chk_data(((frame[4] >> 7) & 1), CommonMercuryFreq,"Common Mercury Freq");
+
+	  mod=0;
+          rc=frame[3] & 0x03;
+	  if (rc != AlexAtt) {
+	    mod=1;
+	    AlexAtt=rc;
+	  }
+	  rc=(frame[3] & 0x04) >> 2;
+	  if (rc != preamp) {
+	    mod=1;
+	    preamp=rc;
+	  }
+	  rc=(frame[3] & 0x08) >> 3;
+	  if (rc != LTdither) {
+	    mod=1;
+	    LTdither=rc;
+	  }
+	  rc=(frame[3] & 0x10) >> 4;
+	  if (rc != LTrandom) {
+	    mod=1;
+	    LTrandom=rc;
+	  }
+	  if (mod) fprintf(stderr,"AlexAtt=%d Preamp=%d Dither=%d Random=%d\n", AlexAtt,preamp,LTdither,LTrandom);
+
+	  mod=0;
+	  rc=(frame[3] & 0x60) >> 5;
+	  if (rc != alexRXant) {
+	    mod=1;
+	    alexRXant=rc;
+	  }
+	  rc=(frame[3] & 0x80) >> 7;
+	  if (rc != alexRXout) {
+	    mod=1;
+	    alexRXout=rc;
+	  }
+	  rc=(frame[4] >> 0) & 3;
+	  if (rc != AlexTXrel) {
+	    mod=1;
+	    AlexTXrel=rc;
+	  }
+	  rc=(frame[4] >> 2) & 1;
+	  if (rc != duplex) {
+	    mod=1;
+            duplex=rc;
+	  }
+	  if (mod) fprintf(stderr,"RXout=%d RXant=%d TXrel=%d Duplex=%d\n",alexRXout,alexRXant,AlexTXrel,duplex);
 
 	  if (OLDDEVICE == DEVICE_C25) {
               // Charly25: has two 18-dB preamps that are switched with "preamp" and "dither"
@@ -950,12 +973,12 @@ void process_ep2(uint8_t *frame)
 	case 19:
 	   chk_data(frame[1],txdrive,"TX DRIVE");
 	   chk_data(frame[2] & 0x3F,hermes_config,"HERMES CONFIG");
-	   chk_data(frame[2] & 0x40, alex_manual,"ALEX manual HPF/LPF");
-	   chk_data(frame[2] & 0x70, vna     ,"VNA mode");
+	   chk_data((frame[2] >> 6) & 0x01, alex_manual,"ALEX manual HPF/LPF");
+	   chk_data((frame[2] >> 7) & 0x01, vna     ,"VNA mode");
 	   chk_data(frame[3] & 0x1F,alex_hpf,"ALEX HPF");
-	   chk_data(frame[3] & 0x20,alex_bypass,"ALEX Bypass HPFs");
-	   chk_data(frame[3] & 0x40,lna6m,"ALEX 6m LNA");
-	   chk_data(frame[3] & 0x80,alexTRdisable,"ALEX T/R disable");
+	   chk_data((frame[3] >> 5) & 0x01,alex_bypass,"ALEX Bypass HPFs");
+	   chk_data((frame[3] >> 6) & 0x01,lna6m,"ALEX 6m LNA");
+	   chk_data((frame[3] >> 7) & 0x01,alexTRdisable,"ALEX T/R disable");
 	   chk_data(frame[4],alex_lpf,"ALEX LPF");
            // reset TX level. Leve a little head-room for noise
 	   txdrv_dbl=(double) txdrive * 0.00390625;  // div. by. 256
@@ -1126,11 +1149,41 @@ void *handler_ep6(void *arg)
 		    pointer = buffer + i * 516 - i % 2 * 4 + 8;
 		    memcpy(pointer, header + header_offset, 8);
 
-		    header_offset = header_offset >= 32 ? 0 : header_offset + 8;
-
+		    switch (header_offset) {
+			case 0:
+			    // no CW bits
+			    header_offset=8;
+			    break;
+			case 8:
+			    // AIN5: Exciter power
+			    *(pointer+4)=0;		// about 500 mW
+			    *(pointer+5)=txdrive;
+			    // AIN1: Forward Power
+			    j=(int) ((4095.0/c1)*sqrt(100.0*txlevel*c2));
+			    *(pointer+6)=(j >> 8) & 0xFF;
+			    *(pointer+7)=(j     ) & 0xFF;
+			    header_offset=16;
+			    break;
+			case 16:
+			    // AIN2: Reverse power
+			    // AIN3:
+			    header_offset=24;
+			    break;
+			case 24:
+			    // AIN4:
+			    // AIN5: supply voltage
+			    *(pointer+6) = 0;
+			    *(pointer+7) = 63;	
+			    header_offset=32;
+			    break;
+			case 32:
+			    header_offset=0;
+			    break;
+		    }
+			    
 		    pointer += 8;
 		    memset(pointer, 0, 504);
-		    fac1=rxatt_dbl[0]*0.00001;		// Amplitude of 800-Hz-signal to ADC1
+		    fac1=rxatt_dbl[0]*0.0002239;	// Amplitude of 800-Hz-signal to ADC1
 		    if (diversity) {
 			fac2=0.0001*rxatt_dbl[0];	// Amplitude of broad "man-made" noise to ADC1
 			fac4=0.0002*rxatt_dbl[1];	// Amplitude of broad "man-made" noise to ADC2

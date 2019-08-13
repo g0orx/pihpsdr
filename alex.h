@@ -42,7 +42,8 @@
 #define ALEX_RX_ANTENNA_XVTR   0x00000100		// route XVTR-in  to RX1 (bit 8)
 #define ALEX_RX_ANTENNA_EXT1   0x00000200		// route EXT1     to RX1 (bit 9)
 #define ALEX_RX_ANTENNA_EXT2   0x00000400		// route EXT2     to RX1 (bit 10)
-#define ALEX_RX_ANTENNA_BYPASS 0x00000800		// connect BYPASS to RX1 (bit 11)
+#define ALEX_RX_ANTENNA_BYPASS 0x00000800		// activate BYPASS       (bit 11)
+#define ANAN7000_RX_SELECT     0x00004000               // Master RX select      (bit 14)
 
 #define ALEX_TX_ANTENNA_1      0x01000000		// route TX to ANT1
 #define ALEX_TX_ANTENNA_2      0x02000000		// route TX to ANT2
@@ -107,14 +108,10 @@
 //
 
 // These bits only have a function on ANAN-7000
-#define ALEX_ANAN7000_RX_ANT_NONE       0x00000000
-#define ALEX_ANAN7000_RX_ANT_EXT1       0x00004200   // bits 9, 14
-#define ALEX_ANAN7000_RX_ANT_XVTR       0x00004100   // bits 8, 14
-#define ALEX_ANAN7000_RX_ANT_BYPASS     0x00000800   // bit  11
 
-#define ALEX_ANAN7000_RX_30_20_17_BPF	0x00000002   // bit 1, 11.0 - 20.9 MHz
-#define ALEX_ANAN7000_RX_15_12_BPF	0x00000004   // bit 2, 21.0 - 26.9 MHz
-#define ALEX_ANAN7000_RX_10_6_PRE_BPF	0x00000008   // bit 3, 27.0 - 61.4 MHz with preamp
+#define ALEX_ANAN7000_RX_20_15_BPF	0x00000002   // bit 1, 11.0 - 22.0 MHz
+#define ALEX_ANAN7000_RX_12_10_BPF	0x00000004   // bit 2, 22.0 - 35.6 MHz
+#define ALEX_ANAN7000_RX_6_PRE_BPF	0x00000008   // bit 3,      > 35.6 MHz with preamp
 #define ALEX_ANAN7000_RX_40_30_BPF	0x00000010   // bit 4,  5.5 - 10.9 MHz
 #define ALEX_ANAN7000_RX_80_60_BPF	0x00000020   // bit 5,  2.1 -  5.4 MHz
 #define ALEX_ANAN7000_RX_160_BPF	0x00000040   // bit 6,  1.5 -  2.0 MHz
