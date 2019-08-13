@@ -861,8 +861,6 @@ static void new_protocol_high_priority() {
       case NEW_DEVICE_ORION2:
 //
 //	new ANAN-7000/8000 band-pass RX filters
-//      This info comes from file bpf2_select.v in the
-//      P1 firmware
 //
 //	To support the ANAN-8000 we
 //	should bypass BPFs while transmitting in PURESIGNAL,
@@ -877,12 +875,12 @@ static void new_protocol_high_priority() {
           alex0|=ALEX_ANAN7000_RX_80_60_BPF;
         } else if(rxFrequency<11000000L) {
           alex0|=ALEX_ANAN7000_RX_40_30_BPF;
-        } else if(rxFrequency<20900000L) {
-          alex0|=ALEX_ANAN7000_RX_30_20_17_BPF;
+        } else if(rxFrequency<22000000L) {
+          alex0|=ALEX_ANAN7000_RX_20_15_BPF;
         } else if(rxFrequency<35000000L) {
-          alex0|=ALEX_ANAN7000_RX_15_12_BPF;
+          alex0|=ALEX_ANAN7000_RX_12_10_BPF;
         } else {
-          alex0|=ALEX_ANAN7000_RX_10_6_PRE_BPF;
+          alex0|=ALEX_ANAN7000_RX_6_PRE_BPF;
         }
         break;
       default:
@@ -921,41 +919,20 @@ static void new_protocol_high_priority() {
     if (!isTransmitting() && device != NEW_DEVICE_ORION2 && receiver[0]->alex_antenna < 3) {
 	txFrequency = rxFrequency;
     }
-    switch(device) {
-      case NEW_DEVICE_ORION2:
-        if(txFrequency>32000000) {
-          alex0|=ALEX_6_BYPASS_LPF;
-        } else if(txFrequency>22000000) {
-          alex0|=ALEX_12_10_LPF;
-        } else if(txFrequency>15000000) {
-          alex0|=ALEX_17_15_LPF;
-        } else if(txFrequency>8000000) {
-          alex0|=ALEX_30_20_LPF;
-        } else if(txFrequency>4500000) {
-          alex0|=ALEX_60_40_LPF;
-        } else if(txFrequency>2400000) {
-          alex0|=ALEX_80_LPF;
-        } else {
-          alex0|=ALEX_160_LPF;
-        }
-        break;
-      default:
-        if(txFrequency>35600000) {
-          alex0|=ALEX_6_BYPASS_LPF;
-        } else if(txFrequency>24000000) {
-          alex0|=ALEX_12_10_LPF;
-        } else if(txFrequency>16500000) {
-          alex0|=ALEX_17_15_LPF;
-        } else if(txFrequency>8000000) {
-          alex0|=ALEX_30_20_LPF;
-        } else if(txFrequency>5000000) {
-          alex0|=ALEX_60_40_LPF;
-        } else if(txFrequency>2500000) {
-          alex0|=ALEX_80_LPF;
-        } else {
-          alex0|=ALEX_160_LPF;
-        }
-        break;
+    if(txFrequency>35600000L) {
+      alex0|=ALEX_6_BYPASS_LPF;
+    } else if(txFrequency>24000000L) {
+      alex0|=ALEX_12_10_LPF;
+    } else if(txFrequency>16500000L) {
+      alex0|=ALEX_17_15_LPF;
+    } else if(txFrequency>8000000L) {
+      alex0|=ALEX_30_20_LPF;
+    } else if(txFrequency>5000000L) {
+      alex0|=ALEX_60_40_LPF;
+    } else if(txFrequency>2500000L) {
+      alex0|=ALEX_80_LPF;
+    } else {
+      alex0|=ALEX_160_LPF;
     }
 
 //
@@ -1080,8 +1057,6 @@ static void new_protocol_high_priority() {
 	}
 //
 //      new ANAN-7000/8000 band-pass RX filters
-//      This info comes from file bpf2_select.v in the
-//      P1 firmware
 //
         if(rxFrequency<1500000L) {
           alex1|=ALEX_ANAN7000_RX_BYPASS_BPF;
@@ -1091,12 +1066,12 @@ static void new_protocol_high_priority() {
           alex1|=ALEX_ANAN7000_RX_80_60_BPF;
         } else if(rxFrequency<11000000L) {
           alex1|=ALEX_ANAN7000_RX_40_30_BPF;
-        } else if(rxFrequency<20900000L) {
-          alex1|=ALEX_ANAN7000_RX_30_20_17_BPF;
+        } else if(rxFrequency<22000000L) {
+          alex1|=ALEX_ANAN7000_RX_20_15_BPF;
         } else if(rxFrequency<35000000L) {
-          alex1|=ALEX_ANAN7000_RX_15_12_BPF;
+          alex1|=ALEX_ANAN7000_RX_12_10_BPF;
         } else {
-          alex1|=ALEX_ANAN7000_RX_10_6_PRE_BPF;
+          alex1|=ALEX_ANAN7000_RX_6_PRE_BPF;
         }
 
 //

@@ -109,9 +109,9 @@
 
 // These bits only have a function on ANAN-7000
 
-#define ALEX_ANAN7000_RX_30_20_17_BPF	0x00000002   // bit 1, 11.0 - 20.9 MHz
-#define ALEX_ANAN7000_RX_15_12_BPF	0x00000004   // bit 2, 21.0 - 26.9 MHz
-#define ALEX_ANAN7000_RX_10_6_PRE_BPF	0x00000008   // bit 3, 27.0 - 61.4 MHz with preamp
+#define ALEX_ANAN7000_RX_20_15_BPF	0x00000002   // bit 1, 11.0 - 22.0 MHz
+#define ALEX_ANAN7000_RX_12_10_BPF	0x00000004   // bit 2, 22.0 - 35.6 MHz
+#define ALEX_ANAN7000_RX_6_PRE_BPF	0x00000008   // bit 3,      > 35.6 MHz with preamp
 #define ALEX_ANAN7000_RX_40_30_BPF	0x00000010   // bit 4,  5.5 - 10.9 MHz
 #define ALEX_ANAN7000_RX_80_60_BPF	0x00000020   // bit 5,  2.1 -  5.4 MHz
 #define ALEX_ANAN7000_RX_160_BPF	0x00000040   // bit 6,  1.5 -  2.0 MHz

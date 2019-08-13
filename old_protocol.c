@@ -104,6 +104,36 @@
 #define LT2208_RANDOM_OFF         0x00
 #define LT2208_RANDOM_ON          0x10
 
+#define DEBUG_PROTO 1
+
+#ifdef DEBUG_PROTO
+/*
+ * This is for debugging the protocol
+ */
+
+static int C3_RX1_OUT=-1;
+static int C3_RX1_ANT=-1;
+static int C4_TX_REL=-1;
+static int PC_PTT=-1;
+static int CASE1=-1;
+static int CASE2=-1;
+
+static int C2_FB=-1;
+static int C3_HPF=-1;
+static int C3_BP=-1;
+static int C3_LNA=-1;
+static int C3_TXDIS=-1;
+
+static int C4_LPF=-1;
+
+static int C1_DRIVE=-1;
+
+static int proto_mod=0;
+static int proto_val;
+
+#define CHECK(x, var) proto_val=(x); if ((x) != var) { proto_mod=1; var=proto_val;}
+#endif
+
 //static int buffer_size=BUFFER_SIZE;
 
 static int display_width;
@@ -1185,6 +1215,11 @@ void ozy_send_buffer() {
         output_buffer[C3] |= 0x80;
 	break;
     }
+#ifdef DEBUG_PROTO
+    CHECK(i, CASE1);
+    CHECK((output_buffer[C3] & 0x80) >> 7, C3_RX1_OUT);
+    CHECK((output_buffer[C3] & 0x60) >> 5, C3_RX1_ANT);
+#endif
 
 
     output_buffer[C4]=0x04;  // duplex
@@ -1230,6 +1265,11 @@ void ozy_send_buffer() {
           output_buffer[C4]|=0x03;
           break;
     }
+#ifdef DEBUG_PROTO
+    CHECK(i, CASE2);
+    CHECK(output_buffer[C4] & 0x03, C4_TX_REL);
+#endif
+
     // end of "C0=0" packet
   } else {
     //
@@ -1316,8 +1356,41 @@ void ozy_send_buffer() {
         if (isTransmitting() && transmitter->puresignal && receiver[PS_RX_FEEDBACK]->alex_antenna == 6) {
           output_buffer[C2] |= 0x40;  // enable manual filter selection
           output_buffer[C3] &= 0x80;  // preserve ONLY "PA enable" bit and clear all filters including "6m LNA"
-          output_buffer[C3] |= 0x20;  // bypass all filters
-        }
+          output_buffer[C3] |= 0x20;  // bypass all RX filters
+	  //
+	  // For "manual" filter selection we also need to select the appropriate TX LPF
+	  // 
+	  // We here use the transition frequencies used in Thetis by default. Note the
+	  // P1 firmware has different default transition frequences.
+	  // Even more odd, HERMES routes 15m through the 10/12 LPF, while
+	  // Angelia routes 12m through the 17/15m LPF.
+	  //
+	  long long txFrequency = channel_freq(-1);
+	  if (txFrequency > 35600000L) {		// > 10m so use 6m LPF
+	    output_buffer[C4] = 0x10;
+	  } else if (txFrequency > 24000000L)  {	// > 15m so use 10/12m LPF
+	    output_buffer[C4] = 0x20;
+	  } else if (txFrequency > 16500000L) {		// > 20m so use 17/15m LPF
+	    output_buffer[C4] = 0x40;
+	  } else if (txFrequency >  8000000L) {		// > 40m so use 30/20m LPF
+	    output_buffer[C4] = 0x01;
+	  } else if (txFrequency >  5000000L) {		// > 80m so use 60/40m LPF
+	    output_buffer[C4] = 0x02;
+	  } else if (txFrequency >  2500000L) {		// > 160m so use 80m LPF
+	    output_buffer[C4] = 0x04;
+	  } else {					// < 2.5 MHz use 160m LPF
+	    output_buffer[C4] = 0x08;
+	  }
+	}
+#endif
+#ifdef DEBUG_PROTO
+	CHECK(output_buffer[C1], C1_DRIVE);
+	CHECK((output_buffer[C2] & 0xE0) >> 5, C2_FB);
+	CHECK(output_buffer[C3] & 0x1F, C3_HPF);
+        CHECK((output_buffer[C3] & 0x20) >> 5, C3_BP);
+        CHECK((output_buffer[C3] & 0x40) >> 6, C3_LNA);
+        CHECK((output_buffer[C3] & 0x80) >> 7, C3_TXDIS);
+        CHECK(output_buffer[C4], C4_LPF);
 #endif
         }
         break;
@@ -1486,6 +1559,20 @@ void ozy_send_buffer() {
       output_buffer[C0]|=0x01;
     }
   }
+#ifdef DEBUG_PROTO
+  CHECK(output_buffer[C0] & 1, PC_PTT);
+
+/*
+ * ship out line after each complete run
+ */
+  if (proto_mod && command == 1) {
+    fprintf(stderr,"DIS=%d DRIVE=%3d PTT=%d i1=%4d RXout=%d RXant=%d i2=%d TXrel=%d FB=%d BP=%d LNA=%d HPF=%02x LPF=%02x\n",
+     C3_TXDIS, C1_DRIVE, PC_PTT, CASE1, C3_RX1_OUT, C3_RX1_ANT, CASE2, C4_TX_REL,
+     C2_FB, C3_BP, C3_LNA, C3_HPF, C4_LPF);
+    proto_mod=0;
+  }
+#endif
+     
 
 #ifdef USBOZY
 //

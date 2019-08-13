@@ -847,8 +847,12 @@ void process_ep2(uint8_t *frame)
 {
 
 	uint16_t data;
+        int rc;
+        int mod_ptt;
+        int mod;
 
-        chk_data(frame[0] & 1, ptt, "PTT");
+        
+	chk_data(frame[0] & 1, ptt, "PTT");
 	switch (frame[0])
 	{
 	case 0:
@@ -862,18 +866,55 @@ void process_ep2(uint8_t *frame)
           chk_data(frame[2] & 1, TX_class_E, "TX CLASS-E");
           chk_data((frame[2] & 0xfe) >> 1, OpenCollectorOutputs,"OpenCollector");
 
-          chk_data((frame[3] & 0x03) >> 0, AlexAtt, "ALEX Attenuator");
-          chk_data((frame[3] & 0x04) >> 2, preamp, "ALEX preamp");
-          chk_data((frame[3] & 0x08) >> 3, LTdither, "LT2208 Dither");
-          chk_data((frame[3] & 0x10) >> 4, LTrandom, "LT2208 Random");
-          chk_data((frame[3] & 0x60) >> 5, alexRXant, "ALEX RX ant");
-          chk_data((frame[3] & 0x80) >> 7, alexRXout, "ALEX RX out");
-
-          chk_data(((frame[4] >> 0) & 3), AlexTXrel, "ALEX TX relay");
-          chk_data(((frame[4] >> 2) & 1), duplex,    "DUPLEX");
           chk_data(((frame[4] >> 3) & 7) + 1, receivers, "RECEIVERS");
           chk_data(((frame[4] >> 6) & 1), MicTS, "TimeStampMic");
           chk_data(((frame[4] >> 7) & 1), CommonMercuryFreq,"Common Mercury Freq");
+
+	  mod=0;
+          rc=frame[3] & 0x03;
+	  if (rc != AlexAtt) {
+	    mod=1;
+	    AlexAtt=rc;
+	  }
+	  rc=(frame[3] & 0x04) >> 2;
+	  if (rc != preamp) {
+	    mod=1;
+	    preamp=rc;
+	  }
+	  rc=(frame[3] & 0x08) >> 3;
+	  if (rc != LTdither) {
+	    mod=1;
+	    LTdither=rc;
+	  }
+	  rc=(frame[3] & 0x10) >> 4;
+	  if (rc != LTrandom) {
+	    mod=1;
+	    LTrandom=rc;
+	  }
+	  if (mod) fprintf(stderr,"AlexAtt=%d Preamp=%d Dither=%d Random=%d\n", AlexAtt,preamp,LTdither,LTrandom);
+
+	  mod=0;
+	  rc=(frame[3] & 0x60) >> 5;
+	  if (rc != alexRXant) {
+	    mod=1;
+	    alexRXant=rc;
+	  }
+	  rc=(frame[3] & 0x80) >> 7;
+	  if (rc != alexRXout) {
+	    mod=1;
+	    alexRXout=rc;
+	  }
+	  rc=(frame[4] >> 0) & 3;
+	  if (rc != AlexTXrel) {
+	    mod=1;
+	    AlexTXrel=rc;
+	  }
+	  rc=(frame[4] >> 2) & 1;
+	  if (rc != duplex) {
+	    mod=1;
+            duplex=rc;
+	  }
+	  if (mod) fprintf(stderr,"RXout=%d RXant=%d TXrel=%d Duplex=%d\n",alexRXout,alexRXant,AlexTXrel,duplex);
 
 	  if (OLDDEVICE == DEVICE_C25) {
               // Charly25: has two 18-dB preamps that are switched with "preamp" and "dither"
