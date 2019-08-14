@@ -104,7 +104,7 @@
 #define LT2208_RANDOM_OFF         0x00
 #define LT2208_RANDOM_ON          0x10
 
-#define DEBUG_PROTO 1
+//#define DEBUG_PROTO 1
 
 #ifdef DEBUG_PROTO
 /*
