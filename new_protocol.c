@@ -614,8 +614,9 @@ static void new_protocol_high_priority() {
     long long rxFrequency;
     long long txFrequency;
     long phase;
-    int mode;
+    int txmode;
     int ddc;
+    int txvfo;
 
     if(data_socket==-1) {
       return;
@@ -629,16 +630,30 @@ static void new_protocol_high_priority() {
     high_priority_buffer_to_radio[2]=high_priority_sequence>>8;
     high_priority_buffer_to_radio[3]=high_priority_sequence;
 
-    if(split) {
-      mode=vfo[1].mode;
+    //
+    // Determine VFO controlling the TX frequency
+    // and the associated mode
+    //
+    if(active_receiver->id==VFO_A) {
+      if(split) {
+        txvfo=VFO_B;
+      } else {
+	txvfo=VFO_A;
+      }
     } else {
-      mode=vfo[0].mode;
+      if(split) {
+        txvfo=VFO_A;
+      } else {
+	txvfo=VFO_B;
+      }
     }
+    txmode=vfo[txvfo].mode;
+
     high_priority_buffer_to_radio[4]=running;
 //
 //  We need not set PTT of doing internal CW with break-in
 //
-    if(mode==modeCWU || mode==modeCWL) {
+    if(txmode==modeCWU || txmode==modeCWL) {
       if (isTransmitting() && (!cw_keyer_internal || !cw_breakin || CAT_cw_is_active)) high_priority_buffer_to_radio[4]|=0x02;
     } else {
       if(isTransmitting()) {
@@ -652,7 +667,7 @@ static void new_protocol_high_priority() {
 
     if (diversity_enabled) {
 	//
-	// Use frequency of RX1 for both DDC0 and DDC1
+	// Use frequency of first receiver for both DDC0 and DDC1
 	// This is overridden later if we do PURESIGNAL TX
 	//
         rxFrequency=vfo[0].frequency-vfo[0].lo;
@@ -660,17 +675,14 @@ static void new_protocol_high_priority() {
           rxFrequency+=vfo[0].rit;
         }
 
-        switch(vfo[0].mode) {
-          case modeCWU:
-            rxFrequency-=cw_keyer_sidetone_frequency;
-            break;
-          case modeCWL:
-            rxFrequency+=cw_keyer_sidetone_frequency;
-            break;
-          default:
-            break;
+        if (cw_is_on_vfo_freq) {
+          if(vfo[0].mode==modeCWU) {
+            rxFrequency-=(long long)cw_keyer_sidetone_frequency;
+          } else if(vfo[0].mode==modeCWL) {
+            rxFrequency+=(long long)cw_keyer_sidetone_frequency;
+          }
         }
- 
+
         phase=(long)((4294967296.0*(double)rxFrequency)/122880000.0);
         high_priority_buffer_to_radio[ 9]=phase>>24;
         high_priority_buffer_to_radio[10]=phase>>16;
@@ -694,54 +706,35 @@ static void new_protocol_high_priority() {
           if(vfo[v].rit_enabled) {
             rxFrequency+=vfo[v].rit;
           }
+          if (cw_is_on_vfo_freq) {
+            if(vfo[v].mode==modeCWU) {
+              rxFrequency-=(long long)cw_keyer_sidetone_frequency;
+            } else if(vfo[v].mode==modeCWL) {
+              rxFrequency+=(long long)cw_keyer_sidetone_frequency;
+            }
+          }
 
-          switch(vfo[v].mode) {
-            case modeCWU:
-              rxFrequency-=cw_keyer_sidetone_frequency;
-              break;
-            case modeCWL:
-              rxFrequency+=cw_keyer_sidetone_frequency;
-              break;
-            default:
-              break;
-	}
-
-	phase=(long)((4294967296.0*(double)rxFrequency)/122880000.0);
-	high_priority_buffer_to_radio[9+(ddc*4)]=phase>>24;
-	high_priority_buffer_to_radio[10+(ddc*4)]=phase>>16;
-	high_priority_buffer_to_radio[11+(ddc*4)]=phase>>8;
-	high_priority_buffer_to_radio[12+(ddc*4)]=phase;
-      }
+	  phase=(long)((4294967296.0*(double)rxFrequency)/122880000.0);
+	  high_priority_buffer_to_radio[9+(ddc*4)]=phase>>24;
+	  high_priority_buffer_to_radio[10+(ddc*4)]=phase>>16;
+	  high_priority_buffer_to_radio[11+(ddc*4)]=phase>>8;
+	  high_priority_buffer_to_radio[12+(ddc*4)]=phase;
+        }
     }
 
 //
 //  Set DUC frequency
 //
 
-    if(active_receiver->id==VFO_A) {
-      txFrequency=vfo[VFO_A].frequency-vfo[VFO_A].lo+vfo[VFO_A].offset;
-      if(split) {
-        txFrequency=vfo[VFO_B].frequency-vfo[VFO_B].lo+vfo[VFO_B].offset;
-      }
-    } else {
-      txFrequency=vfo[VFO_B].frequency-vfo[VFO_B].lo+vfo[VFO_B].offset;
-      if(split) {
-        txFrequency=vfo[VFO_A].frequency-vfo[VFO_A].lo+vfo[VFO_A].offset;
+    txFrequency=vfo[txvfo].frequency-vfo[txvfo].lo+vfo[txvfo].offset;
+
+    if (!cw_is_on_vfo_freq) {
+      if(txmode==modeCWU) {
+        txFrequency+=(long long)cw_keyer_sidetone_frequency;
+      } else if(txmode==modeCWL) {
+        txFrequency-=(long long)cw_keyer_sidetone_frequency;
       }
     }
-
-/*
-    switch(vfo[active_receiver->id].mode) {
-        case modeCWU:
-          txFrequency+=cw_keyer_sidetone_frequency;
-          break;
-        case modeCWL:
-          txFrequency-=cw_keyer_sidetone_frequency;
-          break;
-        default:
-          break;
-      }
-*/
 
     phase=(long)((4294967296.0*(double)txFrequency)/122880000.0);
 

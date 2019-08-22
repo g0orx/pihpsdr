@@ -68,6 +68,10 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
   return FALSE;
 }
 
+static void cw_vfo_cb(GtkWidget *widget, gpointer data) {
+  cw_is_on_vfo_freq=(uintptr_t)data;
+}
+
 static void cw_keyer_internal_cb(GtkWidget *widget, gpointer data) {
   cw_keyer_internal=cw_keyer_internal==1?0:1;
   cw_changed();
@@ -208,6 +212,18 @@ void cw_menu(GtkWidget *parent) {
   gtk_widget_show(cw_keyer_mode_b);
   gtk_grid_attach(GTK_GRID(grid),cw_keyer_mode_b,0,5,1,1);
   g_signal_connect(cw_keyer_mode_b,"pressed",G_CALLBACK(cw_keyer_mode_cb),(gpointer *)KEYER_MODE_B);
+
+  GtkWidget *cw_vfo=gtk_radio_button_new_with_label(NULL,"CW on VFO freq");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (cw_vfo), cw_is_on_vfo_freq);
+  gtk_widget_show(cw_vfo);
+  gtk_grid_attach(GTK_GRID(grid),cw_vfo,1,3,1,1);
+  g_signal_connect(cw_vfo,"pressed",G_CALLBACK(cw_vfo_cb),(gpointer *)1);
+
+  GtkWidget *cw_vfo_pm=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(cw_vfo),"CW on VFO +/- sidetone");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (cw_vfo_pm), cw_is_on_vfo_freq==0);
+  gtk_widget_show(cw_vfo_pm);
+  gtk_grid_attach(GTK_GRID(grid),cw_vfo_pm,1,4,1,1);
+  g_signal_connect(cw_vfo_pm,"pressed",G_CALLBACK(cw_vfo_cb),(gpointer *)0);
 
   GtkWidget *cw_keys_reversed_b=gtk_check_button_new_with_label("Keys reversed");
   //gtk_widget_override_font(cw_keys_reversed_b, pango_font_description_from_string("Arial 18"));

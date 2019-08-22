@@ -221,6 +221,8 @@ int cw_keyer_hang_time=300; // ms
 int cw_keyer_sidetone_frequency=400; // Hz
 int cw_breakin=1; // 0=disabled 1=enabled
 
+int cw_is_on_vfo_freq=1;   // 1= signal on VFO freq, 0= signal offset by side tone
+
 int vfo_encoder_divisor=15;
 
 int protocol;
@@ -1236,6 +1238,8 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
 
     value=getProperty("step");
     if(value) step=atoll(value);
+    value=getProperty("cw_is_on_vfo_freq");
+    if(value) cw_is_on_vfo_freq=atoi(value);
     value=getProperty("cw_keys_reversed");
     if(value) cw_keys_reversed=atoi(value);
     value=getProperty("cw_keyer_speed");
@@ -1441,6 +1445,8 @@ void radioSaveState() {
 
     sprintf(value,"%lld",step);
     setProperty("step",value);
+    sprintf(value,"%d",cw_is_on_vfo_freq);
+    setProperty("cw_is_on_vfo_freq",value);
     sprintf(value,"%d",cw_keys_reversed);
     setProperty("cw_keys_reversed",value);
     sprintf(value,"%d",cw_keyer_speed);

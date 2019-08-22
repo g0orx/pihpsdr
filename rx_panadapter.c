@@ -142,18 +142,45 @@ void rx_panadapter_update(RECEIVER *rx) {
   cairo_fill(cr);
   //cairo_paint (cr);
 
+  double HzPerPixel = rx->hz_per_pixel;  // need this many times
+
+  int mode=vfo[rx->id].mode;
   long long frequency=vfo[rx->id].frequency;
   long half=(long)rx->sample_rate/2L;
+  BAND *band=band_get_band(vfo[rx->id].band);
+  double vfofreq=(double) display_width * 0.5;
+
+  //
+  // There are two options here in CW mode, depending on cw_is_on_vfo_freq.
+  //
+  // If true, the CW frequency is the VFO frequency and the center of the spectrum
+  // then is at the VFO frequency plus or minus the sidetone frequency. However we
+  // will keep the center of the PANADAPTER at the VFO frequency and shift the
+  // pixels of the spectrum.
+  //
+  // If false, the center of the spectrum is at the VFO frequency and the TX
+  // frequency is VFO freq +/- sidetone frequency. In this case we mark this
+  // freq by a yellow line.
+  //
+
+  if (cw_is_on_vfo_freq) {
+    if (mode == modeCWU) {
+      frequency -= cw_keyer_sidetone_frequency;
+      vfofreq += (double) cw_keyer_sidetone_frequency / HzPerPixel;
+    } else if (mode == modeCWL) {
+      frequency += cw_keyer_sidetone_frequency;
+      vfofreq -= (double) cw_keyer_sidetone_frequency / HzPerPixel;
+    }
+  }
   long long min_display=frequency-half;
   long long max_display=frequency+half;
-  BAND *band=band_get_band(vfo[rx->id].band);
 
   if(vfo[rx->id].band==band60) {
     for(i=0;i<channel_entries;i++) {
       long long low_freq=band_channels_60m[i].frequency-(band_channels_60m[i].width/(long long)2);
       long long hi_freq=band_channels_60m[i].frequency+(band_channels_60m[i].width/(long long)2);
-      x1=(low_freq-min_display)/(long long)rx->hz_per_pixel;
-      x2=(hi_freq-min_display)/(long long)rx->hz_per_pixel;
+      x1=(low_freq-min_display)/(long long)HzPerPixel;
+      x2=(hi_freq-min_display)/(long long)HzPerPixel;
       cairo_set_source_rgb (cr, 0.6, 0.3, 0.3);
       cairo_rectangle(cr, x1, 0.0, x2-x1, (double)display_height);
       cairo_fill(cr);
@@ -169,71 +196,18 @@ void rx_panadapter_update(RECEIVER *rx) {
     }
   }
 
-  double cwshift;
-  int begin,end,icwshift;
-
-  //
-  // In this program, when using CW, we will always transmit on exactly
-  // the frequency which is the "VFO display" frequency, not 800 Hz above
-  // or below. Therfore, the RX center frequency sent to the SDR is shifted
-  // by the sidetone frequency.
-  // Previous versions showed a "shifted" RX spectrum where the CW signal that
-  // was received exactly on the VFO frequency was shifted to the right (CWU)
-  // or to the left (CWL), the exact position shown by a yellow line.
-  // 
-  // Alternatively, one could arrange things such that the RX spectrum is
-  // shown correctly and that in CWU you "hear" a CW signal at 7000,0 kHz
-  // when the VFO display frequency is 7000.0 kHz. Then, the TX signal must
-  // have an offset, that is, you send a CW signal at 7000.8 kHz when the
-  // VFO display shows 7000.0 kHz, and the yellow line is at 7000.8 kHz.
-  //
-  // Instead of drawing a "yellow line" to show where the received CW
-  // signal is, we shift the displayed spectrum by the side tone such
-  // that the received signals occur at the nominal frequencies
-  // That is, in CW we TX at the VFO display frequency which is marked by
-  // a red line, and we also receive CW signals from exactly that position in
-  // the RX spectrum. Furthermore, when switching between CWU and CWL, the
-  // displayed RX spectrum remains unchanged except for the part at the right
-  // or left margin of the display.
-  //
-  // For me (DL1YCF) this seems more logical.
-  //
-  switch (vfo[rx->id].mode) {
-    case modeCWU:
-        // spectrum must be shifted to the left
-        cwshift=(double) cw_keyer_sidetone_frequency / rx->hz_per_pixel;
-        icwshift=(int) cwshift;
-        begin=0;
-        end=display_width-icwshift;
-        break;
-    case modeCWL:
-        // spectrum must shifted to the right
-        cwshift=-(double) cw_keyer_sidetone_frequency / rx->hz_per_pixel;
-        icwshift=(int) cwshift;
-        begin=-cwshift;
-        end=display_width;
-        break;
-    default:
-        cwshift=0.0;
-        icwshift=0;
-        begin=0;
-        end=display_width;
-        break;
-  }
-
-
   // filter
   cairo_set_source_rgba (cr, 0.25, 0.25, 0.25, 0.75);
-  filter_left =-cwshift+(double)display_width/2.0+(((double)rx->filter_low+vfo[rx->id].offset)/rx->hz_per_pixel);
-  filter_right=-cwshift+(double)display_width/2.0+(((double)rx->filter_high+vfo[rx->id].offset)/rx->hz_per_pixel);
+  filter_left =(double)display_width*0.5 +(((double)rx->filter_low+vfo[rx->id].offset)/HzPerPixel);
+  filter_right=(double)display_width*0.5 +(((double)rx->filter_high+vfo[rx->id].offset)/HzPerPixel);
   cairo_rectangle(cr, filter_left, 0.0, filter_right-filter_left, (double)display_height);
   cairo_fill(cr);
 
-/*
-  do not draw the "yellow line". Instead, shift the spectrum
-  such that the rx frequency offset is compensated
-
-  if(vfo[rx->id].mode==modeCWU || vfo[rx->id].mode==modeCWL) {
+  //
+  // Draw the "yellow line" indicating the CW frequency when
+  // it is not the VFO freq
+  //
+  if (!cw_is_on_vfo_freq && (vfo[rx->id].mode==modeCWU || vfo[rx->id].mode==modeCWL)) {
     if(active) {
       cairo_set_source_rgb (cr, 1.0, 1.0, 0.0);
     } else {
@@ -244,7 +218,6 @@ void rx_panadapter_update(RECEIVER *rx) {
     cairo_line_to(cr,cw_frequency,(double)display_height);
     cairo_stroke(cr);
   }
-*/
 
   // plot the levels
   if(active) {
@@ -300,9 +273,9 @@ void rx_panadapter_update(RECEIVER *rx) {
       break;
   }
   for(i=0;i<display_width;i++) {
-    f = frequency - half + (long) (rx->hz_per_pixel * i);
+    f = frequency - half + (long) (HzPerPixel * i);
     if (f > 0) {
-      if ((f % divisor) < (long) rx->hz_per_pixel) {
+      if ((f % divisor) < (long) HzPerPixel) {
         cairo_set_line_width(cr, 1.0);
         //cairo_move_to(cr,(double)i,0.0);
         cairo_move_to(cr,(double)i,10.0);
@@ -329,13 +302,13 @@ void rx_panadapter_update(RECEIVER *rx) {
       cairo_set_source_rgb (cr, 1.0, 0.0, 0.0);
       cairo_set_line_width(cr, 2.0);
       if((min_display<band->frequencyMin)&&(max_display>band->frequencyMin)) {
-        i=(band->frequencyMin-min_display)/(long long)rx->hz_per_pixel;
+        i=(band->frequencyMin-min_display)/(long long)HzPerPixel;
         cairo_move_to(cr,(double)i,0.0);
         cairo_line_to(cr,(double)i,(double)display_height);
         cairo_stroke(cr);
       }
       if((min_display<band->frequencyMax)&&(max_display>band->frequencyMax)) {
-        i=(band->frequencyMax-min_display)/(long long)rx->hz_per_pixel;
+        i=(band->frequencyMax-min_display)/(long long)HzPerPixel;
         cairo_move_to(cr,(double)i,0.0);
         cairo_line_to(cr,(double)i,(double)display_height);
         cairo_stroke(cr);
@@ -403,24 +376,24 @@ void rx_panadapter_update(RECEIVER *rx) {
     cairo_set_source_rgb (cr, 0.5, 0.0, 0.0);
   }
   cairo_set_line_width(cr, 1.0);
-  cairo_move_to(cr,(double)(display_width/2.0)+(vfo[rx->id].offset/rx->hz_per_pixel),0.0);
-  cairo_line_to(cr,(double)(display_width/2.0)+(vfo[rx->id].offset/rx->hz_per_pixel),(double)display_height);
+  cairo_move_to(cr,vfofreq+(vfo[rx->id].offset/HzPerPixel),0.0);
+  cairo_line_to(cr,vfofreq+(vfo[rx->id].offset/HzPerPixel),(double)display_height);
   cairo_stroke(cr);
 
   // signal
   double s1,s2;
 
-  samples[begin+icwshift]=-200.0;
-  samples[end-1+icwshift]=-200.0;
-  s1=(double)samples[begin+icwshift]+(double)adc_attenuation[rx->adc];
+  samples[0]=-200.0;
+  samples[display_width-1]=-200.0;
+  s1=(double)samples[0]+(double)adc_attenuation[rx->adc];
   if (filter_board == ALEX && rx->adc == 0) s1 += (double)(10*rx->alex_attenuation);
 
   s1 = floor((rx->panadapter_high - s1)
                         * (double) display_height
                         / (rx->panadapter_high - rx->panadapter_low));
-  cairo_move_to(cr, (double) begin, s1);
-  for(i=begin+1;i<end;i++) {
-    s2=(double)samples[i+icwshift]+(double)adc_attenuation[rx->adc];
+  cairo_move_to(cr, 0.0, s1);
+  for(i=1;i<display_width;i++) {
+    s2=(double)samples[i]+(double)adc_attenuation[rx->adc];
     if (filter_board == ALEX && rx->adc == 0) s2 += (double)(10*rx->alex_attenuation);
     s2 = floor((rx->panadapter_high - s2)
                             * (double) display_height
