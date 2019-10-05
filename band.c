@@ -451,7 +451,7 @@ void bandSaveState() {
         setProperty(name,value);
 
         sprintf(value,"%lld",bands[b].frequencyLO);
-        sprintf(name,"band.%d.txFrequencyLO",b);
+        sprintf(name,"band.%d.frequencyLO",b);
         setProperty(name,value);
 
         sprintf(value,"%lld",bands[b].errorLO);
