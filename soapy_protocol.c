@@ -243,6 +243,13 @@ fprintf(stderr,"soapy_protocol_init: SoapySDRDevice_make\n");
   }
   SoapySDRKwargs_clear(&args);
 
+  if(transmitter->local_microphone) {
+    if(audio_open_input()!=0) {
+      fprintf(stderr,"audio_open_input failed\n");
+      transmitter->local_microphone=0;
+    }
+  }
+
 }
 
 static void *receive_thread(void *arg) {
@@ -342,7 +349,7 @@ fprintf(stderr,"soapy_protocol: receive_thread: SoapySDRDevice_unmake\n");
   //_exit(0);
 }
 
-void soapy_protocol_process_local_mic(unsigned char *buffer) {
+void soapy_protocol_process_local_mic(unsigned char *buffer,int le) {
   int b;
   int i;
   short sample;
@@ -350,7 +357,13 @@ void soapy_protocol_process_local_mic(unsigned char *buffer) {
 // always 48000 samples per second
   b=0;
   for(i=0;i<720;i++) {
-    sample=(short)(buffer[i]*32767.0);
+    if(le) {
+      sample = (short) (buffer[b++]&0xFF);
+      sample |= (short) (buffer[b++]<<8);
+    } else {
+      sample = (short)(buffer[b++]<<8);
+      sample |=  (short) (buffer[b++]&0xFF);
+    }
 #ifdef FREEDV
     if(active_receiver->freedv) {
       add_freedv_mic_sample(transmitter,sample);
@@ -414,7 +427,7 @@ void soapy_protocol_set_tx_frequency(TRANSMITTER *tx) {
     } else {
       f=(double)(vfo[v].frequency-vfo[v].lo_tx);
     }
-//g_print("soapy_protocol_set_tx_frequency: %f\n",f);
+g_print("soapy_protocol_set_tx_frequency: %f\n",f);
     rc=SoapySDRDevice_setFrequency(soapy_device,SOAPY_SDR_TX,active_receiver->adc,f,NULL);
     if(rc!=0) {
       fprintf(stderr,"soapy_protocol: SoapySDRDevice_setFrequency(TX) failed: %s\n",SoapySDR_errToStr(rc));

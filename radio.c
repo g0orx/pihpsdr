@@ -1067,7 +1067,7 @@ void setMox(int state) {
       break;
 #endif
     default:
-     break;
+      break;
   }
 }
 

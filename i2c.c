@@ -127,6 +127,7 @@ void i2c_interrupt() {
     flags=read_word_data(ADDRESS_1,0x0E);
     if(flags) {
       ints=read_word_data(ADDRESS_1,0x10);
+g_print("i1c_interrupt: flags=%04X ints=%04X\n",flags,ints);
       if(ints) {
         int i=-1;
         switch(ints) {
@@ -179,6 +180,7 @@ void i2c_interrupt() {
             i=SW17;
             break;
         }
+g_print("i1c_interrupt: sw=%d action=%d\n",i,sw_action[i]);
         switch(sw_action[i]) {
           case TUNE:
             {
@@ -195,7 +197,9 @@ void i2c_interrupt() {
             }
             break;
           case PS:
+#ifdef PURESIGNAL
             g_idle_add(ext_ps_update,NULL);
+#endif
             break;
           case TWO_TONE:
             g_idle_add(ext_two_tone,NULL);

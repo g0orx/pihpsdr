@@ -43,7 +43,7 @@ void soapy_protocol_stop_transmitter(TRANSMITTER *tx);
 void soapy_protocol_set_tx_frequency(TRANSMITTER *tx);
 void soapy_protocol_set_tx_antenna(TRANSMITTER *tx,int ant);
 void soapy_protocol_set_tx_gain(TRANSMITTER *tx,char *name,int gain);
-void soapy_protocol_process_local_mic(unsigned char *buffer);
+void soapy_protocol_process_local_mic(unsigned char *buffer,int le);
 void soapy_protocol_iq_samples(float isample,float qsample);
 void soapy_protocol_set_mic_sample_rate(int rate);
 #endif

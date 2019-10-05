@@ -44,6 +44,9 @@
 #include "transmitter.h"
 #include "new_protocol.h"
 #include "old_protocol.h"
+#ifdef SOAPYSDR
+#include "soapy_protocol.h"
+#endif
 #ifdef FREEDV
 #include "freedv.h"
 #endif
@@ -815,6 +818,11 @@ static void full_tx_buffer(TRANSMITTER *tx) {
     case NEW_PROTOCOL:
       gain=8388607.0; // 24 bit
       break;
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
+      gain=32767.0;  // 16 bit
+      break;
+#endif
   }
 
   if (cwmode) {
@@ -946,6 +954,11 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 		case NEW_PROTOCOL:
 		    new_protocol_iq_samples(isample,qsample);
 		    break;
+#ifdef SOAPYSDR
+                case SOAPYSDR_PROTOCOL:
+                    soapy_protocol_iq_samples((float)tx->iq_output_buffer[j*2],(float)tx->iq_output_buffer[(j*2)+1]);
+                    break;
+#endif
 	    }
 	}
     }

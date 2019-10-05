@@ -403,7 +403,9 @@ fprintf(stderr,"e_function_pressed: %d\n",action);
       g_idle_add(ext_mox_update,NULL);
       break;
     case PS:
+#ifdef PURESIGNAL
       g_idle_add(ext_ps_update,NULL);
+#endif
       break;
     case TWO_TONE:
       g_idle_add(ext_two_tone,NULL);
