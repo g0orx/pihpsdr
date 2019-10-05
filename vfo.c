@@ -173,6 +173,9 @@ void vfo_save_state() {
     sprintf(name,"vfo.%d.lo",i);
     sprintf(value,"%lld",vfo[i].lo);
     setProperty(name,value);
+    sprintf(name,"vfo.%d.lo_tx",i);
+    sprintf(value,"%lld",vfo[i].lo_tx);
+    setProperty(name,value);
     sprintf(name,"vfo.%d.ctun_frequency",i);
     sprintf(value,"%lld",vfo[i].ctun_frequency);
     setProperty(name,value);
@@ -236,7 +239,9 @@ void vfo_restore_state() {
     sprintf(name,"vfo.%d.filter",i);
     value=getProperty(name);
     if(value) vfo[i].filter=atoi(value);
-
+    sprintf(name,"vfo.%d.lo_tx",i);
+    value=getProperty(name);
+    if(value) vfo[i].lo_tx=atoll(value);
   }
 }
 
@@ -279,6 +284,8 @@ void vfo_band_changed(int b) {
   vfo[id].mode=entry->mode;
   vfo[id].filter=entry->filter;
   vfo[id].lo=band->frequencyLO+band->errorLO;
+  vfo[id].lo_tx=band->txFrequencyLO+band->txErrorLO;
+
 
   switch(id) {
     case 0:
@@ -537,11 +544,13 @@ void vfo_move(long long hz) {
   int id=active_receiver->id;
   if(!locked) {
     switch(protocol) {
-#ifdef LIMESDR
-      case LIMESDR_PROTOCOL:
+/*
+#ifdef SOAPYSDR
+      case SOAPYSDR_PROTOCOL:
         vfo[id].ctun_frequency=((vfo[id].ctun_frequency-hz)/step)*step;
         break;
 #endif
+*/
       default:
         if(vfo[id].ctun) {
           vfo[id].ctun_frequency=((vfo[id].ctun_frequency-hz)/step)*step;
@@ -559,11 +568,13 @@ void vfo_move_to(long long hz) {
   int id=active_receiver->id;
   if(!locked) {
     switch(protocol) {
-#ifdef LIMESDR
-      case LIMESDR_PROTOCOL:
+/*
+#ifdef SOAPYSDR
+      case SOAPYSDR_PROTOCOL:
         vfo[id].ctun_frequency=(vfo[id].frequency+hz)/step*step;
         break;
 #endif
+*/
       default:
         if(vfo[id].ctun) {
           vfo[id].ctun_frequency=(vfo[id].frequency+hz)/step*step;
@@ -588,8 +599,8 @@ void vfo_move_to(long long hz) {
 
     BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
 
-#ifdef LIMESDR
-    if(protocol==LIMESDR_PROTOCOL) {
+#ifdef SOAPYSDR
+    if(protocol==SOAPYSDR_PROTOCOL) {
       setFrequency((entry->frequency+active_receiver->dds_offset-hz)/step*step);
     } else {
 #endif
@@ -604,7 +615,7 @@ void vfo_move_to(long long hz) {
         }
         setFrequency(f);
       }
-#ifdef LIMESDR
+#ifdef SOAPYSDR
     }
 #endif
 #endif
@@ -789,7 +800,7 @@ void vfo_update() {
           cairo_show_text(cr, "NR2");
 	} else {
           cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
-          cairo_show_text(cr, "NR2");
+          cairo_show_text(cr, "NR");
         }
 
         cairo_move_to(cr, 210, 50);  
@@ -845,6 +856,14 @@ void vfo_update() {
             cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
             cairo_show_text(cr, "CMPR OFF");
 	}
+
+        cairo_move_to(cr, 500, 50);  
+        if(diversity_enabled) {
+          cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
+        } else {
+          cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
+        }
+        cairo_show_text(cr, "DIV");
 
         int s=0;
         while(steps[s]!=step && steps[s]!=0) {

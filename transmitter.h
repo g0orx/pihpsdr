@@ -26,6 +26,7 @@
 
 typedef struct _transmitter {
   int id;
+  int dac;
   int fps;
   int displaying;
   int mic_sample_rate;

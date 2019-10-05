@@ -25,5 +25,6 @@
 #define AGC_SLOW 2
 #define AGC_MEDIUM 3
 #define AGC_FAST 4
+#define AGC_LAST AGC_FAST
 
 #endif

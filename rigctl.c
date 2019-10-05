@@ -1181,7 +1181,7 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                              fprintf(stderr,"RIGCTL: BD - current band=%d\n",cur_band);
                                              #endif
                                              if(cur_band == 0) {
-                                                #ifdef LIMESDR
+                                                #ifdef SOAPYSDR
                                                     cur_band = band472;
                                                 #else
                                                     cur_band = band6;

@@ -36,15 +36,19 @@
 
 #include <alsa/asoundlib.h>
 
-#include "new_protocol.h"
-#include "old_protocol.h"
 #include "radio.h"
 #include "receiver.h"
+#include "transmitter.h"
 #include "audio.h"
 #include "mode.h"
+#include "new_protocol.h"
+#include "old_protocol.h"
+#ifdef SOAPYSDR
+#include "soapy_protocol.h"
+#endif
 
 int audio = 0;
-int audio_buffer_size = 256; // samples (both left and right)
+long audio_buffer_size = 256; // samples (both left and right)
 int mic_buffer_size = 720; // samples (both left and right)
 
 //static snd_pcm_t *playback_handle=NULL;
@@ -313,7 +317,7 @@ void audio_close_input() {
 //
 int cw_audio_write(double sample){
   snd_pcm_sframes_t delay;
-  int error;
+  long rc;
   long trim;
   short shortsample;
 	
@@ -330,24 +334,23 @@ int cw_audio_write(double sample){
 
       trim=0;
 
+/*
       if(snd_pcm_delay(rx->playback_handle,&delay)==0) {
         if(delay>2048) {
           trim=delay-2048;
 //fprintf(stderr,"audio delay=%ld trim=%ld\n",delay,trim);
         }
       }
-
-      if ((error = snd_pcm_writei (rx->playback_handle, rx->playback_buffer, audio_buffer_size-trim)) != audio_buffer_size-trim) {
-        if(error==-EPIPE) {
-          if ((error = snd_pcm_prepare (rx->playback_handle)) < 0) {
-            fprintf (stderr, "audio_write: cannot prepare audio interface for use (%s)\n",
-                    snd_strerror (error));
-            return -1;
-          }
-          if ((error = snd_pcm_writei (rx->playback_handle, rx->playback_buffer, audio_buffer_size-trim)) != audio_buffer_size) {
-            fprintf (stderr, "audio_write: write to audio interface failed (%s)\n",
-                    snd_strerror (error));
-            return -1;
+*/
+      if ((rc = snd_pcm_writei (rx->playback_handle, rx->playback_buffer, audio_buffer_size-trim)) != audio_buffer_size-trim) {
+        if(rc<0) {
+          if(rc==-EPIPE) {
+            if ((rc = snd_pcm_prepare (rx->playback_handle)) < 0) {
+              fprintf (stderr, "audio_write: cannot prepare audio interface for use %d (%s)\n", rc, snd_strerror (rc));
+              return -1;
+            } else {
+              // ignore short write
+            }
           }
         }
       }
@@ -363,7 +366,7 @@ int cw_audio_write(double sample){
 //
 int audio_write(RECEIVER *rx,short left_sample,short right_sample) {
   snd_pcm_sframes_t delay;
-  int error;
+  long rc;
   long trim;
   int mode=transmitter->mode;
   //
@@ -374,7 +377,12 @@ int audio_write(RECEIVER *rx,short left_sample,short right_sample) {
   // If *not* doing CW, the stream continues because we might wish
   // to listen to this rx while transmitting.
   //
-  if (rx == active_receiver && isTransmitting() && (mode==modeCWU || mode==modeCWL)) return 0;
+
+  if (rx == active_receiver && isTransmitting() && (mode==modeCWU || mode==modeCWL)) {
+    fprintf(stderr,"returning from audio_write\n");
+    rx->playback_offset=0;
+    return 0;
+  }
 
   if(rx->playback_handle!=NULL && rx->playback_buffer!=NULL) {
     rx->playback_buffer[rx->playback_offset++]=right_sample;
@@ -386,24 +394,28 @@ int audio_write(RECEIVER *rx,short left_sample,short right_sample) {
 
       trim=0;
 
+/*
       if(snd_pcm_delay(rx->playback_handle,&delay)==0) {
         if(delay>2048) {
           trim=delay-2048;
-//fprintf(stderr,"audio delay=%ld trim=%ld\n",delay,trim);
+fprintf(stderr,"audio delay=%ld trim=%ld audio_buffer_size=%d\n",delay,trim,audio_buffer_size);
+          if(trim>=audio_buffer_size) {
+            rx->playback_offset=0;
+            return 0;
+          }
         }
       }
-
-      if ((error = snd_pcm_writei (rx->playback_handle, rx->playback_buffer, audio_buffer_size-trim)) != audio_buffer_size-trim) {
-        if(error==-EPIPE) {
-          if ((error = snd_pcm_prepare (rx->playback_handle)) < 0) {
-            fprintf (stderr, "audio_write: cannot prepare audio interface for use (%s)\n",
-                    snd_strerror (error));
-            return -1;
-          }
-          if ((error = snd_pcm_writei (rx->playback_handle, rx->playback_buffer, audio_buffer_size-trim)) != audio_buffer_size) {
-            fprintf (stderr, "audio_write: write to audio interface failed (%s)\n",
-                    snd_strerror (error));
-            return -1;
+*/
+      if ((rc = snd_pcm_writei (rx->playback_handle, rx->playback_buffer, audio_buffer_size-trim)) != audio_buffer_size-trim) {
+        if(rc<0) {
+          if(rc==-EPIPE) {
+            if ((rc = snd_pcm_prepare (rx->playback_handle)) < 0) {
+              fprintf (stderr, "audio_write: cannot prepare audio interface for use %d (%s)\n", rc, snd_strerror (rc));
+              rx->playback_offset=0;
+              return -1;
+            }
+          } else {
+            // ignore short write
           }
         }
       }
@@ -441,6 +453,11 @@ fprintf(stderr,"mic_read_thread: mic_buffer_size=%d\n",mic_buffer_size);
         case NEW_PROTOCOL:
           new_protocol_process_local_mic(mic_buffer,1);
           break;
+#ifdef SOAPYSDR
+        case SOAPYSDR_PROTOCOL:
+          soapy_protocol_process_local_mic(mic_buffer);
+          break;
+#endif
         default:
           break;
       }

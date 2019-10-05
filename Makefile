@@ -3,8 +3,11 @@
 GIT_DATE := $(firstword $(shell git --no-pager show --date=short --format="%ai" --name-only))
 GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 
+# uncomment the line below to include CONTROLLER2 (Also include GPIO and I2C)
+#CONTROLLER2_INCLUDE=CONTROLLER2
+
 # uncomment the line below to include GPIO
-#GPIO_INCLUDE=GPIO
+GPIO_INCLUDE=GPIO
 
 # uncomment the line below to include MCP23017 I2C
 #I2C_INCLUDE=I2C
@@ -19,7 +22,7 @@ GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 #FREEDV_INCLUDE=FREEDV
 
 # uncomment the line below to include Pure Signal support
-#PURESIGNAL_INCLUDE=PURESIGNAL
+PURESIGNAL_INCLUDE=PURESIGNAL
 
 # uncomment the line to below include support for sx1509 i2c expander
 #SX1509_INCLUDE=sx1509
@@ -51,6 +54,10 @@ LINK=gcc
 
 # uncomment the line below for various debug facilities
 #DEBUG_OPTION=-D DEBUG
+
+ifeq ($(CONTROLLER2_INCLUDE),CONTROLLER2)
+CONTROLLER2_OPTIONS=-D CONTROLLER2
+endif
 
 ifeq ($(MIDI_INCLUDE),MIDI)
 MIDI_OPTIONS=-D MIDI
@@ -94,8 +101,6 @@ USBOZY_OBJS= \
 ozyio.o
 endif
 
-# uncomment the line below for LimeSDR (uncomment line below)
-#LIMESDR_INCLUDE=LIMESDR
 
 # uncomment the line below when Radioberry radio cape is plugged in (for now use emulator and old protocol)
 #RADIOBERRY_INCLUDE=RADIOBERRY
@@ -103,18 +108,21 @@ ifeq ($(RADIOBERRY_INCLUDE),RADIOBERRY)
 RADIOBERRY_OPTIONS=-D RADIOBERRY
 endif
 
-ifeq ($(LIMESDR_INCLUDE),LIMESDR)
-LIMESDR_OPTIONS=-D LIMESDR
+# uncomment the line below for SoapySDR
+SOAPYSDR_INCLUDE=SOAPYSDR
+
+ifeq ($(SOAPYSDR_INCLUDE),SOAPYSDR)
+SOAPYSDR_OPTIONS=-D SOAPYSDR
 SOAPYSDRLIBS=-lSoapySDR
-LIMESDR_SOURCES= \
-lime_discovery.c \
-lime_protocol.c
-LIMESDR_HEADERS= \
-lime_discovery.h \
-lime_protocol.h
-LIMESDR_OBJS= \
-lime_discovery.o \
-lime_protocol.o
+SOAPYSDR_SOURCES= \
+soapy_discovery.c \
+soapy_protocol.c
+SOAPYSDR_HEADERS= \
+soapy_discovery.h \
+soapy_protocol.h
+SOAPYSDR_OBJS= \
+soapy_discovery.o \
+soapy_protocol.o
 endif
 
 
@@ -159,13 +167,16 @@ ifeq ($(GPIO_INCLUDE),GPIO)
   GPIO_LIBS=-lwiringPi
   GPIO_SOURCES= \
   gpio.c \
-  encoder_menu.c
+  encoder_menu.c \
+  switch_menu.c
   GPIO_HEADERS= \
   gpio.h \
-  encoder_menu.h
+  encoder_menu.h \
+  switch_menu.h
   GPIO_OBJS= \
   gpio.o \
-  encoder_menu.o
+  encoder_menu.o \
+  switch_menu.o
 endif
 
 ifeq ($(I2C_INCLUDE),I2C)
@@ -210,8 +221,9 @@ AUDIO_LIBS=-lasound
 #AUDIO_LIBS=-lsoundio
 
 OPTIONS=-g -Wno-deprecated-declarations $(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) \
-	$(I2C_OPTIONS) $(GPIO_OPTIONS) $(LIMESDR_OPTIONS) $(FREEDV_OPTIONS) $(LOCALCW_OPTIONS) $(RADIOBERRY_OPTIONS) \
+	$(I2C_OPTIONS) $(GPIO_OPTIONS) $(SOAPYSDR_OPTIONS) $(FREEDV_OPTIONS) $(LOCALCW_OPTIONS) $(RADIOBERRY_OPTIONS) \
 	$(PI_SDR_OPTIONS) $(PSK_OPTIONS) $(STEMLAB_OPTIONS) \
+        $(CONTROLLER2_OPTIONS) \
 	-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION) -O3
 
 LIBS=-lrt -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(PSKLIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS) $(STEMLAB_LIBS) $(MIDI_LIBS)
@@ -431,17 +443,17 @@ ext.o \
 error_handler.o \
 cwramp.o
 
-$(PROGRAM):  $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) \
+$(PROGRAM):  $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) $(FREEDV_OBJS) \
 		$(LOCALCW_OBJS) $(I2C_OBJS) $(GPIO_OBJS) $(PSK_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS)
 	$(LINK) -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(I2C_OBJS) $(GPIO_OBJS) \
-		$(LIMESDR_OBJS) $(FREEDV_OBJS) $(LOCALCW_OBJS) $(PSK_OBJS) $(PURESIGNAL_OBJS) \
+		$(SOAPYSDR_OBJS) $(FREEDV_OBJS) $(LOCALCW_OBJS) $(PSK_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(LIBS)
 
-all:	prebuild  $(PROGRAM) $(HEADERS) $(REMOTE_HEADERS) $(USBOZY_HEADERS) $(LIMESDR_HEADERS) \
+all:	prebuild  $(PROGRAM) $(HEADERS) $(REMOTE_HEADERS) $(USBOZY_HEADERS) $(SOAPYSDR_HEADERS) \
 	$(FREEDV_HEADERS) $(LOCALCW_HEADERS) $(I2C_HEADERS) $(GPIO_HEADERS) $(PSK_HEADERS) \
 	$(PURESIGNAL_HEADERS) $(MIDI_HEADERS) $(STEMLAB_HEADERS) $(SOURCES) $(REMOTE_SOURCES) \
-	$(USBOZY_SOURCES) $(LIMESDR_SOURCES) $(FREEDV_SOURCES) $(I2C_SOURCES) $(GPIO_SOURCES) \
+	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(FREEDV_SOURCES) $(I2C_SOURCES) $(GPIO_SOURCES) \
 	$(PSK_SOURCES) $(PURESIGNAL_SOURCES) $(MIDI_SOURCES)$(STEMLAB_SOURCES)
 
 prebuild:

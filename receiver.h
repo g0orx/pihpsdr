@@ -39,6 +39,7 @@ typedef enum _audio_t audio_t;
 typedef struct _receiver {
   int id;
 
+  int ddc;
   int adc;
 
   double volume;
@@ -99,6 +100,7 @@ typedef struct _receiver {
 
   int panadapter_low;
   int panadapter_high;
+  int panadapter_step;
 
   int waterfall_low;
   int waterfall_high;
@@ -127,6 +129,9 @@ typedef struct _receiver {
   int waterfall_sample_rate;
 
   int mute_radio;
+
+  gdouble *buffer;
+  int resample_step;
 
 #ifdef FREEDV
   GMutex freedv_mutex;

@@ -21,7 +21,7 @@
 #define _DISCOVERED_H
 
 #include <netinet/in.h>
-#ifdef LIMESDR
+#ifdef SOAPYSDR
 #include <SoapySDR/Device.h>
 #endif
 
@@ -51,8 +51,8 @@
 #define NEW_DEVICE_ORION2 5
 #define NEW_DEVICE_HERMES_LITE 6
 
-#ifdef LIMESDR
-#define LIMESDR_USB_DEVICE 0
+#ifdef SOAPYSDR
+#define SOAPYSDR_USB_DEVICE 0
 #endif
 
 #define STATE_AVAILABLE 2
@@ -60,8 +60,8 @@
 
 #define ORIGINAL_PROTOCOL 0
 #define NEW_PROTOCOL 1
-#ifdef LIMESDR
-#define LIMESDR_PROTOCOL 2
+#ifdef SOAPYSDR
+#define SOAPYSDR_PROTOCOL 2
 #endif
 
 #ifdef REMOTE
@@ -90,6 +90,11 @@ struct _DISCOVERED {
     char name[64];
     int software_version;
     int status;
+    int supported_receivers;
+    int supported_transmitters;
+    int adcs;
+    double frequency_min;
+    double frequency_max;
     union {
       struct network {
         unsigned char mac_address[6];
@@ -100,9 +105,24 @@ struct _DISCOVERED {
         struct sockaddr_in interface_netmask;
         char interface_name[64];
       } network;
-#ifdef LIMESDR
+#ifdef SOAPYSDR
       struct soapy {
-        SoapySDRKwargs *args;
+        int rtlsdr_count;
+        int sample_rate;
+        size_t rx_channels;
+        size_t rx_gains;
+        char **rx_gain;
+        SoapySDRRange *rx_range;
+        gboolean rx_has_automatic_gain;
+        gboolean rx_has_automatic_dc_offset_correction;
+        size_t rx_antennas;
+        char **rx_antenna;
+        size_t tx_channels;
+        size_t tx_gains;
+        char **tx_gain;
+        SoapySDRRange *tx_range;
+        size_t tx_antennas;
+        char **tx_antenna;
       } soapy;
 #endif
     } info;

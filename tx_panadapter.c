@@ -349,22 +349,24 @@ void tx_panadapter_update(TRANSMITTER *tx) {
 #endif
 
 #ifdef GPIO
+#ifndef CONTROLLER2
   cairo_set_source_rgb(cr,1.0,1.0,0.0);
   cairo_set_font_size(cr,16);
-  if(ENABLE_E1_ENCODER) {
-    cairo_move_to(cr, display_width-150,30);
-    cairo_show_text(cr, encoder_string[e1_encoder_action]);
-  }
-
   if(ENABLE_E2_ENCODER) {
-    cairo_move_to(cr, display_width-150,50);
+    cairo_move_to(cr, display_width-150,30);
     cairo_show_text(cr, encoder_string[e2_encoder_action]);
   }
 
   if(ENABLE_E3_ENCODER) {
-    cairo_move_to(cr, display_width-150,70);
+    cairo_move_to(cr, display_width-150,50);
     cairo_show_text(cr, encoder_string[e3_encoder_action]);
   }
+
+  if(ENABLE_E4_ENCODER) {
+    cairo_move_to(cr, display_width-150,70);
+    cairo_show_text(cr, encoder_string[e4_encoder_action]);
+  }
+#endif
 #endif
 
 #ifdef PURESIGNAL

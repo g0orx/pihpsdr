@@ -269,8 +269,8 @@ void general_menu(GtkWidget *parent) {
 
   }
 
-#ifdef LIMESDR
-  if(protocol==LIMESDR_PROTOCOL) {
+#ifdef SOAPYSDR
+  if(protocol==SOAPYSDR_PROTOCOL) {
     GtkWidget *sample_rate_1M=gtk_radio_button_new_with_label(NULL,"1000000");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sample_rate_1M), sample_rate==1000000);
     gtk_grid_attach(GTK_GRID(grid),sample_rate_1M,0,2,1,1);

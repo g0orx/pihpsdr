@@ -29,6 +29,7 @@
 
 #include <wdsp.h>
 
+#include "adc.h"
 #include "audio.h"
 #include "discovered.h"
 //#include "discovery.h"
@@ -46,8 +47,8 @@
 #include "new_protocol.h"
 #include "old_protocol.h"
 #include "store.h"
-#ifdef LIMESDR
-#include "lime_protocol.h"
+#ifdef SOAPYSDR
+#include "soapy_protocol.h"
 #endif
 #ifdef FREEDV
 #include "freedv.h"
@@ -122,6 +123,9 @@ int region=REGION_OTHER;
 
 int echo=0;
 
+int radio_sample_rate;
+gboolean iqswap;
+
 static gint save_timer_id;
 
 DISCOVERED *radio=NULL;
@@ -175,6 +179,7 @@ int waterfall_high=-100;
 int waterfall_low=-150;
 
 int display_sliders=1;
+int display_toolbar=1;
 
 //double volume=0.2;
 double mic_gain=0.0;
@@ -391,6 +396,7 @@ void start_radio() {
 #endif
 
   char text[256];
+
   //for(i=0;i<devices;i++) {
     switch(radio->protocol) {
       case ORIGINAL_PROTOCOL:
@@ -410,24 +416,92 @@ void start_radio() {
   //}
 
 
+  char p[32];
+  char version[32];
+  char mac[32];
+  char ip[32];
+  char iface[32];
+
+  switch(radio->protocol) {
+    case ORIGINAL_PROTOCOL:
+      strcpy(p,"Protocol 1");
+      sprintf(version,"v%d.%d)",
+                   radio->software_version/10,
+                   radio->software_version%10);
+      sprintf(mac,"%02X:%02X:%02X:%02X:%02X:%02X",
+                  radio->info.network.mac_address[0],
+                  radio->info.network.mac_address[1],
+                  radio->info.network.mac_address[2],
+                  radio->info.network.mac_address[3],
+                  radio->info.network.mac_address[4],
+                  radio->info.network.mac_address[5]);
+      sprintf(ip,"%s", inet_ntoa(radio->info.network.address.sin_addr));
+      sprintf(iface,"%s", radio->info.network.interface_name);
+      break;
+    case NEW_PROTOCOL:
+      strcpy(p,"Protocol 2");
+      sprintf(version,"v%d.%d)",
+                   radio->software_version/10,
+                   radio->software_version%10);
+      sprintf(mac,"%02X:%02X:%02X:%02X:%02X:%02X",
+                  radio->info.network.mac_address[0],
+                  radio->info.network.mac_address[1],
+                  radio->info.network.mac_address[2],
+                  radio->info.network.mac_address[3],
+                  radio->info.network.mac_address[4],
+                  radio->info.network.mac_address[5]);
+      sprintf(ip,"%s", inet_ntoa(radio->info.network.address.sin_addr));
+      sprintf(iface,"%s", radio->info.network.interface_name);
+      break;
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
+      strcpy(p,"SoapySDR");
+      sprintf(version,"v%d.%d.%d)",
+                   radio->software_version/100,
+                   (radio->software_version%100)/10,
+                   radio->software_version%10);
+      strcpy(mac,"");
+      strcpy(ip,"");
+      strcpy(iface,"");
+      break;
+#endif
+  }
+
+  switch(protocol) {
+    case ORIGINAL_PROTOCOL:
+    case NEW_PROTOCOL:
+#ifdef USBOZY
+      if(radio->device==DEVICE_OZY) {
+        sprintf(text,"%s (%s) on USB /dev/ozy\n", radio->name, p);
+      } else {
+#endif
+        sprintf(text,"Starting %s (%s %s)",
+                      radio->name,
+                      p,
+                      version);
+#ifdef USBOZY
+      }
+#endif
+      break;
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
+      sprintf(text,"Starting %s (%s %s)",
+                    radio->name,
+                    "SoapySDR",
+                    version);
+      break;
+#endif
+    }
 
   status_text(text);
 
-  sprintf(text,"piHPSDR: %s (%s v%d.%d) %s (%02X:%02X:%02X:%02X:%02X:%02X) on %s",
+  sprintf(text,"piHPSDR: %s (%s %s) %s (%s) on %s",
                           radio->name,
-                          radio->protocol==ORIGINAL_PROTOCOL?"Protocol 1":"Protocol 2",
-                          radio->software_version/10,
-                          radio->software_version%10,
-                          inet_ntoa(radio->info.network.address.sin_addr),
-                          radio->info.network.mac_address[0],
-                          radio->info.network.mac_address[1],
-                          radio->info.network.mac_address[2],
-                          radio->info.network.mac_address[3],
-                          radio->info.network.mac_address[4],
-                          radio->info.network.mac_address[5],
-                          radio->info.network.interface_name);
-
-//fprintf(stderr,"title: length=%d\n", (int)strlen(text));
+                          p,
+                          version,
+                          ip,
+                          mac,
+                          iface);
 
   gtk_window_set_title (GTK_WINDOW (top_window), text);
 
@@ -454,9 +528,9 @@ void start_radio() {
           break;
       }
       break;
-#ifdef LIMESDR
-    case LIMESDR_PROTOCOL:
-      sprintf(property_path,"limesdr.props");
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
+      sprintf(property_path,"%s.props",radio->name);
       break;
 #endif
   }
@@ -518,16 +592,104 @@ void start_radio() {
           break;
       }
       break;
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
+      if(strcmp(radio->name,"lime")==0) {
+        n_adc=2;
+      } else {
+        n_adc=1;
+      }
+      break;
+#endif
     default:
       break;
   }
+
+  iqswap=0;
+
+#ifdef SOAPYSDR
+  if(radio->device==SOAPYSDR_USB_DEVICE) {
+    iqswap=1;
+  }
+  receivers=1;
+#endif
 
   adc_attenuation[0]=0;
   adc_attenuation[1]=0;
   rx_gain_slider[0] = 0;
   rx_gain_slider[1] = 0;
 
+  adc[0].antenna=ANTENNA_1;
+  adc[0].filters=AUTOMATIC;
+  adc[0].hpf=HPF_13;
+  adc[0].lpf=LPF_30_20;
+  adc[0].dither=FALSE;
+  adc[0].random=FALSE;
+  adc[0].preamp=FALSE;
+  adc[0].attenuation=0;
+#ifdef SOAPYSDR
+  adc[0].antenna=1; // LNAH
+  if(radio->device==SOAPYSDR_USB_DEVICE) {
+    adc[0].rx_gain=malloc(radio->info.soapy.rx_gains*sizeof(gint));
+    for (size_t i = 0; i < radio->info.soapy.rx_gains; i++) {
+      adc[0].rx_gain[i]=0;
+    }
+    adc[0].agc=FALSE;
+/*
+    if(r->can_transmit) {
+      r->dac[0].antenna=1;
+      r->dac[0].tx_gain=malloc(r->discovered->info.soapy.tx_gains*sizeof(gint));
+      for (size_t i = 0; i < r->discovered->info.soapy.tx_gains; i++) {
+        r->dac[0].tx_gain[i]=0;
+      }
+    }
+*/
+  }
+#endif
+
+  adc[1].antenna=ANTENNA_1;
+  adc[1].filters=AUTOMATIC;
+  adc[1].hpf=HPF_9_5;
+  adc[1].lpf=LPF_60_40;
+  adc[1].dither=FALSE;
+  adc[1].random=FALSE;
+  adc[1].preamp=FALSE;
+  adc[1].attenuation=0;
+#ifdef SOAPYSDR
+  adc[1].antenna=3; // LNAW
+  if(radio->device==SOAPYSDR_USB_DEVICE) {
+    adc[1].rx_gain=malloc(radio->info.soapy.rx_gains*sizeof(gint));
+    for (size_t i = 0; i < radio->info.soapy.rx_gains; i++) {
+      adc[1].rx_gain[i]=0;
+    }
+    adc[1].agc=FALSE;
+
+/*
+    if(r->can_transmit) {
+      r->dac[1].tx_gain=malloc(r->discovered->info.soapy.tx_gains*sizeof(gint));
+      for (size_t i = 0; i < r->discovered->info.soapy.tx_gains; i++) {
+        r->dac[1].tx_gain[i]=0;
+      }
+    }
+*/
+  }
+
+  radio_sample_rate=radio->info.soapy.sample_rate;
+#endif
+
 //fprintf(stderr,"meter_calibration=%f display_calibration=%f\n", meter_calibration, display_calibration);
+
+#ifdef CONTROLLER2
+  display_sliders=0;
+  display_toolbar=1;
+#else
+  display_sliders=1;
+  display_toolbar=1;
+#endif
+
+#ifdef GPIO
+  gpio_restore_state();
+#endif
   radioRestoreState();
 
 
@@ -537,8 +699,19 @@ void start_radio() {
 // Change setting to reasonable value then.
 // 
 //
-  if (protocol == ORIGINAL_PROTOCOL && buffer_size > 2048) buffer_size=2048;
-  if (protocol == NEW_PROTOCOL      && buffer_size >  512) buffer_size= 512;
+  switch (protocol) {
+    case ORIGINAL_PROTOCOL:
+      if (buffer_size > 2048) buffer_size=2048;
+      break;
+    case NEW_PROTOCOL:
+      if (buffer_size > 512) buffer_size=512;
+      break;
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
+      if (buffer_size > 2048) buffer_size=2048;
+      break;
+#endif
+  }
 
   radio_change_region(region);
 
@@ -572,9 +745,12 @@ void start_radio() {
   y+=MENU_HEIGHT;
 
 
-  int rx_height=display_height-VFO_HEIGHT-TOOLBAR_HEIGHT;
+  int rx_height=display_height-VFO_HEIGHT;
   if(display_sliders) {
     rx_height-=SLIDERS_HEIGHT;
+  }
+  if(display_toolbar) {
+    rx_height-=TOOLBAR_HEIGHT;
   }
   int tx_height=rx_height;
   rx_height=rx_height/RECEIVERS;
@@ -639,9 +815,9 @@ void start_radio() {
     case NEW_PROTOCOL:
       new_protocol_init(display_width);
       break;
-#ifdef LIMESDR
-    case LIMESDR_PROTOCOL:
-      lime_protocol_init(0,display_width,receiver[0]->sample_rate);
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
+      soapy_protocol_init(0,false);
       break;
 #endif
   }
@@ -660,9 +836,11 @@ void start_radio() {
   }
 
 
-  toolbar = toolbar_init(display_width,TOOLBAR_HEIGHT,top_window);
-  gtk_fixed_put(GTK_FIXED(fixed),toolbar,0,y);
-  y+=TOOLBAR_HEIGHT;
+  if(display_toolbar) {
+    toolbar = toolbar_init(display_width,TOOLBAR_HEIGHT,top_window);
+    gtk_fixed_put(GTK_FIXED(fixed),toolbar,0,y);
+    y+=TOOLBAR_HEIGHT;
+  }
 
 //
 // Now, if there should only one receiver be displayed
@@ -686,7 +864,7 @@ void start_radio() {
   
 
   // save every 30 seconds
-  save_timer_id=gdk_threads_add_timeout(30000, save_cb, NULL);
+  //save_timer_id=gdk_threads_add_timeout(30000, save_cb, NULL);
 
 #ifdef PSK
   if(vfo[active_receiver->id].mode==modePSK) {
@@ -709,6 +887,33 @@ void start_radio() {
   if(protocol==NEW_PROTOCOL) {
     schedule_high_priority();
   }
+
+#ifdef SOAPYSDR
+  if(protocol==SOAPYSDR_PROTOCOL) {
+    RECEIVER *rx=receiver[0];
+    soapy_protocol_create_receiver(rx);
+
+
+    soapy_protocol_set_rx_antenna(rx,adc[0].antenna);
+    for(int i=0;i<radio->info.soapy.rx_gains;i++) {
+      soapy_protocol_set_gain(rx,radio->info.soapy.rx_gain[i],adc[0].rx_gain[i]);
+    }
+    soapy_protocol_set_rx_frequency(rx,VFO_A);
+    soapy_protocol_set_automatic_gain(rx,adc[0].agc);
+    for(int i=0;i<radio->info.soapy.rx_gains;i++) {
+      soapy_protocol_set_gain(rx,radio->info.soapy.rx_gain[i],adc[0].rx_gain[i]);
+    }
+    soapy_protocol_start_receiver(rx);
+/*
+    if(r->can_transmit) {
+      if(r->transmitter!=NULL && r->transmitter->rx==rx) {
+        soapy_protocol_set_tx_antenna(r->transmitter,1);
+        soapy_protocol_set_tx_frequency(r->transmitter);
+      }
+    }
+*/
+  }
+#endif
 
   g_idle_add(ext_vfo_update,(gpointer)NULL);
 
@@ -766,9 +971,9 @@ void radio_change_sample_rate(int rate) {
         tx_set_ps_sample_rate(transmitter,rate);
       }
       break;
-#ifdef LIMESDR
-    case LIMESDR_PROTOCOL:
-      lime_protocol_change_sample_rate(rate);
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
+      soapy_protocol_change_sample_rate(receiver[0],rate);
       break;
 #endif
   }
@@ -857,9 +1062,20 @@ void setMox(int state) {
     mox=state;
   }
   vox=0;
-  if(protocol==NEW_PROTOCOL) {
+  switch(protocol) {
+    case NEW_PROTOCOL:
       schedule_high_priority();
       schedule_receive_specific();
+      break;
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
+      if(transmitter!=NULL) {
+        soapy_protocol_set_tx_frequency(transmitter);
+      }
+      break;
+#endif
+    default:
+     break;
   }
 }
 
@@ -875,6 +1091,42 @@ void vox_changed(int state) {
   if(protocol==NEW_PROTOCOL) {
       schedule_high_priority();
       schedule_receive_specific();
+  }
+}
+
+void frequency_changed(RECEIVER *rx) {
+//fprintf(stderr,"frequency_changed: channel=%d frequency=%ld lo=%ld error=%ld ctun=%d offset=%ld\n",rx->channel,rx->frequency_a,rx->lo_a,rx->error_a,rx->ctun,rx->offset);
+  if(vfo[0].ctun) {
+    SetRXAShiftFreq(rx->id, (double)vfo[0].offset);
+    RXANBPSetShiftFrequency(rx->id, (double)vfo[0].offset);
+#ifdef SOAPYSDR
+    if(radio->protocol==SOAPYSDR_PROTOCOL) {
+/*
+      if(radio->can_transmit) {
+        if(radio->transmitter!=NULL && radio->transmitter->rx==rx) {
+          //soapy_protocol_set_tx_frequency(radio->transmitter);
+        }
+      }
+*/
+    }
+#endif
+  } else {
+    double f=(double)(vfo[0].frequency-vfo[0].lo);
+    if(radio->protocol==NEW_PROTOCOL) {
+      schedule_high_priority();
+#ifdef SOAPYSDR
+    } else if(radio->protocol==SOAPYSDR_PROTOCOL) {
+      soapy_protocol_set_rx_frequency(rx,VFO_A);
+/*
+      if(radio->can_transmit) {
+        if(radio->transmitter!=NULL && radio->transmitter->rx==rx) {
+          soapy_protocol_set_tx_frequency(radio->transmitter);
+        }
+      }
+*/
+#endif
+    }
+    vfo[0].band=get_band_from_frequency(vfo[0].frequency);
   }
 }
 
@@ -1002,6 +1254,9 @@ void setFrequency(long long f) {
   switch(protocol) {
     case NEW_PROTOCOL:
     case ORIGINAL_PROTOCOL:
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
+#endif
       if(vfo[v].ctun) {
         long long minf=vfo[v].frequency-(long long)(active_receiver->sample_rate/2);
         long long maxf=vfo[v].frequency+(long long)(active_receiver->sample_rate/2);
@@ -1015,20 +1270,6 @@ void setFrequency(long long f) {
         vfo[v].frequency=f;
       }
       break;
-#ifdef LIMESDR
-    case LIMESDR_PROTOCOL:
-      {
-fprintf(stderr,"setFrequency: %lld\n",f);
-      long long minf=vfo[v].frequency-(long long)(active_receiver->sample_rate/2);
-      long long maxf=vfo[v].frequency+(long long)(active_receiver->sample_rate/2);
-      if(f<minf) f=minf;
-      if(f>maxf) f=maxf;
-      vfo[v].offset=f-vfo[v].frequency;
-      set_offset(active_receiver,vfo[v].offset);
-      return;
-      }
-      break;
-#endif
   }
 
   switch(protocol) {
@@ -1037,11 +1278,12 @@ fprintf(stderr,"setFrequency: %lld\n",f);
       break;
     case ORIGINAL_PROTOCOL:
       break;
-#ifdef LIMESDR
-    case LIMESDR_PROTOCOL:
-      lime_protocol_set_frequency(f);
-      vfo[v].offset=0;
-      set_offset(active_receiver,vfo[v].offset);
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
+      if(!vfo[v].ctun) {
+        soapy_protocol_set_rx_frequency(active_receiver,v);
+        vfo[v].offset=0;
+      }
       break;
 #endif
   }
@@ -1112,9 +1354,9 @@ void set_attenuation(int value) {
       case NEW_PROTOCOL:
         schedule_high_priority();
         break;
-#ifdef LIMESDR
-      case LIMESDR_PROTOCOL:
-        lime_protocol_set_attenuation(value);
+#ifdef SOAPYSDR
+      case SOAPYSDR_PROTOCOL:
+        //soapy_protocol_set_attenuation(value);
         break;
 #endif
     }
@@ -1127,9 +1369,9 @@ void set_alex_rx_antenna(int v) {
           schedule_high_priority();
       }
     }
-#ifdef LIMESDR
-    if(protocol==LIMESDR_PROTOCOL) {
-        lime_protocol_set_antenna(v);;
+#ifdef SOAPYSDR
+    if(protocol==SOAPYSDR_PROTOCOL) {
+        soapy_protocol_set_rx_antenna(active_receiver,v);
     }
 #endif
 }
@@ -1160,14 +1402,17 @@ void set_alex_attenuation(int v) {
 }
 
 void radioRestoreState() {
+    char name[80];
     char *value;
 
 fprintf(stderr,"radioRestoreState: %s\n",property_path);
+fprintf(stderr,"sem_wait\n");
 #ifdef __APPLE__
     sem_wait(property_sem);
 #else
     sem_wait(&property_sem);
 #endif
+fprintf(stderr,"sem_wait: returner\n");
     loadProperties(property_path);
 
     value=getProperty("new_pa_board");
@@ -1206,10 +1451,8 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     if(value) panadapter_low=atoi(value);
     value=getProperty("display_sliders");
     if(value) display_sliders=atoi(value);
-/*
     value=getProperty("display_toolbar");
     if(value) display_toolbar=atoi(value);
-*/
     value=getProperty("waterfall_high");
     if(value) waterfall_high=atoi(value);
     value=getProperty("waterfall_low");
@@ -1335,23 +1578,20 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     value=getProperty("tone_level");
     if(value) tone_level=atof(value);
 
-#ifdef GPIO
-    value=getProperty("e1_encoder_action");
-    if(value) e1_encoder_action=atoi(value);
-    value=getProperty("e2_encoder_action");
-    if(value) e2_encoder_action=atoi(value);
-    value=getProperty("e3_encoder_action");
-    if(value) e3_encoder_action=atoi(value);
-#endif
-
     value=getProperty("receivers");
     if(value) receivers=atoi(value);
+
+    value=getProperty("iqswap");
+    if(value) iqswap=atoi(value);
 
     filterRestoreState();
     bandRestoreState();
     memRestoreState();
     vfo_restore_state();
     modesettings_restore_state();
+#ifdef GPIO
+    gpio_restore_actions();
+#endif
 #ifdef FREEDV
     freedv_restore_state();
 #endif
@@ -1368,8 +1608,34 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     value=getProperty("rx1_gain_slider");
     if(value) rx_gain_slider[0]=atoi(value);
     value=getProperty("rx2_gain_slider");
-	if(value) rx_gain_slider[1]=atoi(value);
+    if(value) rx_gain_slider[1]=atoi(value);
+
+#ifdef SOAPYSDR
+  if(radio->device==SOAPYSDR_USB_DEVICE) {
+    for(int i=0;i<radio->info.soapy.rx_gains;i++) {
+      sprintf(name,"radio.adc[0].rx_gain.%s",radio->info.soapy.rx_gain[i]) ;
+      value=getProperty(name);
+      if(value!=NULL) adc[0].rx_gain[i]=atoi(value);
+    }
+    value=getProperty("radio.adc[0].agc");
+    if(value!=NULL) adc[0].agc=atoi(value);
+    value=getProperty("radio.adc[0].antenna");
+    if(value!=NULL) adc[0].antenna=atoi(value);
+
+/*
+    if(radio->can_transmit) {
+      for(int i=0;i<radio->info.soapy.tx_gains;i++) {
+        sprintf(name,"radio.dac[0].tx_gain.%s",radio->info.soapy.tx_gain[i]);
+        value=getProperty(name);
+        if(value!=NULL) dac[0].tx_gain[i]=atoi(value);
+      }
+    }
+*/
+  }
+#endif
+
 	
+fprintf(stderr,"sem_post\n");
 #ifdef __APPLE__
     sem_post(property_sem);
 #else
@@ -1379,13 +1645,17 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
 
 void radioSaveState() {
     int i;
+    char name[80];
     char value[80];
 
+fprintf(stderr,"radioSaveState: %s\n",property_path);
+fprintf(stderr,"sem_wait\n");
 #ifdef __APPLE__
     sem_wait(property_sem);
 #else
     sem_wait(&property_sem);
 #endif
+fprintf(stderr,"sem_wait: returned\n");
     sprintf(value,"%d",new_pa_board);
     setProperty("new_pa_board",value);
     sprintf(value,"%d",region);
@@ -1416,6 +1686,8 @@ void radioSaveState() {
     setProperty("panadapter_low",value);
     sprintf(value,"%d",display_sliders);
     setProperty("display_sliders",value);
+    sprintf(value,"%d",display_toolbar);
+    setProperty("display_toolbar",value);
     sprintf(value,"%d",waterfall_high);
     setProperty("waterfall_high",value);
     sprintf(value,"%d",waterfall_low);
@@ -1531,24 +1803,69 @@ void radioSaveState() {
     sprintf(value,"%f",tone_level);
     setProperty("tone_level",value);
 
-#ifdef GPIO
-    sprintf(value,"%d",e1_encoder_action);
-    setProperty("e1_encoder_action",value);
-    sprintf(value,"%d",e2_encoder_action);
-    setProperty("e2_encoder_action",value);
-    sprintf(value,"%d",e3_encoder_action);
-    setProperty("e3_encoder_action",value);
-#endif
-
     sprintf(value,"%d",adc_attenuation[0]);
     setProperty("adc_0_attenuation",value);
     sprintf(value,"%d",adc_attenuation[1]);
     setProperty("adc_1_attenuation",value);
 	
-	sprintf(value,"%d",rx_gain_slider[0]);
+    sprintf(value,"%d",rx_gain_slider[0]);
     setProperty("rx1_gain_slider",value);
     sprintf(value,"%d",rx_gain_slider[1]);
     setProperty("rx2_gain_slider",value);
+
+#ifdef SOAPYSDR
+    if(radio->device==SOAPYSDR_USB_DEVICE) {
+      for(int i=0;i<radio->info.soapy.rx_gains;i++) {
+        sprintf(name,"radio.adc[0].rx_gain.%s",radio->info.soapy.rx_gain[i]);
+        sprintf(value,"%d", adc[0].rx_gain[i]);
+        setProperty(name,value);
+      }
+      sprintf(name,"radio.adc[0].agc");
+      sprintf(value,"%d", soapy_protocol_get_automatic_gain(receiver[0]));
+      setProperty(name,value);
+      sprintf(name,"radio.adc[0].antenna");
+      sprintf(value,"%d", adc[0].antenna);
+      setProperty(name,value);
+
+/*
+      if(radio->can_transmit) {
+        for(int i=0;i<radio->discovered->info.soapy.tx_gains;i++) {
+          sprintf(name,"radio.dac[0].tx_gain.%s",radio->discovered->info.soapy.tx_gain[i]);
+          sprintf(value,"%d", radio->dac[0].tx_gain[i]);
+          setProperty(name,value);
+        }
+      }
+*/
+      for(int i=0;i<radio->info.soapy.rx_gains;i++) {
+        sprintf(name,"radio.adc[1].rx_gain.%s",radio->info.soapy.rx_gain[i]);
+        sprintf(value,"%d", adc[1].rx_gain[i]);
+        setProperty(name,value);
+      }
+      sprintf(name,"radio.adc[1].agc");
+      sprintf(value,"%d", soapy_protocol_get_automatic_gain(receiver[1]));
+      setProperty(name,value);
+      sprintf(name,"radio.adc[1].antenna");
+      sprintf(value,"%d", adc[1].antenna);
+      setProperty(name,value);
+
+/*
+      if(radio->can_transmit) {
+        for(int i=0;i<radio->discovered->info.soapy.tx_gains;i++) {
+          sprintf(name,"radio.dac[1].tx_gain.%s",radio->discovered->info.soapy.tx_gain[i]);
+          sprintf(value,"%d", radio->dac[1].tx_gain[i]);
+          setProperty(name,value);
+        }
+      }
+*/
+    }
+#endif
+
+
+    sprintf(value,"%d",receivers);
+    setProperty("receivers",value);
+	
+    sprintf(value,"%d",iqswap);
+    setProperty("iqswap",value);
 	
     vfo_save_state();
     modesettings_save_state();
@@ -1571,12 +1888,17 @@ void radioSaveState() {
     bandSaveState();
     memSaveState();
 
+#ifdef GPIO
+    gpio_save_actions();
+#endif
+
     sprintf(value,"%d",rigctl_enable);
     setProperty("rigctl_enable",value);
     sprintf(value,"%d",rigctl_port_base);
     setProperty("rigctl_port_base",value);
 
     saveProperties(property_path);
+fprintf(stderr,"sem_post\n");
 #ifdef __APPLE__
     sem_post(property_sem);
 #else

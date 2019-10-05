@@ -48,7 +48,6 @@
 #include "button_text.h"
 #include "ext.h"	
 
-#define MAX_FUNCTION 3
 int function=0;
 
 static int width;
@@ -351,6 +350,7 @@ void mox_cb(GtkWidget *widget, gpointer data) {
 }
 
 void mox_update(int state) {
+fprintf(stderr,"mox_update: state=%d\n",state);
   if(getTune()==1) {
     setTune(0);
   }

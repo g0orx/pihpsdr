@@ -33,11 +33,17 @@ fi
 cp pihpsdr.desktop ~/.local/share/applications
 echo "removing old versions of shared libraries"
 sudo rm -rf /usr/local/lib/libwdsp.so
-sudo rm -rf /usr/local/lib/libcodec2.*
 echo "installing pihpsdr"
 sudo cp pihpsdr /usr/local/bin
 echo "installing shared libraries"
 sudo cp libwdsp.so /usr/local/lib
-sudo cp libcodec2.so.0.7 /usr/local/lib
-cd /usr/local/lib; sudo ln -s libcodec2.so.0.7 libcodec2.so
+sudo cp libLimeSuite.so.19.04.1 /usr/local/lib
+sudo cp libSoapySDR.so.0.8.0 /usr/local/lib
+sudo cp -R SoapySDR /usr/local/lib
+cd /usr/local/lib
+sudo ln -s libLimeSuite.so.19.04.1 libLimeSuite.so.19.04-1
+sudo ln -s libLimeSuite.so.19.04-1 libLimeSuite.so
+sudo ln -s libSoapySDR.so.0.8.0 libSoapySDR.so.0.8
+sudo ln -s libSoapySDR.so.0.8 libLimeSuite.so
+sudo apt-get install librtlsdr-dev
 sudo ldconfig

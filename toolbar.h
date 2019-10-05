@@ -20,6 +20,8 @@
 #ifndef _TOOLBAR_H
 #define _TOOLBAR_H
 
+#define MAX_FUNCTION 3
+
 extern int function;
 
 

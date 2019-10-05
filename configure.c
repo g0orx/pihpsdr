@@ -44,12 +44,6 @@ static   GtkWidget *vfo_a;
 static   GtkWidget *vfo_b_label;
 static   GtkWidget *vfo_b;
 static   GtkWidget *b_enable_vfo_pullup;
-static GtkWidget *b_enable_E1_encoder;
-static   GtkWidget *E1_a_label;
-static   GtkWidget *E1_a;
-static   GtkWidget *E1_b_label;
-static   GtkWidget *E1_b;
-static   GtkWidget *b_enable_E1_pullup;
 static GtkWidget *b_enable_E2_encoder;
 static   GtkWidget *E2_a_label;
 static   GtkWidget *E2_a;
@@ -62,6 +56,20 @@ static   GtkWidget *E3_a;
 static   GtkWidget *E3_b_label;
 static   GtkWidget *E3_b;
 static   GtkWidget *b_enable_E3_pullup;
+static GtkWidget *b_enable_E4_encoder;
+static   GtkWidget *E4_a_label;
+static   GtkWidget *E4_a;
+static   GtkWidget *E4_b_label;
+static   GtkWidget *E4_b;
+static   GtkWidget *b_enable_E4_pullup;
+#ifdef CONTROLLER2
+static GtkWidget *b_enable_E5_encoder;
+static   GtkWidget *E5_a_label;
+static   GtkWidget *E5_a;
+static   GtkWidget *E5_b_label;
+static   GtkWidget *E5_b;
+static   GtkWidget *b_enable_E5_pullup;
+#endif
 static GtkWidget *b_enable_mox;
 static   GtkWidget *mox_label;
 static   GtkWidget *mox;
@@ -113,11 +121,6 @@ static gboolean save_cb (GtkWidget *widget, GdkEventButton *event, gpointer data
     VFO_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(vfo_b));
     ENABLE_VFO_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_vfo_pullup))?1:0;
 
-    ENABLE_E1_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E1_encoder))?1:0;
-    E1_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E1_a));
-    E1_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E1_b));
-    ENABLE_E1_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E1_pullup))?1:0;
-
     ENABLE_E2_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E2_encoder))?1:0;
     E2_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E2_a));
     E2_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E2_b));
@@ -128,6 +131,13 @@ static gboolean save_cb (GtkWidget *widget, GdkEventButton *event, gpointer data
     E3_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E3_b));
     ENABLE_E3_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E3_pullup))?1:0;
 
+    ENABLE_E4_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E4_encoder))?1:0;
+    E4_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E4_a));
+    E4_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E4_b));
+    ENABLE_E4_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E4_pullup))?1:0;
+
+
+/*
     ENABLE_MOX_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_mox))?1:0;
     MOX_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(mox));
 
@@ -151,6 +161,7 @@ static gboolean save_cb (GtkWidget *widget, GdkEventButton *event, gpointer data
 
     ENABLE_FUNCTION_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_function))?1:0;
     FUNCTION_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(function));
+*/
 #ifdef LOCALCW
     ENABLE_CW_BUTTONS=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_cwlr))?1:0;
     CW_ACTIVE_LOW=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_cw_active_low))?1:0;
@@ -215,37 +226,6 @@ void configure_gpio(GtkWidget *parent) {
 
   y++;
 
-  b_enable_E1_encoder=gtk_check_button_new_with_label("Enable E1");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E1_encoder), ENABLE_E1_ENCODER);
-  gtk_widget_show(b_enable_E1_encoder);
-  gtk_grid_attach(GTK_GRID(grid),b_enable_E1_encoder,0,y,1,1);
-
-  E1_a_label=gtk_label_new("GPIO A:");
-  gtk_widget_show(E1_a_label);
-  gtk_grid_attach(GTK_GRID(grid),E1_a_label,1,y,1,1);
-
-  E1_a=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(E1_a),E1_ENCODER_A);
-  gtk_widget_show(E1_a);
-  gtk_grid_attach(GTK_GRID(grid),E1_a,2,y,1,1);
-
-  E1_b_label=gtk_label_new("GPIO B:");
-  gtk_widget_show(E1_b_label);
-  gtk_grid_attach(GTK_GRID(grid),E1_b_label,3,y,1,1);
-
-  E1_b=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(E1_b),E1_ENCODER_B);
-  gtk_widget_show(E1_b);
-  gtk_grid_attach(GTK_GRID(grid),E1_b,4,y,1,1);
-
-  b_enable_E1_pullup=gtk_check_button_new_with_label("Enable Pull-up");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E1_pullup), ENABLE_E1_PULLUP);
-  gtk_widget_show(b_enable_E1_pullup);
-  gtk_grid_attach(GTK_GRID(grid),b_enable_E1_pullup,5,y,1,1);
-
-
-  y++;
-
   b_enable_E2_encoder=gtk_check_button_new_with_label("Enable E2");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E2_encoder), ENABLE_E2_ENCODER);
   gtk_widget_show(b_enable_E2_encoder);
@@ -306,8 +286,70 @@ void configure_gpio(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),b_enable_E3_pullup,5,y,1,1);
 
 
-  y++;
 
+  y++;
+  b_enable_E4_encoder=gtk_check_button_new_with_label("Enable E4");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E4_encoder), ENABLE_E4_ENCODER);
+  gtk_widget_show(b_enable_E4_encoder);
+  gtk_grid_attach(GTK_GRID(grid),b_enable_E4_encoder,0,y,1,1);
+
+  E4_a_label=gtk_label_new("GPIO A:");
+  gtk_widget_show(E4_a_label);
+  gtk_grid_attach(GTK_GRID(grid),E4_a_label,1,y,1,1);
+
+  E4_a=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(E4_a),E4_ENCODER_A);
+  gtk_widget_show(E4_a);
+  gtk_grid_attach(GTK_GRID(grid),E4_a,2,y,1,1);
+
+  E4_b_label=gtk_label_new("GPIO B:");
+  gtk_widget_show(E4_b_label);
+  gtk_grid_attach(GTK_GRID(grid),E4_b_label,3,y,1,1);
+
+  E4_b=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(E4_b),E4_ENCODER_B);
+  gtk_widget_show(E4_b);
+  gtk_grid_attach(GTK_GRID(grid),E4_b,4,y,1,1);
+
+  b_enable_E4_pullup=gtk_check_button_new_with_label("Enable Pull-up");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E4_pullup), ENABLE_E4_PULLUP);
+  gtk_widget_show(b_enable_E4_pullup);
+  gtk_grid_attach(GTK_GRID(grid),b_enable_E4_pullup,5,y,1,1);
+
+#ifdef CONTROLLER2
+  y++;
+  b_enable_E5_encoder=gtk_check_button_new_with_label("Enable E5");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E5_encoder), ENABLE_E5_ENCODER);
+  gtk_widget_show(b_enable_E5_encoder);
+  gtk_grid_attach(GTK_GRID(grid),b_enable_E5_encoder,0,y,1,1);
+
+  E5_a_label=gtk_label_new("GPIO A:");
+  gtk_widget_show(E5_a_label);
+  gtk_grid_attach(GTK_GRID(grid),E5_a_label,1,y,1,1);
+
+  E5_a=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(E5_a),E5_ENCODER_A);
+  gtk_widget_show(E5_a);
+  gtk_grid_attach(GTK_GRID(grid),E5_a,2,y,1,1);
+
+  E5_b_label=gtk_label_new("GPIO B:");
+  gtk_widget_show(E5_b_label);
+  gtk_grid_attach(GTK_GRID(grid),E5_b_label,3,y,1,1);
+
+  E5_b=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(E5_b),E5_ENCODER_B);
+  gtk_widget_show(E5_b);
+  gtk_grid_attach(GTK_GRID(grid),E5_b,4,y,1,1);
+
+  b_enable_E5_pullup=gtk_check_button_new_with_label("Enable Pull-up");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E5_pullup), ENABLE_E5_PULLUP);
+  gtk_widget_show(b_enable_E5_pullup);
+  gtk_grid_attach(GTK_GRID(grid),b_enable_E5_pullup,5,y,1,1);
+
+#endif
+
+#ifndef CONTROLLER2
+  y++;
   b_enable_mox=gtk_check_button_new_with_label("Enable MOX/TUN");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_mox), ENABLE_MOX_BUTTON);
   gtk_widget_show(b_enable_mox);
@@ -337,6 +379,7 @@ void configure_gpio(GtkWidget *parent) {
   gtk_spin_button_set_value (GTK_SPIN_BUTTON(S1),S1_BUTTON);
   gtk_widget_show(S1);
   gtk_grid_attach(GTK_GRID(grid),S1,2,y,1,1);
+#endif
 
 #ifdef LOCALCW
   // With LOCALCW, the menu got too long (does not fit on the screen)
@@ -360,6 +403,7 @@ void configure_gpio(GtkWidget *parent) {
 
   y++;
 
+#ifndef CONTROLLER2
   b_enable_S2=gtk_check_button_new_with_label("Enable S2");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_S2), ENABLE_S2_BUTTON);
   gtk_widget_show(b_enable_S2);
@@ -373,6 +417,7 @@ void configure_gpio(GtkWidget *parent) {
   gtk_spin_button_set_value (GTK_SPIN_BUTTON(S2),S2_BUTTON);
   gtk_widget_show(S2);
   gtk_grid_attach(GTK_GRID(grid),S2,2,y,1,1);
+#endif
 
 #ifdef LOCALCW
   cwr_label=gtk_label_new("CWR GPIO:");
@@ -392,6 +437,7 @@ void configure_gpio(GtkWidget *parent) {
 
   y++;
 
+#ifndef CONTROLLER2
   b_enable_S3=gtk_check_button_new_with_label("Enable S3");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_S3), ENABLE_S3_BUTTON);
   gtk_widget_show(b_enable_S3);
@@ -405,6 +451,7 @@ void configure_gpio(GtkWidget *parent) {
   gtk_spin_button_set_value (GTK_SPIN_BUTTON(S3),S3_BUTTON);
   gtk_widget_show(S3);
   gtk_grid_attach(GTK_GRID(grid),S3,2,y,1,1);
+#endif
 
 #ifdef LOCALCW
   cws_label=gtk_label_new("  SideTone GPIO:");
@@ -423,6 +470,7 @@ void configure_gpio(GtkWidget *parent) {
 #endif
   y++;
 
+#ifndef CONTROLLER2
   b_enable_S4=gtk_check_button_new_with_label("Enable S4");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_S4), ENABLE_S4_BUTTON);
   gtk_widget_show(b_enable_S4);
@@ -484,6 +532,7 @@ void configure_gpio(GtkWidget *parent) {
   gtk_spin_button_set_value (GTK_SPIN_BUTTON(function),FUNCTION_BUTTON);
   gtk_widget_show(function);
   gtk_grid_attach(GTK_GRID(grid),function,2,y,1,1);
+#endif
 
   y++;
 

@@ -26,6 +26,7 @@
 
 #include "new_menu.h"
 #include "radio_menu.h"
+#include "adc.h"
 #include "band.h"
 #include "filter.h"
 #include "radio.h"
@@ -33,6 +34,9 @@
 #include "sliders.h"
 #include "new_protocol.h"
 #include "old_protocol.h"
+#ifdef SOAPYSDR
+#include "soapy_protocol.h"
+#endif
 #include "gpio.h"
 
 static GtkWidget *parent_window=NULL;
@@ -58,6 +62,46 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
   cleanup();
   return FALSE;
 }
+
+#ifdef SOAPYSDR
+static void gain_value_changed_cb(GtkWidget *widget, gpointer data) {
+  ADC *adc=(ADC *)data;
+  int gain;
+  if(radio->device==SOAPYSDR_USB_DEVICE) {
+    gain=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+    soapy_protocol_set_gain(receiver[0],(char *)gtk_widget_get_name(widget),gain);
+    for(int i=0;i<radio->info.soapy.rx_gains;i++) {
+      if(strcmp(radio->info.soapy.rx_gain[i],(char *)gtk_widget_get_name(widget))==0) {
+        adc[0].rx_gain[i]=gain;
+        break;
+      }
+    }
+  }
+}
+
+static void agc_changed_cb(GtkWidget *widget, gpointer data) {
+  ADC *adc=(ADC *)data;
+  gboolean agc=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+  soapy_protocol_set_automatic_gain(receiver[0],agc);
+}
+
+/*
+static void dac0_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
+  DAC *dac=(DAC *)data;
+  int gain;
+  if(radio->device==SOAPYSDR_USB_DEVICE) {
+    gain=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+    soapy_protocol_set_tx_gain(radio->transmitter,(char *)gtk_widget_get_name(widget),gain);
+    for(int i=0;i<radio->discovered->info.soapy.tx_gains;i++) {
+      if(strcmp(radio->discovered->info.soapy.tx_gain[i],(char *)gtk_widget_get_name(widget))==0) {
+        radio->dac[0].tx_gain[i]=gain;
+        break;
+      }
+    }
+  }
+}
+*/
+#endif
 
 static void vfo_divisor_value_changed_cb(GtkWidget *widget, gpointer data) {
   vfo_encoder_divisor=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
@@ -93,6 +137,11 @@ static void ptt_tip_cb(GtkWidget *widget, gpointer data) {
 static void bias_cb(GtkWidget *widget, gpointer data) {
   mic_bias_enabled=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 }
+
+static void iqswap_cb(GtkWidget *widget, gpointer data) {
+  iqswap=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+}
+
 
 static void load_filters(void) {
   if(protocol==NEW_PROTOCOL) {
@@ -280,25 +329,25 @@ void radio_menu(GtkWidget *parent) {
       }
       break;
   
-#ifdef LIMESDR
-    case LIMESDR_PROTOCOL:
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
       {
       GtkWidget *sample_rate_label=gtk_label_new("Sample Rate:");
       gtk_grid_attach(GTK_GRID(grid),sample_rate_label,x,1,1,1);
 
-      GtkWidget *sample_rate_1M=gtk_radio_button_new_with_label(NULL,"1000000");
-      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sample_rate_1M), active_receiver->sample_rate==1000000);
-      gtk_grid_attach(GTK_GRID(grid),sample_rate_1M,x,2,1,1);
-      g_signal_connect(sample_rate_1M,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)1000000);
-  
-      GtkWidget *sample_rate_2M=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(sample_rate_1M),"2000000");
-      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sample_rate_2M), active_receiver->sample_rate==2000000);
-      gtk_grid_attach(GTK_GRID(grid),sample_rate_2M,x,3,1,1);
-      g_signal_connect(sample_rate_2M,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)2000000);
+      char rate[16];
+      sprintf(rate,"%d",radio->info.soapy.sample_rate);
+
+      GtkWidget *sample_rate=gtk_radio_button_new_with_label(NULL,rate);
+      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sample_rate), radio->info.soapy.sample_rate);
+      gtk_grid_attach(GTK_GRID(grid),sample_rate,x,2,1,1);
+      g_signal_connect(sample_rate,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)radio->info.soapy.sample_rate);
+
       x++;
       }
       break;
 #endif
+
   }
 
 
@@ -387,6 +436,11 @@ void radio_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),vfo_divisor,x,2,1,1);
   g_signal_connect(vfo_divisor,"value_changed",G_CALLBACK(vfo_divisor_value_changed_cb),NULL);
 
+  GtkWidget *iqswap_b=gtk_check_button_new_with_label("Swap IQ");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (iqswap_b), iqswap);
+  gtk_grid_attach(GTK_GRID(grid),iqswap_b,x,4,1,1);
+  g_signal_connect(iqswap_b,"toggled",G_CALLBACK(iqswap_cb),NULL);
+
   x++;
 
 #ifdef USBOZY
@@ -428,6 +482,43 @@ void radio_menu(GtkWidget *parent) {
     gtk_grid_attach(GTK_GRID(grid),pene_tx_b,x,7,1,1);
     g_signal_connect(pene_tx_b,"toggled",G_CALLBACK(penelopetx_cb),NULL);
   }
+
+#ifdef SOAPYSDR
+  if(radio->device==SOAPYSDR_USB_DEVICE) {
+    int i;
+    if(radio->info.soapy.rx_gains>0) {
+        x++;
+        GtkWidget *gain=gtk_label_new("Gains:");
+        gtk_grid_attach(GTK_GRID(grid),gain,0,x,1,1);
+        x++;
+      }
+
+      if(radio->info.soapy.rx_has_automatic_gain) {
+        GtkWidget *agc=gtk_check_button_new_with_label("Hardware AGC: ");
+        gtk_grid_attach(GTK_GRID(grid),agc,1,x,1,1);
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(agc),adc[0].agc);
+        g_signal_connect(agc,"toggled",G_CALLBACK(agc_changed_cb),&adc[0]);
+        x++;
+      }
+
+      for(i=0;i<radio->info.soapy.rx_gains;i++) {
+        GtkWidget *gain_label=gtk_label_new(radio->info.soapy.rx_gain[i]);
+        gtk_grid_attach(GTK_GRID(grid),gain_label,0,x,1,1);
+        SoapySDRRange range=radio->info.soapy.rx_range[i];
+        if(range.step==0.0) {
+          range.step=1.0;
+        }
+        GtkWidget *gain_b=gtk_spin_button_new_with_range(range.minimum,range.maximum,range.step);
+        gtk_widget_set_name (gain_b, radio->info.soapy.rx_gain[i]);
+        gtk_spin_button_set_value(GTK_SPIN_BUTTON(gain_b),(double)adc[0].rx_gain[i]);
+        gtk_grid_attach(GTK_GRID(grid),gain_b,1,x,1,1);
+        g_signal_connect(gain_b,"value_changed",G_CALLBACK(gain_value_changed_cb),&adc[0]);
+        x++;
+      }
+
+  }
+#endif
+
 
   gtk_container_add(GTK_CONTAINER(content),grid);
 

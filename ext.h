@@ -28,6 +28,7 @@ extern int ext_vfo_update(void *data);
 extern int ext_set_frequency(void *data);
 extern int ext_vfo_filter_changed(void *data);
 extern int ext_band_update(void *data);
+extern int ext_bandstack_update(void *data);
 extern int ext_mox_update(void *data);
 extern int ext_tune_update(void *data);
 extern int ext_linein_changed(void *data);
@@ -39,6 +40,32 @@ extern int ext_calc_drive_level(void *data);
 extern int ext_vfo_band_changed(void *data);
 extern int ext_radio_change_sample_rate(void *data);
 
+extern int ext_ps_update(void *data);
+extern int ext_two_tone(void *data);
+extern int ext_nr_update(void *data);
+extern int ext_nb_update(void *data);
+extern int ext_snb_update(void *data);
+extern int ext_band_plus(void *data);
+extern int ext_band_minus(void *data);
+extern int ext_bandstack_plus(void *data);
+extern int ext_bandstack_minus(void *data);
+extern int ext_a_to_b(void *data);
+extern int ext_lock_update(void *data);
+extern int ext_rit_update(void *data);
+extern int ext_rit_clear(void *data);
+extern int ext_xit_update(void *data);
+extern int ext_xit_clear(void *data);
+extern int ext_filter_plus(void *data);
+extern int ext_filter_minus(void *data);
+extern int ext_mode_plus(void *data);
+extern int ext_mode_minus(void *data);
+extern int ext_b_to_a(void *data);
+extern int ext_a_swap_b(void *data);
+extern int ext_ctun_update(void *data);
+extern int ext_agc_update(void *data);
+extern int ext_split_update(void *data);
+
+
 extern int ext_cw_setup();
 extern int ext_cw_key(void *data);
 
@@ -49,6 +76,10 @@ extern int ext_sliders_update(void *data);
 extern int ext_mode_update(void *data);
 extern int ext_filter_update(void *data);
 extern int ext_noise_update(void *data);
+
+extern int ext_frequency_update(void *data);
+extern int ext_memory_update(void *data);
+extern int ext_function_update(void *data);
 
 #ifdef PURESIGNAL
 extern int ext_tx_set_ps(void *data);
@@ -67,3 +98,6 @@ int ext_update_att_preamp(void *data);
 int ext_set_alex_attenuation(void *data);
 int ext_set_attenuation_value(void *data);
 int ext_set_compression(void *data);
+
+int ext_start_rx(void *data);
+int ext_diversity_update(void *data);
