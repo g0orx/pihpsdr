@@ -451,12 +451,21 @@ void bandSaveState() {
         setProperty(name,value);
 
         sprintf(value,"%lld",bands[b].frequencyLO);
-        sprintf(name,"band.%d.frequencyLO",b);
+        sprintf(name,"band.%d.txFrequencyLO",b);
         setProperty(name,value);
 
         sprintf(value,"%lld",bands[b].errorLO);
         sprintf(name,"band.%d.errorLO",b);
         setProperty(name,value);
+
+        sprintf(value,"%lld",bands[b].txFrequencyLO);
+        sprintf(name,"band.%d.txFrequencyLO",b);
+        setProperty(name,value);
+
+        sprintf(value,"%lld",bands[b].txErrorLO);
+        sprintf(name,"band.%d.txErrorLO",b);
+        setProperty(name,value);
+
 
         sprintf(value,"%d",bands[b].disablePA);
         sprintf(name,"band.%d.disablePA",b);
@@ -574,6 +583,14 @@ void bandRestoreState() {
         sprintf(name,"band.%d.errorLO",b);
         value=getProperty(name);
         if(value) bands[b].errorLO=atoll(value);
+
+        sprintf(name,"band.%d.txFrequencyLO",b);
+        value=getProperty(name);
+        if(value) bands[b].txFrequencyLO=atoll(value);
+
+        sprintf(name,"band.%d.txErrorLO",b);
+        value=getProperty(name);
+        if(value) bands[b].txErrorLO=atoll(value);
 
         sprintf(name,"band.%d.disablePA",b);
         value=getProperty(name);

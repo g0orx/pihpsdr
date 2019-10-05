@@ -30,6 +30,7 @@
 #include <wdsp.h>
 
 #include "adc.h"
+#include "dac.h"
 #include "audio.h"
 #include "discovered.h"
 //#include "discovery.h"
@@ -635,15 +636,11 @@ void start_radio() {
       adc[0].rx_gain[i]=0;
     }
     adc[0].agc=FALSE;
-/*
-    if(r->can_transmit) {
-      r->dac[0].antenna=1;
-      r->dac[0].tx_gain=malloc(r->discovered->info.soapy.tx_gains*sizeof(gint));
-      for (size_t i = 0; i < r->discovered->info.soapy.tx_gains; i++) {
-        r->dac[0].tx_gain[i]=0;
-      }
+    dac[0].antenna=1;
+    dac[0].tx_gain=malloc(radio->info.soapy.tx_gains*sizeof(gint));
+    for (size_t i = 0; i < radio->info.soapy.tx_gains; i++) {
+      dac[0].tx_gain[i]=0;
     }
-*/
   }
 #endif
 
@@ -664,14 +661,10 @@ void start_radio() {
     }
     adc[1].agc=FALSE;
 
-/*
-    if(r->can_transmit) {
-      r->dac[1].tx_gain=malloc(r->discovered->info.soapy.tx_gains*sizeof(gint));
-      for (size_t i = 0; i < r->discovered->info.soapy.tx_gains; i++) {
-        r->dac[1].tx_gain[i]=0;
-      }
+    dac[1].tx_gain=malloc(radio->info.soapy.tx_gains*sizeof(gint));
+    for (size_t i = 0; i < radio->info.soapy.tx_gains; i++) {
+      dac[1].tx_gain[i]=0;
     }
-*/
   }
 
   radio_sample_rate=radio->info.soapy.sample_rate;
@@ -904,14 +897,13 @@ void start_radio() {
       soapy_protocol_set_gain(rx,radio->info.soapy.rx_gain[i],adc[0].rx_gain[i]);
     }
     soapy_protocol_start_receiver(rx);
-/*
-    if(r->can_transmit) {
-      if(r->transmitter!=NULL && r->transmitter->rx==rx) {
-        soapy_protocol_set_tx_antenna(r->transmitter,1);
-        soapy_protocol_set_tx_frequency(r->transmitter);
+
+    if(transmitter!=NULL) {
+      soapy_protocol_set_tx_antenna(transmitter,dac[0].antenna);
+      for(int i=0;i<radio->info.soapy.tx_gains;i++) {
+        soapy_protocol_set_tx_gain(transmitter,radio->info.soapy.tx_gain[i],dac[0].tx_gain[i]);
       }
     }
-*/
   }
 #endif
 
@@ -1622,15 +1614,11 @@ fprintf(stderr,"sem_wait: returner\n");
     value=getProperty("radio.adc[0].antenna");
     if(value!=NULL) adc[0].antenna=atoi(value);
 
-/*
-    if(radio->can_transmit) {
-      for(int i=0;i<radio->info.soapy.tx_gains;i++) {
-        sprintf(name,"radio.dac[0].tx_gain.%s",radio->info.soapy.tx_gain[i]);
-        value=getProperty(name);
-        if(value!=NULL) dac[0].tx_gain[i]=atoi(value);
-      }
+    for(int i=0;i<radio->info.soapy.tx_gains;i++) {
+      sprintf(name,"radio.dac[0].tx_gain.%s",radio->info.soapy.tx_gain[i]);
+      value=getProperty(name);
+      if(value!=NULL) dac[0].tx_gain[i]=atoi(value);
     }
-*/
   }
 #endif
 
@@ -1827,15 +1815,12 @@ fprintf(stderr,"sem_wait: returned\n");
       sprintf(value,"%d", adc[0].antenna);
       setProperty(name,value);
 
-/*
-      if(radio->can_transmit) {
-        for(int i=0;i<radio->discovered->info.soapy.tx_gains;i++) {
-          sprintf(name,"radio.dac[0].tx_gain.%s",radio->discovered->info.soapy.tx_gain[i]);
-          sprintf(value,"%d", radio->dac[0].tx_gain[i]);
-          setProperty(name,value);
-        }
+      for(int i=0;i<radio->info.soapy.tx_gains;i++) {
+        sprintf(name,"radio.dac[0].tx_gain.%s",radio->info.soapy.tx_gain[i]);
+        sprintf(value,"%d", dac[0].tx_gain[i]);
+        setProperty(name,value);
       }
-*/
+
       for(int i=0;i<radio->info.soapy.rx_gains;i++) {
         sprintf(name,"radio.adc[1].rx_gain.%s",radio->info.soapy.rx_gain[i]);
         sprintf(value,"%d", adc[1].rx_gain[i]);
@@ -1848,15 +1833,11 @@ fprintf(stderr,"sem_wait: returned\n");
       sprintf(value,"%d", adc[1].antenna);
       setProperty(name,value);
 
-/*
-      if(radio->can_transmit) {
-        for(int i=0;i<radio->discovered->info.soapy.tx_gains;i++) {
-          sprintf(name,"radio.dac[1].tx_gain.%s",radio->discovered->info.soapy.tx_gain[i]);
-          sprintf(value,"%d", radio->dac[1].tx_gain[i]);
-          setProperty(name,value);
-        }
+      for(int i=0;i<radio->info.soapy.tx_gains;i++) {
+        sprintf(name,"radio.dac[1].tx_gain.%s",radio->info.soapy.tx_gain[i]);
+        sprintf(value,"%d", dac[1].tx_gain[i]);
+        setProperty(name,value);
       }
-*/
     }
 #endif
 

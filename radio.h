@@ -21,6 +21,7 @@
 #define _RADIO_H
 
 #include "adc.h"
+#include "dac.h"
 #include "discovered.h"
 #include "receiver.h"
 #include "transmitter.h"
@@ -151,6 +152,7 @@ extern int mic_ptt_tip_bias_ring;
 int receivers;
 
 ADC adc[2];
+DAC dac[2];
 int adc_attenuation[2];
 int rx_gain_slider[2];
 
