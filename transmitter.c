@@ -576,6 +576,7 @@ TRANSMITTER *create_transmitter(int id, int buffer_size, int fft_size, int fps, 
       tx->iq_output_rate=radio_sample_rate;
       tx->buffer_size=1024;
       tx->output_samples=1024*(tx->iq_output_rate/tx->mic_sample_rate);
+      tx->pixels=width*8; // to allow 384k to 24k conversion
       break;
 #endif
 

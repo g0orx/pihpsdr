@@ -40,13 +40,13 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 		g_idle_add(ext_vfo_step, GINT_TO_POINTER(val));
 	    }
 	    break;
-	case TUNE: // only key supported
+	case MIDI_TUNE: // only key supported
 	    if (type == MIDI_KEY) {
 	        new = !tune;
 		g_idle_add(ext_tune_update, GINT_TO_POINTER(new));
 	    }
 	    break;    
-	case MOX: // only key supported
+	case MIDI_MOX: // only key supported
 	    if (type == MIDI_KEY) {
 	        new = !mox;
 		g_idle_add(ext_mox_update, GINT_TO_POINTER(new));
@@ -77,7 +77,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    *dp=dnew;
 	    g_idle_add(ext_set_mic_gain, (gpointer) dp);
 	    break;
-	case AGC: // knob or wheel supported
+	case MIDI_AGC: // knob or wheel supported
 	    if (type == MIDI_KNOB) {
 		dnew = -20.0 + 1.4*val;
 	    } else if (type == MIDI_WHEEL) {
@@ -155,7 +155,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 		}
 	    }
 	    break;
-	case RIT_CLEAR:  // only key supported
+	case MIDI_RIT_CLEAR:  // only key supported
 	    if (type == MIDI_KEY) {
 		// this clears the RIT value and disables RIT
 		vfo[active_receiver->id].rit = new;
@@ -217,7 +217,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 		    if (filter_board == ALEX && active_receiver->adc == 0) {
 		      new=active_receiver->alex_attenuation + 1;
 		      if (new > 3) new=0;
-		      g_idle_add(ext_set_alex_attenuation, GINT_TO_PONTER(new));
+		      g_idle_add(ext_set_alex_attenuation, GINT_TO_POINTER(new));
 		      g_idle_add(ext_update_att_preamp, NULL);
 		    }
 		    break;
@@ -254,7 +254,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    if (dnew > 0.5) transmitter->compressor=1;
 	    g_idle_add(ext_set_compression, NULL);
 	    break;
-	case NB:
+	case MIDI_NB:
 	    // cycle through NoiseBlanker settings
 	    if (active_receiver->nb) {
 		active_receiver->nb = 0;
@@ -268,7 +268,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    }
 	    g_idle_add(ext_vfo_update, NULL);
 	    break;
-	case NR:
+	case MIDI_NR:
 	    // cycle through NoiseReduction settings
 	    if (active_receiver->nr) {
 		active_receiver->nr = 0;
@@ -287,7 +287,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    vox_enabled = !vox_enabled;
 	    g_idle_add(ext_vfo_update, NULL);
 	    break;
-	case CTUN:
+	case MIDI_CTUN:
 	    // toggle CTUN
 	    new=active_receiver->id;
 	    if(!vfo[new].ctun) {
@@ -300,14 +300,14 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    set_offset(active_receiver,vfo[new].offset);
 	    g_idle_add(ext_vfo_update, NULL);
 	    break;
-	case PS:
+	case MIDI_PS:
 #ifdef PURESIGNAL
 	    // toggle PURESIGNAL
 	    new=!(transmitter->puresignal);
 	    g_idle_add(ext_tx_set_ps,GINT_TO_POINTER(new));
 #endif
 	    break;
-	case SPLIT:
+	case MIDI_SPLIT:
 	    // toggle split mode
 	    if(!split) {
 		split=1;
@@ -324,7 +324,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	case VFO_B2A:
 	    g_idle_add(ext_vfo_b_to_a, NULL);
 	    break;
-	case LOCK:
+	case MIDI_LOCK:
 	    locked=!locked;
 	    g_idle_add(ext_vfo_update, NULL);
 	    break;

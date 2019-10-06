@@ -313,6 +313,8 @@ double div_phase=0.0;	   // phase for diversity (in degrees, 0 ... 360)
 double meter_calibration=0.0;
 double display_calibration=0.0;
 
+int can_transmit=0;
+
 void reconfigure_radio() {
   int i;
   int y;
@@ -347,7 +349,9 @@ void reconfigure_radio() {
     }
   }
 
-  reconfigure_transmitter(transmitter,rx_height);
+  if(can_transmit) {
+    reconfigure_transmitter(transmitter,rx_height);
+  }
 
 }
 
@@ -374,6 +378,20 @@ void start_radio() {
   gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_WATCH));
 
   int rc;
+
+  switch(radio->protocol) {
+    case ORIGINAL_PROTOCOL:
+    case NEW_PROTOCOL:
+      can_transmit=1;
+      break;
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
+      can_transmit=(radio->info.soapy.tx_channels!=0);
+      break;
+#endif
+  }
+
+  g_print("start_radio: can_transmit=%d tx_channels=%d\n",can_transmit,radio->info.soapy.tx_channels);
 
 #ifdef MIDI
   MIDIstartup();
@@ -771,17 +789,18 @@ void start_radio() {
   active_receiver=receiver[0];
 
   //fprintf(stderr,"Create transmitter\n");
-  transmitter=create_transmitter(CHANNEL_TX, buffer_size, fft_size, updates_per_second, display_width, tx_height);
-  transmitter->x=0;
-  transmitter->y=VFO_HEIGHT;
-  //gtk_fixed_put(GTK_FIXED(fixed),transmitter->panel,0,VFO_HEIGHT);
+  if(can_transmit) {
+    transmitter=create_transmitter(CHANNEL_TX, buffer_size, fft_size, updates_per_second, display_width, tx_height);
+    transmitter->x=0;
+    transmitter->y=VFO_HEIGHT;
 
 #ifdef PURESIGNAL
-  tx_set_ps_sample_rate(transmitter,protocol==NEW_PROTOCOL?192000:active_receiver->sample_rate);
-  receiver[PS_TX_FEEDBACK]=create_pure_signal_receiver(PS_TX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
-  receiver[PS_RX_FEEDBACK]=create_pure_signal_receiver(PS_RX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
-  SetPSHWPeak(transmitter->id, protocol==ORIGINAL_PROTOCOL? 0.4067 : 0.2899);
+    tx_set_ps_sample_rate(transmitter,protocol==NEW_PROTOCOL?192000:active_receiver->sample_rate);
+    receiver[PS_TX_FEEDBACK]=create_pure_signal_receiver(PS_TX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
+    receiver[PS_RX_FEEDBACK]=create_pure_signal_receiver(PS_RX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
+    SetPSHWPeak(transmitter->id, protocol==ORIGINAL_PROTOCOL? 0.4067 : 0.2899);
 #endif
+  }
 
 #ifdef AUDIO_WATERFALL
   audio_waterfall=audio_waterfall_init(200,100);
@@ -871,10 +890,11 @@ void start_radio() {
     launch_rigctl();
   }
 
-  calcDriveLevel();
-
-  if(transmitter->puresignal) {
-    tx_set_ps(transmitter,transmitter->puresignal);
+  if(can_transmit) {
+    calcDriveLevel();
+    if(transmitter->puresignal) {
+      tx_set_ps(transmitter,transmitter->puresignal);
+    }
   }
 
   if(protocol==NEW_PROTOCOL) {
@@ -885,7 +905,7 @@ void start_radio() {
   if(protocol==SOAPYSDR_PROTOCOL) {
     RECEIVER *rx=receiver[0];
     soapy_protocol_create_receiver(rx);
-    if(transmitter!=NULL) {
+    if(can_transmit) {
       soapy_protocol_create_transmitter(transmitter);
       soapy_protocol_set_tx_antenna(transmitter,dac[0].antenna);
       for(int i=0;i<radio->info.soapy.tx_gains;i++) {
@@ -1049,6 +1069,7 @@ static void rxtx(int state) {
 }
 
 void setMox(int state) {
+  if(!can_transmit) return;
   vox_cancel();  // remove time-out
   if(mox!=state) {
     if (state && vox) {
@@ -1135,6 +1156,8 @@ void frequency_changed(RECEIVER *rx) {
 
 void setTune(int state) {
   int i;
+
+  if(!can_transmit) return;
 
   // if state==tune, this function is a no-op
 
@@ -1870,7 +1893,9 @@ fprintf(stderr,"sem_wait: returned\n");
     // the alex_antenna an the adc
     receiver_save_state(receiver[PS_RX_FEEDBACK]);
 #endif
-    transmitter_save_state(transmitter);
+    if(can_transmit) {
+      transmitter_save_state(transmitter);
+    }
 #ifdef FREEDV
     freedv_save_state();
 #endif

@@ -186,8 +186,10 @@ int ext_sliders_update(void *data) {
 
 #ifdef PURESIGNAL
 int ext_tx_set_ps(void *data) {
-  int state=(GPOINTER_TO_INT(data)
-  tx_set_ps(transmitter, state);
+  if(can_tranmit) {
+    int state=(GPOINTER_TO_INT(data)
+    tx_set_ps(transmitter, state);
+  }
   return 0;
 }
 #endif
@@ -220,7 +222,9 @@ int ext_set_drive(void *data) {
 }
 
 int ext_set_compression(void *data) {
-  set_compression(transmitter);
+  if(can_transmit) {
+    set_compression(transmitter);
+  }
   return 0;
 }
 
@@ -260,18 +264,22 @@ int ext_set_attenuation_value(void *data) {
 
 #ifdef PURESIGNAL
 int ext_ps_update(void *data) {
-  if(transmitter->puresignal==0) {
-    tx_set_ps(transmitter,1);
-  } else {
-    tx_set_ps(transmitter,0);
+  if(can_transmit) {
+    if(transmitter->puresignal==0) {
+      tx_set_ps(transmitter,1);
+    } else {
+      tx_set_ps(transmitter,0);
+    }
   }
   return 0;
 }
 #endif
 
 int ext_two_tone(void *data) {
-  int state=transmitter->twotone?0:1;
-  tx_set_twotone(transmitter,state);
+  if(can_transmit) {
+    int state=transmitter->twotone?0:1;
+    tx_set_twotone(transmitter,state);
+  }
   return 0;
 }
 
@@ -453,13 +461,15 @@ int ext_agc_update(void *data) {
 }
 
 int ext_split_update(void *data) {
-  split=split==1?0:1;
-  if(split) {
-    tx_set_mode(transmitter,vfo[VFO_B].mode);
-  } else {
-    tx_set_mode(transmitter,vfo[VFO_A].mode);
-  }
+  if(can_transmit) {
+    split=split==1?0:1;
+    if(split) {
+      tx_set_mode(transmitter,vfo[VFO_B].mode);
+    } else {
+      tx_set_mode(transmitter,vfo[VFO_A].mode);
+    }
   vfo_update();
+  }
   return 0;
 }
 

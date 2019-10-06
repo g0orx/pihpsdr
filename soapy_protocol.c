@@ -243,10 +243,12 @@ fprintf(stderr,"soapy_protocol_init: SoapySDRDevice_make\n");
   }
   SoapySDRKwargs_clear(&args);
 
-  if(transmitter->local_microphone) {
-    if(audio_open_input()!=0) {
-      fprintf(stderr,"audio_open_input failed\n");
-      transmitter->local_microphone=0;
+  if(can_transmit) {
+    if(transmitter->local_microphone) {
+      if(audio_open_input()!=0) {
+        fprintf(stderr,"audio_open_input failed\n");
+        transmitter->local_microphone=0;
+      }
     }
   }
 

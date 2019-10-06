@@ -581,16 +581,18 @@ void radio_menu(GtkWidget *parent) {
       gtk_grid_attach(GTK_GRID(grid),agc,col,row,1,1);
       gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(agc),adc[0].agc);
       g_signal_connect(agc,"toggled",G_CALLBACK(agc_changed_cb),&adc[0]);
-      col++;
+      row++;
     }
 
     row=temp_row;
 
-    if(radio->info.soapy.tx_gains>0) {
-      col=2;
-      GtkWidget *tx_gain=gtk_label_new("Tx Gains:");
-      gtk_grid_attach(GTK_GRID(grid),tx_gain,col,row,1,1);
-      row++;
+    if(can_transmit) {
+      if(radio->info.soapy.tx_gains>0) {
+        col=2;
+        GtkWidget *tx_gain=gtk_label_new("Tx Gains:");
+        gtk_grid_attach(GTK_GRID(grid),tx_gain,col,row,1,1);
+        row++;
+      }
     }
 
     temp_row=row;
@@ -615,21 +617,23 @@ void radio_menu(GtkWidget *parent) {
 
     row=temp_row;
 
-    for(i=0;i<radio->info.soapy.tx_gains;i++) {
-      col=2;
-      GtkWidget *tx_gain_label=gtk_label_new(radio->info.soapy.tx_gain[i]);
-      gtk_grid_attach(GTK_GRID(grid),tx_gain_label,col,row,1,1);
-      col++;
-      SoapySDRRange range=radio->info.soapy.tx_range[i];
-      if(range.step==0.0) {
-        range.step=1.0;
+    if(can_transmit) {
+      for(i=0;i<radio->info.soapy.tx_gains;i++) {
+        col=2;
+        GtkWidget *tx_gain_label=gtk_label_new(radio->info.soapy.tx_gain[i]);
+        gtk_grid_attach(GTK_GRID(grid),tx_gain_label,col,row,1,1);
+        col++;
+        SoapySDRRange range=radio->info.soapy.tx_range[i];
+        if(range.step==0.0) {
+          range.step=1.0;
+        }
+        GtkWidget *tx_gain_b=gtk_spin_button_new_with_range(range.minimum,range.maximum,range.step);
+        gtk_widget_set_name (tx_gain_b, radio->info.soapy.tx_gain[i]);
+        gtk_spin_button_set_value(GTK_SPIN_BUTTON(tx_gain_b),(double)dac[0].tx_gain[i]);
+        gtk_grid_attach(GTK_GRID(grid),tx_gain_b,col,row,1,1);
+        g_signal_connect(tx_gain_b,"value_changed",G_CALLBACK(tx_gain_value_changed_cb),&dac[0]);
+        row++;
       }
-      GtkWidget *tx_gain_b=gtk_spin_button_new_with_range(range.minimum,range.maximum,range.step);
-      gtk_widget_set_name (tx_gain_b, radio->info.soapy.tx_gain[i]);
-      gtk_spin_button_set_value(GTK_SPIN_BUTTON(tx_gain_b),(double)dac[0].tx_gain[i]);
-      gtk_grid_attach(GTK_GRID(grid),tx_gain_b,col,row,1,1);
-      g_signal_connect(tx_gain_b,"value_changed",G_CALLBACK(tx_gain_value_changed_cb),&dac[0]);
-      row++;
     }
 
   }

@@ -93,6 +93,7 @@ struct _DISCOVERED {
     int supported_receivers;
     int supported_transmitters;
     int adcs;
+    int dacs;
     double frequency_min;
     double frequency_max;
     union {
@@ -107,6 +108,7 @@ struct _DISCOVERED {
       } network;
 #ifdef SOAPYSDR
       struct soapy {
+        char version[128];
         int rtlsdr_count;
         int sample_rate;
         size_t rx_channels;

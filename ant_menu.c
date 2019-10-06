@@ -417,19 +417,21 @@ g_print("rx_antennas=%d\n",radio->info.soapy.rx_antennas);
       gtk_grid_attach(GTK_GRID(grid),adc0_antenna_combo_box,1,1,1,1);
     }
 
-    g_print("tx_antennas=%d\n",radio->info.soapy.tx_antennas);
-    if(radio->info.soapy.tx_antennas>0) {
-      GtkWidget *antenna_label=gtk_label_new("TX Antenna:");
-      gtk_grid_attach(GTK_GRID(grid),antenna_label,0,2,1,1);
-      dac0_antenna_combo_box=gtk_combo_box_text_new();
-
-      for(i=0;i<radio->info.soapy.tx_antennas;i++) {
-        gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(dac0_antenna_combo_box),NULL,radio->info.soapy.tx_antenna[i]);
+    if(can_transmit) {
+      g_print("tx_antennas=%d\n",radio->info.soapy.tx_antennas);
+      if(radio->info.soapy.tx_antennas>0) {
+        GtkWidget *antenna_label=gtk_label_new("TX Antenna:");
+        gtk_grid_attach(GTK_GRID(grid),antenna_label,0,2,1,1);
+        dac0_antenna_combo_box=gtk_combo_box_text_new();
+  
+        for(i=0;i<radio->info.soapy.tx_antennas;i++) {
+          gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(dac0_antenna_combo_box),NULL,radio->info.soapy.tx_antenna[i]);
+        }
+  
+        gtk_combo_box_set_active(GTK_COMBO_BOX(dac0_antenna_combo_box),dac[0].antenna);
+        g_signal_connect(dac0_antenna_combo_box,"changed",G_CALLBACK(dac0_antenna_cb),&dac[0]);
+        gtk_grid_attach(GTK_GRID(grid),dac0_antenna_combo_box,1,2,1,1);
       }
-
-      gtk_combo_box_set_active(GTK_COMBO_BOX(dac0_antenna_combo_box),dac[0].antenna);
-      g_signal_connect(dac0_antenna_combo_box,"changed",G_CALLBACK(dac0_antenna_cb),&dac[0]);
-      gtk_grid_attach(GTK_GRID(grid),dac0_antenna_combo_box,1,2,1,1);
     }
 
   }

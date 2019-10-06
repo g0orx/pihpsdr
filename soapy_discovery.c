@@ -32,10 +32,19 @@ static void get_info(char *driver) {
   size_t rx_rates_length, tx_rates_length, rx_gains_length, tx_gains_length, ranges_length, rx_antennas_length, tx_antennas_length, rx_bandwidth_length, tx_bandwidth_length;
   int i;
   SoapySDRKwargs args={};
-  int version=0;
+  int software_version=0;
   int rtlsdr_val=0;
+  char fw_version[64];
+  char gw_version[64];
+  char hw_version[64];
+  char p_version[64];
 
   fprintf(stderr,"soapy_discovery: get_info: %s\n", driver);
+
+  strcpy(fw_version,"");
+  strcpy(gw_version,"");
+  strcpy(hw_version,"");
+  strcpy(p_version,"");
 
   SoapySDRKwargs_set(&args, "driver", driver);
   if(strcmp(driver,"rtlsdr")==0) {
@@ -47,7 +56,7 @@ static void get_info(char *driver) {
   }
   SoapySDRDevice *sdr = SoapySDRDevice_make(&args);
   SoapySDRKwargs_clear(&args);
-  version=0;
+  software_version=0;
 
   char *driverkey=SoapySDRDevice_getDriverKey(sdr);
   fprintf(stderr,"DriverKey=%s\n",driverkey);
@@ -59,13 +68,17 @@ static void get_info(char *driver) {
   for(i=0;i<info.size;i++) {
     fprintf(stderr,"soapy_discovery: hardware info key=%s val=%s\n",info.keys[i], info.vals[i]);
     if(strcmp(info.keys[i],"firmwareVersion")==0) {
-      version+=atoi(info.vals[i])*100;
+      strcpy(fw_version,info.vals[i]);
+    }
+    if(strcmp(info.keys[i],"gatewareVersion")==0) {
+      strcpy(gw_version,info.vals[i]);
+      software_version=(int)(atof(info.vals[i])*100.0);
     }
     if(strcmp(info.keys[i],"hardwareVersion")==0) {
-      version+=atoi(info.vals[i])*10;
+      strcpy(hw_version,info.vals[i]);
     }
     if(strcmp(info.keys[i],"protocolVersion")==0) {
-      version+=atoi(info.vals[i]);
+      strcpy(p_version,info.vals[i]);
     }
   }
 
@@ -178,8 +191,9 @@ static void get_info(char *driver) {
     discovered[devices].supported_receivers=rx_channels;
     discovered[devices].supported_transmitters=tx_channels;
     discovered[devices].adcs=rx_channels;
+    discovered[devices].dacs=tx_channels;
     discovered[devices].status=STATE_AVAILABLE;
-    discovered[devices].software_version=version;
+    discovered[devices].software_version=software_version;
     discovered[devices].frequency_min=ranges[0].minimum;
     discovered[devices].frequency_max=ranges[0].maximum;
     discovered[devices].info.soapy.sample_rate=sample_rate;
@@ -187,6 +201,11 @@ static void get_info(char *driver) {
       discovered[devices].info.soapy.rtlsdr_count=rtlsdr_val;
     } else {
       discovered[devices].info.soapy.rtlsdr_count=0;
+    }
+    if(strcmp(driver,"lime")==0) {
+      sprintf(discovered[devices].info.soapy.version,"fw=%s gw=%s hw=%s p=%s", fw_version, gw_version, hw_version, p_version);
+    } else {
+      strcpy(discovered[devices].info.soapy.version,"");
     }
     discovered[devices].info.soapy.rx_channels=rx_channels;
     discovered[devices].info.soapy.rx_gains=rx_gains_length;

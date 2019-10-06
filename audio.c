@@ -371,7 +371,10 @@ int audio_write(RECEIVER *rx,short left_sample,short right_sample) {
   snd_pcm_sframes_t delay;
   long rc;
   long trim;
-  int mode=transmitter->mode;
+  int mode=modeUSB;
+  if(can_transmit) {
+    mode=transmitter->mode;
+  }
   //
   // We have to stop the stream here if a CW side tone may occur.
   // This might cause underflows, but we cannot use audio_write

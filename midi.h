@@ -48,32 +48,32 @@
 //
 enum MIDIaction {
   ACTION_NONE=0,	// No-Op (unassigned key)
-  AGC,			// AGC level
+  MIDI_AGC,			// AGC level
   AGCATTACK,		// AGC ATTACK (cycle fast/med/slow etc.)
   ATT,			// Step attenuator or Programmable attenuator
   AF_GAIN,		// AF gain
   BAND_DOWN,		// cycle through bands downwards
   BAND_UP,		// cycle through bands upwards
   COMPRESS,		// TX compressor value
-  CTUN,			// CTUN on/off
+  MIDI_CTUN,			// CTUN on/off
   FILTER_UP,		// cycle through filters upwards
   FILTER_DOWN,		// cycle through filters downwards
   MIC_VOLUME,		// MIC gain
-  LOCK,			// disable frequency changes
+  MIDI_LOCK,			// disable frequency changes
   MODE_UP,		// cycle through modes upwards
   MODE_DOWN,		// cycle through modes downwards
-  MOX,			// toggle "mox" state
-  NB,			// cycle through NoiseBlanker states (none, NB, NB2)
-  NR,			// cycle through NoiseReduction states (none, NR, NR2)
+  MIDI_MOX,			// toggle "mox" state
+  MIDI_NB,			// cycle through NoiseBlanker states (none, NB, NB2)
+  MIDI_NR,			// cycle through NoiseReduction states (none, NR, NR2)
   PRE,			// preamp on/off
   PAN_HIGH,		// "high" value of current panadapter
   PAN_LOW,		// "low" value of current panadapter
-  PS,			// PURESIGNAL on/off
-  RIT_CLEAR,		// clear RIT value
+  MIDI_PS,			// PURESIGNAL on/off
+  MIDI_RIT_CLEAR,		// clear RIT value
   RIT_VAL,		// change RIT value
-  SPLIT,		// Split on/off
+  MIDI_SPLIT,		// Split on/off
   SWAP_VFO,		// swap VFO A/B frequency
-  TUNE,			// toggle "tune" state
+  MIDI_TUNE,			// toggle "tune" state
   TX_DRIVE,		// RF output power
   VFO,			// change VFO frequency
   VFO_A2B,		// VFO A -> B

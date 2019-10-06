@@ -261,6 +261,8 @@ extern double div_gain, div_phase;
 extern double meter_calibration;
 extern double display_calibration;
 
+extern int can_transmit;
+
 extern void reconfigure_radio();
 extern void start_radio();
 //extern void init_radio();
