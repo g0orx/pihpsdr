@@ -554,18 +554,31 @@ TRANSMITTER *create_transmitter(int id, int buffer_size, int fft_size, int fps, 
   tx->fft_size=fft_size;
   tx->fps=fps;
 
-  if(protocol==ORIGINAL_PROTOCOL) {
-    tx->mic_sample_rate=48000;
-    tx->mic_dsp_rate=48000;
-    tx->iq_output_rate=48000;
-    tx->output_samples=tx->buffer_size;
-    tx->pixels=width; // to allow 48k to 24k conversion
-  } else {
-    tx->mic_sample_rate=48000;
-    tx->mic_dsp_rate=96000;
-    tx->iq_output_rate=192000;
-    tx->output_samples=tx->buffer_size*4;
-    tx->pixels=width*4; // to allow 192k to 24k conversion
+  switch(protocol) {
+    case ORIGINAL_PROTOCOL:
+      tx->mic_sample_rate=48000;
+      tx->mic_dsp_rate=48000;
+      tx->iq_output_rate=48000;
+      tx->output_samples=tx->buffer_size;
+      tx->pixels=width; // to allow 48k to 24k conversion
+      break;
+    case NEW_PROTOCOL:
+      tx->mic_sample_rate=48000;
+      tx->mic_dsp_rate=96000;
+      tx->iq_output_rate=192000;
+      tx->output_samples=tx->buffer_size*4;
+      tx->pixels=width*4; // to allow 192k to 24k conversion
+      break;
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
+      tx->mic_sample_rate=48000;
+      tx->mic_dsp_rate=96000;
+      tx->iq_output_rate=radio_sample_rate;
+      tx->buffer_size=1024;
+      tx->output_samples=1024*(tx->iq_output_rate/tx->mic_sample_rate);
+      break;
+#endif
+
   }
 
   tx->width=width;
