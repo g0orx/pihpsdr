@@ -887,6 +887,11 @@ void start_radio() {
     soapy_protocol_create_receiver(rx);
     if(transmitter!=NULL) {
       soapy_protocol_create_transmitter(transmitter);
+      soapy_protocol_set_tx_antenna(transmitter,dac[0].antenna);
+      for(int i=0;i<radio->info.soapy.tx_gains;i++) {
+        soapy_protocol_set_tx_gain(transmitter,radio->info.soapy.tx_gain[i],dac[0].tx_gain[i]);
+      }
+      soapy_protocol_set_tx_frequency(transmitter);
     }
 
     soapy_protocol_set_rx_antenna(rx,adc[0].antenna);
@@ -904,12 +909,6 @@ void start_radio() {
     }
     soapy_protocol_start_receiver(rx);
 
-    if(transmitter!=NULL) {
-      soapy_protocol_set_tx_antenna(transmitter,dac[0].antenna);
-      for(int i=0;i<radio->info.soapy.tx_gains;i++) {
-        soapy_protocol_set_tx_gain(transmitter,radio->info.soapy.tx_gain[i],dac[0].tx_gain[i]);
-      }
-    }
   }
 #endif
 
