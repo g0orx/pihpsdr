@@ -55,12 +55,12 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 }
 
 static void detector_mode_cb(GtkWidget *widget, gpointer data) {
-  display_detector_mode=(uintptr_t)data;
+  display_detector_mode=GPOINTER_TO_UINT(data);
   SetDisplayDetectorMode(active_receiver->id, 0, display_detector_mode);
 }
 
 static void average_mode_cb(GtkWidget *widget, gpointer data) {
-  display_average_mode=(uintptr_t)data;
+  display_average_mode=GPOINTER_TO_UINT(data);
   SetDisplayAverageMode(active_receiver->id, 0, display_average_mode);
 }
 

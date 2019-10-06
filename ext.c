@@ -45,7 +45,7 @@
 
 int ext_vfo_mode_changed(void * data)
 {
-  int mode=(uintptr_t) data;
+  int mode=GPOINTER_TO_INT(data);
   vfo_mode_changed(mode);
   return 0;
 }
@@ -89,7 +89,7 @@ int ext_vfo_update(void *data) {
 }
 
 int ext_vfo_filter_changed(void *data) {
-  vfo_filter_changed((int)(uintptr_t)data);
+  vfo_filter_changed(GPOINTER_TO_INT(data));
   return 0;
 }
 
@@ -186,14 +186,14 @@ int ext_sliders_update(void *data) {
 
 #ifdef PURESIGNAL
 int ext_tx_set_ps(void *data) {
-  int state=(uintptr_t) data;
+  int state=(GPOINTER_TO_INT(data)
   tx_set_ps(transmitter, state);
   return 0;
 }
 #endif
 
 int ext_vfo_step(void *data) {
-  int step=(int)(long)data;
+  int step=GPOINTER_TO_INT(data);
   vfo_step(step);
   return 0;
 }

@@ -87,11 +87,11 @@ static void alex_att_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void sample_rate_cb(GtkWidget *widget, gpointer data) {
-  receiver_change_sample_rate(active_receiver,(uintptr_t)data);
+  receiver_change_sample_rate(active_receiver,GPOINTER_TO_INT(data));
 }
 
 static void adc_cb(GtkWidget *widget, gpointer data) {
-  receiver_change_adc(active_receiver,(uintptr_t)data);
+  receiver_change_adc(active_receiver,GPOINTER_TO_INT(data));
 }
 
 static void local_audio_cb(GtkWidget *widget, gpointer data) {
@@ -145,7 +145,7 @@ static void local_output_changed_cb(GtkWidget *widget, gpointer data) {
 
 static void audio_channel_cb(GtkWidget *widget, gpointer data) {
   if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
-    active_receiver->audio_channel=(uintptr_t)data;
+    active_receiver->audio_channel=GPOINTER_TO_INT(data);
   }
 }
 

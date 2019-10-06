@@ -1544,7 +1544,7 @@ fprintf(stderr,"mic_line_thread\n");
 }
 
 static gpointer iq_thread(gpointer data) {
-  int ddc=(uintptr_t)data;
+  int ddc=GPOINTER_TO_UINT(data);
   long sequence;
   unsigned char *buffer;
   fprintf(stderr,"iq_thread: ddc=%d\n",ddc);

@@ -64,18 +64,18 @@ static void agc_hang_threshold_value_changed_cb(GtkWidget *widget, gpointer data
 }
 
 static void pre_post_agc_cb(GtkWidget *widget, gpointer data) {
-  active_receiver->nr_agc=(uintptr_t)data;
+  active_receiver->nr_agc=GPOINTER_TO_UINT(data);
   SetRXAEMNRPosition(active_receiver->id, active_receiver->nr_agc);
 
 }
 
 static void nr2_gain_cb(GtkWidget *widget, gpointer data) {
-  active_receiver->nr2_gain_method=(uintptr_t)data;
+  active_receiver->nr2_gain_method=GPOINTER_TO_UINT(data);
   SetRXAEMNRgainMethod(active_receiver->id, active_receiver->nr2_gain_method);
 }
 
 static void nr2_npe_method_cb(GtkWidget *widget, gpointer data) {
-  active_receiver->nr2_npe_method=(uintptr_t)data;
+  active_receiver->nr2_npe_method=GPOINTER_TO_UINT(data);
   SetRXAEMNRnpeMethod(active_receiver->id, active_receiver->nr2_npe_method);
 }
 

@@ -645,7 +645,7 @@ void send_resp (int client_sock,char * msg) {
 //
 
 static gpointer rigctl_server(gpointer data) {
-  int port=(uintptr_t)data;
+  int port=GPOINTER_TO_INT(data);
   int rc;
   int on=1;
   int i;

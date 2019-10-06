@@ -53,11 +53,11 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 }
 
 static void smeter_select_cb (GtkWidget *widget, gpointer        data) {
-  smeter=(uintptr_t)data;
+  smeter=GPOINTER_TO_UINT(data);
 }
 
 static void alc_meter_select_cb (GtkWidget *widget, gpointer        data) {
-  alc=(uintptr_t)data;
+  alc=GPOINTER_TO_UINT(data);
 }
 
 static void analog_cb(GtkWidget *widget, gpointer data) {

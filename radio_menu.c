@@ -212,26 +212,26 @@ static void charly25_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void sample_rate_cb(GtkWidget *widget, gpointer data) {
-  radio_change_sample_rate((uintptr_t)data);
+  radio_change_sample_rate(GPOINTER_TO_INT(data));
 }
 
 static void receivers_cb(GtkWidget *widget, gpointer data) {
-  radio_change_receivers((uintptr_t)data);
+  radio_change_receivers(GPOINTER_TO_INT(data));
 }
 
 static void region_cb(GtkWidget *widget, gpointer data) {
   radio_change_region(gtk_combo_box_get_active (GTK_COMBO_BOX(widget)));
 /*
-  radio_change_region((uintptr_t)data);
+  radio_change_region(GPOINTER_TO_INT(data));
 */
 }
 
 static void rit_cb(GtkWidget *widget,gpointer data) {
-  rit_increment=(uintptr_t)data;
+  rit_increment=GPOINTER_TO_INT(data);
 }
 
 static void ck10mhz_cb(GtkWidget *widget, gpointer data) {
-  atlas_clock_source_10mhz = (uintptr_t)data;
+  atlas_clock_source_10mhz = GPOINTER_TO_INT(data);
 }
 
 static void ck128mhz_cb(GtkWidget *widget, gpointer data) {

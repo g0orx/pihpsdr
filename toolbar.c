@@ -80,7 +80,7 @@ static gint rit_plus_timer=-1;
 static gint rit_minus_timer=-1;
 
 static gboolean rit_timer_cb(gpointer data) {
-  int i=(uintptr_t)data;
+  int i=GPOINTER_TO_INT(data);
   vfo[active_receiver->id].rit+=(i*rit_increment);
   if(vfo[active_receiver->id].rit>1000) vfo[active_receiver->id].rit=1000;
   if(vfo[active_receiver->id].rit<-1000) vfo[active_receiver->id].rit=-1000;
@@ -228,7 +228,7 @@ static void rit_enable_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void rit_cb(GtkWidget *widget, gpointer data) {
-  int i=(uintptr_t)data;
+  int i=GPOINTER_TO_INT(data);
   vfo[active_receiver->id].rit+=i*rit_increment;
   if(vfo[active_receiver->id].rit>1000) vfo[active_receiver->id].rit=1000;
   if(vfo[active_receiver->id].rit<-1000) vfo[active_receiver->id].rit=-1000;

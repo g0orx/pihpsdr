@@ -57,8 +57,8 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 }
 
 static void oc_rx_cb(GtkWidget *widget, gpointer data) {
-  int b=((uintptr_t)data)>>4;
-  int oc=((uintptr_t)data)&0xF;
+  int b=(GPOINTER_TO_UINT(data))>>4;
+  int oc=(GPOINTER_TO_UINT(data))&0xF;
   BAND *band=band_get_band(b);
   int mask=0x01<<(oc-1);
 fprintf(stderr,"oc_rx_cb: band=%d oc=%d mask=%d\n",b,oc,mask);
@@ -74,8 +74,8 @@ fprintf(stderr,"oc_rx_cb: band=%d oc=%d mask=%d\n",b,oc,mask);
 }
 
 static void oc_tx_cb(GtkWidget *widget, gpointer data) {
-  int b=((uintptr_t)data)>>4;
-  int oc=((uintptr_t)data)&0xF;
+  int b=(GPOINTER_TO_UINT(data))>>4;
+  int oc=(GPOINTER_TO_UINT(data))&0xF;
   BAND *band=band_get_band(b);
   int mask=0x01<<(oc-1);
 
@@ -92,7 +92,7 @@ fprintf(stderr,"oc_tx_cb: band=%d oc=%d mask=%d\n",b,oc,mask);
 }
 
 static void oc_tune_cb(GtkWidget *widget, gpointer data) {
-  int oc=((uintptr_t)data)&0xF;
+  int oc=(GPOINTER_TO_UINT(data))&0xF;
   int mask=0x01<<(oc-1);
 fprintf(stderr,"oc_tune_cb: oc=%d mask=%d\n",oc,mask);
   if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {

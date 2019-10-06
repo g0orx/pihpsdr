@@ -63,7 +63,7 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 }
 
 static gboolean store_select_cb (GtkWidget *widget, gpointer data) {
-   int index = (uintptr_t) data;
+   int index = GPOINTER_TO_INT(data);
    fprintf(stderr,"STORE BUTTON PUSHED=%d\n",index);
    char workstr[40];
      
@@ -87,7 +87,7 @@ static gboolean store_select_cb (GtkWidget *widget, gpointer data) {
 }
 
 static gboolean recall_select_cb (GtkWidget *widget, gpointer data) {
-    int index = (uintptr_t) data;
+    int index = GPOINTER_TO_INT(data);
     long long new_freq;
     
     //new_freq = mem[index].frequency;

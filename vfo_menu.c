@@ -163,7 +163,7 @@ static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
       // via the menu prior to changing the frequency
       //
       if (b != vfo[id].band) {
-        g_idle_add(ext_vfo_band_changed, (gpointer) (uintptr_t) b);
+        g_idle_add(ext_vfo_band_changed, GINT_TO_POINTER(b));
       }
       setFrequency(f);
       g_idle_add(ext_vfo_update,NULL);

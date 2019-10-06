@@ -104,7 +104,7 @@ static void cw_keys_reversed_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void cw_keyer_mode_cb(GtkWidget *widget, gpointer data) {
-  cw_keyer_mode=(uintptr_t)data;
+  cw_keyer_mode=GPOINTER_TO_UINT(data);
   cw_changed();
 }
 

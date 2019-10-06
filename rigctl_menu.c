@@ -92,13 +92,13 @@ static void serial_enable_cb(GtkWidget *widget, gpointer data) {
 
 // Set Baud Rate
 static void baud_rate_cb(GtkWidget *widget, gpointer data) {
-   serial_baud_rate = (uintptr_t) data;
+   serial_baud_rate = GPOINTER_TO_INT(data);
    fprintf(stderr,"RIGCTL_MENU: Baud rate changed\n");
 }
 
 // Set Parity 0=None, 1=Even, 2=0dd
 static void parity_cb(GtkWidget *widget, gpointer data) {
-   serial_parity = (uintptr_t) data;
+   serial_parity = GPOINTER_TO_INT(data);
    fprintf(stderr,"RITCTL_MENU: Serial Parity changed=%d\n", serial_parity);
 }
 

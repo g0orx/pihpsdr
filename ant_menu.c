@@ -60,8 +60,8 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 }
 
 static void rx_ant_cb(GtkWidget *widget, gpointer data) {
-  int b=((uintptr_t)data)>>4;
-  int ant=((uintptr_t)data)&0xF;
+  int b=(GPOINTER_TO_UINT(data))>>4;
+  int ant=(GPOINTER_TO_UINT(data))&0xF;
   BAND *band=band_get_band(b);
   band->alexRxAntenna=ant;
   if(active_receiver->id==0) {
@@ -94,7 +94,7 @@ static void dac0_antenna_cb(GtkComboBox *widget,gpointer data) {
 }
 
 static void rx_lime_ant_cb(GtkWidget *widget, gpointer data) {
-  int ant=((uintptr_t)data)&0xF;
+  int ant=(GPOINTER_TO_UINT(data))&0xF;
   BAND *band=band_get_current_band();
   band->alexRxAntenna=ant;
   if(active_receiver->id==0) {
@@ -103,8 +103,8 @@ static void rx_lime_ant_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void tx_ant_cb(GtkWidget *widget, gpointer data) {
-  int b=((uintptr_t)data)>>4;
-  int ant=((uintptr_t)data)&0xF;
+  int b=(GPOINTER_TO_UINT(data))>>4;
+  int ant=(GPOINTER_TO_UINT(data))&0xF;
   BAND *band=band_get_band(b);
   band->alexTxAntenna=ant;
   if(active_receiver->id==0) {
