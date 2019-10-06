@@ -956,6 +956,7 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
 
   rx->panadapter_high=-40;
   rx->panadapter_low=-140;
+  rx->panadapter_step=20;
 
   rx->waterfall_high=-40;
   rx->waterfall_low=-140;

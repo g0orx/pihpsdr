@@ -56,7 +56,7 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 }
 
 static gboolean agc_select_cb (GtkWidget *widget, gpointer        data) {
-  active_receiver->agc=(uintptr_t)data;
+  active_receiver->agc=GPOINTER_TO_INT(data);
   //wdsp_set_agc(CHANNEL_RX0, agc);
   set_agc(active_receiver, active_receiver->agc);
   vfo_update();
