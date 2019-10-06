@@ -568,13 +568,6 @@ void vfo_move_to(long long hz) {
   int id=active_receiver->id;
   if(!locked) {
     switch(protocol) {
-/*
-#ifdef SOAPYSDR
-      case SOAPYSDR_PROTOCOL:
-        vfo[id].ctun_frequency=(vfo[id].frequency+hz)/step*step;
-        break;
-#endif
-*/
       default:
         if(vfo[id].ctun) {
           vfo[id].ctun_frequency=(vfo[id].frequency+hz)/step*step;

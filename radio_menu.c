@@ -628,7 +628,7 @@ void radio_menu(GtkWidget *parent) {
       gtk_widget_set_name (tx_gain_b, radio->info.soapy.tx_gain[i]);
       gtk_spin_button_set_value(GTK_SPIN_BUTTON(tx_gain_b),(double)dac[0].tx_gain[i]);
       gtk_grid_attach(GTK_GRID(grid),tx_gain_b,col,row,1,1);
-      g_signal_connect(tx_gain_b,"value_changed",G_CALLBACK(tx_gain_value_changed_cb),&adc[0]);
+      g_signal_connect(tx_gain_b,"value_changed",G_CALLBACK(tx_gain_value_changed_cb),&dac[0]);
       row++;
     }
 

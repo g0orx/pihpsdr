@@ -898,6 +898,10 @@ void start_radio() {
     for(int i=0;i<radio->info.soapy.rx_gains;i++) {
       soapy_protocol_set_gain(rx,radio->info.soapy.rx_gain[i],adc[0].rx_gain[i]);
     }
+
+    if(vfo[0].ctun) {
+      setFrequency(vfo[0].ctun_frequency);
+    }
     soapy_protocol_start_receiver(rx);
 
     if(transmitter!=NULL) {
