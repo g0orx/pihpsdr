@@ -885,7 +885,9 @@ void start_radio() {
   if(protocol==SOAPYSDR_PROTOCOL) {
     RECEIVER *rx=receiver[0];
     soapy_protocol_create_receiver(rx);
-
+    if(transmitter!=NULL) {
+      soapy_protocol_create_transmitter(transmitter);
+    }
 
     soapy_protocol_set_rx_antenna(rx,adc[0].antenna);
     for(int i=0;i<radio->info.soapy.rx_gains;i++) {
@@ -1062,7 +1064,12 @@ void setMox(int state) {
 #ifdef SOAPYSDR
     case SOAPYSDR_PROTOCOL:
       if(transmitter!=NULL) {
-        soapy_protocol_set_tx_frequency(transmitter);
+        if(mox) {
+          soapy_protocol_set_tx_frequency(transmitter);
+          soapy_protocol_start_transmitter(transmitter);
+        } else {
+          soapy_protocol_stop_transmitter(transmitter);
+        }
       }
       break;
 #endif

@@ -549,6 +549,7 @@ TRANSMITTER *create_transmitter(int id, int buffer_size, int fft_size, int fps, 
 
   TRANSMITTER *tx=malloc(sizeof(TRANSMITTER));
   tx->id=id;
+  tx->dac=0;
   tx->buffer_size=buffer_size;
   tx->fft_size=fft_size;
   tx->fps=fps;

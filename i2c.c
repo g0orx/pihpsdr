@@ -127,7 +127,7 @@ void i2c_interrupt() {
     flags=read_word_data(ADDRESS_1,0x0E);
     if(flags) {
       ints=read_word_data(ADDRESS_1,0x10);
-g_print("i1c_interrupt: flags=%04X ints=%04X\n",flags,ints);
+//g_print("i2c_interrupt: flags=%04X ints=%04X\n",flags,ints);
       if(ints) {
         int i=-1;
         switch(ints) {
@@ -180,7 +180,7 @@ g_print("i1c_interrupt: flags=%04X ints=%04X\n",flags,ints);
             i=SW17;
             break;
         }
-g_print("i1c_interrupt: sw=%d action=%d\n",i,sw_action[i]);
+//g_print("i1c_interrupt: sw=%d action=%d\n",i,sw_action[i]);
         switch(sw_action[i]) {
           case TUNE:
             {

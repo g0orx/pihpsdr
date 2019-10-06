@@ -163,12 +163,12 @@ void soapy_protocol_create_transmitter(TRANSMITTER *tx) {
   soapy_tx_sample_rate=tx->iq_output_rate;
 
 fprintf(stderr,"soapy_protocol_create_transmitter: setting samplerate=%f\n",(double)soapy_tx_sample_rate);
-  rc=SoapySDRDevice_setSampleRate(soapy_device,SOAPY_SDR_TX,8,(double)soapy_tx_sample_rate);
+  rc=SoapySDRDevice_setSampleRate(soapy_device,SOAPY_SDR_TX,tx->dac,(double)soapy_tx_sample_rate);
   if(rc!=0) {
     fprintf(stderr,"soapy_protocol_configure_transmitter: SoapySDRDevice_setSampleRate(%f) failed: %s\n",(double)soapy_tx_sample_rate,SoapySDR_errToStr(rc));
   }
 
-  size_t channel=0;
+  size_t channel=tx->dac;
 fprintf(stderr,"soapy_protocol_create_transmitter: SoapySDRDevice_setupStream: channel=%ld\n",channel);
 #if defined(SOAPY_SDR_API_VERSION) && (SOAPY_SDR_API_VERSION < 0x00080000)
   rc=SoapySDRDevice_setupStream(soapy_device,&tx_stream,SOAPY_SDR_TX,SOAPY_SDR_CF32,&channel,1,NULL);
@@ -428,7 +428,7 @@ void soapy_protocol_set_tx_frequency(TRANSMITTER *tx) {
       f=(double)(vfo[v].frequency-vfo[v].lo_tx);
     }
 g_print("soapy_protocol_set_tx_frequency: %f\n",f);
-    rc=SoapySDRDevice_setFrequency(soapy_device,SOAPY_SDR_TX,active_receiver->adc,f,NULL);
+    rc=SoapySDRDevice_setFrequency(soapy_device,SOAPY_SDR_TX,tx->dac,f,NULL);
     if(rc!=0) {
       fprintf(stderr,"soapy_protocol: SoapySDRDevice_setFrequency(TX) failed: %s\n",SoapySDR_errToStr(rc));
     }
@@ -450,7 +450,7 @@ void soapy_protocol_set_tx_antenna(TRANSMITTER *tx,int ant) {
   int rc;
   if(soapy_device!=NULL) {
 //    fprintf(stderr,"soapy_protocol: set_tx_antenna: %s\n",radio->info.soapy.tx_antenna[ant]);
-    rc=SoapySDRDevice_setAntenna(soapy_device,SOAPY_SDR_TX,active_receiver->adc,radio->info.soapy.tx_antenna[ant]);
+    rc=SoapySDRDevice_setAntenna(soapy_device,SOAPY_SDR_TX,tx->dac,radio->info.soapy.tx_antenna[ant]);
     if(rc!=0) {
       fprintf(stderr,"soapy_protocol: SoapySDRDevice_setAntenna TX failed: %s\n",SoapySDR_errToStr(rc));
     }
