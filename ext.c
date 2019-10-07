@@ -186,8 +186,8 @@ int ext_sliders_update(void *data) {
 
 #ifdef PURESIGNAL
 int ext_tx_set_ps(void *data) {
-  if(can_tranmit) {
-    int state=(GPOINTER_TO_INT(data)
+  if(can_transmit) {
+    int state=GPOINTER_TO_INT(data);
     tx_set_ps(transmitter, state);
   }
   return 0;
