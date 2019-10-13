@@ -286,7 +286,7 @@ static void ps_ant_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void enable_cb(GtkWidget *widget, gpointer data) {
-  g_idle_add(ext_tx_set_ps,GINT_TO_PTR(gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget))));
+  g_idle_add(ext_tx_set_ps,GINT_TO_POINTER(gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget))));
 }
 
 static void auto_cb(GtkWidget *widget, gpointer data) {

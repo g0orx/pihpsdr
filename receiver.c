@@ -456,11 +456,6 @@ fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
   if(value) rx->audio_channel=atoi(value);
   sprintf(name,"receiver.%d.local_audio",rx->id);
   value=getProperty(name);
-if(value) {
-  fprintf(stderr,"%s=%s\n",name,value);
-} else {
-  fprintf(stderr,"%s=NULL\n",name);
-}
   if(value) rx->local_audio=atoi(value);
   sprintf(name,"receiver.%d.mute_when_not_active",rx->id);
   value=getProperty(name);

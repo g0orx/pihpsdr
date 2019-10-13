@@ -102,6 +102,9 @@ void soapy_protocol_create_receiver(RECEIVER *rx) {
   int rc;
 
   soapy_rx_sample_rate=rx->sample_rate;
+  if(rx->sample_rate!=radio_sample_rate) {
+    soapy_rx_sample_rate=radio_sample_rate;
+  }
 
 fprintf(stderr,"soapy_protocol_create_receiver: setting samplerate=%f adc=%d\n",(double)soapy_rx_sample_rate,rx->adc);
   rc=SoapySDRDevice_setSampleRate(soapy_device,SOAPY_SDR_RX,rx->adc,(double)soapy_rx_sample_rate);
