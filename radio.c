@@ -85,7 +85,7 @@
 #define METER_HEIGHT (60)
 #define METER_WIDTH (200)
 #define PANADAPTER_HEIGHT (105)
-#define SLIDERS_HEIGHT (90)
+#define SLIDERS_HEIGHT (100)
 #define TOOLBAR_HEIGHT (30)
 #define WATERFALL_HEIGHT (105)
 #ifdef PSK

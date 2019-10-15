@@ -572,9 +572,18 @@ void radio_menu(GtkWidget *parent) {
     if(radio->info.soapy.rx_gains>0) {
       GtkWidget *rx_gain=gtk_label_new("Rx Gains:");
       gtk_grid_attach(GTK_GRID(grid),rx_gain,col,row,1,1);
-      row++;
     }
 
+    if(can_transmit) {
+      if(radio->info.soapy.tx_gains>0) {
+        col=2;
+        GtkWidget *tx_gain=gtk_label_new("Tx Gains:");
+        gtk_grid_attach(GTK_GRID(grid),tx_gain,col,row,1,1);
+      }
+    }
+
+    row++;
+    temp_row=row;
 
     if(radio->info.soapy.rx_has_automatic_gain) {
       GtkWidget *agc=gtk_check_button_new_with_label("Hardware AGC: ");
@@ -584,18 +593,6 @@ void radio_menu(GtkWidget *parent) {
       row++;
     }
 
-    row=temp_row;
-
-    if(can_transmit) {
-      if(radio->info.soapy.tx_gains>0) {
-        col=2;
-        GtkWidget *tx_gain=gtk_label_new("Tx Gains:");
-        gtk_grid_attach(GTK_GRID(grid),tx_gain,col,row,1,1);
-        row++;
-      }
-    }
-
-    temp_row=row;
 
     for(i=0;i<radio->info.soapy.rx_gains;i++) {
       col=0;
