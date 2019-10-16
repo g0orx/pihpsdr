@@ -223,7 +223,7 @@ void rx_panadapter_update(RECEIVER *rx) {
 
 
   // filter
-  cairo_set_source_rgba (cr, 0.75, 0.75, 0.00, 0.75);
+  cairo_set_source_rgba (cr, 0.50, 0.50, 0.50, 0.75);
   filter_left =-cwshift+(double)display_width/2.0+(((double)rx->filter_low+vfo[rx->id].offset)/rx->hz_per_pixel);
   filter_right=-cwshift+(double)display_width/2.0+(((double)rx->filter_high+vfo[rx->id].offset)/rx->hz_per_pixel);
   cairo_rectangle(cr, filter_left, 0.0, filter_right-filter_left, (double)display_height);

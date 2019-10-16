@@ -109,6 +109,8 @@ struct _DISCOVERED {
 #ifdef SOAPYSDR
       struct soapy {
         char version[128];
+        char hardware_key[64];
+        char driver_key[64];
         int rtlsdr_count;
         int sample_rate;
         size_t rx_channels;

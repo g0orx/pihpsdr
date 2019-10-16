@@ -200,9 +200,11 @@ fprintf(stderr,"audio_open_input: %d\n",transmitter->input_device);
     case NEW_PROTOCOL:
       mic_buffer_size = 64;
       break;
+#ifdef SOAPYSDR
     case SOAPYSDR_PROTOCOL:
       mic_buffer_size = 720;
       break;
+#endif
     default:
       break;
   }

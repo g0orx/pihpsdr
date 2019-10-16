@@ -200,11 +200,12 @@ void vfo_restore_state() {
 
     vfo[i].band=band20;
     vfo[i].bandstack=0;
+    vfo[i].frequency=14010000;
+#ifdef SOAPYSDR
     if(radio->protocol==SOAPYSDR_PROTOCOL) {
       vfo[i].frequency=144010000;
-    } else {
-      vfo[i].frequency=14010000;
     }
+#endif
     vfo[i].mode=modeCWU;
     vfo[i].filter=6;
     vfo[i].lo=0;

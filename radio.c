@@ -387,11 +387,11 @@ void start_radio() {
 #ifdef SOAPYSDR
     case SOAPYSDR_PROTOCOL:
       can_transmit=(radio->info.soapy.tx_channels!=0);
+      g_print("start_radio: can_transmit=%d tx_channels=%d\n",can_transmit,radio->info.soapy.tx_channels);
       break;
 #endif
   }
 
-  g_print("start_radio: can_transmit=%d tx_channels=%d\n",can_transmit,radio->info.soapy.tx_channels);
 
 #ifdef MIDI
   MIDIstartup();

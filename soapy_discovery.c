@@ -196,6 +196,8 @@ static void get_info(char *driver) {
     discovered[devices].software_version=software_version;
     discovered[devices].frequency_min=ranges[0].minimum;
     discovered[devices].frequency_max=ranges[0].maximum;
+    strcpy(discovered[devices].info.soapy.driver_key,driverkey);
+    strcpy(discovered[devices].info.soapy.hardware_key,hardwarekey);
     discovered[devices].info.soapy.sample_rate=sample_rate;
     if(strcmp(driver,"rtlsdr")==0) {
       discovered[devices].info.soapy.rtlsdr_count=rtlsdr_val;

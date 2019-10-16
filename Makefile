@@ -40,7 +40,7 @@ PURESIGNAL_INCLUDE=PURESIGNAL
 #PI_SDR_INCLUDE=PI_SDR
 
 # uncomment the line below to include MIDI support
-#MIDI_INCLUDE=MIDI
+MIDI_INCLUDE=MIDI
 
 #uncomment the line below for the platform being compiled on (actually not used)
 UNAME_N=raspberrypi
@@ -109,7 +109,7 @@ RADIOBERRY_OPTIONS=-D RADIOBERRY
 endif
 
 # uncomment the line below for SoapySDR
-SOAPYSDR_INCLUDE=SOAPYSDR
+#SOAPYSDR_INCLUDE=SOAPYSDR
 
 ifeq ($(SOAPYSDR_INCLUDE),SOAPYSDR)
 SOAPYSDR_OPTIONS=-D SOAPYSDR

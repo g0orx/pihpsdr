@@ -1011,7 +1011,11 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
 
   receiver_restore_state(rx);
 
+#ifdef SOAPYSDR
   rx->resample_step=radio->info.soapy.sample_rate/rx->sample_rate;
+#else
+  rx->resample_step=1;
+#endif
 
 fprintf(stderr,"create_receiver (after restore): rx=%p id=%d local_audio=%d\n",rx,rx->id,rx->local_audio);
   int scale=rx->sample_rate/48000;
