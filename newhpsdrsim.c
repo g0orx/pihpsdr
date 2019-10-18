@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <pthread.h>
 #include <sys/socket.h>
 #include <errno.h>
@@ -124,142 +125,143 @@ int new_protocol_running() {
 }
 
 void new_protocol_general_packet(unsigned char *buffer) {
-  static unsigned long gp_seqnum=0;
+  static unsigned long seqnum=0;
   unsigned long seqold;
   int rc;
 
-  seqold = gp_seqnum;
-  gp_seqnum = (buffer[0] >> 24) + (buffer[1] << 16) + (buffer[2] << 8) + buffer[3];
-  if (gp_seqnum != 0 && gp_seqnum != seqold+1 ) {
-    fprintf(stderr,"GP: SEQ ERROR, old=%lu new=%lu\n", seqold, gp_seqnum);
+  seqold = seqnum;
+  seqnum = (buffer[0] >> 24) + (buffer[1] << 16) + (buffer[2] << 8) + buffer[3];
+  if (seqnum != 0 && seqnum != seqold+1 ) {
+    fprintf(stderr,"GP: SEQ ERROR, old=%lu new=%lu\n", seqold, seqnum);
   }
+  fprintf(stderr,"GP seq=%ld\n", (long) seqnum);
 
   rc=(buffer[5] << 8) + buffer[6];
   if (rc == 0) rc=1025;
-  if (rc != ddc_port) {
+  if (rc != ddc_port || !run) {
     ddc_port=rc;
     fprintf(stderr,"GP: RX specific rcv        port is  %4d\n", rc);
   }
   rc=(buffer[7] << 8) + buffer[8];
   if (rc == 0) rc=1026;
-  if (rc != duc_port) {
+  if (rc != duc_port || !run) {
     duc_port=rc;
     fprintf(stderr,"GP: TX specific rcv        port is  %4d\n", rc);
   }
   rc=(buffer[9] << 8) + buffer[10];
   if (rc == 0) rc=1027;
-  if (rc != hp_port) {
+  if (rc != hp_port || !run) {
     hp_port=rc;
     fprintf(stderr,"GP: HighPrio Port rcv      port is  %4d\n", rc);
   }
   rc=(buffer[11] << 8) + buffer[12];
   if (rc == 0) rc=1025;
-  if (rc != shp_port) {
+  if (rc != shp_port || !run) {
     shp_port=rc;
     fprintf(stderr,"GP: HighPrio Port snd      port is  %4d\n", rc);
   }
   rc=(buffer[13] << 8) + buffer[14];
   if (rc == 0) rc=1028;
-  if (rc != audio_port) {
+  if (rc != audio_port || !run) {
     audio_port=rc;
     fprintf(stderr,"GP: Audio rcv              port is  %4d\n", rc);
   }
   rc=(buffer[15] << 8) + buffer[16];
   if (rc == 0) rc=1029;
-  if (rc != duc0_port) {
+  if (rc != duc0_port || !run) {
     duc0_port=rc;
     fprintf(stderr,"GP: TX data rcv base       port is  %4d\n", rc);
   }
   rc=(buffer[17] << 8) + buffer[18];
   if (rc == 0) rc=1035;
-  if (rc != ddc0_port) {
+  if (rc != ddc0_port || !run) {
     ddc0_port=rc;
     fprintf(stderr,"GP: RX data snd base       port is  %4d\n", rc);
   }
   rc=(buffer[19] << 8) + buffer[20];
   if (rc == 0) rc=1026;
-  if (rc != mic_port) {
+  if (rc != mic_port || !run) {
     mic_port=rc;
     fprintf(stderr,"GP: Microphone data snd    port is  %4d\n", rc);
   }
   rc=(buffer[21] << 8) + buffer[22];
   if (rc == 0) rc=1027;
-  if (rc != wide_port) {
+  if (rc != wide_port || !run) {
     wide_port=rc;
     fprintf(stderr,"GP: Wideband data snd       port is  %4d\n", rc);
   }
   rc=buffer[23]; 
-  if (rc != wide_enable) {
+  if (rc != wide_enable || !run) {
     wide_enable = rc;
     fprintf(stderr,"GP: Wideband Enable Flag is %d\n", rc);
   }
   rc=(buffer[24] << 8) + buffer[25]; if (rc == 0) rc=512;
-  if (rc != wide_len) {
+  if (rc != wide_len || !run) {
     wide_len=rc;
     fprintf(stderr,"GP: WideBand Length is %d\n", rc);
   }
   rc=buffer[26]; if (rc == 0) rc=16;
-  if (rc != wide_size) {
+  if (rc != wide_size || !run) {
     wide_size=rc;
     fprintf(stderr,"GP: Wideband sample size is %d\n", rc);
   }
   rc=buffer[27];
-  if (rc != wide_rate) {
+  if (rc != wide_rate || !run) {
     wide_rate=rc;
     fprintf(stderr,"GP: Wideband sample rate is %d\n", rc);
   }
   rc=buffer[28];
-  if (rc != wide_ppf) {
+  if (rc != wide_ppf || !run) {
     wide_ppf = rc;
     fprintf(stderr,"GP: Wideband PPF is %d\n", rc);
   }
   rc = (buffer[29] << 8) + buffer[30];
-  if (rc != port_mm) {
+  if (rc != port_mm || !run) {
     port_mm=rc;
     fprintf(stderr,"MemMapped Registers rcv port is %d\n", rc);
   }
   rc = (buffer[31] << 8) + buffer[32];
-  if (rc != port_smm) {
+  if (rc != port_smm || !run) {
     port_smm=rc;
     fprintf(stderr,"MemMapped Registers snd port is %d\n", rc);
   }
   rc = (buffer[33] << 8) + buffer[34];
-  if (rc != pwm_min) {
+  if (rc != pwm_min || !run) {
     pwm_min=rc;
     fprintf(stderr,"GP: PWM Min value is %d\n", rc);
   }
   rc = (buffer[35] << 8) + buffer[36];
-  if (rc != pwm_max) {
+  if (rc != pwm_max || !run) {
     pwm_max=rc;
     fprintf(stderr,"GP: PWM Max value is %d\n", rc);
   }
   rc=buffer[37];
-  if (rc != bits) {
+  if (rc != bits || !run) {
     bits=rc;
     fprintf(stderr,"GP: ModeBits=x%02x\n", rc);
   }
   rc=buffer[38];
-  if (rc != hwtim) {
+  if (rc != hwtim || !run) {
     hwtim=rc;
     fprintf(stderr,"GP: Hardware Watchdog enabled=%d\n", rc);
   }
 
   iqform = buffer[39];				if (iqform == 0) iqform=3;
-  if (iqform != 3) fprintf(stderr,"GP: Wrong IQ Format requested: %d\n",iqform);
+  if (iqform != 3 || !run) fprintf(stderr,"GP: Wrong IQ Format requested: %d\n",iqform);
 
   rc = (buffer[58] & 0x01);
-  if (rc != pa_enable) {
+  if (rc != pa_enable || !run) {
     pa_enable=rc;
     fprintf(stderr,"GP: PA enabled=%d\n", rc);
   }
 
   rc=buffer[59] & 0x01;
-  if (rc != alex0_enable) {
+  if (rc != alex0_enable || !run) {
     alex0_enable=rc;
     fprintf(stderr,"GP: ALEX0 register enable=%d\n", rc);
   }
   rc=(buffer[59] & 0x02) >> 1;
-  if (rc != alex1_enable) {
+  if (rc != alex1_enable || !run) {
     alex1_enable=rc;
     fprintf(stderr,"GP: ALEX1 register enable=%d\n", rc);
   }
@@ -276,13 +278,13 @@ void new_protocol_general_packet(unsigned char *buffer) {
   //
   // init state arrays to zero for the first time
   //
-  memset(adcdither, 0, 8*sizeof(int));
-  memset(adcrandom, 0, 8*sizeof(int));
-  memset(ddcenable, 0, NUMRECEIVERS*sizeof(int));
-  memset(adcmap, 0, NUMRECEIVERS*sizeof(int));
-  memset(syncddc, 0, NUMRECEIVERS*sizeof(int));
+  memset(adcdither, -1, 8*sizeof(int));
+  memset(adcrandom, -1, 8*sizeof(int));
+  memset(ddcenable, -1, NUMRECEIVERS*sizeof(int));
+  memset(adcmap, -1, NUMRECEIVERS*sizeof(int));
+  memset(syncddc, -1, NUMRECEIVERS*sizeof(int));
 
-  memset(rxfreq, 0, NUMRECEIVERS*sizeof(unsigned long));
+  memset(rxfreq, -1, NUMRECEIVERS*sizeof(unsigned long));
   memset(alex0, 0, 32*sizeof(int));
   memset(alex1, 0, 32*sizeof(int));
   }
@@ -609,6 +611,8 @@ void *highprio_thread(void *data) {
           pthread_join(tx_thread_id, NULL);
           pthread_join(mic_thread_id, NULL);
           pthread_join(audio_thread_id, NULL);
+          highprio_thread_id=0;
+          return NULL;
 	}
      }
      rc=(buffer[4] >> 1) & 0x01;

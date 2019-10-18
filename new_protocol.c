@@ -2013,7 +2013,7 @@ void* new_protocol_timer_thread(void* arg) {
       case 4:
       case 6:
 	new_protocol_high_priority();		// every 100 msec
-	new_protocol_transmit_specific();	// every 200 msec
+	new_protocol_receive_specific();	// every 200 msec
         break;
       case 8:
 	new_protocol_high_priority();		// every 100 msec

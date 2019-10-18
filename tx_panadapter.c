@@ -139,16 +139,22 @@ tx_panadapter_motion_notify_event_cb (GtkWidget      *widget,
 {
   int x, y;
   GdkModifierType state;
-  gdk_window_get_device_position (event->window,
-                                event->device,
-                                &x,
-                                &y,
-                                &state);
-  if(((state & GDK_BUTTON1_MASK) == GDK_BUTTON1_MASK) || pressed) {
-    int moved=last_x-x;
-    vfo_move((long long)((float)moved*hz_per_pixel));
-    last_x=x;
-    has_moved=TRUE;
+  //
+  // DL1YCF: if !pressed, we may come from the destruction
+  //         of a menu, and should not move the VFO
+  //
+  if (pressed) {
+    gdk_window_get_device_position (event->window,
+                                    event->device,
+                                    &x,
+                                    &y,
+                                    &state);
+    if(state & GDK_BUTTON1_MASK) {
+      int moved=last_x-x;
+      vfo_move((long long)((float)moved*hz_per_pixel));
+      last_x=x;
+      has_moved=TRUE;
+    }
   }
 
   return TRUE;
@@ -199,11 +205,13 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   cairo_paint (cr);
 
   // filter
-  cairo_set_source_rgb (cr, 0.25, 0.25, 0.25);
-  filter_left=(double)display_width/2.0+((double)tx->filter_low/hz_per_pixel);
-  filter_right=(double)display_width/2.0+((double)tx->filter_high/hz_per_pixel);
-  cairo_rectangle(cr, filter_left, 0.0, filter_right-filter_left, (double)display_height);
-  cairo_fill(cr);
+  if (vfo[id].mode != modeCWU && vfo[id].mode != modeCWL) {
+    cairo_set_source_rgb (cr, 0.25, 0.25, 0.25);
+    filter_left=(double)display_width/2.0+((double)tx->filter_low/hz_per_pixel);
+    filter_right=(double)display_width/2.0+((double)tx->filter_high/hz_per_pixel);
+    cairo_rectangle(cr, filter_left, 0.0, filter_right-filter_left, (double)display_height);
+    cairo_fill(cr);
+  }
 
   // plot the levels 0, -20, 40, ... dBm (green line with label)
   // also plot gray lines at -10, -30, -50, ... dBm (without label)
@@ -242,6 +250,17 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   long long half=24000LL; //(long long)(tx->output_rate/2);
   long long frequency;
   frequency=vfo[id].frequency+vfo[id].offset;
+  double vfofreq=(double)display_width * 0.5;
+  if (!cw_is_on_vfo_freq) {
+    if(vfo[id].mode==modeCWU) {
+      frequency+=(long long)cw_keyer_sidetone_frequency;
+      vfofreq -=  (double) cw_keyer_sidetone_frequency/hz_per_pixel;
+    } else if(vfo[id].mode==modeCWL) {
+      frequency-=(long long)cw_keyer_sidetone_frequency;
+      vfofreq +=  (double) cw_keyer_sidetone_frequency/hz_per_pixel;
+    }
+  }
+
   divisor=5000LL;
   for(i=0;i<display_width;i++) {
     f = frequency - half + (long) (hz_per_pixel * i);
@@ -291,11 +310,12 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   }
             
   // cursor
+  
   cairo_set_source_rgb (cr, 1.0, 0.0, 0.0);
   cairo_set_line_width(cr, 1.0);
 //fprintf(stderr,"cursor: x=%f\n",(double)(display_width/2.0)+(vfo[tx->id].offset/hz_per_pixel));
-  cairo_move_to(cr,(double)(display_width/2.0)+(vfo[id].offset/hz_per_pixel),0.0);
-  cairo_line_to(cr,(double)(display_width/2.0)+(vfo[id].offset/hz_per_pixel),(double)display_height);
+  cairo_move_to(cr,vfofreq+(vfo[id].offset/hz_per_pixel),0.0);
+  cairo_line_to(cr,vfofreq+(vfo[id].offset/hz_per_pixel),(double)display_height);
   cairo_stroke(cr);
 
   // signal
