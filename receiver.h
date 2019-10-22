@@ -37,46 +37,47 @@ enum _audio_t {
 typedef enum _audio_t audio_t;
 
 typedef struct _receiver {
-  int id;
+  gint id;
 
-  int adc;
+  gint ddc;
+  gint adc;
 
-  double volume;
-  int agc;
-  double agc_gain;
-  double agc_slope;
-  double agc_hang_threshold;
-  int fps;
-  int displaying;
+  gdouble volume;
+  gint agc;
+  gdouble agc_gain;
+  gdouble agc_slope;
+  gdouble agc_hang_threshold;
+  gint fps;
+  gint displaying;
   audio_t audio_channel;
-  int sample_rate;
-  int buffer_size;
-  int fft_size;
-  int pixels;
-  int samples;
-  int output_samples;
-  double *iq_input_buffer;
-  double *audio_output_buffer;
-  unsigned char *audio_buffer;
-  int audio_index;
-  long audio_sequence;
-  float *pixel_samples;
-  int display_panadapter;
-  int display_waterfall;
+  gint sample_rate;
+  gint buffer_size;
+  gint fft_size;
+  gint pixels;
+  gint samples;
+  gint output_samples;
+  gdouble *iq_input_buffer;
+  gdouble *audio_output_buffer;
+  guchar *audio_buffer;
+  gint audio_index;
+  guint32 audio_sequence;
+  gfloat *pixel_samples;
+  gint display_panadapter;
+  gint display_waterfall;
   gint update_timer_id;
 
-  double hz_per_pixel;
+  gdouble hz_per_pixel;
 
-  int dither;
-  int random;
-  int preamp;
+  gint dither;
+  gint random;
+  gint preamp;
 
-  int nb;
-  int nb2;
-  int nr;
-  int nr2;
-  int anf;
-  int snb;
+  gint nb;
+  gint nb2;
+  gint nr;
+  gint nr2;
+  gint anf;
+  gint snb;
 
   int nr_agc;
   int nr2_gain_method;
@@ -84,60 +85,64 @@ typedef struct _receiver {
   int nr2_ae;
 
 
-  int alex_antenna;
-  int alex_attenuation;
+  gint alex_antenna;
+  gint alex_attenuation;
 
-  int filter_low;
-  int filter_high;
+  gint filter_low;
+  gint filter_high;
 
-  int width;
-  int height;
+  gint width;
+  gint height;
 
   GtkWidget *panel;
   GtkWidget *panadapter;
   GtkWidget *waterfall;
 
-  int panadapter_low;
-  int panadapter_high;
+  gint panadapter_low;
+  gint panadapter_high;
+  gint panadapter_step;
 
-  int waterfall_low;
-  int waterfall_high;
-  int waterfall_automatic;
+  gint waterfall_low;
+  gint waterfall_high;
+  gint waterfall_automatic;
   cairo_surface_t *panadapter_surface;
   GdkPixbuf *pixbuf;
-  int local_audio;
-  int mute_when_not_active;
-  int audio_device;
+  gint local_audio;
+  gint mute_when_not_active;
+  gint audio_device;
 #ifdef PORTAUDIO
   PaStream *playback_handle;
-  float *playback_buffer;
+  gfloat *playback_buffer;
 #else
   snd_pcm_t *playback_handle;
-  unsigned char *playback_buffer;
+  guchar *playback_buffer;
 #endif
-  int playback_offset;
-  int low_latency;
+  gint playback_offset;
+  gint low_latency;
 
-  int squelch_enable;
-  double squelch;
+  gint squelch_enable;
+  gdouble squelch;
 
-  int deviation;
+  gint deviation;
 
-  long long waterfall_frequency;
-  int waterfall_sample_rate;
+  gint64 waterfall_frequency;
+  gint waterfall_sample_rate;
 
-  int mute_radio;
+  gint mute_radio;
+
+  gdouble *buffer;
+  gint resample_step;
 
 #ifdef FREEDV
   GMutex freedv_mutex;
-  int freedv;
-  int freedv_samples;
-  char freedv_text_data[64];
-  int freedv_text_index;
+  gint freedv;
+  gint freedv_samples;
+  gchar freedv_text_data[64];
+  gint freedv_text_index;
 #endif
 
-  int x;
-  int y;
+  gint x;
+  gint y;
 } RECEIVER;
 
 extern RECEIVER *create_pure_signal_receiver(int id, int buffer_size,int sample_rate,int pixels);

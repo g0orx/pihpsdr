@@ -28,12 +28,15 @@
 #include "diversity_menu.h"
 #include "radio.h"
 #include "new_protocol.h"
+#include "sliders.h"
 
 #include <math.h> 
 
 static GtkWidget *parent_window=NULL;
 
 static GtkWidget *dialog=NULL;
+static GtkWidget *gain_scale=NULL;
+static GtkWidget *phase_scale=NULL;
 
 static GtkWidget *level;
 
@@ -42,6 +45,8 @@ static void cleanup() {
     gtk_widget_destroy(dialog);
     dialog=NULL;
     sub_menu=NULL;
+    gain_scale=NULL;
+    phase_scale=NULL;
   }
 }
 
@@ -68,9 +73,34 @@ static void diversity_cb(GtkWidget *widget, gpointer data) {
 // The DIVERSITY rotation parameters must be re-calculated
 // each time the gain or the phase changes.
 //
-static void gain_value_changed_cb(GtkWidget *widget, gpointer data) {
+static void set_gain(double gain) {
   double amplitude,arg;
-  div_gain=gtk_range_get_value(GTK_RANGE(widget));
+  div_gain=gain;
+  amplitude=pow(10.0, 0.05*div_gain);
+  arg=div_phase*0.017453292519943295769236907684886;
+  div_cos=amplitude*cos(arg);
+  div_sin=amplitude*sin(arg);
+}
+
+static void gain_value_changed_cb(GtkWidget *widget, gpointer data) {
+  set_gain(gtk_range_get_value(GTK_RANGE(widget)));
+}
+
+void update_diversity_gain(double increment) {
+  double g=div_gain+(increment/10);
+  if(g<-12.0) g=-12.0;
+  if(g>12.0) g=12.0;
+  if(gain_scale!=NULL) {
+    gtk_range_set_value(GTK_RANGE(gain_scale),div_gain);
+  } else {
+    show_diversity_gain();
+  }
+  set_gain(g);
+}
+
+static void set_phase(double phase) {
+  double amplitude,arg;
+  div_phase=phase;
   amplitude=pow(10.0, 0.05*div_gain);
   arg=div_phase*0.017453292519943295769236907684886;
   div_cos=amplitude*cos(arg);
@@ -78,12 +108,19 @@ static void gain_value_changed_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void phase_value_changed_cb(GtkWidget *widget, gpointer data) {
-  double amplitude,arg;
-  div_phase=gtk_range_get_value(GTK_RANGE(widget));
-  amplitude=pow(10.0, 0.05*div_gain);
-  arg=div_phase*0.017453292519943295769236907684886;
-  div_cos=amplitude*cos(arg);
-  div_sin=amplitude*sin(arg);
+  set_phase(gtk_range_get_value(GTK_RANGE(widget)));
+}
+
+void update_diversity_phase(double increment) {
+  double p=div_phase+increment;
+  if(p<0.0) p=360.0;
+  if(p>360.0) p=0.0;
+  if(phase_scale!=NULL) {
+    gtk_range_set_value(GTK_RANGE(phase_scale),div_phase);
+  } else {
+    show_diversity_phase();
+  }
+  set_phase(p);
 }
 
 void diversity_menu(GtkWidget *parent) {
@@ -119,32 +156,32 @@ void diversity_menu(GtkWidget *parent) {
   GtkWidget *diversity_b=gtk_check_button_new_with_label("Diversity Enable");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (diversity_b), diversity_enabled);
   gtk_widget_show(diversity_b);
-  gtk_grid_attach(GTK_GRID(grid),diversity_b,0,1,1,1);
+  gtk_grid_attach(GTK_GRID(grid),diversity_b,1,0,1,1);
   g_signal_connect(diversity_b,"toggled",G_CALLBACK(diversity_cb),NULL);
 
 
   GtkWidget *gain_label=gtk_label_new("Gain:");
   gtk_misc_set_alignment (GTK_MISC(gain_label), 0, 0);
   gtk_widget_show(gain_label);
-  gtk_grid_attach(GTK_GRID(grid),gain_label,0,2,1,1);
+  gtk_grid_attach(GTK_GRID(grid),gain_label,0,1,1,1);
 
-  GtkWidget *gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-12.0,+12.0,0.1);
+  gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-12.0,+12.0,0.1);
   gtk_widget_set_size_request (gain_scale, 300, 25);
   gtk_range_set_value(GTK_RANGE(gain_scale),div_gain);
   gtk_widget_show(gain_scale);
-  gtk_grid_attach(GTK_GRID(grid),gain_scale,1,2,1,1);
+  gtk_grid_attach(GTK_GRID(grid),gain_scale,1,1,1,1);
   g_signal_connect(G_OBJECT(gain_scale),"value_changed",G_CALLBACK(gain_value_changed_cb),NULL);
 
   GtkWidget *phase_label=gtk_label_new("Phase:");
   gtk_misc_set_alignment (GTK_MISC(phase_label), 0, 0);
   gtk_widget_show(phase_label);
-  gtk_grid_attach(GTK_GRID(grid),phase_label,0,3,1,1);
+  gtk_grid_attach(GTK_GRID(grid),phase_label,0,2,1,1);
 
-  GtkWidget *phase_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0,360.0,1.0);
+  phase_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0,360.0,1.0);
   gtk_widget_set_size_request (phase_scale, 300, 25);
   gtk_range_set_value(GTK_RANGE(phase_scale),div_phase);
   gtk_widget_show(phase_scale);
-  gtk_grid_attach(GTK_GRID(grid),phase_scale,1,3,1,1);
+  gtk_grid_attach(GTK_GRID(grid),phase_scale,1,2,1,1);
   g_signal_connect(G_OBJECT(phase_scale),"value_changed",G_CALLBACK(phase_value_changed_cb),NULL);
 
   

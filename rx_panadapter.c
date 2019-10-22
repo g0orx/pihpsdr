@@ -233,7 +233,7 @@ void rx_panadapter_update(RECEIVER *rx) {
   char v[32];
 
   for(i=rx->panadapter_high;i>=rx->panadapter_low;i--) {
-    int mod=abs(i)%20;
+    int mod=abs(i)%rx->panadapter_step;
     if(mod==0) {
       double y = (double)(rx->panadapter_high-i)*dbm_per_line;
       cairo_move_to(cr,0.0,y);
@@ -300,7 +300,7 @@ void rx_panadapter_update(RECEIVER *rx) {
     // band edges
     if(band->frequencyMin!=0LL) {
       cairo_set_source_rgb (cr, 1.0, 0.0, 0.0);
-      cairo_set_line_width(cr, 2.0);
+      cairo_set_line_width(cr, 1.0);
       if((min_display<band->frequencyMin)&&(max_display>band->frequencyMin)) {
         i=(band->frequencyMin-min_display)/(long long)HzPerPixel;
         cairo_move_to(cr,(double)i,0.0);
@@ -431,25 +431,27 @@ void rx_panadapter_update(RECEIVER *rx) {
   }
 #endif
 
-#ifdef GPIO
+#ifdef GPIO 
+#ifndef CONTROLLER2 
   if(active) {
     cairo_set_source_rgb(cr,1.0,1.0,0.0);
     cairo_set_font_size(cr,16);
-    if(ENABLE_E1_ENCODER) {
-      cairo_move_to(cr, display_width-150,30);
-      cairo_show_text(cr, encoder_string[e1_encoder_action]);
-    }
-
     if(ENABLE_E2_ENCODER) {
-      cairo_move_to(cr, display_width-150,50);
+      cairo_move_to(cr, display_width-150,30);
       cairo_show_text(cr, encoder_string[e2_encoder_action]);
     }
 
     if(ENABLE_E3_ENCODER) {
-      cairo_move_to(cr, display_width-150,70);
+      cairo_move_to(cr, display_width-150,50);
       cairo_show_text(cr, encoder_string[e3_encoder_action]);
     }
+
+    if(ENABLE_E4_ENCODER) {
+      cairo_move_to(cr, display_width-150,70);
+      cairo_show_text(cr, encoder_string[e4_encoder_action]);
+    }
   }
+#endif
 #endif
 
 

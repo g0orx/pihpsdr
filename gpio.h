@@ -21,30 +21,131 @@
 #define _GPIO_H
 
 enum {
-  ENCODER_AF_GAIN=0,
-  ENCODER_AGC_GAIN,
+  ENCODER_AF_GAIN_RX1=0,
+  ENCODER_RF_GAIN_RX1,
+  ENCODER_AF_GAIN_RX2,
+  ENCODER_RF_GAIN_RX2,
+  ENCODER_AGC_GAIN_RX1,
+  ENCODER_AGC_GAIN_RX2,
+  ENCODER_IF_WIDTH_RX1,
+  ENCODER_IF_WIDTH_RX2,
   ENCODER_ATTENUATION,
   ENCODER_MIC_GAIN,
   ENCODER_DRIVE,
-//  ENCODER_TUNE_DRIVE,
-  ENCODER_RIT,
+  ENCODER_TUNE_DRIVE,
+  ENCODER_RIT_RX1,
+  ENCODER_RIT_RX2,
+  ENCODER_XIT,
   ENCODER_CW_SPEED,
   ENCODER_CW_FREQUENCY,
   ENCODER_PANADAPTER_HIGH,
   ENCODER_PANADAPTER_LOW,
   ENCODER_SQUELCH,
   ENCODER_COMP,
-  ENCODER_LAST
+  ENCODER_DIVERSITY_GAIN,
+  ENCODER_DIVERSITY_PHASE,
+  ENCODER_ACTIONS
 };
 
+extern char *encoder_string[ENCODER_ACTIONS];
+
+enum {
+  NO_ACTION=0,
+  TUNE,
+  MOX,
+  PS,
+  TWO_TONE,
+  NR,
+  NB,
+  SNB,
+  RIT,
+  RIT_CLEAR,
+  XIT,
+  XIT_CLEAR,
+  BAND_PLUS,
+  BAND_MINUS,
+  BANDSTACK_PLUS,
+  BANDSTACK_MINUS,
+  MODE_PLUS,
+  MODE_MINUS,
+  FILTER_PLUS,
+  FILTER_MINUS,
+  A_TO_B,
+  B_TO_A,
+  A_SWAP_B,
+  LOCK,
+  CTUN,
+  AGC,
+  SPLIT,
+  DIVERSITY,
+  MENU_BAND,
+  MENU_BANDSTACK,
+  MENU_MODE,
+  MENU_FILTER,
+  MENU_FREQUENCY,
+  MENU_MEMORY,
+  MENU_DIVERSITY,
+  FUNCTION,
+  SWITCH_ACTIONS
+};
+
+extern char *sw_string[SWITCH_ACTIONS];
+
+
+#ifndef CONTROLLER2
+#define SWITCHES 8
+enum {
+  SW1=0,
+  SW2,
+  SW3,
+  SW4,
+  SW5,
+  SW6,
+  SW7,
+  SW8
+};
+#else
+#define SWITCHES 16
+enum {
+  SW2=0,
+  SW3,
+  SW4,
+  SW5,
+  SW6,
+  SW7,
+  SW8,
+  SW9,
+  SW10,
+  SW11,
+  SW12,
+  SW13,
+  SW14,
+  SW15,
+  SW16,
+  SW17
+};
+
+#endif
+
+extern int sw_action[SWITCHES];
 
 extern int settle_time;
 
-extern char *encoder_string[ENCODER_LAST];
 
-extern int e1_encoder_action;
 extern int e2_encoder_action;
 extern int e3_encoder_action;
+extern int e4_encoder_action;
+extern int e5_encoder_action;
+
+extern int e2_top_encoder_action;
+extern int e3_top_encoder_action;
+extern int e4_top_encoder_action;
+extern int e5_top_encoder_action;
+
+extern int e2_sw_action;
+extern int e3_sw_action;
+extern int e4_sw_action;
+extern int e5_sw_action;
 
 extern int ENABLE_VFO_ENCODER;
 extern int ENABLE_VFO_PULLUP;
@@ -52,10 +153,6 @@ extern int VFO_ENCODER_A;
 extern int VFO_ENCODER_B;
 extern int VFO_ENCODER_A_PIN;
 extern int VFO_ENCODER_B_PIN;
-extern int ENABLE_E1_ENCODER;
-extern int ENABLE_E1_PULLUP;
-extern int E1_ENCODER_A;
-extern int E1_ENCODER_B;
 extern int ENABLE_E2_ENCODER;
 extern int ENABLE_E2_PULLUP;
 extern int E2_ENCODER_A;
@@ -64,6 +161,16 @@ extern int ENABLE_E3_ENCODER;
 extern int ENABLE_E3_PULLUP;
 extern int E3_ENCODER_A;
 extern int E3_ENCODER_B;
+extern int ENABLE_E4_ENCODER;
+extern int ENABLE_E4_PULLUP;
+extern int E4_ENCODER_A;
+extern int E4_ENCODER_B;
+#ifdef CONTROLLER2
+extern int ENABLE_E5_ENCODER;
+extern int ENABLE_E5_PULLUP;
+extern int E5_ENCODER_A;
+extern int E5_ENCODER_B;
+#endif
 extern int ENABLE_S1_BUTTON;
 extern int S1_BUTTON;
 extern int ENABLE_S2_BUTTON;
@@ -93,8 +200,10 @@ int  gpio_right_cw_key();
 int  gpio_cw_sidetone_enabled();
 #endif
 
+void gpio_restore_actions();
 void gpio_restore_state();
 void gpio_save_state();
+void gpio_save_actions();
 int gpio_init();
 void gpio_close();
 int vfo_encoder_get_pos();

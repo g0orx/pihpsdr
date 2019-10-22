@@ -31,6 +31,9 @@
 #include "discovered.h"
 #include "old_discovery.h"
 #include "new_discovery.h"
+#ifdef SOAPYSDR
+#include "soapy_discovery.h"
+#endif
 #include "main.h"
 #include "radio.h"
 #ifdef USBOZY
@@ -180,9 +183,9 @@ void discovery() {
   status_text("Protocol 2 ... Discovering Devices");
   new_discovery();
 
-#ifdef LIMESDR
-  status_text("LimeSDR ... Discovering Devices");
-  lime_discovery();
+#ifdef SOAPYSDR
+  status_text("SoapySDR ... Discovering Devices");
+  soapy_discovery();
 #endif
 
   status_text("Discovery");
@@ -293,10 +296,9 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
           }
 #endif
           break;
-#ifdef LIMESDR
-        case LIMESDR_PROTOCOL:
-          sprintf(text,"%s",
-                        d->name);
+#ifdef SOAPYSDR
+        case SOAPYSDR_PROTOCOL:
+          sprintf(text,"%s (Protocol SOAPY_SDR %s) on USB",d->name,d->info.soapy.version);
           break;
 #endif
 #ifdef STEMLAB_DISCOVERY
@@ -334,11 +336,17 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
         gtk_widget_set_sensitive(start_button, FALSE);
       }
 
-      // if not on the same subnet then cannot start it
-      if((d->info.network.interface_address.sin_addr.s_addr&d->info.network.interface_netmask.sin_addr.s_addr) != (d->info.network.address.sin_addr.s_addr&d->info.network.interface_netmask.sin_addr.s_addr)) {
-        gtk_button_set_label(GTK_BUTTON(start_button),"Subnet!");
-        gtk_widget_set_sensitive(start_button, FALSE);
+#ifdef SOAPYSDR
+      if(d->device!=SOAPYSDR_USB_DEVICE) {
+#endif
+        // if not on the same subnet then cannot start it
+        if((d->info.network.interface_address.sin_addr.s_addr&d->info.network.interface_netmask.sin_addr.s_addr) != (d->info.network.address.sin_addr.s_addr&d->info.network.interface_netmask.sin_addr.s_addr)) {
+          gtk_button_set_label(GTK_BUTTON(start_button),"Subnet!");
+          gtk_widget_set_sensitive(start_button, FALSE);
+        }
+#ifdef SOAPYSDR
       }
+#endif
 
 #ifdef STEMLAB_DISCOVERY
       if (d->protocol == STEMLAB_PROTOCOL) {

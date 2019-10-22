@@ -20,4 +20,8 @@
 char build_date[]=GIT_DATE;
 char build_version[]=GIT_VERSION;
 
-char version[]=GIT_VERSION;
+#ifdef CONTROLLER2
+char version[]="2.0.0 (Controller2)";
+#else
+char version[]="2.0.0";
+#endif

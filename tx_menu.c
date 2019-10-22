@@ -32,9 +32,9 @@ static GtkWidget *dialog=NULL;
 
 static GtkWidget *last_filter;
 
-static GtkWidget *micin_b;
-static GtkWidget *linein_b;
-static GtkWidget *micboost_b;
+static GtkWidget *micin_b=NULL;
+static GtkWidget *linein_b=NULL;
+static GtkWidget *micboost_b=NULL;
 
 static GtkWidget *tune_label;
 static GtkWidget *tune_scale;
@@ -116,23 +116,23 @@ static void local_microphone_cb(GtkWidget *widget, gpointer data) {
   if(gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget))) {
     if(audio_open_input()==0) {
       transmitter->local_microphone=1;
-      gtk_widget_hide(micin_b);
-      gtk_widget_hide(linein_b);
-      gtk_widget_hide(micboost_b);
+      if(micin_b!=NULL) gtk_widget_hide(micin_b);
+      if(linein_b!=NULL) gtk_widget_hide(linein_b);
+      if(micboost_b!=NULL) gtk_widget_hide(micboost_b);
     } else {
       transmitter->local_microphone=0;
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), FALSE);
-      gtk_widget_show(micin_b);
-      gtk_widget_show(linein_b);
-      gtk_widget_show(micboost_b);
+      if(micin_b!=NULL) gtk_widget_show(micin_b);
+      if(linein_b!=NULL) gtk_widget_show(linein_b);
+      if(micboost_b!=NULL) gtk_widget_show(micboost_b);
     }
   } else {
     if(transmitter->local_microphone) {
       transmitter->local_microphone=0;
       audio_close_input();
-      gtk_widget_show(micin_b);
-      gtk_widget_show(linein_b);
-      gtk_widget_show(micboost_b);
+      if(micin_b!=NULL) gtk_widget_show(micin_b);
+      if(linein_b!=NULL) gtk_widget_show(linein_b);
+      if(micboost_b!=NULL) gtk_widget_show(micboost_b);
     }
   }
 }

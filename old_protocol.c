@@ -643,7 +643,11 @@ static int second_receiver_channel() {
   // return the channel number of the second receiver
   //
 #ifdef PURESIGNAL
-  return 2;
+  if(device==DEVICE_HERMES_LITE) {
+    return 1;
+  } else {
+    return 2;
+  }
 #else
   return 1;
 #endif
@@ -671,8 +675,14 @@ static long long channel_freq(int chan) {
   switch (chan) {
 #ifdef PURESIGNAL
     case 0:
-    case 1:
       vfonum=receiver[0]->id;
+      break;
+    case 1:
+      if(device==DEVICE_HERMES_LITE) {
+        vfonum=receiver[1]->id;
+      } else {
+        vfonum=receiver[0]->id;
+      }
       break;
     case 2:
     case 3:

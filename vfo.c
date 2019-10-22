@@ -173,6 +173,9 @@ void vfo_save_state() {
     sprintf(name,"vfo.%d.lo",i);
     sprintf(value,"%lld",vfo[i].lo);
     setProperty(name,value);
+    sprintf(name,"vfo.%d.lo_tx",i);
+    sprintf(value,"%lld",vfo[i].lo_tx);
+    setProperty(name,value);
     sprintf(name,"vfo.%d.ctun_frequency",i);
     sprintf(value,"%lld",vfo[i].ctun_frequency);
     setProperty(name,value);
@@ -198,6 +201,11 @@ void vfo_restore_state() {
     vfo[i].band=band20;
     vfo[i].bandstack=0;
     vfo[i].frequency=14010000;
+#ifdef SOAPYSDR
+    if(radio->protocol==SOAPYSDR_PROTOCOL) {
+      vfo[i].frequency=144010000;
+    }
+#endif
     vfo[i].mode=modeCWU;
     vfo[i].filter=6;
     vfo[i].lo=0;
@@ -236,7 +244,9 @@ void vfo_restore_state() {
     sprintf(name,"vfo.%d.filter",i);
     value=getProperty(name);
     if(value) vfo[i].filter=atoi(value);
-
+    sprintf(name,"vfo.%d.lo_tx",i);
+    value=getProperty(name);
+    if(value) vfo[i].lo_tx=atoll(value);
   }
 }
 
@@ -279,6 +289,8 @@ void vfo_band_changed(int b) {
   vfo[id].mode=entry->mode;
   vfo[id].filter=entry->filter;
   vfo[id].lo=band->frequencyLO+band->errorLO;
+  vfo[id].lo_tx=band->txFrequencyLO+band->txErrorLO;
+
 
   switch(id) {
     case 0:
@@ -286,7 +298,9 @@ void vfo_band_changed(int b) {
       receiver_vfo_changed(receiver[id]);
       BAND *band=band_get_band(vfo[id].band);
       set_alex_rx_antenna(band->alexRxAntenna);
-      set_alex_tx_antenna(band->alexTxAntenna);
+      if(can_transmit) {
+        set_alex_tx_antenna(band->alexTxAntenna);
+      }
       set_alex_attenuation(band->alexAttenuation);
       receiver_vfo_changed(receiver[0]);
       break;
@@ -297,17 +311,19 @@ void vfo_band_changed(int b) {
       break;
   }
 
-  if(split) {
-    tx_set_mode(transmitter,vfo[VFO_B].mode);
-  } else {
-    tx_set_mode(transmitter,vfo[VFO_A].mode);
+  if(can_transmit) {
+    if(split) {
+      tx_set_mode(transmitter,vfo[VFO_B].mode);
+    } else {
+      tx_set_mode(transmitter,vfo[VFO_A].mode);
+    }
+    //
+    // If the band has changed, it is necessary to re-calculate
+    // the drive level. Furthermore, possibly the "PA disable"
+    // status has changed.
+    //
+    calcDriveLevel();  // sends HighPrio packet if in new protocol
   }
-  //
-  // If the band has changed, it is necessary to re-calculate
-  // the drive level. Furthermore, possibly the "PA disable"
-  // status has changed.
-  //
-  calcDriveLevel();  // sends HighPrio packet if in new protocol
   if (protocol == NEW_PROTOCOL) {
     schedule_general();
   }
@@ -344,10 +360,12 @@ void vfo_bandstack_changed(int b) {
       break;
   }
 
-  if(split) {
-    tx_set_mode(transmitter,vfo[VFO_B].mode);
-  } else {
-    tx_set_mode(transmitter,vfo[VFO_A].mode);
+  if(can_transmit) {
+    if(split) {
+      tx_set_mode(transmitter,vfo[VFO_B].mode);
+    } else {
+      tx_set_mode(transmitter,vfo[VFO_A].mode);
+    }
   }
   //
   // I do not think the band can change within this function.
@@ -389,10 +407,12 @@ void vfo_mode_changed(int m) {
       }
       break;
   }
-  if(split) {
-    tx_set_mode(transmitter,vfo[VFO_B].mode);
-  } else {
-    tx_set_mode(transmitter,vfo[VFO_A].mode);
+  if(can_transmit) {
+    if(split) {
+      tx_set_mode(transmitter,vfo[VFO_B].mode);
+    } else {
+      tx_set_mode(transmitter,vfo[VFO_A].mode);
+    }
   }
   //
   // changing modes may change BFO frequency
@@ -440,8 +460,10 @@ void vfo_a_to_b() {
   if(receivers==2) {
     receiver_vfo_changed(receiver[1]);
   }
-  if(split) {
-    tx_set_mode(transmitter,vfo[VFO_B].mode);
+  if(can_transmit) {
+    if(split) {
+      tx_set_mode(transmitter,vfo[VFO_B].mode);
+    }
   }
   g_idle_add(ext_vfo_update,NULL);
 }
@@ -457,8 +479,10 @@ void vfo_b_to_a() {
   vfo[VFO_A].rit_enabled=vfo[VFO_B].rit_enabled;
   vfo[VFO_A].rit=vfo[VFO_B].rit;
   receiver_vfo_changed(receiver[0]);
-  if(!split) {
-    tx_set_mode(transmitter,vfo[VFO_B].mode);
+  if(can_transmit) {
+    if(!split) {
+      tx_set_mode(transmitter,vfo[VFO_B].mode);
+    }
   }
   g_idle_add(ext_vfo_update,NULL);
 }
@@ -508,10 +532,12 @@ void vfo_a_swap_b() {
   if(receivers==2) {
     receiver_vfo_changed(receiver[1]);
   }
-  if(split) {
-    tx_set_mode(transmitter,vfo[VFO_B].mode);
-  } else {
-    tx_set_mode(transmitter,vfo[VFO_A].mode);
+  if(can_transmit) {
+    if(split) {
+      tx_set_mode(transmitter,vfo[VFO_B].mode);
+    } else {
+      tx_set_mode(transmitter,vfo[VFO_A].mode);
+    }
   }
   g_idle_add(ext_vfo_update,NULL);
 }
@@ -537,11 +563,13 @@ void vfo_move(long long hz) {
   int id=active_receiver->id;
   if(!locked) {
     switch(protocol) {
-#ifdef LIMESDR
-      case LIMESDR_PROTOCOL:
+/*
+#ifdef SOAPYSDR
+      case SOAPYSDR_PROTOCOL:
         vfo[id].ctun_frequency=((vfo[id].ctun_frequency-hz)/step)*step;
         break;
 #endif
+*/
       default:
         if(vfo[id].ctun) {
           vfo[id].ctun_frequency=((vfo[id].ctun_frequency-hz)/step)*step;
@@ -559,11 +587,6 @@ void vfo_move_to(long long hz) {
   int id=active_receiver->id;
   if(!locked) {
     switch(protocol) {
-#ifdef LIMESDR
-      case LIMESDR_PROTOCOL:
-        vfo[id].ctun_frequency=(vfo[id].frequency+hz)/step*step;
-        break;
-#endif
       default:
         if(vfo[id].ctun) {
           vfo[id].ctun_frequency=(vfo[id].frequency+hz)/step*step;
@@ -588,8 +611,8 @@ void vfo_move_to(long long hz) {
 
     BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
 
-#ifdef LIMESDR
-    if(protocol==LIMESDR_PROTOCOL) {
+#ifdef SOAPYSDR
+    if(protocol==SOAPYSDR_PROTOCOL) {
       setFrequency((entry->frequency+active_receiver->dds_offset-hz)/step*step);
     } else {
 #endif
@@ -604,7 +627,7 @@ void vfo_move_to(long long hz) {
         }
         setFrequency(f);
       }
-#ifdef LIMESDR
+#ifdef SOAPYSDR
     }
 #endif
 #endif
@@ -789,7 +812,7 @@ void vfo_update() {
           cairo_show_text(cr, "NR2");
 	} else {
           cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
-          cairo_show_text(cr, "NR2");
+          cairo_show_text(cr, "NR");
         }
 
         cairo_move_to(cr, 210, 50);  
@@ -836,15 +859,25 @@ void vfo_update() {
 	// Since we can now change it by a MIDI controller,
 	// we should display the compressor (level)
 	//
-        cairo_move_to(cr, 400, 50);  
-	if (transmitter->compressor) {
-	    sprintf(temp_text,"CMPR %d dB",(int) transmitter->compressor_level);
-            cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
-            cairo_show_text(cr, temp_text);
-	} else {
-            cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
-            cairo_show_text(cr, "CMPR OFF");
-	}
+        if(can_transmit) {
+          cairo_move_to(cr, 400, 50);  
+  	  if (transmitter->compressor) {
+  	      sprintf(temp_text,"CMPR %d dB",(int) transmitter->compressor_level);
+              cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
+              cairo_show_text(cr, temp_text);
+	  } else {
+              cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
+              cairo_show_text(cr, "CMPR OFF");
+	  }
+        }
+
+        cairo_move_to(cr, 500, 50);  
+        if(diversity_enabled) {
+          cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
+        } else {
+          cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
+        }
+        cairo_show_text(cr, "DIV");
 
         int s=0;
         while(steps[s]!=step && steps[s]!=0) {
@@ -902,13 +935,15 @@ void vfo_update() {
         cairo_show_text(cr, "Split");
 
 #ifdef PURESIGNAL
-        cairo_move_to(cr, 105, 50);
-        if(transmitter->puresignal) {
-          cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
-        } else {
-          cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
+        if(can_transmit) {
+          cairo_move_to(cr, 105, 50);
+          if(transmitter->puresignal) {
+            cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
+          } else {
+            cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
+          }
+          cairo_show_text(cr, "PS");
         }
-        cairo_show_text(cr, "PS");
 #endif
 
 

@@ -54,6 +54,9 @@
 #include "discovery.h"
 #include "new_protocol.h"
 #include "old_protocol.h"
+#ifdef SOAPYSDR
+#include "soapy_protocol.h"
+#endif
 #include "frequency.h"   // for canTransmit
 #include "ext.h"
 
@@ -136,9 +139,9 @@ gboolean main_delete (GtkWidget *widget) {
       case NEW_PROTOCOL:
         new_protocol_stop();
         break;
-#ifdef LIMESDR
-      case LIMESDR_PROTOCOL:
-        lime_protocol_stop();
+#ifdef SOAPYSDR
+      case SOAPYSDR_PROTOCOL:
+        soapy_protocol_stop();
         break;
 #endif
     }
@@ -223,6 +226,7 @@ fprintf(stderr,"display_width=%d display_height=%d\n", display_width, display_he
 
   //fprintf(stderr,"create top level window\n");
   top_window = gtk_application_window_new (app);
+fprintf(stderr,"top_window=%p\n",top_window);
   if(full_screen) {
     fprintf(stderr,"full screen\n");
     gtk_window_fullscreen(GTK_WINDOW(top_window));

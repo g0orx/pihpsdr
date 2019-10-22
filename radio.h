@@ -20,6 +20,8 @@
 #ifndef _RADIO_H
 #define _RADIO_H
 
+#include "adc.h"
+#include "dac.h"
 #include "discovered.h"
 #include "receiver.h"
 #include "transmitter.h"
@@ -88,6 +90,9 @@ extern TRANSMITTER *transmitter;
 
 extern int echo;
 
+extern int radio_sample_rate;
+extern gboolean iqswap;
+
 #define MAX_BUFFER_SIZE 2048
 
 extern int buffer_size;
@@ -146,7 +151,8 @@ extern int mic_ptt_tip_bias_ring;
 
 int receivers;
 
-int adc[2];
+ADC adc[2];
+DAC dac[2];
 int adc_attenuation[2];
 int rx_gain_slider[2];
 
@@ -256,6 +262,8 @@ extern double div_gain, div_phase;
 extern double meter_calibration;
 extern double display_calibration;
 
+extern int can_transmit;
+
 extern void reconfigure_radio();
 extern void start_radio();
 //extern void init_radio();
@@ -266,6 +274,7 @@ extern int getMox();
 extern void setTune(int state);
 extern int getTune();
 extern void vox_changed(int state);
+extern void frequency_changed(RECEIVER *rx);
 extern double getDrive();
 extern void setDrive(double d);
 extern void calcDriveLevel();

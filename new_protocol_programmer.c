@@ -37,6 +37,7 @@
 #include <math.h>
 #include <errno.h>
 
+#include <gtk/gtk.h>
 
 #include "discovered.h"
 #include "new_protocol.h"

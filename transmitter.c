@@ -44,6 +44,9 @@
 #include "transmitter.h"
 #include "new_protocol.h"
 #include "old_protocol.h"
+#ifdef SOAPYSDR
+#include "soapy_protocol.h"
+#endif
 #ifdef FREEDV
 #include "freedv.h"
 #endif
@@ -546,22 +549,37 @@ TRANSMITTER *create_transmitter(int id, int buffer_size, int fft_size, int fps, 
 
   TRANSMITTER *tx=malloc(sizeof(TRANSMITTER));
   tx->id=id;
+  tx->dac=0;
   tx->buffer_size=buffer_size;
   tx->fft_size=fft_size;
   tx->fps=fps;
 
-  if(protocol==ORIGINAL_PROTOCOL) {
-    tx->mic_sample_rate=48000;
-    tx->mic_dsp_rate=48000;
-    tx->iq_output_rate=48000;
-    tx->output_samples=tx->buffer_size;
-    tx->pixels=width; // to allow 48k to 24k conversion
-  } else {
-    tx->mic_sample_rate=48000;
-    tx->mic_dsp_rate=96000;
-    tx->iq_output_rate=192000;
-    tx->output_samples=tx->buffer_size*4;
-    tx->pixels=width*4; // to allow 192k to 24k conversion
+  switch(protocol) {
+    case ORIGINAL_PROTOCOL:
+      tx->mic_sample_rate=48000;
+      tx->mic_dsp_rate=48000;
+      tx->iq_output_rate=48000;
+      tx->output_samples=tx->buffer_size;
+      tx->pixels=width; // to allow 48k to 24k conversion
+      break;
+    case NEW_PROTOCOL:
+      tx->mic_sample_rate=48000;
+      tx->mic_dsp_rate=96000;
+      tx->iq_output_rate=192000;
+      tx->output_samples=tx->buffer_size*4;
+      tx->pixels=width*4; // to allow 192k to 24k conversion
+      break;
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
+      tx->mic_sample_rate=48000;
+      tx->mic_dsp_rate=96000;
+      tx->iq_output_rate=radio_sample_rate;
+      tx->buffer_size=1024;
+      tx->output_samples=1024*(tx->iq_output_rate/tx->mic_sample_rate);
+      tx->pixels=width*8; // to allow 384k to 24k conversion
+      break;
+#endif
+
   }
 
   tx->width=width;
@@ -815,6 +833,11 @@ static void full_tx_buffer(TRANSMITTER *tx) {
     case NEW_PROTOCOL:
       gain=8388607.0; // 24 bit
       break;
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
+      gain=32767.0;  // 16 bit
+      break;
+#endif
   }
 
   if (cwmode) {
@@ -946,6 +969,11 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 		case NEW_PROTOCOL:
 		    new_protocol_iq_samples(isample,qsample);
 		    break;
+#ifdef SOAPYSDR
+                case SOAPYSDR_PROTOCOL:
+                    soapy_protocol_iq_samples((float)tx->iq_output_buffer[j*2],(float)tx->iq_output_buffer[(j*2)+1]);
+                    break;
+#endif
 	    }
 	}
     }

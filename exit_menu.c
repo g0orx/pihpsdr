@@ -27,6 +27,9 @@
 #include "radio.h"
 #include "new_protocol.h"
 #include "old_protocol.h"
+#ifdef SOAPYSDR
+#include "soapy_protocol.h"
+#endif
 #ifdef GPIO
 #include "gpio.h"
 #endif
@@ -66,9 +69,9 @@ static gboolean exit_cb (GtkWidget *widget, GdkEventButton *event, gpointer data
     case NEW_PROTOCOL:
       new_protocol_stop();
       break;
-#ifdef LIMESDR
-    case LIMESDR_PROTOCOL:
-      lime_protocol_stop();
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
+      soapy_protocol_stop();
       break;
 #endif
   }
@@ -87,9 +90,9 @@ static gboolean reboot_cb (GtkWidget *widget, GdkEventButton *event, gpointer da
     case NEW_PROTOCOL:
       new_protocol_stop();
       break;
-#ifdef LIMESDR
-    case LIMESDR_PROTOCOL:
-      lime_protocol_stop();
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
+      soapy_protocol_stop();
       break;
 #endif
   }
@@ -109,9 +112,9 @@ static gboolean shutdown_cb (GtkWidget *widget, GdkEventButton *event, gpointer 
     case NEW_PROTOCOL:
       new_protocol_stop();
       break;
-#ifdef LIMESDR
-    case LIMESDR_PROTOCOL:
-      lime_protocol_stop();
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
+      soapy_protocol_stop();
       break;
 #endif
   }

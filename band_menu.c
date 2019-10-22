@@ -59,7 +59,7 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 
 gboolean band_select_cb (GtkWidget *widget, gpointer        data) {
   GtkWidget *label;
-  int b=(uintptr_t)data;
+  int b=GPOINTER_TO_UINT(data);
   set_button_text_color(last_band,"black");
   last_band=widget;
   set_button_text_color(last_band,"orange");
@@ -103,8 +103,8 @@ void band_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
   for(i=0;i<BANDS+XVTRS;i++) {
-#ifdef LIMESDR
-    if(protocol!=LIMESDR_PROTOCOL) {
+#ifdef SOAPYSDR
+    if(protocol!=SOAPYSDR_PROTOCOL) {
       if(i>=band70 && i<=band3400) {
         continue;
       }

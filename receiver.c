@@ -34,11 +34,6 @@
 #include "main.h"
 #include "meter.h"
 #include "mode.h"
-#include "new_protocol.h"
-#include "old_protocol.h"
-#ifdef LIME_PROTOOCL
-#include "lime_protocol.h"
-#endif
 #include "property.h"
 #include "radio.h"
 #include "receiver.h"
@@ -48,6 +43,11 @@
 #include "rx_panadapter.h"
 #include "sliders.h"
 #include "waterfall.h"
+#include "new_protocol.h"
+#include "old_protocol.h"
+#ifdef SOAPYSDR
+#include "soapy_protocol.h"
+#endif
 #ifdef FREEDV
 #include "freedv.h"
 #endif
@@ -85,6 +85,8 @@ gboolean receiver_button_press_event(GtkWidget *widget, GdkEventButton *event, g
       last_x=(int)event->x;
       has_moved=FALSE;
       pressed=TRUE;
+    } else if(event->button==3) {
+      g_idle_add(ext_start_rx,NULL);
     }
   } else {
     making_active=TRUE;
@@ -100,6 +102,9 @@ gboolean receiver_button_release_event(GtkWidget *widget, GdkEventButton *event,
     g_idle_add(menu_active_receiver_changed,NULL);
     g_idle_add(ext_vfo_update,NULL);
     g_idle_add(sliders_active_receiver_changed,NULL);
+    if(event->button==3) {
+      g_idle_add(ext_start_rx,NULL);
+    }
   } else {
     int display_width=gtk_widget_get_allocated_width (rx->panadapter);
     int display_height=gtk_widget_get_allocated_height (rx->panadapter);
@@ -133,12 +138,13 @@ gboolean receiver_motion_notify_event(GtkWidget *widget, GdkEventMotion *event, 
                                 &x,
                                 &y,
                                 &state);
-    if(state & GDK_BUTTON1_MASK) {
+    // G0ORX: removed test as with it unable to drag screen
+    //if(state & GDK_BUTTON1_MASK) {
       int moved=last_x-x;
       vfo_move((long long)((float)moved*rx->hz_per_pixel));
       last_x=x;
       has_moved=TRUE;
-    }
+    //}
   }
 
   return TRUE;
@@ -197,6 +203,9 @@ void receiver_save_state(RECEIVER *rx) {
   setProperty(name,value);
   sprintf(name,"receiver.%d.panadapter_high",rx->id);
   sprintf(value,"%d",rx->panadapter_high);
+  setProperty(name,value);
+  sprintf(name,"receiver.%d.panadapter_step",rx->id);
+  sprintf(value,"%d",rx->panadapter_step);
   setProperty(name,value);
   sprintf(name,"receiver.%d.display_waterfall",rx->id);
   sprintf(value,"%d",rx->display_waterfall);
@@ -367,6 +376,9 @@ fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
   sprintf(name,"receiver.%d.panadapter_high",rx->id);
   value=getProperty(name);
   if(value) rx->panadapter_high=atoi(value);
+  sprintf(name,"receiver.%d.panadapter_step",rx->id);
+  value=getProperty(name);
+  if(value) rx->panadapter_step=atoi(value);
   sprintf(name,"receiver.%d.display_waterfall",rx->id);
   value=getProperty(name);
   if(value) rx->display_waterfall=atoi(value);
@@ -800,6 +812,7 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
 
   rx->panadapter_high=-40;
   rx->panadapter_low=-140;
+  rx->panadapter_step=20;
 
   rx->volume=0.0;
 
@@ -894,7 +907,25 @@ fprintf(stderr,"create_receiver: id=%d buffer_size=%d fft_size=%d pixels=%d fps=
       }
   }
 fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
-  rx->sample_rate=48000;
+#ifdef SOAPYSDR
+  if(radio->device==SOAPYSDR_USB_DEVICE) {
+/*
+    if(strcmp(radio->name,"lime")==0) {
+      rx->sample_rate=384000;
+    } else if(strcmp(radio->name,"rtlsdr")==0) {
+      rx->sample_rate=384000;
+    } else {
+      rx->sample_rate=384000;
+    }
+*/
+    rx->sample_rate=radio->info.soapy.sample_rate;
+    rx->resample_step=1;
+  } else {
+#endif
+    rx->sample_rate=48000;
+#ifdef SOAPYSDR
+  }
+#endif
   rx->buffer_size=buffer_size;
   rx->fft_size=fft_size;
   rx->pixels=pixels;
@@ -920,6 +951,7 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
 
   rx->panadapter_high=-40;
   rx->panadapter_low=-140;
+  rx->panadapter_step=20;
 
   rx->waterfall_high=-40;
   rx->waterfall_low=-140;
@@ -979,6 +1011,13 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
 
   receiver_restore_state(rx);
 
+#ifdef SOAPYSDR
+  rx->resample_step=radio->info.soapy.sample_rate/rx->sample_rate;
+#else
+  rx->resample_step=1;
+#endif
+
+fprintf(stderr,"create_receiver (after restore): rx=%p id=%d local_audio=%d\n",rx,rx->id,rx->local_audio);
   int scale=rx->sample_rate/48000;
   rx->output_samples=rx->buffer_size/scale;
   rx->audio_output_buffer=malloc(sizeof(double)*2*rx->output_samples);
@@ -1078,6 +1117,7 @@ fprintf(stderr,"RXASetMP %d\n",rx->low_latency);
 
   create_visual(rx);
 
+fprintf(stderr,"create_receiver: rx=%p id=%d local_audio=%d\n",rx,rx->id,rx->local_audio);
   if(rx->local_audio) {
     audio_open_output(rx);
   }
@@ -1135,6 +1175,14 @@ void receiver_change_sample_rate(RECEIVER *rx,int sample_rate) {
   SetInputSamplerate(rx->id, sample_rate);
   SetEXTANBSamplerate (rx->id, sample_rate);
   SetEXTNOBSamplerate (rx->id, sample_rate);
+
+#ifdef SOAPYSDR
+  if(protocol==SOAPYSDR_PROTOCOL) {
+    rx->resample_step=radio_sample_rate/rx->sample_rate;
+g_print("receiver_change_sample_rate: resample_step=%d\n",rx->resample_step);
+  }
+#endif
+
   SetChannelState(rx->id,1,0);
 
 fprintf(stderr,"receiver_change_sample_rate: id=%d rate=%d buffer_size=%d output_samples=%d\n",rx->id, rx->sample_rate, rx->buffer_size, rx->output_samples);
@@ -1146,8 +1194,17 @@ void receiver_frequency_changed(RECEIVER *rx) {
   if(vfo[id].ctun) {
     vfo[id].offset=vfo[id].ctun_frequency-vfo[id].frequency;
     set_offset(rx,vfo[id].offset);
-  } else if(protocol==NEW_PROTOCOL) {
-    schedule_high_priority(); // send new frequency
+  } else {
+    switch(protocol) {
+      case NEW_PROTOCOL:
+        schedule_high_priority(); // send new frequency
+        break;
+#if SOAPYSDR
+      case SOAPYSDR_PROTOCOL:
+        soapy_protocol_set_rx_frequency(rx,id);
+        break;
+#endif
+    }
   }
 }
 
@@ -1232,8 +1289,8 @@ static void process_freedv_rx_buffer(RECEIVER *rx) {
                 case NEW_PROTOCOL:
                   new_protocol_audio_samples(rx,left_audio_sample,right_audio_sample);
                   break;
-#ifdef LIMESDR
-                case LIMESDR_PROTOCOL:
+#ifdef SOAPYSDR
+                case SOAPYSDR_PROTOCOL:
                   break;
 #endif
               }
@@ -1310,8 +1367,8 @@ static void process_rx_buffer(RECEIVER *rx) {
             }
           }
           break;
-#ifdef LIMESDR
-        case LIMESDR_PROTOCOL:
+#ifdef SOAPYSDR
+        case SOAPYSDR_PROTOCOL:
           break;
 #endif
       }
@@ -1352,7 +1409,7 @@ void full_rx_buffer(RECEIVER *rx) {
 
   fexchange0(rx->id, rx->iq_input_buffer, rx->audio_output_buffer, &error);
   if(error!=0) {
-    fprintf(stderr,"full_rx_buffer: id=%d fexchange0: error=%d\n",rx->id,error);
+    //fprintf(stderr,"full_rx_buffer: id=%d fexchange0: error=%d\n",rx->id,error);
   }
 
   if(rx->displaying) {

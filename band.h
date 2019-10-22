@@ -34,7 +34,7 @@
 #define band12 8
 #define band10 9
 #define band6 10
-#ifdef LIMESDR
+#ifdef SOAPYSDR
 #define band70 11
 #define band220 13
 #define band430 14
@@ -76,6 +76,8 @@ struct _BAND {
     long long frequencyMax;
     long long frequencyLO;
     long long errorLO;
+    long long txFrequencyLO;
+    long long txErrorLO;
     int disablePA;
 };
 

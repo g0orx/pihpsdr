@@ -79,7 +79,7 @@ static void audio_spin_cb (GtkWidget *widget, gpointer data) {
 }
 
 static void mode_cb(GtkWidget *widget, gpointer data) {
-  int mode=(uintptr_t)data;
+  int mode=GPOINTER_TO_INT(data);
   freedv_set_mode(active_receiver,mode);
 }
 

@@ -59,4 +59,5 @@ FILTER *filters[MODES];
 
 void filterSaveState();
 void filterRestoreState();
+void filter_width_changed(int rx,int increment);
 #endif

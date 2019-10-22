@@ -9,6 +9,7 @@
 
 #include <gtk/gtk.h>
 #include "i2c.h"
+#include "gpio.h"
 #include "band.h"
 #include "band_menu.h"
 #include "bandstack.h"
@@ -20,6 +21,23 @@
 #define I2C_DEVICE "/dev/i2c-1"
 #define ADDRESS_1 0X20
 #define ADDRESS_2 0X23
+
+#define SW_2  0X8000
+#define SW_3  0X4000
+#define SW_4  0X2000
+#define SW_5  0X1000
+#define SW_6  0X0008
+#define SW_7  0X0004
+#define SW_8  0X0002
+#define SW_9  0X0001
+#define SW_10 0X0010
+#define SW_11 0X0020
+#define SW_12 0X0040
+#define SW_13 0X0080
+#define SW_14 0X0800
+#define SW_15 0X0400
+#define SW_16 0X0200
+#define SW_17 0X0100
 
 static int write_byte_data(unsigned char addr,unsigned char reg, unsigned char data) {
   int fd;
@@ -109,56 +127,148 @@ void i2c_interrupt() {
     flags=read_word_data(ADDRESS_1,0x0E);
     if(flags) {
       ints=read_word_data(ADDRESS_1,0x10);
-      fprintf(stderr,"i2c_interrupt: flags=%04X,ints=%04X\n",flags,ints);
+//g_print("i2c_interrupt: flags=%04X ints=%04X\n",flags,ints);
       if(ints) {
+        int i=-1;
         switch(ints) {
-          case 0x0001:
-            g_idle_add(ext_mox_update,NULL);
+          case SW_2:
+            i=SW2;
             break;
-          case 0x0002:
-            g_idle_add(ext_tune_update,NULL);
+          case SW_3:
+            i=SW3;
             break;
-          case 0x0004:
-            g_idle_add(ext_band_update,NULL);
+          case SW_4:
+            i=SW4;
             break;
-          case 0x0008:
-            g_idle_add(ext_band_update,(void *)band40);
+          case SW_5:
+            i=SW5;
             break;
-          case 0x0010:
-            g_idle_add(ext_band_update,(void *)band30);
+          case SW_6:
+            i=SW6;
             break;
-          case 0x0020:
-            g_idle_add(ext_band_update,(void *)band20);
+          case SW_7:
+            i=SW7;
             break;
-          case 0x0040:
-            g_idle_add(ext_band_update,(void *)band17);
+          case SW_8:
+            i=SW8;
             break;
-          case 0x0080:
-            g_idle_add(ext_band_update,(void *)band15);
+          case SW_9:
+            i=SW9;
             break;
-          case 0x0100:
-            g_idle_add(ext_band_update,(void *)band12);
+          case SW_10:
+            i=SW10;
             break;
-          case 0x0200:
-            g_idle_add(ext_band_update,(void *)band10);
+          case SW_11:
+            i=SW11;
             break;
-          case 0x0400:
-            g_idle_add(ext_band_update,(void *)band6);
+          case SW_12:
+            i=SW12;
             break;
-          case 0x0800:
-            g_idle_add(ext_band_update,(void *)bandGen);
+          case SW_13:
+            i=SW13;
             break;
-          case 0x1000:
-            g_idle_add(ext_band_update,(void *)band12);
+          case SW_14:
+            i=SW14;
             break;
-          case 0x2000:
-            g_idle_add(ext_band_update,(void *)band10);
+          case SW_15:
+            i=SW15;
             break;
-          case 0x4000:
-            g_idle_add(ext_band_update,(void *)band6);
+          case SW_16:
+            i=SW16;
             break;
-          case 0x8000:
-            g_idle_add(ext_band_update,(void *)bandGen);
+          case SW_17:
+            i=SW17;
+            break;
+        }
+//g_print("i1c_interrupt: sw=%d action=%d\n",i,sw_action[i]);
+        switch(sw_action[i]) {
+          case TUNE:
+            {
+            int tune=getTune();
+            if(tune==0) tune=1; else tune=0;
+            g_idle_add(ext_tune_update,GINT_TO_POINTER(tune));
+            }
+            break;
+          case MOX:
+            {
+            int mox=getMox();
+            if(mox==0) mox=1; else mox=0;
+            g_idle_add(ext_mox_update,GINT_TO_POINTER(mox));
+            }
+            break;
+          case PS:
+#ifdef PURESIGNAL
+            g_idle_add(ext_ps_update,NULL);
+#endif
+            break;
+          case TWO_TONE:
+            g_idle_add(ext_two_tone,NULL);
+            break;
+          case NR:
+            g_idle_add(ext_nr_update,NULL);
+            break;
+          case NB:
+            g_idle_add(ext_nb_update,NULL);
+            break;
+          case SNB:
+            g_idle_add(ext_snb_update,NULL);
+            break;
+          case RIT:
+            g_idle_add(ext_rit_update,NULL);
+            break;
+          case RIT_CLEAR:
+            g_idle_add(ext_rit_clear,NULL);
+            break;
+          case XIT:
+            g_idle_add(ext_xit_update,NULL);
+            break;
+          case XIT_CLEAR:
+            g_idle_add(ext_xit_clear,NULL);
+            break;
+          case BAND_PLUS:
+            g_idle_add(ext_band_plus,NULL);
+            break;
+          case BAND_MINUS:
+            g_idle_add(ext_band_minus,NULL);
+            break;
+          case BANDSTACK_PLUS:
+            g_idle_add(ext_bandstack_plus,NULL);
+            break;
+          case BANDSTACK_MINUS:
+            g_idle_add(ext_bandstack_minus,NULL);
+            break;
+          case MODE_PLUS:
+            g_idle_add(ext_mode_plus,NULL);
+            break;
+          case MODE_MINUS:
+            g_idle_add(ext_mode_minus,NULL);
+            break;
+          case FILTER_PLUS:
+            g_idle_add(ext_filter_plus,NULL);
+            break;
+          case FILTER_MINUS:
+            g_idle_add(ext_filter_minus,NULL);
+            break;
+          case A_TO_B:
+            g_idle_add(ext_vfo_a_to_b,NULL);
+            break;
+          case B_TO_A:
+            g_idle_add(ext_vfo_b_to_a,NULL);
+            break;
+          case A_SWAP_B:
+            g_idle_add(ext_vfo_a_swap_b,NULL);
+            break;
+          case LOCK:
+            g_idle_add(ext_lock_update,NULL);
+            break;
+          case CTUN:
+            g_idle_add(ext_ctun_update,NULL);
+            break;
+          case AGC:
+            g_idle_add(ext_agc_update,NULL);
+            break;
+          case SPLIT:
+            g_idle_add(ext_split_update,NULL);
             break;
         }
       }

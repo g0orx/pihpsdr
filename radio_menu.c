@@ -26,6 +26,7 @@
 
 #include "new_menu.h"
 #include "radio_menu.h"
+#include "adc.h"
 #include "band.h"
 #include "filter.h"
 #include "radio.h"
@@ -33,6 +34,9 @@
 #include "sliders.h"
 #include "new_protocol.h"
 #include "old_protocol.h"
+#ifdef SOAPYSDR
+#include "soapy_protocol.h"
+#endif
 #include "gpio.h"
 
 static GtkWidget *parent_window=NULL;
@@ -58,6 +62,62 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
   cleanup();
   return FALSE;
 }
+
+#ifdef SOAPYSDR
+static void rx_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
+  ADC *adc=(ADC *)data;
+  int gain;
+  if(radio->device==SOAPYSDR_USB_DEVICE) {
+    gain=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+    soapy_protocol_set_gain(receiver[0],(char *)gtk_widget_get_name(widget),gain);
+    for(int i=0;i<radio->info.soapy.rx_gains;i++) {
+      if(strcmp(radio->info.soapy.rx_gain[i],(char *)gtk_widget_get_name(widget))==0) {
+        adc[0].rx_gain[i]=gain;
+        break;
+      }
+    }
+  }
+}
+
+static void tx_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
+  DAC *dac=(DAC *)data;
+  int gain;
+  if(radio->device==SOAPYSDR_USB_DEVICE) {
+    gain=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+    soapy_protocol_set_tx_gain(transmitter,(char *)gtk_widget_get_name(widget),gain);
+    for(int i=0;i<radio->info.soapy.tx_gains;i++) {
+      if(strcmp(radio->info.soapy.tx_gain[i],(char *)gtk_widget_get_name(widget))==0) {
+        dac[0].tx_gain[i]=gain;
+        break;
+      }
+    }
+  }
+}
+
+
+static void agc_changed_cb(GtkWidget *widget, gpointer data) {
+  ADC *adc=(ADC *)data;
+  gboolean agc=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+  soapy_protocol_set_automatic_gain(receiver[0],agc);
+}
+
+/*
+static void dac0_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
+  DAC *dac=(DAC *)data;
+  int gain;
+  if(radio->device==SOAPYSDR_USB_DEVICE) {
+    gain=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+    soapy_protocol_set_tx_gain(radio->transmitter,(char *)gtk_widget_get_name(widget),gain);
+    for(int i=0;i<radio->discovered->info.soapy.tx_gains;i++) {
+      if(strcmp(radio->discovered->info.soapy.tx_gain[i],(char *)gtk_widget_get_name(widget))==0) {
+        radio->dac[0].tx_gain[i]=gain;
+        break;
+      }
+    }
+  }
+}
+*/
+#endif
 
 static void vfo_divisor_value_changed_cb(GtkWidget *widget, gpointer data) {
   vfo_encoder_divisor=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
@@ -93,6 +153,11 @@ static void ptt_tip_cb(GtkWidget *widget, gpointer data) {
 static void bias_cb(GtkWidget *widget, gpointer data) {
   mic_bias_enabled=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 }
+
+static void iqswap_cb(GtkWidget *widget, gpointer data) {
+  iqswap=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+}
+
 
 static void load_filters(void) {
   if(protocol==NEW_PROTOCOL) {
@@ -147,26 +212,26 @@ static void charly25_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void sample_rate_cb(GtkWidget *widget, gpointer data) {
-  radio_change_sample_rate((uintptr_t)data);
+  radio_change_sample_rate(GPOINTER_TO_INT(data));
 }
 
 static void receivers_cb(GtkWidget *widget, gpointer data) {
-  radio_change_receivers((uintptr_t)data);
+  radio_change_receivers(GPOINTER_TO_INT(data));
 }
 
 static void region_cb(GtkWidget *widget, gpointer data) {
   radio_change_region(gtk_combo_box_get_active (GTK_COMBO_BOX(widget)));
 /*
-  radio_change_region((uintptr_t)data);
+  radio_change_region(GPOINTER_TO_INT(data));
 */
 }
 
 static void rit_cb(GtkWidget *widget,gpointer data) {
-  rit_increment=(uintptr_t)data;
+  rit_increment=GPOINTER_TO_INT(data);
 }
 
 static void ck10mhz_cb(GtkWidget *widget, gpointer data) {
-  atlas_clock_source_10mhz = (uintptr_t)data;
+  atlas_clock_source_10mhz = GPOINTER_TO_INT(data);
 }
 
 static void ck128mhz_cb(GtkWidget *widget, gpointer data) {
@@ -202,105 +267,134 @@ void radio_menu(GtkWidget *parent) {
   GtkWidget *grid=gtk_grid_new();
   gtk_grid_set_column_spacing (GTK_GRID(grid),10);
 
+  int col=0;
+  int row=0;
+  int temp_row=0;
+
   GtkWidget *close_b=gtk_button_new_with_label("Close");
   g_signal_connect (close_b, "button_press_event", G_CALLBACK(close_cb), NULL);
-  gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
+  gtk_grid_attach(GTK_GRID(grid),close_b,col,row,1,1);
+
+  col++;
 
   GtkWidget *region_label=gtk_label_new("Region: ");
-  gtk_grid_attach(GTK_GRID(grid),region_label,1,0,1,1);
+  gtk_grid_attach(GTK_GRID(grid),region_label,col,row,1,1);
   
+  col++;
+
   GtkWidget *region_combo=gtk_combo_box_text_new();
   gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(region_combo),NULL,"Other");
   gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(region_combo),NULL,"UK");
   gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(region_combo),NULL,"WRC15");
   gtk_combo_box_set_active(GTK_COMBO_BOX(region_combo),region);
-  gtk_grid_attach(GTK_GRID(grid),region_combo,2,0,1,1);
+  gtk_grid_attach(GTK_GRID(grid),region_combo,col,row,1,1);
   g_signal_connect(region_combo,"changed",G_CALLBACK(region_cb),NULL);
 
-  int x=0;
+
+  row++;
+  col=0;
 
   GtkWidget *receivers_label=gtk_label_new("Receivers: ");
-  gtk_grid_attach(GTK_GRID(grid),receivers_label,x,1,1,1);
+  gtk_grid_attach(GTK_GRID(grid),receivers_label,col,row,1,1);
+
+  row++;
   
   GtkWidget *receivers_1=gtk_radio_button_new_with_label(NULL,"1");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (receivers_1), receivers==1);
-  gtk_grid_attach(GTK_GRID(grid),receivers_1,x,2,1,1);
+  gtk_grid_attach(GTK_GRID(grid),receivers_1,col,row,1,1);
   g_signal_connect(receivers_1,"pressed",G_CALLBACK(receivers_cb),(gpointer *)1);
+
+  row++;
 
   GtkWidget *receivers_2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(receivers_1),"2");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (receivers_2), receivers==2);
-  gtk_grid_attach(GTK_GRID(grid),receivers_2,x,3,1,1);
+  gtk_grid_attach(GTK_GRID(grid),receivers_2,col,row,1,1);
   g_signal_connect(receivers_2,"pressed",G_CALLBACK(receivers_cb),(gpointer *)2);
+  row++;
+  col++;
+  if(row>temp_row) temp_row=row;
 
-  x++;
+  row=1;
 
   switch(protocol) {
     case ORIGINAL_PROTOCOL:
       {
       GtkWidget *sample_rate_label=gtk_label_new("Sample Rate:");
-      gtk_grid_attach(GTK_GRID(grid),sample_rate_label,x,1,1,1);
+      gtk_grid_attach(GTK_GRID(grid),sample_rate_label,col,row,1,1);
+      row++;
 
       GtkWidget *sample_rate_48=gtk_radio_button_new_with_label(NULL,"48000");
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sample_rate_48), active_receiver->sample_rate==48000);
-      gtk_grid_attach(GTK_GRID(grid),sample_rate_48,x,2,1,1);
+      gtk_grid_attach(GTK_GRID(grid),sample_rate_48,col,row,1,1);
       g_signal_connect(sample_rate_48,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)48000);
+      row++;
 
       GtkWidget *sample_rate_96=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(sample_rate_48),"96000");
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sample_rate_96), active_receiver->sample_rate==96000);
-      gtk_grid_attach(GTK_GRID(grid),sample_rate_96,x,3,1,1);
+      gtk_grid_attach(GTK_GRID(grid),sample_rate_96,col,row,1,1);
       g_signal_connect(sample_rate_96,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)96000);
+      row++;
 
       GtkWidget *sample_rate_192=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(sample_rate_96),"192000");
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sample_rate_192), active_receiver->sample_rate==192000);
-      gtk_grid_attach(GTK_GRID(grid),sample_rate_192,x,4,1,1);
+      gtk_grid_attach(GTK_GRID(grid),sample_rate_192,col,row,1,1);
       g_signal_connect(sample_rate_192,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)192000);
+      row++;
 
       GtkWidget *sample_rate_384=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(sample_rate_192),"384000");
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sample_rate_384), active_receiver->sample_rate==384000);
-      gtk_grid_attach(GTK_GRID(grid),sample_rate_384,x,5,1,1);
+      gtk_grid_attach(GTK_GRID(grid),sample_rate_384,col,row,1,1);
       g_signal_connect(sample_rate_384,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)384000);
+      row++;
 
       if(protocol==NEW_PROTOCOL) {
         GtkWidget *sample_rate_768=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(sample_rate_384),"768000");
         gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sample_rate_768), active_receiver->sample_rate==768000);
-        gtk_grid_attach(GTK_GRID(grid),sample_rate_768,x,6,1,1);
+        gtk_grid_attach(GTK_GRID(grid),sample_rate_768,col,row,1,1);
         g_signal_connect(sample_rate_768,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)768000);
+        row++;
   
         GtkWidget *sample_rate_1536=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(sample_rate_768),"1536000");
         gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sample_rate_1536), active_receiver->sample_rate==1536000);
-          gtk_grid_attach(GTK_GRID(grid),sample_rate_1536,x,7,1,1);
+        gtk_grid_attach(GTK_GRID(grid),sample_rate_1536,col,row,1,1);
         g_signal_connect(sample_rate_1536,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)1536000);
+        row++;
   
 #ifdef GPIO
         gtk_widget_set_sensitive(sample_rate_768,FALSE);
         gtk_widget_set_sensitive(sample_rate_1536,FALSE);
 #endif
       }
-      x++;
+      col++;
       }
       break;
   
-#ifdef LIMESDR
-    case LIMESDR_PROTOCOL:
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
       {
       GtkWidget *sample_rate_label=gtk_label_new("Sample Rate:");
-      gtk_grid_attach(GTK_GRID(grid),sample_rate_label,x,1,1,1);
+      gtk_grid_attach(GTK_GRID(grid),sample_rate_label,col,row,1,1);
+      row++;
 
-      GtkWidget *sample_rate_1M=gtk_radio_button_new_with_label(NULL,"1000000");
-      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sample_rate_1M), active_receiver->sample_rate==1000000);
-      gtk_grid_attach(GTK_GRID(grid),sample_rate_1M,x,2,1,1);
-      g_signal_connect(sample_rate_1M,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)1000000);
-  
-      GtkWidget *sample_rate_2M=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(sample_rate_1M),"2000000");
-      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sample_rate_2M), active_receiver->sample_rate==2000000);
-      gtk_grid_attach(GTK_GRID(grid),sample_rate_2M,x,3,1,1);
-      g_signal_connect(sample_rate_2M,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)2000000);
-      x++;
+      char rate[16];
+      sprintf(rate,"%d",radio->info.soapy.sample_rate);
+
+      GtkWidget *sample_rate=gtk_radio_button_new_with_label(NULL,rate);
+      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sample_rate), radio->info.soapy.sample_rate);
+      gtk_grid_attach(GTK_GRID(grid),sample_rate,col,row,1,1);
+      g_signal_connect(sample_rate,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)radio->info.soapy.sample_rate);
+
+      col++;
       }
       break;
 #endif
-  }
 
+  }
+  row++;
+  if(row>temp_row) temp_row=row;
+
+
+  row=1;
 
   if(protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL) {
 
@@ -311,83 +405,114 @@ void radio_menu(GtkWidget *parent) {
 
       GtkWidget *ptt_ring_b=gtk_radio_button_new_with_label(NULL,"PTT On Ring, Mic and Bias on Tip");
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ptt_ring_b), mic_ptt_tip_bias_ring==0);
-      gtk_grid_attach(GTK_GRID(grid),ptt_ring_b,x,1,1,1);
+      gtk_grid_attach(GTK_GRID(grid),ptt_ring_b,col,row,1,1);
       g_signal_connect(ptt_ring_b,"toggled",G_CALLBACK(ptt_ring_cb),NULL);
+      row++;
 
       GtkWidget *ptt_tip_b=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(ptt_ring_b),"PTT On Tip, Mic and Bias on Ring");
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ptt_tip_b), mic_ptt_tip_bias_ring==1);
-      gtk_grid_attach(GTK_GRID(grid),ptt_tip_b,x,2,1,1);
+      gtk_grid_attach(GTK_GRID(grid),ptt_tip_b,col,row,1,1);
       g_signal_connect(ptt_tip_b,"toggled",G_CALLBACK(ptt_tip_cb),NULL);
+      row++;
 
       GtkWidget *ptt_b=gtk_check_button_new_with_label("PTT Enabled");
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ptt_b), mic_ptt_enabled);
-      gtk_grid_attach(GTK_GRID(grid),ptt_b,x,3,1,1);
+      gtk_grid_attach(GTK_GRID(grid),ptt_b,col,row,1,1);
       g_signal_connect(ptt_b,"toggled",G_CALLBACK(ptt_cb),NULL);
+      row++;
 
       GtkWidget *bias_b=gtk_check_button_new_with_label("BIAS Enabled");
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (bias_b), mic_bias_enabled);
-      gtk_grid_attach(GTK_GRID(grid),bias_b,x,4,1,1);
+      gtk_grid_attach(GTK_GRID(grid),bias_b,col,row,1,1);
       g_signal_connect(bias_b,"toggled",G_CALLBACK(bias_cb),NULL);
+      row++;
 
-      x++;
+      if(row>temp_row) temp_row=row;
+      col++;
     }
 
+    row=1;
+
     GtkWidget *sample_rate_label=gtk_label_new("Filter Board:");
-    gtk_grid_attach(GTK_GRID(grid),sample_rate_label,x,1,1,1);
+    gtk_grid_attach(GTK_GRID(grid),sample_rate_label,col,row,1,1);
+    row++;
 
     GtkWidget *none_b = gtk_radio_button_new_with_label(NULL, "NONE");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(none_b), filter_board == NONE);
-    gtk_grid_attach(GTK_GRID(grid), none_b, x, 2, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), none_b, col, row, 1, 1);
+    row++;
 
     GtkWidget *alex_b = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(none_b), "ALEX");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(alex_b), filter_board == ALEX);
-    gtk_grid_attach(GTK_GRID(grid), alex_b, x, 3, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), alex_b, col, row, 1, 1);
+    row++;
 
     GtkWidget *apollo_b = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(none_b), "APOLLO");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(apollo_b), filter_board == APOLLO);
-    gtk_grid_attach(GTK_GRID(grid), apollo_b, x, 4, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), apollo_b, col, row, 1, 1);
+    row++;
 
     GtkWidget *charly25_b = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(none_b), "CHARLY25");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(charly25_b), filter_board==CHARLY25);
-    gtk_grid_attach(GTK_GRID(grid), charly25_b, x, 5, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), charly25_b, col, row, 1, 1);
+    row++;
 
     g_signal_connect(none_b, "toggled", G_CALLBACK(none_cb), NULL);
     g_signal_connect(alex_b, "toggled", G_CALLBACK(alex_cb), NULL);
     g_signal_connect(apollo_b, "toggled", G_CALLBACK(apollo_cb), NULL);
     g_signal_connect(charly25_b, "toggled", G_CALLBACK(charly25_cb), NULL);
 
-    x++;
+    if(row>temp_row) temp_row=row;
+    col++;
   }
 
+  row=1;
+
   GtkWidget *rit_label=gtk_label_new("RIT step (Hz): ");
-  gtk_grid_attach(GTK_GRID(grid),rit_label,x,1,1,1);
+  gtk_grid_attach(GTK_GRID(grid),rit_label,col,row,1,1);
+  row++;
 
   GtkWidget *rit_1=gtk_radio_button_new_with_label(NULL,"1");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rit_1), rit_increment==1);
-  gtk_grid_attach(GTK_GRID(grid),rit_1,x,2,1,1);
+  gtk_grid_attach(GTK_GRID(grid),rit_1,col,row,1,1);
   g_signal_connect(rit_1,"pressed",G_CALLBACK(rit_cb),(gpointer *)1);
+  row++;
 
   GtkWidget *rit_10=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(rit_1),"10");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rit_10), rit_increment==10);
-  gtk_grid_attach(GTK_GRID(grid),rit_10,x,3,1,1);
+  gtk_grid_attach(GTK_GRID(grid),rit_10,col,row,1,1);
   g_signal_connect(rit_10,"pressed",G_CALLBACK(rit_cb),(gpointer *)10);
+  row++;
 
   GtkWidget *rit_100=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(rit_10),"100");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rit_100), rit_increment==100);
-  gtk_grid_attach(GTK_GRID(grid),rit_100,x,4,1,1);
+  gtk_grid_attach(GTK_GRID(grid),rit_100,col,row,1,1);
   g_signal_connect(rit_100,"pressed",G_CALLBACK(rit_cb),(gpointer *)100);
+  row++;
 
-  x++;
+  if(row>temp_row) temp_row=row;
+  col++;
+  row=1;
 
   GtkWidget *vfo_divisor_label=gtk_label_new("VFO Encoder Divisor: ");
-  gtk_grid_attach(GTK_GRID(grid),vfo_divisor_label,x,1,1,1);
+  gtk_grid_attach(GTK_GRID(grid),vfo_divisor_label,col,row,1,1);
+  row++;
 
   GtkWidget *vfo_divisor=gtk_spin_button_new_with_range(1.0,60.0,1.0);
   gtk_spin_button_set_value(GTK_SPIN_BUTTON(vfo_divisor),(double)vfo_encoder_divisor);
-  gtk_grid_attach(GTK_GRID(grid),vfo_divisor,x,2,1,1);
+  gtk_grid_attach(GTK_GRID(grid),vfo_divisor,col,row,1,1);
   g_signal_connect(vfo_divisor,"value_changed",G_CALLBACK(vfo_divisor_value_changed_cb),NULL);
+  row++;
+   
+  GtkWidget *iqswap_b=gtk_check_button_new_with_label("Swap IQ");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (iqswap_b), iqswap);
+  gtk_grid_attach(GTK_GRID(grid),iqswap_b,col,row,1,1);
+  g_signal_connect(iqswap_b,"toggled",G_CALLBACK(iqswap_cb),NULL);
+  row++;
 
-  x++;
+  if(row>temp_row) temp_row=row;
+
+  col++;
 
 #ifdef USBOZY
   if (protocol==ORIGINAL_PROTOCOL && (device == DEVICE_OZY) || (device == DEVICE_METIS))
@@ -395,39 +520,122 @@ void radio_menu(GtkWidget *parent) {
   if (protocol==ORIGINAL_PROTOCOL && radio->device == DEVICE_METIS)
 #endif
   {
+    row=1;
     GtkWidget *atlas_label=gtk_label_new("Atlas bus: ");
-    gtk_grid_attach(GTK_GRID(grid),atlas_label,x,1,1,1);
+    gtk_grid_attach(GTK_GRID(grid),atlas_label,col,row,1,1);
+    row++;
 
     GtkWidget *ck10mhz_1=gtk_radio_button_new_with_label(NULL,"10MHz clock=Atlas");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ck10mhz_1), atlas_clock_source_10mhz==0);
-    gtk_grid_attach(GTK_GRID(grid),ck10mhz_1,x,2,1,1);
+    gtk_grid_attach(GTK_GRID(grid),ck10mhz_1,col,row,1,1);
     g_signal_connect(ck10mhz_1,"toggled",G_CALLBACK(ck10mhz_cb),(gpointer *)0);
+    row++;
 
     GtkWidget *ck10mhz_2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(ck10mhz_1),"10MHz clock=Penelope");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ck10mhz_2), atlas_clock_source_10mhz==1);
-    gtk_grid_attach(GTK_GRID(grid),ck10mhz_2,x,3,1,1);
+    gtk_grid_attach(GTK_GRID(grid),ck10mhz_2,col,row,1,1);
     g_signal_connect(ck10mhz_2,"toggled",G_CALLBACK(ck10mhz_cb),(gpointer *)1);
+    row++;
 
     GtkWidget *ck10mhz_3=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(ck10mhz_2),"10MHz clock=Mercury");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ck10mhz_3), atlas_clock_source_10mhz==2);
-    gtk_grid_attach(GTK_GRID(grid),ck10mhz_3,x,4,1,1);
+    gtk_grid_attach(GTK_GRID(grid),ck10mhz_3,col,row,1,1);
     g_signal_connect(ck10mhz_3,"toggled",G_CALLBACK(ck10mhz_cb),(gpointer *)2);
+    row++;
 
     GtkWidget *ck128_b=gtk_check_button_new_with_label("122.88MHz ck=Mercury");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ck128_b), atlas_clock_source_128mhz);
-    gtk_grid_attach(GTK_GRID(grid),ck128_b,x,5,1,1);
+    gtk_grid_attach(GTK_GRID(grid),ck128_b,col,row,1,1);
     g_signal_connect(ck128_b,"toggled",G_CALLBACK(ck128mhz_cb),NULL);
+    row++;
 
     GtkWidget *mic_src_b=gtk_check_button_new_with_label("Mic src=Penelope");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (mic_src_b), atlas_mic_source);
-    gtk_grid_attach(GTK_GRID(grid),mic_src_b,x,6,1,1);
+    gtk_grid_attach(GTK_GRID(grid),mic_src_b,col,row,1,1);
     g_signal_connect(mic_src_b,"toggled",G_CALLBACK(micsource_cb),NULL);
+    row++;
 
     GtkWidget *pene_tx_b=gtk_check_button_new_with_label("Penelope TX");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (pene_tx_b), atlas_penelope);
-    gtk_grid_attach(GTK_GRID(grid),pene_tx_b,x,7,1,1);
+    gtk_grid_attach(GTK_GRID(grid),pene_tx_b,col,row,1,1);
     g_signal_connect(pene_tx_b,"toggled",G_CALLBACK(penelopetx_cb),NULL);
+    row++;
+
+    if(row>temp_row) temp_row=row;
   }
+
+#ifdef SOAPYSDR
+  row=temp_row;
+  col=0;
+  if(radio->device==SOAPYSDR_USB_DEVICE) {
+    int i;
+    if(radio->info.soapy.rx_gains>0) {
+      GtkWidget *rx_gain=gtk_label_new("Rx Gains:");
+      gtk_grid_attach(GTK_GRID(grid),rx_gain,col,row,1,1);
+    }
+
+    if(can_transmit) {
+      if(radio->info.soapy.tx_gains>0) {
+        col=2;
+        GtkWidget *tx_gain=gtk_label_new("Tx Gains:");
+        gtk_grid_attach(GTK_GRID(grid),tx_gain,col,row,1,1);
+      }
+    }
+
+    row++;
+    temp_row=row;
+
+    if(radio->info.soapy.rx_has_automatic_gain) {
+      GtkWidget *agc=gtk_check_button_new_with_label("Hardware AGC: ");
+      gtk_grid_attach(GTK_GRID(grid),agc,col,row,1,1);
+      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(agc),adc[0].agc);
+      g_signal_connect(agc,"toggled",G_CALLBACK(agc_changed_cb),&adc[0]);
+      row++;
+    }
+
+
+    for(i=0;i<radio->info.soapy.rx_gains;i++) {
+      col=0;
+      GtkWidget *rx_gain_label=gtk_label_new(radio->info.soapy.rx_gain[i]);
+      gtk_grid_attach(GTK_GRID(grid),rx_gain_label,col,row,1,1);
+      col++;
+      SoapySDRRange range=radio->info.soapy.rx_range[i];
+      if(range.step==0.0) {
+        range.step=1.0;
+      }
+      GtkWidget *rx_gain_b=gtk_spin_button_new_with_range(range.minimum,range.maximum,range.step);
+      gtk_widget_set_name (rx_gain_b, radio->info.soapy.rx_gain[i]);
+      gtk_spin_button_set_value(GTK_SPIN_BUTTON(rx_gain_b),(double)adc[0].rx_gain[i]);
+      gtk_grid_attach(GTK_GRID(grid),rx_gain_b,col,row,1,1);
+      g_signal_connect(rx_gain_b,"value_changed",G_CALLBACK(rx_gain_value_changed_cb),&adc[0]);
+      col++;
+      row++;
+    }
+
+    row=temp_row;
+
+    if(can_transmit) {
+      for(i=0;i<radio->info.soapy.tx_gains;i++) {
+        col=2;
+        GtkWidget *tx_gain_label=gtk_label_new(radio->info.soapy.tx_gain[i]);
+        gtk_grid_attach(GTK_GRID(grid),tx_gain_label,col,row,1,1);
+        col++;
+        SoapySDRRange range=radio->info.soapy.tx_range[i];
+        if(range.step==0.0) {
+          range.step=1.0;
+        }
+        GtkWidget *tx_gain_b=gtk_spin_button_new_with_range(range.minimum,range.maximum,range.step);
+        gtk_widget_set_name (tx_gain_b, radio->info.soapy.tx_gain[i]);
+        gtk_spin_button_set_value(GTK_SPIN_BUTTON(tx_gain_b),(double)dac[0].tx_gain[i]);
+        gtk_grid_attach(GTK_GRID(grid),tx_gain_b,col,row,1,1);
+        g_signal_connect(tx_gain_b,"value_changed",G_CALLBACK(tx_gain_value_changed_cb),&dac[0]);
+        row++;
+      }
+    }
+
+  }
+#endif
+
 
   gtk_container_add(GTK_CONTAINER(content),grid);
 

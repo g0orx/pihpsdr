@@ -56,6 +56,9 @@
 #include "tx_menu.h"
 #include "ps_menu.h"
 #include "encoder_menu.h"
+#ifdef CONTROLLER2
+#include "switch_menu.h"
+#endif
 #include "vfo_menu.h"
 #include "fft_menu.h"
 #include "main.h"
@@ -154,6 +157,24 @@ static gboolean rigctl_cb (GtkWidget *widget, GdkEventButton *event, gpointer da
   return TRUE;
 }
 
+#ifdef GPIO
+static gboolean encoder_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  cleanup();
+  fprintf(stderr, "new_menu: calling encoder_menu\n");
+  encoder_menu(top_window);
+  return TRUE;
+}
+
+#ifdef CONTROLLER2
+static gboolean switch_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  cleanup();
+  fprintf(stderr, "new_menu: calling switch_menu\n");
+  switch_menu(top_window);
+  return TRUE;
+}
+#endif
+#endif
+
 static gboolean cw_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   cleanup();
   cw_menu(top_window);
@@ -184,6 +205,11 @@ static gboolean equalizer_cb (GtkWidget *widget, GdkEventButton *event, gpointer
   cleanup();
   equalizer_menu(top_window);
   return TRUE;
+}
+
+void start_rx() {
+  cleanup();
+  rx_menu(top_window);
 }
 
 void start_step() {
@@ -363,16 +389,12 @@ static gboolean ps_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) 
 #endif
 
 #ifdef GPIO
+/*
 void start_encoder(int encoder) {
   int old_menu=active_menu;
   cleanup();
+fprintf(stderr,"start_encoder: %d old_menu=%d active_menu=%d\n",encoder,old_menu,active_menu);
   switch(encoder) {
-    case 1:
-      if(old_menu!=E1_MENU) {
-        encoder_menu(top_window,encoder);
-        active_menu=E1_MENU;
-      }
-      break;
     case 2:
       if(old_menu!=E2_MENU) {
         encoder_menu(top_window,encoder);
@@ -385,6 +407,18 @@ void start_encoder(int encoder) {
         active_menu=E3_MENU;
       }
       break;
+    case 4:
+      if(old_menu!=E4_MENU) {
+        encoder_menu(top_window,encoder);
+        active_menu=E4_MENU;
+      }
+      break;
+    case 5:
+      if(old_menu!=E5_MENU) {
+        encoder_menu(top_window,encoder);
+        active_menu=E5_MENU;
+      }
+      break;
   }
 }
 
@@ -393,6 +427,7 @@ static gboolean encoder_cb (GtkWidget *widget, GdkEventButton *event, gpointer d
   start_encoder(encoder);
   return TRUE;
 }
+*/
 #endif
 
 void start_test() {
@@ -541,10 +576,19 @@ void new_menu()
     gtk_grid_attach(GTK_GRID(grid),rigctl_b,(i%5),i/5,1,1);
     i++;
 
-    GtkWidget *about_b=gtk_button_new_with_label("About");
-    g_signal_connect (about_b, "button-press-event", G_CALLBACK(about_b_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),about_b,(i%5),i/5,1,1);
+#ifdef GPIO
+    GtkWidget *encoders_b=gtk_button_new_with_label("Encoders");
+    g_signal_connect (encoders_b, "button-press-event", G_CALLBACK(encoder_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),encoders_b,(i%5),i/5,1,1);
     i++;
+
+#ifdef CONTROLLER2
+    GtkWidget *switches_b=gtk_button_new_with_label("Switches");
+    g_signal_connect (switches_b, "button-press-event", G_CALLBACK(switch_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),switches_b,(i%5),i/5,1,1);
+    i++;
+#endif
+#endif
 
 //
 //  We need at least two receivers and two ADCs to do DIVERSITY
@@ -555,6 +599,11 @@ void new_menu()
       gtk_grid_attach(GTK_GRID(grid),diversity_b,(i%5),i/5,1,1);
       i++;
     }
+
+    GtkWidget *about_b=gtk_button_new_with_label("About");
+    g_signal_connect (about_b, "button-press-event", G_CALLBACK(about_b_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),about_b,(i%5),i/5,1,1);
+    i++;
 
     gtk_container_add(GTK_CONTAINER(content),grid);
 

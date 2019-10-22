@@ -59,7 +59,7 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 }
 
 static gboolean mode_select_cb (GtkWidget *widget, gpointer        data) {
-  int m=(uintptr_t)data;
+  int m=GPOINTER_TO_UINT(data);
   set_button_text_color(last_mode,"black");
   last_mode=widget;
   set_button_text_color(last_mode,"orange");

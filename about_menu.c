@@ -109,6 +109,8 @@ void about_menu(GtkWidget *parent) {
   lines++;
   sprintf(text,"%s\n    Ken Hopper, N9VV, Testing and Documentation",text);
   lines++;
+  sprintf(text,"%s\n    Christoph v. Wüllen, DL1YCF, Pure Signal, Diversity, MIDI",text);
+  lines++;
   lines++;
 
   sprintf(text,"%s\n\nBuild date: %s", text, build_date);
@@ -117,7 +119,7 @@ void about_menu(GtkWidget *parent) {
   sprintf(text,"%s\nBuild version: %s", text, version);
   lines++;
 
-  sprintf(text,"%s\n\nWDSP v%d.%02d", text, GetWDSPVersion()/100, GetWDSPVersion()%100);
+  sprintf(text,"%s\nWDSP version: %d.%02d", text, GetWDSPVersion()/100, GetWDSPVersion()%100);
   lines++;
 
   sprintf(text,"%s\n\nDevice: %s Protocol %s v%d.%d",text,radio->name,radio->protocol==ORIGINAL_PROTOCOL?"1":"2",radio->software_version/10,radio->software_version%10);

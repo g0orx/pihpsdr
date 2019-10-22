@@ -270,7 +270,7 @@ static int info_thread(gpointer arg) {
 //       
 //
 static void ps_ant_cb(GtkWidget *widget, gpointer data) {
-  int val = (int) (uintptr_t) data;
+  int val = GPOINTER_TO_INT(data);
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
     switch (val) {
       case 0:	// Internal
@@ -286,7 +286,7 @@ static void ps_ant_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void enable_cb(GtkWidget *widget, gpointer data) {
-  g_idle_add(ext_tx_set_ps,(gpointer)(long)gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)));
+  g_idle_add(ext_tx_set_ps,GINT_TO_POINTER(gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget))));
 }
 
 static void auto_cb(GtkWidget *widget, gpointer data) {

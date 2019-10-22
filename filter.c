@@ -20,7 +20,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "sliders.h"
 #include "filter.h"
+#include "receiver.h"
+#include "vfo.h"
+#include "radio.h"
 #include "property.h"
 
 FILTER filterLSB[FILTERS]={
@@ -431,3 +435,26 @@ void filterRestoreState() {
 
 }
 
+void filter_width_changed(int rx,int increment) {
+  int id=receiver[rx]->id;
+  FILTER *mode_filters=filters[vfo[id].mode];
+  FILTER *filter=&mode_filters[vfo[id].filter];
+
+fprintf(stderr,"filter_width_changed: rx=%d mode=%d filter=%d increment=%d\n",rx,vfo[id].mode,vfo[id].filter,increment);
+
+  if(vfo[id].filter==filterVar1 || vfo[id].filter==filterVar2) {
+    filter->high=filter->high+increment;
+fprintf(stderr,"filter->low=%d filter->high=%d\n",filter->low,filter->high);
+    if(vfo[id].mode==modeCWL || vfo[id].mode==modeCWU) {
+      filter->low=filter->high;
+    }
+    vfo_filter_changed(vfo[id].filter);
+    int width=filter->high-filter->low;
+    if(vfo[id].mode==modeCWL || vfo[id].mode==modeCWU) {
+      width=filter->high;
+    } else {
+      if(width<0) width=filter->low-filter->high;
+    }
+    set_filter_width(id,width);
+  }
+}

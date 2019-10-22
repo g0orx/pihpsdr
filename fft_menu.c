@@ -53,7 +53,7 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 }
 
 static void filter_type_cb(GtkWidget *widget, gpointer data) {
-  set_filter_type((uintptr_t)data);
+  set_filter_type(GPOINTER_TO_UINT(data));
 }
 
 #ifdef SET_FILTER_SIZE

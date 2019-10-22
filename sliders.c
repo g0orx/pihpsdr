@@ -69,6 +69,9 @@ static GtkWidget *sliders;
 #define ATTENUATION 6
 #define SQUELCH 7
 #define COMP 8
+#define FILTER_WIDTH 9
+#define DIVERSITY_GAIN 10
+#define DIVERSITY_PHASE 11
 
 static gint scale_timer;
 static int scale_status=NONE;
@@ -93,20 +96,25 @@ static GtkWidget *comp_label;
 static GtkWidget *comp_scale;
 static GtkWidget *comp_enable;
 static GtkWidget *dummy_label;
+static GtkWidget *filter_width_scale;
+static GtkWidget *diversity_gain_scale;
+static GtkWidget *diversity_phase_scale;
 
 static GdkRGBA white;
 static GdkRGBA gray;
 
 void sliders_update() {
   if(display_sliders) {
-    if(mic_linein) {
-      gtk_label_set_text(GTK_LABEL(mic_gain_label),"Linein:");
-      gtk_range_set_range(GTK_RANGE(mic_gain_scale),0.0,31.0);
-      gtk_range_set_value (GTK_RANGE(mic_gain_scale),linein_gain);
-    } else {
-      gtk_label_set_text(GTK_LABEL(mic_gain_label),"Mic (dB):");
-      gtk_range_set_range(GTK_RANGE(mic_gain_scale),-10.0,50.0);
-      gtk_range_set_value (GTK_RANGE(mic_gain_scale),mic_gain);
+    if(can_transmit) {
+      if(mic_linein) {
+        gtk_label_set_text(GTK_LABEL(mic_gain_label),"Linein:");
+        gtk_range_set_range(GTK_RANGE(mic_gain_scale),0.0,31.0);
+        gtk_range_set_value (GTK_RANGE(mic_gain_scale),linein_gain);
+      } else {
+        gtk_label_set_text(GTK_LABEL(mic_gain_label),"Mic (dB):");
+        gtk_range_set_range(GTK_RANGE(mic_gain_scale),-10.0,50.0);
+        gtk_range_set_value (GTK_RANGE(mic_gain_scale),mic_gain);
+      }
     }
   }
 }
@@ -275,11 +283,11 @@ static void agcgain_value_changed_cb(GtkWidget *widget, gpointer data) {
   SetRXAAGCTop(active_receiver->id, active_receiver->agc_gain);
 }
 
-void set_agc_gain(double value) {
-  active_receiver->agc_gain=value;
-  SetRXAAGCTop(active_receiver->id, active_receiver->agc_gain);
+void set_agc_gain(int rx,double value) {
+  receiver[rx]->agc_gain=value;
+  SetRXAAGCTop(receiver[rx]->id, receiver[rx]->agc_gain);
   if(display_sliders) {
-    gtk_range_set_value (GTK_RANGE(agc_scale),active_receiver->agc_gain);
+    gtk_range_set_value (GTK_RANGE(agc_scale),receiver[rx]->agc_gain);
   } else {
     if(scale_status!=AGC_GAIN) {
       if(scale_status!=NONE) {
@@ -294,7 +302,7 @@ void set_agc_gain(double value) {
       GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
       agc_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-20.0, 120.0, 1.00);
       gtk_widget_set_size_request (agc_scale, 400, 30);
-      gtk_range_set_value (GTK_RANGE(agc_scale),active_receiver->agc_gain);
+      gtk_range_set_value (GTK_RANGE(agc_scale),receiver[rx]->agc_gain);
       gtk_widget_show(agc_scale);
       gtk_container_add(GTK_CONTAINER(content),agc_scale);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
@@ -302,14 +310,14 @@ void set_agc_gain(double value) {
       int result=gtk_dialog_run(GTK_DIALOG(scale_dialog));
     } else {
       g_source_remove(scale_timer);
-      gtk_range_set_value (GTK_RANGE(agc_scale),active_receiver->agc_gain);
+      gtk_range_set_value (GTK_RANGE(agc_scale),receiver[rx]->agc_gain);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
     }
   }
 }
 
 void update_agc_gain(double gain) {
-  set_agc_gain(gain);
+  set_agc_gain(active_receiver->id,gain);
 }
 
 static void afgain_value_changed_cb(GtkWidget *widget, gpointer data) {
@@ -324,14 +332,14 @@ static void afgain_value_changed_cb(GtkWidget *widget, gpointer data) {
 }
 
 void update_af_gain() {
-  set_af_gain(active_receiver->volume);
+  set_af_gain(active_receiver->id,active_receiver->volume);
 }
 
-void set_af_gain(double value) {
-  active_receiver->volume=value;
-  SetRXAPanelGain1 (active_receiver->id, active_receiver->volume);
+void set_af_gain(int rx,double value) {
+  receiver[rx]->volume=value;
+  SetRXAPanelGain1 (receiver[rx]->id, receiver[rx]->volume);
   if(display_sliders) {
-    gtk_range_set_value (GTK_RANGE(af_gain_scale),active_receiver->volume*100.0);
+    gtk_range_set_value (GTK_RANGE(af_gain_scale),receiver[rx]->volume*100.0);
   } else {
     if(scale_status!=AF_GAIN) {
       if(scale_status!=NONE) {
@@ -346,7 +354,7 @@ void set_af_gain(double value) {
       GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
       af_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.00);
       gtk_widget_set_size_request (af_gain_scale, 400, 30);
-      gtk_range_set_value (GTK_RANGE(af_gain_scale),active_receiver->volume*100.0);
+      gtk_range_set_value (GTK_RANGE(af_gain_scale),receiver[rx]->volume*100.0);
       gtk_widget_show(af_gain_scale);
       gtk_container_add(GTK_CONTAINER(content),af_gain_scale);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
@@ -354,11 +362,39 @@ void set_af_gain(double value) {
       int result=gtk_dialog_run(GTK_DIALOG(scale_dialog));
     } else {
       g_source_remove(scale_timer);
-      gtk_range_set_value (GTK_RANGE(af_gain_scale),active_receiver->volume*100.0);
+      gtk_range_set_value (GTK_RANGE(af_gain_scale),receiver[rx]->volume*100.0);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
     }
   }
 }
+
+void set_filter_width(int rx,int width) {
+    if(scale_status!=FILTER_WIDTH) {
+      if(scale_status!=NONE) {
+        g_source_remove(scale_timer);
+        gtk_widget_destroy(scale_dialog);
+        scale_status=NONE;
+      }
+    }
+    if(scale_status==NONE) {
+      scale_status=FILTER_WIDTH;
+      scale_dialog=gtk_dialog_new_with_buttons("Filter Width (Hz)",GTK_WINDOW(top_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
+      GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
+      filter_width_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 4000.0, 1.00);
+      gtk_widget_set_size_request (filter_width_scale, 400, 30);
+      gtk_range_set_value (GTK_RANGE(filter_width_scale),(double)width);
+      gtk_widget_show(filter_width_scale);
+      gtk_container_add(GTK_CONTAINER(content),filter_width_scale);
+      scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
+      //gtk_widget_show_all(scale_dialog);
+      int result=gtk_dialog_run(GTK_DIALOG(scale_dialog));
+    } else {
+      g_source_remove(scale_timer);
+      gtk_range_set_value (GTK_RANGE(filter_width_scale),(double)width);
+      scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
+    }
+}
+
 
 static void micgain_value_changed_cb(GtkWidget *widget, gpointer data) {
     if(mic_linein) {
@@ -371,37 +407,38 @@ static void micgain_value_changed_cb(GtkWidget *widget, gpointer data) {
 }
 
 void set_mic_gain(double value) {
-  mic_gain=value;
-  double gain=pow(10.0, mic_gain / 20.0);
-  SetTXAPanelGain1(transmitter->id,gain);
-  if(display_sliders) {
-    gtk_range_set_value (GTK_RANGE(mic_gain_scale),mic_gain);
-  } else {
-    if(scale_status!=MIC_GAIN) {
-      if(scale_status!=NONE) {
+  if(can_transmit) {
+    mic_gain=value;
+    double gain=pow(10.0, mic_gain / 20.0);
+    SetTXAPanelGain1(transmitter->id,gain);
+    if(display_sliders) {
+      gtk_range_set_value (GTK_RANGE(mic_gain_scale),mic_gain);
+    } else {
+      if(scale_status!=MIC_GAIN) {
+        if(scale_status!=NONE) {
+          g_source_remove(scale_timer);
+          gtk_widget_destroy(scale_dialog);
+          scale_status=NONE;
+        }
+      }
+      if(scale_status==NONE) {
+        scale_status=MIC_GAIN;
+        scale_dialog=gtk_dialog_new_with_buttons("Mic Gain (dB)",GTK_WINDOW(top_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
+        GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
+        mic_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-10.0, 50.0, 1.00);
+        gtk_widget_set_size_request (mic_gain_scale, 400, 30);
+        gtk_range_set_value (GTK_RANGE(mic_gain_scale),mic_gain);
+        gtk_widget_show(mic_gain_scale);
+        gtk_container_add(GTK_CONTAINER(content),mic_gain_scale);
+        scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
+        //gtk_widget_show_all(scale_dialog);
+        int result=gtk_dialog_run(GTK_DIALOG(scale_dialog));
+      } else {
         g_source_remove(scale_timer);
-        gtk_widget_destroy(scale_dialog);
-        scale_status=NONE;
+        gtk_range_set_value (GTK_RANGE(mic_gain_scale),mic_gain);
+        scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
       }
     }
-    if(scale_status==NONE) {
-      scale_status=MIC_GAIN;
-      scale_dialog=gtk_dialog_new_with_buttons("Mic Gain (dB)",GTK_WINDOW(top_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
-      GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
-      mic_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-10.0, 50.0, 1.00);
-      gtk_widget_set_size_request (mic_gain_scale, 400, 30);
-      gtk_range_set_value (GTK_RANGE(mic_gain_scale),mic_gain);
-      gtk_widget_show(mic_gain_scale);
-      gtk_container_add(GTK_CONTAINER(content),mic_gain_scale);
-      scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
-      //gtk_widget_show_all(scale_dialog);
-      int result=gtk_dialog_run(GTK_DIALOG(scale_dialog));
-    } else {
-      g_source_remove(scale_timer);
-      gtk_range_set_value (GTK_RANGE(mic_gain_scale),mic_gain);
-      scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
-    }
-
   }
 }
 
@@ -460,7 +497,7 @@ void set_drive(double value) {
       scale_dialog=gtk_dialog_new_with_buttons("Drive",GTK_WINDOW(top_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
       GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
       drive_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.00);
-      //gtk_widget_override_font(drive_scale, pango_font_description_from_string("Sans 10"));
+      gtk_widget_override_font(drive_scale, pango_font_description_from_string("Sans 10"));
       gtk_widget_set_size_request (drive_scale, 400, 30);
       gtk_range_set_value (GTK_RANGE(drive_scale),value);
       gtk_widget_show(drive_scale);
@@ -529,7 +566,7 @@ void set_squelch() {
       scale_dialog=gtk_dialog_new_with_buttons("Squelch",GTK_WINDOW(top_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
       GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
       squelch_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.00);
-      //gtk_widget_override_font(squelch_scale, pango_font_description_from_string("Sans 10"));
+      gtk_widget_override_font(squelch_scale, pango_font_description_from_string("Sans 10"));
       gtk_range_set_value (GTK_RANGE(squelch_scale),active_receiver->squelch);
       gtk_widget_set_size_request (squelch_scale, 400, 30);
       gtk_widget_show(squelch_scale);
@@ -564,7 +601,7 @@ void set_compression(TRANSMITTER* tx) {
       scale_dialog=gtk_dialog_new_with_buttons("COMP",GTK_WINDOW(top_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
       GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
       comp_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 20.0, 1.00);
-      //gtk_widget_override_font(comp_scale, pango_font_description_from_string("Sans 10"));
+      gtk_widget_override_font(comp_scale, pango_font_description_from_string("Sans 10"));
       gtk_range_set_value (GTK_RANGE(comp_scale),tx->compressor_level);
       gtk_widget_set_size_request (comp_scale, 400, 30);
       gtk_widget_show(comp_scale);
@@ -583,6 +620,61 @@ void set_compression(TRANSMITTER* tx) {
   g_idle_add(ext_vfo_update, NULL);
 }
 
+void show_diversity_gain() {
+    if(scale_status!=DIVERSITY_GAIN) {
+      if(scale_status!=NONE) {
+        g_source_remove(scale_timer);
+        gtk_widget_destroy(scale_dialog);
+        scale_status=NONE;
+      }
+    }
+    if(scale_status==NONE) {
+      scale_status=DIVERSITY_GAIN;
+      scale_dialog=gtk_dialog_new_with_buttons("Diversity Gain",GTK_WINDOW(top_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
+      GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
+      diversity_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-12.0, 12.0, 0.1);
+      gtk_widget_set_size_request (diversity_gain_scale, 400, 30);
+      gtk_range_set_value (GTK_RANGE(diversity_gain_scale),div_gain);
+      gtk_widget_show(diversity_gain_scale);
+      gtk_container_add(GTK_CONTAINER(content),diversity_gain_scale);
+      scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
+      //gtk_widget_show_all(scale_dialog);
+      int result=gtk_dialog_run(GTK_DIALOG(scale_dialog));
+    } else {
+      g_source_remove(scale_timer);
+      gtk_range_set_value (GTK_RANGE(diversity_gain_scale),div_gain);
+      scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
+    }
+}
+
+void show_diversity_phase() {
+    if(scale_status!=DIVERSITY_PHASE) {
+      if(scale_status!=NONE) {
+        g_source_remove(scale_timer);
+        gtk_widget_destroy(scale_dialog);
+        scale_status=NONE;
+      }
+    }
+    if(scale_status==NONE) {
+      scale_status=DIVERSITY_PHASE;
+      scale_dialog=gtk_dialog_new_with_buttons("Diversity Phase",GTK_WINDOW(top_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
+      GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
+      diversity_phase_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 360.0, 1.0);
+      gtk_widget_set_size_request (diversity_phase_scale, 400, 30);
+      gtk_range_set_value (GTK_RANGE(diversity_phase_scale),div_phase);
+      gtk_widget_show(diversity_phase_scale);
+      gtk_container_add(GTK_CONTAINER(content),diversity_phase_scale);
+      scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
+      //gtk_widget_show_all(scale_dialog);
+      int result=gtk_dialog_run(GTK_DIALOG(scale_dialog));
+    } else {
+      g_source_remove(scale_timer);
+      gtk_range_set_value (GTK_RANGE(diversity_phase_scale),div_phase);
+      scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
+    }
+}
+
+
 GtkWidget *sliders_init(int my_width, int my_height) {
   width=my_width;
   height=my_height;
@@ -595,24 +687,24 @@ fprintf(stderr,"sliders_init: width=%d height=%d\n", width,height);
   gtk_grid_set_column_homogeneous(GTK_GRID(sliders),TRUE);
 
   af_gain_label=gtk_label_new("AF:");
-  //gtk_widget_override_font(af_gain_label, pango_font_description_from_string("Sans 11"));
+  gtk_widget_override_font(af_gain_label, pango_font_description_from_string("Sans 10"));
   gtk_widget_show(af_gain_label);
   gtk_grid_attach(GTK_GRID(sliders),af_gain_label,0,0,1,1);
 
   af_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.00);
-  //gtk_widget_override_font(af_gain_scale, pango_font_description_from_string("Sans 10"));
+  gtk_widget_override_font(af_gain_scale, pango_font_description_from_string("Sans 10"));
   gtk_range_set_value (GTK_RANGE(af_gain_scale),active_receiver->volume*100.0);
   gtk_widget_show(af_gain_scale);
   gtk_grid_attach(GTK_GRID(sliders),af_gain_scale,1,0,2,1);
   g_signal_connect(G_OBJECT(af_gain_scale),"value_changed",G_CALLBACK(afgain_value_changed_cb),NULL);
 
   agc_gain_label=gtk_label_new("AGC:");
-  //gtk_widget_override_font(agc_gain_label, pango_font_description_from_string("Sans 11"));
+  gtk_widget_override_font(agc_gain_label, pango_font_description_from_string("Sans 10"));
   gtk_widget_show(agc_gain_label);
   gtk_grid_attach(GTK_GRID(sliders),agc_gain_label,3,0,1,1);
 
   agc_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-20.0, 120.0, 1.0);
-  //gtk_widget_override_font(agc_scale, pango_font_description_from_string("Sans 10"));
+  gtk_widget_override_font(agc_scale, pango_font_description_from_string("Sans 10"));
   gtk_range_set_value (GTK_RANGE(agc_scale),active_receiver->agc_gain);
   gtk_widget_show(agc_scale);
   gtk_grid_attach(GTK_GRID(sliders),agc_scale,4,0,2,1);
@@ -625,7 +717,7 @@ fprintf(stderr,"sliders_init: width=%d height=%d\n", width,height);
   sprintf(title,"ATT (dB)"/*,active_receiver->adc*/);
 #endif
   attenuation_label=gtk_label_new(title);
-  //gtk_widget_override_font(attenuation_label, pango_font_description_from_string("Sans 11"));
+  gtk_widget_override_font(attenuation_label, pango_font_description_from_string("Sans 10"));
   gtk_widget_show(attenuation_label);
   gtk_grid_attach(GTK_GRID(sliders),attenuation_label,6,0,1,1);
 
@@ -636,18 +728,18 @@ fprintf(stderr,"sliders_init: width=%d height=%d\n", width,height);
 	attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 31.0, 1.0);
 	gtk_range_set_value (GTK_RANGE(attenuation_scale),adc_attenuation[active_receiver->adc]);
 #endif
-  //gtk_widget_override_font(attenuation_scale, pango_font_description_from_string("Sans 10"));
+  gtk_widget_override_font(attenuation_scale, pango_font_description_from_string("Sans 10"));
   
   gtk_widget_show(attenuation_scale);
   gtk_grid_attach(GTK_GRID(sliders),attenuation_scale,7,0,2,1);
   g_signal_connect(G_OBJECT(attenuation_scale),"value_changed",G_CALLBACK(attenuation_value_changed_cb),NULL);
 
   c25_att_preamp_label = gtk_label_new("Att/PreAmp");
-  //gtk_widget_override_font(c25_att_preamp_label, pango_font_description_from_string("Sans 11"));
+  gtk_widget_override_font(c25_att_preamp_label, pango_font_description_from_string("Sans 10"));
   gtk_grid_attach(GTK_GRID(sliders), c25_att_preamp_label, 6, 0, 1, 1);
 
   c25_att_combobox = gtk_combo_box_text_new();
-  //gtk_widget_override_font(c25_att_combobox, pango_font_description_from_string("Sans 10"));
+  gtk_widget_override_font(c25_att_combobox, pango_font_description_from_string("Sans 10"));
   gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(c25_att_combobox), "0", "0 dB");
   gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(c25_att_combobox), "1", "-12 dB");
   gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(c25_att_combobox), "2", "-24 dB");
@@ -656,7 +748,7 @@ fprintf(stderr,"sliders_init: width=%d height=%d\n", width,height);
   g_signal_connect(G_OBJECT(c25_att_combobox), "changed", G_CALLBACK(c25_att_combobox_changed), NULL);
 
   c25_preamp_combobox = gtk_combo_box_text_new();
-  //gtk_widget_override_font(c25_preamp_combobox, pango_font_description_from_string("Sans 10"));
+  gtk_widget_override_font(c25_preamp_combobox, pango_font_description_from_string("Sans 10"));
   gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(c25_preamp_combobox), "0", "0 dB");
   gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(c25_preamp_combobox), "1", "18 dB");
   gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(c25_preamp_combobox), "2", "36 dB");
@@ -665,35 +757,38 @@ fprintf(stderr,"sliders_init: width=%d height=%d\n", width,height);
   g_idle_add(load_att_type_cb, NULL);
 
 
-  mic_gain_label=gtk_label_new(mic_linein?"Linein:":"Mic (dB):");
-  //gtk_widget_override_font(mic_gain_label, pango_font_description_from_string("Sans 11"));
-  gtk_grid_attach(GTK_GRID(sliders),mic_gain_label,0,1,1,1);
+  if(can_transmit) {
 
-  mic_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,mic_linein?0.0:-10.0,mic_linein?31.0:50.0, 1.0);
-  //gtk_widget_override_font(mic_gain_scale, pango_font_description_from_string("Sans 10"));
-  gtk_range_set_value (GTK_RANGE(mic_gain_scale),mic_linein?linein_gain:mic_gain);
-  gtk_grid_attach(GTK_GRID(sliders),mic_gain_scale,1,1,2,1);
-  g_signal_connect(G_OBJECT(mic_gain_scale),"value_changed",G_CALLBACK(micgain_value_changed_cb),NULL);
+    mic_gain_label=gtk_label_new(mic_linein?"Linein:":"Mic (dB):");
+    gtk_widget_override_font(mic_gain_label, pango_font_description_from_string("Sans 10"));
+    gtk_grid_attach(GTK_GRID(sliders),mic_gain_label,0,1,1,1);
 
-  drive_label=gtk_label_new("Drive:");
-  //gtk_widget_override_font(drive_label, pango_font_description_from_string("Sans 11"));
-  gtk_grid_attach(GTK_GRID(sliders),drive_label,3,1,1,1);
+    mic_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,mic_linein?0.0:-10.0,mic_linein?31.0:50.0, 1.0);
+    gtk_widget_override_font(mic_gain_scale, pango_font_description_from_string("Sans 10"));
+    gtk_range_set_value (GTK_RANGE(mic_gain_scale),mic_linein?linein_gain:mic_gain);
+    gtk_grid_attach(GTK_GRID(sliders),mic_gain_scale,1,1,2,1);
+    g_signal_connect(G_OBJECT(mic_gain_scale),"value_changed",G_CALLBACK(micgain_value_changed_cb),NULL);
 
-  drive_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.0);
-  //gtk_widget_override_font(drive_scale, pango_font_description_from_string("Sans 10"));
-  gtk_range_set_value (GTK_RANGE(drive_scale),getDrive());
-  gtk_widget_show(drive_scale);
-  gtk_grid_attach(GTK_GRID(sliders),drive_scale,4,1,2,1);
-  g_signal_connect(G_OBJECT(drive_scale),"value_changed",G_CALLBACK(drive_value_changed_cb),NULL);
+    drive_label=gtk_label_new("Drive:");
+    gtk_widget_override_font(drive_label, pango_font_description_from_string("Sans 10"));
+    gtk_grid_attach(GTK_GRID(sliders),drive_label,3,1,1,1);
+  
+    drive_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.0);
+    gtk_widget_override_font(drive_scale, pango_font_description_from_string("Sans 10"));
+    gtk_range_set_value (GTK_RANGE(drive_scale),getDrive());
+    gtk_widget_show(drive_scale);
+    gtk_grid_attach(GTK_GRID(sliders),drive_scale,4,1,2,1);
+    g_signal_connect(G_OBJECT(drive_scale),"value_changed",G_CALLBACK(drive_value_changed_cb),NULL);
+  }
 
 #ifndef COMPRESSION_SLIDER_INSTEAD_OF_SQUELCH
   squelch_label=gtk_label_new("Squelch:");
-  //gtk_widget_override_font(squelch_label, pango_font_description_from_string("Sans 11"));
+  gtk_widget_override_font(squelch_label, pango_font_description_from_string("Sans 10"));
   gtk_widget_show(squelch_label);
   gtk_grid_attach(GTK_GRID(sliders),squelch_label,6,1,1,1);
 
   squelch_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.0);
-  //gtk_widget_override_font(squelch_scale, pango_font_description_from_string("Sans 10"));
+  gtk_widget_override_font(squelch_scale, pango_font_description_from_string("Sans 10"));
   gtk_range_set_value (GTK_RANGE(squelch_scale),active_receiver->squelch);
   gtk_widget_show(squelch_scale);
   gtk_grid_attach(GTK_GRID(sliders),squelch_scale,7,1,2,1);
@@ -705,23 +800,25 @@ fprintf(stderr,"sliders_init: width=%d height=%d\n", width,height);
   gtk_grid_attach(GTK_GRID(sliders),squelch_enable,9,1,1,1);
   g_signal_connect(squelch_enable,"toggled",G_CALLBACK(squelch_enable_cb),NULL);
 #else
-  comp_label=gtk_label_new("COMP:");
-  //gtk_widget_override_font(comp_label, pango_font_description_from_string("Sans 11"));
-  gtk_widget_show(comp_label);
-  gtk_grid_attach(GTK_GRID(sliders),comp_label,6,1,1,1);
+  if(can_transmit) {
+    comp_label=gtk_label_new("COMP:");
+    gtk_widget_override_font(comp_label, pango_font_description_from_string("Sans 10"));
+    gtk_widget_show(comp_label);
+    gtk_grid_attach(GTK_GRID(sliders),comp_label,6,1,1,1);
 
-  comp_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 20.0, 1.0);
-  //gtk_widget_override_font(comp_scale, pango_font_description_from_string("Sans 10"));
-  gtk_range_set_value (GTK_RANGE(comp_scale),transmitter->compressor_level);
-  gtk_widget_show(comp_scale);
-  gtk_grid_attach(GTK_GRID(sliders),comp_scale,7,1,2,1);
-  g_signal_connect(G_OBJECT(comp_scale),"value_changed",G_CALLBACK(compressor_value_changed_cb),NULL);
-
-  comp_enable=gtk_check_button_new();
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(comp_enable),transmitter->compressor);
-  gtk_widget_show(comp_enable);
-  gtk_grid_attach(GTK_GRID(sliders),comp_enable,9,1,1,1);
-  g_signal_connect(comp_enable,"toggled",G_CALLBACK(compressor_enable_cb),NULL);
+    comp_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 20.0, 1.0);
+    gtk_widget_override_font(comp_scale, pango_font_description_from_string("Sans 10"));
+    gtk_range_set_value (GTK_RANGE(comp_scale),transmitter->compressor_level);
+    gtk_widget_show(comp_scale);
+    gtk_grid_attach(GTK_GRID(sliders),comp_scale,7,1,2,1);
+    g_signal_connect(G_OBJECT(comp_scale),"value_changed",G_CALLBACK(compressor_value_changed_cb),NULL);
+  
+    comp_enable=gtk_check_button_new();
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(comp_enable),transmitter->compressor);
+    gtk_widget_show(comp_enable);
+    gtk_grid_attach(GTK_GRID(sliders),comp_enable,9,1,1,1);
+    g_signal_connect(comp_enable,"toggled",G_CALLBACK(compressor_enable_cb),NULL);
+  }
 #endif
 
   return sliders;

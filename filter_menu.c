@@ -58,7 +58,7 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 }
 
 int filter_select(void *data) {
-  int f=(uintptr_t)data;
+  int f=GPOINTER_TO_UINT(data);
   vfo_filter_changed(f);
   return 0;
 }
@@ -72,8 +72,8 @@ static gboolean filter_select_cb (GtkWidget *widget, gpointer        data) {
 }
 
 static gboolean deviation_select_cb (GtkWidget *widget, gpointer data) {
-  active_receiver->deviation=(uintptr_t)data;
-  transmitter->deviation=(uintptr_t)data;
+  active_receiver->deviation=GPOINTER_TO_UINT(data);
+  transmitter->deviation=GPOINTER_TO_UINT(data);
   if(active_receiver->deviation==2500) {
     //setFilter(-4000,4000);
     set_filter(active_receiver,-4000,4000);
@@ -93,7 +93,7 @@ static gboolean deviation_select_cb (GtkWidget *widget, gpointer data) {
 }
 
 static void var_spin_low_cb (GtkWidget *widget, gpointer data) {
-  int f=(uintptr_t)data;
+  int f=GPOINTER_TO_UINT(data);
   int id=active_receiver->id;
 
   FILTER *mode_filters=filters[vfo[id].mode];
@@ -110,7 +110,7 @@ static void var_spin_low_cb (GtkWidget *widget, gpointer data) {
 }
 
 static void var_spin_high_cb (GtkWidget *widget, gpointer data) {
-  int f=(uintptr_t)data;
+  int f=GPOINTER_TO_UINT(data);
   int id=active_receiver->id;
 
   FILTER *mode_filters=filters[vfo[id].mode];

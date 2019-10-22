@@ -58,7 +58,7 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 }
 
 static gboolean bandstack_select_cb (GtkWidget *widget, gpointer        data) {
-  int b=(uintptr_t)data;
+  int b=GPOINTER_TO_UINT(data);
   set_button_text_color(last_bandstack,"black");
   last_bandstack=widget;
   set_button_text_color(last_bandstack,"orange");

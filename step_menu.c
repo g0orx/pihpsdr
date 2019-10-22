@@ -51,7 +51,7 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 }
 
 static gboolean step_select_cb (GtkWidget *widget, gpointer        data) {
-  step=steps[(uintptr_t)data];
+  step=steps[GPOINTER_TO_INT(data)];
   g_idle_add(ext_vfo_update,NULL);
   return FALSE;
 }

@@ -20,7 +20,7 @@
 #ifndef _ENCODER_MENU_H
 #define _ENCODER_MENU_H
 
-extern void encoder_menu(GtkWidget *parent,int e);
+extern void encoder_menu(GtkWidget *parent);
 
 extern void encoder_select(int pos);
 #endif

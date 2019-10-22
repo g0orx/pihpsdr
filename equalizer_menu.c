@@ -98,7 +98,7 @@ static gboolean enable_cb (GtkWidget *widget, GdkEventButton *event, gpointer da
 }
 
 static void value_changed_cb (GtkWidget *widget, gpointer data) {
-  int i=(uintptr_t)data;
+  int i=GPOINTER_TO_UINT(data);
   if(tx_menu) {
     tx_equalizer[i]=(int)gtk_range_get_value(GTK_RANGE(widget));
     SetTXAGrphEQ(transmitter->id, tx_equalizer);

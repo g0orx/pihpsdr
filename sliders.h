@@ -1,8 +1,6 @@
 /* Copyright (C)
 * 2015 - John Melton, G0ORX/N6LYT
 *
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License
 * as published by the Free Software Foundation; either version 2
 * of the License, or (at your option) any later version.
 *
@@ -32,18 +30,23 @@ extern void update_agc_gain(double gain);
 extern void update_af_gain();
 extern int update_mic_gain(void *);
 extern int update_drive(void *);
+extern int update_tune_drive(void *);
 
-extern void set_agc_gain(double value);
-extern void set_af_gain(double value);
+extern void set_agc_gain(int rx,double value);
+extern void set_af_gain(int rx,double value);
 extern void set_mic_gain(double value);
 extern void set_drive(double drive);
 //extern void set_tune(double tune);
 extern void set_attenuation_value(double attenuation);
+extern void set_filter_width(int rx,int width);
 extern GtkWidget *sliders_init(int my_width, int my_height);
 
 extern void sliders_update();
 
 extern void set_squelch();
 extern void set_compression(TRANSMITTER *tx);
+
+extern void show_diversity_gain();
+extern void show_diversity_phase();
 
 #endif
