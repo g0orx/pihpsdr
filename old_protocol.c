@@ -719,18 +719,27 @@ static long long channel_freq(int chan) {
   if (vfonum < 0) {
     //
     // indicates that we should use the TX frequency.
+    // We have to adjust by the offset for CTUN mode
     //
     if(active_receiver->id==VFO_A) {
-      if(split) {
-	freq=vfo[VFO_B].frequency-vfo[VFO_B].lo+vfo[VFO_B].offset;
+      if(split) { 
+        vfonum=VFO_B;
       } else {
-	freq=vfo[VFO_A].frequency-vfo[VFO_A].lo+vfo[VFO_A].offset;
+        vfonum=VFO_A;
       }
     } else {
       if(split) {
-	freq=vfo[VFO_A].frequency-vfo[VFO_A].lo+vfo[VFO_A].offset;
+        vfonum=VFO_A;
       } else {
-	freq=vfo[VFO_B].frequency-vfo[VFO_B].lo+vfo[VFO_B].offset;
+        vfonum=VFO_B;
+      }
+    }
+    freq=vfo[vfonum].frequency-vfo[vfonum].lo+vfo[vfonum].offset;
+    if (!cw_is_on_vfo_freq) {
+      if(vfo[vfonum].mode==modeCWU) {
+        freq+=(long long)cw_keyer_sidetone_frequency;
+      } else if(vfo[vfonum].mode==modeCWL) {
+        freq-=(long long)cw_keyer_sidetone_frequency;
       }
     }
   } else {
@@ -741,10 +750,12 @@ static long long channel_freq(int chan) {
     if(vfo[vfonum].rit_enabled) {
       freq+=vfo[vfonum].rit;
     }
-    if(vfo[vfonum].mode==modeCWU) {
-      freq-=(long long)cw_keyer_sidetone_frequency;
-    } else if(vfo[vfonum].mode==modeCWL) {
-      freq+=(long long)cw_keyer_sidetone_frequency;
+    if (cw_is_on_vfo_freq) {
+      if(vfo[vfonum].mode==modeCWU) {
+        freq-=(long long)cw_keyer_sidetone_frequency;
+      } else if(vfo[vfonum].mode==modeCWL) {
+        freq+=(long long)cw_keyer_sidetone_frequency;
+      }
     }
   }
   return freq;
