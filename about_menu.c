@@ -127,7 +127,7 @@ void about_menu(GtkWidget *parent) {
     case ORIGINAL_PROTOCOL:
     case NEW_PROTOCOL:
 #ifdef USBOZY
-      if(d->device==DEVICE_OZY) {
+      if(radio->device==DEVICE_OZY) {
         sprintf(text,"%s\nDevice OZY: USB /dev/ozy",text,radio->protocol==ORIGINAL_PROTOCOL?"1":"2",radio->software_version/10,radio->software_version%10);
       } else {
 #endif

@@ -392,8 +392,7 @@ void start_radio() {
   sem_post(&property_sem);
 #endif
 
-  char text[256];
-  //for(i=0;i<devices;i++) {
+    char text[256];
     switch(radio->protocol) {
       case ORIGINAL_PROTOCOL:
       case NEW_PROTOCOL:
@@ -407,9 +406,11 @@ void start_radio() {
                         radio->protocol==ORIGINAL_PROTOCOL?"Protocol 1":"Protocol 2",
                         radio->software_version/10,
                         radio->software_version%10);
+#ifdef USBOZY
+	}
+#endif
         break;
     }
-  //}
 
 
 
