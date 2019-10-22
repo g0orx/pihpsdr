@@ -310,7 +310,6 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   }
             
   // cursor
-  
   cairo_set_source_rgb (cr, 1.0, 0.0, 0.0);
   cairo_set_line_width(cr, 1.0);
 //fprintf(stderr,"cursor: x=%f\n",(double)(display_width/2.0)+(vfo[tx->id].offset/hz_per_pixel));
