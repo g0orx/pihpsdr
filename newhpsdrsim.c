@@ -134,7 +134,6 @@ void new_protocol_general_packet(unsigned char *buffer) {
   if (seqnum != 0 && seqnum != seqold+1 ) {
     fprintf(stderr,"GP: SEQ ERROR, old=%lu new=%lu\n", seqold, seqnum);
   }
-  fprintf(stderr,"GP seq=%ld\n", (long) seqnum);
 
   rc=(buffer[5] << 8) + buffer[6];
   if (rc == 0) rc=1025;

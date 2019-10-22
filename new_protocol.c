@@ -1184,7 +1184,7 @@ static void new_protocol_transmit_specific() {
 
     if(last_50!=transmit_specific_buffer[50]) {
       last_50=transmit_specific_buffer[50];
-fprintf(stderr,"tx_specific: 50=%02X\n",transmit_specific_buffer[50]);
+//fprintf(stderr,"tx_specific: 50=%02X\n",transmit_specific_buffer[50]);
     }
 
     // 0..31
