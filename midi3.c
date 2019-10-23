@@ -28,6 +28,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
     int new;
     double dnew;
     double *dp;
+    int    *ip;
 
     switch (action) {
 	case SWAP_VFO:	// only key supported
@@ -38,6 +39,15 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	case VFO: // only wheel supported
 	    if (type == MIDI_WHEEL) {
 		g_idle_add(ext_vfo_step, GINT_TO_POINTER(val));
+	    }
+	    break;
+	case VFOA: // only wheel supported
+	case VFOB: // only wheel supported
+	    if (type == MIDI_WHEEL) {
+	        ip=malloc(2*sizeof(int));
+		*ip = (action == VFOA) ? 0 : 1;   // could use (action - VFOA) to support even more VFOs
+		*(ip+1)=val;
+		g_idle_add(ext_vfo_id_step, ip);
 	    }
 	    break;
 	case MIDI_TUNE: // only key supported

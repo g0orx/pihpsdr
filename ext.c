@@ -200,6 +200,15 @@ int ext_vfo_step(void *data) {
   return 0;
 }
 
+int ext_vfo_id_step(void *data) {
+  int *ip=(int *) data;
+  int id=ip[0];
+  int step=ip[1];
+  vfo_id_step(id,step);
+  free(data);
+  return 0;
+}
+
 int ext_set_mic_gain(void * data) {
   double d=*(double *)data;
   set_mic_gain(d);
@@ -500,5 +509,6 @@ int ext_function_update(void *data) {
   }
   update_toolbar_labels();
   vfo_update();
+  return 0;
 }
 

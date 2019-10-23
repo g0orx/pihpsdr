@@ -76,6 +76,8 @@ enum MIDIaction {
   MIDI_TUNE,			// toggle "tune" state
   TX_DRIVE,		// RF output power
   VFO,			// change VFO frequency
+  VFOA,			// change VFO-A frequency
+  VFOB,			// change VFO-B frequency
   VFO_A2B,		// VFO A -> B
   VFO_B2A,		// VFO B -> A
   VOX 			// VOX on/off

@@ -558,6 +558,26 @@ void vfo_step(int steps) {
     g_idle_add(ext_vfo_update,NULL);
   }
 }
+//
+// DL1YCF: essentially a duplicate of vfo_step but
+//         changing a specific VFO freq instead of
+//         changing the VFO of the active receiver
+//
+void vfo_id_step(int id, int steps) {
+  if(!locked) {
+    if(vfo[id].ctun) {
+      vfo[id].ctun_frequency=vfo[id].ctun_frequency+(steps*step);
+    } else {
+      vfo[id].frequency=vfo[id].frequency+(steps*step);
+    }
+    receiver_frequency_changed(active_receiver);
+#ifdef INCLUDED
+    BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
+    setFrequency(active_receiver->frequency+(steps*step));
+#endif
+    g_idle_add(ext_vfo_update,NULL);
+  }
+}
 
 void vfo_move(long long hz) {
   int id=active_receiver->id;

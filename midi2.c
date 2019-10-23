@@ -119,6 +119,8 @@ static struct {
         { MIDI_TUNE,    "TUNE"},
         { TX_DRIVE,     "RFPOWER"},
         { VFO,          "VFO"},
+        { VFOA,         "VFOA"},
+        { VFOB,         "VFOB"},
 	{ VFO_A2B,	"VFOA2B"},
 	{ VFO_B2A,	"VFOB2A"},
 	{ VOX,   	"VOX"},
