@@ -39,8 +39,6 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
 		    if (desc->type == MIDI_KNOB) {
 			// normalize value to range 0 - 100
 			new = (val*100)/127;
-			// LEFTRIGHT: swap min/max value
-			if (desc->leftright) new=100-new;
 			DoTheMidi(desc->action, desc->type, new);
 		    } else if (desc->type == MIDI_WHEEL) {
 			if (desc->delay > 0) {
@@ -51,14 +49,12 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
 			  last_wheel_tp = tp;
 			}
 			// translate value to direction
-			if (val <= desc->low_thr1) new=-1;
-			if (val <= desc->low_thr2) new=-10;
-			if (val <= desc->low_thr3) new=-100;
-			if (val >= desc->up_thr1 ) new=1;
-			if (val >= desc->up_thr2 ) new=10;
-			if (val >= desc->up_thr3 ) new=100;
-			// LEFTRIGHT: swap up/down
-			if (desc->leftright) new=-new;
+			if ((val >= desc->vfl1) && (val <= desc->vfl2)) new=-100;
+			if ((val >= desc-> fl1) && (val <= desc-> fl2)) new=-10;
+			if ((val >= desc->lft1) && (val <= desc->lft2)) new=-1;
+			if ((val >= desc->rgt1) && (val <= desc->rgt2)) new= 1;
+			if ((val >= desc-> fr1) && (val <= desc-> fr2)) new= 10;
+			if ((val >= desc->vfr1) && (val <= desc->vfr2)) new= 100;
 			DoTheMidi(desc->action, desc->type, new);
 			last_wheel_action=desc->action;
 		    }
@@ -67,8 +63,6 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
 		    if (desc->type == MIDI_KNOB) {
 			// normalize value to 0 - 100
 			new = (val*100)/16383;
-			// possibly reverse scale
-			if (desc->leftright) new=100-new;
 			DoTheMidi(desc->action, desc->type, new);
 		    }
 		    break;
@@ -164,7 +158,7 @@ void MIDIstartup() {
     enum MIDIaction action;
     int chan;
     int swap_lr;
-    int lt3,lt2,lt1,ut1,ut2,ut3;
+    int t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12;
     int onoff, delay;
     struct desc *desc,*dp;
     enum MIDItype type;
@@ -196,8 +190,8 @@ void MIDIstartup() {
         continue; // nothing more in this line
       }
       chan=-1;  // default: any channel
-      lt3=lt2=lt1=-1;
-      ut3=ut2=ut1=128;
+      t1=t3=t5=t7= t9=t11=128;  // range that never occurs
+      t2=t4=t6=t8=t10=t12=-1;   // range that never occurs
       onoff=0;
       swap_lr=0;
       event=EVENT_NONE;
@@ -205,6 +199,11 @@ void MIDIstartup() {
       key=0;
       delay=0;
 
+      //
+      // The KEY=, CTRL=, and PITCH= cases are mutually exclusive
+      // If more than one keyword is in the line, PITCH wins over CTRL
+      // wins over KEY.
+      //
       if ((cp = strstr(zeile, "KEY="))) {
         sscanf(cp+4, "%d", &key);
         event=MIDI_NOTE;
@@ -219,12 +218,23 @@ void MIDIstartup() {
         event=MIDI_PITCH;
 	type=MIDI_KNOB;
       }
+      //
+      // If event is still undefined, skip line
+      //
+      if (event == EVENT_NONE) continue;
+
+      //
+      // beware of illegal key values
+      //
+      if (key < 0  ) key=0;
+      if (key > 127) key=127;
+
       if ((cp = strstr(zeile, "CHAN="))) {
         sscanf(cp+5, "%d", &chan);
 	chan--;
         if (chan<0 || chan>15) chan=-1;
       }
-      if ((cp = strstr(zeile, "WHEEL"))) {
+      if ((cp = strstr(zeile, "WHEEL")) && (type == MIDI_KNOB)) {
 	// change type from MIDI_KNOB to MIDI_WHEEL
         type=MIDI_WHEEL;
       }
@@ -238,7 +248,8 @@ void MIDIstartup() {
         sscanf(cp+6, "%d", &delay);
       }
       if ((cp = strstr(zeile, "THR="))) {
-        sscanf(cp+4, "%d %d %d %d %d %d", &lt3, &lt2, &lt1, &ut1, &ut2, &ut3);
+        sscanf(cp+4, "%d %d %d %d %d %d %d %d %d %d %d %d",
+               &t1,&t2,&t3,&t4,&t5,&t6,&t7,&t8,&t9,&t10,&t11,&t12);
       }
       if ((cp = strstr(zeile, "ACTION="))) {
         // cut zeile at the first blank character following
@@ -247,10 +258,18 @@ void MIDIstartup() {
 	*cq=0;
         action=keyword2action(cp+7);
       }
-      if (event == EVENT_NONE || type == TYPE_NONE || key < 0 || key > 127) continue;
-      // Now all entries of the line have been read. Construct descriptor
-//fprintf(stderr,"K=%d C=%d T=%d E=%d A=%d OnOff=%d LeftRight=%d THRs=%d %d %d %d %d %d\n",
-//               key,chan,type, event, action, onoff, swap_lr, lt3,lt2,lt1,ut1,ut2,ut3);
+#if 0
+  fprintf(stderr,"K=%d C=%d T=%d E=%d A=%d OnOff=%d\n",key,chan,type, event, action, onoff);
+  if (t1 <= t2 ) fprintf(stderr,"Range for very fast  left: %d -- %d\n",t1,t2);
+  if (t3 <= t4 ) fprintf(stderr,"Range for      fast  left: %d -- %d\n",t3,t4);
+  if (t5 <= t6 ) fprintf(stderr,"Range for    normal  left: %d -- %d\n",t5,t6);
+  if (t7 <= t8 ) fprintf(stderr,"Range for    normal right: %d -- %d\n",t7,t8);
+  if (t9 <= t10) fprintf(stderr,"Range for      fast right: %d -- %d\n",t9,t10);
+  if (t11<= t12) fprintf(stderr,"Range for very fast right: %d -- %d\n",t11,t12);
+#endif
+      //
+      // All data for a descriptor has been read. Construct it!
+      //
       desc = (struct desc *) malloc(sizeof(struct desc));
       desc->next = NULL;
       desc->action = action;
@@ -258,15 +277,23 @@ void MIDIstartup() {
       desc->event = event;
       desc->onoff = onoff;
       desc->delay = delay;
-      desc->low_thr3 = lt3;
-      desc->low_thr2 = lt2;
-      desc->low_thr1 = lt1;
-      desc->up_thr1  = ut1;
-      desc->up_thr2  = ut2;
-      desc->up_thr3  = ut3;
-      desc->leftright= swap_lr;
+      desc->vfl1  = t1;
+      desc->vfl2  = t2;
+      desc->fl1   = t3;
+      desc->fl2   = t4;
+      desc->lft1  = t5;
+      desc->lft2  = t6;
+      desc->rgt1  = t7;
+      desc->rgt2  = t8;
+      desc->fr1   = t9;
+      desc->fr2   = t10;
+      desc->vfr1  = t11;
+      desc->vfr2  = t12;
       desc->channel  = chan;
-      // insert descriptor
+      //
+      // insert descriptor into linked list.
+      // We have a linked list for each key value to speed up searches
+      //
       if (event == MIDI_PITCH) {
 	dp = MidiCommandsTable.pitch;
 	if (dp == NULL) {

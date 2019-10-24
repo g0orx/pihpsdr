@@ -195,8 +195,8 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 		}
 	    }
 	    break;
-	case PRE:	// only key supported
-	    if (filter_board == CHARLY25) {
+	case PRE:	// only key supported, and only CHARLY25
+	    if (filter_board == CHARLY25 && type == MIDI_KEY) {
 		//
 		// For hardware other than CHARLY25, we do not
 		// switch preamps
@@ -237,7 +237,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 		      new=adc_attenuation[active_receiver->adc] + val;
 		      if (new > 31) new=31;
 		      if (new < 0 ) new=0;
-		    } else {
+	
 		      new=(31*val)/100;
 		    }
 		    dp=malloc(sizeof(double));
@@ -264,85 +264,106 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    if (dnew > 0.5) transmitter->compressor=1;
 	    g_idle_add(ext_set_compression, NULL);
 	    break;
-	case MIDI_NB:
+	case MIDI_NB: // only key supported
 	    // cycle through NoiseBlanker settings
-	    if (active_receiver->nb) {
+            if (type == MIDI_KEY) {
+	      if (active_receiver->nb) {
 		active_receiver->nb = 0;
 		active_receiver->nb2= 1;
-	    } else if (active_receiver->nb2) {
+	      } else if (active_receiver->nb2) {
 		active_receiver->nb = 0;
 		active_receiver->nb2= 0;
-	    } else {
+	      } else {
 		active_receiver->nb = 1;
 		active_receiver->nb2= 0;
+	      }
+	      g_idle_add(ext_vfo_update, NULL);
 	    }
-	    g_idle_add(ext_vfo_update, NULL);
 	    break;
-	case MIDI_NR:
+	case MIDI_NR: // only key supported
 	    // cycle through NoiseReduction settings
-	    if (active_receiver->nr) {
+	    if (type == MIDI_KEY) {
+	      if (active_receiver->nr) {
 		active_receiver->nr = 0;
 		active_receiver->nr2= 1;
-	    } else if (active_receiver->nr2) {
+	      } else if (active_receiver->nr2) {
 		active_receiver->nr = 0;
 		active_receiver->nr2= 0;
-	    } else {
+	      } else {
 		active_receiver->nr = 1;
 		active_receiver->nr2= 0;
+	      }
+	      g_idle_add(ext_vfo_update, NULL);
 	    }
-	    g_idle_add(ext_vfo_update, NULL);
 	    break;
-	case VOX:
+	case VOX: // only key supported
 	    // toggle VOX
-	    vox_enabled = !vox_enabled;
-	    g_idle_add(ext_vfo_update, NULL);
+	    if (type == MIDI_KEY) {
+	      vox_enabled = !vox_enabled;
+	      g_idle_add(ext_vfo_update, NULL);
+	    }
 	    break;
-	case MIDI_CTUN:
+	case MIDI_CTUN: // only key supported
 	    // toggle CTUN
-	    new=active_receiver->id;
-	    if(!vfo[new].ctun) {
+	    if (type == MIDI_KEY) {
+	      new=active_receiver->id;
+	      if(!vfo[new].ctun) {
 		vfo[new].ctun=1;
 		vfo[new].offset=0;
-	    } else {
+	      } else {
 		vfo[new].ctun=0;
+	      }
+	      vfo[new].ctun_frequency=vfo[new].frequency;
+	      set_offset(active_receiver,vfo[new].offset);
+	      g_idle_add(ext_vfo_update, NULL);
 	    }
-	    vfo[new].ctun_frequency=vfo[new].frequency;
-	    set_offset(active_receiver,vfo[new].offset);
-	    g_idle_add(ext_vfo_update, NULL);
 	    break;
-	case MIDI_PS:
+	case MIDI_PS: // only key supported
 #ifdef PURESIGNAL
 	    // toggle PURESIGNAL
-	    new=!(transmitter->puresignal);
-	    g_idle_add(ext_tx_set_ps,GINT_TO_POINTER(new));
+	    if (type == MIDI_KEY) {
+	      new=!(transmitter->puresignal);
+	      g_idle_add(ext_tx_set_ps,GINT_TO_POINTER(new));
+	    }
 #endif
 	    break;
-	case MIDI_SPLIT:
+	case MIDI_SPLIT: // only key supported
 	    // toggle split mode
-	    if(!split) {
+	    if (type == MIDI_KEY) {
+	      if(!split) {
 		split=1;
 		tx_set_mode(transmitter,vfo[VFO_B].mode);
-	    } else {
+	      } else {
 		split=0;
 		tx_set_mode(transmitter,vfo[VFO_A].mode);
+	      }
+	      g_idle_add(ext_vfo_update, NULL);
 	    }
-	    g_idle_add(ext_vfo_update, NULL);
 	    break;
-	case VFO_A2B:
-	    g_idle_add(ext_vfo_a_to_b, NULL);
+	case VFO_A2B: // only key supported
+	    if (type == MIDI_KEY) {
+	      g_idle_add(ext_vfo_a_to_b, NULL);
+	    }
 	    break;
-	case VFO_B2A:
-	    g_idle_add(ext_vfo_b_to_a, NULL);
+	case VFO_B2A: // only key supported
+	    if (type == MIDI_KEY) {
+	      g_idle_add(ext_vfo_b_to_a, NULL);
+	    }
 	    break;
-	case MIDI_LOCK:
-	    locked=!locked;
-	    g_idle_add(ext_vfo_update, NULL);
+	case MIDI_LOCK: // only key supported
+	    if (type == MIDI_KEY) {
+	      locked=!locked;
+	      g_idle_add(ext_vfo_update, NULL);
+	    }
 	    break;
-	case AGCATTACK:
-	    new=active_receiver->agc + 1;
-	    if (new > AGC_FAST) new=0;
-	    active_receiver->agc=new;
-	    g_idle_add(ext_vfo_update, NULL);
+	case AGCATTACK: // only key supported
+	    // cycle through fast/med/slow AGC attack
+	    if (type == MIDI_KEY) {
+	      new=active_receiver->agc + 1;
+	      if (new > AGC_FAST) new=0;
+	      active_receiver->agc=new;
+	      g_idle_add(ext_vfo_update, NULL);
+	    }
 	    break;
 	case ACTION_NONE:
 	    // No error message, this is the "official" action for un-used controller buttons.

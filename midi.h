@@ -160,13 +160,12 @@ struct desc {
    enum MIDIevent    event;	  // type of event (NOTE on/off, Controller change, Pitch value)
    int               onoff;       // 1: generate upstream event both for Note-on and Note-off
    enum MIDItype     type;        // Key, Knob, or Wheel
-   int               low_thr3;    // Wheel only: If controller value is <= this value, generate "very fast down"
-   int               low_thr2;    // Wheel only: If controller value is <= this value, generate "     fast down"
-   int               low_thr1;    // Wheel only: If controller value is <= this value, generate "          down"
-   int               up_thr1;     // Wheel only: If controller value is <= this value, generate "          up  "
-   int               up_thr2;     // Wheel only: If controller value is <= this value, generate "     fast up  "
-   int               up_thr3;     // Wheel only: If controller value is <= this value, generate "very fast up  "
-   int               leftright;   // Wheel: if set, swap left/right or up/down; Knob: map 0-127 onto 127-0
+   int               vfl1,vfl2;   // Wheel only: range of controller values for "very fast left"
+   int               fl1,fl2;     // Wheel only: range of controller values for "fast left"
+   int               lft1,lft2;   // Wheel only: range of controller values for "slow left"
+   int               vfr1,vfr2;   // Wheel only: range of controller values for "very fast right"
+   int               fr1,fr2;     // Wheel only: range of controller values for "fast right"
+   int               rgt1,rgt2;   // Wheel only: range of controller values for "slow right"
    int		     delay;       // Wheel only: delay (msec) before next message is given upstream
    enum MIDIaction   action;	  // SDR "action" to generate
    struct desc       *next;       // Next defined action for a controller/key with that note value (NULL for end of list)
