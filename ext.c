@@ -343,21 +343,53 @@ int ext_snb_update(void *data) {
 }
 
 int ext_band_plus(void *data) {
+  long long frequency_min=radio->frequency_min;
+  long long frequency_max=radio->frequency_max;
   int id=active_receiver->id;
   int b=vfo[id].band;
-  b++;
-  if(b>=BANDS) b=0;
-  vfo_band_changed(b);
+  BAND *band;
+  int found=0;
+  while(!found) {
+    b++;
+    if(b>=BANDS+XVTRS) b=0;
+    band=(BAND*)band_get_band(b);
+    if(strlen(band->title)>0) {
+      if(b<BANDS) {
+        if(!(band->frequencyMin==0.0 && band->frequencyMax==0.0)) {
+          if(band->frequencyMin<frequency_min || band->frequencyMax>frequency_max) {
+            continue;
+          }
+        }
+      }
+      vfo_band_changed(b);
+      found=1;
+    }
+  }
   return 0;
 }
 
 
 int ext_band_minus(void *data) {
+  long long frequency_min=radio->frequency_min;
+  long long frequency_max=radio->frequency_max;
   int id=active_receiver->id;
   int b=vfo[id].band;
-  b--;
-  if(b<0) b=BANDS-1;
-  vfo_band_changed(b);
+  BAND *band;
+  int found=0;
+  while(!found) {
+    b--;
+    if(b<0) b=BANDS+XVTRS-1;
+    band=(BAND*)band_get_band(b);
+    if(strlen(band->title)>0) {
+      if(b<BANDS) {
+        if(band->frequencyMin<frequency_min || band->frequencyMax>frequency_max) {
+          continue;
+        }
+      }
+      vfo_band_changed(b);
+      found=1;
+    }
+  }
   return 0;
 }
 

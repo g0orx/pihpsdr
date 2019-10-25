@@ -69,7 +69,7 @@ gboolean band_select_cb (GtkWidget *widget, gpointer        data) {
 
 void band_menu(GtkWidget *parent) {
   GtkWidget *b;
-  int i;
+  int i,j;
   BAND *band;
 
   parent_window=parent;
@@ -102,27 +102,30 @@ void band_menu(GtkWidget *parent) {
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
-  for(i=0;i<BANDS+XVTRS;i++) {
-#ifdef SOAPYSDR
-    if(protocol!=SOAPYSDR_PROTOCOL) {
-      if(i>=band70 && i<=band3400) {
-        continue;
-      }
-    }
-#endif
+  long long frequency_min=radio->frequency_min;
+  long long frequency_max=radio->frequency_max;
 
+  j=0;
+  for(i=0;i<BANDS+XVTRS;i++) {
     band=(BAND*)band_get_band(i);
     if(strlen(band->title)>0) {
+      if(i<BANDS) {
+        if(!(band->frequencyMin==0.0 && band->frequencyMax==0.0)) {
+          if(band->frequencyMin<frequency_min || band->frequencyMax>frequency_max) {
+            continue;
+          }
+        }
+      }
       GtkWidget *b=gtk_button_new_with_label(band->title);
       set_button_text_color(b,"black");
-      //if(i==band_get_current()) {
       if(i==vfo[active_receiver->id].band) {
         set_button_text_color(b,"orange");
         last_band=b;
       }
       gtk_widget_show(b);
-      gtk_grid_attach(GTK_GRID(grid),b,i%5,1+(i/5),1,1);
+      gtk_grid_attach(GTK_GRID(grid),b,j%5,1+(j/5),1,1);
       g_signal_connect(b,"clicked",G_CALLBACK(band_select_cb),(gpointer)(long)i);
+      j++;
     }
   }
 

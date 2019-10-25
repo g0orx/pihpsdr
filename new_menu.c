@@ -56,7 +56,7 @@
 #include "tx_menu.h"
 #include "ps_menu.h"
 #include "encoder_menu.h"
-#ifdef CONTROLLER2
+#if defined (CONTROLLER2_V2) || defined (CONTROLLER2_V1)
 #include "switch_menu.h"
 #endif
 #include "vfo_menu.h"
@@ -165,7 +165,7 @@ static gboolean encoder_cb (GtkWidget *widget, GdkEventButton *event, gpointer d
   return TRUE;
 }
 
-#ifdef CONTROLLER2
+#if defined (CONTROLLER2_V2) || defined (CONTROLLER2_V1)
 static gboolean switch_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   cleanup();
   fprintf(stderr, "new_menu: calling switch_menu\n");
@@ -582,7 +582,7 @@ void new_menu()
     gtk_grid_attach(GTK_GRID(grid),encoders_b,(i%5),i/5,1,1);
     i++;
 
-#ifdef CONTROLLER2
+#if defined (CONTROLLER2_V2) || defined (CONTROLLER2_V1)
     GtkWidget *switches_b=gtk_button_new_with_label("Switches");
     g_signal_connect (switches_b, "button-press-event", G_CALLBACK(switch_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),switches_b,(i%5),i/5,1,1);

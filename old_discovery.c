@@ -389,11 +389,11 @@ fprintf(stderr,"discover_receive_thread\n");
         bytes_read=recvfrom(discovery_socket,buffer,sizeof(buffer),1032,(struct sockaddr*)&addr,&len);
         if(bytes_read<0) {
             fprintf(stderr,"discovery: bytes read %d\n", bytes_read);
-            perror("discovery: recvfrom socket failed for discover_receive_thread");
+            perror("old_discovery: recvfrom socket failed for discover_receive_thread");
             break;
         }
         if (bytes_read == 0) break;
-        fprintf(stderr,"Old Protocol discovered: received %d bytes\n",bytes_read);
+        fprintf(stderr,"old_discovery: received %d bytes\n",bytes_read);
         if ((buffer[0] & 0xFF) == 0xEF && (buffer[1] & 0xFF) == 0xFE) {
             int status = buffer[2] & 0xFF;
             if (status == 2 || status == 3) {
@@ -403,39 +403,57 @@ fprintf(stderr,"discover_receive_thread\n");
                     switch(discovered[devices].device) {
                         case DEVICE_METIS:
                             strcpy(discovered[devices].name,"Metis");
+                            discovered[devices].frequency_min=0.0;
+                            discovered[devices].frequency_max=61440000.0;
                             break;
                         case DEVICE_HERMES:
                             strcpy(discovered[devices].name,"Hermes");
+                            discovered[devices].frequency_min=0.0;
+                            discovered[devices].frequency_max=61440000.0;
                             break;
                         case DEVICE_GRIFFIN:
                             strcpy(discovered[devices].name,"Griffin");
+                            discovered[devices].frequency_min=0.0;
+                            discovered[devices].frequency_max=61440000.0;
                             break;
                         case DEVICE_ANGELIA:
                             strcpy(discovered[devices].name,"Angelia");
+                            discovered[devices].frequency_min=0.0;
+                            discovered[devices].frequency_max=61440000.0;
                             break;
                         case DEVICE_ORION:
                             strcpy(discovered[devices].name,"Orion");
+                            discovered[devices].frequency_min=0.0;
+                            discovered[devices].frequency_max=61440000.0;
                             break;
                         case DEVICE_HERMES_LITE:
-							#ifdef RADIOBERRY
-								strcpy(discovered[devices].name,"Radioberry");
-							#else
-								strcpy(discovered[devices].name,"Hermes Lite");		
-							#endif
-
+#ifdef RADIOBERRY
+                            strcpy(discovered[devices].name,"Radioberry");
+#else
+                            strcpy(discovered[devices].name,"Hermes Lite");		
+#endif
+                            discovered[devices].frequency_min=0.0;
+                            discovered[devices].frequency_max=30720000.0;
                             break;
                         case DEVICE_ORION2:
                             strcpy(discovered[devices].name,"Orion2");
+                            discovered[devices].frequency_min=0.0;
+                            discovered[devices].frequency_max=61440000.0;
                             break;
 			case DEVICE_STEMLAB:
 			    // This is in principle the same as HERMES but has two ADCs
 			    // (and therefore, can do DIVERSITY).
                             strcpy(discovered[devices].name,"STEMlab");
+                            discovered[devices].frequency_min=0.0;
+                            discovered[devices].frequency_max=30720000.0;
                             break;
                         default:
                             strcpy(discovered[devices].name,"Unknown");
+                            discovered[devices].frequency_min=0.0;
+                            discovered[devices].frequency_max=61440000.0;
                             break;
                     }
+g_print("old_discovery: name=%s min=%f max=%f\n",discovered[devices].name, discovered[devices].frequency_min, discovered[devices].frequency_max);
                     discovered[devices].software_version=buffer[9]&0xFF;
                     for(i=0;i<6;i++) {
                         discovered[devices].info.network.mac_address[i]=buffer[i+3];
@@ -448,7 +466,7 @@ fprintf(stderr,"discover_receive_thread\n");
                     discovered[devices].info.network.interface_length=sizeof(interface_addr);
                     strcpy(discovered[devices].info.network.interface_name,interface_name);
 		    discovered[devices].use_tcp=0;
-		    fprintf(stderr,"discovery: found device=%d software_version=%d status=%d address=%s (%02X:%02X:%02X:%02X:%02X:%02X) on %s\n",
+		    fprintf(stderr,"old_discovery: found device=%d software_version=%d status=%d address=%s (%02X:%02X:%02X:%02X:%02X:%02X) on %s min=%f max=%f\n",
                             discovered[devices].device,
                             discovered[devices].software_version,
                             discovered[devices].status,
@@ -459,7 +477,9 @@ fprintf(stderr,"discover_receive_thread\n");
                             discovered[devices].info.network.mac_address[3],
                             discovered[devices].info.network.mac_address[4],
                             discovered[devices].info.network.mac_address[5],
-                            discovered[devices].info.network.interface_name);
+                            discovered[devices].info.network.interface_name,
+                            discovered[devices].frequency_min,
+                            discovered[devices].frequency_max);
                     devices++;
                 }
             }

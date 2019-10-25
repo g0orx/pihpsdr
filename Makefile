@@ -1,19 +1,30 @@
 # Get git commit version and date
-#GIT_VERSION := $(shell git --no-pager describe --tags --always --dirty)
 GIT_DATE := $(firstword $(shell git --no-pager show --date=short --format="%ai" --name-only))
 GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 
-# uncomment the line below to include CONTROLLER2 (Also include GPIO and I2C)
-#CONTROLLER2_INCLUDE=CONTROLLER2
-
-# uncomment the line below to include GPIO
+# uncomment the line below to include GPIO (For original piHPSDR Controller and Controller2)
 GPIO_INCLUDE=GPIO
 
-# uncomment the line below to include MCP23017 I2C
+# uncomment the line below to include MCP23017 I2C (required for Controller2)
 #I2C_INCLUDE=I2C
+
+# uncomment the line below to include CONTROLLER2_V1 (single encoders) (Also uncomment GPIO and I2C)
+#CONTROLLER2_V1_INCLUDE=CONTROLLER2_V1
+
+# uncomment the line below to include CONTROLLER2_V2 (dual encoders) (Also uncomment GPIO and I2C)
+#CONTROLLER2_V2_INCLUDE=CONTROLLER2_V2
 
 # uncomment the line below to include USB Ozy support
 # USBOZY_INCLUDE=USBOZY
+
+# uncomment the line below to include Pure Signal support
+PURESIGNAL_INCLUDE=PURESIGNAL
+
+# uncomment the line to below include support local CW keyer
+#LOCALCW_INCLUDE=LOCALCW
+
+# uncomment the line below for SoapySDR
+SOAPYSDR_INCLUDE=SOAPYSDR
 
 # uncomment the line below to include support for psk31
 #PSK_INCLUDE=PSK
@@ -21,14 +32,8 @@ GPIO_INCLUDE=GPIO
 # uncomment the line to below include support for FreeDV codec2
 #FREEDV_INCLUDE=FREEDV
 
-# uncomment the line below to include Pure Signal support
-PURESIGNAL_INCLUDE=PURESIGNAL
-
 # uncomment the line to below include support for sx1509 i2c expander
 #SX1509_INCLUDE=sx1509
-
-# uncomment the line to below include support local CW keyer
-#LOCALCW_INCLUDE=LOCALCW
 
 # uncomment the line below to include support for STEMlab discovery (WITH AVAHI)
 #STEMLAB_DISCOVERY=STEMLAB_DISCOVERY
@@ -42,21 +47,20 @@ PURESIGNAL_INCLUDE=PURESIGNAL
 # uncomment the line below to include MIDI support
 MIDI_INCLUDE=MIDI
 
-#uncomment the line below for the platform being compiled on (actually not used)
-UNAME_N=raspberrypi
-#UNAME_N=odroid
-#UNAME_N=up
-#UNAME_N=pine64
-#UNAME_N=jetsen
-
-CC=gcc
-LINK=gcc
+# uncomment the line below when Radioberry radio cape is plugged in (for now use emulator and old protocol)
+#RADIOBERRY_INCLUDE=RADIOBERRY
 
 # uncomment the line below for various debug facilities
 #DEBUG_OPTION=-D DEBUG
 
-ifeq ($(CONTROLLER2_INCLUDE),CONTROLLER2)
-CONTROLLER2_OPTIONS=-D CONTROLLER2
+CC=gcc
+LINK=gcc
+
+ifeq ($(CONTROLLER2_V2_INCLUDE),CONTROLLER2_V2)
+CONTROLLER2_OPTIONS=-D CONTROLLER2_V2
+endif
+ifeq ($(CONTROLLER2_V1_INCLUDE),CONTROLLER2_V1)
+CONTROLLER2_OPTIONS=-D CONTROLLER2_V1
 endif
 
 ifeq ($(MIDI_INCLUDE),MIDI)
@@ -102,14 +106,9 @@ ozyio.o
 endif
 
 
-# uncomment the line below when Radioberry radio cape is plugged in (for now use emulator and old protocol)
-#RADIOBERRY_INCLUDE=RADIOBERRY
 ifeq ($(RADIOBERRY_INCLUDE),RADIOBERRY)
 RADIOBERRY_OPTIONS=-D RADIOBERRY
 endif
-
-# uncomment the line below for SoapySDR
-#SOAPYSDR_INCLUDE=SOAPYSDR
 
 ifeq ($(SOAPYSDR_INCLUDE),SOAPYSDR)
 SOAPYSDR_OPTIONS=-D SOAPYSDR
@@ -470,6 +469,23 @@ release: $(PROGRAM)
 	cp $(PROGRAM) release/pihpsdr
 	cd release; tar cvf pihpsdr.tar pihpsdr
 	cd release; tar cvf pihpsdr-$(GIT_VERSION).tar pihpsdr
+
+nocontroller: clean controller1 $(PROGRAM)
+	cp $(PROGRAM) release/pihpsdr
+	cd release; tar cvf pihpsdr-nocontroller.$(GIT_VERSION).tar pihpsdr
+
+controller1: clean $(PROGRAM)
+	cp $(PROGRAM) release/pihpsdr
+	cd release; tar cvf pihpsdr-controller1.$(GIT_VERSION).tar pihpsdr
+
+controller2v1: clean $(PROGRAM)
+	cp $(PROGRAM) release/pihpsdr
+	cd release; tar cvf pihpsdr-controller2-v1.$(GIT_VERSION).tar pihpsdr
+
+controller2v2: clean $(PROGRAM)
+	cp $(PROGRAM) release/pihpsdr
+	cd release; tar cvf pihpsdr-controller2-v2.$(GIT_VERSION).tar pihpsdr
+
 
 #############################################################################
 #

@@ -17,7 +17,7 @@
 *
 */
 
-#ifdef CONTROLLER2
+#if defined (CONTROLLER2_V2) || defined (CONTROLLER2_V1)
 #include <gtk/gtk.h>
 #include <stdio.h>
 #include <string.h>
@@ -33,9 +33,7 @@
 #include "vfo.h"
 #include "button_text.h"
 #include "gpio.h"
-#ifdef CONTROLLER2
 #include "i2c.h"
-#endif
 
 typedef struct _choice {
   int sw;
@@ -136,7 +134,7 @@ void switch_menu(GtkWidget *parent) {
   row++;
   col=0;
 
-#ifndef CONTROLLER2
+#if !defined (CONTROLLER2_V2) && !defined (CONTROLLER2_V1)
 
   GtkWidget *sw7_title=gtk_label_new("SW7: ");
   gtk_grid_attach(GTK_GRID(grid),sw7_title,col,row,1,1);

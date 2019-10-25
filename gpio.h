@@ -92,7 +92,7 @@ enum {
 extern char *sw_string[SWITCH_ACTIONS];
 
 
-#ifndef CONTROLLER2
+#if !defined (CONTROLLER2_V2) && !defined (CONTROLLER2_V1)
 #define SWITCHES 8
 enum {
   SW1=0,
@@ -104,7 +104,9 @@ enum {
   SW7,
   SW8
 };
-#else
+#endif
+
+#if defined (CONTROLLER2_V2) || defined (CONTROLLER2_V1)
 #define SWITCHES 16
 enum {
   SW2=0,
@@ -165,7 +167,7 @@ extern int ENABLE_E4_ENCODER;
 extern int ENABLE_E4_PULLUP;
 extern int E4_ENCODER_A;
 extern int E4_ENCODER_B;
-#ifdef CONTROLLER2
+#if defined (CONTROLLER2_V2) || defined (CONTROLLER2_V1)
 extern int ENABLE_E5_ENCODER;
 extern int ENABLE_E5_PULLUP;
 extern int E5_ENCODER_A;

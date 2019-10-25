@@ -152,6 +152,7 @@ void i2c_interrupt() {
           case SW_8:
             i=SW8;
             break;
+#if defined (CONTROLLER2_V2) || defined (CONTROLLER2_V1)
           case SW_9:
             i=SW9;
             break;
@@ -179,6 +180,7 @@ void i2c_interrupt() {
           case SW_17:
             i=SW17;
             break;
+#endif
         }
 //g_print("i1c_interrupt: sw=%d action=%d\n",i,sw_action[i]);
         switch(sw_action[i]) {

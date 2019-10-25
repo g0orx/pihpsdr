@@ -142,7 +142,7 @@ RECEIVER *receiver[MAX_RECEIVERS];
 RECEIVER *active_receiver;
 TRANSMITTER *transmitter;
 
-int buffer_size=1024; // 64, 128, 256, 512, 1024
+int buffer_size=2048; // 64, 128, 256, 512, 1024, 2048
 int fft_size=2048; // 1024, 2048, 4096, 8192, 16384
 
 int atlas_penelope=0;
@@ -179,8 +179,8 @@ double display_average_time=120.0;
 int waterfall_high=-100;
 int waterfall_low=-150;
 
-int display_sliders=1;
-int display_toolbar=1;
+int display_sliders=0;
+int display_toolbar=0;
 
 //double volume=0.2;
 double mic_gain=0.0;
@@ -321,11 +321,14 @@ void reconfigure_radio() {
   int i;
   int y;
 //fprintf(stderr,"reconfigure_radio: receivers=%d\n",receivers);
-  int rx_height=display_height-VFO_HEIGHT-TOOLBAR_HEIGHT;
+  int rx_height=display_height-VFO_HEIGHT;
   if(display_sliders) {
     rx_height-=SLIDERS_HEIGHT;
   }
- 
+  if(display_toolbar) {
+    rx_height-=TOOLBAR_HEIGHT;
+  }
+
   y=VFO_HEIGHT;
   for(i=0;i<receivers;i++) {
     reconfigure_receiver(receiver[i],rx_height/receivers);
@@ -344,10 +347,26 @@ void reconfigure_radio() {
     }
     gtk_widget_show_all(sliders);  // ... this shows both C25 and Alex ATT/Preamp sliders
     att_type_changed();            // ... and this hides the „wrong“ ones.
+    y+=SLIDERS_HEIGHT;
   } else {
     if(sliders!=NULL) {
       gtk_container_remove(GTK_CONTAINER(fixed),sliders); 
       sliders=NULL;
+    }
+  }
+
+  if(display_toolbar) {
+    if(toolbar==NULL) {
+      toolbar = toolbar_init(display_width,TOOLBAR_HEIGHT,top_window);
+      gtk_fixed_put(GTK_FIXED(fixed),toolbar,0,y);
+    } else {
+      gtk_fixed_move(GTK_FIXED(fixed),toolbar,0,y);
+    }
+    gtk_widget_show_all(toolbar);
+  } else {
+    if(toolbar!=NULL) {
+      gtk_container_remove(GTK_CONTAINER(fixed),toolbar);
+      toolbar=NULL;
     }
   }
 
@@ -649,7 +668,7 @@ void start_radio() {
   adc[0].preamp=FALSE;
   adc[0].attenuation=0;
 #ifdef SOAPYSDR
-  adc[0].antenna=1; // LNAH
+  adc[0].antenna=2; // LNAL
   if(radio->device==SOAPYSDR_USB_DEVICE) {
     adc[0].rx_gain=malloc(radio->info.soapy.rx_gains*sizeof(gint));
     for (size_t i = 0; i < radio->info.soapy.rx_gains; i++) {
@@ -692,9 +711,9 @@ void start_radio() {
 
 //fprintf(stderr,"meter_calibration=%f display_calibration=%f\n", meter_calibration, display_calibration);
 
-#ifdef CONTROLLER2
+#if defined (CONTROLLER2_V2) || defined (CONTROLLER2_V1)
   display_sliders=0;
-  display_toolbar=1;
+  display_toolbar=0;
 #else
   display_sliders=1;
   display_toolbar=1;
@@ -835,12 +854,6 @@ void start_radio() {
       break;
 #endif
   }
-
-
-
-//#ifdef I2C
-//  i2c_init();
-//#endif
 
   if(display_sliders) {
 //fprintf(stderr,"create sliders\n");
