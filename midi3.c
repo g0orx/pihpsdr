@@ -37,13 +37,13 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    }
 	    break;    
 	case VFO: // only wheel supported
-	    if (type == MIDI_WHEEL) {
+	    if (type == MIDI_WHEEL && !locked) {
 		g_idle_add(ext_vfo_step, GINT_TO_POINTER(val));
 	    }
 	    break;
 	case VFOA: // only wheel supported
 	case VFOB: // only wheel supported
-	    if (type == MIDI_WHEEL) {
+	    if (type == MIDI_WHEEL && !locked) {
 	        ip=malloc(2*sizeof(int));
 		*ip = (action == VFOA) ? 0 : 1;   // could use (action - VFOA) to support even more VFOs
 		*(ip+1)=val;

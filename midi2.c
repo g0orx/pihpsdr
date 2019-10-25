@@ -17,7 +17,7 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
 
     struct desc *desc;
     int new;
-    static enum MIDIaction last_wheel_action;
+    static enum MIDIaction last_wheel_action=ACTION_NONE ;
     static struct timespec tp, last_wheel_tp={0,0};
     long delta;
 
@@ -41,7 +41,7 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
 			new = (val*100)/127;
 			DoTheMidi(desc->action, desc->type, new);
 		    } else if (desc->type == MIDI_WHEEL) {
-			if (desc->delay > 0) {
+			if (desc->delay > 0 && last_wheel_action == desc->action) {
 			  clock_gettime(CLOCK_MONOTONIC, &tp);
 			  delta=1000*(tp.tv_sec - last_wheel_tp.tv_sec);
 			  delta += (tp.tv_nsec - last_wheel_tp.tv_nsec)/1000000;
@@ -49,13 +49,17 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
 			  last_wheel_tp = tp;
 			}
 			// translate value to direction
+			new=0;
 			if ((val >= desc->vfl1) && (val <= desc->vfl2)) new=-100;
 			if ((val >= desc-> fl1) && (val <= desc-> fl2)) new=-10;
 			if ((val >= desc->lft1) && (val <= desc->lft2)) new=-1;
 			if ((val >= desc->rgt1) && (val <= desc->rgt2)) new= 1;
 			if ((val >= desc-> fr1) && (val <= desc-> fr2)) new= 10;
 			if ((val >= desc->vfr1) && (val <= desc->vfr2)) new= 100;
-			DoTheMidi(desc->action, desc->type, new);
+			fprintf(stderr,"WHEEL: val=%d new=%d thrs=%d/%d, %d/%d, %d/%d, %d/%d, %d/%d, %d/%d\n",
+                                val, new, desc->vfl1, desc->vfl2, desc->fl1, desc->fl2, desc->lft1, desc->lft2,
+				          desc->rgt1, desc->rgt2, desc->fr1, desc->fr2, desc->vfr1, desc->vfr2);
+			if (new != 0) DoTheMidi(desc->action, desc->type, new);
 			last_wheel_action=desc->action;
 		    }
 		    break;
