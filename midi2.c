@@ -56,9 +56,9 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
 			if ((val >= desc->rgt1) && (val <= desc->rgt2)) new= 1;
 			if ((val >= desc-> fr1) && (val <= desc-> fr2)) new= 10;
 			if ((val >= desc->vfr1) && (val <= desc->vfr2)) new= 100;
-			fprintf(stderr,"WHEEL: val=%d new=%d thrs=%d/%d, %d/%d, %d/%d, %d/%d, %d/%d, %d/%d\n",
-                                val, new, desc->vfl1, desc->vfl2, desc->fl1, desc->fl2, desc->lft1, desc->lft2,
-				          desc->rgt1, desc->rgt2, desc->fr1, desc->fr2, desc->vfr1, desc->vfr2);
+//			fprintf(stderr,"WHEEL: val=%d new=%d thrs=%d/%d, %d/%d, %d/%d, %d/%d, %d/%d, %d/%d\n",
+//                                  val, new, desc->vfl1, desc->vfl2, desc->fl1, desc->fl2, desc->lft1, desc->lft2,
+//				          desc->rgt1, desc->rgt2, desc->fr1, desc->fr2, desc->vfr1, desc->vfr2);
 			if (new != 0) DoTheMidi(desc->action, desc->type, new);
 			last_wheel_action=desc->action;
 		    }
