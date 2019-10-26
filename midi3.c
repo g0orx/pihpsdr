@@ -237,7 +237,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 		      new=adc_attenuation[active_receiver->adc] + val;
 		      if (new > 31) new=31;
 		      if (new < 0 ) new=0;
-	
+		    } else {
 		      new=(31*val)/100;
 		    }
 		    dp=malloc(sizeof(double));
