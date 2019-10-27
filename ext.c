@@ -194,6 +194,31 @@ int ext_tx_set_ps(void *data) {
 }
 #endif
 
+int ext_update_vfo_step(void *data) {
+  int direction=GPOINTER_TO_INT(data);
+  int i=0;
+  while(steps[i]!=step && steps[i]!=0) {
+    i++;
+  }
+
+  if(steps[i]!=0) {
+    if(direction>0) {
+      i++;
+      if(steps[i]!=0) {
+        step=steps[i];
+        vfo_update();
+      }
+    } else {
+      i--;
+      if(i>=0) {
+        step=steps[i];
+        vfo_update();
+      }
+    }
+  }
+  return 0;
+}
+
 int ext_vfo_step(void *data) {
   int step=GPOINTER_TO_INT(data);
   vfo_step(step);
