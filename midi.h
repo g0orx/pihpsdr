@@ -80,7 +80,9 @@ enum MIDIaction {
   VFOB,			// change VFO-B frequency
   VFO_A2B,		// VFO A -> B
   VFO_B2A,		// VFO B -> A
-  VOX 			// VOX on/off
+  VOX, 			// VOX on/off
+  VFO_STEP_UP,		// cycle through vfo steps upwards;
+  VFO_STEP_DOWN,	// cycle through vfo steps downwards;
 };
 
 //

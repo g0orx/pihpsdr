@@ -62,7 +62,7 @@ static   GtkWidget *E4_a;
 static   GtkWidget *E4_b_label;
 static   GtkWidget *E4_b;
 static   GtkWidget *b_enable_E4_pullup;
-#ifdef CONTROLLER2
+#if defined (CONTROLLER2_V2) || defined (CONTROLLER2_V1)
 static GtkWidget *b_enable_E5_encoder;
 static   GtkWidget *E5_a_label;
 static   GtkWidget *E5_a;
@@ -316,7 +316,7 @@ void configure_gpio(GtkWidget *parent) {
   gtk_widget_show(b_enable_E4_pullup);
   gtk_grid_attach(GTK_GRID(grid),b_enable_E4_pullup,5,y,1,1);
 
-#ifdef CONTROLLER2
+#if defined (CONTROLLER2_V2) || defined (CONTROLLER2_V1)
   y++;
   b_enable_E5_encoder=gtk_check_button_new_with_label("Enable E5");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E5_encoder), ENABLE_E5_ENCODER);
@@ -348,7 +348,7 @@ void configure_gpio(GtkWidget *parent) {
 
 #endif
 
-#ifndef CONTROLLER2
+#if !defined (CONTROLLER2_V2) && !defined(CONTROLLER2_V1)
   y++;
   b_enable_mox=gtk_check_button_new_with_label("Enable MOX/TUN");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_mox), ENABLE_MOX_BUTTON);
@@ -403,7 +403,7 @@ void configure_gpio(GtkWidget *parent) {
 
   y++;
 
-#ifndef CONTROLLER2
+#if !defined (CONTROLLER2_V2) && !defined (CONTROLLER2_V1)
   b_enable_S2=gtk_check_button_new_with_label("Enable S2");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_S2), ENABLE_S2_BUTTON);
   gtk_widget_show(b_enable_S2);
@@ -437,7 +437,7 @@ void configure_gpio(GtkWidget *parent) {
 
   y++;
 
-#ifndef CONTROLLER2
+#if !defined (CONTROLLER2_V2) && !defined (CONTROLLER2_V1)
   b_enable_S3=gtk_check_button_new_with_label("Enable S3");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_S3), ENABLE_S3_BUTTON);
   gtk_widget_show(b_enable_S3);
@@ -470,7 +470,7 @@ void configure_gpio(GtkWidget *parent) {
 #endif
   y++;
 
-#ifndef CONTROLLER2
+#if !defined (CONTROLLER2_V2) && !defined (CONTROLLER2_V1)
   b_enable_S4=gtk_check_button_new_with_label("Enable S4");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_S4), ENABLE_S4_BUTTON);
   gtk_widget_show(b_enable_S4);

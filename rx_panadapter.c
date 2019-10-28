@@ -431,8 +431,7 @@ void rx_panadapter_update(RECEIVER *rx) {
   }
 #endif
 
-#ifdef GPIO 
-#ifndef CONTROLLER2 
+#if !defined (CONTROLLER2_V2) && !defined (CONTROLLER2_V1) && defined (GPIO)
   if(active) {
     cairo_set_source_rgb(cr,1.0,1.0,0.0);
     cairo_set_font_size(cr,16);
@@ -451,7 +450,6 @@ void rx_panadapter_update(RECEIVER *rx) {
       cairo_show_text(cr, encoder_string[e4_encoder_action]);
     }
   }
-#endif
 #endif
 
 

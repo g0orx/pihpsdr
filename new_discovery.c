@@ -190,6 +190,7 @@ gpointer new_discover_receive_thread(gpointer data) {
     int bytes_read;
     struct timeval tv;
     int i;
+    double frequency_min, frequency_max;
 
     tv.tv_sec = 2;
     tv.tv_usec = 0;
@@ -219,27 +220,43 @@ gpointer new_discover_receive_thread(gpointer data) {
                     switch(discovered[devices].device) {
 			case NEW_DEVICE_ATLAS:
                             strcpy(discovered[devices].name,"Atlas");
+                            frequency_min=0.0;
+                            frequency_max=61440000.0;
                             break;
 			case NEW_DEVICE_HERMES:
                             strcpy(discovered[devices].name,"Hermes");
+                            frequency_min=0.0;
+                            frequency_max=61440000.0;
                             break;
 			case NEW_DEVICE_HERMES2:
                             strcpy(discovered[devices].name,"Hermes2");
+                            frequency_min=0.0;
+                            frequency_max=61440000.0;
                             break;
 			case NEW_DEVICE_ANGELIA:
                             strcpy(discovered[devices].name,"Angelia");
+                            frequency_min=0.0;
+                            frequency_max=61440000.0;
                             break;
 			case NEW_DEVICE_ORION:
                             strcpy(discovered[devices].name,"Orion");
+                            frequency_min=0.0;
+                            frequency_max=61440000.0;
                             break;
 			case NEW_DEVICE_ORION2:
                             strcpy(discovered[devices].name,"Orion2");
+                            frequency_min=0.0;
+                            frequency_max=61440000.0;
                             break;
 			case NEW_DEVICE_HERMES_LITE:
                             strcpy(discovered[devices].name,"Hermes Lite");
+                            frequency_min=0.0;
+                            frequency_max=30720000.0;
                             break;
                         default:
                             strcpy(discovered[devices].name,"Unknown");
+                            frequency_min=0.0;
+                            frequency_max=30720000.0;
                             break;
                     }
                     discovered[devices].software_version=buffer[13]&0xFF;
@@ -267,6 +284,8 @@ gpointer new_discover_receive_thread(gpointer data) {
                             discovered[devices].info.network.mac_address[4],
                             discovered[devices].info.network.mac_address[5],
                             discovered[devices].info.network.interface_name);
+                            discovered[devices].frequency_min=frequency_min;
+                            discovered[devices].frequency_max=frequency_max;
                     devices++;
                 }
             }

@@ -365,6 +365,12 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	      g_idle_add(ext_vfo_update, NULL);
 	    }
 	    break;
+        case VFO_STEP_UP:
+	    g_idle_add(ext_update_vfo_step, GINT_TO_POINTER(1));
+            break;
+        case VFO_STEP_DOWN:
+	    g_idle_add(ext_update_vfo_step, GINT_TO_POINTER(-1));
+            break;
 	case ACTION_NONE:
 	    // No error message, this is the "official" action for un-used controller buttons.
 	    break;

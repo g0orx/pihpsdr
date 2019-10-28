@@ -85,6 +85,7 @@ extern int ext_function_update(void *data);
 extern int ext_tx_set_ps(void *data);
 #endif
 
+int ext_update_vfo_step(void *data);
 int ext_vfo_step(void *data);
 int ext_vfo_id_step(void *data);
 int ext_vfo_mode_changed(void *data);

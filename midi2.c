@@ -128,6 +128,8 @@ static struct {
 	{ VFO_A2B,	"VFOA2B"},
 	{ VFO_B2A,	"VFOB2A"},
 	{ VOX,   	"VOX"},
+	{ VFO_STEP_UP,  "VFOSTEPUP"},
+	{ VFO_STEP_DOWN,  "VFOSTEPDOWN"},
         { ACTION_NONE,  "NONE"},
         { ACTION_NONE,  NULL}
 };
