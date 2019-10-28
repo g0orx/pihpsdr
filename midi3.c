@@ -63,24 +63,35 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    }
 	    break;    
 	case AF_GAIN: // knob or wheel supported
-	    if (type == MIDI_KNOB) {
+            switch (type) {
+	      case MIDI_KNOB:
 		active_receiver->volume = 0.01*val;
-	    } else  if (type == MIDI_WHEEL) {
+		break;
+	      case MIDI_WHEEL:	
 		dnew=active_receiver->volume += 0.01*val;
 		if (dnew < 0.0) dnew=0.0; if (dnew > 1.0) dnew=1.0;
 		active_receiver->volume = dnew;
-	    } else {
+		break;
+	      default:
+		// do not change volume
+		// we should not come here anyway
 		break;
 	    }
 	    g_idle_add(ext_update_af_gain, NULL);
 	    break;
 	case MIC_VOLUME: // knob or wheel supported
-	    if (type == MIDI_KNOB) {
+	    switch (type) {
+	      case MIDI_KNOB:
 		dnew=-10.0 + 0.6*val;
-	    } else if (type == MIDI_WHEEL) {
+		break;
+	      case MIDI_WHEEL:
 		dnew = mic_gain + val;
 		if (dnew < -10.0) dnew=-10.0; if (dnew > 50.0) dnew=50.0;
-	    } else {
+		break;
+	      default:
+		// do not change mic gain
+		// we should not come here anyway
+		dnew = mic_gain;
 		break;
 	    }
 	    dp=malloc(sizeof(double));
@@ -88,12 +99,18 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    g_idle_add(ext_set_mic_gain, (gpointer) dp);
 	    break;
 	case MIDI_AGC: // knob or wheel supported
-	    if (type == MIDI_KNOB) {
+	    switch (type) {
+	      case MIDI_KNOB:
 		dnew = -20.0 + 1.4*val;
-	    } else if (type == MIDI_WHEEL) {
+		break;
+	      case MIDI_WHEEL:
 		dnew=active_receiver->agc_gain + val;
 		if (dnew < -20.0) dnew=-20.0; if (dnew > 120.0) dnew=120.0;
-	    } else {
+		break;
+	      default:
+		// do not change value
+		// we should not come here anyway
+		dnew=active_receiver->agc_gain;
 		break;
 	    }
 	    dp=malloc(sizeof(double));
@@ -101,99 +118,214 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    g_idle_add(ext_set_agc_gain, (gpointer) dp);
 	    break;
 	case TX_DRIVE: // knob or wheel supported
-	    if (type == MIDI_KNOB) {
+	    switch (type) {
+	      case MIDI_KNOB:
 		dnew = val;
-	    } else if (type == MIDI_WHEEL) {
+		break;
+	      case MIDI_WHEEL:
 		dnew=transmitter->drive + val;
 		if (dnew < 0.0) dnew=0.0; if (dnew > 100.0) dnew=100.0;
-	    } else {
+		break;
+	      default:
+		// do not change value
+		// we should not come here anyway
+		dnew=transmitter->drive;
 		break;
 	    }
 	    dp=malloc(sizeof(double));
 	    *dp=dnew;
 	    g_idle_add(ext_set_drive, (gpointer) dp);
 	    break;
-	case BAND_UP:     // key or wheel supported
-	case BAND_DOWN:   // key or wheel supported
-	    if (type == MIDI_KEY) {
+	case BAND_UP:
+	case BAND_DOWN:
+	    switch (type) {
+	      case MIDI_KEY:
 		new=(action == BAND_UP) ? 1 : -1;
-	    } else if (type == MIDI_WHEEL) {
-		new=val;
-	    } else {
+		break;
+	      case MIDI_WHEEL:
+		new=val > 0 ? 1 : -1;
+		break;
+	      case MIDI_KNOB:
+		// cycle through the bands
+		new = ((BANDS-1) * val) / 100 - vfo[active_receiver->id].band;
+		break;
+	      default:
+		// do not change
+		// we should not come here anyway
+		new=0;
 		break;
 	    }
-            new+=vfo[active_receiver->id].band;
-            if (new >= BANDS) new=0;
-            if (new < 0) new=BANDS-1;
-	    g_idle_add(ext_vfo_band_changed, GINT_TO_POINTER(new));
+	    //
+	    // If the band has not changed, do nothing. Otherwise
+	    // vfo.c will loop through the band stacks
+	    //
+	    if (new != 0) {
+	      new+=vfo[active_receiver->id].band;
+	      if (new >= BANDS) new=0;
+	      if (new < 0) new=BANDS-1;
+	      g_idle_add(ext_vfo_band_changed, GINT_TO_POINTER(new));
+	    }
 	    break;
-	case FILTER_UP:      // key or wheel supported
-	case FILTER_DOWN:    // key or wheel supported
-	    if (type == MIDI_KEY) {
+	case FILTER_UP:
+	case FILTER_DOWN:
+	    switch (type) {
+	      case MIDI_KEY:
 		new=(action == FILTER_UP) ? 1 : -1;
-	    } else if (type == MIDI_WHEEL) {
-		new=val;
-	    } else {
+		new+=vfo[active_receiver->id].filter;
+		if (new >= FILTERS) new=0;
+		if (new <0) new=FILTERS-1;
+		break;
+	      case MIDI_WHEEL:
+		new=val > 0 ? 1 : -1;
+		new+=vfo[active_receiver->id].filter;
+		if (new >= FILTERS) new=0;
+		if (new <0) new=FILTERS-1;
+		break;
+	      case MIDI_KNOB:
+		// cycle through all the filters
+		new = ((FILTERS-1) * val) / 100;
+		break;
+	      default:
+		// do not change filter setting
+		// we should not come here anyway
+		new=vfo[active_receiver->id].filter;
 		break;
 	    }
-	    new+=vfo[active_receiver->id].filter;
-	    if (new >= FILTERS) new=0;
-	    if (new <0) new=FILTERS-1;
 	    g_idle_add(ext_vfo_filter_changed, GINT_TO_POINTER(new));
 	    break;
-	case MODE_UP:      // key or wheel supported
-	case MODE_DOWN:    // key or wheel supported
-	    if (type == MIDI_KEY) {
+	case MODE_UP:
+	case MODE_DOWN:
+	    switch (type) {
+	      case MIDI_KEY:
 		new=(action == MODE_UP) ? 1 : -1;
-	    } else if (type == MIDI_WHEEL) {
-		new=val;
-	    } else {
+		new+=vfo[active_receiver->id].mode;
+		if (new >= MODES) new=0;
+		if (new <0) new=MODES-1;
+		break;
+	      case MIDI_WHEEL:
+		new=val > 0 ? 1 : -1;
+		new+=vfo[active_receiver->id].mode;
+		if (new >= MODES) new=0;
+		if (new <0) new=MODES-1;
+		break;
+	      case MIDI_KNOB:
+		// cycle through all the modes
+		new = ((MODES-1) * val) / 100;
+		break;
+	      default:
+		// do not change
+		// we should not come here anyway
+		new=vfo[active_receiver->id].mode;
 		break;
 	    }
-	    new+=vfo[active_receiver->id].mode;
-	    if (new >= MODES) new=0;
-	    if (new <0) new=MODES-1;
 	    g_idle_add(ext_vfo_mode_changed, GINT_TO_POINTER(new));
 	    break;
-	case PAN_LOW:  // only wheel supported
-	    if (type == MIDI_WHEEL) {
+	case PAN_LOW:  // wheel and knob
+	    switch (type) {
+	      case MIDI_WHEEL:
 		if (isTransmitting()) {
 		    // TX panadapter affected
 		    transmitter->panadapter_low += val;
 		} else {
 		    active_receiver->panadapter_low += val;
 		}
+		break;
+	      case MIDI_KNOB:
+		if (isTransmitting()) {
+		    // TX panadapter: use values -100 through -50
+		    new = -100 + val/2;
+		    transmitter->panadapter_low =new;
+		} else {
+		    // RX panadapter: use values -140 through -90
+		    new = -140 + val/2;
+		    active_receiver->panadapter_low = new;
+		}
+		break;
+	      default:
+		// do nothing
+		// we should not come here anyway
+		break;
 	    }
+	    g_idle_add(ext_vfo_update, NULL);
 	    break;
-	case MIDI_RIT_CLEAR:  // only key supported
+	case RIT_STEP: // key or wheel supported
+	    // This cycles between RIT increments 1, 10, 100, 1, 10, 100, ...
+	    switch (type) {
+	      case MIDI_KEY:
+		// key cycles through in upward direction
+		val=1;
+		/* FALLTHROUGH */
+	      case MIDI_WHEEL:
+		// wheel cycles upward or downward
+		if (val > 0) {
+		  rit_increment=10*rit_increment;
+		} else {
+		  rit_increment=rit_increment/10;
+		}
+		if (rit_increment < 1) rit_increment=100;
+		if (rit_increment > 100) rit_increment=1;
+		break;
+	      default:
+		// do nothing
+		break;
+	    }
+	    g_idle_add(ext_vfo_update, NULL);
+	    break;
+	case RIT_TOGGLE:  // only key supported
 	    if (type == MIDI_KEY) {
-		// this clears the RIT value and disables RIT
-		vfo[active_receiver->id].rit = new;
-		vfo[active_receiver->id].rit_enabled = 0;
+		// enable/disable RIT
+		new=vfo[active_receiver->id].rit_enabled;
+		vfo[active_receiver->id].rit_enabled = new ? 0 : 1;
 	        g_idle_add(ext_vfo_update, NULL);
 	    }
 	    break;
-	case RIT_VAL:	// only wheel supported
-	    if (type == MIDI_WHEEL) {
-		// This changes the RIT value. If a value of 0 is reached,
-		// RIT is disabled
+	case RIT_VAL:	// wheel or knob
+	    switch (type) {
+	      case MIDI_WHEEL:
+		// This changes the RIT value incrementally,
+	  	// but we restrict the change to +/ 9.999 kHz
 		new = vfo[active_receiver->id].rit + val*rit_increment;
 		if (new >  9999) new= 9999;
 		if (new < -9999) new=-9999;
 		vfo[active_receiver->id].rit = new;
-		vfo[active_receiver->id].rit_enabled = (new != 0);
-	        g_idle_add(ext_vfo_update, NULL);
+		break;
+	      case MIDI_KNOB:
+	 	// knob: adjust in the range +/ 50*rit_increment
+		new = (val-50) * rit_increment;
+		vfo[active_receiver->id].rit = new;
+		break;
+	      default:
+		// do nothing
+		// we should not come here anyway
+		break;
 	    }
+	    g_idle_add(ext_vfo_update, NULL);
 	    break;
-	case PAN_HIGH:  // only wheel supported
-	    if (type == MIDI_WHEEL) {
+	case PAN_HIGH:  // wheel or knob
+	    switch (type) {
+	      case MIDI_WHEEL:
 		if (mox) {
 		    // TX panadapter affected
 		    transmitter->panadapter_high += val;
 		} else {
 		    active_receiver->panadapter_high += val;
 		}
+		break;
+	    case MIDI_KNOB:
+		// Adjust "high water" in the range -50 ... 0 dBm
+		new = -50 + val/2;
+		if (mox) {
+		    transmitter->panadapter_high = new;
+		} else {
+		    active_receiver->panadapter_high = new;
+		}
+		break;
+	      default:
+		// do nothing
+		// we should not come here anyway
+		break;
 	    }
+	    g_idle_add(ext_vfo_update, NULL);
 	    break;
 	case PRE:	// only key supported, and only CHARLY25
 	    if (filter_board == CHARLY25 && type == MIDI_KEY) {
@@ -223,49 +355,58 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    break;
 	case ATT:	// Key for ALEX attenuator, wheel or knob for slider
 	    switch(type) {
-		case MIDI_KEY:
-		    if (filter_board == ALEX && active_receiver->adc == 0) {
-		      new=active_receiver->alex_attenuation + 1;
-		      if (new > 3) new=0;
-		      g_idle_add(ext_set_alex_attenuation, GINT_TO_POINTER(new));
-		      g_idle_add(ext_update_att_preamp, NULL);
-		    }
-		    break;
-		case MIDI_WHEEL:
-		case MIDI_KNOB:
-		    if (type == MIDI_WHEEL) {
-		      new=adc_attenuation[active_receiver->adc] + val;
-		      if (new > 31) new=31;
-		      if (new < 0 ) new=0;
-		    } else {
-		      new=(31*val)/100;
-		    }
-		    dp=malloc(sizeof(double));
-		    *dp=new;
-		    g_idle_add(ext_set_attenuation_value,(gpointer) dp);
-		    break;
-		default:
-		    break;
+	      case MIDI_KEY:
+		if (filter_board == ALEX && active_receiver->adc == 0) {
+		  new=active_receiver->alex_attenuation + 1;
+		  if (new > 3) new=0;
+		  g_idle_add(ext_set_alex_attenuation, GINT_TO_POINTER(new));
+		  g_idle_add(ext_update_att_preamp, NULL);
+		}
+		break;
+	      case MIDI_WHEEL:
+		  new=adc_attenuation[active_receiver->adc] + val;
+		  if (new > 31) new=31;
+		  if (new < 0 ) new=0;
+		  dp=malloc(sizeof(double));
+		  *dp=new;
+		  g_idle_add(ext_set_attenuation_value,(gpointer) dp);
+		  break;
+	      case MIDI_KNOB:
+		new=(31*val)/100;
+		dp=malloc(sizeof(double));
+		*dp=new;
+		g_idle_add(ext_set_attenuation_value,(gpointer) dp);
+		break;
+	      default:
+		// do nothing
+		// we should not come here anyway
+		break;
 	    }
 	    break;
 	case COMPRESS:
-	    // Use values in the range 0 ... 20
-	    if (type == MIDI_WHEEL) {
-              dnew=transmitter->compressor_level + val;
-	      if (dnew > 20.0) dnew=20.0;
-	      if (dnew < 0 ) dnew=0;
-	    } else if (type == MIDI_KNOB){
-	      dnew=(20.0*val)/100.0;
-	    } else {
+	    switch (type) {
+	      case MIDI_WHEEL:
+		dnew=transmitter->compressor_level + val;
+		if (dnew > 20.0) dnew=20.0;
+		if (dnew < 0 ) dnew=0;
+		break;
+	      case MIDI_KNOB:
+		dnew=(20.0*val)/100.0;
+		break;
+	      default:
+		// do not change
+		// we should not come here anyway
+		dnew=transmitter->compressor_level;
 		break;
 	    }
 	    transmitter->compressor_level=dnew;
+	    // automatically engange compressor if level > 0.5
 	    if (dnew < 0.5) transmitter->compressor=0;
 	    if (dnew > 0.5) transmitter->compressor=1;
 	    g_idle_add(ext_set_compression, NULL);
 	    break;
 	case MIDI_NB: // only key supported
-	    // cycle through NoiseBlanker settings
+	    // cycle through NoiseBlanker settings: OFF, NB, NB2
             if (type == MIDI_KEY) {
 	      if (active_receiver->nb) {
 		active_receiver->nb = 0;
@@ -281,7 +422,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    }
 	    break;
 	case MIDI_NR: // only key supported
-	    // cycle through NoiseReduction settings
+	    // cycle through NoiseReduction settings: OFF, NR1, NR2
 	    if (type == MIDI_KEY) {
 	      if (active_receiver->nr) {
 		active_receiver->nr = 0;
@@ -365,11 +506,22 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	      g_idle_add(ext_vfo_update, NULL);
 	    }
 	    break;
-        case VFO_STEP_UP:
-	    g_idle_add(ext_update_vfo_step, GINT_TO_POINTER(1));
-            break;
+        case VFO_STEP_UP: // key or wheel supported
         case VFO_STEP_DOWN:
-	    g_idle_add(ext_update_vfo_step, GINT_TO_POINTER(-1));
+	    switch (type) {
+	      case MIDI_KEY:
+		new =  (action == VFO_STEP_UP) ? 1 : -1;
+		g_idle_add(ext_update_vfo_step, GINT_TO_POINTER(new));
+		break;
+	      case MIDI_WHEEL:
+		new = (val > 0) ? 1 : -1;
+		g_idle_add(ext_update_vfo_step, GINT_TO_POINTER(new));
+		break;
+	      default:
+		// do nothing
+		// we should not come here anyway
+		break;
+	    }
             break;
 	case ACTION_NONE:
 	    // No error message, this is the "official" action for un-used controller buttons.

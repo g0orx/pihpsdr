@@ -414,10 +414,6 @@ void start_radio() {
   }
 
 
-#ifdef MIDI
-  MIDIstartup();
-#endif
-
 #ifdef __APPLE__
   sem_unlink("PROPERTY");
   property_sem=sem_open("PROPERTY", O_CREAT | O_EXCL, 0700, 0);
@@ -950,6 +946,14 @@ void start_radio() {
   g_idle_add(ext_vfo_update,(gpointer)NULL);
 
   gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_ARROW));
+
+  //
+  // MIDIstartup must not be called before the radio is completely set up, since
+  // then MIDI can asynchronously trigger actions
+  //
+#ifdef MIDI
+  MIDIstartup();
+#endif
 
 }
 
