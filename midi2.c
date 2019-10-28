@@ -163,7 +163,6 @@ void MIDIstartup() {
     int key;
     enum MIDIaction action;
     int chan;
-    int swap_lr;
     int t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12;
     int onoff, delay;
     struct desc *desc,*dp;
@@ -199,7 +198,6 @@ void MIDIstartup() {
       t1=t3=t5=t7= t9=t11=128;  // range that never occurs
       t2=t4=t6=t8=t10=t12=-1;   // range that never occurs
       onoff=0;
-      swap_lr=0;
       event=EVENT_NONE;
       type=TYPE_NONE;
       key=0;
@@ -243,9 +241,6 @@ void MIDIstartup() {
       if ((cp = strstr(zeile, "WHEEL")) && (type == MIDI_KNOB)) {
 	// change type from MIDI_KNOB to MIDI_WHEEL
         type=MIDI_WHEEL;
-      }
-      if ((cp = strstr(zeile, "LEFTRIGHT"))) {
-	swap_lr=1;
       }
       if ((cp = strstr(zeile, "ONOFF"))) {
         onoff=1;
