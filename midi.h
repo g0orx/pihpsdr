@@ -74,6 +74,7 @@ enum MIDIaction {
   RIT_VAL,		// change RIT value
   MIDI_SPLIT,		// Split on/off
   SWAP_VFO,		// swap VFO A/B frequency
+  SWAP_RX, 		// swap active receiver (if there are two receivers)
   MIDI_TUNE,		// toggle "tune" state
   TX_DRIVE,		// RF output power
   VFO,			// change VFO frequency
