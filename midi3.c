@@ -164,30 +164,25 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	case MIDI_CTUN: // only key supported
 	    // toggle CTUN
 	    if (type == MIDI_KEY) {
-	      new=active_receiver->id;
-	      if(!vfo[new].ctun) {
-		vfo[new].ctun=1;
-		vfo[new].offset=0;
-	      } else {
-		vfo[new].ctun=0;
-	      }
-	      vfo[new].ctun_frequency=vfo[new].frequency;
-	      set_offset(active_receiver,vfo[new].offset);
-	      g_idle_add(ext_vfo_update, NULL);
+	      g_idle_add(ext_ctun_update, NULL);
 	    }
 	    break;
 	case FILTER_DOWN:
 	case FILTER_UP:
+	    //
+	    // In filter.c, the filters are sorted such that the widest one comes first
+	    // Therefore let FILTER_UP move down.
+	    //
 	    switch (type) {
 	      case MIDI_KEY:
-		new=(action == FILTER_UP) ? 1 : -1;
+		new=(action == FILTER_UP) ? -1 : 1;
 		break;
 	      case MIDI_WHEEL:
-		new=val > 0 ? 1 : -1;
+		new=val > 0 ? -1 : 1;
 		break;
 	      case MIDI_KNOB:
-		// cycle through all the filters
-		new = ((FILTERS-1) * val) / 100 - vfo[active_receiver->id].filter;
+		// cycle through all the filters: val=100 maps to filter #0
+		new = ((FILTERS-1) * (val-100)) / 100 - vfo[active_receiver->id].filter;
 		break;
 	      default:
 		// do not change filter setting
