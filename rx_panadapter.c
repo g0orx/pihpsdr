@@ -146,8 +146,18 @@ void rx_panadapter_update(RECEIVER *rx) {
 
   int mode=vfo[rx->id].mode;
   long long frequency=vfo[rx->id].frequency;
+  int vfoband=vfo[rx->id].band;
+  long long offset = vfo[rx->id].ctun ? vfo[rx->id].offset : 0;
+
+  // In diversity mode, the RX1 frequency tracks the RX0 frequency
+  if (diversity_enabled && rx->id == 1) {
+    frequency=vfo[0].frequency;
+    vfoband=vfo[0].band;
+    mode=vfo[0].mode;
+  }
+
+  BAND *band=band_get_band(vfoband);
   long half=(long)rx->sample_rate/2L;
-  BAND *band=band_get_band(vfo[rx->id].band);
   double vfofreq=(double) display_width * 0.5;
 
   //
@@ -175,7 +185,7 @@ void rx_panadapter_update(RECEIVER *rx) {
   long long min_display=frequency-half;
   long long max_display=frequency+half;
 
-  if(vfo[rx->id].band==band60) {
+  if(vfoband==band60) {
     for(i=0;i<channel_entries;i++) {
       long long low_freq=band_channels_60m[i].frequency-(band_channels_60m[i].width/(long long)2);
       long long hi_freq=band_channels_60m[i].frequency+(band_channels_60m[i].width/(long long)2);
@@ -198,8 +208,8 @@ void rx_panadapter_update(RECEIVER *rx) {
 
   // filter
   cairo_set_source_rgba (cr, 0.25, 0.25, 0.25, 0.75);
-  filter_left =(double)display_width*0.5 +(((double)rx->filter_low+vfo[rx->id].offset)/HzPerPixel);
-  filter_right=(double)display_width*0.5 +(((double)rx->filter_high+vfo[rx->id].offset)/HzPerPixel);
+  filter_left =(double)display_width*0.5 +(((double)rx->filter_low+offset)/HzPerPixel);
+  filter_right=(double)display_width*0.5 +(((double)rx->filter_high+offset)/HzPerPixel);
   cairo_rectangle(cr, filter_left, 0.0, filter_right-filter_left, (double)display_height);
   cairo_fill(cr);
 
@@ -207,7 +217,7 @@ void rx_panadapter_update(RECEIVER *rx) {
   // Draw the "yellow line" indicating the CW frequency when
   // it is not the VFO freq
   //
-  if (!cw_is_on_vfo_freq && (vfo[rx->id].mode==modeCWU || vfo[rx->id].mode==modeCWL)) {
+  if (!cw_is_on_vfo_freq && (mode==modeCWU || mode==modeCWL)) {
     if(active) {
       cairo_set_source_rgb (cr, 1.0, 1.0, 0.0);
     } else {
@@ -296,7 +306,7 @@ void rx_panadapter_update(RECEIVER *rx) {
   }
   cairo_stroke(cr);
 
-  if(vfo[rx->id].band!=band60) {
+  if(vfoband!=band60) {
     // band edges
     if(band->frequencyMin!=0LL) {
       cairo_set_source_rgb (cr, 1.0, 0.0, 0.0);
@@ -376,8 +386,8 @@ void rx_panadapter_update(RECEIVER *rx) {
     cairo_set_source_rgb (cr, 0.5, 0.0, 0.0);
   }
   cairo_set_line_width(cr, 1.0);
-  cairo_move_to(cr,vfofreq+(vfo[rx->id].offset/HzPerPixel),0.0);
-  cairo_line_to(cr,vfofreq+(vfo[rx->id].offset/HzPerPixel),(double)display_height);
+  cairo_move_to(cr,vfofreq+(offset/HzPerPixel),0.0);
+  cairo_line_to(cr,vfofreq+(offset/HzPerPixel),(double)display_height);
   cairo_stroke(cr);
 
   // signal
