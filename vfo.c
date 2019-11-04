@@ -247,6 +247,10 @@ void vfo_restore_state() {
     sprintf(name,"vfo.%d.lo_tx",i);
     value=getProperty(name);
     if(value) vfo[i].lo_tx=atoll(value);
+    // Sanity check: if !ctun, offset must be zero
+    if (!vfo[i].ctun) {
+	vfo[i].offset=0;
+    }
   }
 }
 
