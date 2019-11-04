@@ -54,7 +54,7 @@ KEY=7 ACTION=NONE
 #
 # id=16 label="1": top row, leftmost:  not assigned
 # id=17 label="2": top row, 2nd from left: cycle through Alex ATT settings
-# id=18 label="3": top row, 2nd from right: clear RIT value and turn off RIT
+# id=18 label="3": top row, 2nd from right: toggle RIT on/off
 # id=19 label="4": top row, rightmost:  toggle CTUN
 # id=20 label="5": bottom row, leftmost: cycle through noise blanker settings
 # id=21 label="6": bottom row, 2nd from left: cycle through noise reduction settings
