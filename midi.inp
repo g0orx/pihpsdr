@@ -76,7 +76,7 @@ KEY=23 ACTION=AGCATTACK
 KEY=24 ACTION=TUNE                # LOAD    button: TUNE on/off
 KEY=25 ACTION=LOCK                # LOCK    button: Lock VFO(s)
 KEY=26 ACTION=PURESIGNAL          # DECK    button: toggle PURESIGNAL
-KEY=27 ACTION=SWAPRX              # SCRATCH button: Swap VFOs A and B
+KEY=27 ACTION=SWAPRX              # SCRATCH button: Swap active/inactive RX
 KEY=32 ACTION=VFOA2B              # SYNC    button: Frequency VFO A -> VFO B
 KEY=33 ACTION=VFOB2A              # TAP     button: Frequency VFO B -> VFO A
 KEY=34 ACTION=MOX                 # CUE     button: MOX on/off
