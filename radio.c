@@ -216,15 +216,15 @@ int attenuation = 0; // 0dB
 //unsigned long alex_attenuation=0;
 
 int cw_keys_reversed=0; // 0=disabled 1=enabled
-int cw_keyer_speed=12; // 1-60 WPM
-int cw_keyer_mode=KEYER_STRAIGHT;
-int cw_keyer_weight=30; // 0-100
+int cw_keyer_speed=16; // 1-60 WPM
+int cw_keyer_mode=KEYER_MODE_A;
+int cw_keyer_weight=50; // 0-100
 int cw_keyer_spacing=0; // 0=on 1=off
 int cw_keyer_internal=1; // 0=external 1=internal
-int cw_keyer_sidetone_volume=127; // 0-127
+int cw_keyer_sidetone_volume=50; // 0-127
 int cw_keyer_ptt_delay=20; // 0-255ms
-int cw_keyer_hang_time=300; // ms
-int cw_keyer_sidetone_frequency=400; // Hz
+int cw_keyer_hang_time=500; // ms
+int cw_keyer_sidetone_frequency=800; // Hz
 int cw_breakin=1; // 0=disabled 1=enabled
 
 int cw_is_on_vfo_freq=1;   // 1= signal on VFO freq, 0= signal offset by side tone
@@ -1458,13 +1458,13 @@ void radioRestoreState() {
     char *value;
 
 fprintf(stderr,"radioRestoreState: %s\n",property_path);
-fprintf(stderr,"sem_wait\n");
+//fprintf(stderr,"sem_wait\n");
 #ifdef __APPLE__
     sem_wait(property_sem);
 #else
     sem_wait(&property_sem);
 #endif
-fprintf(stderr,"sem_wait: returner\n");
+//fprintf(stderr,"sem_wait: returner\n");
     loadProperties(property_path);
 
     value=getProperty("diversity_enabled");
@@ -1695,7 +1695,7 @@ fprintf(stderr,"sem_wait: returner\n");
 #endif
 
 	
-fprintf(stderr,"sem_post\n");
+//fprintf(stderr,"sem_post\n");
 #ifdef __APPLE__
     sem_post(property_sem);
 #else
@@ -1709,13 +1709,13 @@ void radioSaveState() {
     char value[80];
 
 fprintf(stderr,"radioSaveState: %s\n",property_path);
-fprintf(stderr,"sem_wait\n");
+//fprintf(stderr,"sem_wait\n");
 #ifdef __APPLE__
     sem_wait(property_sem);
 #else
     sem_wait(&property_sem);
 #endif
-fprintf(stderr,"sem_wait: returned\n");
+//fprintf(stderr,"sem_wait: returned\n");
     sprintf(value,"%d",diversity_enabled);
     setProperty("diversity_enabled",value);
     sprintf(value,"%f",div_gain);

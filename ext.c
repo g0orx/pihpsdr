@@ -133,7 +133,7 @@ int ext_noise_update(void *data) {
 }
 
 int ext_mox_update(void *data) {
-g_print("ext_mox_update: %d\n",GPOINTER_TO_INT(data));
+//g_print("ext_mox_update: %d\n",GPOINTER_TO_INT(data));
   mox_update(GPOINTER_TO_INT(data));
   return 0;
 }
