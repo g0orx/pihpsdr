@@ -550,9 +550,9 @@ void vfo_step(int steps) {
   int id=active_receiver->id;
   if(!locked) {
     if(vfo[id].ctun) {
-      vfo[id].ctun_frequency=vfo[id].ctun_frequency+(steps*step);
+      vfo[id].ctun_frequency=(vfo[id].ctun_frequency/step + steps)*step;
     } else {
-      vfo[id].frequency=vfo[id].frequency+(steps*step);
+      vfo[id].frequency=(vfo[id].frequency/step +steps)*step;
     }
     receiver_frequency_changed(active_receiver);
 #ifdef INCLUDED
@@ -570,9 +570,9 @@ void vfo_step(int steps) {
 void vfo_id_step(int id, int steps) {
   if(!locked) {
     if(vfo[id].ctun) {
-      vfo[id].ctun_frequency=vfo[id].ctun_frequency+(steps*step);
+      vfo[id].ctun_frequency=(vfo[id].ctun_frequency/step+steps)*step;
     } else {
-      vfo[id].frequency=vfo[id].frequency+(steps*step);
+      vfo[id].frequency=(vfo[id].frequency/step+steps)*step;
     }
     receiver_frequency_changed(active_receiver);
 #ifdef INCLUDED
