@@ -19,4 +19,5 @@
 
 extern void stemlab_discovery(void);
 extern int  stemlab_start_app(const char * const app_id);
+extern int  alpine_start_app(const char * const app_id);
 extern void stemlab_cleanup(void);
