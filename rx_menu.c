@@ -344,7 +344,7 @@ void rx_menu(GtkWidget *parent) {
       output=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(output),output_devices[i].description);
       if(active_receiver->audio_name!=NULL) {
         if(strcmp(active_receiver->audio_name,output_devices[i].description)==0) {
-          gtk_combo_box_set_active(GTK_COMBO_BOX(output),i);
+          gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(output),i);
         }
       }
       gtk_widget_show(output);
