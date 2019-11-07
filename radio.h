@@ -48,6 +48,8 @@
 
 extern DISCOVERED *radio;
 
+extern GtkWidget *fixed;
+
 extern char property_path[];
 
 #define NONE 0
@@ -87,6 +89,14 @@ extern TRANSMITTER *transmitter;
 #define KEYER_STRAIGHT 0
 #define KEYER_MODE_A 1
 #define KEYER_MODE_B 2
+
+enum {
+  SAT_NONE,
+  SAT_MODE,
+  RSAT_MODE
+};
+
+extern gint sat_mode;
 
 extern int echo;
 
@@ -159,8 +169,9 @@ int rx_gain_slider[2];
 int locked;
 
 extern long long step;
-//extern int rit;
 extern int rit_increment;
+
+extern gboolean duplex;
 
 extern int lt2208Dither;
 extern int lt2208Random;
@@ -264,6 +275,7 @@ extern double display_calibration;
 
 extern int can_transmit;
 
+extern void radio_stop();
 extern void reconfigure_radio();
 extern void start_radio();
 //extern void init_radio();

@@ -240,19 +240,21 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    break;
 	case COMPRESS:
 	    // Use values in the range 0 ... 20
-	    if (type == MIDI_WHEEL) {
-              dnew=transmitter->compressor_level + val;
-	      if (dnew > 20.0) dnew=20.0;
-	      if (dnew < 0 ) dnew=0;
-	    } else if (type == MIDI_KNOB){
+            if(can_transmit) {
+	      if (type == MIDI_WHEEL) {
+                dnew=transmitter->compressor_level + val;
+	        if (dnew > 20.0) dnew=20.0;
+	        if (dnew < 0 ) dnew=0;
+	      } else if (type == MIDI_KNOB){
 	      dnew=(20.0*val)/100.0;
-	    } else {
+	      } else {
 		break;
-	    }
-	    transmitter->compressor_level=dnew;
-	    if (dnew < 0.5) transmitter->compressor=0;
-	    if (dnew > 0.5) transmitter->compressor=1;
-	    g_idle_add(ext_set_compression, NULL);
+	      }
+	      transmitter->compressor_level=dnew;
+	      if (dnew < 0.5) transmitter->compressor=0;
+	      if (dnew > 0.5) transmitter->compressor=1;
+	      g_idle_add(ext_set_compression, NULL);
+            }
 	    break;
 	case MIDI_NB:
 	    // cycle through NoiseBlanker settings
@@ -284,8 +286,10 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    break;
 	case VOX:
 	    // toggle VOX
-	    vox_enabled = !vox_enabled;
-	    g_idle_add(ext_vfo_update, NULL);
+            if(can_transmit) {
+	      vox_enabled = !vox_enabled;
+	      g_idle_add(ext_vfo_update, NULL);
+            }
 	    break;
 	case MIDI_CTUN:
 	    // toggle CTUN
@@ -303,20 +307,24 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	case MIDI_PS:
 #ifdef PURESIGNAL
 	    // toggle PURESIGNAL
-	    new=!(transmitter->puresignal);
-	    g_idle_add(ext_tx_set_ps,GINT_TO_POINTER(new));
+            if(can_transmit) {
+	      new=!(transmitter->puresignal);
+	      g_idle_add(ext_tx_set_ps,GINT_TO_POINTER(new));
+            }
 #endif
 	    break;
 	case MIDI_SPLIT:
 	    // toggle split mode
-	    if(!split) {
+            if(can_transmit) {
+              if(!split) {
 		split=1;
 		tx_set_mode(transmitter,vfo[VFO_B].mode);
-	    } else {
+	      } else {
 		split=0;
 		tx_set_mode(transmitter,vfo[VFO_A].mode);
-	    }
-	    g_idle_add(ext_vfo_update, NULL);
+	      }
+	      g_idle_add(ext_vfo_update, NULL);
+            }
 	    break;
 	case VFO_A2B:
 	    g_idle_add(ext_vfo_a_to_b, NULL);

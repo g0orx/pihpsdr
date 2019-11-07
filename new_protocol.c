@@ -727,6 +727,9 @@ static void new_protocol_high_priority() {
 //
 
     txFrequency=vfo[txvfo].frequency-vfo[txvfo].lo+vfo[txvfo].offset;
+    if(transmitter->xit_enabled) {
+      txFrequency+=transmitter->xit;
+    }
 
     if (!cw_is_on_vfo_freq) {
       if(txmode==modeCWU) {
@@ -1841,20 +1844,12 @@ static void process_mic_data(int bytes) {
   }
 }
 
-void new_protocol_process_local_mic(unsigned char *buffer,int le) {
-  int b;
+void new_protocol_process_local_mic(float *buffer) {
   int i;
   short sample;
 
-  b=0;
   for(i=0;i<MIC_SAMPLES;i++) {
-    if(le) {
-      sample = (short)(buffer[b++]&0xFF);
-      sample |= (short) (buffer[b++]<<8);
-    } else {
-      sample = (short)(buffer[b++]<<8);
-      sample |= (short) (buffer[b++]&0xFF);
-    }
+    sample = (short)(buffer[i]*32767.0);
 #ifdef FREEDV
     if(active_receiver->freedv) {
       add_freedv_mic_sample(transmitter,sample);

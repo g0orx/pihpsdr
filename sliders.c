@@ -44,6 +44,9 @@
 #include "band.h"
 #include "discovered.h"
 #include "new_protocol.h"
+#ifdef SOAPYSDR
+#include "soapy_protocol.h"
+#endif
 #include "vfo.h"
 #include "alex.h"
 #include "agc.h"
@@ -62,22 +65,25 @@ static GtkWidget *sliders;
 
 #define NONE 0
 #define AF_GAIN 1
-#define MIC_GAIN 2
-#define LINEIN_GAIN 3
-#define AGC_GAIN 4
-#define DRIVE 5
-#define ATTENUATION 6
-#define SQUELCH 7
-#define COMP 8
-#define FILTER_WIDTH 9
-#define DIVERSITY_GAIN 10
-#define DIVERSITY_PHASE 11
+#define RF_GAIN 2
+#define MIC_GAIN 3
+#define LINEIN_GAIN 4
+#define AGC_GAIN 5
+#define DRIVE 6
+#define ATTENUATION 7
+#define SQUELCH 8
+#define COMP 9
+#define FILTER_WIDTH 10
+#define DIVERSITY_GAIN 11
+#define DIVERSITY_PHASE 12
 
 static gint scale_timer;
 static int scale_status=NONE;
 static GtkWidget *scale_dialog;
 static GtkWidget *af_gain_label;
 static GtkWidget *af_gain_scale;
+static GtkWidget *rf_gain_label;
+static GtkWidget *rf_gain_scale;
 static GtkWidget *agc_gain_label;
 static GtkWidget *agc_scale;
 static GtkWidget *attenuation_label;
@@ -111,8 +117,8 @@ void sliders_update() {
         gtk_range_set_range(GTK_RANGE(mic_gain_scale),0.0,31.0);
         gtk_range_set_value (GTK_RANGE(mic_gain_scale),linein_gain);
       } else {
-        gtk_label_set_text(GTK_LABEL(mic_gain_label),"Mic (dB):");
-        gtk_range_set_range(GTK_RANGE(mic_gain_scale),-10.0,50.0);
+        gtk_label_set_text(GTK_LABEL(mic_gain_label),"Mic:");
+        gtk_range_set_range(GTK_RANGE(mic_gain_scale),-12.0,50.0);
         gtk_range_set_value (GTK_RANGE(mic_gain_scale),mic_gain);
       }
     }
@@ -368,6 +374,56 @@ void set_af_gain(int rx,double value) {
   }
 }
 
+static void rf_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
+    active_receiver->rf_gain=gtk_range_get_value(GTK_RANGE(af_gain_scale));
+#ifdef SOAPYSDR
+    if(protocol=SOAPYSDR_PROTOCOL) {
+      soapy_protocol_set_gain(active_receiver,active_receiver->rf_gain);
+    }
+#endif
+}
+
+void update_rf_gain() {
+  set_rf_gain(active_receiver->id,active_receiver->rf_gain);
+}
+
+void set_rf_gain(int rx,double value) {
+  receiver[rx]->rf_gain=value;
+#ifdef SOAPYSDR
+  if(protocol==SOAPYSDR_PROTOCOL) {
+    soapy_protocol_set_gain(active_receiver,active_receiver->rf_gain);
+  }
+#endif
+  if(display_sliders) {
+    gtk_range_set_value (GTK_RANGE(rf_gain_scale),receiver[rx]->rf_gain);
+  } else {
+    if(scale_status!=RF_GAIN) {
+      if(scale_status!=NONE) {
+        g_source_remove(scale_timer);
+        gtk_widget_destroy(scale_dialog);
+        scale_status=NONE;
+      }
+    }
+    if(scale_status==NONE) {
+      scale_status=RF_GAIN;
+      scale_dialog=gtk_dialog_new_with_buttons("RF Gain",GTK_WINDOW(top_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
+      GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
+      rf_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.00);
+      gtk_widget_set_size_request (rf_gain_scale, 400, 30);
+      gtk_range_set_value (GTK_RANGE(rf_gain_scale),receiver[rx]->rf_gain);
+      gtk_widget_show(rf_gain_scale);
+      gtk_container_add(GTK_CONTAINER(content),rf_gain_scale);
+      scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
+      //gtk_widget_show_all(scale_dialog);
+      int result=gtk_dialog_run(GTK_DIALOG(scale_dialog));
+    } else {
+      g_source_remove(scale_timer);
+      gtk_range_set_value (GTK_RANGE(rf_gain_scale),receiver[rx]->rf_gain);
+      scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
+    }
+  }
+}
+
 void set_filter_width(int rx,int width) {
     if(scale_status!=FILTER_WIDTH) {
       if(scale_status!=NONE) {
@@ -401,16 +457,14 @@ static void micgain_value_changed_cb(GtkWidget *widget, gpointer data) {
       linein_gain=(int)gtk_range_get_value(GTK_RANGE(widget));
     } else {
       mic_gain=gtk_range_get_value(GTK_RANGE(widget));
-      double gain=pow(10.0, mic_gain / 20.0);
-      SetTXAPanelGain1(transmitter->id,gain);
+      SetTXAPanelGain1(transmitter->id,pow(10.0, mic_gain/20.0));
     }
 }
 
 void set_mic_gain(double value) {
   if(can_transmit) {
     mic_gain=value;
-    double gain=pow(10.0, mic_gain / 20.0);
-    SetTXAPanelGain1(transmitter->id,gain);
+    SetTXAPanelGain1(transmitter->id,pow(10.0, mic_gain/20.0));
     if(display_sliders) {
       gtk_range_set_value (GTK_RANGE(mic_gain_scale),mic_gain);
     } else {
@@ -423,9 +477,9 @@ void set_mic_gain(double value) {
       }
       if(scale_status==NONE) {
         scale_status=MIC_GAIN;
-        scale_dialog=gtk_dialog_new_with_buttons("Mic Gain (dB)",GTK_WINDOW(top_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
+        scale_dialog=gtk_dialog_new_with_buttons("Mic Gain",GTK_WINDOW(top_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
         GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
-        mic_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-10.0, 50.0, 1.00);
+        mic_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-12.0, 50.0, 1.00);
         gtk_widget_set_size_request (mic_gain_scale, 400, 30);
         gtk_range_set_value (GTK_RANGE(mic_gain_scale),mic_gain);
         gtk_widget_show(mic_gain_scale);
@@ -759,11 +813,11 @@ fprintf(stderr,"sliders_init: width=%d height=%d\n", width,height);
 
   if(can_transmit) {
 
-    mic_gain_label=gtk_label_new(mic_linein?"Linein:":"Mic (dB):");
+    mic_gain_label=gtk_label_new(mic_linein?"Linein:":"Mic:");
     gtk_widget_override_font(mic_gain_label, pango_font_description_from_string("Sans 10"));
     gtk_grid_attach(GTK_GRID(sliders),mic_gain_label,0,1,1,1);
 
-    mic_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,mic_linein?0.0:-10.0,mic_linein?31.0:50.0, 1.0);
+    mic_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,mic_linein?0.0:1.0,mic_linein?31.0:100.0, 1.0);
     gtk_widget_override_font(mic_gain_scale, pango_font_description_from_string("Sans 10"));
     gtk_range_set_value (GTK_RANGE(mic_gain_scale),mic_linein?linein_gain:mic_gain);
     gtk_grid_attach(GTK_GRID(sliders),mic_gain_scale,1,1,2,1);

@@ -35,10 +35,10 @@
 #include "new_protocol.h"
 
 static GtkWidget *parent_window=NULL;
-
 static GtkWidget *menu_b=NULL;
-
 static GtkWidget *dialog=NULL;
+static GtkWidget *local_audio_b=NULL;
+static GtkWidget *output=NULL;
 
 static void cleanup() {
   if(dialog!=NULL) {
@@ -96,6 +96,12 @@ static void adc_cb(GtkWidget *widget, gpointer data) {
 
 static void local_audio_cb(GtkWidget *widget, gpointer data) {
 fprintf(stderr,"local_audio_cb: rx=%d\n",active_receiver->id);
+
+  if(active_receiver->audio_name==NULL) {
+    int i=gtk_combo_box_get_active(GTK_COMBO_BOX(output));
+    active_receiver->audio_name=g_new(gchar,strlen(output_devices[i].name)+1);
+    strcpy(active_receiver->audio_name,output_devices[i].name);
+  }
   if(gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget))) {
     if(audio_open_output(active_receiver)==0) {
       active_receiver->local_audio=1;
@@ -126,21 +132,30 @@ static void mute_radio_cb(GtkWidget *widget, gpointer data) {
 // call audo_close_output with old device, audio_open_output with new one
 //
 static void local_output_changed_cb(GtkWidget *widget, gpointer data) {
-  int newdev = (int)(long)data;
-  fprintf(stderr,"local_output_changed rx=%d from %d to %d\n",active_receiver->id,active_receiver->audio_device,newdev);
+  int i = GPOINTER_TO_INT(data);
+  fprintf(stderr,"local_output_changed rx=%d %s\n",active_receiver->id,output_devices[i].name);
   if(active_receiver->local_audio) {
     audio_close_output(active_receiver);                     // audio_close with OLD device
-    active_receiver->audio_device=newdev;                    // update rx to NEW device
-    if(audio_open_output(active_receiver)==0) {              // audio_open with NEW device
-      active_receiver->local_audio=1;
-    } else {
-      active_receiver->local_audio=0;
-    }
-    fprintf(stderr,"local_output_changed rx=%d local_audio=%d\n",active_receiver->id,active_receiver->local_audio);
-  } else {
-    // If not (currently) using local audio, just change dev num
-    active_receiver->audio_device=newdev;
   }
+    
+  if(active_receiver->audio_name!=NULL) {
+    g_free(active_receiver->audio_name);
+    active_receiver->audio_name=NULL;
+  }
+  
+  if(i>=0) {
+    active_receiver->audio_name=g_new(gchar,strlen(output_devices[i].name)+1);
+    strcpy(active_receiver->audio_name,output_devices[i].name);
+    //active_receiver->audio_device=output_devices[i].index;  // update rx to NEW device
+  }
+
+  if(active_receiver->local_audio) {
+    if(audio_open_output(active_receiver)<0) {              // audio_open with NEW device
+      active_receiver->local_audio=0;
+      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON (local_audio_b),FALSE);
+    }
+  }
+  fprintf(stderr,"local_output_changed rx=%d local_audio=%d\n",active_receiver->id,active_receiver->local_audio);
 }
 
 static void audio_channel_cb(GtkWidget *widget, gpointer data) {
@@ -316,7 +331,7 @@ void rx_menu(GtkWidget *parent) {
 
   int row=0;
   if(n_output_devices>0) {
-    GtkWidget *local_audio_b=gtk_check_button_new_with_label("Local Audio Output");
+    local_audio_b=gtk_check_button_new_with_label("Local Audio Output");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (local_audio_b), active_receiver->local_audio);
     gtk_widget_show(local_audio_b);
     gtk_grid_attach(GTK_GRID(grid),local_audio_b,x,++row,1,1);
@@ -324,13 +339,17 @@ void rx_menu(GtkWidget *parent) {
 
     if(active_receiver->audio_device==-1) active_receiver->audio_device=0;
 
-    GtkWidget *output=NULL;
+    output=NULL;
     for(i=0;i<n_output_devices;i++) {
-      output=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(output),output_devices[i]);
-      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (output), active_receiver->audio_device==i);
+      output=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(output),output_devices[i].description);
+      if(active_receiver->audio_name!=NULL) {
+        if(strcmp(active_receiver->audio_name,output_devices[i].description)==0) {
+          gtk_combo_box_set_active(GTK_COMBO_BOX(output),i);
+        }
+      }
       gtk_widget_show(output);
       gtk_grid_attach(GTK_GRID(grid),output,x,++row,1,1);
-      g_signal_connect(output,"pressed",G_CALLBACK(local_output_changed_cb),(gpointer)(long)i);
+      g_signal_connect(output,"pressed",G_CALLBACK(local_output_changed_cb),GINT_TO_POINTER(i));
     }
 
     row=0;

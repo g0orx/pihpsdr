@@ -97,7 +97,7 @@
 #define FREEDV_WATERFALL_HEIGHT (105)
 #endif
 
-static GtkWidget *fixed;
+GtkWidget *fixed;
 static GtkWidget *vfo_panel;
 static GtkWidget *meter;
 static GtkWidget *menu;
@@ -119,6 +119,8 @@ static cairo_surface_t *encoders_surface = NULL;
 static GtkWidget *encoders;
 static cairo_surface_t *encoders_surface = NULL;
 #endif
+
+gint sat_mode;
 
 int region=REGION_OTHER;
 
@@ -316,6 +318,21 @@ double meter_calibration=0.0;
 double display_calibration=0.0;
 
 int can_transmit=0;
+
+gboolean duplex=FALSE;
+
+void radio_stop() {
+  if(can_transmit) {
+g_print("radio_stop: TX: CloseChannel: %d\n",transmitter->id);
+    CloseChannel(transmitter->id);
+  }
+  set_displaying(receiver[0],0);
+g_print("radio_stop: RX0: CloseChannel: %d\n",receiver[0]->id);
+  CloseChannel(receiver[0]->id);
+  set_displaying(receiver[1],0);
+g_print("radio_stop: RX1: CloseChannel: %d\n",receiver[1]->id);
+  CloseChannel(receiver[1]->id);
+}
 
 void reconfigure_radio() {
   int i;
@@ -750,6 +767,7 @@ void start_radio() {
   y=0;
 
   fixed=gtk_fixed_new();
+  g_object_ref(grid);  // so it does not get deleted
   gtk_container_remove(GTK_CONTAINER(top_window),grid);
   gtk_container_add(GTK_CONTAINER(top_window), fixed);
 
@@ -787,7 +805,6 @@ void start_radio() {
   int tx_height=rx_height;
   rx_height=rx_height/RECEIVERS;
 
-
   //
   // To be on the safe side, we create ALL receiver panels here
   // If upon startup, we only should display one panel, we do the switch below
@@ -811,7 +828,7 @@ void start_radio() {
 
   //fprintf(stderr,"Create transmitter\n");
   if(can_transmit) {
-    transmitter=create_transmitter(CHANNEL_TX, buffer_size, fft_size, updates_per_second, display_width, tx_height);
+    transmitter=create_transmitter(CHANNEL_TX, buffer_size, fft_size, updates_per_second, display_width/2, tx_height/2);
     transmitter->x=0;
     transmitter->y=VFO_HEIGHT;
 
@@ -821,6 +838,7 @@ void start_radio() {
     receiver[PS_RX_FEEDBACK]=create_pure_signal_receiver(PS_RX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
     SetPSHWPeak(transmitter->id, protocol==ORIGINAL_PROTOCOL? 0.4067 : 0.2899);
 #endif
+
   }
 
 #ifdef AUDIO_WATERFALL
@@ -923,26 +941,36 @@ void start_radio() {
     if(can_transmit) {
       soapy_protocol_create_transmitter(transmitter);
       soapy_protocol_set_tx_antenna(transmitter,dac[0].antenna);
+/*
       for(int i=0;i<radio->info.soapy.tx_gains;i++) {
-        soapy_protocol_set_tx_gain(transmitter,radio->info.soapy.tx_gain[i],dac[0].tx_gain[i]);
+        soapy_protocol_set_tx_gain_element(transmitter,radio->info.soapy.tx_gain[i],dac[0].tx_gain[i]);
       }
+*/
+      soapy_protocol_set_tx_gain(transmitter,transmitter->drive);
       soapy_protocol_set_tx_frequency(transmitter);
+      soapy_protocol_start_transmitter(transmitter);
     }
 
     soapy_protocol_set_rx_antenna(rx,adc[0].antenna);
+/*
     for(int i=0;i<radio->info.soapy.rx_gains;i++) {
-      soapy_protocol_set_gain(rx,radio->info.soapy.rx_gain[i],adc[0].rx_gain[i]);
+      soapy_protocol_set_gain_element(rx,radio->info.soapy.rx_gain[i],adc[0].rx_gain[i]);
     }
+*/
+
     soapy_protocol_set_rx_frequency(rx,VFO_A);
     soapy_protocol_set_automatic_gain(rx,adc[0].agc);
     for(int i=0;i<radio->info.soapy.rx_gains;i++) {
-      soapy_protocol_set_gain(rx,radio->info.soapy.rx_gain[i],adc[0].rx_gain[i]);
+      soapy_protocol_set_gain_element(rx,radio->info.soapy.rx_gain[i],adc[0].rx_gain[i]);
     }
 
     if(vfo[0].ctun) {
       setFrequency(vfo[0].ctun_frequency);
     }
     soapy_protocol_start_receiver(rx);
+
+//g_print("radio: set rf_gain=%f\n",rx->rf_gain);
+    soapy_protocol_set_gain(rx,rx->rf_gain);
 
   }
 #endif
@@ -1014,6 +1042,7 @@ void radio_change_sample_rate(int rate) {
 static void rxtx(int state) {
   int i;
 
+  g_print("rxtx: state=%d duplex=%d\n",state,duplex);
   if(state) {
     // switch to tx
 #ifdef FREEDV
@@ -1029,20 +1058,22 @@ static void rxtx(int state) {
     tx_feedback->samples=0;
 #endif
 
-    for(i=0;i<receivers;i++) {
-      // Delivery of RX samples
-      // to WDSP via fexchange0() may come to an abrupt stop
-      // (especially with PURESIGNAL or DIVERSITY).
-      // Therefore, wait for *all* receivers to complete
-      // their slew-down before going TX.
-      SetChannelState(receiver[i]->id,0,1);
-      set_displaying(receiver[i],0);
-      g_object_ref((gpointer)receiver[i]->panel);
-      g_object_ref((gpointer)receiver[i]->panadapter);
-      if(receiver[i]->waterfall!=NULL) {
-        g_object_ref((gpointer)receiver[i]->waterfall);
+    if(!duplex) {
+      for(i=0;i<receivers;i++) {
+        // Delivery of RX samples
+        // to WDSP via fexchange0() may come to an abrupt stop
+        // (especially with PURESIGNAL or DIVERSITY).
+        // Therefore, wait for *all* receivers to complete
+        // their slew-down before going TX.
+        SetChannelState(receiver[i]->id,0,1);
+        set_displaying(receiver[i],0);
+        g_object_ref((gpointer)receiver[i]->panel);
+        g_object_ref((gpointer)receiver[i]->panadapter);
+        if(receiver[i]->waterfall!=NULL) {
+          g_object_ref((gpointer)receiver[i]->waterfall);
+        }
+        gtk_container_remove(GTK_CONTAINER(fixed),receiver[i]->panel);
       }
-      gtk_container_remove(GTK_CONTAINER(fixed),receiver[i]->panel);
     }
 //#ifdef FREEDV
 //    if(active_receiver->freedv) {
@@ -1050,10 +1081,26 @@ static void rxtx(int state) {
 //    }
 //#endif
     gtk_fixed_put(GTK_FIXED(fixed),transmitter->panel,transmitter->x,transmitter->y);
+    
     SetChannelState(transmitter->id,1,0);
     tx_set_displaying(transmitter,1);
+    switch(protocol) {
+#ifdef SOAPYSDR
+      case SOAPYSDR_PROTOCOL:
+        soapy_protocol_set_tx_frequency(transmitter);
+        //soapy_protocol_start_transmitter(transmitter);
+        break;
+#endif
+    }
   } else {
     // switch to rx
+    switch(protocol) {
+#ifdef SOAPYSDR
+      case SOAPYSDR_PROTOCOL:
+        //soapy_protocol_stop_transmitter(transmitter);
+        break;
+#endif
+    }
     SetChannelState(transmitter->id,0,1);
     tx_set_displaying(transmitter,0);
     g_object_ref((gpointer)transmitter->panel);
@@ -1064,10 +1111,12 @@ static void rxtx(int state) {
 //      gtk_widget_hide(audio_waterfall);
 //    }
 //#endif
-    for(i=0;i<receivers;i++) {
-      gtk_fixed_put(GTK_FIXED(fixed),receiver[i]->panel,receiver[i]->x,receiver[i]->y);
-      SetChannelState(receiver[i]->id,1,0);
-      set_displaying(receiver[i],1);
+    if(!duplex) {
+      for(i=0;i<receivers;i++) {
+        gtk_fixed_put(GTK_FIXED(fixed),receiver[i]->panel,receiver[i]->x,receiver[i]->y);
+        SetChannelState(receiver[i]->id,1,0);
+        set_displaying(receiver[i],1);
+      }
     }
 //#ifdef FREEDV
 //    if(active_receiver->freedv) {
@@ -1084,6 +1133,7 @@ static void rxtx(int state) {
 }
 
 void setMox(int state) {
+g_print("setMox: %d\n",state);
   if(!can_transmit) return;
   vox_cancel();  // remove time-out
   if(mox!=state) {
@@ -1100,18 +1150,6 @@ void setMox(int state) {
       schedule_high_priority();
       schedule_receive_specific();
       break;
-#ifdef SOAPYSDR
-    case SOAPYSDR_PROTOCOL:
-      if(transmitter!=NULL) {
-        if(mox) {
-          soapy_protocol_set_tx_frequency(transmitter);
-          soapy_protocol_start_transmitter(transmitter);
-        } else {
-          soapy_protocol_stop_transmitter(transmitter);
-        }
-      }
-      break;
-#endif
     default:
       break;
   }
@@ -1204,16 +1242,18 @@ void setTune(int state) {
       //schedule_general();
     }
     if(state) {
-      for(i=0;i<receivers;i++) {
-        // Delivery of RX samples
-        // to WDSP via fexchange0() may come to an abrupt stop
-        // (especially with PURESIGNAL or DIVERSITY)
-        // Therefore, wait for *all* receivers to complete
-        // their slew-down before going TX.
-        SetChannelState(receiver[i]->id,0,1);
-        set_displaying(receiver[i],0);
-        if(protocol==NEW_PROTOCOL) {
-          schedule_high_priority();
+      if(!duplex) {
+        for(i=0;i<receivers;i++) {
+          // Delivery of RX samples
+          // to WDSP via fexchange0() may come to an abrupt stop
+          // (especially with PURESIGNAL or DIVERSITY)
+          // Therefore, wait for *all* receivers to complete
+          // their slew-down before going TX.
+          SetChannelState(receiver[i]->id,0,1);
+          set_displaying(receiver[i],0);
+          if(protocol==NEW_PROTOCOL) {
+            schedule_high_priority();
+          }
         }
       }
 
@@ -1372,7 +1412,18 @@ void calcDriveLevel() {
 
 void setDrive(double value) {
     transmitter->drive=value;
-    calcDriveLevel();
+    switch(protocol) {
+      case ORIGINAL_PROTOCOL:
+      case NEW_PROTOCOL:
+        calcDriveLevel();
+        break;
+#ifdef SOAPYSDR
+      case SOAPYSDR_PROTOCOL:
+        soapy_protocol_set_tx_gain(transmitter,transmitter->drive);
+        
+        break;
+#endif
+    }
 }
 
 double getTuneDrive() {
@@ -1652,6 +1703,13 @@ fprintf(stderr,"sem_wait: returner\n");
     value=getProperty("rx2_gain_slider");
     if(value) rx_gain_slider[1]=atoi(value);
 
+    value=getProperty("split");
+    if(value) split=atoi(value);
+    value=getProperty("duplex");
+    if(value) duplex=atoi(value);
+    value=getProperty("sat_mode");
+    if(value) sat_mode=atoi(value);
+
 #ifdef SOAPYSDR
   if(radio->device==SOAPYSDR_USB_DEVICE) {
     for(int i=0;i<radio->info.soapy.rx_gains;i++) {
@@ -1664,6 +1722,8 @@ fprintf(stderr,"sem_wait: returner\n");
     value=getProperty("radio.adc[0].antenna");
     if(value!=NULL) adc[0].antenna=atoi(value);
 
+    value=getProperty("radio.dac[0].antenna");
+    if(value!=NULL) dac[0].antenna=atoi(value);
     for(int i=0;i<radio->info.soapy.tx_gains;i++) {
       sprintf(name,"radio.dac[0].tx_gain.%s",radio->info.soapy.tx_gain[i]);
       value=getProperty(name);
@@ -1867,6 +1927,10 @@ fprintf(stderr,"sem_wait: returned\n");
       sprintf(value,"%d", adc[0].antenna);
       setProperty(name,value);
 
+      sprintf(name,"radio.dac[0].antenna");
+      sprintf(value,"%d", dac[0].antenna);
+      setProperty(name,value);
+
       for(int i=0;i<radio->info.soapy.tx_gains;i++) {
         sprintf(name,"radio.dac[0].tx_gain.%s",radio->info.soapy.tx_gain[i]);
         sprintf(value,"%d", dac[0].tx_gain[i]);
@@ -1883,6 +1947,10 @@ fprintf(stderr,"sem_wait: returned\n");
       setProperty(name,value);
       sprintf(name,"radio.adc[1].antenna");
       sprintf(value,"%d", adc[1].antenna);
+      setProperty(name,value);
+
+      sprintf(name,"radio.dac[1].antenna");
+      sprintf(value,"%d", dac[1].antenna);
       setProperty(name,value);
 
       for(int i=0;i<radio->info.soapy.tx_gains;i++) {
@@ -1915,6 +1983,14 @@ fprintf(stderr,"sem_wait: returned\n");
     if(can_transmit) {
       transmitter_save_state(transmitter);
     }
+
+    sprintf(value,"%d",duplex);
+    setProperty("duplex",value);
+    sprintf(value,"%d",split);
+    setProperty("split",value);
+    sprintf(value,"%d",sat_mode);
+    setProperty("sat_mode",value);
+
 #ifdef FREEDV
     freedv_save_state();
 #endif

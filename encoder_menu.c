@@ -279,6 +279,9 @@ GtkWidget* getRadioButton(int action) {
     case ENCODER_RIT_RX2:
       button=b_rit_rx2;
       break;
+    case ENCODER_XIT:
+      button=b_xit;
+      break;
     case ENCODER_CW_SPEED:
       button=b_cw_speed;
       break;
@@ -336,6 +339,9 @@ GtkWidget* getTopRadioButton(int action) {
       break;
     case ENCODER_RIT_RX2:
       button=b_top_rit_rx2;
+      break;
+    case ENCODER_XIT:
+      button=b_top_xit;
       break;
     case ENCODER_CW_SPEED:
       button=b_top_cw_speed;
@@ -773,7 +779,7 @@ void encoder_menu(GtkWidget *parent) {
   g_signal_connect(enc5,"button_press_event",G_CALLBACK(enc_cb),GINT_TO_POINTER(ENC5));
   col++;
   
-#ifdef CONTROLLER2
+#if defined (CONTROLLER2_V2)
   GtkWidget *enc5_top=gtk_button_new_with_label(encoder_string[e5_top_encoder_action]);
   gtk_grid_attach(GTK_GRID(grid),enc5_top,col,row,1,1);
   g_signal_connect(enc5_top,"button_press_event",G_CALLBACK(enc_cb),GINT_TO_POINTER(ENC5_TOP));

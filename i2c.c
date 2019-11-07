@@ -185,26 +185,26 @@ void i2c_interrupt() {
 //g_print("i1c_interrupt: sw=%d action=%d\n",i,sw_action[i]);
         switch(sw_action[i]) {
           case TUNE:
-            {
-            int tune=getTune();
-            if(tune==0) tune=1; else tune=0;
-            g_idle_add(ext_tune_update,GINT_TO_POINTER(tune));
+            if(can_transmit) {
+              int tune=getTune();
+              if(tune==0) tune=1; else tune=0;
+              g_idle_add(ext_tune_update,GINT_TO_POINTER(tune));
             }
             break;
           case MOX:
-            {
-            int mox=getMox();
-            if(mox==0) mox=1; else mox=0;
-            g_idle_add(ext_mox_update,GINT_TO_POINTER(mox));
+            if(can_transmit) {
+              int mox=getMox();
+              if(mox==0) mox=1; else mox=0;
+              g_idle_add(ext_mox_update,GINT_TO_POINTER(mox));
             }
             break;
           case PS:
 #ifdef PURESIGNAL
-            g_idle_add(ext_ps_update,NULL);
+            if(can_transmit) g_idle_add(ext_ps_update,NULL);
 #endif
             break;
           case TWO_TONE:
-            g_idle_add(ext_two_tone,NULL);
+            if(can_transmit) g_idle_add(ext_two_tone,NULL);
             break;
           case NR:
             g_idle_add(ext_nr_update,NULL);
@@ -222,10 +222,10 @@ void i2c_interrupt() {
             g_idle_add(ext_rit_clear,NULL);
             break;
           case XIT:
-            g_idle_add(ext_xit_update,NULL);
+            if(can_transmit) g_idle_add(ext_xit_update,NULL);
             break;
           case XIT_CLEAR:
-            g_idle_add(ext_xit_clear,NULL);
+            if(can_transmit) g_idle_add(ext_xit_clear,NULL);
             break;
           case BAND_PLUS:
             g_idle_add(ext_band_plus,NULL);
@@ -270,7 +270,37 @@ void i2c_interrupt() {
             g_idle_add(ext_agc_update,NULL);
             break;
           case SPLIT:
-            g_idle_add(ext_split_update,NULL);
+            if(can_transmit) g_idle_add(ext_split_update,NULL);
+            break;
+          case DIVERSITY:
+            g_idle_add(ext_diversity_update,GINT_TO_POINTER(0));
+            break;
+          case SAT:
+            if(can_transmit) g_idle_add(ext_sat_update,GINT_TO_POINTER(SAT_MODE));
+            break;
+          case RSAT:
+            if(can_transmit) g_idle_add(ext_sat_update,GINT_TO_POINTER(RSAT_MODE));
+            break;
+          case MENU_BAND:
+            g_idle_add(ext_band_update,NULL);
+            break;
+          case MENU_BANDSTACK:
+            g_idle_add(ext_bandstack_update,NULL);
+            break;
+          case MENU_MODE:
+            g_idle_add(ext_mode_update,NULL);
+            break;
+          case MENU_FILTER:
+            g_idle_add(ext_filter_update,NULL);
+            break;
+          case MENU_FREQUENCY:
+            g_idle_add(ext_frequency_update,NULL);
+            break;
+          case MENU_MEMORY:
+            g_idle_add(ext_memory_update,NULL);
+            break;
+          case MENU_DIVERSITY:
+            g_idle_add(ext_diversity_update,GINT_TO_POINTER(1));
             break;
         }
       }

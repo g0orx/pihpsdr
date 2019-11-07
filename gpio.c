@@ -337,6 +337,8 @@ char *sw_string[SWITCH_ACTIONS] = {
   "AGC",
   "SPLIT",
   "DIVERSITY",
+  "SAT",
+  "RSAT",
   "BAND MENU",
   "BANDSTACK MENU",
   "MODE MENU",
@@ -448,18 +450,18 @@ static int e_function_pressed(void *data) {
 fprintf(stderr,"e_function_pressed: %d\n",action);
   switch(action) {
     case TUNE:
-      g_idle_add(ext_tune_update,NULL);
+      if(can_transmit) g_idle_add(ext_tune_update,NULL);
       break;
     case MOX:
-      g_idle_add(ext_mox_update,NULL);
+      if(can_transmit) g_idle_add(ext_mox_update,NULL);
       break;
     case PS:
 #ifdef PURESIGNAL
-      g_idle_add(ext_ps_update,NULL);
+      if(can_transmit) g_idle_add(ext_ps_update,NULL);
 #endif
       break;
     case TWO_TONE:
-      g_idle_add(ext_two_tone,NULL);
+      if(can_transmit) g_idle_add(ext_two_tone,NULL);
       break;
     case NR:
       g_idle_add(ext_nr_update,NULL);
@@ -477,10 +479,10 @@ fprintf(stderr,"e_function_pressed: %d\n",action);
       g_idle_add(ext_rit_clear,NULL);
       break;
     case XIT:
-      g_idle_add(ext_xit_update,NULL);
+      if(can_transmit) g_idle_add(ext_xit_update,NULL);
       break;
     case XIT_CLEAR:
-      g_idle_add(ext_xit_clear,NULL);
+      if(can_transmit) g_idle_add(ext_xit_clear,NULL);
       break;
     case BAND_PLUS:
       g_idle_add(ext_band_plus,NULL);
@@ -525,10 +527,16 @@ fprintf(stderr,"e_function_pressed: %d\n",action);
       g_idle_add(ext_agc_update,NULL);
       break;
     case SPLIT:
-      g_idle_add(ext_split_update,NULL);
+      if(can_transmit) g_idle_add(ext_split_update,NULL);
       break;
     case DIVERSITY:
       g_idle_add(ext_diversity_update,GINT_TO_POINTER(0));
+      break;
+    case SAT:
+      if(can_transmit) g_idle_add(ext_sat_update,GINT_TO_POINTER(SAT_MODE));
+      break;
+    case RSAT:
+      if(can_transmit) g_idle_add(ext_sat_update,GINT_TO_POINTER(RSAT_MODE));
       break;
     case MENU_BAND:
       g_idle_add(ext_band_update,NULL);
@@ -1716,6 +1724,26 @@ static void encoder_changed(int action,int pos) {
       }
       set_af_gain(1,value);
       break;
+    case ENCODER_RF_GAIN_RX1:
+      value=receiver[0]->rf_gain;
+      value+=(double)pos;
+      if(value<0.0) {
+        value=0.0;
+      } else if(value>100.0) {
+        value=100.0;
+      }
+      set_rf_gain(0,value);
+      break;
+    case ENCODER_RF_GAIN_RX2:
+      value=receiver[1]->rf_gain;
+      value+=(double)pos;
+      if(value<0.0) {
+        value=0.0;
+      } else if(value>71.0) {
+        value=71.0;
+      }
+      set_rf_gain(1,value);
+      break;
     case ENCODER_AGC_GAIN_RX1:
       value=receiver[0]->agc_gain;
       value+=(double)pos;
@@ -1761,8 +1789,8 @@ static void encoder_changed(int action,int pos) {
     case ENCODER_MIC_GAIN:
       value=mic_gain;
       value+=(double)pos;
-      if(value<-10.0) {
-        value=-10.0;
+      if(value<-12.0) {
+        value=-12.0;
       } else if(value>50.0) {
         value=50.0;
       }
@@ -1781,10 +1809,10 @@ static void encoder_changed(int action,int pos) {
     case ENCODER_RIT_RX1:
       value=(double)vfo[receiver[0]->id].rit;
       value+=(double)(pos*rit_increment);
-      if(value<-1000.0) {
-        value=-1000.0;
-      } else if(value>1000.0) {
-        value=1000.0;
+      if(value<-10000.0) {
+        value=-10000.0;
+      } else if(value>10000.0) {
+        value=10000.0;
       }
       vfo[receiver[0]->id].rit=(int)value;
       if(protocol==NEW_PROTOCOL) {
@@ -1795,12 +1823,26 @@ static void encoder_changed(int action,int pos) {
     case ENCODER_RIT_RX2:
       value=(double)vfo[receiver[1]->id].rit;
       value+=(double)(pos*rit_increment);
-      if(value<-1000.0) {
-        value=-1000.0;
-      } else if(value>1000.0) {
-        value=1000.0;
+      if(value<-10000.0) {
+        value=-10000.0;
+      } else if(value>10000.0) {
+        value=10000.0;
       }
       vfo[receiver[1]->id].rit=(int)value;
+      if(protocol==NEW_PROTOCOL) {
+        schedule_high_priority();
+      }
+      g_idle_add(ext_vfo_update,NULL);
+      break;
+    case ENCODER_XIT:
+      value=(double)transmitter->xit;
+      value+=(double)(pos*rit_increment);
+      if(value<-10000.0) {
+        value=-10000.0;
+      } else if(value>10000.0) {
+        value=10000.0;
+      }
+      transmitter->xit=(int)value;
       if(protocol==NEW_PROTOCOL) {
         schedule_high_priority();
       }

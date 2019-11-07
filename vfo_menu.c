@@ -325,10 +325,12 @@ void vfo_menu(GtkWidget *parent) {
 #endif
 
 #ifdef PURESIGNAL
-  GtkWidget *enable_ps=gtk_check_button_new_with_label("Enable Pure Signal");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (enable_ps), transmitter->puresignal);
-  gtk_grid_attach(GTK_GRID(grid),enable_ps,3,7,1,1);
-  g_signal_connect(enable_ps,"toggled",G_CALLBACK(enable_ps_cb),NULL);
+  if(can_transmit) {
+    GtkWidget *enable_ps=gtk_check_button_new_with_label("Enable Pure Signal");
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (enable_ps), transmitter->puresignal);
+    gtk_grid_attach(GTK_GRID(grid),enable_ps,3,7,1,1);
+    g_signal_connect(enable_ps,"toggled",G_CALLBACK(enable_ps_cb),NULL);
+  }
 #endif
 
   gtk_container_add(GTK_CONTAINER(content),grid);

@@ -27,11 +27,9 @@
 #include "ext.h"
 
 static GtkWidget *parent_window=NULL;
-
 static GtkWidget *dialog=NULL;
-
 static GtkWidget *last_filter;
-
+static GtkWidget *input;
 static GtkWidget *micin_b=NULL;
 static GtkWidget *linein_b=NULL;
 static GtkWidget *micboost_b=NULL;
@@ -114,6 +112,11 @@ static void tune_percent_cb (GtkWidget *widget, gpointer data) {
 
 static void local_microphone_cb(GtkWidget *widget, gpointer data) {
   if(gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget))) {
+    if(transmitter->microphone_name==NULL) {
+      int i=gtk_combo_box_get_active(GTK_COMBO_BOX(input));
+      transmitter->microphone_name=g_new(gchar,strlen(input_devices[i].name)+1);
+      strcpy(transmitter->microphone_name,input_devices[i].name);
+    }
     if(audio_open_input()==0) {
       transmitter->local_microphone=1;
       if(micin_b!=NULL) gtk_widget_hide(micin_b);
@@ -148,12 +151,20 @@ static void linein_changed(GtkWidget *widget, gpointer data) {
 }
 
 static void local_input_changed_cb(GtkWidget *widget, gpointer data) {
-  transmitter->input_device=(int)(long)data;
+  int i=GPOINTER_TO_INT(data);
   if(transmitter->local_microphone) {
     audio_close_input();
-    if(audio_open_input()==0) {
-      transmitter->local_microphone=1;
-    } else {
+  }
+
+  if(transmitter->microphone_name!=NULL) {
+    g_free(transmitter->microphone_name);
+  }
+
+  transmitter->microphone_name=g_new(gchar,strlen(input_devices[i].name)+1);
+  strcpy(transmitter->microphone_name,input_devices[i].name);
+
+  if(transmitter->local_microphone) {
+    if(audio_open_input()<0) {
       transmitter->local_microphone=0;
     }
   }
@@ -233,22 +244,24 @@ void tx_menu(GtkWidget *parent) {
     row++;
     col=0;
 
-    GtkWidget *comp_enable=gtk_check_button_new_with_label("Compression (dB):");
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (comp_enable), transmitter->compressor);
-    gtk_grid_attach(GTK_GRID(grid),comp_enable,col,row,1,1);
-    g_signal_connect(comp_enable,"toggled",G_CALLBACK(comp_enable_cb),NULL);
-
-    col++;
-
-    GtkWidget *comp=gtk_spin_button_new_with_range(0.0,20.0,1.0);
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(comp),(double)transmitter->compressor_level);
-    gtk_grid_attach(GTK_GRID(grid),comp,col,row,1,1);
-    g_signal_connect(comp,"value-changed",G_CALLBACK(comp_cb),NULL);
-
-    row++;
-    col=0;
-
   }
+
+
+  GtkWidget *comp_enable=gtk_check_button_new_with_label("Compression (dB):");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (comp_enable), transmitter->compressor);
+  gtk_grid_attach(GTK_GRID(grid),comp_enable,col,row,1,1);
+  g_signal_connect(comp_enable,"toggled",G_CALLBACK(comp_enable_cb),NULL);
+
+  col++;
+
+  GtkWidget *comp=gtk_spin_button_new_with_range(0.0,20.0,1.0);
+  gtk_spin_button_set_value(GTK_SPIN_BUTTON(comp),(double)transmitter->compressor_level);
+  gtk_grid_attach(GTK_GRID(grid),comp,col,row,1,1);
+  g_signal_connect(comp,"value-changed",G_CALLBACK(comp_cb),NULL);
+
+  row++;
+  col=0;
+
 
   if(n_input_devices>0) {
     GtkWidget *local_microphone_b=gtk_check_button_new_with_label("Local Microphone Input");
@@ -257,14 +270,14 @@ void tx_menu(GtkWidget *parent) {
     gtk_grid_attach(GTK_GRID(grid),local_microphone_b,col,row++,2,1);
     g_signal_connect(local_microphone_b,"toggled",G_CALLBACK(local_microphone_cb),NULL);
 
-    if(transmitter->input_device==-1) {
-      transmitter->input_device=0;
-    }
-
-    GtkWidget *input=NULL;
+    input=NULL;
     for(i=0;i<n_input_devices;i++) {
-      input=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(input),input_devices[i]);
-      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (input), transmitter->input_device==i);
+      input=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(input),input_devices[i].description);
+      if(transmitter->microphone_name!=NULL) {
+        if(strcmp(transmitter->microphone_name,input_devices[i].description)==0) {
+          gtk_combo_box_set_active(GTK_COMBO_BOX(input),i);
+        }
+      }
       gtk_widget_show(input);
       gtk_grid_attach(GTK_GRID(grid),input,col,row++,2,1);
       g_signal_connect(input,"pressed",G_CALLBACK(local_input_changed_cb),(gpointer)(long)i);
@@ -325,7 +338,7 @@ void tx_menu(GtkWidget *parent) {
 
   col++;
 
-  GtkWidget *panadapter_low_r=gtk_spin_button_new_with_range(-220.0,100.0,1.0);
+  GtkWidget *panadapter_low_r=gtk_spin_button_new_with_range(-400.0,100.0,1.0);
   gtk_spin_button_set_value(GTK_SPIN_BUTTON(panadapter_low_r),(double)transmitter->panadapter_low);
   gtk_widget_show(panadapter_low_r);
   gtk_grid_attach(GTK_GRID(grid),panadapter_low_r,col,row,1,1);

@@ -88,7 +88,7 @@ static void dac0_antenna_cb(GtkComboBox *widget,gpointer data) {
     schedule_high_priority();
 #ifdef SOAPYSDR
   } else if(radio->device==SOAPYSDR_USB_DEVICE) {
-    soapy_protocol_set_tx_antenna(transmitter,dac[0].antenna);
+    soapy_protocol_set_tx_antenna(transmitter,dac->antenna);
 #endif
   }
 }

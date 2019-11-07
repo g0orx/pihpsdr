@@ -78,6 +78,8 @@ enum {
   AGC,
   SPLIT,
   DIVERSITY,
+  SAT,
+  RSAT,
   MENU_BAND,
   MENU_BANDSTACK,
   MENU_MODE,

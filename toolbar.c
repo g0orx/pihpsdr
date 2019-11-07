@@ -78,12 +78,26 @@ static GdkRGBA gray;
 
 static gint rit_plus_timer=-1;
 static gint rit_minus_timer=-1;
+static gint xit_plus_timer=-1;
+static gint xit_minus_timer=-1;
 
 static gboolean rit_timer_cb(gpointer data) {
   int i=GPOINTER_TO_INT(data);
   vfo[active_receiver->id].rit+=(i*rit_increment);
-  if(vfo[active_receiver->id].rit>1000) vfo[active_receiver->id].rit=1000;
-  if(vfo[active_receiver->id].rit<-1000) vfo[active_receiver->id].rit=-1000;
+  if(vfo[active_receiver->id].rit>10000) vfo[active_receiver->id].rit=10000;
+  if(vfo[active_receiver->id].rit<-10000) vfo[active_receiver->id].rit=-10000;
+  if(protocol==NEW_PROTOCOL) {
+    schedule_high_priority();
+  }
+  g_idle_add(ext_vfo_update,NULL);
+  return TRUE;
+}
+
+static gboolean xit_timer_cb(gpointer data) {
+  int i=GPOINTER_TO_INT(data);
+  transmitter->xit+=(i*rit_increment);
+  if(transmitter->xit>10000) transmitter->xit=10000;
+  if(transmitter->xit<-10000) transmitter->xit=-10000;
   if(protocol==NEW_PROTOCOL) {
     schedule_high_priority();
   }
@@ -94,7 +108,11 @@ static gboolean rit_timer_cb(gpointer data) {
 void update_toolbar_labels() {
   switch(function) {
     case 0:
-      gtk_button_set_label(GTK_BUTTON(sim_mox),"Mox");
+      if(can_transmit) {
+        gtk_button_set_label(GTK_BUTTON(sim_mox),"Mox");
+      } else {
+        gtk_button_set_label(GTK_BUTTON(sim_mox),"");
+      }
       gtk_button_set_label(GTK_BUTTON(sim_s1),"Band");
       gtk_button_set_label(GTK_BUTTON(sim_s2),"BStack");
       gtk_button_set_label(GTK_BUTTON(sim_s3),"Mode");
@@ -104,38 +122,86 @@ void update_toolbar_labels() {
       set_button_text_color(sim_s1,"black");
       set_button_text_color(sim_s2,"black");
       break;
-
     case 1:
-      gtk_button_set_label(GTK_BUTTON(sim_mox),"Mox");
+      if(can_transmit) {
+        gtk_button_set_label(GTK_BUTTON(sim_mox),"Mox");
+      } else {
+        gtk_button_set_label(GTK_BUTTON(sim_mox),"");
+      }
       gtk_button_set_label(GTK_BUTTON(sim_s1),"Lock");
       gtk_button_set_label(GTK_BUTTON(sim_s2),"CTUN");
       gtk_button_set_label(GTK_BUTTON(sim_s3),"A>B");
       gtk_button_set_label(GTK_BUTTON(sim_s4),"A<B");
       gtk_button_set_label(GTK_BUTTON(sim_s5),"A<>B");
-      gtk_button_set_label(GTK_BUTTON(sim_s6),"Split");
+      if(can_transmit) {
+        gtk_button_set_label(GTK_BUTTON(sim_s6),"Split");
+      } else {
+        gtk_button_set_label(GTK_BUTTON(sim_s6),"");
+      }
       break;
     case 2:
-      gtk_button_set_label(GTK_BUTTON(sim_mox),"Mox");
+      if(can_transmit) {
+        gtk_button_set_label(GTK_BUTTON(sim_mox),"Mox");
+      } else {
+        gtk_button_set_label(GTK_BUTTON(sim_mox),"");
+      }
       gtk_button_set_label(GTK_BUTTON(sim_s1),"Freq");
       gtk_button_set_label(GTK_BUTTON(sim_s2),"Mem");
-      //gtk_button_set_label(GTK_BUTTON(sim_s3),"Vox");
       gtk_button_set_label(GTK_BUTTON(sim_s3),"RIT");
-
       gtk_button_set_label(GTK_BUTTON(sim_s4),"RIT+");
       gtk_button_set_label(GTK_BUTTON(sim_s5),"RIT-");
       gtk_button_set_label(GTK_BUTTON(sim_s6),"RIT CL");
-      if(full_tune) {
-        set_button_text_color(sim_s1,"red");
-      }
-      if(memory_tune) {
-        set_button_text_color(sim_s2,"red");
-      }
       break;
     case 3:
-      gtk_button_set_label(GTK_BUTTON(sim_mox),"Tune");
-      if(OCtune!=0 && OCfull_tune_time!=0) {
-        gtk_button_set_label(GTK_BUTTON(sim_s1),"Full");
+      if(can_transmit) {
+        gtk_button_set_label(GTK_BUTTON(sim_mox),"Mox");
       } else {
+        gtk_button_set_label(GTK_BUTTON(sim_mox),"");
+      }
+      gtk_button_set_label(GTK_BUTTON(sim_s1),"Freq");
+      gtk_button_set_label(GTK_BUTTON(sim_s2),"Mem");
+      if(can_transmit) {
+        gtk_button_set_label(GTK_BUTTON(sim_s3),"XIT");
+        gtk_button_set_label(GTK_BUTTON(sim_s4),"XIT+");
+        gtk_button_set_label(GTK_BUTTON(sim_s5),"XIT-");
+        gtk_button_set_label(GTK_BUTTON(sim_s6),"XIT CL");
+      } else {
+        gtk_button_set_label(GTK_BUTTON(sim_s3),"");
+        gtk_button_set_label(GTK_BUTTON(sim_s4),"");
+        gtk_button_set_label(GTK_BUTTON(sim_s5),"");
+        gtk_button_set_label(GTK_BUTTON(sim_s6),"");
+      }
+      break;
+    case 4:
+      if(can_transmit) {
+        gtk_button_set_label(GTK_BUTTON(sim_mox),"Mox");
+      } else {
+        gtk_button_set_label(GTK_BUTTON(sim_mox),"");
+      }
+      gtk_button_set_label(GTK_BUTTON(sim_s1),"Freq");
+      if(can_transmit) {
+        gtk_button_set_label(GTK_BUTTON(sim_s2),"Split");
+        gtk_button_set_label(GTK_BUTTON(sim_s3),"Duplex");
+        gtk_button_set_label(GTK_BUTTON(sim_s4),"SAT");
+        gtk_button_set_label(GTK_BUTTON(sim_s5),"RSAT");
+      } else {
+        gtk_button_set_label(GTK_BUTTON(sim_s2),"");
+        gtk_button_set_label(GTK_BUTTON(sim_s3),"");
+        gtk_button_set_label(GTK_BUTTON(sim_s4),"");
+        gtk_button_set_label(GTK_BUTTON(sim_s5),"");
+      }
+      gtk_button_set_label(GTK_BUTTON(sim_s6),"");
+      break;
+    case 5:
+      if(can_transmit) {
+        gtk_button_set_label(GTK_BUTTON(sim_mox),"Tune");
+        if(OCtune!=0 && OCfull_tune_time!=0) {
+          gtk_button_set_label(GTK_BUTTON(sim_s1),"Full");
+        } else {
+          gtk_button_set_label(GTK_BUTTON(sim_s1),"");
+        }
+      } else {
+        gtk_button_set_label(GTK_BUTTON(sim_mox),"");
         gtk_button_set_label(GTK_BUTTON(sim_s1),"");
       }
       if(OCtune!=0 && OCmemory_tune_time!=0) {
@@ -146,7 +212,11 @@ void update_toolbar_labels() {
       gtk_button_set_label(GTK_BUTTON(sim_s3),"Band");
       gtk_button_set_label(GTK_BUTTON(sim_s4),"Mode");
       gtk_button_set_label(GTK_BUTTON(sim_s5),"Filter");
-      gtk_button_set_label(GTK_BUTTON(sim_s6),"Mox");
+      if(can_transmit) {
+        gtk_button_set_label(GTK_BUTTON(sim_s6),"Mox");
+      } else {
+        gtk_button_set_label(GTK_BUTTON(sim_s6),"");
+      }
       if(full_tune) {
         set_button_text_color(sim_s1,"red");
       }
@@ -210,13 +280,44 @@ static void aswapb_cb (GtkWidget *widget, gpointer data) {
 }
 
 static void split_cb (GtkWidget *widget, gpointer data) {
-  split=split==1?0:1;
-  if(split) {
-    tx_set_mode(transmitter,vfo[VFO_B].mode);
-  } else {
-    tx_set_mode(transmitter,vfo[VFO_A].mode);
+  if(can_transmit) {
+    split=split==1?0:1;
+    if(split) {
+      tx_set_mode(transmitter,vfo[VFO_B].mode);
+    } else {
+      tx_set_mode(transmitter,vfo[VFO_A].mode);
+    }
+    g_idle_add(ext_vfo_update,NULL);
   }
-  g_idle_add(ext_vfo_update,NULL);
+}
+
+static void duplex_cb (GtkWidget *widget, gpointer data) {
+  if(can_transmit) {
+    duplex=duplex==1?0:1;
+    g_idle_add(ext_vfo_update,NULL);
+  }
+}
+
+static void sat_cb (GtkWidget *widget, gpointer data) {
+  if(can_transmit) {
+    if(sat_mode==SAT_MODE) {
+      sat_mode=SAT_NONE;
+    } else {
+      sat_mode=SAT_MODE;
+    }
+    g_idle_add(ext_vfo_update,NULL);
+  }
+}
+
+static void rsat_cb (GtkWidget *widget, gpointer data) {
+  if(can_transmit) {
+    if(sat_mode==RSAT_MODE) {
+      sat_mode=SAT_NONE;
+    } else {
+      sat_mode=RSAT_MODE;
+    }
+    g_idle_add(ext_vfo_update,NULL);
+  }
 }
 
 static void rit_enable_cb(GtkWidget *widget, gpointer data) {
@@ -230,8 +331,8 @@ static void rit_enable_cb(GtkWidget *widget, gpointer data) {
 static void rit_cb(GtkWidget *widget, gpointer data) {
   int i=GPOINTER_TO_INT(data);
   vfo[active_receiver->id].rit+=i*rit_increment;
-  if(vfo[active_receiver->id].rit>1000) vfo[active_receiver->id].rit=1000;
-  if(vfo[active_receiver->id].rit<-1000) vfo[active_receiver->id].rit=-1000;
+  if(vfo[active_receiver->id].rit>10000) vfo[active_receiver->id].rit=10000;
+  if(vfo[active_receiver->id].rit<-10000) vfo[active_receiver->id].rit=-10000;
   if(protocol==NEW_PROTOCOL) {
     schedule_high_priority();
   }
@@ -246,6 +347,41 @@ static void rit_cb(GtkWidget *widget, gpointer data) {
 static void rit_clear_cb(GtkWidget *widget, gpointer data) {
   vfo[active_receiver->id].rit=0;
   g_idle_add(ext_vfo_update,NULL);
+}
+
+static void xit_enable_cb(GtkWidget *widget, gpointer data) {
+  if(can_transmit) {
+    transmitter->xit_enabled=transmitter->xit_enabled==1?0:1;
+    if(protocol==NEW_PROTOCOL) {
+      schedule_high_priority();
+    }
+    g_idle_add(ext_vfo_update,NULL);
+  }
+}
+
+static void xit_cb(GtkWidget *widget, gpointer data) {
+  if(can_transmit) {
+    int i=GPOINTER_TO_INT(data);
+    transmitter->xit+=i*rit_increment;
+    if(transmitter->xit>10000) transmitter->xit=10000;
+    if(transmitter->xit<-10000) transmitter->xit=-10000;
+    if(protocol==NEW_PROTOCOL) {
+      schedule_high_priority();
+    }
+    g_idle_add(ext_vfo_update,NULL);
+    if(i<0) {
+      xit_minus_timer=g_timeout_add(200,xit_timer_cb,(gpointer)(long)i);
+    } else {
+      xit_plus_timer=g_timeout_add(200,xit_timer_cb,(gpointer)(long)i);
+    }
+  }
+}
+
+static void xit_clear_cb(GtkWidget *widget, gpointer data) {
+  if(can_transmit) {
+    transmitter->xit=0;
+    g_idle_add(ext_vfo_update,NULL);
+  }
 }
 
 static void freq_cb(GtkWidget *widget, gpointer data) {
@@ -409,6 +545,12 @@ void sim_s1_pressed_cb(GtkWidget *widget, gpointer data) {
       freq_cb(widget,data);
       break;
     case 3:
+      freq_cb(widget,data);
+      break;
+    case 4:
+      freq_cb(widget,data);
+      break;
+    case 5:
       full_tune=full_tune==1?0:1;
       if(full_tune) {
         set_button_text_color(sim_s2,"black");
@@ -430,6 +572,10 @@ void sim_s1_released_cb(GtkWidget *widget, gpointer data) {
       break;
     case 3:
       break;
+    case 4:
+      break;
+    case 5:
+      break;
   }
 }
 
@@ -445,6 +591,12 @@ void sim_s2_pressed_cb(GtkWidget *widget, gpointer data) {
       mem_cb(widget,data);
       break;
     case 3:
+      mem_cb(widget,data);
+      break;
+    case 4:
+      split_cb(widget,data);
+      break;
+    case 5:
       memory_tune=memory_tune==1?0:1;
       if(memory_tune) {
         set_button_text_color(sim_s1,"black");
@@ -466,6 +618,10 @@ void sim_s2_released_cb(GtkWidget *widget, gpointer data) {
       break;
     case 3:
       break;
+    case 4:
+      break;
+    case 5:
+      break;
   }
 }
 
@@ -480,10 +636,15 @@ void sim_s3_pressed_cb(GtkWidget *widget, gpointer data) {
       atob_cb(widget,data);
       break;
     case 2:
-      //vox_cb(widget,data);
       rit_enable_cb(widget,data);
       break;
     case 3:
+      xit_enable_cb(widget,data);
+      break;
+    case 4:
+      duplex_cb(widget,data);
+      break;
+    case 5:
       band_cb(widget,data);
       break;
   }
@@ -498,6 +659,10 @@ void sim_s3_released_cb(GtkWidget *widget, gpointer data) {
     case 2:
       break;
     case 3:
+      break;
+    case 4:
+      break;
+    case 5:
       break;
   }
 }
@@ -517,6 +682,14 @@ void sim_s4_pressed_cb(GtkWidget *widget, gpointer data) {
       }
       break;
     case 3:
+      if(xit_minus_timer==-1 && xit_plus_timer==-1) {
+        xit_cb(widget,(void *)1);
+      }
+      break;
+    case 4:
+      sat_cb(widget,data);
+      break;
+    case 5:
       mode_cb(widget,data);
       break;
   }
@@ -535,6 +708,14 @@ void sim_s4_released_cb(GtkWidget *widget, gpointer data) {
       }
       break;
     case 3:
+      if(xit_plus_timer!=-1) {
+        g_source_remove(xit_plus_timer);
+        xit_plus_timer=-1;
+      }
+      break;
+    case 4:
+      break;
+    case 5:
       break;
   }
 }
@@ -554,6 +735,14 @@ void sim_s5_pressed_cb(GtkWidget *widget, gpointer data) {
       }
       break;
     case 3:
+      if(xit_minus_timer==-1 && xit_plus_timer==-1) {
+        xit_cb(widget,(void *)-1);
+      }
+      break;
+    case 4:
+      rsat_cb(widget,data);
+      break;
+    case 5:
       filter_cb(widget,data);
       break;
   }
@@ -572,6 +761,14 @@ void sim_s5_released_cb(GtkWidget *widget, gpointer data) {
       }
       break;
     case 3:
+      if(xit_minus_timer!=-1) {
+        g_source_remove(xit_minus_timer);
+        xit_minus_timer=-1;
+      }
+      break;
+    case 4:
+      break;
+    case 5:
       break;
   }
 }
@@ -588,6 +785,11 @@ void sim_s6_pressed_cb(GtkWidget *widget, gpointer data) {
       rit_clear_cb(widget,NULL);
       break;
     case 3:
+      xit_clear_cb(widget,NULL);
+      break;
+    case 4:
+      break;
+    case 5:
       break;
   }
 }
@@ -601,7 +803,10 @@ void sim_s6_released_cb(GtkWidget *widget, gpointer data) {
     case 2:
       break;
     case 3:
-      mox_cb((GtkWidget *)NULL, (gpointer)NULL);
+      break;
+    case 4:
+      break;
+    case 5:
       break;
   }
 }
@@ -611,9 +816,11 @@ void sim_mox_cb(GtkWidget *widget, gpointer data) {
     case 0:
     case 1:
     case 2:
+    case 3:
+    case 4:
       mox_cb((GtkWidget *)NULL, (gpointer)NULL);
       break;
-    case 3:
+    case 5:
       tune_cb((GtkWidget *)NULL, (gpointer)NULL);
       break;
   }
