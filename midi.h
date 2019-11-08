@@ -71,9 +71,10 @@ enum MIDIaction {
   PAN_LOW,		// "low" value of current panadapter
   MIDI_PS,		// PURESIGNAL on/off
   MIDI_RF_GAIN,		// RF gain
-  RIT_STEP,		// cycle through RIT values
+  RIT_CLEAR,		// clear RIT value
+  RIT_STEP,		// cycle through RIT step size values
   RIT_TOGGLE,  		// RIT on/off
-  RIT_VAL,		// change RIT value
+  RIT_VAL,		// incrementally change RIT value
   MIDI_RSAT,		// RSAT on/off
   MIDI_SAT,		// SAT on/off
   MIDI_SPLIT,		// Split on/off
