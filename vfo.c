@@ -591,12 +591,12 @@ g_print("vfo_move: id=%d hz=%lld\n",id,hz);
     if(vfo[id].ctun) {
       vfo[id].ctun_frequency=vfo[id].ctun_frequency+hz;
       if(round) {
-         vfo[id].ctun_frequency=(vfo[id].ctun_frequency/step)*step;
+         vfo[id].ctun_frequency=((vfo[id].ctun_frequency+(step/2))/step)*step;
       }
     } else {
       vfo[id].frequency=vfo[id].frequency-hz;
       if(round) {
-         vfo[id].frequency=(vfo[id].frequency/step)*step;
+         vfo[id].frequency=((vfo[id].frequency-(step/2))/step)*step;
       }
     }
     int sid=id==0?1:0;
@@ -608,26 +608,26 @@ g_print("vfo_move: id=%d hz=%lld\n",id,hz);
         if(vfo[sid].ctun) {
           vfo[sid].ctun_frequency=vfo[sid].ctun_frequency+hz;
           if(round) {
-             vfo[sid].ctun_frequency=(vfo[sid].ctun_frequency/step)*step;
+             vfo[sid].ctun_frequency=((vfo[sid].ctun_frequency+(step/2))/step)*step;
           }
         } else {
           vfo[sid].frequency=vfo[sid].frequency-hz;
           if(round) {
-             vfo[sid].frequency=(vfo[sid].frequency/step)*step;
+             vfo[sid].frequency=((vfo[sid].frequency-(step/2))/step)*step;
           }
         }
         break;
       case RSAT_MODE:
         // A increments and B decrements or A decrments and B increments
         if(vfo[sid].ctun) {
-          vfo[sid].ctun_frequency=((vfo[sid].ctun_frequency-hz)/step)*step;
+          vfo[sid].ctun_frequency=vfo[sid].ctun_frequency-hz;
           if(round) {
-             vfo[sid].ctun_frequency=(vfo[sid].ctun_frequency/step)*step;
+             vfo[sid].ctun_frequency=((vfo[sid].ctun_frequency-(step/2))/step)*step;
           }
         } else {
-          vfo[sid].frequency=((vfo[sid].frequency+hz)/step)*step;
+          vfo[sid].frequency=vfo[sid].frequency+hz;
           if(round) {
-             vfo[sid].ctun_frequency=(vfo[sid].ctun_frequency/step)*step;
+             vfo[sid].ctun_frequency=((vfo[sid].ctun_frequency+(step/2))/step)*step;
           }
         }
         break;
