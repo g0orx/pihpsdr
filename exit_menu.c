@@ -178,25 +178,38 @@ void exit_menu(GtkWidget *parent) {
   gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
   gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
 
+  int row=0;
+  int col=0;
+
   GtkWidget *close_b=gtk_button_new_with_label("Close");
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
-  gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
+  gtk_grid_attach(GTK_GRID(grid),close_b,col,row,1,1);
 
+  row++;
+  col=0;
+
+/*
   GtkWidget *discovery_b=gtk_button_new_with_label("Discovery");
   g_signal_connect (discovery_b, "pressed", G_CALLBACK(discovery_cb), NULL);
-  gtk_grid_attach(GTK_GRID(grid),discovery_b,0,1,1,1);
+  gtk_grid_attach(GTK_GRID(grid),discovery_b,col,row,1,1);
 
+  col++;
+*/
   GtkWidget *exit_b=gtk_button_new_with_label("Exit");
   g_signal_connect (exit_b, "pressed", G_CALLBACK(exit_cb), NULL);
-  gtk_grid_attach(GTK_GRID(grid),exit_b,1,1,1,1);
+  gtk_grid_attach(GTK_GRID(grid),exit_b,col,row,1,1);
+
+  col++;
 
   GtkWidget *reboot_b=gtk_button_new_with_label("Reboot");
   g_signal_connect (reboot_b, "pressed", G_CALLBACK(reboot_cb), NULL);
-  gtk_grid_attach(GTK_GRID(grid),reboot_b,2,1,1,1);
+  gtk_grid_attach(GTK_GRID(grid),reboot_b,col,row,1,1);
+
+  col++;
 
   GtkWidget *shutdown_b=gtk_button_new_with_label("Shutdown");
   g_signal_connect (shutdown_b, "pressed", G_CALLBACK(shutdown_cb), NULL);
-  gtk_grid_attach(GTK_GRID(grid),shutdown_b,3,1,1,1);
+  gtk_grid_attach(GTK_GRID(grid),shutdown_b,col,row,1,1);
 
   gtk_container_add(GTK_CONTAINER(content),grid);
 

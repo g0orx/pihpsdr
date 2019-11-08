@@ -590,12 +590,12 @@ g_print("vfo_move: id=%d hz=%lld\n",id,hz);
   if(!locked) {
     if(vfo[id].ctun) {
       vfo[id].ctun_frequency=vfo[id].ctun_frequency+hz;
-      if(round) {
+      if(round && (vfo[id].mode!=modeCWL && vfo[id].mode!=modeCWU)) {
          vfo[id].ctun_frequency=((vfo[id].ctun_frequency+(step/2))/step)*step;
       }
     } else {
       vfo[id].frequency=vfo[id].frequency-hz;
-      if(round) {
+      if(round && (vfo[id].mode!=modeCWL && vfo[id].mode!=modeCWU)) {
          vfo[id].frequency=((vfo[id].frequency-(step/2))/step)*step;
       }
     }
@@ -607,12 +607,12 @@ g_print("vfo_move: id=%d hz=%lld\n",id,hz);
         // A and B increment and decrement together
         if(vfo[sid].ctun) {
           vfo[sid].ctun_frequency=vfo[sid].ctun_frequency+hz;
-          if(round) {
+          if(round && (vfo[id].mode!=modeCWL && vfo[id].mode!=modeCWU)) {
              vfo[sid].ctun_frequency=((vfo[sid].ctun_frequency+(step/2))/step)*step;
           }
         } else {
           vfo[sid].frequency=vfo[sid].frequency-hz;
-          if(round) {
+          if(round && (vfo[id].mode!=modeCWL && vfo[id].mode!=modeCWU)) {
              vfo[sid].frequency=((vfo[sid].frequency-(step/2))/step)*step;
           }
         }
@@ -621,12 +621,12 @@ g_print("vfo_move: id=%d hz=%lld\n",id,hz);
         // A increments and B decrements or A decrments and B increments
         if(vfo[sid].ctun) {
           vfo[sid].ctun_frequency=vfo[sid].ctun_frequency-hz;
-          if(round) {
+          if(round && (vfo[id].mode!=modeCWL && vfo[id].mode!=modeCWU)) {
              vfo[sid].ctun_frequency=((vfo[sid].ctun_frequency-(step/2))/step)*step;
           }
         } else {
           vfo[sid].frequency=vfo[sid].frequency+hz;
-          if(round) {
+          if(round && (vfo[id].mode!=modeCWL && vfo[id].mode!=modeCWU)) {
              vfo[sid].ctun_frequency=((vfo[sid].ctun_frequency+(step/2))/step)*step;
           }
         }
@@ -640,13 +640,16 @@ g_print("vfo_move: id=%d hz=%lld\n",id,hz);
 void vfo_move_to(long long hz) {
   // hz is the offset from the min frequency
   int id=active_receiver->id;
-  long long offset=(hz/step)*step;
+  long long offset=hz;
   long long half=(long long)(active_receiver->sample_rate/2);
   long long f=vfo[id].frequency-half+offset;
   long long diff; 
 
 g_print("vfo_move_to: id=%d hz=%lld f=%lld\n",id,hz,f);
 
+  if(vfo[id].mode!=modeCWL && vfo[id].mode!=modeCWU) {
+    offset=(hz/step)*step;
+  }
   if(!locked) {
     if(vfo[id].ctun) {
       diff=f-vfo[id].ctun_frequency;

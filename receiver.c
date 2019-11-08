@@ -153,9 +153,11 @@ gboolean receiver_motion_notify_event(GtkWidget *widget, GdkEventMotion *event, 
 
 gboolean receiver_scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data) {
   if(event->direction==GDK_SCROLL_UP) {
-    vfo_move(step,TRUE);
+    //vfo_move(step,TRUE);
+    vfo_step(1);
   } else {
-    vfo_move(-step,TRUE);
+    //vfo_move(-step,TRUE);
+    vfo_step(-1);
   }
   return TRUE;
 }
