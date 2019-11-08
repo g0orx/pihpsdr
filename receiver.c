@@ -116,7 +116,7 @@ gboolean receiver_button_release_event(GtkWidget *widget, GdkEventButton *event,
           vfo_move((long long)((float)(x-last_x)*rx->hz_per_pixel));
         } else {
           // move to this frequency
-          vfo_move_to((long long)((float)(x-(display_width/2))*rx->hz_per_pixel));
+          vfo_move_to((long long)((float)x*rx->hz_per_pixel));
         }
         last_x=x;
         pressed=FALSE;
@@ -140,7 +140,8 @@ gboolean receiver_motion_notify_event(GtkWidget *widget, GdkEventMotion *event, 
                                 &state);
     // G0ORX: removed test as with it unable to drag screen
     //if(state & GDK_BUTTON1_MASK) {
-      int moved=last_x-x;
+      //int moved=last_x-x;
+      int moved=x-last_x;
       vfo_move((long long)((float)moved*rx->hz_per_pixel));
       last_x=x;
       has_moved=TRUE;
@@ -152,17 +153,9 @@ gboolean receiver_motion_notify_event(GtkWidget *widget, GdkEventMotion *event, 
 
 gboolean receiver_scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data) {
   if(event->direction==GDK_SCROLL_UP) {
-    if(vfo[active_receiver->id].ctun) {
-      vfo_move(-step);
-    } else {
-      vfo_move(step);
-    }
+    vfo_move(step);
   } else {
-    if(vfo[active_receiver->id].ctun) {
-      vfo_move(step);
-    } else {
-      vfo_move(-step);
-    }
+    vfo_move(-step);
   }
   return TRUE;
 }
@@ -226,6 +219,9 @@ void receiver_save_state(RECEIVER *rx) {
   sprintf(name,"receiver.%d.volume",rx->id);
   sprintf(value,"%f",rx->volume);
   setProperty(name,value);
+  sprintf(name,"receiver.%d.rf_gain",rx->id);
+  sprintf(value,"%f",rx->rf_gain);
+  setProperty(name,value);
   sprintf(name,"receiver.%d.agc",rx->id);
   sprintf(value,"%d",rx->agc);
   setProperty(name,value);
@@ -285,6 +281,11 @@ void receiver_save_state(RECEIVER *rx) {
   sprintf(name,"receiver.%d.local_audio",rx->id);
   sprintf(value,"%d",rx->local_audio);
   setProperty(name,value);
+  if(rx->audio_name!=NULL) {
+    sprintf(name,"receiver.%d.audio_name",rx->id);
+    sprintf(value,"%s",rx->audio_name);
+    setProperty(name,value);
+  }
   sprintf(name,"receiver.%d.mute_when_not_active",rx->id);
   sprintf(value,"%d",rx->mute_when_not_active);
   setProperty(name,value);
@@ -398,6 +399,9 @@ fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
   sprintf(name,"receiver.%d.volume",rx->id);
   value=getProperty(name);
   if(value) rx->volume=atof(value);
+  sprintf(name,"receiver.%d.rf_gain",rx->id);
+  value=getProperty(name);
+  if(value) rx->rf_gain=atof(value);
   sprintf(name,"receiver.%d.agc",rx->id);
   value=getProperty(name);
   if(value) rx->agc=atoi(value);
@@ -457,6 +461,12 @@ fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
   sprintf(name,"receiver.%d.local_audio",rx->id);
   value=getProperty(name);
   if(value) rx->local_audio=atoi(value);
+  sprintf(name,"receiver.%d.audio_name",rx->id);
+  value=getProperty(name);
+  if(value) {
+    rx->audio_name=g_new(gchar,strlen(value)+1);
+    strcpy(rx->audio_name,value);
+  }
   sprintf(name,"receiver.%d.mute_when_not_active",rx->id);
   value=getProperty(name);
   if(value) rx->mute_when_not_active=atoi(value);
@@ -594,6 +604,10 @@ void set_displaying(RECEIVER *rx,int state) {
   rx->displaying=state;
   if(state) {
     rx->update_timer_id=gdk_threads_add_timeout_full(G_PRIORITY_HIGH_IDLE,1000/rx->fps, update_display, rx, NULL);
+  } else {
+    if(rx->update_timer_id!=-1) {
+      rx->update_timer_id=-1;
+    }
   }
 }
 
@@ -814,7 +828,8 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
   rx->panadapter_low=-140;
   rx->panadapter_step=20;
 
-  rx->volume=0.0;
+  rx->volume=5.0;
+  rx->rf_gain=50.0;
 
   rx->squelch_enable=0;
   rx->squelch=0;
@@ -846,6 +861,7 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
   rx->playback_handle=NULL;
   rx->playback_buffer=NULL;
   rx->local_audio=0;
+  rx->audio_name=NULL;
   rx->mute_when_not_active=0;
   rx->audio_channel=STEREO;
   rx->audio_device=-1;
@@ -930,6 +946,7 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
   rx->fft_size=fft_size;
   rx->pixels=pixels;
   rx->fps=fps;
+  rx->update_timer_id=-1;
 
 
 //  rx->dds_offset=0;
@@ -986,6 +1003,7 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
   
   rx->playback_handle=NULL;
   rx->local_audio=0;
+  rx->audio_name=NULL;
   rx->mute_when_not_active=0;
   rx->audio_channel=STEREO;
   rx->audio_device=-1;
@@ -1312,7 +1330,7 @@ static void process_rx_buffer(RECEIVER *rx) {
   short right_audio_sample;
   int i;
   for(i=0;i<rx->output_samples;i++) {
-    if(isTransmitting()) {
+    if(isTransmitting() && !duplex) {
       left_audio_sample=0;
       right_audio_sample=0;
     } else {

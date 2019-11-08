@@ -49,12 +49,6 @@ typedef struct _transmitter {
   int filter_low;
   int filter_high;
 
-/*
-  long long frequency;
-  long long display_frequency;
-  long long dds_frequency;
-  long long dds_offset;
-*/
   int alex_antenna;
 
   int width;
@@ -69,7 +63,7 @@ typedef struct _transmitter {
   cairo_surface_t *panadapter_surface;
 
   int local_microphone;
-  int input_device;
+  gchar *microphone_name;
 
   int out_of_band;
   gint out_of_band_timer_id;
@@ -111,6 +105,9 @@ typedef struct _transmitter {
   double rev;
   double alc;
 
+  gint xit_enabled;
+  long long xit;
+  
   int x;
   int y;
 

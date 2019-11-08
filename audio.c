@@ -66,7 +66,7 @@ static snd_pcm_t *record_handle=NULL;
 //static unsigned char *audio_buffer=NULL;
 //static int audio_offset=0;
 
-static unsigned char *mic_buffer=NULL;
+static float *mic_buffer=NULL;
 
 static GThread *mic_read_thread_id;
 
@@ -74,13 +74,11 @@ static int running=FALSE;
 
 static void *mic_read_thread(void *arg);
 
-char *input_devices[32];
-int n_input_devices=0;
-//int n_selected_input_device=-1;
 
-char *output_devices[32];
-int n_output_devices=0;
-//int n_selected_output_device=-1;
+int n_input_devices;
+AUDIO_DEVICE input_devices[MAX_AUDIO_DEVICES];
+int n_output_devices;
+AUDIO_DEVICE output_devices[MAX_AUDIO_DEVICES];
 
 int audio_open_output(RECEIVER *rx) {
   int err;
@@ -88,22 +86,21 @@ int audio_open_output(RECEIVER *rx) {
   int rate=48000;
   int dir=0;
 
-
-fprintf(stderr,"audio_open_output: rx=%d audio_device=%d\n",rx->id,rx->audio_device);
-  if(rx->audio_device<0 || rx->audio_device>=n_output_devices) {
-    rx->audio_device=-1;
+  if(rx->audio_name==NULL) {
+    rx->local_audio=0;
     return -1;
   }
 
+fprintf(stderr,"audio_open_output: rx=%d %s\n",rx->id,rx->audio_name);
+
   int i;
-  char hw[64];
-  char *selected=output_devices[rx->audio_device];
+  char hw[128];
  
-fprintf(stderr,"audio_open_output: selected=%d:%s\n",rx->audio_device,selected);
+fprintf(stderr,"audio_open_output: selected=%s\n",rx->audio_name);
 
   i=0;
-  while(selected[i]!=' ') {
-    hw[i]=selected[i];
+  while(rx->audio_name[i]!=' ') {
+    hw[i]=rx->audio_name[i];
     i++;
   }
   hw[i]='\0';
@@ -182,16 +179,14 @@ int audio_open_input() {
   int rate=48000;
   int dir=0;
 
-fprintf(stderr,"audio_open_input: %d\n",transmitter->input_device);
-  if(transmitter->input_device<0 || transmitter->input_device>=n_input_devices) {
-    transmitter->input_device=0;
+  if(transmitter->microphone_name==NULL) {
+    transmitter->local_microphone=0;
     return -1;
   }
+fprintf(stderr,"audio_open_input: %s\n",transmitter->microphone_name);
 
   int i;
   char hw[64];
-  char *selected=input_devices[transmitter->input_device];
-  fprintf(stderr,"audio_open_input: selected=%d:%s\n",transmitter->input_device,selected);
   
   switch(protocol) {
     case ORIGINAL_PROTOCOL:
@@ -211,11 +206,12 @@ fprintf(stderr,"audio_open_input: %d\n",transmitter->input_device);
   
   fprintf(stderr,"audio_open_input: mic_buffer_size=%d\n",mic_buffer_size);
   i=0;
-  while(selected[i]!=' ') {
-    hw[i]=selected[i];
+  while(transmitter->microphone_name[i]!=' ') {
+    hw[i]=transmitter->microphone_name[i];
     i++;
   }
   hw[i]='\0';
+
 
   fprintf(stderr,"audio_open_input: hw=%s\n",hw);
 
@@ -247,7 +243,7 @@ fprintf(stderr,"audio_open_input: %d\n",transmitter->input_device);
     return -1;
 }
 
-  if ((err = snd_pcm_hw_params_set_format (record_handle, hw_params, SND_PCM_FORMAT_S16_LE)) < 0) {
+  if ((err = snd_pcm_hw_params_set_format (record_handle, hw_params, SND_PCM_FORMAT_FLOAT_LE)) < 0) {
     fprintf (stderr, "audio_open_input: cannot set sample format (%s)\n",
             snd_strerror (err));
     audio_close_input();
@@ -277,7 +273,8 @@ fprintf(stderr,"audio_open_input: %d\n",transmitter->input_device);
 
   snd_pcm_hw_params_free (hw_params);
 
-  mic_buffer=(unsigned char *)malloc(MIC_BUFFER_SIZE);
+  mic_buffer=g_new0(float,mic_buffer_size);
+
 
   running=TRUE;
   mic_read_thread_id = g_thread_new( "local mic", mic_read_thread, NULL);
@@ -456,14 +453,14 @@ fprintf(stderr,"mic_read_thread: mic_buffer_size=%d\n",mic_buffer_size);
       // process the mic input
       switch(protocol) {
         case ORIGINAL_PROTOCOL:
-          old_protocol_process_local_mic(mic_buffer,1);
+          old_protocol_process_local_mic(mic_buffer);
           break;
         case NEW_PROTOCOL:
-          new_protocol_process_local_mic(mic_buffer,1);
+          new_protocol_process_local_mic(mic_buffer);
           break;
 #ifdef SOAPYSDR
         case SOAPYSDR_PROTOCOL:
-          soapy_protocol_process_local_mic(mic_buffer,1);
+          soapy_protocol_process_local_mic(mic_buffer);
           break;
 #endif
         default:
@@ -486,16 +483,11 @@ void audio_get_cards() {
 
 fprintf(stderr,"audio_get_cards\n");
 
-  for(i=0;i<n_input_devices;i++) {
-    free(input_devices[i]);
-  }
   n_input_devices=0;
-
-  for(i=0;i<n_output_devices;i++) {
-    free(output_devices[i]);
-  }
   n_output_devices=0;
 
+  snd_ctl_card_info_alloca(&info);
+  snd_pcm_info_alloca(&pcminfo);
   while (snd_card_next(&card) >= 0 && card >= 0) {
     int err = 0;
     snd_ctl_t *handle;
@@ -519,24 +511,36 @@ fprintf(stderr,"audio_get_cards\n");
       // input devices
       snd_pcm_info_set_stream(pcminfo, SND_PCM_STREAM_CAPTURE);
       if ((err = snd_ctl_pcm_info(handle, pcminfo)) == 0) {
-        device_id=malloc(64);
-        snprintf(device_id, 64, "plughw:%d,%d %s", card, dev, snd_ctl_card_info_get_name(info));
-        input_devices[n_input_devices++]=device_id;
+        device_id=malloc(128);
+        snprintf(device_id, 128, "plughw:%d,%d %s", card, dev, snd_ctl_card_info_get_name(info));
+        if(n_input_devices<MAX_AUDIO_DEVICES) {
+          input_devices[n_input_devices].name=g_new0(char,strlen(device_id)+1);
+          strcpy(input_devices[n_input_devices].name,device_id);
+          input_devices[n_input_devices].description=g_new0(char,strlen(device_id)+1);
+          strcpy(input_devices[n_input_devices].description,device_id);
+          input_devices[n_input_devices].index=i;
+          n_input_devices++;
+        }
 fprintf(stderr,"input_device: %s\n",device_id);
       }
 
       // ouput devices
       snd_pcm_info_set_stream(pcminfo, SND_PCM_STREAM_PLAYBACK);
       if ((err = snd_ctl_pcm_info(handle, pcminfo)) == 0) {
-        device_id=malloc(64);
-        snprintf(device_id, 64, "plughw:%d,%d %s", card, dev, snd_ctl_card_info_get_name(info));
-        output_devices[n_output_devices++]=device_id;
+        device_id=malloc(128);
+        snprintf(device_id, 128, "plughw:%d,%d %s", card, dev, snd_ctl_card_info_get_name(info));
+        if(n_output_devices<MAX_AUDIO_DEVICES) {
+          output_devices[n_output_devices].name=g_new0(char,strlen(device_id)+1);
+          strcpy(output_devices[n_output_devices].name,device_id);
+          output_devices[n_output_devices].description=g_new0(char,strlen(device_id)+1);
+          strcpy(output_devices[n_output_devices].description,device_id);
+          input_devices[n_output_devices].index=i;
+          n_output_devices++;
+        }
 fprintf(stderr,"output_device: %s\n",device_id);
       }
     }
-
     snd_ctl_close(handle);
-   
   }
 
   // look for dmix
@@ -550,13 +554,20 @@ fprintf(stderr,"output_device: %s\n",device_id);
     name = snd_device_name_get_hint(*n, "NAME");
     descr = snd_device_name_get_hint(*n, "DESC");
     io = snd_device_name_get_hint(*n, "IOID");
-    
+
     if(strncmp("dmix:", name, 5)==0/* || strncmp("pulse", name, 5)==0*/) {
       fprintf(stderr,"name=%s descr=%s io=%s\n",name, descr, io);
-      device_id=malloc(64);
-      
-      snprintf(device_id, 64, "%s", name);
-      output_devices[n_output_devices++]=device_id;
+      device_id=malloc(128);
+
+      snprintf(device_id, 128, "%s", name);
+      if(n_output_devices<MAX_AUDIO_DEVICES) {
+        output_devices[n_output_devices].name=g_new0(char,strlen(device_id)+1);
+        strcpy(output_devices[n_output_devices].name,device_id);
+        output_devices[n_output_devices].description=g_new0(char,strlen(device_id)+1);
+        strcpy(output_devices[n_output_devices].description,device_id);
+        input_devices[n_output_devices].index=i;
+        n_output_devices++;
+      }
 fprintf(stderr,"output_device: %s\n",device_id);
     }
 

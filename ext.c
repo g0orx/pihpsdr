@@ -467,10 +467,21 @@ int ext_rit_clear(void *data) {
 }
 
 int ext_xit_update(void *data) {
+  if(can_transmit) {
+    transmitter->xit_enabled=transmitter->xit_enabled==1?0:1;
+    if(protocol==NEW_PROTOCOL) {
+      schedule_high_priority();
+    }
+  }
+  vfo_update();
   return 0;
 }
 
 int ext_xit_clear(void *data) {
+  if(can_transmit) {
+    transmitter->xit=0;
+    vfo_update();
+  }
   return 0;
 }
 
@@ -556,6 +567,17 @@ int ext_diversity_update(void *data) {
     }
     vfo_update();
   }
+  return 0;
+}
+
+int ext_sat_update(void *data) {
+  int mode=GPOINTER_TO_INT(data);
+  if(sat_mode==mode) {
+    sat_mode=SAT_NONE;
+  } else {
+    sat_mode=mode;
+  }
+  vfo_update();
   return 0;
 }
 

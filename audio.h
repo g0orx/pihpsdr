@@ -22,13 +22,18 @@
 
 #include "receiver.h"
 
-extern char *input_devices[];
-extern int n_input_devices;
-//extern int n_selected_input_device;
+#define MAX_AUDIO_DEVICES 64
 
-extern char *output_devices[];
+typedef struct _audio_devices {
+  char *name;
+  int index;
+  char *description;
+} AUDIO_DEVICE;
+
+extern int n_input_devices;
+extern AUDIO_DEVICE input_devices[MAX_AUDIO_DEVICES];
 extern int n_output_devices;
-//extern int n_selected_output_device;
+extern AUDIO_DEVICE output_devices[MAX_AUDIO_DEVICES];
 
 extern int audio_open_input();
 extern void audio_close_input();

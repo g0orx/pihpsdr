@@ -169,10 +169,11 @@ void transmitter_save_state(TRANSMITTER *tx) {
   sprintf(name,"transmitter.%d.local_microphone",tx->id);
   sprintf(value,"%d",tx->local_microphone);
   setProperty(name,value);
-  sprintf(name,"transmitter.%d.input_device",tx->id);
-  sprintf(value,"%d",tx->input_device);
-  setProperty(name,value);
-
+  if(tx->microphone_name!=NULL) {
+    sprintf(name,"transmitter.%d.microphone_name",tx->id);
+    sprintf(value,"%s",tx->microphone_name);
+    setProperty(name,value);
+  }
   sprintf(name,"transmitter.%d.low_latency",tx->id);
   sprintf(value,"%d",tx->low_latency);
   setProperty(name,value);
@@ -230,6 +231,12 @@ void transmitter_save_state(TRANSMITTER *tx) {
   sprintf(name,"transmitter.%d.compressor_level",tx->id);
   sprintf(value,"%f",tx->compressor_level);
   setProperty(name,value);
+  sprintf(name,"transmitter.%d.xit_enabled",tx->id);
+  sprintf(value,"%d",tx->xit_enabled);
+  setProperty(name,value);
+  sprintf(name,"transmitter.%d.xit",tx->id);
+  sprintf(value,"%lld",tx->xit);
+  setProperty(name,value);
 }
 
 void transmitter_restore_state(TRANSMITTER *tx) {
@@ -259,9 +266,12 @@ void transmitter_restore_state(TRANSMITTER *tx) {
   sprintf(name,"transmitter.%d.local_microphone",tx->id);
   value=getProperty(name);
   if(value) tx->local_microphone=atoi(value);
-  sprintf(name,"transmitter.%d.input_device",tx->id);
+  sprintf(name,"transmitter.%d.microphone_name",tx->id);
   value=getProperty(name);
-  if(value) tx->input_device=atoi(value);
+  if(value) {
+    tx->microphone_name=g_new(gchar,strlen(value)+1);
+    strcpy(tx->microphone_name,value);
+  }
   sprintf(name,"transmitter.%d.low_latency",tx->id);
   value=getProperty(name);
   if(value) tx->low_latency=atoi(value);
@@ -317,6 +327,12 @@ void transmitter_restore_state(TRANSMITTER *tx) {
   sprintf(name,"transmitter.%d.compressor_level",tx->id);
   value=getProperty(name);
   if(value) tx->compressor_level=atof(value);
+  sprintf(name,"transmitter.%d.xit_enabled",tx->id);
+  value=getProperty(name);
+  if(value) tx->xit_enabled=atoi(value);
+  sprintf(name,"transmitter.%d.xit",tx->id);
+  value=getProperty(name);
+  if(value) tx->xit=atoll(value);
 }
 
 static gboolean update_display(gpointer data) {
@@ -574,9 +590,15 @@ TRANSMITTER *create_transmitter(int id, int buffer_size, int fft_size, int fps, 
       tx->mic_sample_rate=48000;
       tx->mic_dsp_rate=96000;
       tx->iq_output_rate=radio_sample_rate;
-      tx->buffer_size=1024;
-      tx->output_samples=1024*(tx->iq_output_rate/tx->mic_sample_rate);
-      tx->pixels=width*8; // to allow 384k to 24k conversion
+      tx->output_samples=tx->buffer_size*(tx->iq_output_rate/tx->mic_sample_rate);
+      tx->pixels=width*(tx->iq_output_rate/tx->mic_sample_rate);
+/*
+      tx->mic_sample_rate=48000;
+      tx->mic_dsp_rate=48000;
+      tx->iq_output_rate=48000;
+      tx->output_samples=tx->buffer_size;
+      tx->pixels=width; // to allow 48k to 24k conversion
+*/
       break;
 #endif
 
@@ -594,7 +616,7 @@ TRANSMITTER *create_transmitter(int id, int buffer_size, int fft_size, int fps, 
   
   tx->alex_antenna=ALEX_TX_ANTENNA_1;
 
-fprintf(stderr,"create_transmitter: id=%d buffer_size=%d mic_sample_rate=%d mic_dsp_rate=%d iq_output_rate=%d output_samples=%d fps=%d\n",tx->id, tx->buffer_size, tx->mic_sample_rate, tx->mic_dsp_rate, tx->iq_output_rate, tx->output_samples,tx->fps);
+fprintf(stderr,"create_transmitter: id=%d buffer_size=%d mic_sample_rate=%d mic_dsp_rate=%d iq_output_rate=%d output_samples=%d fps=%d width=%d height=%d\n",tx->id, tx->buffer_size, tx->mic_sample_rate, tx->mic_dsp_rate, tx->iq_output_rate, tx->output_samples,tx->fps,tx->width,tx->height);
 
   tx->filter_low=tx_filter_low;
   tx->filter_high=tx_filter_high;
@@ -629,6 +651,10 @@ fprintf(stderr,"create_transmitter: id=%d buffer_size=%d mic_sample_rate=%d mic_
   tx->compressor_level=0.0;
 
   tx->local_microphone=0;
+  tx->microphone_name=NULL;
+
+  tx->xit_enabled=FALSE;
+  tx->xit=0LL;
 
   transmitter_restore_state(tx);
 
@@ -716,8 +742,7 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%p iq_output_buf
   SetTXAPostGenToneFreq(tx->id, 0.0);
   SetTXAPostGenRun(tx->id, 0);
 
-  double gain=pow(10.0, mic_gain / 20.0);
-  SetTXAPanelGain1(tx->id,gain);
+  SetTXAPanelGain1(tx->id,pow(10.0, mic_gain/20.0));
   SetTXAPanelRun(tx->id, 1);
 
   SetTXAFMDeviation(tx->id, (double)tx->deviation);
@@ -755,7 +780,9 @@ void tx_set_filter(TRANSMITTER *tx,int low,int high) {
   } else {
     mode=vfo[0].mode;
   }
-//fprintf(stderr,"tx_set_filter: tx=%p mode=%d low=%d high=%d\n",tx,mode,low,high);
+
+fprintf(stderr,"tx_set_filter: tx=%p mode=%s low=%d high=%d\n",tx,mode_string[mode],low,high);
+
   switch(mode) {
     case modeLSB:
     case modeCWL:
@@ -793,6 +820,7 @@ void tx_set_filter(TRANSMITTER *tx,int low,int high) {
   double fl=tx->filter_low;
   double fh=tx->filter_high;
 
+/*
   if(split) {
     fl+=vfo[VFO_B].offset;
     fh+=vfo[VFO_B].offset;
@@ -800,6 +828,7 @@ void tx_set_filter(TRANSMITTER *tx,int low,int high) {
     fl+=vfo[VFO_A].offset;
     fh+=vfo[VFO_A].offset;
   }
+*/
   SetTXABandpassFreqs(tx->id, fl,fh);
 }
 
@@ -958,8 +987,14 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 	// Original code without pulse shaping and without side tone
 	//
 	for(j=0;j<tx->output_samples;j++) {
-	    double is=tx->iq_output_buffer[j*2];
-	    double qs=tx->iq_output_buffer[(j*2)+1];
+            double is,qs;
+            if(iqswap) {
+	      qs=tx->iq_output_buffer[j*2];
+	      qs=tx->iq_output_buffer[(j*2)+1];
+            } else {
+	      is=tx->iq_output_buffer[j*2];
+	      qs=tx->iq_output_buffer[(j*2)+1];
+            }
 	    isample=is>=0.0?(long)floor(is*gain+0.5):(long)ceil(is*gain-0.5);
 	    qsample=qs>=0.0?(long)floor(qs*gain+0.5):(long)ceil(qs*gain-0.5);
 	    switch(protocol) {
@@ -971,7 +1006,7 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 		    break;
 #ifdef SOAPYSDR
                 case SOAPYSDR_PROTOCOL:
-                    soapy_protocol_iq_samples((float)tx->iq_output_buffer[j*2],(float)tx->iq_output_buffer[(j*2)+1]);
+                    soapy_protocol_iq_samples((float)isample,(float)qsample);
                     break;
 #endif
 	    }

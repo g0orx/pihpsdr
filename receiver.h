@@ -43,6 +43,8 @@ typedef struct _receiver {
   gint adc;
 
   gdouble volume;
+  gdouble rf_gain;
+
   gint agc;
   gdouble agc_gain;
   gdouble agc_slope;
@@ -110,6 +112,7 @@ typedef struct _receiver {
   gint local_audio;
   gint mute_when_not_active;
   gint audio_device;
+  gchar *audio_name;
 #ifdef PORTAUDIO
   PaStream *playback_handle;
   gfloat *playback_buffer;

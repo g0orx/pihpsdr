@@ -37,6 +37,7 @@ struct _vfo {
 
   int ctun;
   long long ctun_frequency;
+
   int rit_enabled;
   long long rit;
 

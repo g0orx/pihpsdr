@@ -22,8 +22,10 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "main.h"
 #include "new_menu.h"
 #include "exit_menu.h"
+#include "discovery.h"
 #include "radio.h"
 #include "new_protocol.h"
 #include "old_protocol.h"
@@ -46,6 +48,33 @@ static void cleanup() {
     dialog=NULL;
     sub_menu=NULL;
   }
+}
+
+static gboolean discovery_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  cleanup();
+#ifdef GPIO
+  gpio_close();
+#endif
+  switch(protocol) {
+    case ORIGINAL_PROTOCOL:
+      old_protocol_stop();
+      break;
+    case NEW_PROTOCOL:
+      new_protocol_stop();
+      break;
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
+      soapy_protocol_stop();
+      break;
+#endif
+  }
+  radioSaveState();
+  radio_stop();
+  gtk_container_remove(GTK_CONTAINER(top_window), fixed);
+  gtk_widget_destroy(fixed);
+  gtk_container_add(GTK_CONTAINER(top_window), grid);
+  discovery();
+  return TRUE;
 }
 
 static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
@@ -76,6 +105,7 @@ static gboolean exit_cb (GtkWidget *widget, GdkEventButton *event, gpointer data
 #endif
   }
   radioSaveState();
+
   _exit(0);
 }
 
@@ -152,17 +182,21 @@ void exit_menu(GtkWidget *parent) {
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
+  GtkWidget *discovery_b=gtk_button_new_with_label("Discovery");
+  g_signal_connect (discovery_b, "pressed", G_CALLBACK(discovery_cb), NULL);
+  gtk_grid_attach(GTK_GRID(grid),discovery_b,0,1,1,1);
+
   GtkWidget *exit_b=gtk_button_new_with_label("Exit");
   g_signal_connect (exit_b, "pressed", G_CALLBACK(exit_cb), NULL);
-  gtk_grid_attach(GTK_GRID(grid),exit_b,0,1,1,1);
+  gtk_grid_attach(GTK_GRID(grid),exit_b,1,1,1,1);
 
   GtkWidget *reboot_b=gtk_button_new_with_label("Reboot");
   g_signal_connect (reboot_b, "pressed", G_CALLBACK(reboot_cb), NULL);
-  gtk_grid_attach(GTK_GRID(grid),reboot_b,1,1,1,1);
+  gtk_grid_attach(GTK_GRID(grid),reboot_b,2,1,1,1);
 
   GtkWidget *shutdown_b=gtk_button_new_with_label("Shutdown");
   g_signal_connect (shutdown_b, "pressed", G_CALLBACK(shutdown_cb), NULL);
-  gtk_grid_attach(GTK_GRID(grid),shutdown_b,2,1,1,1);
+  gtk_grid_attach(GTK_GRID(grid),shutdown_b,3,1,1,1);
 
   gtk_container_add(GTK_CONTAINER(content),grid);
 

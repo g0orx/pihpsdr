@@ -62,6 +62,7 @@ tx_panadapter_configure_event_cb (GtkWidget         *widget,
   int display_width=gtk_widget_get_allocated_width (tx->panadapter);
   int display_height=gtk_widget_get_allocated_height (tx->panadapter);
 
+g_print("tx_panadapter_configure_event_cb: width=%d height=%d\n",display_width,display_height);
   if (tx->panadapter_surface)
     cairo_surface_destroy (tx->panadapter_surface);
 
@@ -251,7 +252,12 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   //long long half=12000LL; //(long long)(tx->output_rate/2);
   long long half=24000LL; //(long long)(tx->output_rate/2);
   long long frequency;
-  frequency=vfo[id].frequency+vfo[id].offset;
+  //frequency=vfo[id].frequency+vfo[id].offset;
+  if(vfo[id].ctun) {
+    frequency=vfo[id].ctun_frequency-vfo[id].lo_tx;
+  } else {
+    frequency=vfo[id].frequency-vfo[id].lo_tx;
+  }
   double vfofreq=(double)display_width * 0.5;
   if (!cw_is_on_vfo_freq) {
     if(vfo[id].mode==modeCWU) {
@@ -315,8 +321,10 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   cairo_set_source_rgb (cr, 1.0, 0.0, 0.0);
   cairo_set_line_width(cr, 1.0);
 //fprintf(stderr,"cursor: x=%f\n",(double)(display_width/2.0)+(vfo[tx->id].offset/hz_per_pixel));
-  cairo_move_to(cr,vfofreq+(vfo[id].offset/hz_per_pixel),0.0);
-  cairo_line_to(cr,vfofreq+(vfo[id].offset/hz_per_pixel),(double)display_height);
+  //cairo_move_to(cr,vfofreq+(vfo[id].offset/hz_per_pixel),0.0);
+  //cairo_line_to(cr,vfofreq+(vfo[id].offset/hz_per_pixel),(double)display_height);
+  cairo_move_to(cr,vfofreq,0.0);
+  cairo_line_to(cr,vfofreq,(double)display_height);
   cairo_stroke(cr);
 
   // signal
@@ -328,13 +336,16 @@ void tx_panadapter_update(TRANSMITTER *tx) {
 
   switch(protocol) {
     case ORIGINAL_PROTOCOL:
-      //offset=(tx->pixels/4)*1;
       offset=0;
       break;
     case NEW_PROTOCOL:
-      //offset=(tx->pixels/16)*7;
       offset=(tx->pixels/8)*3;
       break;
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
+      offset=(tx->pixels/16)*7;
+      break;
+#endif
   }
 
   s1=(double)samples[0+offset];

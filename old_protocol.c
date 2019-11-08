@@ -735,6 +735,9 @@ static long long channel_freq(int chan) {
       }
     }
     freq=vfo[vfonum].frequency-vfo[vfonum].lo+vfo[vfonum].offset;
+    if(transmitter->xit_enabled) {
+      freq+=transmitter->xit;
+    }
     if (!cw_is_on_vfo_freq) {
       if(vfo[vfonum].mode==modeCWU) {
         freq+=(long long)cw_keyer_sidetone_frequency;
@@ -1044,23 +1047,15 @@ void old_protocol_iq_samples(int isample,int qsample) {
 }
 
 
-void old_protocol_process_local_mic(unsigned char *buffer,int le) {
-  int b;
+void old_protocol_process_local_mic(float *buffer) {
   int i;
   short sample;
 
 // always 48000 samples per second
-  b=0;
   for(i=0;i<720;i++) {
     // avoid pointer increments in logical-or constructs, as the sequence
     // is undefined
-    if(le) {
-      sample = (short) (buffer[b++]&0xFF);
-      sample |= (short) (buffer[b++]<<8);
-    } else {
-      sample = (short)(buffer[b++]<<8);
-      sample |=  (short) (buffer[b++]&0xFF);
-    }
+    sample = (short) (buffer[i]*32767.0);
 #ifdef FREEDV
     if(active_receiver->freedv) {
       add_freedv_mic_sample(transmitter,sample);

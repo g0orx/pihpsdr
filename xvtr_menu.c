@@ -96,10 +96,10 @@ void update_receiver(int band,gboolean error) {
   int i;
   RECEIVER *rx=active_receiver;
   gboolean saved_ctun;
-g_print("update_receiver: band=%d error=%d\n",band,error);
+//g_print("update_receiver: band=%d error=%d\n",band,error);
   if(vfo[0].band==band) {
     BAND *xvtr=band_get_band(band);
-g_print("update_receiver: found band: %s\n",xvtr->title);
+//g_print("update_receiver: found band: %s\n",xvtr->title);
     vfo[0].lo=xvtr->frequencyLO+xvtr->errorLO;
     vfo[0].lo_tx=xvtr->txFrequencyLO+xvtr->txErrorLO;
     saved_ctun=vfo[0].ctun;
