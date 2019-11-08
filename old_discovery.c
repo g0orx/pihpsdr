@@ -257,7 +257,10 @@ int stemlab_get_info(int id) {
   devices=id;
 
   discovery_socket = socket(AF_INET, SOCK_DGRAM, 0);
-  if (discovery_socket < 0) return(1);
+  if (discovery_socket < 0) {
+    perror("stemlab_get_info socket():");
+    return(1);
+  }
 
   optval = 1;
   setsockopt(discovery_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
@@ -266,12 +269,15 @@ int stemlab_get_info(int id) {
   memset(&discovery_addr, 0, sizeof(discovery_addr));
   discovery_addr.sin_family=AF_INET;
   discovery_addr.sin_addr.s_addr=htonl(INADDR_ANY);
-  discovery_addr.sin_port=htons(DISCOVERY_PORT);
+  // use system-assigned port in case 1024 is in use
+  // e.g. by an HPSDR simulator
+  discovery_addr.sin_port=htons(0);
   ret=bind(discovery_socket, (struct sockaddr *)&discovery_addr, sizeof(discovery_addr));
   if (ret < 0) {
     perror("stemlab_get_info bind():");
     return 1;
   }
+  setsockopt(discovery_socket, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval));
 
   // start a receive thread to collect discovery response packets
   discover_thread_id = g_thread_new( "old discover receive", discover_receive_thread, NULL);
