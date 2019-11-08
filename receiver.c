@@ -1211,6 +1211,9 @@ void receiver_frequency_changed(RECEIVER *rx) {
 
   if(vfo[id].ctun) {
     vfo[id].offset=vfo[id].ctun_frequency-vfo[id].frequency;
+    if(vfo[id].rit_enabled) {
+       vfo[id].offset+=vfo[id].rit;
+    }
     set_offset(rx,vfo[id].offset);
   } else {
     switch(protocol) {

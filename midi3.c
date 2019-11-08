@@ -64,6 +64,14 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    }
 	    g_idle_add(ext_update_af_gain, NULL);
 	    break;
+        case MIDI_RF_GAIN: // knob or wheel supported
+	    if (type == MIDI_KNOB) {
+		new=val;
+	    } else  if (type == MIDI_WHEEL) {
+                new=(int)active_receiver->rf_gain+val;
+            }
+	    g_idle_add(ext_set_rf_gain, GINT_TO_POINTER((int)val));
+            break;
 	case MIC_VOLUME: // knob or wheel supported
 	    if (type == MIDI_KNOB) {
 		dnew=-10.0 + 0.6*val;
@@ -158,7 +166,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	case MIDI_RIT_CLEAR:  // only key supported
 	    if (type == MIDI_KEY) {
 		// this clears the RIT value and disables RIT
-		vfo[active_receiver->id].rit = new;
+		vfo[active_receiver->id].rit = 0;
 		vfo[active_receiver->id].rit_enabled = 0;
 	        g_idle_add(ext_vfo_update, NULL);
 	    }
@@ -168,11 +176,35 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 		// This changes the RIT value. If a value of 0 is reached,
 		// RIT is disabled
 		new = vfo[active_receiver->id].rit + val*rit_increment;
-		if (new >  9999) new= 9999;
-		if (new < -9999) new=-9999;
+		if (new >  10000) new= 10000;
+		if (new < -10000) new=-10000;
 		vfo[active_receiver->id].rit = new;
 		vfo[active_receiver->id].rit_enabled = (new != 0);
 	        g_idle_add(ext_vfo_update, NULL);
+	    }
+	    break;
+	case MIDI_XIT_CLEAR:  // only key supported
+	    if (type == MIDI_KEY) {
+		// this clears the XIT value and disables XIT
+                if(can_transmit) {
+		  transmitter->xit = 0;
+		  transmitter->xit_enabled = 0;
+	          g_idle_add(ext_vfo_update, NULL);
+                }
+	    }
+	    break;
+	case XIT_VAL:	// only wheel supported
+	    if (type == MIDI_WHEEL) {
+		// This changes the XIT value. If a value of 0 is reached,
+		// XIT is disabled
+                if(can_transmit) {
+		  new = transmitter->xit + val*rit_increment;
+		  if (new >  10000) new= 10000;
+		  if (new < -10000) new=-10000;
+		  transmitter->xit = new;
+		  transmitter->xit_enabled = (new != 0);
+	          g_idle_add(ext_vfo_update, NULL);
+                }
 	    }
 	    break;
 	case PAN_HIGH:  // only wheel supported
@@ -304,6 +336,30 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    set_offset(active_receiver,vfo[new].offset);
 	    g_idle_add(ext_vfo_update, NULL);
 	    break;
+        case MIDI_DUP:
+            if(duplex) {
+              duplex=0;
+            } else {
+              duplex=1;
+            }
+            g_idle_add(ext_vfo_update, NULL);
+            break;
+        case MIDI_RSAT:
+            if(sat_mode==RSAT_MODE) {
+              sat_mode=SAT_NONE;
+            } else {
+              sat_mode=RSAT_MODE;
+            }
+            g_idle_add(ext_vfo_update, NULL);
+            break;
+        case MIDI_SAT:
+            if(sat_mode==SAT_MODE) {
+              sat_mode=SAT_NONE;
+            } else {
+              sat_mode=SAT_MODE;
+            }
+            g_idle_add(ext_vfo_update, NULL);
+            break;
 	case MIDI_PS:
 #ifdef PURESIGNAL
 	    // toggle PURESIGNAL

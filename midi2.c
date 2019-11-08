@@ -99,6 +99,7 @@ static struct {
         { BAND_UP,      "BANDUP"},
         { COMPRESS,     "COMPRESS"},
 	{ MIDI_CTUN,  	"CTUN"},
+	{ MIDI_DUP,  	"DUP"},
         { FILTER_DOWN,  "FILTERDOWN"},
         { FILTER_UP,    "FILTERUP"},
 	{ MIDI_LOCK,    "LOCK"},
@@ -112,8 +113,11 @@ static struct {
         { PAN_LOW,      "PANLOW"},
         { PRE,          "PREAMP"},
 	{ MIDI_PS,    	"PURESIGNAL"},
+	{ MIDI_RF_GAIN, "RFGAIN"},
         { MIDI_RIT_CLEAR,"RITCLEAR"},
         { RIT_VAL,      "RITVAL"},
+        { MIDI_RSAT,    "RSAT"},
+        { MIDI_SAT,     "SAT"},
 	{ MIDI_SPLIT,  	"SPLIT"},
 	{ SWAP_VFO,	"SWAPVFO"},
         { MIDI_TUNE,    "TUNE"},
@@ -124,6 +128,8 @@ static struct {
 	{ VOX,   	"VOX"},
 	{ VFO_STEP_UP,  "VFOSTEPUP"},
 	{ VFO_STEP_DOWN,  "VFOSTEPDOWN"},
+	{ MIDI_XIT_CLEAR,  "XITCLEAR"},
+	{ XIT_VAL,  "XITVAL"},
         { ACTION_NONE,  "NONE"},
         { ACTION_NONE,  NULL}
 };

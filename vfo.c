@@ -647,7 +647,7 @@ g_print("vfo_move_to: vfo=%d ctun_frequency=%lld diff=%lld\n",id,vfo[id].ctun_fr
       } else if(vfo[id].mode==modeCWU) {
         vfo[id].frequency-=cw_keyer_sidetone_frequency;
       }
-g_print("vfo_move_to: vfo=%d frequency=%lld diff==%%ld\n",id,vfo[id].frequency,diff);
+g_print("vfo_move_to: vfo=%d frequency=%lld diff==%lld\n",id,vfo[id].frequency,diff);
     }
 
     int sid=id==0?1:0;
@@ -874,12 +874,13 @@ void vfo_update() {
               cairo_set_source_rgb(cr, 0.0, 0.65, 0.0);
             }
         }
-        cairo_move_to(cr, 270, 38);  
+        cairo_move_to(cr, 300, 38);  
         cairo_show_text(cr, temp_text);
 
 #ifdef PURESIGNAL
         if(can_transmit) {
-          cairo_move_to(cr, 180, 15);
+          //cairo_move_to(cr, 180, 15);
+          cairo_move_to(cr, 55, 50);
           if(transmitter->puresignal) {
             cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
           } else {
@@ -897,7 +898,8 @@ void vfo_update() {
             cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
         }
         sprintf(temp_text,"RIT: %lldHz",vfo[id].rit);
-        cairo_move_to(cr, 210, 15);
+        //cairo_move_to(cr, 210, 15);
+        cairo_move_to(cr, 170, 15);
         cairo_set_font_size(cr, 12);
         cairo_show_text(cr, temp_text);
 
@@ -1058,7 +1060,8 @@ void vfo_update() {
         }
         cairo_show_text(cr, "Locked");
 
-        cairo_move_to(cr, 55, 50);
+        //cairo_move_to(cr, 55, 50);
+        cairo_move_to(cr, 260, 15);
         if(split) {
           cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
         } else {
@@ -1066,7 +1069,8 @@ void vfo_update() {
         }
         cairo_show_text(cr, "Split");
 
-        cairo_move_to(cr, 95, 50);
+        //cairo_move_to(cr, 95, 50);
+        cairo_move_to(cr, 260, 25);
         if(sat_mode!=SAT_NONE) {
           cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
         } else {
@@ -1085,7 +1089,8 @@ void vfo_update() {
             cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
         }
         sprintf(temp_text,"DUP");
-        cairo_move_to(cr, 130, 50);
+        //cairo_move_to(cr, 130, 50);
+        cairo_move_to(cr, 260, 35);
         cairo_set_font_size(cr, 12);
         cairo_show_text(cr, temp_text);
 

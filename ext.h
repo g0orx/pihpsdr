@@ -103,3 +103,4 @@ int ext_set_compression(void *data);
 int ext_start_rx(void *data);
 int ext_diversity_update(void *data);
 int ext_sat_update(void *data);
+int ext_set_rf_gain(void *data);
