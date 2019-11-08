@@ -88,7 +88,10 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
 
 /*
  * This data structre connects names as used in the midi.inp file with
- * our MIDIaction enum values
+ * our MIDIaction enum values.
+ * Take care that no key word is contained in another one!
+ * Example: use "CURRVFO" not "VFO" otherwise there is possibly
+ * a match for "VFO" when the key word is "VFOA".
  */
 
 static struct {
@@ -103,6 +106,7 @@ static struct {
         { BAND_UP,      	"BANDUP"},
         { COMPRESS,     	"COMPRESS"},
 	{ MIDI_CTUN,  		"CTUN"},
+	{ MIDI_DUP,  		"DUP"},
         { FILTER_DOWN,  	"FILTERDOWN"},
         { FILTER_UP,    	"FILTERUP"},
 	{ MIDI_LOCK,    	"LOCK"},
@@ -116,22 +120,27 @@ static struct {
         { PAN_LOW,      	"PANLOW"},
         { PRE,          	"PREAMP"},
 	{ MIDI_PS,    		"PURESIGNAL"},
+	{ MIDI_RF_GAIN, 	"RFGAIN"},
         { RIT_TOGGLE,   	"RIT"},
 	{ RIT_STEP, 		"RITSTEP"},
         { RIT_VAL,      	"RITVAL"},
+        { MIDI_RSAT,    	"RSAT"},
+        { MIDI_SAT,     	"SAT"},
 	{ MIDI_SPLIT,  		"SPLIT"},
 	{ SWAP_RX,		"SWAPRX"},
 	{ SWAP_VFO,		"SWAPVFO"},
         { MIDI_TUNE,    	"TUNE"},
         { TX_DRIVE,     	"RFPOWER"},
-        { VFO,          	"VFO"},
+        { VFO,          	"CURRVFO"},
         { VFOA,         	"VFOA"},
-	{ VFO_A2B,		"VFOA2B"},
+	{ VFO_A2B,		"A2B"},
         { VFOB,         	"VFOB"},
-	{ VFO_B2A,		"VFOB2A"},
+	{ VFO_B2A,		"B2A"},
 	{ VFO_STEP_UP,  	"VFOSTEPUP"},
 	{ VFO_STEP_DOWN,	"VFOSTEPDOWN"},
 	{ VOX,   		"VOX"},
+	{ MIDI_XIT_CLEAR,  	"XITCLEAR"},
+	{ XIT_VAL,  		"XITVAL"},
         { ACTION_NONE,  	"NONE"},
         { ACTION_NONE,  	NULL}
 };

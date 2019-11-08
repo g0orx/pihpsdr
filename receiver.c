@@ -113,7 +113,7 @@ gboolean receiver_button_release_event(GtkWidget *widget, GdkEventButton *event,
       if (event->button == 1) {
         if(has_moved) {
           // drag
-          vfo_move((long long)((float)(x-last_x)*rx->hz_per_pixel));
+          vfo_move((long long)((float)(x-last_x)*rx->hz_per_pixel),TRUE);
         } else {
           // move to this frequency
           vfo_move_to((long long)((float)x*rx->hz_per_pixel));
@@ -142,7 +142,7 @@ gboolean receiver_motion_notify_event(GtkWidget *widget, GdkEventMotion *event, 
     //if(state & GDK_BUTTON1_MASK) {
       //int moved=last_x-x;
       int moved=x-last_x;
-      vfo_move((long long)((float)moved*rx->hz_per_pixel));
+      vfo_move((long long)((float)moved*rx->hz_per_pixel),FALSE);
       last_x=x;
       has_moved=TRUE;
     //}
@@ -153,9 +153,9 @@ gboolean receiver_motion_notify_event(GtkWidget *widget, GdkEventMotion *event, 
 
 gboolean receiver_scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data) {
   if(event->direction==GDK_SCROLL_UP) {
-    vfo_move(step);
+    vfo_move(step,TRUE);
   } else {
-    vfo_move(-step);
+    vfo_move(-step,TRUE);
   }
   return TRUE;
 }
@@ -1211,6 +1211,9 @@ void receiver_frequency_changed(RECEIVER *rx) {
 
   if(vfo[id].ctun) {
     vfo[id].offset=vfo[id].ctun_frequency-vfo[id].frequency;
+    if(vfo[id].rit_enabled) {
+       vfo[id].offset+=vfo[id].rit;
+    }
     set_offset(rx,vfo[id].offset);
   } else {
     switch(protocol) {

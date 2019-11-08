@@ -167,6 +167,14 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	      g_idle_add(ext_ctun_update, NULL);
 	    }
 	    break;
+        case MIDI_DUP:
+            if(duplex) {
+              duplex=0;
+            } else {
+              duplex=1;
+            }
+            g_idle_add(ext_vfo_update, NULL);
+            break;
 	case FILTER_DOWN:
 	case FILTER_UP:
 	    //
@@ -375,6 +383,13 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    }
 #endif
 	    break;
+        case MIDI_RF_GAIN: // knob or wheel supported
+            if (type == MIDI_KNOB) {
+                new=val;
+            } else  if (type == MIDI_WHEEL) {
+                new=(int)active_receiver->rf_gain+val;
+            }
+            g_idle_add(ext_set_rf_gain, GINT_TO_POINTER((int)val));
 	case TX_DRIVE: // knob or wheel supported
 	    switch (type) {
 	      case MIDI_KNOB:
@@ -394,6 +409,12 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    *dp=dnew;
 	    g_idle_add(ext_set_drive, (gpointer) dp);
 	    break;
+	case RIT_CLEAR:	  // only key supported
+	    if (type == MIDI_KEY) {
+	      // clear RIT value
+	      vfo[active_receiver->id].rit = new;
+	      g_idle_add(ext_vfo_update, NULL);
+	    }
 	case RIT_TOGGLE:  // only key supported
 	    if (type == MIDI_KEY) {
 		// enable/disable RIT
@@ -447,6 +468,22 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    }
 	    g_idle_add(ext_vfo_update, NULL);
 	    break;
+        case MIDI_RSAT:
+            if(sat_mode==RSAT_MODE) {
+              sat_mode=SAT_NONE;
+            } else {
+              sat_mode=RSAT_MODE;
+            }
+            g_idle_add(ext_vfo_update, NULL);
+            break;
+        case MIDI_SAT:
+            if(sat_mode==SAT_MODE) {
+              sat_mode=SAT_NONE;
+            } else {
+              sat_mode=SAT_MODE;
+            }
+            g_idle_add(ext_vfo_update, NULL);
+            break;
 	case MIDI_SPLIT: // only key supported
 	    // toggle split mode
 	    if (type == MIDI_KEY) {
@@ -529,6 +566,30 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	      g_idle_add(ext_vfo_update, NULL);
 	    }
 	    break;
+        case MIDI_XIT_CLEAR:  // only key supported
+            if (type == MIDI_KEY) {
+                // this clears the XIT value and disables XIT
+                if(can_transmit) {
+                  transmitter->xit = 0;
+                  transmitter->xit_enabled = 0;
+                  g_idle_add(ext_vfo_update, NULL);
+                }
+            }
+            break;
+        case XIT_VAL:   // only wheel supported
+            if (type == MIDI_WHEEL) {
+                // This changes the XIT value. If a value of 0 is reached,
+                // XIT is disabled
+                if(can_transmit) {
+                  new = transmitter->xit + val*rit_increment;
+                  if (new >  10000) new= 10000;
+                  if (new < -10000) new=-10000;
+                  transmitter->xit = new;
+                  transmitter->xit_enabled = (new != 0);
+                  g_idle_add(ext_vfo_update, NULL);
+                }
+            }
+            break;
 	case ACTION_NONE:
 	    // No error message, this is the "official" action for un-used controller buttons.
 	    break;

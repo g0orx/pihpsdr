@@ -56,6 +56,7 @@ enum MIDIaction {
   BAND_UP,		// cycle through bands upwards
   COMPRESS,		// TX compressor value
   MIDI_CTUN,		// CTUN on/off
+  MIDI_DUP,		// DUP on/off
   FILTER_UP,		// cycle through filters upwards
   FILTER_DOWN,		// cycle through filters downwards
   MIC_VOLUME,		// MIC gain
@@ -69,9 +70,12 @@ enum MIDIaction {
   PAN_HIGH,		// "high" value of current panadapter
   PAN_LOW,		// "low" value of current panadapter
   MIDI_PS,		// PURESIGNAL on/off
+  MIDI_RF_GAIN,		// RF gain
   RIT_STEP,		// cycle through RIT values
   RIT_TOGGLE,  		// RIT on/off
   RIT_VAL,		// change RIT value
+  MIDI_RSAT,		// RSAT on/off
+  MIDI_SAT,		// SAT on/off
   MIDI_SPLIT,		// Split on/off
   SWAP_VFO,		// swap VFO A/B frequency
   SWAP_RX, 		// swap active receiver (if there are two receivers)
@@ -85,6 +89,8 @@ enum MIDIaction {
   VFO_STEP_UP,		// cycle through vfo steps upwards;
   VFO_STEP_DOWN,	// cycle through vfo steps downwards;
   VOX, 			// VOX on/off
+  MIDI_XIT_CLEAR,	// clear XIT
+  XIT_VAL,		// change XIT value
 };
 
 //

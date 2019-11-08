@@ -123,7 +123,7 @@ tx_panadapter_button_release_event_cb (GtkWidget      *widget,
     if (event->button == 1) {
       if(has_moved) {
         // drag
-        vfo_move((long long)((float)(x-last_x)*hz_per_pixel));
+        vfo_move((long long)((float)(x-last_x)*hz_per_pixel),TRUE);
       } else {
         // move to this frequency
         vfo_move_to((long long)((float)(x-(display_width/2))*hz_per_pixel));
@@ -154,7 +154,7 @@ tx_panadapter_motion_notify_event_cb (GtkWidget      *widget,
                                     &state);
     if(state & GDK_BUTTON1_MASK) {
       int moved=last_x-x;
-      vfo_move((long long)((float)moved*hz_per_pixel));
+      vfo_move((long long)((float)moved*hz_per_pixel),FALSE);
       last_x=x;
       has_moved=TRUE;
     }
@@ -169,9 +169,9 @@ tx_panadapter_scroll_event_cb (GtkWidget      *widget,
                gpointer        data)
 {
   if(event->direction==GDK_SCROLL_UP) {
-    vfo_move(step);
+    vfo_move(step,TRUE);
   } else {
-    vfo_move(-step);
+    vfo_move(-step,TRUE);
   }
   return FALSE;
 }
@@ -417,6 +417,23 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   }
 #endif
 
+  if(duplex) {
+    char text[64];
+    cairo_set_source_rgb(cr,1.0,0.0,0.0);
+
+    sprintf(text,"FWD: %f",transmitter->fwd);
+    cairo_move_to(cr,10,display_height-40);
+    cairo_show_text(cr, text);
+
+    sprintf(text,"REV: %f",transmitter->rev);
+    cairo_move_to(cr,10,display_height-30);
+    cairo_show_text(cr, text);
+
+    sprintf(text,"ALC: %f",transmitter->alc);
+    cairo_move_to(cr,10,display_height-20);
+    cairo_show_text(cr, text);
+  }
+
   cairo_destroy (cr);
   gtk_widget_queue_draw (tx->panadapter);
 
@@ -425,10 +442,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
 
 void tx_panadapter_init(TRANSMITTER *tx, int width,int height) {
 
-  int display_width=width;
-  int display_height=height;
-
-fprintf(stderr,"tx_panadapter_init: %d x %d\n",display_width,display_height);
+fprintf(stderr,"tx_panadapter_init: %d x %d\n",width,height);
 
   tx->panadapter_surface=NULL;
   tx->panadapter=gtk_drawing_area_new ();

@@ -1815,9 +1815,7 @@ static void encoder_changed(int action,int pos) {
         value=10000.0;
       }
       vfo[receiver[0]->id].rit=(int)value;
-      if(protocol==NEW_PROTOCOL) {
-        schedule_high_priority();
-      }
+      receiver_frequency_changed(receiver[0]);
       g_idle_add(ext_vfo_update,NULL);
       break;
     case ENCODER_RIT_RX2:
@@ -1829,9 +1827,7 @@ static void encoder_changed(int action,int pos) {
         value=10000.0;
       }
       vfo[receiver[1]->id].rit=(int)value;
-      if(protocol==NEW_PROTOCOL) {
-        schedule_high_priority();
-      }
+      receiver_frequency_changed(receiver[1]);
       g_idle_add(ext_vfo_update,NULL);
       break;
     case ENCODER_XIT:

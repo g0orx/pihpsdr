@@ -453,15 +453,14 @@ int ext_lock_update(void *data) {
 
 int ext_rit_update(void *data) {
   vfo[active_receiver->id].rit_enabled=vfo[active_receiver->id].rit_enabled==1?0:1;
-  if(protocol==NEW_PROTOCOL) {
-    schedule_high_priority();
-  }
+  receiver_frequency_changed(active_receiver);
   vfo_update();
   return 0;
 }
 
 int ext_rit_clear(void *data) {
   vfo[active_receiver->id].rit=0;
+  receiver_frequency_changed(active_receiver);
   vfo_update();
   return 0;
 }
@@ -589,5 +588,19 @@ int ext_function_update(void *data) {
   update_toolbar_labels();
   vfo_update();
   return 0;
+}
+
+int ext_set_rf_gain(void *data) {
+  int pos=GPOINTER_TO_INT(data);
+  double value;
+  value=(double)pos;
+  if(value<0.0) {
+    value=0.0;
+  } else if(value>100.0) {
+    value=100.0;
+  }
+  set_rf_gain(active_receiver->id,value);
+  return 0;
+>>>>>>> baa20fb6e81527751cd7e97f910c6c56880d6898
 }
 
