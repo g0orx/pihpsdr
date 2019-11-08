@@ -34,6 +34,11 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
     // Handle cases in alphabetical order of the key words in midi.inp
     //
     switch (action) {
+	case VFO_A2B: // only key supported
+	    if (type == MIDI_KEY) {
+	      g_idle_add(ext_vfo_a_to_b, NULL);
+	    }
+	    break;
 	case AF_GAIN: // knob or wheel supported
             switch (type) {
 	      case MIDI_KNOB:
@@ -50,6 +55,15 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 		break;
 	    }
 	    g_idle_add(ext_update_af_gain, NULL);
+	    break;
+	case AGCATTACK: // only key supported
+	    // cycle through fast/med/slow AGC attack
+	    if (type == MIDI_KEY) {
+	      new=active_receiver->agc + 1;
+	      if (new > AGC_FAST) new=0;
+	      active_receiver->agc=new;
+	      g_idle_add(ext_vfo_update, NULL);
+	    }
 	    break;
 	case MIDI_AGC: // knob or wheel supported
 	    switch (type) {
@@ -69,15 +83,6 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    dp=malloc(sizeof(double));
 	    *dp=dnew;
 	    g_idle_add(ext_set_agc_gain, (gpointer) dp);
-	    break;
-	case AGCATTACK: // only key supported
-	    // cycle through fast/med/slow AGC attack
-	    if (type == MIDI_KEY) {
-	      new=active_receiver->agc + 1;
-	      if (new > AGC_FAST) new=0;
-	      active_receiver->agc=new;
-	      g_idle_add(ext_vfo_update, NULL);
-	    }
 	    break;
 	case ATT:	// Key for ALEX attenuator, wheel or knob for slider
 	    switch(type) {
@@ -107,6 +112,11 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 		// do nothing
 		// we should not come here anyway
 		break;
+	    }
+	    break;
+	case VFO_B2A: // only key supported
+	    if (type == MIDI_KEY) {
+	      g_idle_add(ext_vfo_b_to_a, NULL);
 	    }
 	    break;
 	case BAND_DOWN:
@@ -165,6 +175,11 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    // toggle CTUN
 	    if (type == MIDI_KEY) {
 	      g_idle_add(ext_ctun_update, NULL);
+	    }
+	    break;
+	case VFO: // only wheel supported
+	    if (type == MIDI_WHEEL && !locked) {
+		g_idle_add(ext_vfo_step, GINT_TO_POINTER(val));
 	    }
 	    break;
         case MIDI_DUP:
@@ -518,11 +533,6 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 		g_idle_add(ext_tune_update, GINT_TO_POINTER(new));
 	    }
 	    break;    
-	case VFO: // only wheel supported
-	    if (type == MIDI_WHEEL && !locked) {
-		g_idle_add(ext_vfo_step, GINT_TO_POINTER(val));
-	    }
-	    break;
 	case VFOA: // only wheel supported
 	case VFOB: // only wheel supported
 	    if (type == MIDI_WHEEL && !locked) {
@@ -530,16 +540,6 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 		*ip = (action == VFOA) ? 0 : 1;   // could use (action - VFOA) to support even more VFOs
 		*(ip+1)=val;
 		g_idle_add(ext_vfo_id_step, ip);
-	    }
-	    break;
-	case VFO_A2B: // only key supported
-	    if (type == MIDI_KEY) {
-	      g_idle_add(ext_vfo_a_to_b, NULL);
-	    }
-	    break;
-	case VFO_B2A: // only key supported
-	    if (type == MIDI_KEY) {
-	      g_idle_add(ext_vfo_b_to_a, NULL);
 	    }
 	    break;
         case VFO_STEP_DOWN: // key or wheel supported

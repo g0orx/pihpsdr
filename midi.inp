@@ -12,7 +12,7 @@ DEVICE=CMD PL-1
 # Ignore this, because this happens unintentionally most of the time you
 # use the wheel.
 #
-CTRL=31 WHEEL THR=0 59 60 61 62 63 65 66 67 68 69 127 ACTION=VFO
+CTRL=31 WHEEL THR=0 59 60 61 62 63 65 66 67 68 69 127 ACTION=CURRVFO
 KEY=31 ACTION=NONE
 #
 # Big slider (pitch-bend controller): AF volume
@@ -34,7 +34,7 @@ CTRL=0 WHEEL THR=-1 -1 -1 -1 1 63 65 127 128 128 128 128 ACTION=ATT
 CTRL=1 WHEEL THR=-1 -1 -1 -1 1 63 65 127 128 128 128 128 ACTION=COMPRESS
 CTRL=2 WHEEL THR=-1 -1 -1 -1 1 63 65 127 128 128 128 128 ACTION=RITVAL
 CTRL=3 WHEEL THR=-1 -1 -1 -1 1 63 65 127 128 128 128 128 ACTION=PANLOW
-CTRL=4 WHEEL THR=-1 -1 -1 -1 1 63 65 127 128 128 128 128 ACTION=AGC
+CTRL=4 WHEEL THR=-1 -1 -1 -1 1 63 65 127 128 128 128 128 ACTION=AGCVAL
 CTRL=5 WHEEL THR=-1 -1 -1 -1 1 63 65 127 128 128 128 128 ACTION=MICGAIN
 CTRL=6 WHEEL THR=-1 -1 -1 -1 1 63 65 127 128 128 128 128 ACTION=RFPOWER
 CTRL=7 WHEEL THR=-1 -1 -1 -1 1 63 65 127 128 128 128 128 ACTION=FILTERUP
@@ -77,8 +77,8 @@ KEY=24 ACTION=TUNE                # LOAD    button: TUNE on/off
 KEY=25 ACTION=LOCK                # LOCK    button: Lock VFO(s)
 KEY=26 ACTION=PURESIGNAL          # DECK    button: toggle PURESIGNAL
 KEY=27 ACTION=SWAPRX              # SCRATCH button: Swap active/inactive RX
-KEY=32 ACTION=VFOA2B              # SYNC    button: Frequency VFO A -> VFO B
-KEY=33 ACTION=VFOB2A              # TAP     button: Frequency VFO B -> VFO A
+KEY=32 ACTION=A2B                 # SYNC    button: Frequency VFO A -> VFO B
+KEY=33 ACTION=B2A                 # TAP     button: Frequency VFO B -> VFO A
 KEY=34 ACTION=MOX                 # CUE     button: MOX on/off
 KEY=35 ACTION=SPLIT               # >||     button: toggle Split
 KEY=36 ACTION=MODEDOWN            # <<      button: Mode down

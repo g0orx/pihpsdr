@@ -99,7 +99,7 @@ static struct {
   const char *str;
 } ActionTable[] = {
         { AF_GAIN,      	"AFGAIN"},
-        { MIDI_AGC,     	"AGC"},
+        { MIDI_AGC,     	"AGCVAL"},
 	{ AGCATTACK,   		"AGCATTACK"},
         { ATT,          	"ATT"},
         { BAND_DOWN,    	"BANDDOWN"},
