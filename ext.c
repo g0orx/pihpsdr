@@ -601,6 +601,4 @@ int ext_set_rf_gain(void *data) {
   }
   set_rf_gain(active_receiver->id,value);
   return 0;
->>>>>>> baa20fb6e81527751cd7e97f910c6c56880d6898
 }
-
