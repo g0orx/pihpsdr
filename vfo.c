@@ -584,14 +584,20 @@ void vfo_step(int steps) {
   }
 }
 
-void vfo_move(long long hz) {
+void vfo_move(long long hz,int round) {
   int id=active_receiver->id;
 g_print("vfo_move: id=%d hz=%lld\n",id,hz);
   if(!locked) {
     if(vfo[id].ctun) {
-      vfo[id].ctun_frequency=((vfo[id].ctun_frequency+hz)/step)*step;
+      vfo[id].ctun_frequency=vfo[id].ctun_frequency+hz;
+      if(round) {
+         vfo[id].ctun_frequency=(vfo[id].ctun_frequency/step)*step;
+      }
     } else {
-      vfo[id].frequency=((vfo[id].frequency+hz)/step)*step;
+      vfo[id].frequency=vfo[id].frequency-hz;
+      if(round) {
+         vfo[id].frequency=(vfo[id].frequency/step)*step;
+      }
     }
     int sid=id==0?1:0;
     switch(sat_mode) {
@@ -600,17 +606,29 @@ g_print("vfo_move: id=%d hz=%lld\n",id,hz);
       case SAT_MODE:
         // A and B increment and decrement together
         if(vfo[sid].ctun) {
-          vfo[sid].ctun_frequency=((vfo[sid].ctun_frequency+hz)/step)*step;
+          vfo[sid].ctun_frequency=vfo[sid].ctun_frequency+hz;
+          if(round) {
+             vfo[sid].ctun_frequency=(vfo[sid].ctun_frequency/step)*step;
+          }
         } else {
-          vfo[sid].frequency=((vfo[sid].frequency+hz)/step)*step;
+          vfo[sid].frequency=vfo[sid].frequency-hz;
+          if(round) {
+             vfo[sid].frequency=(vfo[sid].frequency/step)*step;
+          }
         }
         break;
       case RSAT_MODE:
         // A increments and B decrements or A decrments and B increments
         if(vfo[sid].ctun) {
           vfo[sid].ctun_frequency=((vfo[sid].ctun_frequency-hz)/step)*step;
+          if(round) {
+             vfo[sid].ctun_frequency=(vfo[sid].ctun_frequency/step)*step;
+          }
         } else {
-          vfo[sid].frequency=((vfo[sid].frequency-hz)/step)*step;
+          vfo[sid].frequency=((vfo[sid].frequency+hz)/step)*step;
+          if(round) {
+             vfo[sid].ctun_frequency=(vfo[sid].ctun_frequency/step)*step;
+          }
         }
         break;
     }
@@ -715,9 +733,9 @@ vfo_scroll_event_cb (GtkWidget      *widget,
 {
   int i;
   if(event->direction==GDK_SCROLL_UP) {
-    vfo_move(step);
+    vfo_move(step,TRUE);
   } else {
-    vfo_move(-step);
+    vfo_move(-step,TRUE);
   }
   return FALSE;
 }
@@ -1061,7 +1079,7 @@ void vfo_update() {
         cairo_show_text(cr, "Locked");
 
         //cairo_move_to(cr, 55, 50);
-        cairo_move_to(cr, 260, 15);
+        cairo_move_to(cr, 260, 18);
         if(split) {
           cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
         } else {
@@ -1070,7 +1088,7 @@ void vfo_update() {
         cairo_show_text(cr, "Split");
 
         //cairo_move_to(cr, 95, 50);
-        cairo_move_to(cr, 260, 25);
+        cairo_move_to(cr, 260, 28);
         if(sat_mode!=SAT_NONE) {
           cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
         } else {
@@ -1090,7 +1108,7 @@ void vfo_update() {
         }
         sprintf(temp_text,"DUP");
         //cairo_move_to(cr, 130, 50);
-        cairo_move_to(cr, 260, 35);
+        cairo_move_to(cr, 260, 38);
         cairo_set_font_size(cr, 12);
         cairo_show_text(cr, temp_text);
 

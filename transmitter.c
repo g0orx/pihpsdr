@@ -139,6 +139,7 @@ void transmitter_set_compressor(TRANSMITTER *tx,int state) {
 }
 
 void reconfigure_transmitter(TRANSMITTER *tx,int height) {
+g_print("reconfigure_transmitter: width=%d height=%d\n",tx->width,height);
   gtk_widget_set_size_request(tx->panadapter, tx->width, height);
 }
 
@@ -485,7 +486,9 @@ static gboolean update_display(gpointer data) {
       }
     } 
 
-    meter_update(active_receiver,POWER,transmitter->fwd,transmitter->rev,transmitter->exciter,transmitter->alc);
+    if(!duplex) {
+      meter_update(active_receiver,POWER,transmitter->fwd,transmitter->rev,transmitter->exciter,transmitter->alc);
+    }
 
     return TRUE; // keep going
   }
@@ -546,7 +549,7 @@ static void init_analyzer(TRANSMITTER *tx) {
 
 static void create_visual(TRANSMITTER *tx) {
  
-  fprintf(stderr,"transmitter: create_visual: id=%d\n",tx->id);
+  fprintf(stderr,"transmitter: create_visual: id=%d width=%d height=%d\n",tx->id, tx->width,tx->height);
 
   tx->panel=gtk_fixed_new();
   gtk_widget_set_size_request (tx->panel, tx->width, tx->height);
@@ -768,6 +771,7 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%p iq_output_buf
 void tx_set_mode(TRANSMITTER* tx,int mode) {
   if(tx!=NULL) {
     tx->mode=mode;
+g_print("tx_set_mode: %s\n",mode_string[tx->mode]);
     SetTXAMode(tx->id, tx->mode);
     tx_set_filter(tx,tx_filter_low,tx_filter_high);
   }

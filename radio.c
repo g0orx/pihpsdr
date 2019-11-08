@@ -828,7 +828,7 @@ void start_radio() {
 
   //fprintf(stderr,"Create transmitter\n");
   if(can_transmit) {
-    transmitter=create_transmitter(CHANNEL_TX, buffer_size, fft_size, updates_per_second, display_width/2, tx_height/2);
+    transmitter=create_transmitter(CHANNEL_TX, buffer_size, fft_size, updates_per_second, display_width/3, PANADAPTER_HEIGHT);
     transmitter->x=0;
     transmitter->y=VFO_HEIGHT;
 
