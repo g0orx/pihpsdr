@@ -337,22 +337,23 @@ int cw_audio_write(double sample){
 
       trim=0;
 
-/*
       if(snd_pcm_delay(rx->playback_handle,&delay)==0) {
         if(delay>2048) {
           trim=delay-2048;
-//fprintf(stderr,"audio delay=%ld trim=%ld\n",delay,trim);
+fprintf(stderr,"audio delay=%ld trim=%ld\n",delay,trim);
         }
       }
-*/
-      if ((rc = snd_pcm_writei (rx->playback_handle, rx->playback_buffer, audio_buffer_size-trim)) != audio_buffer_size-trim) {
-        if(rc<0) {
-          if(rc==-EPIPE) {
-            if ((rc = snd_pcm_prepare (rx->playback_handle)) < 0) {
-              fprintf (stderr, "audio_write: cannot prepare audio interface for use %d (%s)\n", rc, snd_strerror (rc));
-              return -1;
-            } else {
-              // ignore short write
+
+      if(trim<audio_buffer_size) {
+        if ((rc = snd_pcm_writei (rx->playback_handle, rx->playback_buffer, audio_buffer_size-trim)) != audio_buffer_size-trim) {
+          if(rc<0) {
+            if(rc==-EPIPE) {
+              if ((rc = snd_pcm_prepare (rx->playback_handle)) < 0) {
+                fprintf (stderr, "audio_write: cannot prepare audio interface for use %d (%s)\n", rc, snd_strerror (rc));
+                return -1;
+              } else {
+                // ignore short write
+              }
             }
           }
         }
@@ -400,28 +401,25 @@ int audio_write(RECEIVER *rx,short left_sample,short right_sample) {
 
       trim=0;
 
-/*
       if(snd_pcm_delay(rx->playback_handle,&delay)==0) {
         if(delay>2048) {
           trim=delay-2048;
 fprintf(stderr,"audio delay=%ld trim=%ld audio_buffer_size=%d\n",delay,trim,audio_buffer_size);
-          if(trim>=audio_buffer_size) {
-            rx->playback_offset=0;
-            return 0;
-          }
         }
       }
-*/
-      if ((rc = snd_pcm_writei (rx->playback_handle, rx->playback_buffer, audio_buffer_size-trim)) != audio_buffer_size-trim) {
-        if(rc<0) {
-          if(rc==-EPIPE) {
-            if ((rc = snd_pcm_prepare (rx->playback_handle)) < 0) {
-              fprintf (stderr, "audio_write: cannot prepare audio interface for use %d (%s)\n", rc, snd_strerror (rc));
-              rx->playback_offset=0;
-              return -1;
+
+      if(trim<audio_buffer_size) {
+        if ((rc = snd_pcm_writei (rx->playback_handle, rx->playback_buffer, audio_buffer_size-trim)) != audio_buffer_size-trim) {
+          if(rc<0) {
+            if(rc==-EPIPE) {
+              if ((rc = snd_pcm_prepare (rx->playback_handle)) < 0) {
+                fprintf (stderr, "audio_write: cannot prepare audio interface for use %d (%s)\n", rc, snd_strerror (rc));
+                rx->playback_offset=0;
+                return -1;
+              }
+            } else {
+              // ignore short write
             }
-          } else {
-            // ignore short write
           }
         }
       }
