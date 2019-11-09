@@ -297,7 +297,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 		g_idle_add(ext_mox_update, GINT_TO_POINTER(new));
 	    }
 	    break;    
-	/////////////////////////////////////////////////////////// "NB"
+	/////////////////////////////////////////////////////////// "NOISEBLANKER"
 	case MIDI_NB: // only key supported
 	    // cycle through NoiseBlanker settings: OFF, NB, NB2
             if (type == MIDI_KEY) {
@@ -314,7 +314,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	      g_idle_add(ext_vfo_update, NULL);
 	    }
 	    break;
-	/////////////////////////////////////////////////////////// "NR"
+	/////////////////////////////////////////////////////////// "NOISEREDUCTION"
 	case MIDI_NR: // only key supported
 	    // cycle through NoiseReduction settings: OFF, NR1, NR2
 	    if (type == MIDI_KEY) {
@@ -387,7 +387,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    }
 	    g_idle_add(ext_vfo_update, NULL);
 	    break;
-	/////////////////////////////////////////////////////////// "PRE"
+	/////////////////////////////////////////////////////////// "PREAMP"
 	case PRE:	// only key supported
 	    if (type == MIDI_KEY) {
 		//
