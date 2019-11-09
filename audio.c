@@ -96,15 +96,16 @@ fprintf(stderr,"audio_open_output: rx=%d %s\n",rx->id,rx->audio_name);
   int i;
   char hw[128];
  
-fprintf(stderr,"audio_open_output: selected=%s\n",rx->audio_name);
 
   i=0;
-  while(rx->audio_name[i]!=' ') {
+  while(i<128 && rx->audio_name[i]!=' ') {
     hw[i]=rx->audio_name[i];
     i++;
   }
   hw[i]='\0';
   
+fprintf(stderr,"audio_open_output: hw=%s\n",hw);
+
   if ((err = snd_pcm_open (&rx->playback_handle, hw, SND_PCM_STREAM_PLAYBACK, 0)) < 0) {
     fprintf (stderr, "audio_open_output: cannot open audio device %s (%s)\n", 
             hw,
@@ -520,8 +521,8 @@ fprintf(stderr,"audio_get_cards\n");
           strcpy(input_devices[n_input_devices].description,device_id);
           input_devices[n_input_devices].index=i;
           n_input_devices++;
-        }
 fprintf(stderr,"input_device: %s\n",device_id);
+        }
       }
 
       // ouput devices
@@ -536,8 +537,8 @@ fprintf(stderr,"input_device: %s\n",device_id);
           strcpy(output_devices[n_output_devices].description,device_id);
           input_devices[n_output_devices].index=i;
           n_output_devices++;
-        }
 fprintf(stderr,"output_device: %s\n",device_id);
+        }
       }
     }
     snd_ctl_close(handle);
@@ -555,20 +556,24 @@ fprintf(stderr,"output_device: %s\n",device_id);
     descr = snd_device_name_get_hint(*n, "DESC");
     io = snd_device_name_get_hint(*n, "IOID");
 
-    if(strncmp("dmix:", name, 5)==0/* || strncmp("pulse", name, 5)==0*/) {
-      fprintf(stderr,"name=%s descr=%s io=%s\n",name, descr, io);
-      device_id=malloc(128);
-
-      snprintf(device_id, 128, "%s", name);
+    if(strncmp("dmix:", name, 5)==0) {
       if(n_output_devices<MAX_AUDIO_DEVICES) {
-        output_devices[n_output_devices].name=g_new0(char,strlen(device_id)+1);
-        strcpy(output_devices[n_output_devices].name,device_id);
-        output_devices[n_output_devices].description=g_new0(char,strlen(device_id)+1);
-        strcpy(output_devices[n_output_devices].description,device_id);
-        input_devices[n_output_devices].index=i;
-        n_output_devices++;
+        if(strncmp("dmix:CARD=ALSA",name,14)!=0) {
+          output_devices[n_output_devices].name=g_new0(char,strlen(name)+1);
+          strcpy(output_devices[n_output_devices].name,name);
+          output_devices[n_output_devices].description=g_new0(char,strlen(descr)+1);
+          //strcpy(output_devices[n_output_devices].description,descr);
+          i=0;
+          while(i<strlen(descr) && descr[i]!='\n') {
+            output_devices[n_output_devices].description[i]=descr[i];
+            i++;
+          }
+          output_devices[n_output_devices].description[i]='\0';
+          input_devices[n_output_devices].index=i;
+          n_output_devices++;
+fprintf(stderr,"output_device: name=%s descr=%s\n",name,descr);
+        }
       }
-fprintf(stderr,"output_device: %s\n",device_id);
     }
 
     if (name != NULL)

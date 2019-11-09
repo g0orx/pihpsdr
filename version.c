@@ -21,11 +21,11 @@ char build_date[]=GIT_DATE;
 char build_version[]=GIT_VERSION;
 
 #if defined (CONTROLLER2_V1)
-char version[]="2.0.1 (Controller2 V1)";
+char version[]="2.0.2-beta (Controller2 V1)";
 #elif defined (CONTROLLER2_V2)
-char version[]="2.0.1 (Controller2 V2)";
+char version[]="2.0.2-beta (Controller2 V2)";
 #elif defined (GPIO)
-char version[]="2.0.1 (Controller1)";
+char version[]="2.0.2-beta (Controller1)";
 #else
-char version[]="2.0.1";
+char version[]="2.0.2-beta";
 #endif

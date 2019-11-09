@@ -666,14 +666,15 @@ void vfo_move_to(long long hz) {
   int id=active_receiver->id;
   long long offset=hz;
   long long half=(long long)(active_receiver->sample_rate/2);
-  long long f=vfo[id].frequency-half+offset;
   long long diff; 
+  long long f;
 
 g_print("vfo_move_to: id=%d hz=%lld f=%lld\n",id,hz,f);
-
   if(vfo[id].mode!=modeCWL && vfo[id].mode!=modeCWU) {
     offset=(hz/step)*step;
   }
+  f=vfo[id].frequency-half+offset;
+
   if(!locked) {
     if(vfo[id].ctun) {
       diff=f-vfo[id].ctun_frequency;
