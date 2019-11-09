@@ -44,54 +44,53 @@
 
 //
 // MIDIaction encodes the "action" to be taken in Layer3
-// (sorted alphabetically)
+// (sorted alphabetically by the keyword)
 //
 enum MIDIaction {
   ACTION_NONE=0,	// No-Op (unassigned key)
-  MIDI_AGC,		// AGC level
-  AGCATTACK,		// AGC ATTACK (cycle fast/med/slow etc.)
-  ATT,			// Step attenuator or Programmable attenuator
-  AF_GAIN,		// AF gain
-  BAND_DOWN,		// cycle through bands downwards
-  BAND_UP,		// cycle through bands upwards
-  COMPRESS,		// TX compressor value
-  MIDI_CTUN,		// CTUN on/off
-  MIDI_DUP,		// DUP on/off
-  FILTER_UP,		// cycle through filters upwards
-  FILTER_DOWN,		// cycle through filters downwards
-  MIC_VOLUME,		// MIC gain
-  MIDI_LOCK,		// disable frequency changes
-  MODE_UP,		// cycle through modes upwards
-  MODE_DOWN,		// cycle through modes downwards
-  MIDI_MOX,		// toggle "mox" state
-  MIDI_NB,		// cycle through NoiseBlanker states (none, NB, NB2)
-  MIDI_NR,		// cycle through NoiseReduction states (none, NR, NR2)
-  PRE,			// preamp on/off
-  PAN_HIGH,		// "high" value of current panadapter
-  PAN_LOW,		// "low" value of current panadapter
-  MIDI_PS,		// PURESIGNAL on/off
-  MIDI_RF_GAIN,		// RF gain
-  RIT_CLEAR,		// clear RIT value
-  RIT_STEP,		// cycle through RIT step size values
-  RIT_TOGGLE,  		// RIT on/off
-  RIT_VAL,		// incrementally change RIT value
-  MIDI_RSAT,		// RSAT on/off
-  MIDI_SAT,		// SAT on/off
-  MIDI_SPLIT,		// Split on/off
-  SWAP_VFO,		// swap VFO A/B frequency
-  SWAP_RX, 		// swap active receiver (if there are two receivers)
-  MIDI_TUNE,		// toggle "tune" state
-  TX_DRIVE,		// RF output power
-  VFO,			// change VFO frequency
-  VFOA,			// change VFO-A frequency
-  VFOB,			// change VFO-B frequency
-  VFO_A2B,		// VFO A -> B
-  VFO_B2A,		// VFO B -> A
-  VFO_STEP_UP,		// cycle through vfo steps upwards;
-  VFO_STEP_DOWN,	// cycle through vfo steps downwards;
-  VOX, 			// VOX on/off
-  MIDI_XIT_CLEAR,	// clear XIT
-  XIT_VAL,		// change XIT value
+  VFO_A2B,		// A2B:		VFO A -> B
+  AF_GAIN,		// AFGAIN:	AF gain
+  AGCATTACK,		// AGCATTACK:	AGC ATTACK (cycle fast/med/slow etc.)
+  MIDI_AGC,		// AGCVAL:	AGC level
+  ATT,			// ATT:		Step attenuator or Programmable attenuator
+  VFO_B2A,		// B2A:		VFO B -> A
+  BAND_DOWN,		// BANDDOWN:	cycle through bands downwards
+  BAND_UP,		// BANDUP:	cycle through bands upwards
+  COMPRESS,		// COMPRESS:	TX compressor value
+  MIDI_CTUN,		// CTUN:	toggle CTUN on/off
+  VFO,			// CURRVFO:	change VFO frequency
+  MIDI_DUP,		// DUP:		toggle duplex on/off
+  FILTER_DOWN,		// FILTERDOWN:	cycle through filters downwards
+  FILTER_UP,		// FILTERUP:	cycle through filters upwards
+  MIDI_LOCK,		// LOCK:	lock VFOs, disable frequency changes
+  MIC_VOLUME,		// MICGAIN:	MIC gain
+  MODE_DOWN,		// MODEDOWN:	cycle through modes downwards
+  MODE_UP,		// MODEUP:	cycle through modes upwards
+  MIDI_MOX,		// MOX:		toggle "mox" state
+  MIDI_NB,		// NB:		cycle through NoiseBlanker states (none, NB, NB2)
+  MIDI_NR,		// NR:		cycle through NoiseReduction states (none, NR, NR2)
+  PAN_HIGH,		// PANHIGH:	"high" value of current panadapter
+  PAN_LOW,		// PANLOW:	"low" value of current panadapter
+  PRE,			// PREAMP:	preamp on/off
+  MIDI_PS,		// PURESIGNAL:	toggle PURESIGNAL on/off
+  MIDI_RF_GAIN,		// RFGAIN:	receiver RF gain
+  TX_DRIVE,		// RFPOWER:	adjust TX RF output power
+  RIT_CLEAR,		// RITCLEAR:	clear RIT and XIT value
+  RIT_STEP,		// RITSTEP:	cycle through RIT/XIT step size values
+  RIT_TOGGLE,  		// RITTOGGLE:	toggle RIT on/off
+  RIT_VAL,		// RITVAL:	change RIT value
+  MIDI_SAT,		// SAT:		cycle through SAT modes off/SAT/RSAT
+  MIDI_SPLIT,		// SPLIT:	Split on/off
+  SWAP_RX, 		// SWAPRX:	swap active receiver (if there are two receivers)
+  SWAP_VFO,		// SWAPVFO:	swap VFO A/B frequency
+  MIDI_TUNE,		// TUNE:	toggle "tune" state
+  VFOA,			// VFOA:	change VFO-A frequency
+  VFOB,			// VFOB:	change VFO-B frequency
+  VFO_STEP_UP,		// VFOSTEPUP:	cycle through vfo steps upwards;
+  VFO_STEP_DOWN,	// VFOSTEPDOWN:	cycle through vfo steps downwards;
+  VOX, 			// VOX:		toggle VOX on/off
+  MIDI_XIT_CLEAR,	// XITCLEAR:	clear XIT value
+  XIT_VAL,		// XITVAL:	change XIT value
 };
 
 //
