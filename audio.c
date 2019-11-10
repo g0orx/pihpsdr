@@ -386,8 +386,6 @@ int audio_write(RECEIVER *rx,short left_sample,short right_sample) {
   //
 
   if (rx == active_receiver && isTransmitting() && (mode==modeCWU || mode==modeCWL)) {
-    fprintf(stderr,"returning from audio_write\n");
-    rx->playback_offset=0;
     return 0;
   }
 
