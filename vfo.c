@@ -586,49 +586,68 @@ void vfo_step(int steps) {
 
 void vfo_move(long long hz,int round) {
   int id=active_receiver->id;
-g_print("vfo_move: id=%d hz=%lld\n",id,hz);
+//g_print("vfo_move: id=%d hz=%lld round=%d sat_mode=%d\n",id,hz,round,sat_mode);
   if(!locked) {
     if(vfo[id].ctun) {
       vfo[id].ctun_frequency=vfo[id].ctun_frequency+hz;
       if(round && (vfo[id].mode!=modeCWL && vfo[id].mode!=modeCWU)) {
-         vfo[id].ctun_frequency=((vfo[id].ctun_frequency+(step/2))/step)*step;
+         //vfo[id].ctun_frequency=((vfo[id].ctun_frequency+(step/2))/step)*step;
+         vfo[id].ctun_frequency=(vfo[id].ctun_frequency/step)*step;
       }
+//g_print("vfo_move: id=%d ctun_frequency=%lld\n",id,vfo[id].ctun_frequency);
     } else {
       vfo[id].frequency=vfo[id].frequency-hz;
       if(round && (vfo[id].mode!=modeCWL && vfo[id].mode!=modeCWU)) {
-         vfo[id].frequency=((vfo[id].frequency-(step/2))/step)*step;
+         //vfo[id].frequency=((vfo[id].frequency-(step/2))/step)*step;
+         vfo[id].frequency=(vfo[id].frequency/step)*step;
       }
+//g_print("vfo_move: id=%d frequency=%lld\n",id,vfo[id].frequency);
     }
+
     int sid=id==0?1:0;
     switch(sat_mode) {
       case SAT_NONE:
         break;
       case SAT_MODE:
+        if(!vfo[id].ctun) {
+          hz=-hz;
+        }
         // A and B increment and decrement together
         if(vfo[sid].ctun) {
           vfo[sid].ctun_frequency=vfo[sid].ctun_frequency+hz;
-          if(round && (vfo[id].mode!=modeCWL && vfo[id].mode!=modeCWU)) {
-             vfo[sid].ctun_frequency=((vfo[sid].ctun_frequency+(step/2))/step)*step;
+          if(round && (vfo[sid].mode!=modeCWL && vfo[sid].mode!=modeCWU)) {
+             //vfo[sid].ctun_frequency=((vfo[sid].ctun_frequency+(step/2))/step)*step;
+             vfo[sid].ctun_frequency=(vfo[sid].ctun_frequency/step)*step;
           }
+//g_print("vfo_move: SAT id=%d ctun_frequency=%lld\n",sid,vfo[sid].ctun_frequency);
         } else {
-          vfo[sid].frequency=vfo[sid].frequency-hz;
-          if(round && (vfo[id].mode!=modeCWL && vfo[id].mode!=modeCWU)) {
-             vfo[sid].frequency=((vfo[sid].frequency-(step/2))/step)*step;
+          vfo[sid].frequency=vfo[sid].frequency+hz;
+          if(round && (vfo[sid].mode!=modeCWL && vfo[sid].mode!=modeCWU)) {
+             //vfo[sid].frequency=((vfo[sid].frequency-(step/2))/step)*step;
+             vfo[sid].frequency=(vfo[sid].frequency/step)*step;
           }
+//g_print("vfo_move: SAT id=%d frequency=%lld\n",sid,vfo[sid].frequency);
         }
         break;
       case RSAT_MODE:
         // A increments and B decrements or A decrments and B increments
+        if(!vfo[id].ctun) {
+          hz=-hz;
+        }
         if(vfo[sid].ctun) {
           vfo[sid].ctun_frequency=vfo[sid].ctun_frequency-hz;
-          if(round && (vfo[id].mode!=modeCWL && vfo[id].mode!=modeCWU)) {
-             vfo[sid].ctun_frequency=((vfo[sid].ctun_frequency-(step/2))/step)*step;
+          if(round && (vfo[sid].mode!=modeCWL && vfo[sid].mode!=modeCWU)) {
+             //vfo[sid].ctun_frequency=((vfo[sid].ctun_frequency-(step/2))/step)*step;
+             vfo[sid].ctun_frequency=(vfo[sid].ctun_frequency/step)*step;
           }
+//g_print("vfo_move: RSAT id=%d ctun_frequency=%lld\n",sid,vfo[sid].ctun_frequency);
         } else {
-          vfo[sid].frequency=vfo[sid].frequency+hz;
-          if(round && (vfo[id].mode!=modeCWL && vfo[id].mode!=modeCWU)) {
-             vfo[sid].ctun_frequency=((vfo[sid].ctun_frequency+(step/2))/step)*step;
+          vfo[sid].frequency=vfo[sid].frequency-hz;
+          if(round && (vfo[sid].mode!=modeCWL && vfo[sid].mode!=modeCWU)) {
+             //vfo[sid].frequency=((vfo[sid].frequency+(step/2))/step)*step;
+             vfo[sid].frequency=(vfo[sid].frequency/step)*step;
           }
+//g_print("vfo_move: RSAT id=%d frequency=%lld\n",sid,vfo[sid].frequency);
         }
         break;
     }
@@ -645,11 +664,11 @@ void vfo_move_to(long long hz) {
   long long diff; 
   long long f;
 
-g_print("vfo_move_to: id=%d hz=%lld f=%lld\n",id,hz,f);
   if(vfo[id].mode!=modeCWL && vfo[id].mode!=modeCWU) {
     offset=(hz/step)*step;
   }
-  f=vfo[id].frequency-half+offset;
+  f=(vfo[id].frequency-half)+offset;
+//g_print("vfo_move_to: id=%d hz=%lld f=%lld\n",id,hz,f);
 
   if(!locked) {
     if(vfo[id].ctun) {
@@ -660,7 +679,7 @@ g_print("vfo_move_to: id=%d hz=%lld f=%lld\n",id,hz,f);
       } else if(vfo[id].mode==modeCWU) {
         vfo[id].ctun_frequency-=cw_keyer_sidetone_frequency;
       }
-g_print("vfo_move_to: vfo=%d ctun_frequency=%lld diff=%lld\n",id,vfo[id].ctun_frequency,diff);
+//g_print("vfo_move_to: vfo=%d ctun_frequency=%lld diff=%lld\n",id,vfo[id].ctun_frequency,diff);
     } else {
       diff=f-vfo[id].frequency;
       vfo[id].frequency=f;
@@ -669,7 +688,7 @@ g_print("vfo_move_to: vfo=%d ctun_frequency=%lld diff=%lld\n",id,vfo[id].ctun_fr
       } else if(vfo[id].mode==modeCWU) {
         vfo[id].frequency-=cw_keyer_sidetone_frequency;
       }
-g_print("vfo_move_to: vfo=%d frequency=%lld diff==%lld\n",id,vfo[id].frequency,diff);
+//g_print("vfo_move_to: vfo=%d frequency=%lld diff==%lld\n",id,vfo[id].frequency,diff);
     }
 
     int sid=id==0?1:0;
@@ -681,10 +700,10 @@ g_print("vfo_move_to: vfo=%d frequency=%lld diff==%lld\n",id,vfo[id].frequency,d
         // A and B increment and decrement together
         if(vfo[sid].ctun) {
           vfo[sid].ctun_frequency+=diff;
-g_print("vfo_move_to: SAT vfo=%d ctun_frequency=%lld\n",sid,vfo[sid].ctun_frequency);
+//g_print("vfo_move_to: SAT vfo=%d ctun_frequency=%lld\n",sid,vfo[sid].ctun_frequency);
         } else {
           vfo[sid].frequency+=diff;
-g_print("vfo_move_to: SAT vfo=%d frequency=%lld\n",sid,vfo[sid].frequency);
+//g_print("vfo_move_to: SAT vfo=%d frequency=%lld\n",sid,vfo[sid].frequency);
         }
         break;
       case RSAT_MODE:
@@ -692,10 +711,10 @@ g_print("vfo_move_to: SAT vfo=%d frequency=%lld\n",sid,vfo[sid].frequency);
         // A increments and B decrements or A decrements and B increments
         if(vfo[sid].ctun) {
           vfo[sid].ctun_frequency-=diff;
-g_print("vfo_move_to: RSAT vfo=%d ctun_frequency=%lld\n",sid,vfo[sid].ctun_frequency);
+//g_print("vfo_move_to: RSAT vfo=%d ctun_frequency=%lld\n",sid,vfo[sid].ctun_frequency);
         } else {
           vfo[sid].frequency-=diff;
-g_print("vfo_move_to: RSAT vfo=%d frequency=%lld\n",sid,vfo[sid].frequency);
+//g_print("vfo_move_to: RSAT vfo=%d frequency=%lld\n",sid,vfo[sid].frequency);
         }
         break;
     }
