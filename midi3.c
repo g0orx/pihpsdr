@@ -460,7 +460,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    g_idle_add(ext_set_drive, (gpointer) dp);
 	    break;
 	/////////////////////////////////////////////////////////// "RITCLEAR"
-	case RIT_CLEAR:	  // only key supported
+	case MIDI_RIT_CLEAR:	  // only key supported
 	    if (type == MIDI_KEY) {
 	      // clear RIT value
 	      vfo[active_receiver->id].rit = new;

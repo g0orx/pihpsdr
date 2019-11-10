@@ -125,7 +125,7 @@ static struct {
 	{ MIDI_PS,    		"PURESIGNAL"},
 	{ MIDI_RF_GAIN, 	"RFGAIN"},
         { TX_DRIVE,     	"RFPOWER"},
-	{ RIT_CLEAR,		"RITCLEAR"},
+	{ MIDI_RIT_CLEAR,	"RITCLEAR"},
 	{ RIT_STEP, 		"RITSTEP"},
         { RIT_TOGGLE,   	"RITTOGGLE"},
         { RIT_VAL,      	"RITVAL"},

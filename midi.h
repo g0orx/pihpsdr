@@ -75,7 +75,7 @@ enum MIDIaction {
   MIDI_PS,		// PURESIGNAL:		toggle PURESIGNAL on/off
   MIDI_RF_GAIN,		// RFGAIN:		receiver RF gain
   TX_DRIVE,		// RFPOWER:		adjust TX RF output power
-  RIT_CLEAR,		// RITCLEAR:		clear RIT and XIT value
+  MIDI_RIT_CLEAR,	// RITCLEAR:		clear RIT and XIT value
   RIT_STEP,		// RITSTEP:		cycle through RIT/XIT step size values
   RIT_TOGGLE,  		// RITTOGGLE:		toggle RIT on/off
   RIT_VAL,		// RITVAL:		change RIT value
