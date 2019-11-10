@@ -556,6 +556,29 @@ void vfo_step(int steps) {
     } else {
       vfo[id].frequency=(vfo[id].frequency/step +steps)*step;
     }
+
+    int sid=id==0?1:0;
+    switch(sat_mode) {
+      case SAT_NONE:
+        break;
+      case SAT_MODE:
+        // A and B increment and decrement together
+        if(vfo[sid].ctun) {
+          vfo[sid].ctun_frequency=vfo[sid].ctun_frequency+(steps*step);
+        } else {
+          vfo[sid].frequency=vfo[sid].frequency+(steps*step);
+        }
+        break;
+      case RSAT_MODE:
+        // A increments and B decrements or A decrments and B increments
+        if(vfo[sid].ctun) {
+          vfo[sid].ctun_frequency=vfo[sid].ctun_frequency-(steps*step);
+        } else {
+          vfo[sid].frequency=vfo[sid].frequency-(steps*step);
+        }
+        break;
+    }
+
     receiver_frequency_changed(active_receiver);
 #ifdef INCLUDED
     BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
