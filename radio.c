@@ -218,15 +218,15 @@ int attenuation = 0; // 0dB
 //unsigned long alex_attenuation=0;
 
 int cw_keys_reversed=0; // 0=disabled 1=enabled
-int cw_keyer_speed=12; // 1-60 WPM
-int cw_keyer_mode=KEYER_STRAIGHT;
-int cw_keyer_weight=30; // 0-100
+int cw_keyer_speed=16; // 1-60 WPM
+int cw_keyer_mode=KEYER_MODE_A;
+int cw_keyer_weight=50; // 0-100
 int cw_keyer_spacing=0; // 0=on 1=off
 int cw_keyer_internal=1; // 0=external 1=internal
-int cw_keyer_sidetone_volume=127; // 0-127
+int cw_keyer_sidetone_volume=50; // 0-127
 int cw_keyer_ptt_delay=20; // 0-255ms
-int cw_keyer_hang_time=300; // ms
-int cw_keyer_sidetone_frequency=400; // Hz
+int cw_keyer_hang_time=500; // ms
+int cw_keyer_sidetone_frequency=800; // Hz
 int cw_breakin=1; // 0=disabled 1=enabled
 
 int cw_is_on_vfo_freq=1;   // 1= signal on VFO freq, 0= signal offset by side tone
@@ -430,10 +430,6 @@ void start_radio() {
 #endif
   }
 
-
-#ifdef MIDI
-  MIDIstartup();
-#endif
 
 #ifdef __APPLE__
   sem_unlink("PROPERTY");
@@ -746,7 +742,9 @@ void start_radio() {
 // It is possible that an option has been read in
 // which is not compatible with the hardware.
 // Change setting to reasonable value then.
+// This could possibly be moved to radioRestoreState().
 // 
+// Sanity Check #1: restrict buffer size in new protocol
 //
   switch (protocol) {
     case ORIGINAL_PROTOCOL:
@@ -761,6 +759,12 @@ void start_radio() {
       break;
 #endif
   }
+//
+// Sanity Check #2: enable diversity only if there are two RX and two ADCs
+//
+   if (RECEIVERS < 2 || n_adc < 2) {
+     diversity_enabled=0;
+   }
 
   radio_change_region(region);
 
@@ -978,6 +982,14 @@ void start_radio() {
   g_idle_add(ext_vfo_update,(gpointer)NULL);
 
   gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_ARROW));
+
+  //
+  // MIDIstartup must not be called before the radio is completely set up, since
+  // then MIDI can asynchronously trigger actions
+  //
+#ifdef MIDI
+  MIDIstartup();
+#endif
 
 }
 
@@ -1497,15 +1509,25 @@ void radioRestoreState() {
     char *value;
 
 fprintf(stderr,"radioRestoreState: %s\n",property_path);
-fprintf(stderr,"sem_wait\n");
+//fprintf(stderr,"sem_wait\n");
 #ifdef __APPLE__
     sem_wait(property_sem);
 #else
     sem_wait(&property_sem);
 #endif
-fprintf(stderr,"sem_wait: returner\n");
+//fprintf(stderr,"sem_wait: returner\n");
     loadProperties(property_path);
 
+    value=getProperty("diversity_enabled");
+    if (value) diversity_enabled=atoi(value);
+    value=getProperty("diversity_gain");
+    if (value) div_gain=atof(value);
+    value=getProperty("diversity_phase");
+    if (value) div_phase=atof(value);
+    value=getProperty("diversity_cos");
+    if (value) div_cos=atof(value);
+    value=getProperty("diversity_sin");
+    if (value) div_sin=atof(value);
     value=getProperty("new_pa_board");
     if (value) new_pa_board=atoi(value);
     value=getProperty("region");
@@ -1733,7 +1755,7 @@ fprintf(stderr,"sem_wait: returner\n");
 #endif
 
 	
-fprintf(stderr,"sem_post\n");
+//fprintf(stderr,"sem_post\n");
 #ifdef __APPLE__
     sem_post(property_sem);
 #else
@@ -1747,13 +1769,23 @@ void radioSaveState() {
     char value[80];
 
 fprintf(stderr,"radioSaveState: %s\n",property_path);
-fprintf(stderr,"sem_wait\n");
+//fprintf(stderr,"sem_wait\n");
 #ifdef __APPLE__
     sem_wait(property_sem);
 #else
     sem_wait(&property_sem);
 #endif
-fprintf(stderr,"sem_wait: returned\n");
+//fprintf(stderr,"sem_wait: returned\n");
+    sprintf(value,"%d",diversity_enabled);
+    setProperty("diversity_enabled",value);
+    sprintf(value,"%f",div_gain);
+    setProperty("diversity_gain",value);
+    sprintf(value,"%f",div_phase);
+    setProperty("diversity_phase",value);
+    sprintf(value,"%f",div_cos);
+    setProperty("diversity_cos",value);
+    sprintf(value,"%f",div_sin);
+    setProperty("diversity_sin",value);
     sprintf(value,"%d",new_pa_board);
     setProperty("new_pa_board",value);
     sprintf(value,"%d",region);

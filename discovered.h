@@ -72,14 +72,19 @@
 // application itself is started, at which point it will be changed to the old
 // protocol and proceed to be handled just like a normal HPSDR radio.
 #define STEMLAB_PROTOCOL 5
+//
 // Since there are multiple HPSDR applications for the STEMlab, but not all
 // are always installed, we need to keep track of which are installed, so the
 // user can choose which one should be started.
-// The software version field will be abused for this purpose
-#define STEMLAB_PAVEL_RX 1
-#define STEMLAB_PAVEL_TRX 2
-#define STEMLAB_RP_TRX 4
-#define HAMLAB_RP_TRX 8
+// The software version field will be abused for this purpose,
+// and we use one bit to distinguish between fancy (STEMlab) and
+// barebone (ALPINE) RedPitayas.
+//
+#define STEMLAB_PAVEL_RX   1	// found: sdr_receiver_hpsdr
+#define STEMLAB_PAVEL_TRX  2	// found: sdr_transceiver_hpsdr
+#define STEMLAB_RP_TRX     4	// found: stemlab_sdr_transceiver_hpsdr
+#define HAMLAB_RP_TRX      8	// found: hamlab_sdr_transceiver_hpsdr
+#define BARE_REDPITAYA    16	// barebone RedPitaya (no STEMlab)
 #endif
 
 

@@ -166,6 +166,8 @@ static void *handler_ep6(void *arg);
 static double  last_i_sample=0.0;
 static double  last_q_sample=0.0;
 static int  txptr=0;
+static int  do_audio=0;  // 0: no audio, 1: audio
+static int  oldnew=3;    // 1: only P1, 2: only P2, 3: P1 and P2, 
 
 static double txlevel;
 
@@ -228,6 +230,9 @@ int main(int argc, char *argv[])
             if (!strncmp(argv[i],"-hermeslite" , 11))  {OLDDEVICE=DEVICE_HERMES_LITE; NEWDEVICE=NEW_DEVICE_HERMES_LITE;}
             if (!strncmp(argv[i],"-c25"    ,      4))  {OLDDEVICE=DEVICE_C25;         NEWDEVICE=NEW_DEVICE_HERMES;}
             if (!strncmp(argv[i],"-diversity",   10))  {diversity=1;}
+            if (!strncmp(argv[i],"-audio",        6))  {do_audio=1;}
+            if (!strncmp(argv[i],"-P1",           3))  {oldnew=1;}
+            if (!strncmp(argv[i],"-P2",           3))  {oldnew=2;}
         }
 
         switch (OLDDEVICE) {
@@ -304,6 +309,7 @@ int main(int argc, char *argv[])
 	}
 
 	setsockopt(sock_udp, SOL_SOCKET, SO_REUSEADDR, (void *)&yes, sizeof(yes));
+	setsockopt(sock_udp, SOL_SOCKET, SO_REUSEPORT, (void *)&yes, sizeof(yes));
 
 	tv.tv_sec = 0;
 	tv.tv_usec = 1000;
@@ -555,6 +561,11 @@ int main(int argc, char *argv[])
 			    // respond to an incoming Metis detection request
 			    case 0x0002feef:
 
+				if (oldnew == 2) {
+					fprintf(stderr,"OldProtocol detection request IGNORED.\n");
+					break;  // Swallow P1 detection requests
+				}
+
 				fprintf(stderr, "Respond to an incoming Metis detection request / code: 0x%08x\n", code);
 
 				// processing an invalid packet is too dangerous -- skip it!
@@ -716,6 +727,10 @@ int main(int argc, char *argv[])
 				  break;
 				}
 		   	    	if (code == 0 && buffer[4] == 0x02) {
+				  if (oldnew == 1) {
+				    fprintf(stderr,"NewProtocol discovery packet IGNORED.\n");
+				    break;
+				  }
 				  fprintf(stderr,"NewProtocol discovery packet received\n");
 				  // prepeare response
 				  memset(buffer, 0, 60);
@@ -736,6 +751,10 @@ int main(int argc, char *argv[])
 				  break;
 				}
 		   	    	if (code == 0 && buffer[4] == 0x04) {
+				  if (oldnew == 1) {
+				    fprintf(stderr,"NewProtocol erase packet IGNORED.\n");
+				    break;
+				  }
 				  fprintf(stderr,"NewProtocol erase packet received\n");
                                   memset(buffer, 0, 60);
                                   buffer [4]=0x02+active_thread;
@@ -757,6 +776,10 @@ int main(int argc, char *argv[])
 				  break;
 				}
 		   	    	if (bytes_read == 265 && buffer[4] == 0x05) {
+				  if (oldnew == 1) {
+				    fprintf(stderr,"NewProtocol program packet IGNORED.\n");
+				    break;
+				  }
 				  unsigned long seq, blk;
 				  seq=(buffer[0] << 24) + (buffer[1] << 16) + (buffer[2] << 8) + buffer[3];
 				  blk=(buffer[5] << 24) + (buffer[6] << 16) + (buffer[7] << 8) + buffer[8];
@@ -780,6 +803,10 @@ int main(int argc, char *argv[])
 				  break;
 				}
 		   	    	if (bytes_read == 60 && code == 0 && buffer[4] == 0x06) {
+				  if (oldnew == 1) {
+				    fprintf(stderr,"NewProtocol SetIP packet IGNORED.\n");
+				    break;
+				  }
 				  fprintf(stderr,"NewProtocol SetIP packet received for MAC %2x:%2x:%2x:%2x%2x:%2x IP=%d:%d:%d:%d\n",
                                           buffer[5],buffer[6],buffer[7],buffer[8],buffer[9],buffer[10],
 					  buffer[11],buffer[12],buffer[13],buffer[14]);
@@ -808,6 +835,10 @@ int main(int argc, char *argv[])
 				  break;
 				}
 		   	    	if (bytes_read == 60 && buffer[4] == 0x00) {
+				  if (oldnew == 1) {
+				    fprintf(stderr,"NewProtocol General packet IGNORED.\n");
+				    break;
+				  }
 				  // handle "general packet" of the new protocol
 				  memset(&addr_new, 0, sizeof(addr_new));
 				  addr_new.sin_family = AF_INET;

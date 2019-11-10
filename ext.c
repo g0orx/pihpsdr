@@ -133,7 +133,7 @@ int ext_noise_update(void *data) {
 }
 
 int ext_mox_update(void *data) {
-g_print("ext_mox_update: %d\n",GPOINTER_TO_INT(data));
+//g_print("ext_mox_update: %d\n",GPOINTER_TO_INT(data));
   mox_update(GPOINTER_TO_INT(data));
   return 0;
 }
@@ -222,6 +222,15 @@ int ext_update_vfo_step(void *data) {
 int ext_vfo_step(void *data) {
   int step=GPOINTER_TO_INT(data);
   vfo_step(step);
+  return 0;
+}
+
+int ext_vfo_id_step(void *data) {
+  int *ip=(int *) data;
+  int id=ip[0];
+  int step=ip[1];
+  vfo_id_step(id,step);
+  free(data);
   return 0;
 }
 
@@ -593,4 +602,3 @@ int ext_set_rf_gain(void *data) {
   set_rf_gain(active_receiver->id,value);
   return 0;
 }
-

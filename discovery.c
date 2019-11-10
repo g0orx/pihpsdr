@@ -68,7 +68,13 @@ static gboolean start_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
   if (radio->protocol == STEMLAB_PROTOCOL) {
     const int device_id = radio - discovered;
     int ret;
-    ret=stemlab_start_app(gtk_combo_box_get_active_id(GTK_COMBO_BOX(apps_combobox[device_id])));
+    if (radio->software_version & BARE_REDPITAYA) {
+	// Start via the simple web interface
+	ret=alpine_start_app(gtk_combo_box_get_active_id(GTK_COMBO_BOX(apps_combobox[device_id])));
+    } else {
+	// Start via the STEMlab "bazaar" interface
+	ret=stemlab_start_app(gtk_combo_box_get_active_id(GTK_COMBO_BOX(apps_combobox[device_id])));
+    }
     //
     // We have started the SDR app on the RedPitaya, but may need to fill
     // in information necessary for starting the radio, including the

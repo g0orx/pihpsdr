@@ -486,7 +486,7 @@ void mox_cb(GtkWidget *widget, gpointer data) {
 }
 
 void mox_update(int state) {
-fprintf(stderr,"mox_update: state=%d\n",state);
+//fprintf(stderr,"mox_update: state=%d\n",state);
   if(getTune()==1) {
     setTune(0);
   }

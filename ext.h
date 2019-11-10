@@ -87,6 +87,7 @@ extern int ext_tx_set_ps(void *data);
 
 int ext_update_vfo_step(void *data);
 int ext_vfo_step(void *data);
+int ext_vfo_id_step(void *data);
 int ext_vfo_mode_changed(void *data);
 int ext_set_af_gain(void *data);
 int ext_set_mic_gain(void *data);
