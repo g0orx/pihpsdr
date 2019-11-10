@@ -527,8 +527,6 @@ static gpointer rigctl_cw_thread(gpointer data)
       }
       cw_busy=0; // mark one-line buffer free again
     }
-    // This may happen if cw_buf was empty or contained only blanks
-    if (num_buf == 0) continue;
 
     // these values may have changed, so recompute them here
     // This means that we can change the speed (KS command) while

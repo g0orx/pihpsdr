@@ -8,11 +8,6 @@
 // If PortAudio is NOT used, this file is empty, and audio.c
 // is used instead.
 //
-// It seems that a PortAudio device can only be opened once,
-// therefore there is no need to support stereo output.
-// (cw_)audio_write therefore put the sum of left and right
-// channel to a (mono) output stream
-//
 
 #include <gtk/gtk.h>
 
@@ -28,23 +23,29 @@
 
 #include "new_protocol.h"
 #include "old_protocol.h"
+#ifdef RADIOBERRY
+#include "radioberry.h"
+#endif
 #include "radio.h"
 #include "receiver.h"
 #include "mode.h"
 #include "portaudio.h"
-#include "audio.h"
+#include "math.h"   // for sintab, two-tone generator
 
 static PaStream *record_handle=NULL;
 
-int n_input_devices;
-AUDIO_DEVICE input_devices[MAX_AUDIO_DEVICES];
-int n_output_devices;
-AUDIO_DEVICE output_devices[MAX_AUDIO_DEVICES];
+#define MAXDEVICES 12
+
+const char *input_devices[MAXDEVICES];
+const char *output_devices[MAXDEVICES];
 
 int n_input_devices=0;
 int n_output_devices=0;
 
-static float *mic_buffer=NULL;
+static int   in_device_no[MAXDEVICES];
+static int   out_device_no[MAXDEVICES];
+
+static unsigned char *mic_buffer=NULL;
 static int mic_buffer_size;
 static int audio_buffer_size=256;
 
@@ -83,16 +84,9 @@ void audio_get_cards()
         inputParameters.suggestedLatency = 0; /* ignored by Pa_IsFormatSupported() */
         inputParameters.hostApiSpecificStreamInfo = NULL;
         if (Pa_IsFormatSupported(&inputParameters, NULL, 48000.0) == paFormatIsSupported) {
-          if (n_input_devices < MAX_AUDIO_DEVICES) {
-	    //
-	    // probably not necessary with portaudio, but to be on the safe side,
-	    // we copy the device name to local storage. This is referenced both
-	    // by the name and description element.
-	    //
-            input_devices[n_input_devices].name=input_devices[n_input_devices].description=g_new0(char,strlen(deviceInfo->name)+1);
-	    strcpy(input_devices[n_input_devices].name, deviceInfo->name);
-            input_devices[n_input_devices].index=i;
-            n_input_devices++;
+          if (n_input_devices < MAXDEVICES) {
+            input_devices[n_input_devices]=deviceInfo->name;
+            in_device_no[n_input_devices++] =i;
           }
           fprintf(stderr,"PORTAUDIO INPUT DEVICE, No=%d, Name=%s\n", i, deviceInfo->name);
 	}
@@ -103,11 +97,9 @@ void audio_get_cards()
         outputParameters.suggestedLatency = 0; /* ignored by Pa_IsFormatSupported() */
         outputParameters.hostApiSpecificStreamInfo = NULL;
         if (Pa_IsFormatSupported(NULL, &outputParameters, 48000.0) == paFormatIsSupported) {
-          if (n_output_devices < MAX_AUDIO_DEVICES) {
-            output_devices[n_output_devices].name=output_devices[n_output_devices].description=g_new0(char,strlen(deviceInfo->name)+1);
-            strcpy(output_devices[n_output_devices].name, deviceInfo->name);
-            output_devices[n_output_devices].index=i;
-            n_output_devices++;
+          if (n_output_devices < MAXDEVICES) {
+            output_devices[n_output_devices]=deviceInfo->name;
+            out_device_no[n_output_devices++] =i;
           }
           fprintf(stderr,"PORTAUDIO OUTPUT DEVICE, No=%d, Name=%s\n", i, deviceInfo->name);
         }
@@ -130,53 +122,35 @@ int audio_open_input()
   PaStreamParameters inputParameters, outputParameters;
   long framesPerBuffer;
   int i;
-  int padev;
 
-  if(transmitter->microphone_name==NULL) {
-    transmitter->local_microphone=0;
-    return -1;
-  }
-  //
-  // Look up device name and determine device ID
-  //
-  padev=-1;
-  for (i=0; i<n_input_devices; i++) {
-    if (!strcmp(transmitter->microphone_name, input_devices[i].name)) {
-	padev=input_devices[i].index;
-	break;
-    }
-  }
-  fprintf(stderr,"audio_open_input: name=%s PADEV=%d\n",transmitter->microphone_name,padev);
-  //
-  // Should not occur, but possibly device name not found
-  //
-  if (padev < 0) {
+  fprintf(stderr,"audio_open_input: %d\n",transmitter->input_device);
+  if(transmitter->input_device<0 || transmitter->input_device>=n_input_devices) {
+    transmitter->input_device=0;
     return -1;
   }
 
   switch(protocol) {
     case ORIGINAL_PROTOCOL:
-#ifdef SOAPYSDR
-    case SOAPYSDR_PROTOCOL:
-#endif
       framesPerBuffer = 720;
       break;
     case NEW_PROTOCOL:
       framesPerBuffer = 64;
       break;
+#ifdef RADIOBERRY
+        case RADIOBERRY_PROTOCOL:
+                framesPerBuffer = 1024;
+                break;
+#endif
     default:
-      framesPerBuffer = 720;  // we should never come here
       break;
   }
-  mic_buffer_size=framesPerBuffer;
-  fprintf(stderr,"audio_open_input: mic_buffer_size=%d\n",mic_buffer_size);
 
   bzero( &inputParameters, sizeof( inputParameters ) ); //not necessary if you are filling in all the fields
-  inputParameters.channelCount = 1;   // MONO
-  inputParameters.device = padev;
+  inputParameters.channelCount = 1;
+  inputParameters.device = in_device_no[transmitter->input_device];
   inputParameters.hostApiSpecificStreamInfo = NULL;
   inputParameters.sampleFormat = paFloat32;
-  inputParameters.suggestedLatency = Pa_GetDeviceInfo(padev)->defaultLowInputLatency ;
+  inputParameters.suggestedLatency = Pa_GetDeviceInfo(in_device_no[transmitter->input_device])->defaultLowInputLatency ;
   inputParameters.hostApiSpecificStreamInfo = NULL; //See you specific host's API docs for info on using this field
 
   err = Pa_OpenStream(&record_handle, &inputParameters, NULL, 48000.0, framesPerBuffer, paNoFlag, pa_mic_cb, NULL);
@@ -190,7 +164,8 @@ int audio_open_input()
     fprintf(stderr, "PORTAUDIO ERROR: AOI start stream:%s\n",Pa_GetErrorText(err));
     return -1;
   }
-  mic_buffer=g_new0(float,mic_buffer_size);
+  mic_buffer=(unsigned char *)malloc(2*framesPerBuffer);
+  mic_buffer_size=framesPerBuffer;
   return 0;
 }
 
@@ -202,32 +177,43 @@ int pa_mic_cb(const void *inputBuffer, void *outputBuffer, unsigned long framesP
              PaStreamCallbackFlags statusFlags,
              void *userdata)
 {
-  float *in = (float *)inputBuffer;
+  const float *in = (float *)inputBuffer;
   int i;
+  short isample;
+  unsigned char *p;
 
+//
+// Convert input buffer in paFloat32 into a sequence of 16-bit
+// values in the mic buffer.
+//
   if (mic_buffer == NULL) return paAbort;
 
-//
-// if something does not look good, fill mic_buffer with silence
-//
+  p=mic_buffer;
   if (in == NULL || framesPerBuffer != mic_buffer_size) {
-    memset(mic_buffer, 0, sizeof(float)*mic_buffer_size);
+    for (i=0; i<mic_buffer_size; i++)  {
+      *p++ = 0;
+      *p++ = 0;
+    }
   } else {
-    memcpy(mic_buffer, in, sizeof(float)*mic_buffer_size);
+    for (i=0; i<framesPerBuffer; i++) {
+      isample=(short) (in[i]*32767.0);
+      *p++   = (isample & 0xFF);         // LittleEndian
+      *p++   = (isample >> 8)& 0xFF;
+    }
   }
 //
 // Call routine to send mic buffer
 //
   switch(protocol) {
     case ORIGINAL_PROTOCOL:
-      old_protocol_process_local_mic(mic_buffer);
+      old_protocol_process_local_mic(mic_buffer,1);
       break;
     case NEW_PROTOCOL:
-      new_protocol_process_local_mic(mic_buffer);
+      new_protocol_process_local_mic(mic_buffer,1);
       break;
-#ifdef SOAPYSDR
-    case SOAPYSDR_PROTOCOL:
-      soapy_protocol_process_local_mic(mic_buffer);
+#ifdef RADIOBERRY
+    case RADIOBERRY_PROTOCOL:
+      radioberry_protocol_process_local_mic(mic_buffer,1);
       break;
 #endif
     default:
@@ -246,32 +232,13 @@ int audio_open_output(RECEIVER *rx)
   PaError err;
   PaStreamParameters outputParameters;
   long framesPerBuffer=(long) audio_buffer_size;
-  int padev;
-  int i;
 
-  if(rx->audio_name==NULL) {
-    rx->local_audio=0;
+  int padev = out_device_no[rx->audio_device];
+  fprintf(stderr,"audio_open_output: %d PADEV=%d\n",rx->audio_device,padev);
+  if(rx->audio_device<0 || rx->audio_device>=n_output_devices) {
+    rx->audio_device=-1;
     return -1;
   }
-  //
-  // Look up device name and determine device ID
-  //
-  padev=-1;
-  for (i=0; i<n_output_devices; i++) {
-    if (!strcmp(rx->audio_name, output_devices[i].name)) {
-        padev=output_devices[i].index;
-        break;
-    }
-  }
-  fprintf(stderr,"audio_open_output: name=%s PADEV=%d\n",rx->audio_name,padev);
-  //
-  // Should not occur, but possibly device name not found
-  //
-  if (padev < 0) {
-    return -1;
-  }
-
-
   bzero( &outputParameters, sizeof( outputParameters ) ); //not necessary if you are filling in all the fields
   outputParameters.channelCount = 1;   // Always MONO
   outputParameters.device = padev;
@@ -280,13 +247,13 @@ int audio_open_output(RECEIVER *rx)
   outputParameters.suggestedLatency = Pa_GetDeviceInfo(padev)->defaultLowOutputLatency ;
   outputParameters.hostApiSpecificStreamInfo = NULL; //See you specific host's API docs for info on using this field
 
-  // Do not use call-back function, just stream it
+  // Try using AudioWrite without a call-back function
 
   rx->playback_buffer=malloc(audio_buffer_size*sizeof(float));
   rx->playback_offset=0;
   err = Pa_OpenStream(&(rx->playback_handle), NULL, &outputParameters, 48000.0, framesPerBuffer, paNoFlag, NULL, NULL);
   if (err != paNoError) {
-    fprintf(stderr,"PORTAUDIO ERROR: out open stream: %s\n",Pa_GetErrorText(err));
+    fprintf(stderr,"PORTAUDIO ERROR: AOO open stream: %s\n",Pa_GetErrorText(err));
     rx->playback_handle = NULL;
     if (rx->playback_buffer) free(rx->playback_buffer);
     rx->playback_buffer = NULL;
@@ -295,7 +262,7 @@ int audio_open_output(RECEIVER *rx)
 
   err = Pa_StartStream(rx->playback_handle);
   if (err != paNoError) {
-    fprintf(stderr,"PORTAUDIO ERROR: out start stream:%s\n",Pa_GetErrorText(err));
+    fprintf(stderr,"PORTAUDIO ERROR: AOO start stream:%s\n",Pa_GetErrorText(err));
     rx->playback_handle=NULL;
     if (rx->playback_buffer) free(rx->playback_buffer);
     rx->playback_buffer = NULL;
@@ -317,16 +284,16 @@ void audio_close_input()
 {
   PaError err;
 
-  fprintf(stderr,"AudioCloseInput: %s\n", transmitter->microphone_name);
+  fprintf(stderr,"AudioCloseInput: %d\n", transmitter->input_device);
 
   if(record_handle!=NULL) {
     err = Pa_StopStream(record_handle);
     if (err != paNoError) {
-      fprintf(stderr,"PORTAUDIO ERROR: in stop stream: %s\n",Pa_GetErrorText(err));
+      fprintf(stderr,"PORTAUDIO ERROR: ACI stop stream: %s\n",Pa_GetErrorText(err));
     }
     err = Pa_CloseStream(record_handle);
     if (err != paNoError) {
-      fprintf(stderr,"PORTAUDIO ERROR: in close stream: %s\n",Pa_GetErrorText(err));
+      fprintf(stderr,"PORTAUDIO ERROR: ACI close stream: %s\n",Pa_GetErrorText(err));
     }
     record_handle=NULL;
   }
@@ -344,7 +311,7 @@ void audio_close_input()
 void audio_close_output(RECEIVER *rx) {
   PaError err;
 
-  fprintf(stderr,"AudioCloseOutput: %s\n", rx->audio_name);
+  fprintf(stderr,"AudioCloseOutput: %d\n", rx->audio_device);
 
 // free the buffer first, this then indicates to audio_write to do nothing
   if(rx->playback_buffer!=NULL) {
@@ -355,11 +322,11 @@ void audio_close_output(RECEIVER *rx) {
   if(rx->playback_handle!=NULL) {
     err = Pa_StopStream(rx->playback_handle);
     if (err != paNoError) {
-      fprintf(stderr,"PORTAUDIO ERROR: out stop stream: %s\n",Pa_GetErrorText(err));
+      fprintf(stderr,"PORTAUDIO ERROR: ACO stop stream: %s\n",Pa_GetErrorText(err));
     }
     err = Pa_CloseStream(rx->playback_handle);
     if (err != paNoError) {
-      fprintf(stderr,"PORTAUDIO ERROR: out close stream: %s\n",Pa_GetErrorText(err));
+      fprintf(stderr,"PORTAUDIO ERROR: ACO close stream: %s\n",Pa_GetErrorText(err));
     }
     rx->playback_handle=NULL;
   }
@@ -372,7 +339,7 @@ void audio_close_output(RECEIVER *rx) {
 // we have to store the data such that the PA callback function
 // can access it.
 //
-int audio_write (RECEIVER *rx, short l, short r)
+int audio_write (RECEIVER *rx, short r, short l)
 {
   PaError err;
   int mode=transmitter->mode;
@@ -389,9 +356,12 @@ int audio_write (RECEIVER *rx, short l, short r)
   if (rx->playback_handle != NULL && rx->playback_buffer != NULL) {
     rx->playback_buffer[rx->playback_offset++] = (r + l) *0.000015259;  //   65536 --> 1.0   
     if (rx->playback_offset == audio_buffer_size) {
-      err=Pa_WriteStream(rx->playback_handle, (void *) rx->playback_buffer, (unsigned long) audio_buffer_size);
       rx->playback_offset=0;
-      // do not check on errors, there will be underflows every now and then
+      err=Pa_WriteStream(rx->playback_handle, (void *) rx->playback_buffer, (unsigned long) audio_buffer_size);
+      //if (err != paNoError) {
+      //  fprintf(stderr,"PORTAUDIO ERROR: write stream dev=%d: %s\n",out_device_no[rx->audio_device],Pa_GetErrorText(err));
+      //  return -1;
+      // }
     }
   }
   return 0;
@@ -404,9 +374,12 @@ int cw_audio_write(double sample) {
   if (rx->playback_handle != NULL && rx->playback_buffer != NULL) {
     rx->playback_buffer[rx->playback_offset++] = sample;
     if (rx->playback_offset == audio_buffer_size) {
-      err=Pa_WriteStream(rx->playback_handle, (void *) rx->playback_buffer, (unsigned long) audio_buffer_size);
-      // do not check on errors, there will be underflows every now and then
       rx->playback_offset=0;
+      err=Pa_WriteStream(rx->playback_handle, (void *) rx->playback_buffer, (unsigned long) audio_buffer_size);
+      //if (err != paNoError) {
+      //  fprintf(stderr,"PORTAUDIO ERROR: write stream dev=%d: %s\n",out_device_no[rx->audio_device],Pa_GetErrorText(err));
+      //  return -1;
+      // }
     }
   }
   return 0;

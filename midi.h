@@ -44,53 +44,49 @@
 
 //
 // MIDIaction encodes the "action" to be taken in Layer3
-// (sorted alphabetically by the keyword)
+// (sorted alphabetically)
 //
 enum MIDIaction {
-  ACTION_NONE=0,	// NONE:		No-Op (unassigned key)
-  VFO_A2B,		// A2B:			VFO A -> B
-  AF_GAIN,		// AFGAIN:		AF gain
-  AGCATTACK,		// AGCATTACK:		AGC ATTACK (cycle fast/med/slow etc.)
-  MIDI_AGC,		// AGCVAL:		AGC level
-  ATT,			// ATT:			Step attenuator or Programmable attenuator
-  VFO_B2A,		// B2A:			VFO B -> A
-  BAND_DOWN,		// BANDDOWN:		cycle through bands downwards
-  BAND_UP,		// BANDUP:		cycle through bands upwards
-  COMPRESS,		// COMPRESS:		TX compressor value
-  MIDI_CTUN,		// CTUN:		toggle CTUN on/off
-  VFO,			// CURRVFO:		change VFO frequency
-  MIDI_DUP,		// DUP:			toggle duplex on/off
-  FILTER_DOWN,		// FILTERDOWN:		cycle through filters downwards
-  FILTER_UP,		// FILTERUP:		cycle through filters upwards
-  MIDI_LOCK,		// LOCK:		lock VFOs, disable frequency changes
-  MIC_VOLUME,		// MICGAIN:		MIC gain
-  MODE_DOWN,		// MODEDOWN:		cycle through modes downwards
-  MODE_UP,		// MODEUP:		cycle through modes upwards
-  MIDI_MOX,		// MOX:			toggle "mox" state
-  MIDI_NB,		// NOISEBLANKER:	cycle through NoiseBlanker states (none, NB, NB2)
-  MIDI_NR,		// NOISEREDUCTION:	cycle through NoiseReduction states (none, NR, NR2)
-  PAN_HIGH,		// PANHIGH:		"high" value of current panadapter
-  PAN_LOW,		// PANLOW:		"low" value of current panadapter
-  PRE,			// PREAMP:		preamp on/off
-  MIDI_PS,		// PURESIGNAL:		toggle PURESIGNAL on/off
-  MIDI_RF_GAIN,		// RFGAIN:		receiver RF gain
-  TX_DRIVE,		// RFPOWER:		adjust TX RF output power
-  MIDI_RIT_CLEAR,	// RITCLEAR:		clear RIT and XIT value
-  RIT_STEP,		// RITSTEP:		cycle through RIT/XIT step size values
-  RIT_TOGGLE,  		// RITTOGGLE:		toggle RIT on/off
-  RIT_VAL,		// RITVAL:		change RIT value
-  MIDI_SAT,		// SAT:			cycle through SAT modes off/SAT/RSAT
-  MIDI_SPLIT,		// SPLIT:		Split on/off
-  SWAP_RX, 		// SWAPRX:		swap active receiver (if there are two receivers)
-  SWAP_VFO,		// SWAPVFO:		swap VFO A/B frequency
-  MIDI_TUNE,		// TUNE:		toggle "tune" state
-  VFOA,			// VFOA:		change VFO-A frequency
-  VFOB,			// VFOB:		change VFO-B frequency
-  VFO_STEP_UP,		// VFOSTEPUP:		cycle through vfo steps upwards;
-  VFO_STEP_DOWN,	// VFOSTEPDOWN:		cycle through vfo steps downwards;
-  VOX, 			// VOX:			toggle VOX on/off
-  MIDI_XIT_CLEAR,	// XITCLEAR:		clear XIT value
-  XIT_VAL,		// XITVAL:		change XIT value
+  ACTION_NONE=0,	// No-Op (unassigned key)
+  MIDI_AGC,		// AGC level
+  AGCATTACK,		// AGC ATTACK (cycle fast/med/slow etc.)
+  ATT,			// Step attenuator or Programmable attenuator
+  AF_GAIN,		// AF gain
+  BAND_DOWN,		// cycle through bands downwards
+  BAND_UP,		// cycle through bands upwards
+  COMPRESS,		// TX compressor value
+  MIDI_CTUN,		// CTUN on/off
+  MIDI_DUP,		// DUP on/off
+  FILTER_UP,		// cycle through filters upwards
+  FILTER_DOWN,		// cycle through filters downwards
+  MIC_VOLUME,		// MIC gain
+  MIDI_LOCK,		// disable frequency changes
+  MODE_UP,		// cycle through modes upwards
+  MODE_DOWN,		// cycle through modes downwards
+  MIDI_MOX,		// toggle "mox" state
+  MIDI_NB,		// cycle through NoiseBlanker states (none, NB, NB2)
+  MIDI_NR,		// cycle through NoiseReduction states (none, NR, NR2)
+  PRE,			// preamp on/off
+  PAN_HIGH,		// "high" value of current panadapter
+  PAN_LOW,		// "low" value of current panadapter
+  MIDI_PS,		// PURESIGNAL on/off
+  MIDI_RF_GAIN,		// RF gain
+  MIDI_RIT_CLEAR,	// clear RIT value
+  RIT_VAL,		// change RIT value
+  MIDI_RSAT,		// RSAT on/off
+  MIDI_SAT,		// SAT on/off
+  MIDI_SPLIT,		// Split on/off
+  SWAP_VFO,		// swap VFO A/B frequency
+  MIDI_TUNE,		// toggle "tune" state
+  TX_DRIVE,		// RF output power
+  VFO,			// change VFO frequency
+  VFO_A2B,		// VFO A -> B
+  VFO_B2A,		// VFO B -> A
+  VOX, 			// VOX on/off
+  VFO_STEP_UP,		// cycle through vfo steps upwards;
+  VFO_STEP_DOWN,	// cycle through vfo steps downwards;
+  MIDI_XIT_CLEAR,	// clear XIT
+  XIT_VAL,		// change XIT value
 };
 
 //
@@ -170,12 +166,12 @@ struct desc {
    enum MIDIevent    event;	  // type of event (NOTE on/off, Controller change, Pitch value)
    int               onoff;       // 1: generate upstream event both for Note-on and Note-off
    enum MIDItype     type;        // Key, Knob, or Wheel
-   int               vfl1,vfl2;   // Wheel only: range of controller values for "very fast left"
-   int               fl1,fl2;     // Wheel only: range of controller values for "fast left"
-   int               lft1,lft2;   // Wheel only: range of controller values for "slow left"
-   int               vfr1,vfr2;   // Wheel only: range of controller values for "very fast right"
-   int               fr1,fr2;     // Wheel only: range of controller values for "fast right"
-   int               rgt1,rgt2;   // Wheel only: range of controller values for "slow right"
+   int               low_thr3;    // Wheel only: If controller value is <= this value, generate "very fast down"
+   int               low_thr2;    // Wheel only: If controller value is <= this value, generate "     fast down"
+   int               low_thr1;    // Wheel only: If controller value is <= this value, generate "          down"
+   int               up_thr1;     // Wheel only: If controller value is <= this value, generate "          up  "
+   int               up_thr2;     // Wheel only: If controller value is <= this value, generate "     fast up  "
+   int               up_thr3;     // Wheel only: If controller value is <= this value, generate "very fast up  "
    int		     delay;       // Wheel only: delay (msec) before next message is given upstream
    enum MIDIaction   action;	  // SDR "action" to generate
    struct desc       *next;       // Next defined action for a controller/key with that note value (NULL for end of list)

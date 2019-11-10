@@ -1053,6 +1053,8 @@ void old_protocol_process_local_mic(float *buffer) {
 
 // always 48000 samples per second
   for(i=0;i<720;i++) {
+    // avoid pointer increments in logical-or constructs, as the sequence
+    // is undefined
     sample = (short) (buffer[i]*32767.0);
 #ifdef FREEDV
     if(active_receiver->freedv) {

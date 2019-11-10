@@ -66,7 +66,6 @@ extern char *step_labels[];
 
 extern GtkWidget* vfo_init(int width,int height,GtkWidget *parent);
 extern void vfo_step(int steps);
-extern void vfo_id_step(int id, int steps);
 extern void vfo_move(long long hz,int round);
 extern void vfo_move_to(long long hz);
 extern void vfo_update();

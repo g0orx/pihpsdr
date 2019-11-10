@@ -115,14 +115,7 @@ static void ReadMIDIdevice(const MIDIPacketList *pktlist, void *refCon, void *co
                     // We have a command!
                     switch (command) {
                         case CMD_NOTEON:
-                           // Hercules MIDI controllers generate NoteOn
-                           // messages with velocity == 0 when releasing
-                           // a push-button.
-                           if (arg2 == 0) {
-                             NewMidiEvent(MIDI_NOTE, chan, arg1, 0);
-                           } else {
-                             NewMidiEvent(MIDI_NOTE, chan, arg1, 1);
-                           }
+                           NewMidiEvent(MIDI_NOTE, chan, arg1, 1);
                            break;
                         case CMD_NOTEOFF:
                            NewMidiEvent(MIDI_NOTE, chan, arg1, 0);

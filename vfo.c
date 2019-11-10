@@ -247,10 +247,6 @@ void vfo_restore_state() {
     sprintf(name,"vfo.%d.lo_tx",i);
     value=getProperty(name);
     if(value) vfo[i].lo_tx=atoll(value);
-    // Sanity check: if !ctun, offset must be zero
-    if (!vfo[i].ctun) {
-	vfo[i].offset=0;
-    }
   }
 }
 
@@ -552,29 +548,9 @@ void vfo_step(int steps) {
   int id=active_receiver->id;
   if(!locked) {
     if(vfo[id].ctun) {
-      vfo[id].ctun_frequency=(vfo[id].ctun_frequency/step + steps)*step;
+      vfo[id].ctun_frequency=vfo[id].ctun_frequency+(steps*step);
     } else {
-      vfo[id].frequency=(vfo[id].frequency/step +steps)*step;
-    }
-    receiver_frequency_changed(active_receiver);
-#ifdef INCLUDED
-    BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
-    setFrequency(active_receiver->frequency+(steps*step));
-#endif
-    g_idle_add(ext_vfo_update,NULL);
-  }
-}
-//
-// DL1YCF: essentially a duplicate of vfo_step but
-//         changing a specific VFO freq instead of
-//         changing the VFO of the active receiver
-//
-void vfo_id_step(int id, int steps) {
-  if(!locked) {
-    if(vfo[id].ctun) {
-      vfo[id].ctun_frequency=(vfo[id].ctun_frequency/step+steps)*step;
-    } else {
-      vfo[id].frequency=(vfo[id].frequency/step+steps)*step;
+      vfo[id].frequency=vfo[id].frequency+(steps*step);
     }
 
     int sid=id==0?1:0;
