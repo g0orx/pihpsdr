@@ -1,16 +1,30 @@
 # Get git commit version and date
-#GIT_VERSION := $(shell git --no-pager describe --tags --always --dirty)
 GIT_DATE := $(firstword $(shell git --no-pager show --date=short --format="%ai" --name-only))
 GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 
-# uncomment the line below to include GPIO
+# uncomment the line below to include GPIO (For original piHPSDR Controller and Controller2)
 #GPIO_INCLUDE=GPIO
 
-# uncomment the line below to include MCP23017 I2C
+# uncomment the line below to include MCP23017 I2C (required for Controller2)
 #I2C_INCLUDE=I2C
+
+# uncomment the line below to include CONTROLLER2_V1 (single encoders) (Also uncomment GPIO and I2C)
+#CONTROLLER2_V1_INCLUDE=CONTROLLER2_V1
+
+# uncomment the line below to include CONTROLLER2_V2 (dual encoders) (Also uncomment GPIO and I2C)
+#CONTROLLER2_V2_INCLUDE=CONTROLLER2_V2
 
 # uncomment the line below to include USB Ozy support
 # USBOZY_INCLUDE=USBOZY
+
+# uncomment the line below to include Pure Signal support
+PURESIGNAL_INCLUDE=PURESIGNAL
+
+# uncomment the line to below include support local CW keyer
+LOCALCW_INCLUDE=LOCALCW
+
+# uncomment the line below for SoapySDR
+#SOAPYSDR_INCLUDE=SOAPYSDR
 
 # uncomment the line below to include support for psk31
 #PSK_INCLUDE=PSK
@@ -18,14 +32,11 @@ GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 # uncomment the line to below include support for FreeDV codec2
 #FREEDV_INCLUDE=FREEDV
 
-# uncomment the line below to include Pure Signal support
-PURESIGNAL_INCLUDE=PURESIGNAL
-
 # uncomment the line to below include support for sx1509 i2c expander
 #SX1509_INCLUDE=sx1509
 
-# uncomment the line to below include support local CW keyer
-LOCALCW_INCLUDE=LOCALCW
+# uncomment the line below to include support for STEMlab discovery (WITH AVAHI)
+#STEMLAB_DISCOVERY=STEMLAB_DISCOVERY
 
 # uncomment the line below to include support for STEMlab discovery (WITHOUT AVAHI)
 STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_NOAVAHI
@@ -36,18 +47,21 @@ STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_NOAVAHI
 # uncomment the line below to include MIDI support
 MIDI_INCLUDE=MIDI
 
-#uncomment the line below for the platform being compiled on (actually not used)
-UNAME_N=raspberrypi
-#UNAME_N=odroid
-#UNAME_N=up
-#UNAME_N=pine64
-#UNAME_N=jetsen
+# uncomment the line below when Radioberry radio cape is plugged in (for now use emulator and old protocol)
+#RADIOBERRY_INCLUDE=RADIOBERRY
 
 # uncomment the line below for various debug facilities
 #DEBUG_OPTION=-D DEBUG
 
 CC=gcc
 LINK=gcc
+
+ifeq ($(CONTROLLER2_V2_INCLUDE),CONTROLLER2_V2)
+CONTROLLER2_OPTIONS=-D CONTROLLER2_V2
+endif
+ifeq ($(CONTROLLER2_V1_INCLUDE),CONTROLLER2_V1)
+CONTROLLER2_OPTIONS=-D CONTROLLER2_V1
+endif
 
 ifeq ($(MIDI_INCLUDE),MIDI)
 MIDI_OPTIONS=-D MIDI
@@ -91,28 +105,23 @@ USBOZY_OBJS= \
 ozyio.o
 endif
 
-# uncomment the line below for LimeSDR (uncomment line below)
-#LIMESDR_INCLUDE=LIMESDR
-
-# uncomment the line below when Radioberry radio cape is plugged in (for now use emulator and old protocol)
-#RADIOBERRY_INCLUDE=RADIOBERRY
 
 ifeq ($(RADIOBERRY_INCLUDE),RADIOBERRY)
 RADIOBERRY_OPTIONS=-D RADIOBERRY
 endif
 
-ifeq ($(LIMESDR_INCLUDE),LIMESDR)
-LIMESDR_OPTIONS=-D LIMESDR
+ifeq ($(SOAPYSDR_INCLUDE),SOAPYSDR)
+SOAPYSDR_OPTIONS=-D SOAPYSDR
 SOAPYSDRLIBS=-lSoapySDR
-LIMESDR_SOURCES= \
-lime_discovery.c \
-lime_protocol.c
-LIMESDR_HEADERS= \
-lime_discovery.h \
-lime_protocol.h
-LIMESDR_OBJS= \
-lime_discovery.o \
-lime_protocol.o
+SOAPYSDR_SOURCES= \
+soapy_discovery.c \
+soapy_protocol.c
+SOAPYSDR_HEADERS= \
+soapy_discovery.h \
+soapy_protocol.h
+SOAPYSDR_OBJS= \
+soapy_discovery.o \
+soapy_protocol.o
 endif
 
 
@@ -149,21 +158,24 @@ ifeq ($(LOCALCW_INCLUDE),LOCALCW)
 LOCALCW_OPTIONS=-D LOCALCW
 LOCALCW_SOURCES= iambic.c
 LOCALCW_HEADERS= iambic.h
-LOCALCW_OBJS=    iambic.o
+LOCALCW_OBJS   = iambic.o
 endif
 
 ifeq ($(GPIO_INCLUDE),GPIO)
   GPIO_OPTIONS=-D GPIO
-  GPIO_LIBS=-lwiringPi -lpigpio 
+  GPIO_LIBS=-lwiringPi
   GPIO_SOURCES= \
   gpio.c \
-  encoder_menu.c
+  encoder_menu.c \
+  switch_menu.c
   GPIO_HEADERS= \
   gpio.h \
-  encoder_menu.h
+  encoder_menu.h \
+  switch_menu.h
   GPIO_OBJS= \
   gpio.o \
-  encoder_menu.o
+  encoder_menu.o \
+  switch_menu.o
 endif
 
 ifeq ($(I2C_INCLUDE),I2C)
@@ -171,6 +183,22 @@ ifeq ($(I2C_INCLUDE),I2C)
   I2C_SOURCES=i2c.c
   I2C_HEADERS=i2c.h
   I2C_OBJS=i2c.o
+endif
+
+#
+# We have two versions of STEMLAB_DISCOVERY here,
+# the second one has to be used
+# if you do not have the avahi (devel-) libraries
+# on your system.
+#
+ifeq ($(STEMLAB_DISCOVERY), STEMLAB_DISCOVERY)
+STEMLAB_OPTIONS=-D STEMLAB_DISCOVERY \
+  `pkg-config --cflags avahi-gobject` \
+  `pkg-config --cflags libcurl`
+STEMLAB_LIBS=`pkg-config --libs avahi-gobject` `pkg-config --libs libcurl`
+STEMLAB_SOURCES=stemlab_discovery.c
+STEMLAB_HEADERS=stemlab_discovery.h
+STEMLAB_OBJS=stemlab_discovery.o
 endif
 
 ifeq ($(STEMLAB_DISCOVERY), STEMLAB_DISCOVERY_NOAVAHI)
@@ -188,18 +216,17 @@ endif
 GTKINCLUDES=`pkg-config --cflags gtk+-3.0`
 GTKLIBS=`pkg-config --libs gtk+-3.0`
 
-#
-# Since this a Mac-specific Makefile, activate
-# PORTAUDIO in any case.
-#
-PORTAUDIO_OPTIONS=-DPORTAUDIO
+AUDIO_OPTIONS=-DPORTAUDIO
 AUDIO_LIBS=-lportaudio
 
-OPTIONS=-g -Wno-deprecated-declarations $(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) $(I2C_OPTIONS) $(GPIO_OPTIONS) $(LIMESDR_OPTIONS) \
-                $(FREEDV_OPTIONS) $(LOCALCW_OPTIONS) $(RADIOBERRY_OPTIONS) $(PI_SDR_OPTIONS) $(PSK_OPTIONS) $(STEMLAB_OPTIONS) \
-                -D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(PORTAUDIO_OPTIONS) $(DEBUG_OPTION) -O3
+OPTIONS=-g -Wno-deprecated-declarations $(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) \
+	$(I2C_OPTIONS) $(GPIO_OPTIONS) $(SOAPYSDR_OPTIONS) $(FREEDV_OPTIONS) $(LOCALCW_OPTIONS) $(RADIOBERRY_OPTIONS) \
+	$(PI_SDR_OPTIONS) $(PSK_OPTIONS) $(STEMLAB_OPTIONS) \
+        $(CONTROLLER2_OPTIONS) \
+	$(AUDIO_OPTIONS) \
+	-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION) -O3
 
-LIBS=-lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(PSKLIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS) $(STEMLAB_LIBS) $(MIDI_LIBS)
+LIBS=     -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(PSKLIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS) $(STEMLAB_LIBS) $(MIDI_LIBS)
 INCLUDES=$(GTKINCLUDES)
 
 COMPILE=$(CC) $(OPTIONS) $(INCLUDES)
@@ -275,7 +302,7 @@ store_menu.c \
 memory.c \
 led.c \
 ext.c \
-error_handler.c \
+error_handler.c \
 cwramp.c
 
 
@@ -351,6 +378,7 @@ error_handler.h
 
 OBJS= \
 audio.o \
+portaudio.o \
 audio_waterfall.o \
 band.o \
 configure.o \
@@ -415,22 +443,28 @@ memory.o \
 led.o \
 ext.o \
 error_handler.o \
-cwramp.o \
-portaudio.o
+cwramp.o
 
-$(PROGRAM):  $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) $(LOCALCW_OBJS) $(I2C_OBJS) $(GPIO_OBJS) $(PSK_OBJS) $(PURESIGNAL_OBJS) $(MIDI_OBJS) $(STEMLAB_OBJS)
-	$(LINK) -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(I2C_OBJS) $(GPIO_OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) $(LOCALCW_OBJS) $(PSK_OBJS) $(PURESIGNAL_OBJS) $(MIDI_OBJS) $(STEMLAB_OBJS) $(LIBS)
+$(PROGRAM):  $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) $(FREEDV_OBJS) \
+		$(LOCALCW_OBJS) $(I2C_OBJS) $(GPIO_OBJS) $(PSK_OBJS) $(PURESIGNAL_OBJS) \
+		$(MIDI_OBJS) $(STEMLAB_OBJS)
+	$(LINK) -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(I2C_OBJS) $(GPIO_OBJS) \
+		$(SOAPYSDR_OBJS) $(FREEDV_OBJS) $(LOCALCW_OBJS) $(PSK_OBJS) $(PURESIGNAL_OBJS) \
+		$(MIDI_OBJS) $(STEMLAB_OBJS) $(LIBS)
 
-all: prebuild  $(PROGRAM) $(HEADERS) $(REMOTE_HEADERS) $(USBOZY_HEADERS) $(LIMESDR_HEADERS) $(FREEDV_HEADERS) $(LOCALCW_HEADERS) $(I2C_HEADERS) $(GPIO_HEADERS) $(PSK_HEADERS) $(PURESIGNAL_HEADERS) $(MIDI_HEADERS) $(STEMLAB_HEADERS) $(SOURCES) $(REMOTE_SOURCES) $(USBOZY_SOURCES) $(LIMESDR_SOURCES) $(FREEDV_SOURCES) $(I2C_SOURCES) $(GPIO_SOURCES) $(PSK_SOURCES) $(PURESIGNAL_SOURCES) $(MIDI_SOURCES) $(STEMLAB_SOURCES)
+all:	prebuild  $(PROGRAM) $(HEADERS) $(REMOTE_HEADERS) $(USBOZY_HEADERS) $(SOAPYSDR_HEADERS) \
+	$(FREEDV_HEADERS) $(LOCALCW_HEADERS) $(I2C_HEADERS) $(GPIO_HEADERS) $(PSK_HEADERS) \
+	$(PURESIGNAL_HEADERS) $(MIDI_HEADERS) $(STEMLAB_HEADERS) $(SOURCES) $(REMOTE_SOURCES) \
+	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(FREEDV_SOURCES) $(I2C_SOURCES) $(GPIO_SOURCES) \
+	$(PSK_SOURCES) $(PURESIGNAL_SOURCES) $(MIDI_SOURCES)$(STEMLAB_SOURCES)
 
 prebuild:
 	rm -f version.o
 
 clean:
 	-rm -f *.o
-	-rm -f $(PROGRAM)
+	-rm -f $(PROGRAM) hpsdrsim
 	-rm -rf $(PROGRAM).app
-	-rm -f hpsdrsim
 
 install: $(PROGRAM)
 	cp $(PROGRAM) /usr/local/bin
@@ -439,6 +473,22 @@ release: $(PROGRAM)
 	cp $(PROGRAM) release/pihpsdr
 	cd release; tar cvf pihpsdr.tar pihpsdr
 	cd release; tar cvf pihpsdr-$(GIT_VERSION).tar pihpsdr
+
+nocontroller: clean controller1 $(PROGRAM)
+	cp $(PROGRAM) release/pihpsdr
+	cd release; tar cvf pihpsdr-nocontroller.$(GIT_VERSION).tar pihpsdr
+
+controller1: clean $(PROGRAM)
+	cp $(PROGRAM) release/pihpsdr
+	cd release; tar cvf pihpsdr-controller1.$(GIT_VERSION).tar pihpsdr
+
+controller2v1: clean $(PROGRAM)
+	cp $(PROGRAM) release/pihpsdr
+	cd release; tar cvf pihpsdr-controller2-v1.$(GIT_VERSION).tar pihpsdr
+
+controller2v2: clean $(PROGRAM)
+	cp $(PROGRAM) release/pihpsdr
+	cd release; tar cvf pihpsdr-controller2-v2.$(GIT_VERSION).tar pihpsdr
 
 
 #############################################################################
@@ -474,13 +524,15 @@ hpsdrsim:       hpsdrsim.o newhpsdrsim.o
 #       portaudio, fftw etc. such that the "app" runs on Macs which
 #       do not have them. But it is *very* hard to do this with GTK.
 #
-#       ATTENTION
-#       =========
-#       Upon starting a freshly built application in an "app" bundle,
-#       it will do the FFT calculations required for wdsp-Wisdom, since
-#       this is then stored *within* the app bundle. For experimentation,
-#       use "make localapp", this will copy such run-time files (WDSP wisom,
-#       ".props" files and the definition of the MIDI device) to the app bundle.
+#       piHPSDR working dir
+#       ===================
+#
+#       The piHPSDR working directory is
+#	$HOME -> Application Support -> piHPSDR
+#
+#       That is the directory where the WDSP wisdom file (created upon first
+#       start of piHPSDR) but also the radio settings and the midi.inp file
+#       are stored.
 #
 #############################################################################
 app:	$(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(LIMESDR_OBJS) $(FREEDV_OBJS) \
