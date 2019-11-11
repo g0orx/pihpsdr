@@ -33,6 +33,9 @@
 #include "mode.h"
 #include "portaudio.h"
 #include "audio.h"
+#ifdef SOAPYSDR
+#include "soapy_protocol.h"
+#endif
 
 static PaStream *record_handle=NULL;
 
