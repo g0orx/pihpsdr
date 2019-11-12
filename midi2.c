@@ -338,6 +338,7 @@ fprintf(stderr,"MIDI:ACTION:%s (%d)\n",cp+7, action);
       // We have a linked list for each key value to speed up searches
       //
       if (event == MIDI_PITCH) {
+fprintf(stderr,"MIDI:TAB:Insert desc=%p in PITCH table\n",desc);
 	dp = MidiCommandsTable.pitch;
 	if (dp == NULL) {
 	  MidiCommandsTable.pitch = desc;
@@ -347,6 +348,7 @@ fprintf(stderr,"MIDI:ACTION:%s (%d)\n",cp+7, action);
 	}
       }
       if (event == MIDI_KEY || event == MIDI_CTRL) {
+fprintf(stderr,"MIDI:TAB:Insert desc=%p in CMDS[%d] table\n",desc,key);
 	dp = MidiCommandsTable.desc[key];
 	if (dp == NULL) {
 	  MidiCommandsTable.desc[key]=desc;
