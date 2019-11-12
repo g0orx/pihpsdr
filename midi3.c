@@ -538,6 +538,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 		  sat_mode=SAT_NONE;
 		  break;
 	    }
+	    g_idle_add(ext_vfo_update, NULL);
             break;
 	/////////////////////////////////////////////////////////// "SPLIT"
 	case MIDI_SPLIT: // only key supported
