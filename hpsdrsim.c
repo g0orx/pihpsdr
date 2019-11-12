@@ -299,8 +299,10 @@ int main(int argc, char *argv[])
 	memset (isample, 0, OLDRTXLEN*sizeof(double));
 	memset (qsample, 0, OLDRTXLEN*sizeof(double));
 
-	audio_get_cards();
-        audio_open_output();
+	if (do_audio) {
+	  audio_get_cards();
+          audio_open_output();
+	}
 
 	if ((sock_udp = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
 	{
@@ -488,12 +490,16 @@ int main(int argc, char *argv[])
                                   bp=buffer+16;  // skip 8 header and 8 SYNC/C&C bytes
 				  sum=0.0;
                                   for (j=0; j<126; j++) {
-					// write audio samples
-					r  = (int)((signed char) *bp++)<<8;
-					r |= (int)((signed char) *bp++ & 0xFF);
-					l  = (int)((signed char) *bp++)<<8;
-					l |= (int)((signed char) *bp++ & 0xFF);
-                                        audio_write(r,l);
+					if (do_audio) {
+					  // write audio samples
+					  r  = (int)((signed char) *bp++)<<8;
+					  r |= (int)((signed char) *bp++ & 0xFF);
+					  l  = (int)((signed char) *bp++)<<8;
+					  l |= (int)((signed char) *bp++ & 0xFF);
+                                          audio_write(r,l);
+					} else {
+					  bp +=4;
+					}
 					sample  = (int)((signed char) *bp++)<<8;
 					sample |= (int) ((signed char) *bp++ & 0xFF);
 					disample=(double) sample * 0.000030517578125;  // division by 32768
