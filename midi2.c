@@ -180,6 +180,7 @@ void MIDIstartup() {
     enum MIDItype type;
     enum MIDIevent event;
     int i;
+    char c;
 
     for (i=0; i<128; i++) MidiCommandsTable.desc[i]=NULL;
     MidiCommandsTable.pitch=NULL;
@@ -195,13 +196,31 @@ void MIDIstartup() {
       if (cp == zeile) continue;   // comment line
       if (cp) *cp=0;               // ignore trailing comment
 
+      // change newline, comma, slash etc. to blanks
+      cp=zeile;
+      while ((c=*cp)) {
+        switch (c) {
+	  case '\n':
+	  case '\r':
+	  case '\t':
+	  case ',':
+	  case '/':
+	    *cp=' ';
+	    break;
+        }
+	cp++;
+      }
+      
+fprintf(stderr,"\nMIDI:INP:%s\n",zeile);
+
       if ((cp = strstr(zeile, "DEVICE="))) {
         // Delete comments and trailing blanks
 	cq=cp+7;
 	while (*cq != 0 && *cq != '#') cq++;
 	*cq--=0;
 	while (cq > cp+7 && (*cq == ' ' || *cq == '\t')) cq--;
-	*cq=0;
+	*(cq+1)=0;
+fprintf(stderr,"MIDI:REG:>>>%s<<<\n",cp+7);
 	register_midi_device(cp+7);
         continue; // nothing more in this line
       }
@@ -223,20 +242,26 @@ void MIDIstartup() {
         sscanf(cp+4, "%d", &key);
         event=MIDI_NOTE;
 	type=MIDI_KEY;
+fprintf(stderr,"MIDI:KEY:%d\n", key);
       }
       if ((cp = strstr(zeile, "CTRL="))) {
         sscanf(cp+5, "%d", &key);
 	event=MIDI_CTRL;
 	type=MIDI_KNOB;
+fprintf(stderr,"MIDI:CTL:%d\n", key);
       }
       if ((cp = strstr(zeile, "PITCH "))) {
         event=MIDI_PITCH;
 	type=MIDI_KNOB;
+fprintf(stderr,"MIDI:PITCH\n");
       }
       //
       // If event is still undefined, skip line
       //
-      if (event == EVENT_NONE) continue;
+      if (event == EVENT_NONE) {
+fprintf(stderr,"MIDI:ERR:NO_EVENT\n");
+	continue;
+      }
 
       //
       // beware of illegal key values
@@ -248,20 +273,25 @@ void MIDIstartup() {
         sscanf(cp+5, "%d", &chan);
 	chan--;
         if (chan<0 || chan>15) chan=-1;
+fprintf(stderr,"MIDI:CHA:%d\n",chan);
       }
       if ((cp = strstr(zeile, "WHEEL")) && (type == MIDI_KNOB)) {
 	// change type from MIDI_KNOB to MIDI_WHEEL
         type=MIDI_WHEEL;
+fprintf(stderr,"MIDI:WHEEL\n");
       }
       if ((cp = strstr(zeile, "ONOFF"))) {
         onoff=1;
+fprintf(stderr,"MIDI:ONOFF\n");
       }
       if ((cp = strstr(zeile, "DELAY="))) {
         sscanf(cp+6, "%d", &delay);
+fprintf(stderr,"MIDI:DELAY:%d\n",delay);
       }
       if ((cp = strstr(zeile, "THR="))) {
         sscanf(cp+4, "%d %d %d %d %d %d %d %d %d %d %d %d",
                &t1,&t2,&t3,&t4,&t5,&t6,&t7,&t8,&t9,&t10,&t11,&t12);
+fprintf(stderr,"MIDI:THR:%d/%d, %d/%d, %d/%d, %d/%d, %d/%d, %d/%d\n",t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12);
       }
       if ((cp = strstr(zeile, "ACTION="))) {
         // cut zeile at the first blank character following
@@ -269,6 +299,7 @@ void MIDIstartup() {
         while (*cq != 0 && *cq != '\n' && *cq != ' ' && *cq != '\t') cq++;
 	*cq=0;
         action=keyword2action(cp+7);
+fprintf(stderr,"MIDI:ACTION:%s (%d)\n",cp+7, action);
       }
 #if 0
   fprintf(stderr,"K=%d C=%d T=%d E=%d A=%d OnOff=%d\n",key,chan,type, event, action, onoff);
