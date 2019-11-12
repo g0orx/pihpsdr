@@ -22,6 +22,9 @@
 #include "ext.h"
 #include "agc.h"
 #include "midi.h"
+#ifdef LOCALCW
+#include "iambic.h"
+#endif
 
 void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 
@@ -192,6 +195,17 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    if (type == MIDI_WHEEL && !locked) {
 		g_idle_add(ext_vfo_step, GINT_TO_POINTER(val));
 	    }
+	    break;
+	/////////////////////////////////////////////////////////// "CWL"
+	/////////////////////////////////////////////////////////// "CWR"
+	case CWL: // only key
+	case CWR: // only key
+#ifdef LOCALCW
+	    if (type == MIDI_KEY) {
+		new=(action == CWL);
+		keyer_event(new,val);
+	    }
+#endif
 	    break;
 	/////////////////////////////////////////////////////////// "DUP"
         case MIDI_DUP:

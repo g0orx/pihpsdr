@@ -59,6 +59,8 @@ enum MIDIaction {
   COMPRESS,		// COMPRESS:		TX compressor value
   MIDI_CTUN,		// CTUN:		toggle CTUN on/off
   VFO,			// CURRVFO:		change VFO frequency
+  CWL,			// CWL:			Left paddle pressed (use with ONOFF)
+  CWR,			// CWR:			Right paddle pressed (use with ONOFF)
   MIDI_DUP,		// DUP:			toggle duplex on/off
   FILTER_DOWN,		// FILTERDOWN:		cycle through filters downwards
   FILTER_UP,		// FILTERUP:		cycle through filters upwards
