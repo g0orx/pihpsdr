@@ -111,6 +111,11 @@ static void value_changed_cb (GtkWidget *widget, gpointer data) {
 void equalizer_menu(GtkWidget *parent) {
   int i;
 
+  if(can_transmit) {
+    tx_menu=TRUE;
+  } else {
+    tx_menu=FALSE;
+  }
   parent_window=parent;
 
   dialog=gtk_dialog_new();
@@ -138,18 +143,26 @@ void equalizer_menu(GtkWidget *parent) {
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
-  GtkWidget *tx_rb=gtk_radio_button_new_with_label(NULL,"TX Equalizer");
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(tx_rb),TRUE);
-  g_signal_connect(tx_rb,"toggled",G_CALLBACK(tx_rb_cb),NULL);
-  gtk_grid_attach(GTK_GRID(grid),tx_rb,1,0,1,1);
+  if(can_transmit) {
+    GtkWidget *tx_rb=gtk_radio_button_new_with_label(NULL,"TX Equalizer");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(tx_rb),TRUE);
+    g_signal_connect(tx_rb,"toggled",G_CALLBACK(tx_rb_cb),NULL);
+    gtk_grid_attach(GTK_GRID(grid),tx_rb,1,0,1,1);
+
+    GtkWidget *rx_rb=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(tx_rb),"RX Equalizer");
+    g_signal_connect(rx_rb,"toggled",G_CALLBACK(rx_rb_cb),NULL);
+    gtk_grid_attach(GTK_GRID(grid),rx_rb,2,0,1,1);
+  } else {
+    GtkWidget *rx_label=gtk_label_new("RX Equalizer");
+    gtk_grid_attach(GTK_GRID(grid),rx_label,1,0,1,1);
+  }
 
 
-  GtkWidget *rx_rb=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(tx_rb),"RX Equalizer");
-  g_signal_connect(rx_rb,"toggled",G_CALLBACK(rx_rb_cb),NULL);
-  gtk_grid_attach(GTK_GRID(grid),rx_rb,2,0,1,1);
-
-
-  enable_b=gtk_check_button_new_with_label("Enable TX Equalizer");
+  if(can_transmit) {
+    enable_b=gtk_check_button_new_with_label("Enable TX Equalizer");
+  } else {
+    enable_b=gtk_check_button_new_with_label("Enable RX Equalizer");
+  }
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (enable_b), enable_tx_equalizer);
   g_signal_connect(enable_b,"toggled",G_CALLBACK(enable_cb),NULL);
   gtk_grid_attach(GTK_GRID(grid),enable_b,0,1,1,1);
@@ -168,7 +181,11 @@ void equalizer_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),label,3,2,1,1);
 
   preamp_scale=gtk_scale_new_with_range(GTK_ORIENTATION_VERTICAL,-12.0,15.0,1.0);
-  gtk_range_set_value(GTK_RANGE(preamp_scale),(double)tx_equalizer[0]);
+  if(can_transmit) {
+    gtk_range_set_value(GTK_RANGE(preamp_scale),(double)tx_equalizer[0]);
+  } else {
+    gtk_range_set_value(GTK_RANGE(preamp_scale),(double)rx_equalizer[0]);
+  }
   g_signal_connect(preamp_scale,"value-changed",G_CALLBACK(value_changed_cb),(gpointer)0);
   gtk_grid_attach(GTK_GRID(grid),preamp_scale,0,3,1,10);
   gtk_widget_set_size_request(preamp_scale,10,270);
@@ -184,7 +201,11 @@ void equalizer_menu(GtkWidget *parent) {
   gtk_scale_add_mark(GTK_SCALE(preamp_scale),15.0,GTK_POS_LEFT,"15dB");
 
   low_scale=gtk_scale_new_with_range(GTK_ORIENTATION_VERTICAL,-12.0,15.0,1.0);
-  gtk_range_set_value(GTK_RANGE(low_scale),(double)tx_equalizer[1]);
+  if(can_transmit) {
+    gtk_range_set_value(GTK_RANGE(low_scale),(double)tx_equalizer[1]);
+  } else {
+    gtk_range_set_value(GTK_RANGE(low_scale),(double)rx_equalizer[1]);
+  }
   g_signal_connect(low_scale,"value-changed",G_CALLBACK(value_changed_cb),(gpointer)1);
   gtk_grid_attach(GTK_GRID(grid),low_scale,1,3,1,10);
   gtk_scale_add_mark(GTK_SCALE(low_scale),-12.0,GTK_POS_LEFT,"-12dB");
@@ -199,7 +220,11 @@ void equalizer_menu(GtkWidget *parent) {
   gtk_scale_add_mark(GTK_SCALE(low_scale),15.0,GTK_POS_LEFT,"15dB");
 
   mid_scale=gtk_scale_new_with_range(GTK_ORIENTATION_VERTICAL,-12.0,15.0,1.0);
-  gtk_range_set_value(GTK_RANGE(mid_scale),(double)tx_equalizer[2]);
+  if(can_transmit) {
+    gtk_range_set_value(GTK_RANGE(mid_scale),(double)tx_equalizer[2]);
+  } else {
+    gtk_range_set_value(GTK_RANGE(mid_scale),(double)rx_equalizer[2]);
+  }
   g_signal_connect(mid_scale,"value-changed",G_CALLBACK(value_changed_cb),(gpointer)2);
   gtk_grid_attach(GTK_GRID(grid),mid_scale,2,3,1,10);
   gtk_scale_add_mark(GTK_SCALE(mid_scale),-12.0,GTK_POS_LEFT,"-12dB");
@@ -214,7 +239,11 @@ void equalizer_menu(GtkWidget *parent) {
   gtk_scale_add_mark(GTK_SCALE(mid_scale),15.0,GTK_POS_LEFT,"15dB");
 
   high_scale=gtk_scale_new_with_range(GTK_ORIENTATION_VERTICAL,-12.0,15.0,1.0);
-  gtk_range_set_value(GTK_RANGE(high_scale),(double)tx_equalizer[3]);
+  if(can_transmit) {
+    gtk_range_set_value(GTK_RANGE(high_scale),(double)tx_equalizer[3]);
+  } else {
+    gtk_range_set_value(GTK_RANGE(high_scale),(double)rx_equalizer[3]);
+  }
   g_signal_connect(high_scale,"value-changed",G_CALLBACK(value_changed_cb),(gpointer)3);
   gtk_grid_attach(GTK_GRID(grid),high_scale,3,3,1,10);
   gtk_scale_add_mark(GTK_SCALE(high_scale),-12.0,GTK_POS_LEFT,"-12dB");
@@ -233,6 +262,7 @@ void equalizer_menu(GtkWidget *parent) {
   sub_menu=dialog;
 
   gtk_widget_show_all(dialog);
+
 
 }
 
