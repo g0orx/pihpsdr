@@ -492,10 +492,11 @@ void new_menu()
     gtk_grid_attach(GTK_GRID(grid),rx_b,(i%5),i/5,1,1);
     i++;
 
-    GtkWidget *tx_b=gtk_button_new_with_label("TX");
-    g_signal_connect (tx_b, "button-press-event", G_CALLBACK(tx_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),tx_b,(i%5),i/5,1,1);
-    i++;
+    if(can_transmit) {
+      GtkWidget *tx_b=gtk_button_new_with_label("TX");
+      g_signal_connect (tx_b, "button-press-event", G_CALLBACK(tx_cb), NULL);
+      gtk_grid_attach(GTK_GRID(grid),tx_b,(i%5),i/5,1,1);
+      i++;
 
 #ifdef PURESIGNAL
       GtkWidget *ps_b=gtk_button_new_with_label("PS");
@@ -504,15 +505,16 @@ void new_menu()
       i++;
 #endif
 
-    GtkWidget *pa_b=gtk_button_new_with_label("PA");
-    g_signal_connect (pa_b, "button-press-event", G_CALLBACK(pa_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),pa_b,(i%5),i/5,1,1);
-    i++;
+      GtkWidget *pa_b=gtk_button_new_with_label("PA");
+      g_signal_connect (pa_b, "button-press-event", G_CALLBACK(pa_cb), NULL);
+      gtk_grid_attach(GTK_GRID(grid),pa_b,(i%5),i/5,1,1);
+      i++;
 
-    GtkWidget *cw_b=gtk_button_new_with_label("CW");
-    g_signal_connect (cw_b, "button-press-event", G_CALLBACK(cw_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),cw_b,(i%5),i/5,1,1);
-    i++;
+      GtkWidget *cw_b=gtk_button_new_with_label("CW");
+      g_signal_connect (cw_b, "button-press-event", G_CALLBACK(cw_cb), NULL);
+      gtk_grid_attach(GTK_GRID(grid),cw_b,(i%5),i/5,1,1);
+      i++;
+    }
 
     GtkWidget *ant_b=gtk_button_new_with_label("Ant");
     g_signal_connect (ant_b, "button-press-event", G_CALLBACK(ant_cb), NULL);
