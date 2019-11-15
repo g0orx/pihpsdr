@@ -858,7 +858,11 @@ GtkWidget *toolbar_init(int my_width, int my_height, GtkWidget* parent) {
     gtk_widget_set_size_request (toolbar, width, height);
     gtk_grid_set_column_homogeneous(GTK_GRID(toolbar),TRUE);
 
-    sim_mox=gtk_button_new_with_label("Mox");
+    if(can_transmit) {
+      sim_mox=gtk_button_new_with_label("Mox");
+    } else {
+      sim_mox=gtk_button_new_with_label("");
+    }
     //gtk_widget_override_font(sim_mox, pango_font_description_from_string("Sans 11"));
     g_signal_connect(G_OBJECT(sim_mox),"clicked",G_CALLBACK(sim_mox_cb),NULL);
     gtk_grid_attach(GTK_GRID(toolbar),sim_mox,0,0,4,1);

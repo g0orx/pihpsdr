@@ -1132,13 +1132,15 @@ void vfo_update() {
         }
         cairo_show_text(cr, "CAT");
 
-        cairo_move_to(cr, 500, 15);  
-        if(vox_enabled) {
-          cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
-        } else {
-          cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
+        if(can_transmit) {
+          cairo_move_to(cr, 500, 15);  
+          if(vox_enabled) {
+            cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
+          } else {
+            cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
+          }
+          cairo_show_text(cr, "VOX");
         }
-        cairo_show_text(cr, "VOX");
 
         cairo_move_to(cr, 5, 50);
         if(locked) {

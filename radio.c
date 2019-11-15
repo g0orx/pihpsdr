@@ -2018,12 +2018,12 @@ fprintf(stderr,"radioSaveState: %s\n",property_path);
     for(i=0;i<receivers;i++) {
       receiver_save_state(receiver[i]);
     }
-#ifdef PURESIGNAL
-    // The only variables of interest in this receiver are
-    // the alex_antenna an the adc
-    receiver_save_state(receiver[PS_RX_FEEDBACK]);
-#endif
     if(can_transmit) {
+#ifdef PURESIGNAL
+      // The only variables of interest in this receiver are
+      // the alex_antenna an the adc
+      receiver_save_state(receiver[PS_RX_FEEDBACK]);
+#endif
       transmitter_save_state(transmitter);
     }
 
