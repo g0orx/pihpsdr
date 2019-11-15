@@ -368,6 +368,8 @@ fprintf(stderr,"audio delay=%ld trim=%ld\n",delay,trim);
 // if rx == active_receiver and while transmitting, DO NOTHING
 // since cw_audio_write may be active
 //
+static int buffers=0;
+
 int audio_write(RECEIVER *rx,short left_sample,short right_sample) {
   snd_pcm_sframes_t delay;
   long rc;
@@ -397,14 +399,18 @@ int audio_write(RECEIVER *rx,short left_sample,short right_sample) {
 
     if(rx->playback_offset==OUTPUT_BUFFER_SIZE) {
 
+      buffers++;
+
       trim=0;
 
+      int max_delay=audio_buffer_size*4;
       if(snd_pcm_delay(rx->playback_handle,&delay)==0) {
-        if(delay>2048) {
-          trim=delay-2048;
-fprintf(stderr,"audio delay=%ld trim=%ld audio_buffer_size=%d\n",delay,trim,audio_buffer_size);
+        if(delay>max_delay) {
+          trim=delay-max_delay;
+//fprintf(stderr,"audio buffers=%d delay=%ld trim=%ld audio_buffer_size=%d\n",buffers,delay,trim,audio_buffer_size);
         }
       }
+
 
       if(trim<audio_buffer_size) {
         if ((rc = snd_pcm_writei (rx->playback_handle, rx->playback_buffer, audio_buffer_size-trim)) != audio_buffer_size-trim) {

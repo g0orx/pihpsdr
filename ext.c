@@ -554,6 +554,11 @@ int ext_start_rx(void *data) {
   return 0;
 }
 
+int ext_start_tx(void *data) {
+  start_tx();
+  return 0;
+}
+
 int ext_diversity_update(void *data) {
   int menu=GPOINTER_TO_INT(data);
   if(menu) {

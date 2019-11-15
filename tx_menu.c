@@ -25,6 +25,9 @@
 #include "sliders.h"
 #include "transmitter.h"
 #include "ext.h"
+#include "filter.h"
+#include "mode.h"
+#include "vfo.h"
 
 static GtkWidget *parent_window=NULL;
 static GtkWidget *dialog=NULL;
@@ -33,6 +36,8 @@ static GtkWidget *input;
 static GtkWidget *micin_b=NULL;
 static GtkWidget *linein_b=NULL;
 static GtkWidget *micboost_b=NULL;
+static GtkWidget *tx_spin_low;
+static GtkWidget *tx_spin_high;
 
 static GtkWidget *tune_label;
 static GtkWidget *tune_scale;
@@ -108,6 +113,42 @@ static void tune_use_drive_cb (GtkWidget *widget, gpointer data) {
 
 static void tune_percent_cb (GtkWidget *widget, gpointer data) {
   transmitter->tune_percent=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+}
+
+static void use_rx_filter_cb(GtkWidget *widget, gpointer data) {
+  transmitter->use_rx_filter=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
+  int filter_low,filter_high;
+
+  if(transmitter->use_rx_filter) {
+    int m=vfo[active_receiver->id].mode;
+    if(m==modeFMN) {
+      if(active_receiver->deviation==2500) {
+        filter_low=-4000;
+        filter_high=4000;
+      } else {
+        filter_low=-8000;
+        filter_high=8000;
+      }
+    } else {
+      FILTER *mode_filters=filters[m];
+      FILTER *filter=&mode_filters[vfo[active_receiver->id].filter];
+      filter_low=filter->low;
+      filter_high=filter->high;
+    }
+  } else {
+    filter_low=tx_filter_low;
+    filter_high=tx_filter_high;
+  }
+
+  tx_set_filter(transmitter,filter_low,filter_high);
+
+  if(transmitter->use_rx_filter) {
+    gtk_widget_set_sensitive (tx_spin_low, FALSE);
+    gtk_widget_set_sensitive (tx_spin_high, FALSE);
+  } else {
+    gtk_widget_set_sensitive (tx_spin_low, TRUE);
+    gtk_widget_set_sensitive (tx_spin_high, TRUE);
+  }
 }
 
 static void local_microphone_cb(GtkWidget *widget, gpointer data) {
@@ -262,6 +303,45 @@ void tx_menu(GtkWidget *parent) {
   row++;
   col=0;
 
+  GtkWidget *label=gtk_label_new("TX Filter: ");
+#ifdef GTK316
+  gtk_label_set_xalign(GTK_LABEL(label),0);
+#endif
+  gtk_grid_attach(GTK_GRID(grid),label,col,row,1,1);
+
+  col++;
+
+  GtkWidget *use_rx_filter_b=gtk_check_button_new_with_label("Use RX filter");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (use_rx_filter_b), transmitter->use_rx_filter);
+  gtk_widget_show(use_rx_filter_b);
+  gtk_grid_attach(GTK_GRID(grid),use_rx_filter_b,col,row,1,1);
+  g_signal_connect(use_rx_filter_b,"toggled",G_CALLBACK(use_rx_filter_cb),NULL);
+
+  col++;
+
+  tx_spin_low=gtk_spin_button_new_with_range(0.0,8000.0,1.0);
+  gtk_spin_button_set_value(GTK_SPIN_BUTTON(tx_spin_low),(double)tx_filter_low);
+  gtk_grid_attach(GTK_GRID(grid),tx_spin_low,col,row,1,1);
+  g_signal_connect(tx_spin_low,"value-changed",G_CALLBACK(tx_spin_low_cb),NULL);
+  if(transmitter->use_rx_filter) {
+    gtk_widget_set_sensitive (tx_spin_low, FALSE);
+  }
+
+  col++;
+
+  tx_spin_high=gtk_spin_button_new_with_range(0.0,8000.0,1.0);
+  gtk_spin_button_set_value(GTK_SPIN_BUTTON(tx_spin_high),(double)tx_filter_high);
+  gtk_grid_attach(GTK_GRID(grid),tx_spin_high,col,row,1,1);
+  g_signal_connect(tx_spin_high,"value-changed",G_CALLBACK(tx_spin_high_cb),NULL);
+
+  if(transmitter->use_rx_filter) {
+    gtk_widget_set_sensitive (tx_spin_high, FALSE);
+  }
+
+  row++;
+  col=0;
+
+  int saved_row=row;
 
   if(n_input_devices>0) {
     GtkWidget *local_microphone_b=gtk_check_button_new_with_label("Local Microphone Input");
@@ -274,9 +354,7 @@ void tx_menu(GtkWidget *parent) {
     for(i=0;i<n_input_devices;i++) {
       input=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(input),input_devices[i].description);
       if(transmitter->microphone_name!=NULL) {
-        if(strcmp(transmitter->microphone_name,input_devices[i].description)==0) {
-          gtk_combo_box_set_active(GTK_COMBO_BOX(input),i);
-        }
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(input),strcmp(transmitter->microphone_name,input_devices[i].description)==0);
       }
       gtk_widget_show(input);
       gtk_grid_attach(GTK_GRID(grid),input,col,row++,2,1);
@@ -284,31 +362,7 @@ void tx_menu(GtkWidget *parent) {
     }
   }
 
-  row=1;
-  col=3;
-
-  GtkWidget *label=gtk_label_new("TX Filter: ");
-#ifdef GTK316
-  gtk_label_set_xalign(GTK_LABEL(label),0);
-#endif
-  gtk_grid_attach(GTK_GRID(grid),label,col,row,1,1);
-
-  col++;
-
-  GtkWidget *tx_spin_low=gtk_spin_button_new_with_range(0.0,8000.0,1.0);
-  gtk_spin_button_set_value(GTK_SPIN_BUTTON(tx_spin_low),(double)tx_filter_low);
-  gtk_grid_attach(GTK_GRID(grid),tx_spin_low,col,row,1,1);
-  g_signal_connect(tx_spin_low,"value-changed",G_CALLBACK(tx_spin_low_cb),NULL);
-
-  col++;
-
-  GtkWidget *tx_spin_high=gtk_spin_button_new_with_range(0.0,8000.0,1.0);
-  gtk_spin_button_set_value(GTK_SPIN_BUTTON(tx_spin_high),(double)tx_filter_high);
-  gtk_grid_attach(GTK_GRID(grid),tx_spin_high,col,row,1,1);
-  g_signal_connect(tx_spin_high,"value-changed",G_CALLBACK(tx_spin_high_cb),NULL);
-
-
-  row++;
+  row=saved_row;
   col=3;
 
   GtkWidget *panadapter_high_label=gtk_label_new("Panadapter High: ");

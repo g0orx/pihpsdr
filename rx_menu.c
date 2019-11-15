@@ -243,21 +243,29 @@ void rx_menu(GtkWidget *parent) {
 #ifdef SOAPYSDR
     case SOAPYSDR_PROTOCOL:
       {
+      int row=1;
       GtkWidget *sample_rate_label=gtk_label_new("Sample Rate");
-      gtk_grid_attach(GTK_GRID(grid),sample_rate_label,x,1,1,1);
+      gtk_grid_attach(GTK_GRID(grid),sample_rate_label,x,row,1,1);
+      row++;
+      
 
-      char rate[16];
-      sprintf(rate,"%d",radio->info.soapy.sample_rate);
-      GtkWidget *sample_rate=gtk_radio_button_new_with_label(NULL,rate);
+      char rate_string[16];
+      sprintf(rate_string,"%d",radio->info.soapy.sample_rate);
+      GtkWidget *sample_rate=gtk_radio_button_new_with_label(NULL,rate_string);
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sample_rate), radio->info.soapy.sample_rate);
-      gtk_grid_attach(GTK_GRID(grid),sample_rate,x,2,1,1);
+      gtk_grid_attach(GTK_GRID(grid),sample_rate,x,row,1,1);
       g_signal_connect(sample_rate,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)radio->info.soapy.sample_rate);
+      row++;
 
-      if(radio->info.soapy.sample_rate>384000) {
-          GtkWidget *sample_rate_384K=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(sample_rate),"384000");
-          gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sample_rate_384K), active_receiver->sample_rate==384000);
-          gtk_grid_attach(GTK_GRID(grid),sample_rate_384K,x,3,1,1);
-          g_signal_connect(sample_rate_384K,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)384000);
+      int rate=radio->info.soapy.sample_rate/2;
+      while(rate>=48000) {
+          sprintf(rate_string,"%d",rate);
+          GtkWidget *next_sample_rate=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(sample_rate),rate_string);
+          gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (next_sample_rate), active_receiver->sample_rate==rate);
+          gtk_grid_attach(GTK_GRID(grid),next_sample_rate,x,row,1,1);
+          g_signal_connect(next_sample_rate,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)rate);
+          rate=rate/2;
+          row++;
       }
       }
       x++;

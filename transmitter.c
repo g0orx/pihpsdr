@@ -31,6 +31,7 @@
 #include "main.h"
 #include "receiver.h"
 #include "meter.h"
+#include "filter.h"
 #include "mode.h"
 #include "property.h"
 #include "radio.h"
@@ -58,9 +59,6 @@ double getNextInternalSideToneSample();
 
 #define min(x,y) (x<y?x:y)
 #define max(x,y) (x<y?y:x)
-
-static int filterLow;
-static int filterHigh;
 
 static int waterfall_samples=0;
 static int waterfall_resample=8;
@@ -100,6 +98,13 @@ extern double cwramp192[];		// see cwramp.c, for 192 kHz sample rate
 
 extern void cw_audio_write(double sample);
 
+static void init_analyzer(TRANSMITTER *tx);
+
+static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_data) {
+  // ignore delete event
+  return TRUE;
+}
+
 static gint update_out_of_band(gpointer data) {
   TRANSMITTER *tx=(TRANSMITTER *)data;
   tx->out_of_band=0;
@@ -138,9 +143,20 @@ void transmitter_set_compressor(TRANSMITTER *tx,int state) {
   SetTXACompressorRun(tx->id, tx->compressor);
 }
 
-void reconfigure_transmitter(TRANSMITTER *tx,int height) {
-g_print("reconfigure_transmitter: width=%d height=%d\n",tx->width,height);
-  gtk_widget_set_size_request(tx->panadapter, tx->width, height);
+void reconfigure_transmitter(TRANSMITTER *tx,int width,int height) {
+g_print("reconfigure_transmitter: width=%d height=%d\n",width,height);
+  if(width!=tx->width) {
+    tx->width=width;
+    tx->height=height; 
+    int ratio=tx->iq_output_rate/tx->mic_sample_rate;
+/*
+    tx->pixels=width*ratio*4;
+    g_free(tx->pixel_samples);
+    tx->pixel_samples=g_new(float,tx->pixels);
+    init_analyzer(tx);
+*/
+  }
+  gtk_widget_set_size_request(tx->panadapter, width, height);
 }
 
 void transmitter_save_state(TRANSMITTER *tx) {
@@ -155,6 +171,9 @@ void transmitter_save_state(TRANSMITTER *tx) {
   setProperty(name,value);
   sprintf(name,"transmitter.%d.filter_high",tx->id);
   sprintf(value,"%d",tx->filter_high);
+  setProperty(name,value);
+  sprintf(name,"transmitter.%d.use_rx_filter",tx->id);
+  sprintf(value,"%d",tx->use_rx_filter);
   setProperty(name,value);
   sprintf(name,"transmitter.%d.alex_antenna",tx->id);
   sprintf(value,"%d",tx->alex_antenna);
@@ -253,6 +272,9 @@ void transmitter_restore_state(TRANSMITTER *tx) {
   sprintf(name,"transmitter.%d.filter_high",tx->id);
   value=getProperty(name);
   if(value) tx->filter_high=atoi(value);
+  sprintf(name,"transmitter.%d.use_rx_filter",tx->id);
+  value=getProperty(name);
+  if(value) tx->use_rx_filter=atoi(value);
   sprintf(name,"transmitter.%d.alex_antenna",tx->id);
   value=getProperty(name);
   if(value) tx->alex_antenna=atoi(value);
@@ -521,7 +543,7 @@ static void init_analyzer(TRANSMITTER *tx) {
 
     overlap = (int)max(0.0, ceil(fft_size - (double)tx->mic_sample_rate / (double)tx->fps));
 
-    fprintf(stderr,"SetAnalyzer id=%d buffer_size=%d overlap=%d\n",tx->id,tx->output_samples,overlap);
+    fprintf(stderr,"SetAnalyzer id=%d buffer_size=%d overlap=%d pixels=%d\n",tx->id,tx->output_samples,overlap,tx->pixels);
 
 
     SetAnalyzer(tx->id,
@@ -547,9 +569,23 @@ static void init_analyzer(TRANSMITTER *tx) {
 
 }
 
+void create_dialog(TRANSMITTER *tx) {
+g_print("create_dialog\n");
+  tx->dialog=gtk_dialog_new();
+  gtk_window_set_transient_for(GTK_WINDOW(tx->dialog),GTK_WINDOW(top_window));
+  gtk_window_set_title(GTK_WINDOW(tx->dialog),"TX");
+  g_signal_connect (tx->dialog, "delete_event", G_CALLBACK (delete_event), NULL);
+  GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(tx->dialog));
+g_print("create_dialog: add tx->panel\n");
+  gtk_widget_set_size_request (tx->panel, display_width/4, display_height/2);
+  gtk_container_add(GTK_CONTAINER(content),tx->panel);
+}
+
 static void create_visual(TRANSMITTER *tx) {
  
   fprintf(stderr,"transmitter: create_visual: id=%d width=%d height=%d\n",tx->id, tx->width,tx->height);
+  
+  tx->dialog=NULL;
 
   tx->panel=gtk_fixed_new();
   gtk_widget_set_size_request (tx->panel, tx->width, tx->height);
@@ -560,13 +596,18 @@ static void create_visual(TRANSMITTER *tx) {
   }
 
   gtk_widget_show_all(tx->panel);
+  g_object_ref((gpointer)tx->panel);
+
+  if(duplex) {
+    create_dialog(tx);
+  }
 
 }
 
 TRANSMITTER *create_transmitter(int id, int buffer_size, int fft_size, int fps, int width, int height) {
   int rc;
 
-  TRANSMITTER *tx=malloc(sizeof(TRANSMITTER));
+  TRANSMITTER *tx=g_new(TRANSMITTER,1);
   tx->id=id;
   tx->dac=0;
   tx->buffer_size=buffer_size;
@@ -578,34 +619,25 @@ TRANSMITTER *create_transmitter(int id, int buffer_size, int fft_size, int fps, 
       tx->mic_sample_rate=48000;
       tx->mic_dsp_rate=48000;
       tx->iq_output_rate=48000;
-      tx->output_samples=tx->buffer_size;
-      tx->pixels=width; // to allow 48k to 24k conversion
       break;
     case NEW_PROTOCOL:
       tx->mic_sample_rate=48000;
       tx->mic_dsp_rate=96000;
       tx->iq_output_rate=192000;
-      tx->output_samples=tx->buffer_size*4;
-      tx->pixels=width*4; // to allow 192k to 24k conversion
       break;
 #ifdef SOAPYSDR
     case SOAPYSDR_PROTOCOL:
       tx->mic_sample_rate=48000;
       tx->mic_dsp_rate=96000;
       tx->iq_output_rate=radio_sample_rate;
-      tx->output_samples=tx->buffer_size*(tx->iq_output_rate/tx->mic_sample_rate);
-      tx->pixels=width*(tx->iq_output_rate/tx->mic_sample_rate);
-/*
-      tx->mic_sample_rate=48000;
-      tx->mic_dsp_rate=48000;
-      tx->iq_output_rate=48000;
-      tx->output_samples=tx->buffer_size;
-      tx->pixels=width; // to allow 48k to 24k conversion
-*/
       break;
 #endif
 
   }
+  int ratio=tx->iq_output_rate/tx->mic_sample_rate;
+  tx->output_samples=tx->buffer_size*ratio;
+  //tx->pixels=width*ratio*4;
+  tx->pixels=display_width*ratio*2;
 
   tx->width=width;
   tx->height=height;
@@ -623,6 +655,7 @@ fprintf(stderr,"create_transmitter: id=%d buffer_size=%d mic_sample_rate=%d mic_
 
   tx->filter_low=tx_filter_low;
   tx->filter_high=tx_filter_high;
+  tx->use_rx_filter=FALSE;
 
   tx->out_of_band=0;
 
@@ -664,20 +697,20 @@ fprintf(stderr,"create_transmitter: id=%d buffer_size=%d mic_sample_rate=%d mic_
 
   // allocate buffers
 fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%d iq_output_buffer=%d pixels=%d\n",tx->buffer_size,tx->output_samples,tx->pixels);
-  tx->mic_input_buffer=malloc(sizeof(double)*2*tx->buffer_size);
-  tx->iq_output_buffer=malloc(sizeof(double)*2*tx->output_samples);
+  tx->mic_input_buffer=g_new(double,2*tx->buffer_size);
+  tx->iq_output_buffer=g_new(double,2*tx->output_samples);
   tx->samples=0;
-  tx->pixel_samples=malloc(sizeof(float)*tx->pixels);
-  if (cw_shape_buffer48) free(cw_shape_buffer48);
-  if (cw_shape_buffer192) free(cw_shape_buffer192);
+  tx->pixel_samples=g_new(float,tx->pixels);
+  if (cw_shape_buffer48) g_free(cw_shape_buffer48);
+  if (cw_shape_buffer192) g_free(cw_shape_buffer192);
   //
   // We need this one both for old and new protocol, since
   // is is also used to shape the audio samples
-  cw_shape_buffer48=malloc(sizeof(double)*tx->buffer_size);
+  cw_shape_buffer48=g_new(double,tx->buffer_size);
   if (protocol == NEW_PROTOCOL) {
     // We need this buffer for the new protocol only, where it is only
     // used to shape the TX envelope
-    cw_shape_buffer192=malloc(sizeof(double)*tx->output_samples);
+    cw_shape_buffer192=g_new(double,tx->output_samples);
   }
 fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%p iq_output_buffer=%p pixels=%p\n",tx->mic_input_buffer,tx->iq_output_buffer,tx->pixel_samples);
 
@@ -770,10 +803,31 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%p iq_output_buf
 
 void tx_set_mode(TRANSMITTER* tx,int mode) {
   if(tx!=NULL) {
+    int filter_low, filter_high;
     tx->mode=mode;
 g_print("tx_set_mode: %s\n",mode_string[tx->mode]);
     SetTXAMode(tx->id, tx->mode);
-    tx_set_filter(tx,tx_filter_low,tx_filter_high);
+    if(tx->use_rx_filter) {
+      int m=vfo[active_receiver->id].mode;
+      if(m==modeFMN) {
+        if(active_receiver->deviation==2500) {
+         filter_low=-4000;
+         filter_high=4000;
+        } else {
+         filter_low=-8000;
+         filter_high=8000;
+        }
+      } else {
+        FILTER *mode_filters=filters[m];
+        FILTER *filter=&mode_filters[vfo[active_receiver->id].filter];
+        filter_low=filter->low;
+        filter_high=filter->high;
+      }
+    } else {
+      filter_low=tx_filter_low;
+      filter_high=tx_filter_high;
+    }
+    tx_set_filter(tx,filter_low,filter_high);
   }
 }
 
@@ -824,16 +878,7 @@ fprintf(stderr,"tx_set_filter: tx=%p mode=%s low=%d high=%d\n",tx,mode_string[mo
   double fl=tx->filter_low;
   double fh=tx->filter_high;
 
-/*
-  if(split) {
-    fl+=vfo[VFO_B].offset;
-    fh+=vfo[VFO_B].offset;
-  } else {
-    fl+=vfo[VFO_A].offset;
-    fh+=vfo[VFO_A].offset;
-  }
-*/
-  SetTXABandpassFreqs(tx->id, fl,fh);
+  SetTXABandpassFreqs(tx->id,fl,fh);
 }
 
 void tx_set_pre_emphasize(TRANSMITTER *tx,int state) {
@@ -994,7 +1039,7 @@ static void full_tx_buffer(TRANSMITTER *tx) {
             double is,qs;
             if(iqswap) {
 	      qs=tx->iq_output_buffer[j*2];
-	      qs=tx->iq_output_buffer[(j*2)+1];
+	      is=tx->iq_output_buffer[(j*2)+1];
             } else {
 	      is=tx->iq_output_buffer[j*2];
 	      qs=tx->iq_output_buffer[(j*2)+1];

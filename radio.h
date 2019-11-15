@@ -172,6 +172,7 @@ extern long long step;
 extern int rit_increment;
 
 extern gboolean duplex;
+extern gint rx_height;
 
 extern int lt2208Dither;
 extern int lt2208Random;

@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "main.h"
 #include "new_menu.h"
 #include "radio_menu.h"
 #include "adc.h"
@@ -197,6 +198,16 @@ static void split_cb(GtkWidget *widget, gpointer data) {
 
 static void duplex_cb(GtkWidget *widget, gpointer data) {
   duplex=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+  if(duplex) {
+    gtk_container_remove(GTK_CONTAINER(fixed),transmitter->panel);
+    reconfigure_transmitter(transmitter,display_width/4,display_height/2);
+    create_dialog(transmitter);
+  } else {
+    GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(transmitter->dialog));
+    gtk_container_remove(GTK_CONTAINER(content),transmitter->panel);
+    gtk_widget_destroy(transmitter->dialog);
+    reconfigure_transmitter(transmitter,display_width,rx_height);
+  }
   vfo_update();
 }
 
