@@ -48,12 +48,14 @@ typedef struct _transmitter {
   int mode;
   int filter_low;
   int filter_high;
+  gboolean use_rx_filter;
 
   int alex_antenna;
 
   int width;
   int height;
 
+  GtkWidget *dialog;
   GtkWidget *panel;
   GtkWidget *panadapter;
 
@@ -115,7 +117,8 @@ typedef struct _transmitter {
 
 extern TRANSMITTER *create_transmitter(int id, int buffer_size, int fft_size, int fps, int width, int height);
 
-void reconfigure_transmitter(TRANSMITTER *tx,int height);
+void create_dialog(TRANSMITTER *tx);
+void reconfigure_transmitter(TRANSMITTER *tx,int width,int height);
 
 //
 // CW pulse shaper variables, needed by rigctl (CAT CW) and iambic.c (LOCALCW)

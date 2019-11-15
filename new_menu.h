@@ -17,6 +17,7 @@ extern void start_vfo();
 extern void start_agc();
 extern void start_store();
 extern void start_rx();
+extern void start_tx();
 extern void start_diversity();
 
 extern void encoder_step(int encoder,int step);

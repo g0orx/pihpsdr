@@ -320,6 +320,7 @@ double display_calibration=0.0;
 int can_transmit=0;
 
 gboolean duplex=FALSE;
+gint rx_height;
 
 void radio_stop() {
   if(can_transmit) {
@@ -338,7 +339,7 @@ void reconfigure_radio() {
   int i;
   int y;
 //fprintf(stderr,"reconfigure_radio: receivers=%d\n",receivers);
-  int rx_height=display_height-VFO_HEIGHT;
+  rx_height=display_height-VFO_HEIGHT;
   if(display_sliders) {
     rx_height-=SLIDERS_HEIGHT;
   }
@@ -388,9 +389,10 @@ void reconfigure_radio() {
   }
 
   if(can_transmit) {
-    reconfigure_transmitter(transmitter,rx_height);
+    if(!duplex) {
+      reconfigure_transmitter(transmitter,display_width,rx_height);
+    }
   }
-
 }
 
 static gboolean save_cb(gpointer data) {
@@ -799,7 +801,7 @@ void start_radio() {
   y+=MENU_HEIGHT;
 
 
-  int rx_height=display_height-VFO_HEIGHT;
+  rx_height=display_height-VFO_HEIGHT;
   if(display_sliders) {
     rx_height-=SLIDERS_HEIGHT;
   }
@@ -832,7 +834,11 @@ void start_radio() {
 
   //fprintf(stderr,"Create transmitter\n");
   if(can_transmit) {
-    transmitter=create_transmitter(CHANNEL_TX, buffer_size, fft_size, updates_per_second, display_width/3, PANADAPTER_HEIGHT);
+    if(duplex) {
+      transmitter=create_transmitter(CHANNEL_TX, buffer_size, fft_size, updates_per_second, display_width/4, display_height/2);
+    } else {
+      transmitter=create_transmitter(CHANNEL_TX, buffer_size, fft_size, updates_per_second, display_width, PANADAPTER_HEIGHT);
+    }
     transmitter->x=0;
     transmitter->y=VFO_HEIGHT;
 
@@ -1054,7 +1060,6 @@ void radio_change_sample_rate(int rate) {
 static void rxtx(int state) {
   int i;
 
-  g_print("rxtx: state=%d duplex=%d\n",state,duplex);
   if(state) {
     // switch to tx
 #ifdef FREEDV
@@ -1092,7 +1097,12 @@ static void rxtx(int state) {
 //      gtk_widget_show(audio_waterfall);
 //    }
 //#endif
-    gtk_fixed_put(GTK_FIXED(fixed),transmitter->panel,transmitter->x,transmitter->y);
+
+    if(duplex) {
+      gtk_widget_show_all(transmitter->dialog);
+    } else {
+      gtk_fixed_put(GTK_FIXED(fixed),transmitter->panel,transmitter->x,transmitter->y);
+    }
     
     SetChannelState(transmitter->id,1,0);
     tx_set_displaying(transmitter,1);
@@ -1115,9 +1125,11 @@ static void rxtx(int state) {
     }
     SetChannelState(transmitter->id,0,1);
     tx_set_displaying(transmitter,0);
-    g_object_ref((gpointer)transmitter->panel);
-    g_object_ref((gpointer)transmitter->panadapter);
-    gtk_container_remove(GTK_CONTAINER(fixed),transmitter->panel);
+    if(duplex) {
+      gtk_widget_hide(transmitter->dialog);
+    } else {
+      gtk_container_remove(GTK_CONTAINER(fixed), transmitter->panel);
+    }
 //#ifdef FREEDV
 //    if(active_receiver->freedv) {
 //      gtk_widget_hide(audio_waterfall);
@@ -1145,7 +1157,6 @@ static void rxtx(int state) {
 }
 
 void setMox(int state) {
-g_print("setMox: %d\n",state);
   if(!can_transmit) return;
   vox_cancel();  // remove time-out
   if(mox!=state) {

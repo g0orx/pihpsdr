@@ -68,11 +68,16 @@ static void save_xvtr () {
         xvtr->frequencyLO=(long long)(atof(lof)*1000000.0);
         loerr=gtk_entry_get_text(GTK_ENTRY(lo_error[i]));
         xvtr->errorLO=atoll(loerr);
+/*
         txlof=gtk_entry_get_text(GTK_ENTRY(tx_lo_frequency[i]));
         xvtr->txFrequencyLO=(long long)(atof(txlof)*1000000.0);
         txloerr=gtk_entry_get_text(GTK_ENTRY(tx_lo_error[i]));
         xvtr->txErrorLO=atoll(txloerr);
+*/
+        xvtr->txFrequencyLO=0LL;
+        xvtr->txErrorLO=0LL;
         xvtr->disablePA=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(disable_pa[i]));
+
         for(b=0;b<bandstack->entries;b++) {
           BANDSTACK_ENTRY *entry=&bandstack->entry[b];
           entry->frequency=xvtr->frequencyMin+((xvtr->frequencyMax-xvtr->frequencyMin)/2);
@@ -243,10 +248,12 @@ fprintf(stderr,"xvtr_menu\n");
   gtk_grid_attach(GTK_GRID(grid),label,3,1,1,1);
   label=gtk_label_new("LO Err(Hz)");
   gtk_grid_attach(GTK_GRID(grid),label,4,1,1,1);
+/*
   label=gtk_label_new("TX LO Freq(MHz)");
   gtk_grid_attach(GTK_GRID(grid),label,5,1,1,1);
   label=gtk_label_new("TX LO Err(Hz)");
   gtk_grid_attach(GTK_GRID(grid),label,6,1,1,1);
+*/
   label=gtk_label_new("Disable PA");
   gtk_grid_attach(GTK_GRID(grid),label,7,1,1,1);
 
@@ -287,6 +294,7 @@ fprintf(stderr,"xvtr_menu\n");
     gtk_grid_attach(GTK_GRID(grid),lo_error[i],4,i+2,1,1);
     g_signal_connect(lo_error[i],"changed",G_CALLBACK(lo_error_cb),GINT_TO_POINTER(i));
 
+/*
     tx_lo_frequency[i]=gtk_entry_new();
     gtk_entry_set_width_chars(GTK_ENTRY(tx_lo_frequency[i]),7);
     sprintf(f,"%5.3f",(double)xvtr->txFrequencyLO/1000000.0);
@@ -300,6 +308,7 @@ fprintf(stderr,"xvtr_menu\n");
     gtk_entry_set_text(GTK_ENTRY(tx_lo_error[i]),f);
     gtk_grid_attach(GTK_GRID(grid),tx_lo_error[i],6,i+2,1,1);
     g_signal_connect(tx_lo_error[i],"changed",G_CALLBACK(tx_lo_error_cb),GINT_TO_POINTER(i));
+*/
 
     disable_pa[i]=gtk_check_button_new();
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(disable_pa[i]),xvtr->disablePA);

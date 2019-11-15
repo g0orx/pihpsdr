@@ -187,7 +187,7 @@ static gboolean cancel_cb (GtkWidget *widget, GdkEventButton *event, gpointer da
 void configure_gpio(GtkWidget *parent) {
   gpio_restore_state();
 
-  dialog=gtk_dialog_new_with_buttons("Configure GPIO",GTK_WINDOW(parent),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
+  dialog=gtk_dialog_new_with_buttons("Configure GPIO (WiringPi pin numbers)",GTK_WINDOW(parent),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
   GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
   GtkWidget *grid=gtk_grid_new();
   //gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
@@ -285,9 +285,8 @@ void configure_gpio(GtkWidget *parent) {
   gtk_widget_show(b_enable_E3_pullup);
   gtk_grid_attach(GTK_GRID(grid),b_enable_E3_pullup,5,y,1,1);
 
-
-
   y++;
+
   b_enable_E4_encoder=gtk_check_button_new_with_label("Enable E4");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E4_encoder), ENABLE_E4_ENCODER);
   gtk_widget_show(b_enable_E4_encoder);
@@ -316,8 +315,9 @@ void configure_gpio(GtkWidget *parent) {
   gtk_widget_show(b_enable_E4_pullup);
   gtk_grid_attach(GTK_GRID(grid),b_enable_E4_pullup,5,y,1,1);
 
-#if defined (CONTROLLER2_V2) || defined (CONTROLLER2_V1)
   y++;
+
+#if defined (CONTROLLER2_V2) || defined (CONTROLLER2_V1)
   b_enable_E5_encoder=gtk_check_button_new_with_label("Enable E5");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E5_encoder), ENABLE_E5_ENCODER);
   gtk_widget_show(b_enable_E5_encoder);
@@ -346,10 +346,11 @@ void configure_gpio(GtkWidget *parent) {
   gtk_widget_show(b_enable_E5_pullup);
   gtk_grid_attach(GTK_GRID(grid),b_enable_E5_pullup,5,y,1,1);
 
+  y++;
+
 #endif
 
 #if !defined (CONTROLLER2_V2) && !defined(CONTROLLER2_V1)
-  y++;
   b_enable_mox=gtk_check_button_new_with_label("Enable MOX/TUN");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_mox), ENABLE_MOX_BUTTON);
   gtk_widget_show(b_enable_mox);
@@ -379,6 +380,7 @@ void configure_gpio(GtkWidget *parent) {
   gtk_spin_button_set_value (GTK_SPIN_BUTTON(S1),S1_BUTTON);
   gtk_widget_show(S1);
   gtk_grid_attach(GTK_GRID(grid),S1,2,y,1,1);
+
 #endif
 
 #ifdef LOCALCW
@@ -399,9 +401,11 @@ void configure_gpio(GtkWidget *parent) {
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_cwlr), ENABLE_CW_BUTTONS);
   gtk_widget_show(b_enable_cwlr);
   gtk_grid_attach(GTK_GRID(grid),b_enable_cwlr,5,y,1,1);
+
 #endif
 
   y++;
+
 
 #if !defined (CONTROLLER2_V2) && !defined (CONTROLLER2_V1)
   b_enable_S2=gtk_check_button_new_with_label("Enable S2");
@@ -417,6 +421,7 @@ void configure_gpio(GtkWidget *parent) {
   gtk_spin_button_set_value (GTK_SPIN_BUTTON(S2),S2_BUTTON);
   gtk_widget_show(S2);
   gtk_grid_attach(GTK_GRID(grid),S2,2,y,1,1);
+
 #endif
 
 #ifdef LOCALCW
@@ -468,9 +473,9 @@ void configure_gpio(GtkWidget *parent) {
   gtk_widget_show(b_enable_cws);
   gtk_grid_attach(GTK_GRID(grid),b_enable_cws,5,y,1,1);
 #endif
-  y++;
 
 #if !defined (CONTROLLER2_V2) && !defined (CONTROLLER2_V1)
+  y++;
   b_enable_S4=gtk_check_button_new_with_label("Enable S4");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_S4), ENABLE_S4_BUTTON);
   gtk_widget_show(b_enable_S4);
@@ -538,11 +543,11 @@ void configure_gpio(GtkWidget *parent) {
 
   GtkWidget *save_b=gtk_button_new_with_label("Save");
   g_signal_connect (save_b, "button_press_event", G_CALLBACK(save_cb), NULL);
-  gtk_grid_attach(GTK_GRID(grid),save_b,4,y-1,1,1);
+  gtk_grid_attach(GTK_GRID(grid),save_b,4,y,1,1);
 
   GtkWidget *cancel_b=gtk_button_new_with_label("Cancel");
   g_signal_connect (cancel_b, "button_press_event", G_CALLBACK(cancel_cb), NULL);
-  gtk_grid_attach(GTK_GRID(grid),cancel_b,5,y-1,1,1);
+  gtk_grid_attach(GTK_GRID(grid),cancel_b,5,y,1,1);
 
   gtk_container_add(GTK_CONTAINER(content),grid);
 

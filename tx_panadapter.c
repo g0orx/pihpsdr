@@ -41,15 +41,16 @@
 #ifdef GPIO
 #include "gpio.h"
 #endif
-
+#include "ext.h"
+#include "new_menu.h"
 
 static gint last_x;
 static gboolean has_moved=FALSE;
 static gboolean pressed=FALSE;
 
-static gfloat hz_per_pixel;
-static gfloat filter_left;
-static gfloat filter_right;
+static gdouble hz_per_pixel;
+static gdouble filter_left=0.0;
+static gdouble filter_right=0.0;
 
 
 /* Create a new surface of the appropriate size to store our scribbles */
@@ -62,7 +63,6 @@ tx_panadapter_configure_event_cb (GtkWidget         *widget,
   int display_width=gtk_widget_get_allocated_width (tx->panadapter);
   int display_height=gtk_widget_get_allocated_height (tx->panadapter);
 
-g_print("tx_panadapter_configure_event_cb: width=%d height=%d\n",display_width,display_height);
   if (tx->panadapter_surface)
     cairo_surface_destroy (tx->panadapter_surface);
 
@@ -105,6 +105,8 @@ tx_panadapter_button_press_event_cb (GtkWidget      *widget,
     last_x=(int)event->x;
     has_moved=FALSE;
     pressed=TRUE;
+  } else {
+    g_idle_add(ext_start_tx,NULL);
   }
   return TRUE;
 }
@@ -182,7 +184,6 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   float *samples;
   float saved_max;
   float saved_min;
-  gfloat saved_hz_per_pixel;
   cairo_text_extents_t extents;
 
   if(tx->panadapter_surface) {
@@ -197,9 +198,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   }
   samples=tx->pixel_samples;
 
-  //hz_per_pixel=(double)tx->output_rate/(double)display_width;
-  //hz_per_pixel=24000.0/(double)display_width;
-  hz_per_pixel=48000.0/(double)display_width;
+  hz_per_pixel=(double)tx->iq_output_rate/(double)tx->pixels;
 
   //clear_panadater_surface();
   cairo_t *cr;
@@ -207,6 +206,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
   cairo_paint (cr);
 
+  
   // filter
   if (vfo[id].mode != modeCWU && vfo[id].mode != modeCWL) {
     cairo_set_source_rgb (cr, 0.25, 0.25, 0.25);
@@ -214,6 +214,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     filter_right=(double)display_width/2.0+((double)tx->filter_high/hz_per_pixel);
     cairo_rectangle(cr, filter_left, 0.0, filter_right-filter_left, (double)display_height);
     cairo_fill(cr);
+
   }
 
   // plot the levels 0, -20, 40, ... dBm (green line with label)
@@ -249,10 +250,9 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   // plot frequency markers
   long long f;
   long long divisor=20000;
-  //long long half=12000LL; //(long long)(tx->output_rate/2);
-  long long half=24000LL; //(long long)(tx->output_rate/2);
+  //long long half=24000LL; //(long long)(tx->output_rate/2);
+  long long half=6000LL; //(long long)(tx->output_rate/2);
   long long frequency;
-  //frequency=vfo[id].frequency+vfo[id].offset;
   if(vfo[id].ctun) {
     frequency=vfo[id].ctun_frequency-vfo[id].lo_tx;
   } else {
@@ -269,7 +269,9 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     }
   }
 
-  divisor=5000LL;
+#ifdef TX_FREQ_MARKERS
+  //divisor=5000LL;
+  divisor=50000LL;
   for(i=0;i<display_width;i++) {
     f = frequency - half + (long) (hz_per_pixel * i);
     if (f > 0) {
@@ -294,6 +296,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     }
   }
   cairo_stroke(cr);
+#endif
 
   // band edges
   long long min_display=frequency-half;
@@ -332,21 +335,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   samples[0]=-200.0;
   samples[display_width-1]=-200.0;
 
-  int offset=0;
-
-  switch(protocol) {
-    case ORIGINAL_PROTOCOL:
-      offset=0;
-      break;
-    case NEW_PROTOCOL:
-      offset=(tx->pixels/8)*3;
-      break;
-#ifdef SOAPYSDR
-    case SOAPYSDR_PROTOCOL:
-      offset=(tx->pixels/16)*7;
-      break;
-#endif
-  }
+  int offset=(tx->pixels/2)-(display_width/2);
 
   s1=(double)samples[0+offset];
   s1 = floor((tx->panadapter_high - s1)
@@ -420,17 +409,18 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   if(duplex) {
     char text[64];
     cairo_set_source_rgb(cr,1.0,0.0,0.0);
+    cairo_set_font_size(cr, 16);
 
-    sprintf(text,"FWD: %f",transmitter->fwd);
-    cairo_move_to(cr,10,display_height-40);
+    sprintf(text,"FWD: %0.3f",transmitter->fwd);
+    cairo_move_to(cr,10,15);
     cairo_show_text(cr, text);
 
-    sprintf(text,"REV: %f",transmitter->rev);
-    cairo_move_to(cr,10,display_height-30);
+    sprintf(text,"REV: %0.3f",transmitter->rev);
+    cairo_move_to(cr,10,30);
     cairo_show_text(cr, text);
 
-    sprintf(text,"ALC: %f",transmitter->alc);
-    cairo_move_to(cr,10,display_height-20);
+    sprintf(text,"ALC: %0.3f",transmitter->alc);
+    cairo_move_to(cr,10,45);
     cairo_show_text(cr, text);
   }
 
@@ -455,25 +445,30 @@ fprintf(stderr,"tx_panadapter_init: %d x %d\n",width,height);
             G_CALLBACK (tx_panadapter_configure_event_cb), tx);
 
   /* Event signals */
+/*
   g_signal_connect (tx->panadapter, "motion-notify-event",
             G_CALLBACK (tx_panadapter_motion_notify_event_cb), tx);
+*/
   g_signal_connect (tx->panadapter, "button-press-event",
             G_CALLBACK (tx_panadapter_button_press_event_cb), tx);
+/*
   g_signal_connect (tx->panadapter, "button-release-event",
             G_CALLBACK (tx_panadapter_button_release_event_cb), tx);
   g_signal_connect(tx->panadapter,"scroll_event",
             G_CALLBACK(tx_panadapter_scroll_event_cb),tx);
+*/
 
   /* Ask to receive events the drawing area doesn't normally
    * subscribe to. In particular, we need to ask for the
    * button press and motion notify events that want to handle.
    */
   gtk_widget_set_events (tx->panadapter, gtk_widget_get_events (tx->panadapter)
-                     | GDK_BUTTON_PRESS_MASK
+                     | GDK_BUTTON_PRESS_MASK);
+/*
                      | GDK_BUTTON_RELEASE_MASK
                      | GDK_BUTTON1_MOTION_MASK
                      | GDK_SCROLL_MASK
                      | GDK_POINTER_MOTION_MASK
                      | GDK_POINTER_MOTION_HINT_MASK);
-
+*/
 }
