@@ -338,7 +338,6 @@ char *sw_string[SWITCH_ACTIONS] = {
   "SPLIT",
   "DIVERSITY",
   "SAT",
-  "RSAT",
   "BAND MENU",
   "BANDSTACK MENU",
   "MODE MENU",
@@ -533,10 +532,7 @@ fprintf(stderr,"e_function_pressed: %d\n",action);
       g_idle_add(ext_diversity_update,GINT_TO_POINTER(0));
       break;
     case SAT:
-      if(can_transmit) g_idle_add(ext_sat_update,GINT_TO_POINTER(SAT_MODE));
-      break;
-    case RSAT:
-      if(can_transmit) g_idle_add(ext_sat_update,GINT_TO_POINTER(RSAT_MODE));
+      if(can_transmit) g_idle_add(ext_sat_update,NULL);
       break;
     case MENU_BAND:
       g_idle_add(ext_band_update,NULL);

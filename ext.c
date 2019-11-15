@@ -575,11 +575,16 @@ int ext_diversity_update(void *data) {
 }
 
 int ext_sat_update(void *data) {
-  int mode=GPOINTER_TO_INT(data);
-  if(sat_mode==mode) {
-    sat_mode=SAT_NONE;
-  } else {
-    sat_mode=mode;
+  switch(sat_mode) {
+    case SAT_NONE:
+      sat_mode=SAT_MODE;
+      break;
+    case SAT_MODE:
+      sat_mode=RSAT_MODE;
+      break;
+    case RSAT_MODE:
+      sat_mode=SAT_NONE;
+      break;
   }
   vfo_update();
   return 0;

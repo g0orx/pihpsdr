@@ -212,22 +212,7 @@ static void duplex_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void sat_cb(GtkWidget *widget, gpointer data) {
-  if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rsat_b), FALSE);
-    sat_mode=SAT_MODE;
-  } else {
-    sat_mode=SAT_NONE;
-  }
-  vfo_update();
-}
-
-static void rsat_cb(GtkWidget *widget, gpointer data) {
-  if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sat_b), FALSE);
-    sat_mode=RSAT_MODE;
-  } else {
-    sat_mode=SAT_NONE;
-  }
+  sat_mode=gtk_combo_box_get_active(GTK_COMBO_BOX(widget));
   vfo_update();
 }
 
@@ -655,17 +640,14 @@ void radio_menu(GtkWidget *parent) {
 
   col++;
 
-  sat_b=gtk_check_button_new_with_label("SAT");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sat_b), sat_mode==SAT_MODE);
-  gtk_grid_attach(GTK_GRID(grid),sat_b,col,row,1,1);
-  g_signal_connect(sat_b,"toggled",G_CALLBACK(sat_cb),NULL);
-
-  col++;
-
-  rsat_b=gtk_check_button_new_with_label("RSAT");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rsat_b), sat_mode==RSAT_MODE);
-  gtk_grid_attach(GTK_GRID(grid),rsat_b,col,row,1,1);
-  g_signal_connect(rsat_b,"toggled",G_CALLBACK(rsat_cb),NULL);
+  
+  GtkWidget *sat_combo=gtk_combo_box_text_new();
+  gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(sat_combo),NULL,"SAT Off");
+  gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(sat_combo),NULL,"SAT");
+  gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(sat_combo),NULL,"RSAT");
+  gtk_combo_box_set_active(GTK_COMBO_BOX(sat_combo),sat_mode);
+  gtk_grid_attach(GTK_GRID(grid),sat_combo,col,row,1,1);
+  g_signal_connect(sat_combo,"changed",G_CALLBACK(sat_cb),NULL);
 
   row++;
   if(row>temp_row) temp_row=row;
