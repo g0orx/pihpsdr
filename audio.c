@@ -181,7 +181,6 @@ int audio_open_input() {
   int dir=0;
 
   if(transmitter->microphone_name==NULL) {
-    transmitter->local_microphone=0;
     return -1;
   }
 fprintf(stderr,"audio_open_input: %s\n",transmitter->microphone_name);
