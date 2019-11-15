@@ -497,35 +497,37 @@ if(analog_meter) {
 
   cairo_set_line_width(cr, 1.0);
 
-  cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
-  cairo_move_to(cr, 5.0, 15.0);
-  cairo_line_to(cr, 5.0, 5.0);
-  cairo_move_to(cr, 5.0+25.0, 15.0);
-  cairo_line_to(cr, 5.0+25.0, 10.0);
-  cairo_move_to(cr, 5.0+50.0, 15.0);
-  cairo_line_to(cr, 5.0+50.0, 5.0);
-  cairo_move_to(cr, 5.0+75.0, 15.0);
-  cairo_line_to(cr, 5.0+75.0, 10.0);
-  cairo_move_to(cr, 5.0+100.0, 15.0);
-  cairo_line_to(cr, 5.0+100.0, 5.0);
-  cairo_stroke(cr);
-
-  double peak=vox_get_peak();
-  peak=peak*100.0;
-  cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
-  cairo_rectangle(cr, 5.0, 5.0, peak, 5.0);
-  cairo_fill(cr);
-
-  if(vox_enabled) {
-    cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
-    cairo_move_to(cr,5.0+(vox_threshold*100.0),5.0);
-    cairo_line_to(cr,5.0+(vox_threshold*100.0),15.0);
+  if(can_transmit) {
+    cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
+    cairo_move_to(cr, 5.0, 15.0);
+    cairo_line_to(cr, 5.0, 5.0);
+    cairo_move_to(cr, 5.0+25.0, 15.0);
+    cairo_line_to(cr, 5.0+25.0, 10.0);
+    cairo_move_to(cr, 5.0+50.0, 15.0);
+    cairo_line_to(cr, 5.0+50.0, 5.0);
+    cairo_move_to(cr, 5.0+75.0, 15.0);
+    cairo_line_to(cr, 5.0+75.0, 10.0);
+    cairo_move_to(cr, 5.0+100.0, 15.0);
+    cairo_line_to(cr, 5.0+100.0, 5.0);
     cairo_stroke(cr);
-  }
 
-  cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
-  cairo_move_to(cr, 115.0, 15.0);
-  cairo_show_text(cr, "Mic Level");
+    double peak=vox_get_peak();
+    peak=peak*100.0;
+    cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
+    cairo_rectangle(cr, 5.0, 5.0, peak, 5.0);
+    cairo_fill(cr);
+
+    if(vox_enabled) {
+      cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
+      cairo_move_to(cr,5.0+(vox_threshold*100.0),5.0);
+      cairo_line_to(cr,5.0+(vox_threshold*100.0),15.0);
+      cairo_stroke(cr);
+    }
+
+    cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
+    cairo_move_to(cr, 115.0, 15.0);
+    cairo_show_text(cr, "Mic Level");
+  }
 
   if(last_meter_type!=meter_type) {
     last_meter_type=meter_type;

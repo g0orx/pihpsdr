@@ -563,10 +563,12 @@ void new_menu()
     gtk_grid_attach(GTK_GRID(grid),meter_b,(i%5),i/5,1,1);
     i++;
 
-    GtkWidget *vox_b=gtk_button_new_with_label("VOX");
-    g_signal_connect (vox_b, "button-press-event", G_CALLBACK(vox_b_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),vox_b,(i%5),i/5,1,1);
-    i++;
+    if(can_transmit) {
+      GtkWidget *vox_b=gtk_button_new_with_label("VOX");
+      g_signal_connect (vox_b, "button-press-event", G_CALLBACK(vox_b_cb), NULL);
+      gtk_grid_attach(GTK_GRID(grid),vox_b,(i%5),i/5,1,1);
+      i++;
+    }
 
     GtkWidget *fft_b=gtk_button_new_with_label("FFT");
     g_signal_connect (fft_b, "button-press-event", G_CALLBACK(fft_b_cb), NULL);
