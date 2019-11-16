@@ -1139,7 +1139,9 @@ fprintf(stderr,"RXASetMP %d\n",rx->low_latency);
 
 fprintf(stderr,"create_receiver: rx=%p id=%d local_audio=%d\n",rx,rx->id,rx->local_audio);
   if(rx->local_audio) {
-    audio_open_output(rx);
+    if(audio_open_output(rx)<0) {
+      rx->local_audio=0;
+    }
   }
 
   return rx;
