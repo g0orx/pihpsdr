@@ -630,6 +630,26 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	      g_idle_add(ext_vfo_update, NULL);
 	    }
 	    break;
+	/////////////////////////////////////////////////////////// "VOXLEVEL"
+	case VOXLEVEL: // knob or wheel supported
+            switch (type) {
+              case MIDI_WHEEL:
+                // This changes the value incrementally,
+                // but stay within limits (0.0 through 1.0)
+                vox_threshold += (double) val * 0.01;
+		if (vox_threshold > 1.0) vox_threshold=1.0;
+		if (vox_threshold < 0.0) vox_threshold=0.0;
+                break;
+              case MIDI_KNOB:
+                vox_threshold = 0.01 * (double) val;
+                break;
+              default:
+                // do nothing
+                // we should not come here anyway
+                break;
+            }
+	    // VOX level not shown on screen, hence no VFO update
+	    break;
 	/////////////////////////////////////////////////////////// "XITCLEAR"
         case MIDI_XIT_CLEAR:  // only key supported
             if (type == MIDI_KEY) {

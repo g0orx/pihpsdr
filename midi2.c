@@ -144,6 +144,7 @@ static struct {
 	{ VFO_STEP_UP,  	"VFOSTEPUP"},
 	{ VFO_STEP_DOWN,	"VFOSTEPDOWN"},
 	{ VOX,   		"VOX"},
+	{ VOXLEVEL,   		"VOXLEVEL"},
 	{ MIDI_XIT_CLEAR,  	"XITCLEAR"},
 	{ XIT_VAL,  		"XITVAL"},
         { ACTION_NONE,  	"NONE"},

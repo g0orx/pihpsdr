@@ -91,6 +91,7 @@ enum MIDIaction {
   VFO_STEP_UP,		// VFOSTEPUP:		cycle through vfo steps upwards;
   VFO_STEP_DOWN,	// VFOSTEPDOWN:		cycle through vfo steps downwards;
   VOX, 			// VOX:			toggle VOX on/off
+  VOXLEVEL, 		// VOXLEVEL:		adjust VOX threshold
   MIDI_XIT_CLEAR,	// XITCLEAR:		clear XIT value
   XIT_VAL,		// XITVAL:		change XIT value
 };
