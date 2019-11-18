@@ -3720,7 +3720,7 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                                if((work_int >=0) && (work_int<=9)) {
                                                   if(zzid_flag == 0) {
                                                      // Set the threshold here
-                                                     vox_threshold = ((double) work_int)/100.0;
+                                                     vox_threshold = ((double) work_int)/10.0;
                                                      #ifdef RIGCTL_DEBUG
                                                      fprintf(stderr,"RIGCTL: Vox thresh=%0.20f\n",vox_threshold);
                                                      #endif
