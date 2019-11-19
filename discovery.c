@@ -124,7 +124,7 @@ static gboolean midi_cb(GtkWidget *widget, GdkEventButton *event, gpointer data)
 
     res = gtk_dialog_run (GTK_DIALOG (opfile));
     if (res == GTK_RESPONSE_ACCEPT) {
-      char *filename;
+      char *filename, *cp;
       struct stat statbuf;
       GtkFileChooser *chooser = GTK_FILE_CHOOSER (opfile);
       char *contents;
@@ -146,7 +146,10 @@ static gboolean midi_cb(GtkWidget *widget, GdkEventButton *event, gpointer data)
         close(fdin);
       }
       fdout=0;
-      if (contents && bytes_read > 0) {
+      if (contents && bytes_read == len) {
+	// should this file exist as a link or symlink, or should it
+	// be read-only, remove it first
+	unlink("midi.inp");
         fdout=open("midi.inp", O_WRONLY | O_CREAT, 0644);
         if (fdout >= 0) {
           bytes_written=write(fdout, contents, len);
@@ -154,30 +157,37 @@ static gboolean midi_cb(GtkWidget *widget, GdkEventButton *event, gpointer data)
           g_free(contents);
         }
       }
-      if (fdin < 0) {
+      if (fdin < 0 || bytes_read < len) {
         message = gtk_message_dialog_new (GTK_WINDOW(top_window),
 		GTK_DIALOG_DESTROY_WITH_PARENT,
 		GTK_MESSAGE_ERROR,
 		GTK_BUTTONS_CLOSE,
-		"Cannot read file!\n");
+		"Cannot read input file!\n");
         gtk_dialog_run (GTK_DIALOG (message));
         gtk_widget_destroy(message);
-      }
-      if (fdout < 0) {
+      } else if (fdout < 0 || bytes_written < len) {
         message = gtk_message_dialog_new (GTK_WINDOW(top_window),
 		GTK_DIALOG_DESTROY_WITH_PARENT,
 		GTK_MESSAGE_ERROR,
 		GTK_BUTTONS_CLOSE,
-		"Cannot write midi.inp file!\n");
+		"Cannot write MIDI settings!\n");
         gtk_dialog_run (GTK_DIALOG (message));
         gtk_widget_destroy(message);
-      }
-      if (fdin >= 0 && fdout >= 0) {
+      } else {
+	// only show basename in the message
+	cp = filename + strlen(filename);
+        while (cp >= filename) {
+	  if (*cp == '/') {
+	    cp++;
+	    break;
+	  }
+	  cp--;
+	}
         message = gtk_message_dialog_new (GTK_WINDOW(top_window),
 		GTK_DIALOG_DESTROY_WITH_PARENT,
 		GTK_MESSAGE_ERROR,
 		GTK_BUTTONS_CLOSE,
-		"File Length  : %ld\nBytes read   : %ld\nBytes written: %ld\n",len,bytes_read,bytes_written);
+		"MIDI import: %ld Bytes read from file %s\n",len,cp);
         gtk_dialog_run (GTK_DIALOG (message));
         gtk_widget_destroy(message);
       }
