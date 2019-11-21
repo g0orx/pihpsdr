@@ -283,6 +283,9 @@ void receiver_save_state(RECEIVER *rx) {
   sprintf(name,"receiver.%d.local_audio",rx->id);
   sprintf(value,"%d",rx->local_audio);
   setProperty(name,value);
+  sprintf(name,"receiver.%d.local_audio_buffer_size",rx->id);
+  sprintf(value,"%d",rx->local_audio_buffer_size);
+  setProperty(name,value);
   if(rx->audio_name!=NULL) {
     sprintf(name,"receiver.%d.audio_name",rx->id);
     sprintf(value,"%s",rx->audio_name);
@@ -463,6 +466,9 @@ fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
   sprintf(name,"receiver.%d.local_audio",rx->id);
   value=getProperty(name);
   if(value) rx->local_audio=atoi(value);
+  sprintf(name,"receiver.%d.local_audio_buffer_size",rx->id);
+  value=getProperty(name);
+  if(value) rx->local_audio_buffer_size=atoi(value);
   sprintf(name,"receiver.%d.audio_name",rx->id);
   value=getProperty(name);
   if(value) {
@@ -816,7 +822,7 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
     }
   }
   // allocate buffers
-  rx->iq_input_buffer=malloc(sizeof(double)*2*rx->buffer_size);
+  rx->iq_input_buffer=g_new(double,2*rx->buffer_size);
   rx->audio_buffer=NULL;
   rx->audio_sequence=0L;
   rx->pixel_samples=malloc(sizeof(float)*(rx->pixels));
@@ -861,8 +867,10 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
   rx->agc_hang_threshold=0.0;
   
   rx->playback_handle=NULL;
-  rx->playback_buffer=NULL;
+  rx->local_audio_buffer=NULL;
+  rx->local_audio_buffer_size=1024;
   rx->local_audio=0;
+  g_mutex_init(&rx->local_audio_mutex);
   rx->audio_name=NULL;
   rx->mute_when_not_active=0;
   rx->audio_channel=STEREO;
@@ -958,10 +966,10 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
   rx->height=height;
 
   // allocate buffers
-  rx->iq_input_buffer=malloc(sizeof(double)*2*rx->buffer_size);
-  rx->audio_buffer=malloc(AUDIO_BUFFER_SIZE);
+  rx->iq_input_buffer=g_new(double,2*rx->buffer_size);
+  rx->audio_buffer_size=480;
   rx->audio_sequence=0L;
-  rx->pixel_samples=malloc(sizeof(float)*pixels);
+  rx->pixel_samples=g_new(float,pixels);
 
   rx->samples=0;
   rx->displaying=0;
@@ -1005,6 +1013,9 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
   
   rx->playback_handle=NULL;
   rx->local_audio=0;
+  g_mutex_init(&rx->local_audio_mutex);
+  rx->local_audio_buffer=NULL;
+  rx->local_audio_buffer_size=1024;
   rx->audio_name=NULL;
   rx->mute_when_not_active=0;
   rx->audio_channel=STEREO;
@@ -1037,10 +1048,11 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
   rx->resample_step=1;
 #endif
 
-fprintf(stderr,"create_receiver (after restore): rx=%p id=%d local_audio=%d\n",rx,rx->id,rx->local_audio);
+fprintf(stderr,"create_receiver (after restore): rx=%p id=%d audio_buffer_size=%d local_audio=%d\n",rx,rx->id,rx->audio_buffer_size,rx->local_audio);
+  rx->audio_buffer=g_new(guchar,rx->audio_buffer_size);
   int scale=rx->sample_rate/48000;
   rx->output_samples=rx->buffer_size/scale;
-  rx->audio_output_buffer=malloc(sizeof(double)*2*rx->output_samples);
+  rx->audio_output_buffer=g_new(gdouble,2*rx->output_samples);
 
 fprintf(stderr,"create_receiver: id=%d output_samples=%d\n",rx->id,rx->output_samples);
 
@@ -1053,11 +1065,11 @@ fprintf(stderr,"create_receiver: id=%d after restore adc=%d\n",rx->id, rx->adc);
 fprintf(stderr,"create_receiver: OpenChannel id=%d buffer_size=%d fft_size=%d sample_rate=%d\n",
         rx->id,
         rx->buffer_size,
-        2048, // rx->fft_size,
+        rx->fft_size,
         rx->sample_rate);
   OpenChannel(rx->id,
               rx->buffer_size,
-              2048, // rx->fft_size,
+              rx->fft_size,
               rx->sample_rate,
               48000, // dsp rate
               48000, // output rate
@@ -1139,9 +1151,7 @@ fprintf(stderr,"RXASetMP %d\n",rx->low_latency);
 
 fprintf(stderr,"create_receiver: rx=%p id=%d local_audio=%d\n",rx,rx->id,rx->local_audio);
   if(rx->local_audio) {
-    if(audio_open_output(rx)<0) {
-      rx->local_audio=0;
-    }
+    audio_open_output(rx);
   }
 
   return rx;
@@ -1160,11 +1170,14 @@ void receiver_change_sample_rate(RECEIVER *rx,int sample_rate) {
 // that the central part can be displayed in the TX panadapter
 //
 
+
   rx->sample_rate=sample_rate;
   int scale=rx->sample_rate/48000;
   rx->output_samples=rx->buffer_size/scale;
+  rx->audio_output_buffer=g_new(gdouble,2*rx->output_samples);
   rx->hz_per_pixel=(double)rx->sample_rate/(double)rx->width;
 
+g_print("receiver_change_sample_rate: id=%d rate=%d scale=%d buffer_size=%d output_samples=%d\n",rx->id,sample_rate,scale,rx->buffer_size,rx->output_samples);
 #ifdef PURESIGNAL
   if (rx->id == PS_RX_FEEDBACK) {
     float *fp, *ofp;
@@ -1192,8 +1205,8 @@ void receiver_change_sample_rate(RECEIVER *rx,int sample_rate) {
 
   SetChannelState(rx->id,0,1);
   free(rx->audio_output_buffer);
-  rx->audio_output_buffer=malloc(sizeof(double)*2*rx->output_samples);
-  rx->audio_buffer=malloc(AUDIO_BUFFER_SIZE);
+  rx->audio_output_buffer=g_new(double,2*rx->output_samples);
+  rx->audio_buffer=g_new(guchar,rx->audio_buffer_size);
   SetInputSamplerate(rx->id, sample_rate);
   SetEXTANBSamplerate (rx->id, sample_rate);
   SetEXTNOBSamplerate (rx->id, sample_rate);
@@ -1347,16 +1360,20 @@ static void process_freedv_rx_buffer(RECEIVER *rx) {
 #endif
 
 static void process_rx_buffer(RECEIVER *rx) {
-  short left_audio_sample;
-  short right_audio_sample;
+  gdouble left_sample,right_sample;
+  short left_audio_sample,right_audio_sample;
   int i;
   for(i=0;i<rx->output_samples;i++) {
     if(isTransmitting() && !duplex) {
+      left_sample=0.0;
+      right_sample=0.0;
       left_audio_sample=0;
       right_audio_sample=0;
     } else {
-      left_audio_sample=(short)(rx->audio_output_buffer[i*2]*32767.0);
-      right_audio_sample=(short)(rx->audio_output_buffer[(i*2)+1]*32767.0);
+      left_sample=rx->audio_output_buffer[i*2];
+      right_sample=rx->audio_output_buffer[(i*2)+1];
+      left_audio_sample=(short)(left_sample*32767.0);
+      right_audio_sample=(short)(right_sample*32767.0);
 #ifdef PSK
       if(vfo[rx->id].mode==modePSK) {
         if(psk_samples==0) {
@@ -1372,17 +1389,17 @@ static void process_rx_buffer(RECEIVER *rx) {
 
     if(rx->local_audio) {
       if(rx!=active_receiver && rx->mute_when_not_active) {
-        audio_write(rx,0,0);
+        audio_write(rx,0.0F,0.0F);
       } else {
         switch(rx->audio_channel) {
           case STEREO:
-            audio_write(rx,left_audio_sample,right_audio_sample);
+            audio_write(rx,(float)left_sample,(float)right_sample);
             break;
           case LEFT:
-            audio_write(rx,left_audio_sample,0);
+            audio_write(rx,(float)left_sample,0.0F);
             break;
           case RIGHT:
-            audio_write(rx,0,right_audio_sample);
+            audio_write(rx,0.0F,(float)right_sample);
             break;
         }
       }
@@ -1448,7 +1465,7 @@ void full_rx_buffer(RECEIVER *rx) {
 
   fexchange0(rx->id, rx->iq_input_buffer, rx->audio_output_buffer, &error);
   if(error!=0) {
-    //fprintf(stderr,"full_rx_buffer: id=%d fexchange0: error=%d\n",rx->id,error);
+    fprintf(stderr,"full_rx_buffer: id=%d fexchange0: error=%d\n",rx->id,error);
   }
 
   if(rx->displaying) {
@@ -1461,6 +1478,7 @@ void full_rx_buffer(RECEIVER *rx) {
     process_freedv_rx_buffer(rx);
   } else {
 #endif
+//g_print("full_rx_buffer: rx=%d buffer_size=%d samples=%d\n",rx->id,rx->buffer_size,rx->samples);
     process_rx_buffer(rx);
 #ifdef FREEDV
   }

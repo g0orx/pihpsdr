@@ -57,6 +57,7 @@ extern char property_path[];
 #define ALEX 1
 #define APOLLO 2
 #define CHARLY25 3
+#define N2ADR 4
 
 #define REGION_OTHER 0
 #define REGION_UK 1
@@ -202,6 +203,7 @@ extern int new_pa_board;
 extern int ozy_software_version;
 extern int mercury_software_version;
 extern int penelope_software_version;
+extern int ptt;
 extern int mox;
 extern int tune;
 extern int memory_tune;

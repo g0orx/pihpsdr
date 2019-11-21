@@ -144,7 +144,7 @@ RECEIVER *receiver[MAX_RECEIVERS];
 RECEIVER *active_receiver;
 TRANSMITTER *transmitter;
 
-int buffer_size=2048; // 64, 128, 256, 512, 1024, 2048
+int buffer_size=1024; // 64, 128, 256, 512, 1024, 2048
 int fft_size=2048; // 1024, 2048, 4096, 8192, 16384
 
 int atlas_penelope=0;
@@ -253,8 +253,9 @@ unsigned int IO1;
 unsigned int IO2;
 unsigned int IO3;
 int supply_volts;
-int mox;
-int tune;
+int ptt=0;
+int mox=0;
+int tune=0;
 int memory_tune=0;
 int full_tune=0;
 
@@ -1037,6 +1038,7 @@ void radio_change_sample_rate(int rate) {
       // The radio menu calls this function even if the sample rate
       // has not changed. Do nothing in this case.
       if (receiver[0]->sample_rate != rate) {
+        radio_sample_rate=rate;
         old_protocol_stop();
         for(i=0;i<receivers;i++) {
           receiver_change_sample_rate(receiver[i],rate);
@@ -2139,3 +2141,4 @@ void radio_change_region(int r) {
       break;
   }
 }
+

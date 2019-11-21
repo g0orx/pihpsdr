@@ -805,7 +805,6 @@ void tx_set_mode(TRANSMITTER* tx,int mode) {
   if(tx!=NULL) {
     int filter_low, filter_high;
     tx->mode=mode;
-g_print("tx_set_mode: %s\n",mode_string[tx->mode]);
     SetTXAMode(tx->id, tx->mode);
     if(tx->use_rx_filter) {
       int m=vfo[active_receiver->id].mode;
@@ -838,8 +837,6 @@ void tx_set_filter(TRANSMITTER *tx,int low,int high) {
   } else {
     mode=vfo[0].mode;
   }
-
-fprintf(stderr,"tx_set_filter: tx=%p mode=%s low=%d high=%d\n",tx,mode_string[mode],low,high);
 
   switch(mode) {
     case modeLSB:

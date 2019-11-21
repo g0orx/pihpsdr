@@ -217,6 +217,35 @@ static void sat_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void load_filters(void) {
+  if(filter_board==N2ADR) {
+    // set OC filters
+    BAND *band;
+    band=band_get_band(band160);
+    band->OCrx=band->OCtx=1;
+    band=band_get_band(band80);
+    band->OCrx=band->OCtx=66;
+    band=band_get_band(band60);
+    band->OCrx=band->OCtx=68;
+    band=band_get_band(band40);
+    band->OCrx=band->OCtx=68;
+    band=band_get_band(band30);
+    band->OCrx=band->OCtx=72;
+    band=band_get_band(band20);
+    band->OCrx=band->OCtx=72;
+    band=band_get_band(band17);
+    band->OCrx=band->OCtx=80;
+    band=band_get_band(band15);
+    band->OCrx=band->OCtx=80;
+    band=band_get_band(band12);
+    band->OCrx=band->OCtx=96;
+    band=band_get_band(band10);
+    band->OCrx=band->OCtx=96;
+    if(protocol==NEW_PROTOCOL) {
+      schedule_high_priority();
+    }
+    return;
+  }
+
   if(protocol==NEW_PROTOCOL) {
     filter_board_changed();
   }
@@ -267,6 +296,14 @@ static void charly25_cb(GtkWidget *widget, gpointer data) {
     load_filters();
   }
 }
+
+static void n2adr_cb(GtkWidget *widget, gpointer data) {
+  if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
+    filter_board = N2ADR;
+    load_filters();
+  }
+}
+
 
 static void sample_rate_cb(GtkWidget *widget, gpointer data) {
   radio_change_sample_rate(GPOINTER_TO_INT(data));
@@ -441,7 +478,7 @@ void radio_menu(GtkWidget *parent) {
       GtkWidget *sample_rate=gtk_radio_button_new_with_label(NULL,rate);
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sample_rate), radio->info.soapy.sample_rate);
       gtk_grid_attach(GTK_GRID(grid),sample_rate,col,row,1,1);
-      g_signal_connect(sample_rate,"pressed",G_CALLBACK(sample_rate_cb),(gpointer *)radio->info.soapy.sample_rate);
+      g_signal_connect(sample_rate,"pressed",G_CALLBACK(sample_rate_cb),GINT_TO_POINTER(radio->info.soapy.sample_rate));
 
       col++;
       }
@@ -516,10 +553,16 @@ void radio_menu(GtkWidget *parent) {
     gtk_grid_attach(GTK_GRID(grid), charly25_b, col, row, 1, 1);
     row++;
 
+    GtkWidget *n2adr_b = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(none_b), "N2ADR");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(n2adr_b), filter_board==N2ADR);
+    gtk_grid_attach(GTK_GRID(grid), n2adr_b, col, row, 1, 1);
+    row++;
+
     g_signal_connect(none_b, "toggled", G_CALLBACK(none_cb), NULL);
     g_signal_connect(alex_b, "toggled", G_CALLBACK(alex_cb), NULL);
     g_signal_connect(apollo_b, "toggled", G_CALLBACK(apollo_cb), NULL);
     g_signal_connect(charly25_b, "toggled", G_CALLBACK(charly25_cb), NULL);
+    g_signal_connect(n2adr_b, "toggled", G_CALLBACK(n2adr_cb), NULL);
 
     if(row>temp_row) temp_row=row;
     col++;
