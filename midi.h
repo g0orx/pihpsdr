@@ -59,6 +59,9 @@ enum MIDIaction {
   COMPRESS,		// COMPRESS:		TX compressor value
   MIDI_CTUN,		// CTUN:		toggle CTUN on/off
   VFO,			// CURRVFO:		change VFO frequency
+  CWL,			// CWL:			Left paddle pressed (use with ONOFF)
+  CWR,			// CWR:			Right paddle pressed (use with ONOFF)
+  CWSPEED,		// CWSPEED:		Set speed of (iambic) CW keyer
   MIDI_DUP,		// DUP:			toggle duplex on/off
   FILTER_DOWN,		// FILTERDOWN:		cycle through filters downwards
   FILTER_UP,		// FILTERUP:		cycle through filters upwards
@@ -89,6 +92,7 @@ enum MIDIaction {
   VFO_STEP_UP,		// VFOSTEPUP:		cycle through vfo steps upwards;
   VFO_STEP_DOWN,	// VFOSTEPDOWN:		cycle through vfo steps downwards;
   VOX, 			// VOX:			toggle VOX on/off
+  VOXLEVEL, 		// VOXLEVEL:		adjust VOX threshold
   MIDI_XIT_CLEAR,	// XITCLEAR:		clear XIT value
   XIT_VAL,		// XITVAL:		change XIT value
 };

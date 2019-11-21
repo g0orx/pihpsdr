@@ -281,17 +281,16 @@ void audio_close_input() {
 // Note that audio_write must be switched off for the
 // active_receiver when transmitting.
 //
-int cw_audio_write(double sample){
+int cw_audio_write(float sample){
   snd_pcm_sframes_t delay;
   long rc;
   long trim;
-  short shortsample;
 	
   RECEIVER *rx = active_receiver;
  
   if(rx->playback_handle!=NULL && rx->local_audio_buffer!=NULL) {
-    rx->local_audio_buffer[(rx->local_audio_buffer_offset*2)]=shortsample;
-    rx->local_audio_buffer[(rx->local_audio_buffer_offset*2)+1]=shortsample;
+    rx->local_audio_buffer[(rx->local_audio_buffer_offset*2)]=sample;
+    rx->local_audio_buffer[(rx->local_audio_buffer_offset*2)+1]=sample;
     rx->local_audio_buffer_offset++;
 
     if(rx->local_audio_buffer_offset>=rx->local_audio_buffer_size) {

@@ -503,6 +503,8 @@ static void* keyer_thread(void *arg) {
                       }
 		      // dash released.
                       set_keyer_out(0);
+		      // since we stay in CHECK mode, re-trigger cwvox here
+		      cwvox=cw_keyer_hang_time;
 		      // wait at least 10ms before re-activating sidetone,
 		      // to allow the envelope of the side tone reaching zero
                       if (gpio_cw_sidetone_enabled()) {

@@ -22,6 +22,9 @@
 #include "ext.h"
 #include "agc.h"
 #include "midi.h"
+#ifdef LOCALCW
+#include "iambic.h"
+#endif
 
 void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 
@@ -192,6 +195,42 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    if (type == MIDI_WHEEL && !locked) {
 		g_idle_add(ext_vfo_step, GINT_TO_POINTER(val));
 	    }
+	    break;
+	/////////////////////////////////////////////////////////// "CWL"
+	/////////////////////////////////////////////////////////// "CWR"
+	case CWL: // only key
+	case CWR: // only key
+#ifdef LOCALCW
+	    if (type == MIDI_KEY) {
+		new=(action == CWL);
+		keyer_event(new,val);
+	    }
+#endif
+	    break;
+	/////////////////////////////////////////////////////////// "CWSPEED"
+	case CWSPEED: // knob or wheel
+            switch (type) {
+              case MIDI_KNOB:
+		// speed between 5 and 35 wpm
+                new= (int) (5.0 + (double) val * 0.3);
+                break;
+              case MIDI_WHEEL:
+		// here we allow from 1 to 60 wpm
+                new = cw_keyer_speed + val;
+		if (new <  1) new=1;
+		if (new > 60) new=60;
+                break;
+              default:
+                // do not change
+                // we should not come here anyway
+                new = cw_keyer_speed;
+                break;
+            }
+	    cw_keyer_speed=new;
+#ifdef LOCALCW
+	    keyer_update();
+#endif
+            g_idle_add(ext_vfo_update, NULL);
 	    break;
 	/////////////////////////////////////////////////////////// "DUP"
         case MIDI_DUP:
@@ -538,6 +577,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 		  sat_mode=SAT_NONE;
 		  break;
 	    }
+	    g_idle_add(ext_vfo_update, NULL);
             break;
 	/////////////////////////////////////////////////////////// "SPLIT"
 	case MIDI_SPLIT: // only key supported
@@ -614,6 +654,26 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	      vox_enabled = !vox_enabled;
 	      g_idle_add(ext_vfo_update, NULL);
 	    }
+	    break;
+	/////////////////////////////////////////////////////////// "VOXLEVEL"
+	case VOXLEVEL: // knob or wheel supported
+            switch (type) {
+              case MIDI_WHEEL:
+                // This changes the value incrementally,
+                // but stay within limits (0.0 through 1.0)
+                vox_threshold += (double) val * 0.01;
+		if (vox_threshold > 1.0) vox_threshold=1.0;
+		if (vox_threshold < 0.0) vox_threshold=0.0;
+                break;
+              case MIDI_KNOB:
+                vox_threshold = 0.01 * (double) val;
+                break;
+              default:
+                // do nothing
+                // we should not come here anyway
+                break;
+            }
+	    // VOX level not shown on screen, hence no VFO update
 	    break;
 	/////////////////////////////////////////////////////////// "XITCLEAR"
         case MIDI_XIT_CLEAR:  // only key supported
