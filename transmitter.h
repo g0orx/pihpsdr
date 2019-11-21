@@ -22,8 +22,6 @@
 
 #include <gtk/gtk.h>
 
-#define AUDIO_BUFFER_SIZE 260
-
 typedef struct _transmitter {
   int id;
   int dac;

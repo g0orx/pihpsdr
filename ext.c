@@ -612,3 +612,4 @@ int ext_set_rf_gain(void *data) {
   set_rf_gain(active_receiver->id,value);
   return 0;
 }
+

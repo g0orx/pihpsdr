@@ -24,6 +24,8 @@
 
 #define MAX_AUDIO_DEVICES 64
 
+#define AUDIO_BUFFER_SIZE 480
+
 typedef struct _audio_devices {
   char *name;
   int index;
@@ -39,6 +41,6 @@ extern int audio_open_input();
 extern void audio_close_input();
 extern int audio_open_output(RECEIVER *rx);
 extern void audio_close_output(RECEIVER *rx);
-extern int audio_write(RECEIVER *rx,short left_sample,short right_sample);
+extern int audio_write(RECEIVER *rx,float left_sample,float right_sample);
 extern void audio_get_cards();
 #endif

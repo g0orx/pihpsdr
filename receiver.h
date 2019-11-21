@@ -26,8 +26,6 @@
 #include <alsa/asoundlib.h>
 #endif
 
-#define AUDIO_BUFFER_SIZE 260
-
 enum _audio_t {
     STEREO=0,
     LEFT,
@@ -60,6 +58,7 @@ typedef struct _receiver {
   gint output_samples;
   gdouble *iq_input_buffer;
   gdouble *audio_output_buffer;
+  gint audio_buffer_size;
   guchar *audio_buffer;
   gint audio_index;
   guint32 audio_sequence;
@@ -115,12 +114,14 @@ typedef struct _receiver {
   gchar *audio_name;
 #ifdef PORTAUDIO
   PaStream *playback_handle;
-  gfloat *playback_buffer;
 #else
   snd_pcm_t *playback_handle;
-  guchar *playback_buffer;
 #endif
-  gint playback_offset;
+  gint local_audio_buffer_size;
+  gint local_audio_buffer_offset;
+  float *local_audio_buffer;
+  GMutex local_audio_mutex;
+
   gint low_latency;
 
   gint squelch_enable;

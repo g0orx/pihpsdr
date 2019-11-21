@@ -189,6 +189,27 @@ static int output_buffer_index=8;
 
 static int command=1;
 
+enum {
+  SYNC_0=0,
+  SYNC_1,
+  SYNC_2,
+  CONTROL_0,
+  CONTROL_1,
+  CONTROL_2,
+  CONTROL_3,
+  CONTROL_4,
+  LEFT_SAMPLE_HI,
+  LEFT_SAMPLE_MID,
+  LEFT_SAMPLE_LOW,
+  RIGHT_SAMPLE_HI,
+  RIGHT_SAMPLE_MID,
+  RIGHT_SAMPLE_LOW,
+  MIC_SAMPLE_HI,
+  MIC_SAMPLE_LOW,
+  SKIP
+};
+static int state=SYNC_0;
+
 static GThread *receive_thread_id;
 static gpointer receive_thread(gpointer arg);
 static void process_ozy_input_buffer(unsigned char  *buffer);
@@ -206,6 +227,7 @@ static void metis_restart();
 
 static void open_tcp_socket(void);
 static void open_udp_socket(void);
+static int how_many_receivers();
 
 #define COMMON_MERCURY_FREQUENCY 0x80
 #define PENELOPE_MIC 0x80
@@ -244,8 +266,8 @@ void old_protocol_set_mic_sample_rate(int rate) {
 
 void old_protocol_init(int rx,int pixels,int rate) {
   int i;
-
-  fprintf(stderr,"old_protocol_init\n");
+  int num_hpsdr_receivers=how_many_receivers();
+  fprintf(stderr,"old_protocol_init: num_hpsdr_receivers=%d\n",how_many_receivers());
 
   old_protocol_set_mic_sample_rate(rate);
 
