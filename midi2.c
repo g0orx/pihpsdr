@@ -114,6 +114,7 @@ static struct {
 	{ VFO,			"CURRVFO"},
 	{ CWL,			"CWL"},
 	{ CWR,			"CWR"},
+	{ CWSPEED,		"CWSPEED"},
 	{ MIDI_DUP,  		"DUP"},
         { FILTER_DOWN,  	"FILTERDOWN"},
         { FILTER_UP,    	"FILTERUP"},

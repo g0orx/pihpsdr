@@ -61,6 +61,7 @@ enum MIDIaction {
   VFO,			// CURRVFO:		change VFO frequency
   CWL,			// CWL:			Left paddle pressed (use with ONOFF)
   CWR,			// CWR:			Right paddle pressed (use with ONOFF)
+  CWSPEED,		// CWSPEED:		Set speed of (iambic) CW keyer
   MIDI_DUP,		// DUP:			toggle duplex on/off
   FILTER_DOWN,		// FILTERDOWN:		cycle through filters downwards
   FILTER_UP,		// FILTERUP:		cycle through filters upwards

@@ -207,6 +207,31 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    }
 #endif
 	    break;
+	/////////////////////////////////////////////////////////// "CWSPEED"
+	case CWSPEED: // knob or wheel
+            switch (type) {
+              case MIDI_KNOB:
+		// speed between 5 and 35 wpm
+                new= (int) (5.0 + (double) val * 0.3);
+                break;
+              case MIDI_WHEEL:
+		// here we allow from 1 to 60 wpm
+                new = cw_keyer_speed + val;
+		if (new <  1) new=1;
+		if (new > 60) new=60;
+                break;
+              default:
+                // do not change
+                // we should not come here anyway
+                new = cw_keyer_speed;
+                break;
+            }
+	    cw_keyer_speed=new;
+#ifdef LOCALCW
+	    keyer_update();
+#endif
+            g_idle_add(ext_vfo_update, NULL);
+	    break;
 	/////////////////////////////////////////////////////////// "DUP"
         case MIDI_DUP:
             if(duplex) {
