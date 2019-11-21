@@ -42,5 +42,6 @@ extern void audio_close_input();
 extern int audio_open_output(RECEIVER *rx);
 extern void audio_close_output(RECEIVER *rx);
 extern int audio_write(RECEIVER *rx,float left_sample,float right_sample);
+extern int cw_audio_write(float sample);
 extern void audio_get_cards();
 #endif
