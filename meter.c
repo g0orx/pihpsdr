@@ -321,9 +321,6 @@ if(analog_meter) {
       cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
 
       angle=level+127.0+offset;
-      // restrict angle to non-negative values
-      // (less than S0 will be shown as S0)
-      if (angle < offset) angle=offset;
       radians=angle*M_PI/180.0;
       cairo_arc(cr, cx, cy, radius+8, radians, radians);
       cairo_line_to(cr, cx, cy);
@@ -568,7 +565,6 @@ if(analog_meter) {
         //if(db>2) db=2;
         int db=1;
         int i;
-        double chop;
         cairo_set_line_width(cr, 1.0);
         cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
         for(i=0;i<54;i++) {
@@ -608,10 +604,7 @@ if(analog_meter) {
         cairo_show_text(cr, "+60");
 
         cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
-        // "chop" implements that the green bar will never extend to the left
-        chop=(double)((level+127.0)*db);
-        if (chop < 0.0) chop=0.0;
-        cairo_rectangle(cr, offset+0.0, (double)(meter_height-40), chop, 20.0);
+	cairo_rectangle(cr, offset+0.0, (double)(meter_height-40), (double)((level+127.0)*db), 20.0);
         cairo_fill(cr);
 
         if(level>max_level || max_count==10) {
