@@ -52,6 +52,7 @@
 #include "freedv.h"
 #endif
 #include "audio_waterfall.h"
+#include "audio.h"
 #include "ext.h"
 
 double getNextSideToneSample();
@@ -95,8 +96,6 @@ static int cw_shape = 0;
 #define RAMPLEN 250			// 200: 4 msec ramp width, 250: 5 msec ramp width
 extern double cwramp48[];		// see cwramp.c, for 48 kHz sample rate
 extern double cwramp192[];		// see cwramp.c, for 192 kHz sample rate
-
-extern void cw_audio_write(double sample);
 
 static void init_analyzer(TRANSMITTER *tx);
 
@@ -1070,7 +1069,7 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 
 void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
   int mode=tx->mode;
-  double sample;
+  float cwsample;
   double mic_sample_double, ramp;
   int i,s;
   int updown;
@@ -1122,8 +1121,8 @@ void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
 	// store the ramp value in cw_shape_buffer, but also use it for shaping the "local"
 	// side tone
 	ramp=cwramp48[cw_shape];
-	sample=0.0078 * getNextSideToneSample() * cw_keyer_sidetone_volume * ramp;
-	cw_audio_write(sample);
+	cwsample=0.0078 * getNextSideToneSample() * cw_keyer_sidetone_volume * ramp;
+	cw_audio_write(cwsample);
         cw_shape_buffer48[tx->samples]=ramp;
 	//
 	// In the new protocol, we MUST maintain a constant flow of audio samples to the radio
@@ -1138,7 +1137,7 @@ void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
 	//
         if (protocol == NEW_PROTOCOL) {
  	    s=0;
- 	    if (!cw_keyer_internal || CAT_cw_is_active) s=(int) (sample * 32767.0);
+ 	    if (!cw_keyer_internal || CAT_cw_is_active) s=(int) (cwsample * 32767.0);
 	    new_protocol_cw_audio_samples(s, s);
 	    s=4*cw_shape;
 	    i=4*tx->samples;
