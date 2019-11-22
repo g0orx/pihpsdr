@@ -320,7 +320,7 @@ if(analog_meter) {
       cairo_set_line_width(cr, 1.0);
       cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
 
-      angle=level+127.0+offset;
+      angle=fmax(-127.0,level)+127.0+offset;
       radians=angle*M_PI/180.0;
       cairo_arc(cr, cx, cy, radius+8, radians, radians);
       cairo_line_to(cr, cx, cy);
@@ -604,7 +604,7 @@ if(analog_meter) {
         cairo_show_text(cr, "+60");
 
         cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
-	cairo_rectangle(cr, offset+0.0, (double)(meter_height-40), (double)((level+127.0)*db), 20.0);
+        cairo_rectangle(cr, offset+0.0, (double)(meter_height-40), (double)((fmax(-127.0,level)+127.0)*db), 20.0);
         cairo_fill(cr);
 
         if(level>max_level || max_count==10) {
