@@ -332,12 +332,12 @@ void tx_panadapter_update(TRANSMITTER *tx) {
 
   // signal
   double s1,s2;
-  samples[0]=-200.0;
-  samples[display_width-1]=-200.0;
 
   int offset=(tx->pixels/2)-(display_width/2);
+  samples[offset]=-200.0;
+  samples[offset+display_width-1]=-200.0;
 
-  s1=(double)samples[0+offset];
+  s1=(double)samples[offset];
   s1 = floor((tx->panadapter_high - s1)
                         * (double) display_height
                         / (tx->panadapter_high - tx->panadapter_low));
