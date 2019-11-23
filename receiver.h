@@ -116,10 +116,11 @@ typedef struct _receiver {
   PaStream *playback_handle;
 #else
   snd_pcm_t *playback_handle;
+  snd_pcm_format_t local_audio_format;
 #endif
   gint local_audio_buffer_size;
   gint local_audio_buffer_offset;
-  float *local_audio_buffer;
+  void *local_audio_buffer;
   GMutex local_audio_mutex;
 
   gint low_latency;

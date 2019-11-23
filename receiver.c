@@ -469,6 +469,8 @@ fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
   sprintf(name,"receiver.%d.local_audio_buffer_size",rx->id);
   value=getProperty(name);
   if(value) rx->local_audio_buffer_size=atoi(value);
+// force minimum of 2048 samples for buffer size
+  if(rx->local_audio_buffer_size<2048) rx->local_audio_buffer_size=2048;
   sprintf(name,"receiver.%d.audio_name",rx->id);
   value=getProperty(name);
   if(value) {
@@ -816,9 +818,9 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
     // display only the central part.
     // 
     if (protocol == ORIGINAL_PROTOCOL) {
-	rx->pixels=2*(sample_rate/48000) * width;
+	rx->pixels=(sample_rate/48000) * width;
     } else {
-      rx->pixels = 8*width;
+      rx->pixels = 4*width;
     }
   }
   // allocate buffers
@@ -868,7 +870,7 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
   
   rx->playback_handle=NULL;
   rx->local_audio_buffer=NULL;
-  rx->local_audio_buffer_size=1024;
+  rx->local_audio_buffer_size=2048;
   rx->local_audio=0;
   g_mutex_init(&rx->local_audio_mutex);
   rx->audio_name=NULL;
@@ -1015,7 +1017,7 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
   rx->local_audio=0;
   g_mutex_init(&rx->local_audio_mutex);
   rx->local_audio_buffer=NULL;
-  rx->local_audio_buffer_size=1024;
+  rx->local_audio_buffer_size=2048;
   rx->audio_name=NULL;
   rx->mute_when_not_active=0;
   rx->audio_channel=STEREO;
@@ -1182,11 +1184,11 @@ g_print("receiver_change_sample_rate: id=%d rate=%d scale=%d buffer_size=%d outp
   if (rx->id == PS_RX_FEEDBACK) {
     float *fp, *ofp;
     if (protocol == ORIGINAL_PROTOCOL) {
-      rx->pixels = 2* scale * rx->width;
+      rx->pixels = scale * rx->width;
     } else {
       // We should never arrive here, since the sample rate of the
       // PS feedback receiver is fixed.
-      rx->pixels = 8 * rx->width;
+      rx->pixels = 4 * rx->width;
     }
     // make sure pixel_samples is always a valid pointer
     // ... probably pure DL1YCF's paranoia
