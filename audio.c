@@ -157,8 +157,8 @@ int audio_open_input() {
   snd_pcm_hw_params_t *hw_params;
   unsigned int rate=48000;
   unsigned int channels=1;
-  int soft_resample=0;
-  unsigned int latency=50000;
+  int soft_resample=1;
+  unsigned int latency=125000;
 
   int dir=0;
 
@@ -198,7 +198,7 @@ g_print("audio_open_input: %s\n",transmitter->microphone_name);
 
   g_print("audio_open_input: hw=%s\n",hw);
 
-  if ((err = snd_pcm_open (&record_handle, hw, SND_PCM_STREAM_CAPTURE, SND_PCM_NONBLOCK)) < 0) {
+  if ((err = snd_pcm_open (&record_handle, hw, SND_PCM_STREAM_CAPTURE, SND_PCM_ASYNC)) < 0) {
     g_print("audio_open_input: cannot open audio device %s (%s)\n",
             hw,
             snd_strerror (err));
@@ -210,59 +210,6 @@ g_print("audio_open_input: %s\n",transmitter->microphone_name);
     audio_close_input();
     return err;
   }
-
-/*
-  if ((err = snd_pcm_hw_params_malloc (&hw_params)) < 0) {
-    g_print("audio_open_input: cannot allocate hardware parameter structure (%s)\n",
-            snd_strerror (err));
-    audio_close_input();
-    return err;
-  }
-
-  if ((err = snd_pcm_hw_params_any (record_handle, hw_params)) < 0) {
-    g_print("audio_open_input: cannot initialize hardware parameter structure (%s)\n",
-            snd_strerror (err));
-    audio_close_input();
-    return err;
-  }
-
-  if ((err = snd_pcm_hw_params_set_access (record_handle, hw_params, SND_PCM_ACCESS_RW_INTERLEAVED)) < 0) {
-    g_print("audio_open_input: cannot set access type (%s)\n",
-            snd_strerror (err));
-    audio_close_input();
-    return err;
-}
-
-  if ((err = snd_pcm_hw_params_set_format (record_handle, hw_params, SND_PCM_FORMAT_FLOAT_LE)) < 0) {
-    g_print("audio_open_input: cannot set sample format (%s)\n",
-            snd_strerror (err));
-    audio_close_input();
-    return err;
-  }
-
-  if ((err = snd_pcm_hw_params_set_rate_near (record_handle, hw_params, &rate, &dir)) < 0) {
-    g_print("audio_open_input: cannot set sample rate (%s)\n",
-            snd_strerror (err));
-    audio_close_input();
-    return err;
-  }
-
-  if ((err = snd_pcm_hw_params_set_channels (record_handle, hw_params, 1)) < 0) {
-    g_print("audio_open_input: cannot set channel count (%s)\n",
-            snd_strerror (err));
-    audio_close_input();
-    return err;
-  }
-
-  if ((err = snd_pcm_hw_params (record_handle, hw_params)) < 0) {
-    g_print("audio_open_input: cannot set parameters (%s)\n",
-            snd_strerror (err));
-    audio_close_input();
-    return err;
-  }
-
-  snd_pcm_hw_params_free (hw_params);
-*/
 
   mic_buffer=g_new0(float,mic_buffer_size);
 
@@ -476,7 +423,7 @@ g_print("mic_read_thread: mic_buffer_size=%d\n",mic_buffer_size);
         if(rc<0) {
           g_print("mic_read_thread: read from audio interface failed (%s)\n",
                   snd_strerror (rc));
-          running=FALSE;
+          //running=FALSE;
         } else {
           g_print("mic_read_thread: read %d\n",rc);
         }
