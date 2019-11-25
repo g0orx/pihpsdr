@@ -818,9 +818,10 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
     // display only the central part.
     // 
     if (protocol == ORIGINAL_PROTOCOL) {
-	rx->pixels=(sample_rate/48000) * width;
+	rx->pixels=(sample_rate/24000) * width;
     } else {
-      rx->pixels = 4*width;
+      // sample rate of feedback is TX sample rate is 192000
+      rx->pixels = 8*width;
     }
   }
   // allocate buffers
@@ -1184,11 +1185,11 @@ g_print("receiver_change_sample_rate: id=%d rate=%d scale=%d buffer_size=%d outp
   if (rx->id == PS_RX_FEEDBACK) {
     float *fp, *ofp;
     if (protocol == ORIGINAL_PROTOCOL) {
-      rx->pixels = scale * rx->width;
+      rx->pixels = 2* scale * rx->width;
     } else {
       // We should never arrive here, since the sample rate of the
       // PS feedback receiver is fixed.
-      rx->pixels = 4 * rx->width;
+      rx->pixels = 8 * rx->width;
     }
     // make sure pixel_samples is always a valid pointer
     // ... probably pure DL1YCF's paranoia

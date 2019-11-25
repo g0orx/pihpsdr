@@ -307,7 +307,7 @@ int audio_open_output(RECEIVER *rx)
   // Write one buffer to avoid under-flow errors
   // (this gives us 5 msec to pass before we have to call audio_write the first time)
   bzero(rx->local_audio_buffer, (size_t) audio_buffer_size*sizeof(float));
-  err=Pa_WriteStream(rx->playback_handle, (void *) rx->local_audio_buffer, (unsigned long) audio_buffer_size);
+  err=Pa_WriteStream(rx->playback_handle, rx->local_audio_buffer, (unsigned long) audio_buffer_size);
   return 0;
 }
 
@@ -379,6 +379,7 @@ int audio_write (RECEIVER *rx, float left, float right)
 {
   PaError err;
   int mode=transmitter->mode;
+  float *buffer = rx->local_audio_buffer;
   //
   // We have to stop the stream here if a CW side tone may occur.
   // This might cause underflows, but we cannot use audio_write
@@ -390,9 +391,9 @@ int audio_write (RECEIVER *rx, float left, float right)
   if (rx == active_receiver && isTransmitting() && (mode==modeCWU || mode==modeCWL)) return 0;
 
   if (rx->playback_handle != NULL && rx->local_audio_buffer != NULL) {
-    rx->local_audio_buffer[rx->local_audio_buffer_offset++] = (left+right)*0.5;  //   mix to MONO   
+    buffer[rx->local_audio_buffer_offset++] = (left+right)*0.5;  //   mix to MONO   
     if (rx->local_audio_buffer_offset == audio_buffer_size) {
-      err=Pa_WriteStream(rx->playback_handle, (void *) rx->local_audio_buffer, (unsigned long) audio_buffer_size);
+      err=Pa_WriteStream(rx->playback_handle, rx->local_audio_buffer, (unsigned long) audio_buffer_size);
       rx->local_audio_buffer_offset=0;
       // do not check on errors, there will be underflows every now and then
     }
@@ -403,11 +404,12 @@ int audio_write (RECEIVER *rx, float left, float right)
 int cw_audio_write(float sample) {
   PaError err;
   RECEIVER *rx = active_receiver;
+  float *buffer = rx->local_audio_buffer;
 
   if (rx->playback_handle != NULL && rx->local_audio_buffer != NULL) {
-    rx->local_audio_buffer[rx->local_audio_buffer_offset++] = sample;
+    buffer[rx->local_audio_buffer_offset++] = sample;
     if (rx->local_audio_buffer_offset == audio_buffer_size) {
-      err=Pa_WriteStream(rx->playback_handle, (void *) rx->local_audio_buffer, (unsigned long) audio_buffer_size);
+      err=Pa_WriteStream(rx->playback_handle, rx->local_audio_buffer, (unsigned long) audio_buffer_size);
       // do not check on errors, there will be underflows every now and then
       rx->local_audio_buffer_offset=0;
     }
