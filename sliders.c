@@ -550,7 +550,17 @@ void set_drive(double value) {
       scale_status=DRIVE;
       scale_dialog=gtk_dialog_new_with_buttons("Drive",GTK_WINDOW(top_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
       GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
-      drive_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.00);
+      switch(protocol) {
+#ifdef SOAPYSDR
+        case SOAPYSDR_PROTOCOL:
+          drive_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 64.0, 1.00);
+          break;
+#endif
+        default:
+          drive_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.00);
+          break;
+      }
+  
       gtk_widget_override_font(drive_scale, pango_font_description_from_string("Sans 10"));
       gtk_widget_set_size_request (drive_scale, 400, 30);
       gtk_range_set_value (GTK_RANGE(drive_scale),value);

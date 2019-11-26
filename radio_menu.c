@@ -45,6 +45,7 @@ static GtkWidget *parent_window=NULL;
 static GtkWidget *menu_b=NULL;
 static GtkWidget *dialog=NULL;
 static GtkWidget *rx_gains[3];
+static GtkWidget *tx_gain;
 static GtkWidget *tx_gains[2];
 static GtkWidget *sat_b;
 static GtkWidget *rsat_b;
@@ -101,10 +102,9 @@ static void rx_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
 
 static void drive_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
   DAC *dac=(DAC *)data;
-  int gain;
   if(radio->device==SOAPYSDR_USB_DEVICE) {
-    gain=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
-    soapy_protocol_set_tx_gain(transmitter,(double)gain);
+    transmitter->drive=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+    soapy_protocol_set_tx_gain(transmitter,(double)transmitter->drive);
     for(int i=0;i<radio->info.soapy.tx_gains;i++) {
       int value=soapy_protocol_get_tx_gain_element(transmitter,radio->info.soapy.tx_gain[i]);
       gtk_spin_button_set_value(GTK_SPIN_BUTTON(tx_gains[i]),(double)value);
@@ -790,10 +790,10 @@ void radio_menu(GtkWidget *parent) {
       GtkWidget *tx_gain_label=gtk_label_new("TX Gain");
       gtk_grid_attach(GTK_GRID(grid),tx_gain_label,col,row,1,1);
       col++;
-      tx_gains[i]=gtk_spin_button_new_with_range(0.0,100.0,1.0);
-      gtk_spin_button_set_value(GTK_SPIN_BUTTON(tx_gains[i]),transmitter->drive);
-      gtk_grid_attach(GTK_GRID(grid),tx_gains[i],col,row,1,1);
-      g_signal_connect(tx_gains[i],"value_changed",G_CALLBACK(drive_gain_value_changed_cb),&adc[0]);
+      tx_gain=gtk_spin_button_new_with_range(0.0,64.0,1.0);
+      gtk_spin_button_set_value(GTK_SPIN_BUTTON(tx_gain),transmitter->drive);
+      gtk_grid_attach(GTK_GRID(grid),tx_gain,col,row,1,1);
+      g_signal_connect(tx_gain,"value_changed",G_CALLBACK(drive_gain_value_changed_cb),&adc[0]);
     }
   }
 #endif

@@ -193,6 +193,8 @@ static void linein_changed(GtkWidget *widget, gpointer data) {
 
 static void local_input_changed_cb(GtkWidget *widget, gpointer data) {
   int i=GPOINTER_TO_INT(data);
+g_print("local_input_changed_cp: %d\n",i);
+g_print("local_input_changed_cp: %s\n",input_devices[i].name);
   if(transmitter->local_microphone) {
     audio_close_input();
   }
@@ -352,9 +354,9 @@ void tx_menu(GtkWidget *parent) {
 
     input=NULL;
     for(i=0;i<n_input_devices;i++) {
-      input=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(input),input_devices[i].description);
+      input=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(input),input_devices[i].name);
       if(transmitter->microphone_name!=NULL) {
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(input),strcmp(transmitter->microphone_name,input_devices[i].description)==0);
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(input),strcmp(transmitter->microphone_name,input_devices[i].name)==0);
       }
       gtk_widget_show(input);
       gtk_grid_attach(GTK_GRID(grid),input,col,row++,2,1);

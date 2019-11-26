@@ -132,8 +132,8 @@ extern void transmitter_set_am_carrier_level(TRANSMITTER *tx);
 extern void tx_set_pre_emphasize(TRANSMITTER *tx,int state);
 extern void transmitter_set_ctcss(TRANSMITTER *tx,int run,double frequency);
 
-extern void add_mic_sample(TRANSMITTER *tx,short mic_sample);
-extern void add_freedv_mic_sample(TRANSMITTER *tx,short mic_sample);
+extern void add_mic_sample(TRANSMITTER *tx,float mic_sample);
+extern void add_freedv_mic_sample(TRANSMITTER *tx,float mic_sample);
 
 extern void transmitter_save_state(TRANSMITTER *tx);
 extern void transmitter_set_out_of_band(TRANSMITTER *tx);

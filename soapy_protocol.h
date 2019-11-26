@@ -46,7 +46,7 @@ void soapy_protocol_set_tx_antenna(TRANSMITTER *tx,int ant);
 void soapy_protocol_set_tx_gain(TRANSMITTER *tx,int gain);
 void soapy_protocol_set_tx_gain_element(TRANSMITTER *tx,char *name,int gain);
 int soapy_protocol_get_tx_gain_element(TRANSMITTER *tx,char *name);
-void soapy_protocol_process_local_mic(float *buffer);
+void soapy_protocol_process_local_mic(float sample);
 void soapy_protocol_iq_samples(float isample,float qsample);
 void soapy_protocol_set_mic_sample_rate(int rate);
 #endif

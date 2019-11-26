@@ -50,12 +50,12 @@
 int audio = 0;
 int mic_buffer_size = 720; // samples (both left and right)
 
-//static snd_pcm_t *playback_handle=NULL;
 static snd_pcm_t *record_handle=NULL;
+static snd_pcm_format_t record_audio_format;
 
-static float *mic_buffer=NULL;
+static void *mic_buffer=NULL;
 
-static GThread *mic_read_thread_id;
+static GThread *mic_read_thread_id=NULL;
 
 static int running=FALSE;
 
@@ -132,18 +132,18 @@ g_print("audio_open_output: using format %s (%s)\n",snd_pcm_format_name(formats[
 
   rx->local_audio_buffer_offset=0;
   switch(rx->local_audio_format) {
-  case SND_PCM_FORMAT_S16_LE:
+    case SND_PCM_FORMAT_S16_LE:
 g_print("audio_open_output: local_audio_buffer: size=%d sample=%ld\n",rx->local_audio_buffer_size,sizeof(gint16));
-    rx->local_audio_buffer=g_new0(gint16,2*rx->local_audio_buffer_size);
-    break;
-  case SND_PCM_FORMAT_S32_LE:
+      rx->local_audio_buffer=g_new(gint16,2*rx->local_audio_buffer_size);
+        break;
+    case SND_PCM_FORMAT_S32_LE:
 g_print("audio_open_output: local_audio_buffer: size=%d sample=%ld\n",rx->local_audio_buffer_size,sizeof(gint32));
-    rx->local_audio_buffer=g_new0(gint32,2*rx->local_audio_buffer_size);
-    break;
-  case SND_PCM_FORMAT_FLOAT_LE:
-g_print("audio_open_output: local_audio_buffer: size=%d sample=%ld\n",rx->local_audio_buffer_size,sizeof(float));
-    rx->local_audio_buffer=g_new0(float,2*rx->local_audio_buffer_size);
-    break;
+      rx->local_audio_buffer=g_new(gint32,2*rx->local_audio_buffer_size);
+      break;
+    case SND_PCM_FORMAT_FLOAT_LE:
+g_print("audio_open_output: local_audio_buffer: size=%d sample=%ld\n",rx->local_audio_buffer_size,sizeof(gfloat));
+      rx->local_audio_buffer=g_new(gfloat,2*rx->local_audio_buffer_size);
+      break;
   }
   
   g_print("audio_open_output: rx=%d audio_device=%d handle=%p buffer=%p size=%d\n",rx->id,rx->audio_device,rx->playback_handle,rx->local_audio_buffer,rx->local_audio_buffer_size);
@@ -159,17 +159,15 @@ int audio_open_input() {
   unsigned int channels=1;
   int soft_resample=1;
   unsigned int latency=125000;
-
-  int dir=0;
+  char hw[64];
+  int i;
 
   if(transmitter->microphone_name==NULL) {
     transmitter->local_microphone=0;
     return -1;
   }
-g_print("audio_open_input: %s\n",transmitter->microphone_name);
 
-  int i;
-  char hw[64];
+g_print("audio_open_input: %s\n",transmitter->microphone_name);
   
   switch(protocol) {
     case ORIGINAL_PROTOCOL:
@@ -198,24 +196,49 @@ g_print("audio_open_input: %s\n",transmitter->microphone_name);
 
   g_print("audio_open_input: hw=%s\n",hw);
 
-  if ((err = snd_pcm_open (&record_handle, hw, SND_PCM_STREAM_CAPTURE, SND_PCM_ASYNC)) < 0) {
-    g_print("audio_open_input: cannot open audio device %s (%s)\n",
-            hw,
-            snd_strerror (err));
+  for(i=0;i<FORMATS;i++) {
+    if ((err = snd_pcm_open (&record_handle, hw, SND_PCM_STREAM_CAPTURE, SND_PCM_ASYNC)) < 0) {
+      g_print("audio_open_input: cannot open audio device %s (%s)\n",
+              hw,
+              snd_strerror (err));
+      return err;
+    }
+g_print("audio_open_input: handle=%p\n",record_handle);
+
+g_print("audio_open_input: trying format %s (%s)\n",snd_pcm_format_name(formats[i]),snd_pcm_format_description(formats[i]));
+    if ((err = snd_pcm_set_params (record_handle,formats[i],SND_PCM_ACCESS_RW_INTERLEAVED,channels,rate,soft_resample,latency)) < 0) {
+      g_print("audio_open_input: snd_pcm_set_params failed: %s\n",snd_strerror(err));
+      audio_close_input();
+      continue;
+    } else {
+g_print("audio_open_input: using format %s (%s)\n",snd_pcm_format_name(formats[i]),snd_pcm_format_description(formats[i]));
+      record_audio_format=formats[i];
+      break;
+    }
+  }
+
+  if(i>=FORMATS) {
+    g_print("audio_open_input: cannot find usable format\n");
     return err;
   }
 
-  if ((err = snd_pcm_set_params (record_handle,SND_PCM_FORMAT_FLOAT_LE,SND_PCM_ACCESS_RW_INTERLEAVED,channels,rate,soft_resample,latency)) < 0) {
-    g_print("audio_open_input: snd_pcm_set_params failed: %s\n",snd_strerror(err));
-    audio_close_input();
-    return err;
+  switch(record_audio_format) {
+    case SND_PCM_FORMAT_S16_LE:
+g_print("audio_open_input: mic_buffer: size=%d channels=%d sample=%ld bytes\n",mic_buffer_size,channels,sizeof(gint16));
+      mic_buffer=g_new(gint16,mic_buffer_size);
+      break;
+    case SND_PCM_FORMAT_S32_LE:
+g_print("audio_open_input: mic_buffer: size=%d channels=%d sample=%ld bytes\n",mic_buffer_size,channels,sizeof(gint32));
+      mic_buffer=g_new(gint32,mic_buffer_size);
+      break;
+    case SND_PCM_FORMAT_FLOAT_LE:
+g_print("audio_open_input: mic_buffer: size=%d channels=%d sample=%ld bytes\n",mic_buffer_size,channels,sizeof(gfloat));
+      mic_buffer=g_new(gfloat,mic_buffer_size);
+      break;
   }
 
-  mic_buffer=g_new0(float,mic_buffer_size);
-
-
-  running=TRUE;
-  mic_read_thread_id = g_thread_new( "local mic", mic_read_thread, NULL);
+g_print("audio_open_input: starting mic_read_thread\n");
+  mic_read_thread_id = g_thread_new("local mic",mic_read_thread,NULL);
   if(!mic_read_thread_id )
   {
     g_print("g_thread_new failed on mic_read_thread\n");
@@ -240,13 +263,18 @@ g_print("audio_close_output: rx=%d handle=%p buffer=%p\n",rx->id,rx->playback_ha
 }
 
 void audio_close_input() {
+  g_print("audio_close_input\n");
   running=FALSE;
+  if(mic_read_thread_id!=NULL) {
+    g_thread_join(mic_read_thread_id);
+    mic_read_thread_id=NULL;
+  }
   if(record_handle!=NULL) {
     snd_pcm_close (record_handle);
     record_handle=NULL;
   }
   if(mic_buffer!=NULL) {
-    free(mic_buffer);
+    g_free(mic_buffer);
     mic_buffer=NULL;
   }
 }
@@ -411,12 +439,21 @@ g_print("audio delay=%ld trim=%ld audio_buffer_size=%d\n",delay,trim,rx->local_a
 
 static void *mic_read_thread(gpointer arg) {
   int rc;
+  gfloat *float_buffer;
+  gint32 *long_buffer;
+  gint16 *short_buffer;
+  gfloat sample;
+  int i;
+
+g_print("mic_read_thread: snd_pcm_prepare\n");
   if ((rc = snd_pcm_prepare (record_handle)) < 0) {
     g_print("mic_read_thread: cannot prepare audio interface for use (%s)\n",
             snd_strerror (rc));
     return NULL;
   }
+
 g_print("mic_read_thread: mic_buffer_size=%d\n",mic_buffer_size);
+  running=TRUE;
   while(running) {
     if ((rc = snd_pcm_readi (record_handle, mic_buffer, mic_buffer_size)) != mic_buffer_size) {
       if(running) {
@@ -430,20 +467,36 @@ g_print("mic_read_thread: mic_buffer_size=%d\n",mic_buffer_size);
       }
     } else {
       // process the mic input
-      switch(protocol) {
-        case ORIGINAL_PROTOCOL:
-          old_protocol_process_local_mic(mic_buffer);
-          break;
-        case NEW_PROTOCOL:
-          new_protocol_process_local_mic(mic_buffer);
-          break;
+      for(i=0;i<mic_buffer_size;i++) {
+        switch(record_audio_format) {
+          case SND_PCM_FORMAT_S16_LE:
+            short_buffer=(gint16 *)mic_buffer;
+            sample=(gfloat)short_buffer[i]/32767.0f;
+            break;
+          case SND_PCM_FORMAT_S32_LE:
+            long_buffer=(gint32 *)mic_buffer;
+            sample=(gfloat)long_buffer[i]/4294967295.0f;
+            break;
+          case SND_PCM_FORMAT_FLOAT_LE:
+            float_buffer=(gfloat *)mic_buffer;
+            sample=float_buffer[i];
+            break;
+        }
+        switch(protocol) {
+          case ORIGINAL_PROTOCOL:
+            old_protocol_process_local_mic(sample);
+            break;
+          case NEW_PROTOCOL:
+            new_protocol_process_local_mic(sample);
+            break;
 #ifdef SOAPYSDR
-        case SOAPYSDR_PROTOCOL:
-          soapy_protocol_process_local_mic(mic_buffer);
-          break;
+          case SOAPYSDR_PROTOCOL:
+            soapy_protocol_process_local_mic(sample);
+            break;
 #endif
-        default:
-          break;
+          default:
+            break;
+        }
       }
     }
   }
@@ -522,7 +575,7 @@ g_print("output_device: %s\n",device_id);
     snd_ctl_close(handle);
   }
 
-  // look for dmix
+  // look for dmix and dsnoop
   void **hints, **n;
   char *name, *descr, *io;
 
@@ -536,11 +589,10 @@ g_print("output_device: %s\n",device_id);
 
     if(strncmp("dmix:", name, 5)==0) {
       if(n_output_devices<MAX_AUDIO_DEVICES) {
-        if(strncmp("dmix:CARD=ALSA",name,14)!=0) {
+        //if(strncmp("dmix:CARD=ALSA",name,14)!=0) {
           output_devices[n_output_devices].name=g_new0(char,strlen(name)+1);
           strcpy(output_devices[n_output_devices].name,name);
           output_devices[n_output_devices].description=g_new0(char,strlen(descr)+1);
-          //strcpy(output_devices[n_output_devices].description,descr);
           i=0;
           while(i<strlen(descr) && descr[i]!='\n') {
             output_devices[n_output_devices].description[i]=descr[i];
@@ -550,7 +602,24 @@ g_print("output_device: %s\n",device_id);
           input_devices[n_output_devices].index=i;
           n_output_devices++;
 g_print("output_device: name=%s descr=%s\n",name,descr);
-        }
+        //}
+      }
+    } else if(strncmp("dsnoop:", name, 6)==0) {
+      if(n_input_devices<MAX_AUDIO_DEVICES) {
+        //if(strncmp("dmix:CARD=ALSA",name,14)!=0) {
+          input_devices[n_input_devices].name=g_new0(char,strlen(name)+1);
+          strcpy(input_devices[n_input_devices].name,name);
+          input_devices[n_input_devices].description=g_new0(char,strlen(descr)+1);
+          i=0;
+          while(i<strlen(descr) && descr[i]!='\n') {
+            input_devices[n_input_devices].description[i]=descr[i];
+            i++;
+          }
+          input_devices[n_input_devices].description[i]='\0';
+          input_devices[n_input_devices].index=i;
+          n_input_devices++;
+g_print("input_device: name=%s descr=%s\n",name,descr);
+        //}
       }
     }
 

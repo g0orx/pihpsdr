@@ -357,23 +357,16 @@ fprintf(stderr,"soapy_protocol: receive_thread: SoapySDRDevice_unmake\n");
   //_exit(0);
 }
 
-void soapy_protocol_process_local_mic(float *buffer) {
-  int i;
-  short sample;
-
-// always 48000 samples per second
-  for(i=0;i<720;i++) {
-    sample=(short)(buffer[i]*32767.0);
+void soapy_protocol_process_local_mic(float sample) {
 #ifdef FREEDV
-    if(active_receiver->freedv) {
-      add_freedv_mic_sample(transmitter,sample);
-    } else {
+  if(active_receiver->freedv) {
+    add_freedv_mic_sample(transmitter,sample);
+  } else {
 #endif
-      add_mic_sample(transmitter,sample);
+    add_mic_sample(transmitter,sample);
 #ifdef FREEDV
-    }
-#endif
   }
+#endif
 }
 
 void soapy_protocol_iq_samples(float isample,float qsample) {

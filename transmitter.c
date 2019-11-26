@@ -1067,7 +1067,7 @@ static void full_tx_buffer(TRANSMITTER *tx) {
   }
 }
 
-void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
+void add_mic_sample(TRANSMITTER *tx,float mic_sample) {
   int mode=tx->mode;
   float cwsample;
   double mic_sample_double, ramp;
@@ -1082,7 +1082,7 @@ void add_mic_sample(TRANSMITTER *tx,short mic_sample) {
   if (tune || mode==modeCWL || mode==modeCWU) {
     mic_sample_double=0.0;
   } else {
-    mic_sample_double=(double)mic_sample/32768.0;
+    mic_sample_double=(double)mic_sample;
   }
 
 //
@@ -1234,7 +1234,7 @@ void add_ps_iq_samples(TRANSMITTER *tx, double i_sample_tx,double q_sample_tx, d
 }
 
 #ifdef FREEDV
-void add_freedv_mic_sample(TRANSMITTER *tx, short mic_sample) {
+void add_freedv_mic_sample(TRANSMITTER *tx, float mic_sample) {
   int i,s;
 
   //if(active_receiver->freedv && isTransmitting() && !tune) {

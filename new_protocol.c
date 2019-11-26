@@ -1844,23 +1844,16 @@ static void process_mic_data(int bytes) {
   }
 }
 
-void new_protocol_process_local_mic(float *buffer) {
-  int i;
-  short sample;
-
-  for(i=0;i<MIC_SAMPLES;i++) {
-    sample = (short)(buffer[i]*32767.0);
+void new_protocol_process_local_mic(float sample) {
 #ifdef FREEDV
-    if(active_receiver->freedv) {
-      add_freedv_mic_sample(transmitter,sample);
-    } else {
+  if(active_receiver->freedv) {
+    add_freedv_mic_sample(transmitter,sample);
+  } else {
 #endif
-      add_mic_sample(transmitter,sample);
+    add_mic_sample(transmitter,sample);
 #ifdef FREEDV
-    }
-#endif
   }
-
+#endif
 }
 
 void new_protocol_cw_audio_samples(short left_audio_sample,short right_audio_sample) {
