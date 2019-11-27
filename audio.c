@@ -222,6 +222,8 @@ g_print("audio_open_input: using format %s (%s)\n",snd_pcm_format_name(formats[i
     return err;
   }
 
+g_print("audio_open_input: format=%d\n",record_audio_format);
+
   switch(record_audio_format) {
     case SND_PCM_FORMAT_S16_LE:
 g_print("audio_open_input: mic_buffer: size=%d channels=%d sample=%ld bytes\n",mic_buffer_size,channels,sizeof(gint16));
@@ -237,13 +239,12 @@ g_print("audio_open_input: mic_buffer: size=%d channels=%d sample=%ld bytes\n",m
       break;
   }
 
-g_print("audio_open_input: starting mic_read_thread\n");
-  mic_read_thread_id = g_thread_new("local mic",mic_read_thread,NULL);
-  if(!mic_read_thread_id )
-  {
-    g_print("g_thread_new failed on mic_read_thread\n");
+g_print("audio_open_input: creating mic_read_thread\n");
+  GError *error;
+  mic_read_thread_id = g_thread_try_new("local mic",mic_read_thread,NULL,&error);
+  if(!mic_read_thread_id ) {
+    g_print("g_thread_new failed on mic_read_thread: %s\n",error->message);
   }
-
 
   return 0;
 }
@@ -263,17 +264,20 @@ g_print("audio_close_output: rx=%d handle=%p buffer=%p\n",rx->id,rx->playback_ha
 }
 
 void audio_close_input() {
-  g_print("audio_close_input\n");
+g_print("audio_close_input\n");
   running=FALSE;
   if(mic_read_thread_id!=NULL) {
+g_print("audio_close_input: wait for thread to complete\n");
     g_thread_join(mic_read_thread_id);
     mic_read_thread_id=NULL;
   }
   if(record_handle!=NULL) {
+g_print("audio_close_input: snd_pcm_close\n");
     snd_pcm_close (record_handle);
     record_handle=NULL;
   }
   if(mic_buffer!=NULL) {
+g_print("audio_close_input: free mic buffer\n");
     g_free(mic_buffer);
     mic_buffer=NULL;
   }
@@ -445,14 +449,14 @@ static void *mic_read_thread(gpointer arg) {
   gfloat sample;
   int i;
 
-g_print("mic_read_thread: snd_pcm_prepare\n");
-  if ((rc = snd_pcm_prepare (record_handle)) < 0) {
-    g_print("mic_read_thread: cannot prepare audio interface for use (%s)\n",
+g_print("mic_read_thread: mic_buffer_size=%d\n",mic_buffer_size);
+g_print("mic_read_thread: snd_pcm_start\n");
+  if ((rc = snd_pcm_start (record_handle)) < 0) {
+    g_print("mic_read_thread: cannot start audio interface for use (%s)\n",
             snd_strerror (rc));
     return NULL;
   }
 
-g_print("mic_read_thread: mic_buffer_size=%d\n",mic_buffer_size);
   running=TRUE;
   while(running) {
     if ((rc = snd_pcm_readi (record_handle, mic_buffer, mic_buffer_size)) != mic_buffer_size) {
@@ -604,6 +608,7 @@ g_print("output_device: %s\n",device_id);
 g_print("output_device: name=%s descr=%s\n",name,descr);
         //}
       }
+#ifdef INCLUDE_SNOOP
     } else if(strncmp("dsnoop:", name, 6)==0) {
       if(n_input_devices<MAX_AUDIO_DEVICES) {
         //if(strncmp("dmix:CARD=ALSA",name,14)!=0) {
@@ -620,6 +625,7 @@ g_print("output_device: name=%s descr=%s\n",name,descr);
           n_input_devices++;
 g_print("input_device: name=%s descr=%s\n",name,descr);
         //}
+#endif
       }
     }
 

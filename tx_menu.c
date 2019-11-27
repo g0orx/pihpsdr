@@ -192,9 +192,8 @@ static void linein_changed(GtkWidget *widget, gpointer data) {
 }
 
 static void local_input_changed_cb(GtkWidget *widget, gpointer data) {
-  int i=GPOINTER_TO_INT(data);
-g_print("local_input_changed_cp: %d\n",i);
-g_print("local_input_changed_cp: %s\n",input_devices[i].name);
+  int i = gtk_combo_box_get_active(GTK_COMBO_BOX(widget));
+g_print("local_input_changed_cp: %d %s\n",i,input_devices[i].name);
   if(transmitter->local_microphone) {
     audio_close_input();
   }
@@ -352,16 +351,20 @@ void tx_menu(GtkWidget *parent) {
     gtk_grid_attach(GTK_GRID(grid),local_microphone_b,col,row++,2,1);
     g_signal_connect(local_microphone_b,"toggled",G_CALLBACK(local_microphone_cb),NULL);
 
-    input=NULL;
+    input=gtk_combo_box_text_new();
     for(i=0;i<n_input_devices;i++) {
-      input=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(input),input_devices[i].name);
+      gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(input),NULL,input_devices[i].name);
       if(transmitter->microphone_name!=NULL) {
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(input),strcmp(transmitter->microphone_name,input_devices[i].name)==0);
+        if(strcmp(transmitter->microphone_name,input_devices[i].name)==0) {
+          gtk_combo_box_set_active(GTK_COMBO_BOX(input),i);
+        }
       }
-      gtk_widget_show(input);
-      gtk_grid_attach(GTK_GRID(grid),input,col,row++,2,1);
-      g_signal_connect(input,"pressed",G_CALLBACK(local_input_changed_cb),(gpointer)(long)i);
     }
+
+    gtk_grid_attach(GTK_GRID(grid),input,col,row++,1,1);
+    g_signal_connect(input,"changed",G_CALLBACK(local_input_changed_cb),NULL);
+
+
   }
 
   row=saved_row;
