@@ -625,8 +625,8 @@ g_print("output_device: name=%s descr=%s\n",name,descr);
           n_input_devices++;
 g_print("input_device: name=%s descr=%s\n",name,descr);
         //}
-#endif
       }
+#endif
     }
 
     if (name != NULL)
