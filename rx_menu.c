@@ -97,11 +97,15 @@ static void adc_cb(GtkWidget *widget, gpointer data) {
 static void local_audio_cb(GtkWidget *widget, gpointer data) {
 fprintf(stderr,"local_audio_cb: rx=%d\n",active_receiver->id);
 
-  if(active_receiver->audio_name==NULL) {
-    int i=gtk_combo_box_get_active(GTK_COMBO_BOX(output));
-    active_receiver->audio_name=g_new(gchar,strlen(output_devices[i].name)+1);
-    strcpy(active_receiver->audio_name,output_devices[i].name);
+  if(active_receiver->audio_name!=NULL) {
+    g_free(active_receiver->audio_name);
+    active_receiver->audio_name=NULL;
   }
+
+  int i=gtk_combo_box_get_active(GTK_COMBO_BOX(output));
+  active_receiver->audio_name=g_new(gchar,strlen(output_devices[i].name)+1);
+  strcpy(active_receiver->audio_name,output_devices[i].name);
+
   if(gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget))) {
     if(audio_open_output(active_receiver)==0) {
       active_receiver->local_audio=1;
