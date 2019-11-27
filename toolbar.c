@@ -338,9 +338,9 @@ static void rit_cb(GtkWidget *widget, gpointer data) {
   }
   g_idle_add(ext_vfo_update,NULL);
   if(i<0) {
-    rit_minus_timer=g_timeout_add(200,rit_timer_cb,(gpointer)(long)i);
+    rit_minus_timer=g_timeout_add(200,rit_timer_cb,GINT_TO_POINTER(i));
   } else {
-    rit_plus_timer=g_timeout_add(200,rit_timer_cb,(gpointer)(long)i);
+    rit_plus_timer=g_timeout_add(200,rit_timer_cb,GINT_TO_POINTER(i));
   }
 }
 
@@ -370,9 +370,9 @@ static void xit_cb(GtkWidget *widget, gpointer data) {
     }
     g_idle_add(ext_vfo_update,NULL);
     if(i<0) {
-      xit_minus_timer=g_timeout_add(200,xit_timer_cb,(gpointer)(long)i);
+      xit_minus_timer=g_timeout_add(200,xit_timer_cb,GINT_TO_POINTER(i));
     } else {
-      xit_plus_timer=g_timeout_add(200,xit_timer_cb,(gpointer)(long)i);
+      xit_plus_timer=g_timeout_add(200,xit_timer_cb,GINT_TO_POINTER(i));
     }
   }
 }

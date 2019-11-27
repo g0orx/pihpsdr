@@ -116,7 +116,7 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 static gboolean enable_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   vox_enabled=vox_enabled==1?0:1;
   gtk_button_set_label(GTK_BUTTON(widget),vox_enabled==0?"VOX Enable":"VOX Disable");
-  g_idle_add(ext_vfo_update, (gpointer) 0);
+  g_idle_add(ext_vfo_update, GINT_TO_POINTER(0));
   return TRUE;
 }
 

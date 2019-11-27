@@ -1305,7 +1305,7 @@ void tx_set_twotone(TRANSMITTER *tx,int state) {
   } else {
     SetTXAPostGenRun(transmitter->id, 0);
   }
-  g_idle_add(ext_mox_update,(gpointer)(long)state);
+  g_idle_add(ext_mox_update,GINT_TO_POINTER(state));
 }
 
 void tx_set_ps_sample_rate(TRANSMITTER *tx,int rate) {
