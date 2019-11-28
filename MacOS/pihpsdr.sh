@@ -8,9 +8,6 @@
 # A full-fledged wrapper here would set dozens of
 # environment variables.
 #
-#
-# Use $HOME/.pihpsdr as the working dir,
-# copy hpsdr.png to that location
 
 this=`dirname $0` 
 
@@ -19,12 +16,20 @@ this=`dirname $0`
 #
 cd $HOME
 
+#
+# This is a standard MacOS location
+#
 localdir="$HOME/Library/Application Support/piHPSDR"
-
-echo $localdir > $HOME/test.out
 
 mkdir -p "$localdir"
 cd       "$localdir"
 
+#
+# Copy HPSDR icon to local work directory
+#
 cp $this/../Resources/hpsdr.png .
+
+#
+# Finally, start the program
+#
 exec $this/pihpsdr-bin
