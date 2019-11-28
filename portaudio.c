@@ -47,9 +47,7 @@ AUDIO_DEVICE output_devices[MAX_AUDIO_DEVICES];
 int n_input_devices=0;
 int n_output_devices=0;
 
-static float *mic_buffer=NULL;
-static int mic_buffer_size;
-static int audio_buffer_size=256;
+#define BUFFER_SIZE 256
 
 //
 // AUDIO_GET_CARDS
@@ -157,22 +155,7 @@ int audio_open_input()
     return -1;
   }
 
-  switch(protocol) {
-    case ORIGINAL_PROTOCOL:
-#ifdef SOAPYSDR
-    case SOAPYSDR_PROTOCOL:
-#endif
-      framesPerBuffer = 720;
-      break;
-    case NEW_PROTOCOL:
-      framesPerBuffer = 64;
-      break;
-    default:
-      framesPerBuffer = 720;  // we should never come here
-      break;
-  }
-  mic_buffer_size=framesPerBuffer;
-  fprintf(stderr,"audio_open_input: mic_buffer_size=%d\n",mic_buffer_size);
+  framesPerBuffer = BUFFER_SIZE;  // is this for either protocol
 
   bzero( &inputParameters, sizeof( inputParameters ) ); //not necessary if you are filling in all the fields
   inputParameters.channelCount = 1;   // MONO
@@ -193,7 +176,6 @@ int audio_open_input()
     fprintf(stderr, "PORTAUDIO ERROR: AOI start stream:%s\n",Pa_GetErrorText(err));
     return -1;
   }
-  mic_buffer=g_new0(float,mic_buffer_size);
   return 0;
 }
 
@@ -207,34 +189,54 @@ int pa_mic_cb(const void *inputBuffer, void *outputBuffer, unsigned long framesP
 {
   float *in = (float *)inputBuffer;
   int i;
+  gfloat sample;
 
-  if (mic_buffer == NULL) return paAbort;
 
-//
-// if something does not look good, fill mic_buffer with silence
-//
-  if (in == NULL || framesPerBuffer != mic_buffer_size) {
-    memset(mic_buffer, 0, sizeof(float)*mic_buffer_size);
-  } else {
-    memcpy(mic_buffer, in, sizeof(float)*mic_buffer_size);
-  }
-//
-// Call routine to send mic buffer
-//
-  switch(protocol) {
-    case ORIGINAL_PROTOCOL:
-      old_protocol_process_local_mic(mic_buffer);
-      break;
-    case NEW_PROTOCOL:
-      new_protocol_process_local_mic(mic_buffer);
-      break;
+  if (in == NULL) {
+    //
+    // We could just do nothing, but rather send a bunch of silence
+    // Note the mic samples flying in are the "heart-beat" of the TX engine.
+    //
+    for (i=0; i<BUFFER_SIZE; i++) {
+      sample=0.0;
+      switch(protocol) {
+        case ORIGINAL_PROTOCOL:
+          old_protocol_process_local_mic(sample);
+          break;
+        case NEW_PROTOCOL:
+          new_protocol_process_local_mic(sample);
+          break;
 #ifdef SOAPYSDR
-    case SOAPYSDR_PROTOCOL:
-      soapy_protocol_process_local_mic(mic_buffer);
-      break;
+        case SOAPYSDR_PROTOCOL:
+          soapy_protocol_process_local_mic(sample);
+          break;
 #endif
-    default:
-      break;
+        default:
+          break;
+      }
+    }
+  } else {
+    //
+    // send the samples in the buffer
+    //
+    for (i=0; i<framesPerBuffer; i++) {
+      sample=in[i];
+      switch(protocol) {
+        case ORIGINAL_PROTOCOL:
+          old_protocol_process_local_mic(sample);
+          break;
+        case NEW_PROTOCOL:
+          new_protocol_process_local_mic(sample);
+          break;
+#ifdef SOAPYSDR
+        case SOAPYSDR_PROTOCOL:
+          soapy_protocol_process_local_mic(sample);
+          break;
+#endif
+        default:
+          break;
+      }
+    }
   }
   return paContinue;
 }
@@ -248,7 +250,7 @@ int audio_open_output(RECEIVER *rx)
 {
   PaError err;
   PaStreamParameters outputParameters;
-  long framesPerBuffer=(long) audio_buffer_size;
+  long framesPerBuffer=BUFFER_SIZE;
   int padev;
   int i;
 
@@ -285,7 +287,7 @@ int audio_open_output(RECEIVER *rx)
 
   // Do not use call-back function, just stream it
 
-  rx->local_audio_buffer=malloc(audio_buffer_size*sizeof(float));
+  rx->local_audio_buffer=malloc(BUFFER_SIZE*sizeof(float));
   rx->local_audio_buffer_offset=0;
   err = Pa_OpenStream(&(rx->playback_handle), NULL, &outputParameters, 48000.0, framesPerBuffer, paNoFlag, NULL, NULL);
   if (err != paNoError) {
@@ -306,8 +308,8 @@ int audio_open_output(RECEIVER *rx)
   }
   // Write one buffer to avoid under-flow errors
   // (this gives us 5 msec to pass before we have to call audio_write the first time)
-  bzero(rx->local_audio_buffer, (size_t) audio_buffer_size*sizeof(float));
-  err=Pa_WriteStream(rx->playback_handle, rx->local_audio_buffer, (unsigned long) audio_buffer_size);
+  bzero(rx->local_audio_buffer, (size_t) BUFFER_SIZE*sizeof(float));
+  err=Pa_WriteStream(rx->playback_handle, rx->local_audio_buffer, (unsigned long) BUFFER_SIZE);
   return 0;
 }
 
@@ -332,10 +334,6 @@ void audio_close_input()
       fprintf(stderr,"PORTAUDIO ERROR: in close stream: %s\n",Pa_GetErrorText(err));
     }
     record_handle=NULL;
-  }
-  if(mic_buffer!=NULL) {
-    free(mic_buffer);
-    mic_buffer=NULL;
   }
 }
 
@@ -392,8 +390,8 @@ int audio_write (RECEIVER *rx, float left, float right)
 
   if (rx->playback_handle != NULL && rx->local_audio_buffer != NULL) {
     buffer[rx->local_audio_buffer_offset++] = (left+right)*0.5;  //   mix to MONO   
-    if (rx->local_audio_buffer_offset == audio_buffer_size) {
-      err=Pa_WriteStream(rx->playback_handle, rx->local_audio_buffer, (unsigned long) audio_buffer_size);
+    if (rx->local_audio_buffer_offset == BUFFER_SIZE) {
+      err=Pa_WriteStream(rx->playback_handle, rx->local_audio_buffer, (unsigned long) BUFFER_SIZE);
       rx->local_audio_buffer_offset=0;
       // do not check on errors, there will be underflows every now and then
     }
@@ -408,8 +406,8 @@ int cw_audio_write(float sample) {
 
   if (rx->playback_handle != NULL && rx->local_audio_buffer != NULL) {
     buffer[rx->local_audio_buffer_offset++] = sample;
-    if (rx->local_audio_buffer_offset == audio_buffer_size) {
-      err=Pa_WriteStream(rx->playback_handle, rx->local_audio_buffer, (unsigned long) audio_buffer_size);
+    if (rx->local_audio_buffer_offset == BUFFER_SIZE) {
+      err=Pa_WriteStream(rx->playback_handle, rx->local_audio_buffer, (unsigned long) BUFFER_SIZE);
       // do not check on errors, there will be underflows every now and then
       rx->local_audio_buffer_offset=0;
     }
