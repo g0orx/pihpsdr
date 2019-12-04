@@ -688,7 +688,6 @@ void vfo_move_to(long long hz) {
   long long f;
   long long delta;
 
-  fprintf(stderr,"VFO MOVE TO: %lld\n", hz);
   if(vfo[id].mode!=modeCWL && vfo[id].mode!=modeCWU) {
     offset=(hz/step)*step;
   }
