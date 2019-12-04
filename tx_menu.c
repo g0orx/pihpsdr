@@ -361,6 +361,13 @@ void tx_menu(GtkWidget *parent) {
       }
     }
 
+    // If the combo box shows no device, take the first one
+    i=gtk_combo_box_get_active(GTK_COMBO_BOX(input));
+    if (i < 0) {
+      gtk_combo_box_set_active(GTK_COMBO_BOX(input),0);
+    }
+
+
     gtk_grid_attach(GTK_GRID(grid),input,col,row++,1,1);
     g_signal_connect(input,"changed",G_CALLBACK(local_input_changed_cb),NULL);
 

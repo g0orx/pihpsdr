@@ -823,6 +823,7 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
   int left_sample;
   int right_sample;
   short mic_sample;
+  float fsample;
   double left_sample_double;
   double right_sample_double;
   double mic_sample_double;
@@ -982,12 +983,13 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
       if(!transmitter->local_microphone) {
         mic_samples++;
         if(mic_samples>=mic_sample_divisor) { // reduce to 48000
+          fsample = (float) mic_sample * 0.00003051;
 #ifdef FREEDV
           if(active_receiver->freedv) {
-            add_freedv_mic_sample(transmitter,mic_sample);
+            add_freedv_mic_sample(transmitter,fsample);
           } else {
 #endif
-            add_mic_sample(transmitter,mic_sample);
+            add_mic_sample(transmitter,fsample);
 #ifdef FREEDV
           }
 #endif
@@ -1348,7 +1350,8 @@ void ozy_send_buffer() {
         }
         if(isTransmitting() || (mode == modeCWU) || (mode == modeCWL)) {
           if(tune && !transmitter->tune_use_drive) {
-            power=(int)((double)transmitter->drive_level/100.0*(double)transmitter->tune_percent);
+            double fac=sqrt((double)transmitter->tune_percent * 0.01);
+            power=(int)((double)transmitter->drive_level*fac);
           } else {
             power=transmitter->drive_level;
           }

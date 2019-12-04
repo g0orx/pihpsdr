@@ -962,11 +962,13 @@ static void full_tx_buffer(TRANSMITTER *tx) {
       // scaling the TX IQ samples. In the other cases, DriveLevel
       // as sent in the C&C frames becomes effective and the IQ
       // samples are sent with full amplitude.
+      // DL1YCF: include factor 0.00392 since DriveLevel == 255 means full amplitude
       //
       if(tune && !transmitter->tune_use_drive) {
-        gain=gain*((double)transmitter->drive_level*100.0/(double)transmitter->tune_percent);
+        double fac=sqrt((double)transmitter->tune_percent * 0.01);
+        gain=gain*(double)transmitter->drive_level*fac*0.00392;
       } else {
-        gain=gain*(double)transmitter->drive_level;
+        gain=gain*(double)transmitter->drive_level*0.00392;
       }
     }
 
