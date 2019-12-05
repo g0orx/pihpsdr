@@ -551,6 +551,8 @@ void vfo_a_swap_b() {
 void vfo_step(int steps) {
   int id=active_receiver->id;
   long long delta;
+  int sid;
+  RECEIVER *other_receiver;
 
   if(!locked) {
 
@@ -564,7 +566,9 @@ void vfo_step(int steps) {
       delta = vfo[id].frequency - delta;
     }
 
-    int sid=id==0?1:0;
+    sid=id==0?1:0;
+    other_receiver=receiver[sid];
+ 
     switch(sat_mode) {
       case SAT_NONE:
         break;
@@ -575,6 +579,7 @@ void vfo_step(int steps) {
         } else {
           vfo[sid].frequency      += delta;
         }
+        receiver_frequency_changed(other_receiver);
         break;
       case RSAT_MODE:
         // A increments and B decrements or A decrments and B increments
@@ -583,6 +588,7 @@ void vfo_step(int steps) {
         } else {
           vfo[sid].frequency      -= delta;
         }
+        receiver_frequency_changed(other_receiver);
         break;
     }
     receiver_frequency_changed(active_receiver);
@@ -596,6 +602,9 @@ void vfo_step(int steps) {
 //
 void vfo_id_step(int id, int steps) {
   long long delta;
+  int sid;
+  RECEIVER *other_receiver;
+
   if(!locked) {
     if(vfo[id].ctun) {
       delta=vfo[id].ctun_frequency;
@@ -607,7 +616,9 @@ void vfo_id_step(int id, int steps) {
       delta = vfo[id].frequency - delta;
     }
 
-    int sid=id==0?1:0;
+    sid=id==0?1:0;
+    other_receiver=receiver[sid];
+
     switch(sat_mode) {
       case SAT_NONE:
         break;
@@ -618,6 +629,7 @@ void vfo_id_step(int id, int steps) {
         } else {
           vfo[sid].frequency      += delta;
         }
+        receiver_frequency_changed(other_receiver);
         break;
       case RSAT_MODE:
         // A increments and B decrements or A decrments and B increments
@@ -626,6 +638,7 @@ void vfo_id_step(int id, int steps) {
         } else {
           vfo[sid].frequency      -= delta;
         }
+        receiver_frequency_changed(other_receiver);
         break;
     }
 
@@ -637,6 +650,9 @@ void vfo_id_step(int id, int steps) {
 void vfo_move(long long hz,int round) {
   int id=active_receiver->id;
   long long delta;
+  int sid;
+  RECEIVER *other_receiver;
+
   if(!locked) {
     if(vfo[id].ctun) {
       delta=vfo[id].ctun_frequency;
@@ -654,7 +670,9 @@ void vfo_move(long long hz,int round) {
       delta = vfo[id].frequency - delta;
     }
 
-    int sid=id==0?1:0;
+    sid=id==0?1:0;
+    other_receiver=receiver[sid];
+ 
     switch(sat_mode) {
       case SAT_NONE:
         break;
@@ -665,6 +683,7 @@ void vfo_move(long long hz,int round) {
         } else {
           vfo[sid].frequency      += delta;
         }
+        receiver_frequency_changed(other_receiver);
         break;
       case RSAT_MODE:
         // A increments and B decrements or A decrments and B increments
@@ -673,6 +692,7 @@ void vfo_move(long long hz,int round) {
         } else {
           vfo[sid].frequency      -= delta;
         }
+        receiver_frequency_changed(other_receiver);
         break;
     }
     receiver_frequency_changed(active_receiver);
@@ -687,6 +707,8 @@ void vfo_move_to(long long hz) {
   long long half=(long long)(active_receiver->sample_rate/2);
   long long f;
   long long delta;
+  int sid;
+  RECEIVER *other_receiver;
 
   if(vfo[id].mode!=modeCWL && vfo[id].mode!=modeCWU) {
     offset=(hz/step)*step;
@@ -714,7 +736,9 @@ void vfo_move_to(long long hz) {
       delta = vfo[id].frequency - delta;
     }
 
-    int sid=id==0?1:0;
+    sid=id==0?1:0;
+    other_receiver=receiver[sid];
+
     switch(sat_mode) {
       case SAT_NONE:
         break;
@@ -725,6 +749,7 @@ void vfo_move_to(long long hz) {
         } else {
           vfo[sid].frequency      += delta;
         }
+        receiver_frequency_changed(other_receiver);
         break;
       case RSAT_MODE:
         // A increments and B decrements or A decrements and B increments
@@ -733,6 +758,7 @@ void vfo_move_to(long long hz) {
         } else {
           vfo[sid].frequency      -= delta;
         }
+        receiver_frequency_changed(other_receiver);
         break;
     }
 
