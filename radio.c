@@ -825,6 +825,8 @@ void start_radio() {
     g_object_ref((gpointer)receiver[i]->panel);
     set_displaying(receiver[i],1);
     y+=rx_height;
+    // Upon startup, if RIT or CTUN is active, tell WDSP.
+    set_offset(receiver[i],vfo[i].offset);
   }
 
   if((protocol==ORIGINAL_PROTOCOL) && (RECEIVERS==2) && (receiver[0]->sample_rate!=receiver[1]->sample_rate)) {

@@ -216,7 +216,10 @@ static void activate_pihpsdr(GtkApplication *app, gpointer data) {
 
 fprintf(stderr,"width=%d height=%d\n", display_width, display_height);
 
-  if(display_width>MAX_DISPLAY_WIDTH || display_height>MAX_DISPLAY_HEIGHT) {
+  // Go to "window" mode if there is enough space on the screen.
+  // Do not forget extra space needed for window top bars, screen bars etc.
+
+  if(display_width>(MAX_DISPLAY_WIDTH+10) && display_height>(MAX_DISPLAY_HEIGHT+30)) {
     display_width=MAX_DISPLAY_WIDTH;
     display_height=MAX_DISPLAY_HEIGHT;
     full_screen=0;

@@ -764,7 +764,8 @@ static void new_protocol_high_priority() {
     int power=0;
     if(isTransmitting()) {
       if(tune && !transmitter->tune_use_drive) {
-        power=(int)((double)transmitter->drive_level/100.0*(double)transmitter->tune_percent);
+        double fac=sqrt((double)transmitter->tune_percent * 0.01);
+        power=(int)((double)transmitter->drive_level*fac);
       } else {
         power=transmitter->drive_level;
       }
@@ -1821,6 +1822,7 @@ static void process_mic_data(int bytes) {
   int b;
   int i;
   short sample;
+  float fsample;
 
   sequence=((mic_line_buffer[0]&0xFF)<<24)+((mic_line_buffer[1]&0xFF)<<16)+((mic_line_buffer[2]&0xFF)<<8)+(mic_line_buffer[3]&0xFF);
   if (sequence != micsamples_sequence) {
@@ -1832,12 +1834,13 @@ static void process_mic_data(int bytes) {
   for(i=0;i<MIC_SAMPLES;i++) {
     sample=(short)(mic_line_buffer[b++]<<8);
     sample |= (short) (mic_line_buffer[b++]&0xFF);
+    fsample = (float) sample * 0.00003051;
 #ifdef FREEDV
     if(active_receiver->freedv) {
-      add_freedv_mic_sample(transmitter,sample);
+      add_freedv_mic_sample(transmitter,fsample);
     } else {
 #endif
-      add_mic_sample(transmitter,sample);
+      add_mic_sample(transmitter,fsample);
 #ifdef FREEDV
     }
 #endif
