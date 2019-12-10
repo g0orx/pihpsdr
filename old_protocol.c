@@ -243,7 +243,7 @@ static GThread *ozy_EP6_rx_thread_id;
 static gpointer ozy_ep4_rx_thread(gpointer arg);
 static gpointer ozy_ep6_rx_thread(gpointer arg);
 static void start_usb_receive_threads();
-static int ozyusb_write(char* buffer,int length);
+static void ozyusb_write(unsigned char* buffer,int length);
 #define EP6_IN_ID  0x86                         // end point = 6, direction toward PC
 #define EP2_OUT_ID  0x02                        // end point = 2, direction from PC
 #define EP6_BUFFER_SIZE 2048
@@ -342,6 +342,7 @@ static void start_usb_receive_threads()
 //
 static gpointer ozy_ep4_rx_thread(gpointer arg)
 {
+  return NULL;
 }
 
 //
@@ -381,6 +382,7 @@ static gpointer ozy_ep6_rx_thread(gpointer arg) {
     }
 
   }
+  return NULL;
 }
 #endif
 
@@ -1621,7 +1623,7 @@ void ozy_send_buffer() {
 }
 
 #ifdef USBOZY
-static int ozyusb_write(char* buffer,int length)
+static void ozyusb_write(unsigned char* buffer,int length)
 {
   int i;
 

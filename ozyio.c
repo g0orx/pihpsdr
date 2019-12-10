@@ -573,7 +573,6 @@ static int file_exists (const char * fileName)
 	return ( i == 0 ) ? 1 : 0 ;
 }
 
-#ifdef __linux__
 int filePath (char *sOut, const char *sIn) {
 	int rc = 0;
 
@@ -617,7 +616,6 @@ int filePath (char *sOut, const char *sIn) {
 	}
 	return rc;
 }
-#endif
 
 
 
