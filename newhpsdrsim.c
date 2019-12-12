@@ -246,7 +246,7 @@ void new_protocol_general_packet(unsigned char *buffer) {
   }
 
   iqform = buffer[39];				if (iqform == 0) iqform=3;
-  if (iqform != 3 || !run) fprintf(stderr,"GP: Wrong IQ Format requested: %d\n",iqform);
+  if (iqform != 3) fprintf(stderr,"GP: Wrong IQ Format requested: %d\n",iqform);
 
   rc = (buffer[58] & 0x01);
   if (rc != pa_enable || !run) {
@@ -611,6 +611,8 @@ void *highprio_thread(void *data) {
           pthread_join(mic_thread_id, NULL);
           pthread_join(audio_thread_id, NULL);
           highprio_thread_id=0;
+          fprintf(stderr,"HP thread terminated.\n");
+          close(sock);
           return NULL;
 	}
      }
@@ -717,6 +719,7 @@ void *highprio_thread(void *data) {
 	rxatt0_dbl=pow(10.0, -0.05*(stepatt0+10*alex0[14]+20*alex0[13]));
      }
   }
+  close(sock);
   return NULL;
 }
 
@@ -775,6 +778,7 @@ void *rx_thread(void *data) {
 
   if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
     perror("***** ERROR: RXthread: bind");
+    close(sock);
     return NULL;
   }
 
@@ -785,7 +789,7 @@ void *rx_thread(void *data) {
   if (rxptr < 0) rxptr += NEWRTXLEN;
   divptr=0;
   while (run) {
-	if (!ddcenable[myddc] || rxrate[myddc] == 0 || rxfreq[myddc] == 0) {
+	if (ddcenable[myddc] <= 0 || rxrate[myddc] == 0 || rxfreq[myddc] == 0) {
 	  usleep(5000);
           clock_gettime(CLOCK_MONOTONIC, &delay);
 	  rxptr=txptr-4096;  
@@ -985,6 +989,7 @@ void *tx_thread(void * data) {
 
   if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
     perror("***** ERROR: TX: bind");
+    close(sock);
     return NULL;
   }
 
@@ -1070,6 +1075,7 @@ void *send_highprio_thread(void *data) {
 
   if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
     perror("***** ERROR: SendHighPrio thread: bind");
+    close(sock);
     return NULL;
   }
 
@@ -1145,6 +1151,7 @@ void *audio_thread(void *data) {
 
   if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
     perror("***** ERROR: Audio: bind");
+    close(sock);
     return NULL;
   }
 
@@ -1212,6 +1219,7 @@ void *mic_thread(void *data) {
 
   if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
     perror("***** ERROR: Mic thread: bind");
+    close(sock);
     return NULL;
   }
 
