@@ -45,4 +45,5 @@ extern int audio_write(RECEIVER *rx,float left_sample,float right_sample);
 extern int cw_audio_write(float sample);
 extern void audio_get_cards();
 char * audio_get_error_string(int err);
+float  audio_get_next_mic_sample();
 #endif

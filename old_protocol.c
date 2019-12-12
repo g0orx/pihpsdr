@@ -252,11 +252,6 @@ static unsigned char ep6_inbuffer[EP6_BUFFER_SIZE];
 static unsigned char usb_buffer_block = 0;
 #endif
 
-#define MICRINGLEN 2048
-float mic_ring_buffer[MICRINGLEN];
-int   mic_ring_read_pt=0;
-int   mic_ring_write_pt=0;
-
 void old_protocol_stop() {
   metis_start_stop(0);
 }
@@ -994,22 +989,7 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
 
       mic_samples++;
       if(mic_samples>=mic_sample_divisor) { // reduce to 48000
-        if (!transmitter->local_microphone) {
-          // take mic sample from SDR
-          fsample = (float) mic_sample * 0.00003051;
-        } else {
-          // take mic sample from local mic buffer
-          if (mic_ring_read_pt == mic_ring_write_pt) {
-            // nothing in buffer: insert silence
-            fsample=0.0;
-          } else {
-            int newpt = mic_ring_read_pt+1;
-            if (newpt == MICRINGLEN) newpt=0;
-            fsample=mic_ring_buffer[mic_ring_read_pt];
-            // atomic update of read pointer
-            mic_ring_read_pt=newpt;
-          }
-        }
+        fsample = transmitter->local_microphone ? audio_get_next_mic_sample() : (float) mic_sample * 0.00003051;
 #ifdef FREEDV
         if(active_receiver->freedv) {
           add_freedv_mic_sample(transmitter,fsample);
@@ -1094,21 +1074,6 @@ void old_protocol_iq_samples(int isample,int qsample) {
       output_buffer_index=8;
     }
   }
-}
-
-//
-// This function now simply puts the mic sample
-// into a ring buffer
-//
-void old_protocol_process_local_mic(float sample) {
-    int newpt;  // value of write pointer after a successful write
-    newpt=mic_ring_write_pt +1;
-    if (newpt == MICRINGLEN) newpt=0;
-    if (newpt != mic_ring_read_pt) {
-      // buffer space available, do the write
-      mic_ring_buffer[mic_ring_write_pt]=sample;
-      mic_ring_write_pt=newpt;
-    }
 }
 
 /*

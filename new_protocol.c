@@ -1533,9 +1533,11 @@ fprintf(stderr,"mic_line_thread\n");
     sem_post(&mic_line_sem_ready);
     sem_wait(&mic_line_sem_buffer);
 #endif
-    if(!transmitter->local_microphone) {
-      process_mic_data(mic_bytes_read);
-    }
+//
+//  process mic data even if local mic is used,
+//  since this is our pace-maker
+//
+    process_mic_data(mic_bytes_read);
     free(mic_line_buffer);
   }
 }
@@ -1834,7 +1836,7 @@ static void process_mic_data(int bytes) {
   for(i=0;i<MIC_SAMPLES;i++) {
     sample=(short)(mic_line_buffer[b++]<<8);
     sample |= (short) (mic_line_buffer[b++]&0xFF);
-    fsample = (float) sample * 0.00003051;
+    fsample = transmitter->local_microphone ? audio_get_next_mic_sample() : (float) sample * 0.00003051;
 #ifdef FREEDV
     if(active_receiver->freedv) {
       add_freedv_mic_sample(transmitter,fsample);
@@ -1845,18 +1847,6 @@ static void process_mic_data(int bytes) {
     }
 #endif
   }
-}
-
-void new_protocol_process_local_mic(float sample) {
-#ifdef FREEDV
-  if(active_receiver->freedv) {
-    add_freedv_mic_sample(transmitter,sample);
-  } else {
-#endif
-    add_mic_sample(transmitter,sample);
-#ifdef FREEDV
-  }
-#endif
 }
 
 void new_protocol_cw_audio_samples(short left_audio_sample,short right_audio_sample) {

@@ -50,6 +50,14 @@ int n_output_devices=0;
 #define BUFFER_SIZE 256
 
 //
+// Ring buffer for "local microphone" samples
+//
+#define MICRINGLEN 2048
+float  *mic_ring_buffer=NULL;
+int     mic_ring_read_pt=0;
+int     mic_ring_write_pt=0;
+
+//
 // AUDIO_GET_CARDS
 //
 // This inits PortAudio and looks for suitable input and output channels
@@ -171,6 +179,12 @@ int audio_open_input()
     return -1;
   }
 
+  mic_ring_buffer=(float *) malloc(MICRINGLEN * sizeof(float));
+  mic_ring_read_pt = mic_ring_write_pt=0;
+  if (mic_ring_buffer == NULL) {
+    return -1;
+  }
+
   err = Pa_StartStream(record_handle);
   if (err != paNoError) {
     fprintf(stderr, "PORTAUDIO ERROR: AOI start stream:%s\n",Pa_GetErrorText(err));
@@ -188,57 +202,67 @@ int pa_mic_cb(const void *inputBuffer, void *outputBuffer, unsigned long framesP
              void *userdata)
 {
   float *in = (float *)inputBuffer;
-  int i;
-  gfloat sample;
-
+  int i, newpt;
+  float sample;
 
   if (in == NULL) {
-    //
-    // We could just do nothing, but rather send a bunch of silence
-    // Note the mic samples flying in are the "heart-beat" of the TX engine.
-    //
-    for (i=0; i<BUFFER_SIZE; i++) {
-      sample=0.0;
-      switch(protocol) {
-        case ORIGINAL_PROTOCOL:
-          old_protocol_process_local_mic(sample);
-          break;
-        case NEW_PROTOCOL:
-          new_protocol_process_local_mic(sample);
-          break;
+    // This should not happen, so we do not send silence etc.
+    g_print("PortAudio error: bogus audio buffer in callback\n");
+    return paContinue;
+  }
+  //
+  // send the samples in the buffer
+  //
+  for (i=0; i<framesPerBuffer; i++) {
+    sample=in[i];
+    switch(protocol) {
+      case ORIGINAL_PROTOCOL:
+      case NEW_PROTOCOL:
+	//
+	// put sample into ring buffer
+	//
+	if (mic_ring_buffer != NULL) {
+	  newpt=mic_ring_write_pt +1;
+	  if (newpt == MICRINGLEN) newpt=0;
+	  if (newpt != mic_ring_read_pt) {
+	    // buffer space available, do the write
+	    mic_ring_buffer[mic_ring_write_pt]=sample;
+	    // atomic update of mic_ring_write_pt
+	    mic_ring_write_pt=newpt;
+	  }
+	}
+	break;
 #ifdef SOAPYSDR
-        case SOAPYSDR_PROTOCOL:
-          soapy_protocol_process_local_mic(sample);
-          break;
+      case SOAPYSDR_PROTOCOL:
+	// Note that this call ends up deeply in the TX engine
+	soapy_protocol_process_local_mic(sample);
+	break;
 #endif
-        default:
-          break;
-      }
-    }
-  } else {
-    //
-    // send the samples in the buffer
-    //
-    for (i=0; i<framesPerBuffer; i++) {
-      sample=in[i];
-      switch(protocol) {
-        case ORIGINAL_PROTOCOL:
-          old_protocol_process_local_mic(sample);
-          break;
-        case NEW_PROTOCOL:
-          new_protocol_process_local_mic(sample);
-          break;
-#ifdef SOAPYSDR
-        case SOAPYSDR_PROTOCOL:
-          soapy_protocol_process_local_mic(sample);
-          break;
-#endif
-        default:
-          break;
-      }
+      default:
+	break;
     }
   }
   return paContinue;
+}
+
+//
+// Utility function for retrieving mic samples
+// from ring buffer
+//
+float audio_get_next_mic_sample() {
+  int newpt;
+  float sample;
+  if ((mic_ring_buffer == NULL) || (mic_ring_read_pt == mic_ring_write_pt)) {
+    // no buffer, or nothing in buffer: insert silence
+    sample=0.0;
+  } else {
+    newpt = mic_ring_read_pt+1;
+    if (newpt == MICRINGLEN) newpt=0;
+    sample=mic_ring_buffer[mic_ring_read_pt];
+    // atomic update of read pointer
+    mic_ring_read_pt=newpt;
+  }
+  return sample;
 }
 
 //
@@ -334,6 +358,10 @@ void audio_close_input()
       fprintf(stderr,"PORTAUDIO ERROR: in close stream: %s\n",Pa_GetErrorText(err));
     }
     record_handle=NULL;
+  }
+  if (mic_ring_buffer != NULL) {
+    free(mic_ring_buffer);
+    mic_ring_buffer=NULL;
   }
 }
 

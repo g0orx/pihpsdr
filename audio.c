@@ -73,6 +73,14 @@ AUDIO_DEVICE input_devices[MAX_AUDIO_DEVICES];
 int n_output_devices;
 AUDIO_DEVICE output_devices[MAX_AUDIO_DEVICES];
 
+//
+// Ring buffer for "local microphone" samples
+//
+#define MICRINGLEN 2048
+float  *mic_ring_buffer=NULL;
+int     mic_ring_read_pt=0;
+int     mic_ring_write_pt=0;
+
 int audio_open_output(RECEIVER *rx) {
   int err;
   snd_pcm_hw_params_t *hw_params;
@@ -239,6 +247,13 @@ g_print("audio_open_input: mic_buffer: size=%d channels=%d sample=%ld bytes\n",m
       break;
   }
 
+g_print("audio_open_input: allocating ring buffer\n");
+  mic_ring_buffer=(float *) malloc(MICRINGLEN * sizeof(float));
+  mic_ring_read_pt = mic_ring_write_pt=0;
+  if (mic_ring_buffer == NULL) {
+    return -1;
+  }
+
 g_print("audio_open_input: creating mic_read_thread\n");
   GError *error;
   mic_read_thread_id = g_thread_try_new("local mic",mic_read_thread,NULL,&error);
@@ -280,6 +295,10 @@ g_print("audio_close_input: snd_pcm_close\n");
 g_print("audio_close_input: free mic buffer\n");
     g_free(mic_buffer);
     mic_buffer=NULL;
+  }
+  if (mic_ring_buffer != NULL) {
+    free(mic_ring_buffer);
+    mic_ring_buffer=NULL;
   }
 }
 
@@ -470,6 +489,7 @@ g_print("mic_read_thread: snd_pcm_start\n");
         }
       }
     } else {
+      int newpt;
       // process the mic input
       for(i=0;i<mic_buffer_size;i++) {
         switch(record_audio_format) {
@@ -488,13 +508,24 @@ g_print("mic_read_thread: snd_pcm_start\n");
         }
         switch(protocol) {
           case ORIGINAL_PROTOCOL:
-            old_protocol_process_local_mic(sample);
-            break;
           case NEW_PROTOCOL:
-            new_protocol_process_local_mic(sample);
+	    //
+	    // put sample into ring buffer
+	    //
+	    if (mic_ring_buffer) {
+	      newpt=mic_ring_write_pt +1;
+	      if (newpt == MICRINGLEN) newpt=0;
+	      if (newpt != mic_ring_read_pt) {
+	        // buffer space available, do the write
+	        mic_ring_buffer[mic_ring_write_pt]=sample;
+	        // atomic update of mic_ring_write_pt
+	        mic_ring_write_pt=newpt;
+	      }
+            }
             break;
 #ifdef SOAPYSDR
           case SOAPYSDR_PROTOCOL:
+            // Note that this call ends up deeply in the TX engine
             soapy_protocol_process_local_mic(sample);
             break;
 #endif
@@ -506,6 +537,26 @@ g_print("mic_read_thread: snd_pcm_start\n");
   }
 g_print("mic_read_thread: exiting\n");
   return NULL;
+}
+
+//
+// Utility function for retrieving mic samples
+// from ring buffer
+//
+float audio_get_next_mic_sample() {
+  int newpt;
+  float sample;
+  if ((mic_ring_buffer == NULL) || (mic_ring_read_pt == mic_ring_write_pt)) {
+    // no buffer, or nothing in buffer: insert silence
+    sample=0.0;
+  } else {
+    newpt = mic_ring_read_pt+1;
+    if (newpt == MICRINGLEN) newpt=0;
+    sample=mic_ring_buffer[mic_ring_read_pt];
+    // atomic update of read pointer
+    mic_ring_read_pt=newpt;
+  }
+  return sample;
 }
 
 void audio_get_cards() {
