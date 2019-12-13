@@ -235,6 +235,7 @@ static pthread_mutex_t general_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static int local_ptt=0;
 
+static void new_protocol_start();
 static void new_protocol_high_priority();
 static void new_protocol_general();
 static void new_protocol_receive_specific();
@@ -493,10 +494,10 @@ void new_protocol_init(int pixels) {
       rc=sem_init(&iq_sem_ready[i], 0, 0);
       rc=sem_init(&iq_sem_buffer[i], 0, 0);
 #endif
-      iq_thread_id[i] = g_thread_new( "iq thread", iq_thread, (gpointer)(long)i);
+      iq_thread_id[i] = g_thread_new( "iq thread", iq_thread, GINT_TO_POINTER(i));
     }
 
-data_socket=socket(PF_INET,SOCK_DGRAM,IPPROTO_UDP);
+    data_socket=socket(PF_INET,SOCK_DGRAM,IPPROTO_UDP);
     if(data_socket<0) {
         fprintf(stderr,"NewProtocol: create socket failed for data_socket\n");
         exit(-1);
@@ -512,33 +513,40 @@ data_socket=socket(PF_INET,SOCK_DGRAM,IPPROTO_UDP);
         exit(-1);
     }
 
-fprintf(stderr,"new_protocol_thread: date_socket %d bound to interface\n",data_socket);
+fprintf(stderr,"new_protocol_init: data_socket %d bound to interface %s:%d\n",data_socket,inet_ntoa(radio->info.network.interface_address.sin_addr),ntohs(radio->info.network.interface_address.sin_port));
 
     memcpy(&base_addr,&radio->info.network.address,radio->info.network.address_length);
     base_addr_length=radio->info.network.address_length;
     base_addr.sin_port=htons(GENERAL_REGISTERS_FROM_HOST_PORT);
 
+g_print("base_addr=%s\n",inet_ntoa(radio->info.network.address.sin_addr));
+
     memcpy(&receiver_addr,&radio->info.network.address,radio->info.network.address_length);
     receiver_addr_length=radio->info.network.address_length;
     receiver_addr.sin_port=htons(RECEIVER_SPECIFIC_REGISTERS_FROM_HOST_PORT);
+g_print("receive_addr=%s\n",inet_ntoa(radio->info.network.address.sin_addr));
 
     memcpy(&transmitter_addr,&radio->info.network.address,radio->info.network.address_length);
     transmitter_addr_length=radio->info.network.address_length;
     transmitter_addr.sin_port=htons(TRANSMITTER_SPECIFIC_REGISTERS_FROM_HOST_PORT);
+g_print("transmit_addr=%s\n",inet_ntoa(radio->info.network.address.sin_addr));
 
     memcpy(&high_priority_addr,&radio->info.network.address,radio->info.network.address_length);
     high_priority_addr_length=radio->info.network.address_length;
     high_priority_addr.sin_port=htons(HIGH_PRIORITY_FROM_HOST_PORT);
+g_print("high_priority_addr=%s\n",inet_ntoa(radio->info.network.address.sin_addr));
 
 fprintf(stderr,"new_protocol_thread: high_priority_addr setup for port %d\n",HIGH_PRIORITY_FROM_HOST_PORT);
 
     memcpy(&audio_addr,&radio->info.network.address,radio->info.network.address_length);
     audio_addr_length=radio->info.network.address_length;
     audio_addr.sin_port=htons(AUDIO_FROM_HOST_PORT);
+g_print("audio_addr=%s\n",inet_ntoa(radio->info.network.address.sin_addr));
 
     memcpy(&iq_addr,&radio->info.network.address,radio->info.network.address_length);
     iq_addr_length=radio->info.network.address_length;
     iq_addr.sin_port=htons(TX_IQ_FROM_HOST_PORT);
+g_print("iq_addr=%s\n",inet_ntoa(radio->info.network.address.sin_addr));
 
 
     for(i=0;i<MAX_DDC;i++) {
@@ -555,10 +563,15 @@ fprintf(stderr,"new_protocol_thread: high_priority_addr setup for port %d\n",HIG
     }
     fprintf(stderr, "new_protocol_thread: id=%p\n",new_protocol_thread_id);
 
+    new_protocol_general();
+    new_protocol_start();
+    new_protocol_high_priority();
+
 }
 
 static void new_protocol_general() {
     BAND *band;
+    int rc;
 
     pthread_mutex_lock(&general_mutex);
     if(split) {
@@ -598,10 +611,15 @@ static void new_protocol_general() {
     }
 
 //fprintf(stderr,"Alex Enable=%02X\n",general_buffer[59]);
+//g_print("new_protocol_general: %s:%d\n",inet_ntoa(base_addr.sin_addr),ntohs(base_addr.sin_port));
 
-    if(sendto(data_socket,general_buffer,sizeof(general_buffer),0,(struct sockaddr*)&base_addr,base_addr_length)<0) {
+    if((rc=sendto(data_socket,general_buffer,sizeof(general_buffer),0,(struct sockaddr*)&base_addr,base_addr_length))<0) {
         fprintf(stderr,"sendto socket failed for general\n");
         exit(1);
+    }
+
+    if(rc!=sizeof(general_buffer)) {
+      fprintf(stderr,"sendto socket for general: %d rather than %ld",rc,sizeof(general_buffer));
     }
 
     general_sequence++;
@@ -947,7 +965,7 @@ static void new_protocol_high_priority() {
 	i=receiver[PS_RX_FEEDBACK]->alex_antenna;   	// 0, 6, or 7
     }
 #endif
-    if (device == DEVICE_ORION2) {
+    if (device == NEW_DEVICE_ORION2) {
       i +=100;
     } else if (new_pa_board) {
       // New-PA setting invalid on ANAN-7000,8000
@@ -1102,11 +1120,16 @@ static void new_protocol_high_priority() {
 //
 //  Voila mes amis. Envoyons les 1444 octets "high priority" au radio
 //
+//g_print("new_protocol_high_priority: %s:%d\n",inet_ntoa(high_priority_addr.sin_addr),ntohs(high_priority_addr.sin_port));
     int rc;
     if((rc=sendto(data_socket,high_priority_buffer_to_radio,sizeof(high_priority_buffer_to_radio),0,(struct sockaddr*)&high_priority_addr,high_priority_addr_length))<0) {
         fprintf(stderr,"sendto socket failed for high priority: rc=%d errno=%d\n",rc,errno);
         abort();
         //exit(1);
+    }
+ 
+    if(rc!=sizeof(high_priority_buffer_to_radio)) {
+      fprintf(stderr,"sendto socket for high_priority: %d rather than %ld",rc,sizeof(high_priority_buffer_to_radio));
     }
 
     high_priority_sequence++;
@@ -1118,6 +1141,7 @@ static unsigned char last_50=0;
 
 static void new_protocol_transmit_specific() {
     int mode;
+    int rc;
 
     pthread_mutex_lock(&tx_spec_mutex);
     memset(transmit_specific_buffer, 0, sizeof(transmit_specific_buffer));
@@ -1197,9 +1221,15 @@ static void new_protocol_transmit_specific() {
     // Attenuator for ADC0 upon TX
     transmit_specific_buffer[59]=transmitter->attenuation;
 
-    if(sendto(data_socket,transmit_specific_buffer,sizeof(transmit_specific_buffer),0,(struct sockaddr*)&transmitter_addr,transmitter_addr_length)<0) {
-        fprintf(stderr,"sendto socket failed for tx specific\n");
+//g_print("new_protocol_transmit_specific: %s:%d\n",inet_ntoa(transmitter_addr.sin_addr),ntohs(transmitter_addr.sin_port));
+
+    if((rc=sendto(data_socket,transmit_specific_buffer,sizeof(transmit_specific_buffer),0,(struct sockaddr*)&transmitter_addr,transmitter_addr_length))<0) {
+        fprintf(stderr,"sendto socket failed for tx specific: %d\n",rc);
         exit(1);
+    }
+
+    if(rc!=sizeof(transmit_specific_buffer)) {
+      fprintf(stderr,"sendto socket for transmit_specific: %d rather than %ld",rc,sizeof(transmit_specific_buffer));
     }
 
     tx_specific_sequence++;
@@ -1210,6 +1240,7 @@ static void new_protocol_transmit_specific() {
 static void new_protocol_receive_specific() {
     int i;
     int ddc;
+    int rc;
 
     pthread_mutex_lock(&rx_spec_mutex);
     memset(receive_specific_buffer, 0, sizeof(receive_specific_buffer));
@@ -1286,10 +1317,15 @@ static void new_protocol_receive_specific() {
       receive_specific_buffer[7]=1; 						// enable  DDC0 but disable all others
     }
 
-//fprintf(stderr,"new_protocol_receive_specific: enable=%02X\n",receive_specific_buffer[7]);
-    if(sendto(data_socket,receive_specific_buffer,sizeof(receive_specific_buffer),0,(struct sockaddr*)&receiver_addr,receiver_addr_length)<0) {
-        fprintf(stderr,"sendto socket failed for start\n");
-        exit(1);
+//g_print("new_protocol_receive_specific: %s:%d enable=%02X\n",inet_ntoa(receiver_addr.sin_addr),ntohs(receiver_addr.sin_port),receive_specific_buffer[7]);
+
+    if((rc=sendto(data_socket,receive_specific_buffer,sizeof(receive_specific_buffer),0,(struct sockaddr*)&receiver_addr,receiver_addr_length))<0) {
+      fprintf(stderr,"sendto socket failed for receive_specific: %d\n",rc);
+      exit(1);
+    }
+ 
+    if(rc!=sizeof(receive_specific_buffer)) {
+      fprintf(stderr,"sendto socket for receive_specific: %d rather than %ld",rc,sizeof(receive_specific_buffer));
     }
 
     rx_specific_sequence++;
@@ -1342,66 +1378,10 @@ fprintf(stderr,"new_protocol_thread\n");
     micsamples=0;
     iqindex=4;
 
-
-/*
-    data_socket=socket(PF_INET,SOCK_DGRAM,IPPROTO_UDP);
-    if(data_socket<0) {
-        fprintf(stderr,"metis: create socket failed for data_socket\n");
-        exit(-1);
-    }
-
-    int optval = 1;
-    setsockopt(data_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
-    setsockopt(data_socket, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval));
-
-    // bind to the interface
-    if(bind(data_socket,(struct sockaddr*)&radio->info.network.interface_address,radio->info.network.interface_length)<0) {
-        fprintf(stderr,"metis: bind socket failed for data_socket\n");
-        exit(-1);
-    }
-
-fprintf(stderr,"new_protocol_thread: date_socket %d bound to interface\n");
-
-    memcpy(&base_addr,&radio->info.network.address,radio->info.network.address_length);
-    base_addr_length=radio->info.network.address_length;
-    base_addr.sin_port=htons(GENERAL_REGISTERS_FROM_HOST_PORT);
-
-    memcpy(&receiver_addr,&radio->info.network.address,radio->info.network.address_length);
-    receiver_addr_length=radio->info.network.address_length;
-    receiver_addr.sin_port=htons(RECEIVER_SPECIFIC_REGISTERS_FROM_HOST_PORT);
-
-    memcpy(&transmitter_addr,&radio->info.network.address,radio->info.network.address_length);
-    transmitter_addr_length=radio->info.network.address_length;
-    transmitter_addr.sin_port=htons(TRANSMITTER_SPECIFIC_REGISTERS_FROM_HOST_PORT);
-
-    memcpy(&high_priority_addr,&radio->info.network.address,radio->info.network.address_length);
-    high_priority_addr_length=radio->info.network.address_length;
-    high_priority_addr.sin_port=htons(HIGH_PRIORITY_FROM_HOST_PORT);
-
-fprintf(stderr,"new_protocol_thread: high_priority_addr setup for port %d\n",HIGH_PRIORITY_FROM_HOST_PORT);
-
-    memcpy(&audio_addr,&radio->info.network.address,radio->info.network.address_length);
-    audio_addr_length=radio->info.network.address_length;
-    audio_addr.sin_port=htons(AUDIO_FROM_HOST_PORT);
-
-    memcpy(&iq_addr,&radio->info.network.address,radio->info.network.address_length);
-    iq_addr_length=radio->info.network.address_length;
-    iq_addr.sin_port=htons(TX_IQ_FROM_HOST_PORT);
-
-   
-    for(i=0;i<MAX_DDC;i++) {
-        memcpy(&data_addr[i],&radio->info.network.address,radio->info.network.address_length);
-        data_addr_length[i]=radio->info.network.address_length;
-        data_addr[i].sin_port=htons(RX_IQ_TO_HOST_PORT_0+i);
-    }
-*/
     audioindex=4; // leave space for sequence
     audiosequence=0L;
 
     running=1;
-    new_protocol_general();
-    new_protocol_start();
-    new_protocol_high_priority();
 
     while(running) {
 
@@ -1412,7 +1392,9 @@ fprintf(stderr,"new_protocol_thread: high_priority_addr setup for port %d\n",HIG
             exit(-1);
         }
 
-        short sourceport=ntohs(addr.sin_port);
+        sourceport=ntohs(addr.sin_port);
+
+//g_print("new_protocol_thread: recvd %d bytes on port %d\n",bytesread,sourceport);
 
         switch(sourceport) {
             case RX_IQ_TO_HOST_PORT_0:
@@ -1424,7 +1406,7 @@ fprintf(stderr,"new_protocol_thread: high_priority_addr setup for port %d\n",HIG
             case RX_IQ_TO_HOST_PORT_6:
             case RX_IQ_TO_HOST_PORT_7:
               ddc=sourceport-RX_IQ_TO_HOST_PORT_0;
-//fprintf(stderr,"iq packet from port=%d ddc=%d\n",sourceport,ddc);
+//g_print("iq packet from port=%d ddc=%d\n",sourceport,ddc);
               if(ddc>=MAX_DDC)  {
                 fprintf(stderr,"unexpected iq data from ddc %d\n",ddc);
               } else {
@@ -1541,7 +1523,7 @@ fprintf(stderr,"mic_line_thread\n");
 }
 
 static gpointer iq_thread(gpointer data) {
-  int ddc=GPOINTER_TO_UINT(data);
+  int ddc=GPOINTER_TO_INT(data);
   long sequence;
   unsigned char *buffer;
   fprintf(stderr,"iq_thread: ddc=%d\n",ddc);
@@ -1607,7 +1589,7 @@ static void process_iq_data(unsigned char *buffer, RECEIVER *rx) {
   bitspersample=((buffer[12]&0xFF)<<8)+(buffer[13]&0xFF);
   samplesperframe=((buffer[14]&0xFF)<<8)+(buffer[15]&0xFF);
 
-//fprintf(stderr,"process_iq_data: rx=%d bitspersample=%d samplesperframe=%d\n",rx->id, bitspersample,samplesperframe);
+//g_print("process_iq_data: rx=%d bitspersample=%d samplesperframe=%d\n",rx->id, bitspersample,samplesperframe);
   b=16;
   int i;
   for(i=0;i<samplesperframe;i++) {

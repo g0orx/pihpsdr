@@ -41,6 +41,7 @@ struct frequency_info* info;
 // through the bottom
 //
 #define NOBAND -1
+#ifdef FREQUENCY_INFO
 struct frequency_info frequencyInfo[]=
     {
 
@@ -355,6 +356,57 @@ struct frequency_info frequencyInfo[]=
         
 
     };
+#else
+struct frequency_info frequencyInfo[]=
+    {
+
+        {     135700LL,      137800LL, "136kHz",                             band136, TRUE },
+        {     153000LL,      279000LL, "AM - Long Wave",                     bandGen, FALSE},
+        {     472000LL,      479000LL, "472kHz",                             band472, TRUE },
+        {     530000LL,     1710000LL, "Broadcast AM Med Wave",              bandGen, FALSE},
+        {    1800000LL,     1999999LL, "160M",                               band160, TRUE },
+        {    2300000LL,     2495000LL, "120M Short Wave",                    bandGen, FALSE},
+        {    2500000LL,     2500000LL, "WWV",                                bandWWV, FALSE},
+        {    3200000LL,     3400000LL, "90M Short Wave",                     bandGen, FALSE},
+        {    3500000LL,     3999999LL, "80M",                                band80,  TRUE },
+        {    4750000LL,     4999999LL, "60M Short Wave",                     bandGen, FALSE},
+        {    5000000LL,     5000000LL, "WWV",                                bandWWV, FALSE},
+        {    5261250LL,     5408000LL, "60M",                                band60,  TRUE },
+        {    5900000LL,     6200000LL, "49M Short Wave",                     bandGen, FALSE},
+        {    7000000LL,     7299999LL, "40M",                                band40,  TRUE },
+        {    7300000LL,     7350000LL, "41M Short Wave",                     bandGen, FALSE},
+        {    9400000LL,     9900000LL, "31M Short Wave",                     bandGen, FALSE},
+        {   10000000LL,    10000000LL, "WWV",                                bandWWV, FALSE},
+        {   10100000LL,    10149999LL, "30M",                                band30,  TRUE },
+        {   11600000LL,    12100000LL, "25M Short Wave",                     bandGen, FALSE},
+        {   13570000LL,    13870000LL, "22M Short Wave",                     bandGen, FALSE},
+        {   14000000LL,    14349999LL, "20M",                                band20,  TRUE },
+        {   15000000LL,    15000000LL, "WWV",                                bandWWV, FALSE},
+        {   15100000LL,    15800000LL, "19M Short Wave",                     bandGen, FALSE},
+        {   17480000LL,    17900000LL, "16M Short Wave",                     bandGen, FALSE},
+        {   18068000LL,    18167999LL, "17M",                                band17,  TRUE },
+        {   18900000LL,    19020000LL, "15M Short Wave",                     bandGen, FALSE},
+        {   20000000LL,    20000000LL, "WWV",                                bandWWV, FALSE},
+        {   21000000LL,    21449999LL, "15M",                                band15,  TRUE },
+        {   21450000LL,    21850000LL, "13M Short Wave",                     bandGen, FALSE},
+        {   24890000LL,    24989999LL, "12M",                                band12,  TRUE },
+        {   25600000LL,    26100000LL, "11M Short Wave",                     bandGen, FALSE},
+        {   28000000LL,    29699999LL, "10M",                                band10,  TRUE },
+        {   50000000LL,    53999999LL, "6M",                                 band6,   TRUE },
+        {  144000000LL,   147999999LL, "2M",                                 NOBAND,  TRUE },
+        {  222000000LL,   224979999LL, "125CM",                              NOBAND,  TRUE },
+        {  420000000LL,   449999999LL, "70CM",                               NOBAND,  TRUE },
+        {  902000000LL,   927999999LL, "33CM",                               NOBAND,  TRUE },
+        { 1240000000LL,  1299999999LL, "23CM",                               NOBAND,  TRUE },
+        { 2300000000LL,  2449999999LL, "13cm",                               NOBAND,  TRUE },
+        { 3456000000LL,  3456399999LL, "3.4GHz",                             NOBAND,  TRUE },
+        { 5760000000LL,  5760399999LL, "5.7GHz",                             NOBAND,  TRUE },
+        {10000000000LL, 10499999999LL, "10GHz",                              NOBAND,  TRUE },
+        {24192000000LL, 24192399999LL, "24GHz",                              NOBAND,  TRUE },
+        {47088000000LL, 47088399999LL, "47GHz",                              NOBAND,  TRUE },
+        {0LL,           0LL,           "",                                   0,       FALSE}
+    };
+#endif
 
 /* --------------------------------------------------------------------------*/
 /** 
@@ -420,7 +472,9 @@ char* getFrequencyInfo(long long frequency,int filter_low,int filter_high) {
         info++;
     }
 
-//fprintf(stderr,"info: %s tx=%d\n", info->info, info->transmit);
+if(info) {
+  g_print("getFrequencyInfo: %s tx=%d\n", info->info, info->transmit);
+}
 
     return result;
 }
@@ -450,6 +504,8 @@ int getBand(long long frequency) {
         info++;
     }
 
+
+g_print("getBand for %lld is %s (%d)\n",frequency,info->info,info->band);
     return result;
 }
 

@@ -964,7 +964,7 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
           }
 	}
 
-        if (!isTransmitting() && !diversity_enabled) {
+        if ((!isTransmitting() || duplex) && !diversity_enabled) {
 	  //
 	  // RX without DIVERSITY. Feed samples to RX1 and RX2
 	  //

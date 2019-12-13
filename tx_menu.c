@@ -265,7 +265,7 @@ void tx_menu(GtkWidget *parent) {
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (micin_b), mic_linein==0);
     gtk_widget_show(micin_b);
     gtk_grid_attach(GTK_GRID(grid),micin_b,col,row,1,1);
-    g_signal_connect(micin_b,"pressed",G_CALLBACK(micin_changed),NULL);
+    g_signal_connect(micin_b,"toggled",G_CALLBACK(micin_changed),NULL);
 
     col++;
 
@@ -273,7 +273,7 @@ void tx_menu(GtkWidget *parent) {
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (linein_b), mic_linein==1);
     gtk_widget_show(linein_b);
     gtk_grid_attach(GTK_GRID(grid),linein_b,col,row,1,1);
-    g_signal_connect(linein_b,"pressed",G_CALLBACK(linein_changed),NULL);
+    g_signal_connect(linein_b,"toggled",G_CALLBACK(linein_changed),NULL);
 
     row++;
     col=0;
@@ -366,7 +366,6 @@ void tx_menu(GtkWidget *parent) {
     if (i < 0) {
       gtk_combo_box_set_active(GTK_COMBO_BOX(input),0);
     }
-
 
     gtk_grid_attach(GTK_GRID(grid),input,col,row++,1,1);
     g_signal_connect(input,"changed",G_CALLBACK(local_input_changed_cb),NULL);

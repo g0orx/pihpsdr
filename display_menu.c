@@ -54,14 +54,18 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
   return FALSE;
 }
 
-static void detector_mode_cb(GtkWidget *widget, gpointer data) {
-  display_detector_mode=GPOINTER_TO_UINT(data);
-  SetDisplayDetectorMode(active_receiver->id, 0, display_detector_mode);
+static void detector_mode_cb(GtkToggleButton *widget, gpointer data) {
+  if(gtk_toggle_button_get_active(widget)) {
+    display_detector_mode=GPOINTER_TO_UINT(data);
+    SetDisplayDetectorMode(active_receiver->id, 0, display_detector_mode);
+  }
 }
 
-static void average_mode_cb(GtkWidget *widget, gpointer data) {
-  display_average_mode=GPOINTER_TO_UINT(data);
-  SetDisplayAverageMode(active_receiver->id, 0, display_average_mode);
+static void average_mode_cb(GtkToggleButton *widget, gpointer data) {
+  if(gtk_toggle_button_get_active(widget)) {
+    display_average_mode=GPOINTER_TO_UINT(data);
+    SetDisplayAverageMode(active_receiver->id, 0, display_average_mode);
+  }
 }
 
 static void time_value_changed_cb(GtkWidget *widget, gpointer data) {
@@ -299,7 +303,7 @@ void display_menu(GtkWidget *parent) {
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (detector_mode_peak), display_detector_mode==DETECTOR_MODE_PEAK);
   gtk_widget_show(detector_mode_peak);
   gtk_grid_attach(GTK_GRID(grid),detector_mode_peak,col,row,1,1);
-  g_signal_connect(detector_mode_peak,"pressed",G_CALLBACK(detector_mode_cb),(gpointer *)DETECTOR_MODE_PEAK);
+  g_signal_connect(detector_mode_peak,"toggled",G_CALLBACK(detector_mode_cb),(gpointer *)DETECTOR_MODE_PEAK);
 
   row++;
 
@@ -307,7 +311,7 @@ void display_menu(GtkWidget *parent) {
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (detector_mode_rosenfell), display_detector_mode==DETECTOR_MODE_ROSENFELL);
   gtk_widget_show(detector_mode_rosenfell);
   gtk_grid_attach(GTK_GRID(grid),detector_mode_rosenfell,col,row,1,1);
-  g_signal_connect(detector_mode_rosenfell,"pressed",G_CALLBACK(detector_mode_cb),(gpointer *)DETECTOR_MODE_ROSENFELL);
+  g_signal_connect(detector_mode_rosenfell,"toggled",G_CALLBACK(detector_mode_cb),(gpointer *)DETECTOR_MODE_ROSENFELL);
 
   row++;
 
@@ -315,7 +319,7 @@ void display_menu(GtkWidget *parent) {
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (detector_mode_average), display_detector_mode==DETECTOR_MODE_AVERAGE);
   gtk_widget_show(detector_mode_average);
   gtk_grid_attach(GTK_GRID(grid),detector_mode_average,col,row,1,1);
-  g_signal_connect(detector_mode_average,"pressed",G_CALLBACK(detector_mode_cb),(gpointer *)DETECTOR_MODE_AVERAGE);
+  g_signal_connect(detector_mode_average,"toggled",G_CALLBACK(detector_mode_cb),(gpointer *)DETECTOR_MODE_AVERAGE);
 
   row++;
 
@@ -323,7 +327,7 @@ void display_menu(GtkWidget *parent) {
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (detector_mode_sample), display_detector_mode==DETECTOR_MODE_SAMPLE);
   gtk_widget_show(detector_mode_sample);
   gtk_grid_attach(GTK_GRID(grid),detector_mode_sample,col,row,1,1);
-  g_signal_connect(detector_mode_sample,"pressed",G_CALLBACK(detector_mode_cb),(gpointer *)DETECTOR_MODE_SAMPLE);
+  g_signal_connect(detector_mode_sample,"toggled",G_CALLBACK(detector_mode_cb),(gpointer *)DETECTOR_MODE_SAMPLE);
 
 
   col=3;
@@ -340,7 +344,7 @@ void display_menu(GtkWidget *parent) {
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (average_mode_none), display_detector_mode==AVERAGE_MODE_NONE);
   gtk_widget_show(average_mode_none);
   gtk_grid_attach(GTK_GRID(grid),average_mode_none,col,row,1,1);
-  g_signal_connect(average_mode_none,"pressed",G_CALLBACK(average_mode_cb),(gpointer *)AVERAGE_MODE_NONE);
+  g_signal_connect(average_mode_none,"toggled",G_CALLBACK(average_mode_cb),(gpointer *)AVERAGE_MODE_NONE);
 
   row++;
 
@@ -348,7 +352,7 @@ void display_menu(GtkWidget *parent) {
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (average_mode_recursive), display_average_mode==AVERAGE_MODE_RECURSIVE);
   gtk_widget_show(average_mode_recursive);
   gtk_grid_attach(GTK_GRID(grid),average_mode_recursive,col,row,1,1);
-  g_signal_connect(average_mode_recursive,"pressed",G_CALLBACK(average_mode_cb),(gpointer *)AVERAGE_MODE_RECURSIVE);
+  g_signal_connect(average_mode_recursive,"toggled",G_CALLBACK(average_mode_cb),(gpointer *)AVERAGE_MODE_RECURSIVE);
 
   row++;
 
@@ -356,7 +360,7 @@ void display_menu(GtkWidget *parent) {
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (average_mode_time_window), display_average_mode==AVERAGE_MODE_TIME_WINDOW);
   gtk_widget_show(average_mode_time_window);
   gtk_grid_attach(GTK_GRID(grid),average_mode_time_window,col,row,1,1);
-  g_signal_connect(average_mode_time_window,"pressed",G_CALLBACK(average_mode_cb),(gpointer *)AVERAGE_MODE_TIME_WINDOW);
+  g_signal_connect(average_mode_time_window,"toggled",G_CALLBACK(average_mode_cb),(gpointer *)AVERAGE_MODE_TIME_WINDOW);
 
   row++;
 
@@ -364,7 +368,7 @@ void display_menu(GtkWidget *parent) {
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (average_mode_log_recursive), display_average_mode==AVERAGE_MODE_LOG_RECURSIVE);
   gtk_widget_show(average_mode_log_recursive);
   gtk_grid_attach(GTK_GRID(grid),average_mode_log_recursive,col,row,1,1);
-  g_signal_connect(average_mode_log_recursive,"pressed",G_CALLBACK(average_mode_cb),(gpointer *)AVERAGE_MODE_LOG_RECURSIVE);
+  g_signal_connect(average_mode_log_recursive,"toggled",G_CALLBACK(average_mode_cb),(gpointer *)AVERAGE_MODE_LOG_RECURSIVE);
 
   row++;
 

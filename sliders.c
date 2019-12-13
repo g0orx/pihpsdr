@@ -827,7 +827,7 @@ fprintf(stderr,"sliders_init: width=%d height=%d\n", width,height);
     gtk_widget_override_font(mic_gain_label, pango_font_description_from_string("Sans 10"));
     gtk_grid_attach(GTK_GRID(sliders),mic_gain_label,0,1,1,1);
 
-    mic_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,mic_linein?0.0:1.0,mic_linein?31.0:100.0, 1.0);
+    mic_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,mic_linein?0.0:-12.0,mic_linein?31.0:50.0, 1.0);
     gtk_widget_override_font(mic_gain_scale, pango_font_description_from_string("Sans 10"));
     gtk_range_set_value (GTK_RANGE(mic_gain_scale),mic_linein?linein_gain:mic_gain);
     gtk_grid_attach(GTK_GRID(sliders),mic_gain_scale,1,1,2,1);

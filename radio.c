@@ -666,8 +666,8 @@ void start_radio() {
 #ifdef SOAPYSDR
   if(radio->device==SOAPYSDR_USB_DEVICE) {
     iqswap=1;
+    receivers=1;
   }
-  receivers=1;
 #endif
 
   adc_attenuation[0]=0;
@@ -840,7 +840,10 @@ void start_radio() {
     if(duplex) {
       transmitter=create_transmitter(CHANNEL_TX, buffer_size, fft_size, updates_per_second, display_width/4, display_height/2);
     } else {
-      transmitter=create_transmitter(CHANNEL_TX, buffer_size, fft_size, updates_per_second, display_width, PANADAPTER_HEIGHT);
+      int tx_height=display_height-VFO_HEIGHT;
+      if(display_sliders) tx_height-=SLIDERS_HEIGHT;
+      if(display_toolbar) tx_height-=TOOLBAR_HEIGHT;
+      transmitter=create_transmitter(CHANNEL_TX, buffer_size, fft_size, updates_per_second, display_width, tx_height);
     }
     transmitter->x=0;
     transmitter->y=VFO_HEIGHT;
@@ -1354,9 +1357,8 @@ int isTransmitting() {
 }
 
 void setFrequency(long long f) {
-  BAND *band=band_get_current_band();
-  BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
   int v=active_receiver->id;
+  vfo[v].band=get_band_from_frequency(f);
 
   switch(protocol) {
     case NEW_PROTOCOL:
@@ -1369,11 +1371,11 @@ void setFrequency(long long f) {
         long long maxf=vfo[v].frequency+(long long)(active_receiver->sample_rate/2);
         if(f<minf) f=minf;
         if(f>maxf) f=maxf;
+        vfo[v].ctun_frequency=f;
         vfo[v].offset=f-vfo[v].frequency;
         set_offset(active_receiver,vfo[v].offset);
         return;
       } else {
-        //entry->frequency=f;
         vfo[v].frequency=f;
       }
       break;

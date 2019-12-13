@@ -52,16 +52,20 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
   return FALSE;
 }
 
-static void smeter_select_cb (GtkWidget *widget, gpointer        data) {
-  smeter=GPOINTER_TO_UINT(data);
+static void smeter_select_cb (GtkToggleButton *widget, gpointer        data) {
+  if(gtk_toggle_button_get_active(widget)) {
+    smeter=GPOINTER_TO_UINT(data);
+  }
 }
 
-static void alc_meter_select_cb (GtkWidget *widget, gpointer        data) {
+static void alc_meter_select_cb (GtkToggleButton *widget, gpointer        data) {
   alc=GPOINTER_TO_UINT(data);
 }
 
-static void analog_cb(GtkWidget *widget, gpointer data) {
-  analog_meter=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+static void analog_cb(GtkToggleButton *widget, gpointer data) {
+  if(gtk_toggle_button_get_active(widget)) {
+    analog_meter=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+  }
 }
 
 
@@ -100,31 +104,31 @@ void meter_menu (GtkWidget *parent) {
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (smeter_peak), smeter==RXA_S_PK);
   gtk_widget_show(smeter_peak);
   gtk_grid_attach(GTK_GRID(grid),smeter_peak,0,1,1,1);
-  g_signal_connect(smeter_peak,"pressed",G_CALLBACK(smeter_select_cb),(gpointer)(long)RXA_S_PK);
+  g_signal_connect(smeter_peak,"toggled",G_CALLBACK(smeter_select_cb),(gpointer)(long)RXA_S_PK);
 
   GtkWidget *smeter_average=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(smeter_peak),"S Meter Average");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (smeter_average), smeter==RXA_S_AV);
   gtk_widget_show(smeter_average);
   gtk_grid_attach(GTK_GRID(grid),smeter_average,0,2,1,1);
-  g_signal_connect(smeter_average,"pressed",G_CALLBACK(smeter_select_cb),(gpointer)(long)RXA_S_AV);
+  g_signal_connect(smeter_average,"toggled",G_CALLBACK(smeter_select_cb),(gpointer)(long)RXA_S_AV);
 
   GtkWidget *alc_peak=gtk_radio_button_new_with_label(NULL,"ALC Peak");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (alc_peak), alc==TXA_ALC_PK);
   gtk_widget_show(alc_peak);
   gtk_grid_attach(GTK_GRID(grid),alc_peak,1,1,1,1);
-  g_signal_connect(alc_peak,"pressed",G_CALLBACK(alc_meter_select_cb),(gpointer)(long)TXA_ALC_PK);
+  g_signal_connect(alc_peak,"toggled",G_CALLBACK(alc_meter_select_cb),(gpointer)(long)TXA_ALC_PK);
 
   GtkWidget *alc_average=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(alc_peak),"ALC Average");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (alc_average), alc==TXA_ALC_AV);
   gtk_widget_show(alc_average);
   gtk_grid_attach(GTK_GRID(grid),alc_average,1,2,1,1);
-  g_signal_connect(alc_average,"pressed",G_CALLBACK(alc_meter_select_cb),(gpointer)(long)TXA_ALC_AV);
+  g_signal_connect(alc_average,"toggled",G_CALLBACK(alc_meter_select_cb),(gpointer)(long)TXA_ALC_AV);
 
-  GtkWidget *alc_gain=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(alc_average),"ALC Gain");
+  GtkWidget *alc_gain=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(alc_peak),"ALC Gain");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (alc_gain), alc==TXA_ALC_GAIN);
   gtk_widget_show(alc_gain);
   gtk_grid_attach(GTK_GRID(grid),alc_gain,1,3,1,1);
-  g_signal_connect(alc_gain,"pressed",G_CALLBACK(alc_meter_select_cb),(gpointer)(long)TXA_ALC_GAIN);
+  g_signal_connect(alc_gain,"toggled",G_CALLBACK(alc_meter_select_cb),(gpointer)(long)TXA_ALC_GAIN);
 
   gtk_container_add(GTK_CONTAINER(content),grid);
 

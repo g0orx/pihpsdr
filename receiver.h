@@ -36,6 +36,7 @@ typedef enum _audio_t audio_t;
 
 typedef struct _receiver {
   gint id;
+  GMutex mutex;
 
   gint ddc;
   gint adc;
@@ -59,7 +60,7 @@ typedef struct _receiver {
   gdouble *iq_input_buffer;
   gdouble *audio_output_buffer;
   gint audio_buffer_size;
-  guchar *audio_buffer;
+  //guchar *audio_buffer;
   gint audio_index;
   guint32 audio_sequence;
   gfloat *pixel_samples;

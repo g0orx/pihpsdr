@@ -153,7 +153,7 @@ fprintf(stderr,"soapy_protocol_start_receiver: activate_stream rate=%f\n",rate);
   }
 
 fprintf(stderr,"soapy_protocol_start_receiver: create receive_thread\n");
-  receive_thread_id = g_thread_new( "rx_thread", receive_thread, rx);
+  receive_thread_id = g_thread_new( "soapy_rx", receive_thread, rx);
   if( ! receive_thread_id )
   {
     fprintf(stderr,"g_thread_new failed for receive_thread\n");
