@@ -92,7 +92,7 @@ static void sample_rate_cb(GtkToggleButton *widget,gpointer data) {
   }
 }
 
-static void adc_cb(GtkToggleButton *widget,GdkEvent *event,gpointer data) {
+static void adc_cb(GtkToggleButton *widget,gpointer data) {
   if(gtk_toggle_button_get_active(widget)) {
     receiver_change_adc(active_receiver,GPOINTER_TO_INT(data));
   }
