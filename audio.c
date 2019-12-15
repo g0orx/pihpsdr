@@ -248,7 +248,7 @@ g_print("audio_open_input: mic_buffer: size=%d channels=%d sample=%ld bytes\n",m
   }
 
 g_print("audio_open_input: allocating ring buffer\n");
-  mic_ring_buffer=(float *) malloc(MICRINGLEN * sizeof(float));
+  mic_ring_buffer=(float *) g_new(float,MICRINGLEN);
   mic_ring_read_pt = mic_ring_write_pt=0;
   if (mic_ring_buffer == NULL) {
     return -1;
@@ -598,7 +598,7 @@ g_print("audio_get_cards\n");
       // input devices
       snd_pcm_info_set_stream(pcminfo, SND_PCM_STREAM_CAPTURE);
       if ((err = snd_ctl_pcm_info(handle, pcminfo)) == 0) {
-        device_id=malloc(128);
+        device_id=g_new(char,128);
         snprintf(device_id, 128, "plughw:%d,%d %s", card, dev, snd_ctl_card_info_get_name(info));
         if(n_input_devices<MAX_AUDIO_DEVICES) {
           input_devices[n_input_devices].name=g_new0(char,strlen(device_id)+1);
@@ -609,12 +609,13 @@ g_print("audio_get_cards\n");
           n_input_devices++;
 g_print("input_device: %s\n",device_id);
         }
+	g_free(device_id);
       }
 
       // ouput devices
       snd_pcm_info_set_stream(pcminfo, SND_PCM_STREAM_PLAYBACK);
       if ((err = snd_ctl_pcm_info(handle, pcminfo)) == 0) {
-        device_id=malloc(128);
+        device_id=g_new(char,128);
         snprintf(device_id, 128, "plughw:%d,%d %s", card, dev, snd_ctl_card_info_get_name(info));
         if(n_output_devices<MAX_AUDIO_DEVICES) {
           output_devices[n_output_devices].name=g_new0(char,strlen(device_id)+1);
@@ -625,6 +626,7 @@ g_print("input_device: %s\n",device_id);
           n_output_devices++;
 g_print("output_device: %s\n",device_id);
         }
+	g_free(device_id);
       }
     }
     snd_ctl_close(handle);

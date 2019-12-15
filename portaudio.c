@@ -179,7 +179,7 @@ int audio_open_input()
     return -1;
   }
 
-  mic_ring_buffer=(float *) malloc(MICRINGLEN * sizeof(float));
+  mic_ring_buffer=(float *) g_new(float,MICRINGLEN);
   mic_ring_read_pt = mic_ring_write_pt=0;
   if (mic_ring_buffer == NULL) {
     return -1;
@@ -207,7 +207,7 @@ int pa_mic_cb(const void *inputBuffer, void *outputBuffer, unsigned long framesP
 
   if (in == NULL) {
     // This should not happen, so we do not send silence etc.
-    g_print("PortAudio error: bogus audio buffer in callback\n");
+    fprintf(stderr,"PortAudio error: bogus audio buffer in callback\n");
     return paContinue;
   }
   //
@@ -311,13 +311,13 @@ int audio_open_output(RECEIVER *rx)
 
   // Do not use call-back function, just stream it
 
-  rx->local_audio_buffer=malloc(BUFFER_SIZE*sizeof(float));
+  rx->local_audio_buffer=g_new(float,BUFFER_SIZE);
   rx->local_audio_buffer_offset=0;
   err = Pa_OpenStream(&(rx->playback_handle), NULL, &outputParameters, 48000.0, framesPerBuffer, paNoFlag, NULL, NULL);
   if (err != paNoError) {
     fprintf(stderr,"PORTAUDIO ERROR: out open stream: %s\n",Pa_GetErrorText(err));
     rx->playback_handle = NULL;
-    if (rx->local_audio_buffer) free(rx->local_audio_buffer);
+    if (rx->local_audio_buffer) g_free(rx->local_audio_buffer);
     rx->local_audio_buffer = NULL;
     return -1;
   }
@@ -326,7 +326,7 @@ int audio_open_output(RECEIVER *rx)
   if (err != paNoError) {
     fprintf(stderr,"PORTAUDIO ERROR: out start stream:%s\n",Pa_GetErrorText(err));
     rx->playback_handle=NULL;
-    if (rx->local_audio_buffer) free(rx->local_audio_buffer);
+    if (rx->local_audio_buffer) g_free(rx->local_audio_buffer);
     rx->local_audio_buffer = NULL;
     return -1;
   }
@@ -360,7 +360,7 @@ void audio_close_input()
     record_handle=NULL;
   }
   if (mic_ring_buffer != NULL) {
-    free(mic_ring_buffer);
+    g_free(mic_ring_buffer);
     mic_ring_buffer=NULL;
   }
 }
@@ -377,7 +377,7 @@ void audio_close_output(RECEIVER *rx) {
 
 // free the buffer first, this then indicates to audio_write to do nothing
   if(rx->local_audio_buffer!=NULL) {
-    free(rx->local_audio_buffer);
+    g_free(rx->local_audio_buffer);
     rx->local_audio_buffer=NULL;
   }
 
