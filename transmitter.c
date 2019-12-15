@@ -148,12 +148,10 @@ g_print("reconfigure_transmitter: width=%d height=%d\n",width,height);
     tx->width=width;
     tx->height=height; 
     int ratio=tx->iq_output_rate/tx->mic_sample_rate;
-/*
-    tx->pixels=width*ratio*4;
+    tx->pixels=display_width*ratio*2;
     g_free(tx->pixel_samples);
     tx->pixel_samples=g_new(float,tx->pixels);
     init_analyzer(tx);
-*/
   }
   gtk_widget_set_size_request(tx->panadapter, width, height);
 }
@@ -410,102 +408,114 @@ static gboolean update_display(gpointer data) {
     double constant1=3.3;
     double constant2=0.095;
 
-    if(protocol==ORIGINAL_PROTOCOL) {
-      switch(device) {
-        case DEVICE_METIS:
-          constant1=3.3;
-          constant2=0.09;
-          break;
-        case DEVICE_HERMES:
-        case DEVICE_STEMLAB:
-          constant1=3.3;
-          constant2=0.095;
-          break;
-        case DEVICE_ANGELIA:
-          constant1=3.3;
-          constant2=0.095;
-          break;
-        case DEVICE_ORION:
-          constant1=5.0;
-          constant2=0.108;
-          break;
-        case DEVICE_ORION2:
-          constant1=5.0;
-          constant2=0.108;
-          break;
-        case DEVICE_HERMES_LITE:
-          break;
-      }
+    int power;
+    double v1;
 
-      int power=alex_forward_power;
-      if(power==0) {
-        power=exciter_power;
-      }
-      double v1;
-      v1=((double)power/4095.0)*constant1;
-      transmitter->fwd=(v1*v1)/constant2;
+    switch(protocol) {
+      case ORIGINAL_PROTOCOL:
+        switch(device) {
+          case DEVICE_METIS:
+            constant1=3.3;
+            constant2=0.09;
+            break;
+          case DEVICE_HERMES:
+          case DEVICE_STEMLAB:
+            constant1=3.3;
+            constant2=0.095;
+            break;
+          case DEVICE_ANGELIA:
+            constant1=3.3;
+            constant2=0.095;
+            break;
+          case DEVICE_ORION:
+            constant1=5.0;
+            constant2=0.108;
+            break;
+          case DEVICE_ORION2:
+            constant1=5.0;
+            constant2=0.108;
+            break;
+          case DEVICE_HERMES_LITE:
+            break;
+        }
 
-      power=exciter_power;
-      v1=((double)power/4095.0)*constant1;
-      transmitter->exciter=(v1*v1)/constant2;
-
-      transmitter->rev=0.0;
-      if(alex_forward_power!=0) {
-        power=alex_reverse_power;
+        power=alex_forward_power;
+        if(power==0) {
+          power=exciter_power;
+        }
         v1=((double)power/4095.0)*constant1;
-        transmitter->rev=(v1*v1)/constant2;
-      }
-    } else {
-      switch(device) {
-        case NEW_DEVICE_ATLAS:
-          constant1=3.3;
-          constant2=0.09;
-          break;
-        case NEW_DEVICE_HERMES:
-          constant1=3.3;
-          constant2=0.09;
-          break;
-        case NEW_DEVICE_HERMES2:
-          constant1=3.3;
-          constant2=0.095;
-          break;
-        case NEW_DEVICE_ANGELIA:
-          constant1=3.3;
-          constant2=0.095;
-          break;
-        case NEW_DEVICE_ORION:
-          constant1=5.0;
-          constant2=0.108;
-          break;
-        case NEW_DEVICE_ORION2:
-          constant1=5.0;
-          constant2=0.108;
-          break;
-        case NEW_DEVICE_HERMES_LITE:
-          constant1=3.3;
-          constant2=0.09;
-          break;
-      }
+        transmitter->fwd=(v1*v1)/constant2;
 
-      int power=alex_forward_power;
-      if(power==0) {
         power=exciter_power;
-      }
-      double v1;
-      v1=((double)power/4095.0)*constant1;
-      transmitter->fwd=(v1*v1)/constant2;
-
-      power=exciter_power;
-      v1=((double)power/4095.0)*constant1;
-      transmitter->exciter=(v1*v1)/constant2;
-
-      transmitter->rev=0.0;
-      if(alex_forward_power!=0) {
-        power=alex_reverse_power;
         v1=((double)power/4095.0)*constant1;
-        transmitter->rev=(v1*v1)/constant2;
-      }
-    } 
+        transmitter->exciter=(v1*v1)/constant2;
+
+        transmitter->rev=0.0;
+        if(alex_forward_power!=0) {
+          power=alex_reverse_power;
+          v1=((double)power/4095.0)*constant1;
+          transmitter->rev=(v1*v1)/constant2;
+        }
+        break;
+      case NEW_PROTOCOL:
+        switch(device) {
+          case NEW_DEVICE_ATLAS:
+            constant1=3.3;
+            constant2=0.09;
+            break;
+          case NEW_DEVICE_HERMES:
+            constant1=3.3;
+            constant2=0.09;
+            break;
+          case NEW_DEVICE_HERMES2:
+            constant1=3.3;
+            constant2=0.095;
+            break;
+          case NEW_DEVICE_ANGELIA:
+            constant1=3.3;
+            constant2=0.095;
+            break;
+          case NEW_DEVICE_ORION:
+            constant1=5.0;
+            constant2=0.108;
+            break;
+          case NEW_DEVICE_ORION2:
+            constant1=5.0;
+            constant2=0.108;
+            break;
+          case NEW_DEVICE_HERMES_LITE:
+            constant1=3.3;
+            constant2=0.09;
+            break;
+        }
+
+        power=alex_forward_power;
+        if(power==0) {
+          power=exciter_power;
+        }
+        v1=((double)power/4095.0)*constant1;
+        transmitter->fwd=(v1*v1)/constant2;
+
+        power=exciter_power;
+        v1=((double)power/4095.0)*constant1;
+        transmitter->exciter=(v1*v1)/constant2;
+
+        transmitter->rev=0.0;
+        if(alex_forward_power!=0) {
+          power=alex_reverse_power;
+          v1=((double)power/4095.0)*constant1;
+          transmitter->rev=(v1*v1)/constant2;
+        }
+        break;
+
+#ifdef SOAPY_SDR
+      case SOAPY_PROTOCOL:
+        transmitter->fwd=0.0;
+        transmitter->exciter=0.0;
+        transmitter->rev=0.0;
+        break;
+#endif
+    }
 
     if(!duplex) {
       meter_update(active_receiver,POWER,transmitter->fwd,transmitter->rev,transmitter->exciter,transmitter->alc);
@@ -578,6 +588,9 @@ g_print("create_dialog\n");
 g_print("create_dialog: add tx->panel\n");
   gtk_widget_set_size_request (tx->panel, display_width/4, display_height/2);
   gtk_container_add(GTK_CONTAINER(content),tx->panel);
+
+  gtk_widget_add_events(tx->dialog, GDK_KEY_PRESS_MASK);
+  g_signal_connect(tx->dialog, "key_press_event", G_CALLBACK(keypress_cb), NULL);
 }
 
 static void create_visual(TRANSMITTER *tx) {

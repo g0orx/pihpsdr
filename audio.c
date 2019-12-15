@@ -177,6 +177,8 @@ int audio_open_input() {
 
 g_print("audio_open_input: %s\n",transmitter->microphone_name);
   
+  mic_buffer_size = 256;
+/*
   switch(protocol) {
     case ORIGINAL_PROTOCOL:
       mic_buffer_size = 720;
@@ -192,6 +194,7 @@ g_print("audio_open_input: %s\n",transmitter->microphone_name);
     default:
       break;
   }
+*/
   
   g_print("audio_open_input: mic_buffer_size=%d\n",mic_buffer_size);
   i=0;
@@ -256,7 +259,7 @@ g_print("audio_open_input: allocating ring buffer\n");
 
 g_print("audio_open_input: creating mic_read_thread\n");
   GError *error;
-  mic_read_thread_id = g_thread_try_new("local mic",mic_read_thread,NULL,&error);
+  mic_read_thread_id = g_thread_try_new("microphone",mic_read_thread,NULL,&error);
   if(!mic_read_thread_id ) {
     g_print("g_thread_new failed on mic_read_thread: %s\n",error->message);
   }

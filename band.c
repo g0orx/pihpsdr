@@ -647,5 +647,6 @@ int get_band_from_frequency(long long f) {
       }
     }
   }
+g_print("get_band_from_frequency: %lld id %d\n",f,found);
   return found;
 }

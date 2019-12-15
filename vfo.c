@@ -579,7 +579,9 @@ void vfo_step(int steps) {
         } else {
           vfo[sid].frequency      += delta;
         }
-        receiver_frequency_changed(other_receiver);
+        if(receivers==2) {
+          receiver_frequency_changed(other_receiver);
+        }
         break;
       case RSAT_MODE:
         // A increments and B decrements or A decrments and B increments
@@ -588,7 +590,9 @@ void vfo_step(int steps) {
         } else {
           vfo[sid].frequency      -= delta;
         }
-        receiver_frequency_changed(other_receiver);
+        if(receivers==2) {
+          receiver_frequency_changed(other_receiver);
+        }
         break;
     }
     receiver_frequency_changed(active_receiver);
@@ -629,7 +633,9 @@ void vfo_id_step(int id, int steps) {
         } else {
           vfo[sid].frequency      += delta;
         }
-        receiver_frequency_changed(other_receiver);
+        if(receivers==2) {
+          receiver_frequency_changed(other_receiver);
+        }
         break;
       case RSAT_MODE:
         // A increments and B decrements or A decrments and B increments
@@ -638,7 +644,9 @@ void vfo_id_step(int id, int steps) {
         } else {
           vfo[sid].frequency      -= delta;
         }
-        receiver_frequency_changed(other_receiver);
+        if(receivers==2) {
+          receiver_frequency_changed(other_receiver);
+        }
         break;
     }
 
@@ -683,7 +691,9 @@ void vfo_move(long long hz,int round) {
         } else {
           vfo[sid].frequency      += delta;
         }
-        receiver_frequency_changed(other_receiver);
+        if(receivers==2) {
+          receiver_frequency_changed(other_receiver);
+        }
         break;
       case RSAT_MODE:
         // A increments and B decrements or A decrments and B increments
@@ -692,7 +702,9 @@ void vfo_move(long long hz,int round) {
         } else {
           vfo[sid].frequency      -= delta;
         }
-        receiver_frequency_changed(other_receiver);
+        if(receivers==2) {
+          receiver_frequency_changed(other_receiver);
+        }
         break;
     }
     receiver_frequency_changed(active_receiver);
@@ -749,7 +761,9 @@ void vfo_move_to(long long hz) {
         } else {
           vfo[sid].frequency      += delta;
         }
-        receiver_frequency_changed(other_receiver);
+        if(receivers==2) {
+          receiver_frequency_changed(other_receiver);
+        }
         break;
       case RSAT_MODE:
         // A increments and B decrements or A decrements and B increments
@@ -758,7 +772,9 @@ void vfo_move_to(long long hz) {
         } else {
           vfo[sid].frequency      -= delta;
         }
-        receiver_frequency_changed(other_receiver);
+        if(receivers==2) {
+          receiver_frequency_changed(other_receiver);
+        }
         break;
     }
 

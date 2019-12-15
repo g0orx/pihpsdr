@@ -30,4 +30,5 @@ extern GtkWidget *top_window;
 extern GtkWidget *grid;
 extern void status_text(char *text);
 
+extern gboolean keypress_cb(GtkWidget *widget, GdkEventKey *event, gpointer data);
 #endif

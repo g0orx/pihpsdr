@@ -446,7 +446,7 @@ static int vfo_function_released(void *data) {
 
 static int e_function_pressed(void *data) {
   int action=(int)data;
-fprintf(stderr,"e_function_pressed: %d\n",action);
+//g_print("e_function_pressed: %d\n",action);
   switch(action) {
     case TUNE:
       if(can_transmit) g_idle_add(ext_tune_update,NULL);
@@ -765,7 +765,6 @@ static void moxAlert() {
 static unsigned long vfo_debounce=0;
 
 static void vfoFunctionAlert() {
-    int t=millis();
     if(t-vfo_debounce > settle_time) {
       int level=digitalRead(VFO_FUNCTION);
       if(level==0) {
@@ -778,49 +777,20 @@ static void vfoFunctionAlert() {
 }
 #endif
 
-static void vfoEncoderInt(int A_or_B) {
-    static int vfoA=1, vfoB=1;
-    int levelA=digitalRead(VFO_ENCODER_A);
-    int levelB=digitalRead(VFO_ENCODER_B);
+static void vfoEncoderInt() {
+  static int vfoA=1;
+  int levelA=digitalRead(VFO_ENCODER_A);
+  int levelB=digitalRead(VFO_ENCODER_B);
 
   if(levelA!=vfoA) {
     if(levelA==levelB) ++vfoEncoderPos;
     if(levelA!=levelB) --vfoEncoderPos;
     vfoA=levelA;
   }
-/*
-  if(levelA!=e2CurrentA) {
-    if(levelA==levelB) ++e2EncoderPos;
-    if(levelA!=levelB) --e2EncoderPos;
-    e2CurrentA=levelA;
-  }
-
-    if(vfo_A==switch_A && vfo_B==switch_B) {
-      return; // same as last
-    }
-    vfo_A=switch_A;
-    vfo_B=switch_B;
-    if(switch_A && switch_B) {
-      if(A_or_B==VFO_ENCODER_B) {
-        vfoEncoderPos--;
-      } else {
-        vfoEncoderPos++;
-      }
-    }
-*/
 }
 
-static void vfoEncoderA() {
-    vfoEncoderInt(VFO_ENCODER_A);
-}
-
-static void vfoEncoderB() {
-    vfoEncoderInt(VFO_ENCODER_B);
-}
-
-static void e2EncoderInterrupt(int gpio) {
-  static int e2CurrentA=1, e2CurrentB=1;
-
+static void e2EncoderInt() {
+  static int e2CurrentA=1;
   int levelA=digitalRead(E2_ENCODER_A);
   int levelB=digitalRead(E2_ENCODER_B);
 
@@ -831,18 +801,9 @@ static void e2EncoderInterrupt(int gpio) {
   }
 }
 
-static void e2EncoderA() {
-  e2EncoderInterrupt(E2_ENCODER_A);
-}
-
-static void e2EncoderB() {
-  e2EncoderInterrupt(E2_ENCODER_B);
-}
-
 #if defined (CONTROLLER2_V2)
-static void e2TopEncoderInterrupt(int gpio) {
-  static int e2TopCurrentA=1, e2TopCurrentB=1;
-
+static void e2TopEncoderInt() {
+  static int e2TopCurrentA=1;
   int levelA=digitalRead(E2_TOP_ENCODER_A);
   int levelB=digitalRead(E2_TOP_ENCODER_B);
 
@@ -852,19 +813,10 @@ static void e2TopEncoderInterrupt(int gpio) {
     e2TopCurrentA=levelA;
   }
 }
-
-static void e2TopEncoderA() {
-  e2TopEncoderInterrupt(E2_TOP_ENCODER_A);
-}
-
-static void e2TopEncoderB() {
-  e2TopEncoderInterrupt(E2_TOP_ENCODER_B);
-}
 #endif
 
-static void e3EncoderInterrupt(int gpio) {
-  static int e3CurrentA=1, e3CurrentB=1;
-
+static void e3EncoderInt() {
+  static int e3CurrentA=1;
   int levelA=digitalRead(E3_ENCODER_A);
   int levelB=digitalRead(E3_ENCODER_B);
 
@@ -875,18 +827,9 @@ static void e3EncoderInterrupt(int gpio) {
   }
 }
 
-static void e3EncoderA() {
-  e3EncoderInterrupt(E3_ENCODER_A);
-}
-
-static void e3EncoderB() {
-  e3EncoderInterrupt(E3_ENCODER_B);
-}
-
 #if defined (CONTROLLER2_V2)
-static void e3TopEncoderInterrupt(int gpio) {
-  static int e3TopCurrentA=1, e3TopCurrentB=1;
-
+static void e3TopEncoderInt() {
+  static int e3TopCurrentA=1;
   int levelA=digitalRead(E3_TOP_ENCODER_A);
   int levelB=digitalRead(E3_TOP_ENCODER_B);
 
@@ -897,19 +840,10 @@ static void e3TopEncoderInterrupt(int gpio) {
     e3TopCurrentA=levelA;
   }
 }
-
-static void e3TopEncoderA() {
-  e3TopEncoderInterrupt(E3_TOP_ENCODER_A);
-}
-
-static void e3TopEncoderB() {
-  e3TopEncoderInterrupt(E3_TOP_ENCODER_B);
-}
 #endif
 
-static void e4EncoderInterrupt(int gpio) {
-  static int e4CurrentA=1, e4CurrentB=1;
-
+static void e4EncoderInt() {
+  static int e4CurrentA=1;
   int levelA=digitalRead(E4_ENCODER_A);
   int levelB=digitalRead(E4_ENCODER_B);
 
@@ -920,18 +854,9 @@ static void e4EncoderInterrupt(int gpio) {
   }
 }
 
-static void e4EncoderA() {
-  e4EncoderInterrupt(E4_ENCODER_A);
-}
-
-static void e4EncoderB() {
-  e4EncoderInterrupt(E4_ENCODER_B);
-}
-
 #if defined (CONTROLLER2_V2)
-static void e4TopEncoderInterrupt(int gpio) {
-  static int e4TopCurrentA=1, e4TopCurrentB=1;
-
+static void e4TopEncoderInt() {
+  static int e4TopCurrentA=1;
   int levelA=digitalRead(E4_TOP_ENCODER_A);
   int levelB=digitalRead(E4_TOP_ENCODER_B);
 
@@ -941,21 +866,12 @@ static void e4TopEncoderInterrupt(int gpio) {
     e4TopCurrentA=levelA;
   }
 }
-
-static void e4TopEncoderA() {
-  e4TopEncoderInterrupt(E4_TOP_ENCODER_A);
-}
-
-static void e4TopEncoderB() {
-  e4TopEncoderInterrupt(E4_TOP_ENCODER_B);
-}
 #endif
 
 
 #if defined (CONTROLLER2_V2)  || defined (CONTROLLER2_V1)
-static void e5EncoderInterrupt(int gpio) {
-  static int e5CurrentA=1, e5CurrentB=1;
-
+static void e5EncoderInt() {
+  static int e5CurrentA=1;
   int levelA=digitalRead(E5_ENCODER_A);
   int levelB=digitalRead(E5_ENCODER_B);
 
@@ -966,20 +882,11 @@ static void e5EncoderInterrupt(int gpio) {
     e5CurrentA=levelA;
   }
 }
-
-static void e5EncoderA() {
-  e5EncoderInterrupt(E5_ENCODER_A);
-}
-
-static void e5EncoderB() {
-  e5EncoderInterrupt(E5_ENCODER_B);
-}
 #endif
 
 #if defined (CONTROLLER2_V2)
-static void e5TopEncoderInterrupt(int gpio) {
-  static int e5TopCurrentA=1, e5TopCurrentB=1;
-
+static void e5TopEncoderInt() {
+  static int e5TopCurrentA=1;
   int levelA=digitalRead(E5_TOP_ENCODER_A);
   int levelB=digitalRead(E5_TOP_ENCODER_B);
 
@@ -988,14 +895,6 @@ static void e5TopEncoderInterrupt(int gpio) {
     if(levelA!=levelB) --e5TopEncoderPos;
     e5TopCurrentA=levelA;
   }
-}
-
-static void e5TopEncoderA() {
-  e5TopEncoderInterrupt(E5_TOP_ENCODER_A);
-}
-
-static void e5TopEncoderB() {
-  e5TopEncoderInterrupt(E5_TOP_ENCODER_B);
 }
 #endif
 
@@ -1422,13 +1321,11 @@ int gpio_init() {
     setup_pin(VFO_FUNCTION, PUD_UP, &vfoFunctionAlert);
     vfoFunction=0;
 #endif
-    setup_encoder_pin(VFO_ENCODER_A,ENABLE_VFO_PULLUP?PUD_UP:PUD_DOWN,&vfoEncoderA);
+    setup_encoder_pin(VFO_ENCODER_A,ENABLE_VFO_PULLUP?PUD_UP:PUD_DOWN,&vfoEncoderInt);
     setup_encoder_pin(VFO_ENCODER_B,ENABLE_VFO_PULLUP?PUD_UP:PUD_DOWN,NULL);
-    //setup_encoder_pin(VFO_ENCODER_B,ENABLE_VFO_PULLUP?PUD_UP:PUD_DOWN,&vfoEncoderB);
 #else
-    setup_encoder_pin(VFO_ENCODER_A,ENABLE_VFO_PULLUP?PUD_UP:PUD_DOWN,&vfoEncoderA);
+    setup_encoder_pin(VFO_ENCODER_A,ENABLE_VFO_PULLUP?PUD_UP:PUD_DOWN,&vfoEncoderInt);
     setup_encoder_pin(VFO_ENCODER_B,ENABLE_VFO_PULLUP?PUD_UP:PUD_DOWN,NULL);
-    //setup_encoder_pin(VFO_ENCODER_B,ENABLE_VFO_PULLUP?PUD_UP:PUD_DOWN,&vfoEncoderB);
 #endif
     vfoEncoderPos=0;
   }
@@ -1436,13 +1333,13 @@ int gpio_init() {
   if(ENABLE_E2_ENCODER) {
     setup_pin(E2_FUNCTION, PUD_UP, &e2FunctionAlert);
 	  
-    setup_encoder_pin(E2_ENCODER_A,ENABLE_E2_PULLUP?PUD_UP:PUD_OFF,&e2EncoderA);
+    setup_encoder_pin(E2_ENCODER_A,ENABLE_E2_PULLUP?PUD_UP:PUD_OFF,&e2EncoderInt);
     setup_encoder_pin(E2_ENCODER_B,ENABLE_E2_PULLUP?PUD_UP:PUD_OFF,NULL);
     e2EncoderPos=0;
 
 
 #ifdef CONTROLLER2_V2
-    setup_encoder_pin(E2_TOP_ENCODER_A,ENABLE_E2_PULLUP?PUD_UP:PUD_OFF,&e2TopEncoderA);
+    setup_encoder_pin(E2_TOP_ENCODER_A,ENABLE_E2_PULLUP?PUD_UP:PUD_OFF,&e2TopEncoderInt);
     setup_encoder_pin(E2_TOP_ENCODER_B,ENABLE_E2_PULLUP?PUD_UP:PUD_OFF,NULL);
     e2TopEncoderPos=0;
 #endif
@@ -1451,12 +1348,12 @@ int gpio_init() {
   if(ENABLE_E3_ENCODER) {
     setup_pin(E3_FUNCTION, PUD_UP, &e3FunctionAlert);
 	
-    setup_encoder_pin(E3_ENCODER_A,ENABLE_E3_PULLUP?PUD_UP:PUD_OFF,&e3EncoderA);
+    setup_encoder_pin(E3_ENCODER_A,ENABLE_E3_PULLUP?PUD_UP:PUD_OFF,&e3EncoderInt);
     setup_encoder_pin(E3_ENCODER_B,ENABLE_E3_PULLUP?PUD_UP:PUD_OFF,NULL);
     e3EncoderPos=0;
 
 #ifdef CONTROLLER2_V2
-    setup_encoder_pin(E3_TOP_ENCODER_A,ENABLE_E3_PULLUP?PUD_UP:PUD_OFF,&e3TopEncoderA);
+    setup_encoder_pin(E3_TOP_ENCODER_A,ENABLE_E3_PULLUP?PUD_UP:PUD_OFF,&e3TopEncoderInt);
     setup_encoder_pin(E3_TOP_ENCODER_B,ENABLE_E3_PULLUP?PUD_UP:PUD_OFF,NULL);
     e3TopEncoderPos=0;
 #endif
@@ -1465,12 +1362,12 @@ int gpio_init() {
   if(ENABLE_E4_ENCODER) {
     setup_pin(E4_FUNCTION, PUD_UP, &e4FunctionAlert);
 	  
-    setup_encoder_pin(E4_ENCODER_A,ENABLE_E4_PULLUP?PUD_UP:PUD_OFF,&e4EncoderA);
+    setup_encoder_pin(E4_ENCODER_A,ENABLE_E4_PULLUP?PUD_UP:PUD_OFF,&e4EncoderInt);
     setup_encoder_pin(E4_ENCODER_B,ENABLE_E4_PULLUP?PUD_UP:PUD_OFF,NULL);
     e4EncoderPos=0;
 	  
 #ifdef CONTROLLER2_V2
-    setup_encoder_pin(E4_TOP_ENCODER_A,ENABLE_E4_PULLUP?PUD_UP:PUD_OFF,&e4TopEncoderA);
+    setup_encoder_pin(E4_TOP_ENCODER_A,ENABLE_E4_PULLUP?PUD_UP:PUD_OFF,&e4TopEncoderInt);
     setup_encoder_pin(E4_TOP_ENCODER_B,ENABLE_E4_PULLUP?PUD_UP:PUD_OFF,NULL);
     e4TopEncoderPos=0;
 #endif
@@ -1480,12 +1377,12 @@ int gpio_init() {
   if(ENABLE_E5_ENCODER) {
     setup_pin(E5_FUNCTION, PUD_UP, &e5FunctionAlert);
 
-    setup_encoder_pin(E5_ENCODER_A,ENABLE_E5_PULLUP?PUD_UP:PUD_OFF,&e5EncoderA);
+    setup_encoder_pin(E5_ENCODER_A,ENABLE_E5_PULLUP?PUD_UP:PUD_OFF,&e5EncoderInt);
     setup_encoder_pin(E5_ENCODER_B,ENABLE_E5_PULLUP?PUD_UP:PUD_OFF,NULL);
     e5EncoderPos=0;
 
 #if defined (CONTROLLER2_V2)
-    setup_encoder_pin(E5_TOP_ENCODER_A,ENABLE_E5_PULLUP?PUD_UP:PUD_OFF,&e5TopEncoderA);
+    setup_encoder_pin(E5_TOP_ENCODER_A,ENABLE_E5_PULLUP?PUD_UP:PUD_OFF,&e5TopEncoderInt);
     setup_encoder_pin(E5_TOP_ENCODER_B,ENABLE_E5_PULLUP?PUD_UP:PUD_OFF,NULL);
     e5TopEncoderPos=0;
 #endif
@@ -1526,7 +1423,7 @@ int gpio_init() {
   }
 #endif
 
-  rotary_encoder_thread_id = g_thread_new( "rotary encoder", rotary_encoder_thread, NULL);
+  rotary_encoder_thread_id = g_thread_new( "encoders", rotary_encoder_thread, NULL);
   if( ! rotary_encoder_thread_id )
   {
     fprintf(stderr,"g_thread_new failed on rotary_encoder_thread\n");

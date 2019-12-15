@@ -63,20 +63,25 @@ static void agc_hang_threshold_value_changed_cb(GtkWidget *widget, gpointer data
   }
 }
 
-static void pre_post_agc_cb(GtkWidget *widget, gpointer data) {
-  active_receiver->nr_agc=GPOINTER_TO_UINT(data);
-  SetRXAEMNRPosition(active_receiver->id, active_receiver->nr_agc);
-
+static void pre_post_agc_cb(GtkToggleButton *widget, gpointer data) {
+  if(gtk_toggle_button_get_active(widget)) {
+    active_receiver->nr_agc=GPOINTER_TO_UINT(data);
+    SetRXAEMNRPosition(active_receiver->id, active_receiver->nr_agc);
+  }
 }
 
-static void nr2_gain_cb(GtkWidget *widget, gpointer data) {
-  active_receiver->nr2_gain_method=GPOINTER_TO_UINT(data);
-  SetRXAEMNRgainMethod(active_receiver->id, active_receiver->nr2_gain_method);
+static void nr2_gain_cb(GtkToggleButton *widget, gpointer data) {
+  if(gtk_toggle_button_get_active(widget)) {
+    active_receiver->nr2_gain_method=GPOINTER_TO_UINT(data);
+    SetRXAEMNRgainMethod(active_receiver->id, active_receiver->nr2_gain_method);
+  }
 }
 
-static void nr2_npe_method_cb(GtkWidget *widget, gpointer data) {
-  active_receiver->nr2_npe_method=GPOINTER_TO_UINT(data);
-  SetRXAEMNRnpeMethod(active_receiver->id, active_receiver->nr2_npe_method);
+static void nr2_npe_method_cb(GtkToggleButton *widget, gpointer data) {
+  if(gtk_toggle_button_get_active(widget)) {
+    active_receiver->nr2_npe_method=GPOINTER_TO_UINT(data);
+    SetRXAEMNRnpeMethod(active_receiver->id, active_receiver->nr2_npe_method);
+  }
 }
 
 static void ae_cb(GtkWidget *widget, gpointer data) {
@@ -136,13 +141,13 @@ void dsp_menu(GtkWidget *parent) {
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (pre_agc_b),active_receiver->nr_agc==0);
   gtk_widget_show(pre_agc_b);
   gtk_grid_attach(GTK_GRID(grid),pre_agc_b,1,2,1,1);
-  g_signal_connect(pre_agc_b,"pressed",G_CALLBACK(pre_post_agc_cb),(gpointer *)0);
+  g_signal_connect(pre_agc_b,"toggled",G_CALLBACK(pre_post_agc_cb),(gpointer *)0);
 
   GtkWidget *post_agc_b=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(pre_agc_b),"Post AGC");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (post_agc_b), active_receiver->nr_agc==1);
   gtk_widget_show(post_agc_b);
   gtk_grid_attach(GTK_GRID(grid),post_agc_b,2,2,1,1);
-  g_signal_connect(post_agc_b,"pressed",G_CALLBACK(pre_post_agc_cb),(gpointer *)1);
+  g_signal_connect(post_agc_b,"toggled",G_CALLBACK(pre_post_agc_cb),(gpointer *)1);
 
   GtkWidget *nr2_gain_label=gtk_label_new("NR2 Gain Method");
   //gtk_widget_override_font(nr2_gain_label, pango_font_description_from_string("Arial 18"));
@@ -153,19 +158,19 @@ void dsp_menu(GtkWidget *parent) {
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (linear_b),active_receiver->nr2_gain_method==0);
   gtk_widget_show(linear_b);
   gtk_grid_attach(GTK_GRID(grid),linear_b,1,3,1,1);
-  g_signal_connect(linear_b,"pressed",G_CALLBACK(nr2_gain_cb),(gpointer *)0);
+  g_signal_connect(linear_b,"toggled",G_CALLBACK(nr2_gain_cb),(gpointer *)0);
 
   GtkWidget *log_b=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(linear_b),"Log");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (log_b), active_receiver->nr2_gain_method==1);
   gtk_widget_show(log_b);
   gtk_grid_attach(GTK_GRID(grid),log_b,2,3,1,1);
-  g_signal_connect(log_b,"pressed",G_CALLBACK(nr2_gain_cb),(gpointer *)1);
+  g_signal_connect(log_b,"toggled",G_CALLBACK(nr2_gain_cb),(gpointer *)1);
 
   GtkWidget *gamma_b=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(log_b),"Gamma");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (gamma_b), active_receiver->nr2_gain_method==2);
   gtk_widget_show(gamma_b);
   gtk_grid_attach(GTK_GRID(grid),gamma_b,3,3,1,1);
-  g_signal_connect(gamma_b,"pressed",G_CALLBACK(nr2_gain_cb),(gpointer *)2);
+  g_signal_connect(gamma_b,"toggled",G_CALLBACK(nr2_gain_cb),(gpointer *)2);
 
   GtkWidget *nr2_npe_method_label=gtk_label_new("NR2 NPE Method");
   //gtk_widget_override_font(nr2_npe_method_label, pango_font_description_from_string("Arial 18"));
@@ -176,13 +181,13 @@ void dsp_menu(GtkWidget *parent) {
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (osms_b),active_receiver->nr2_npe_method==0);
   gtk_widget_show(osms_b);
   gtk_grid_attach(GTK_GRID(grid),osms_b,1,4,1,1);
-  g_signal_connect(osms_b,"pressed",G_CALLBACK(nr2_npe_method_cb),(gpointer *)0);
+  g_signal_connect(osms_b,"toggled",G_CALLBACK(nr2_npe_method_cb),(gpointer *)0);
 
   GtkWidget *mmse_b=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(osms_b),"MMSE");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (mmse_b), active_receiver->nr2_npe_method==1);
   gtk_widget_show(mmse_b);
   gtk_grid_attach(GTK_GRID(grid),mmse_b,2,4,1,1);
-  g_signal_connect(mmse_b,"pressed",G_CALLBACK(nr2_npe_method_cb),(gpointer *)1);
+  g_signal_connect(mmse_b,"toggled",G_CALLBACK(nr2_npe_method_cb),(gpointer *)1);
 
   GtkWidget *ae_b=gtk_check_button_new_with_label("NR2 AE Filter");
   //gtk_widget_override_font(ae_b, pango_font_description_from_string("Arial 18"));

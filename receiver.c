@@ -826,7 +826,7 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
   }
   // allocate buffers
   rx->iq_input_buffer=g_new(double,2*rx->buffer_size);
-  rx->audio_buffer=NULL;
+  //rx->audio_buffer=NULL;
   rx->audio_sequence=0L;
   rx->pixel_samples=malloc(sizeof(float)*(rx->pixels));
 
@@ -904,6 +904,7 @@ RECEIVER *create_receiver(int id, int buffer_size, int fft_size, int pixels, int
 fprintf(stderr,"create_receiver: id=%d buffer_size=%d fft_size=%d pixels=%d fps=%d\n",id,buffer_size, fft_size, pixels, fps);
   RECEIVER *rx=malloc(sizeof(RECEIVER));
   rx->id=id;
+  g_mutex_init(&rx->mutex);
   switch(id) {
     case 0:
       rx->adc=0;
@@ -988,6 +989,7 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
   rx->waterfall_automatic=1;
 
   rx->volume=0.1;
+  rx->rf_gain=50.0;
 
   rx->dither=0;
   rx->random=0;
@@ -1052,7 +1054,7 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
 #endif
 
 fprintf(stderr,"create_receiver (after restore): rx=%p id=%d audio_buffer_size=%d local_audio=%d\n",rx,rx->id,rx->audio_buffer_size,rx->local_audio);
-  rx->audio_buffer=g_new(guchar,rx->audio_buffer_size);
+  //rx->audio_buffer=g_new(guchar,rx->audio_buffer_size);
   int scale=rx->sample_rate/48000;
   rx->output_samples=rx->buffer_size/scale;
   rx->audio_output_buffer=g_new(gdouble,2*rx->output_samples);
@@ -1128,8 +1130,7 @@ fprintf(stderr,"RXASetMP %d\n",rx->low_latency);
   }
 
   receiver_mode_changed(rx);
-  //set_mode(rx,vfo[rx->id].mode);
-  //set_filter(rx,rx->filter_low,rx->filter_high);
+  //receiver_frequency_changed(rx);
 
   int result;
   XCreateAnalyzer(rx->id, &result, 262144, 1, 1, "");
@@ -1173,6 +1174,7 @@ void receiver_change_sample_rate(RECEIVER *rx,int sample_rate) {
 // that the central part can be displayed in the TX panadapter
 //
 
+  g_mutex_lock(&rx->mutex);
 
   rx->sample_rate=sample_rate;
   int scale=rx->sample_rate/48000;
@@ -1200,20 +1202,16 @@ g_print("receiver_change_sample_rate: id=%d rate=%d scale=%d buffer_size=%d outp
     init_analyzer(rx);
     fprintf(stderr,"PS FEEDBACK change sample rate:id=%d rate=%d buffer_size=%d output_samples=%d\n",
                    rx->id, rx->sample_rate, rx->buffer_size, rx->output_samples);
+    g_mutex_unlock(&rx->mutex);
     return;
   }
 #endif
 
-  init_analyzer(rx);
-
   SetChannelState(rx->id,0,1);
-  free(rx->audio_output_buffer);
-  rx->audio_output_buffer=g_new(double,2*rx->output_samples);
-  rx->audio_buffer=g_new(guchar,rx->audio_buffer_size);
+  init_analyzer(rx);
   SetInputSamplerate(rx->id, sample_rate);
   SetEXTANBSamplerate (rx->id, sample_rate);
   SetEXTNOBSamplerate (rx->id, sample_rate);
-
 #ifdef SOAPYSDR
   if(protocol==SOAPYSDR_PROTOCOL) {
     rx->resample_step=radio_sample_rate/rx->sample_rate;
@@ -1222,6 +1220,8 @@ g_print("receiver_change_sample_rate: resample_step=%d\n",rx->resample_step);
 #endif
 
   SetChannelState(rx->id,1,0);
+
+  g_mutex_unlock(&rx->mutex);
 
 fprintf(stderr,"receiver_change_sample_rate: id=%d rate=%d buffer_size=%d output_samples=%d\n",rx->id, rx->sample_rate, rx->buffer_size, rx->output_samples);
 }
@@ -1458,6 +1458,8 @@ void full_rx_buffer(RECEIVER *rx) {
   int j;
   int error;
 
+  g_mutex_lock(&rx->mutex);
+
   // noise blanker works on origianl IQ samples
   if(rx->nb) {
      xanbEXT (rx->id, rx->iq_input_buffer, rx->iq_input_buffer);
@@ -1487,6 +1489,7 @@ void full_rx_buffer(RECEIVER *rx) {
   }
   g_mutex_unlock(&rx->freedv_mutex);
 #endif
+  g_mutex_unlock(&rx->mutex);
 }
 
 static int rx_buffer_seen=0;

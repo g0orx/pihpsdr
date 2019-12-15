@@ -55,12 +55,12 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
   return FALSE;
 }
 
-static gboolean agc_select_cb (GtkWidget *widget, gpointer        data) {
-  active_receiver->agc=GPOINTER_TO_INT(data);
-  //wdsp_set_agc(CHANNEL_RX0, agc);
-  set_agc(active_receiver, active_receiver->agc);
-  vfo_update();
-  return FALSE;
+static void agc_select_cb (GtkToggleButton *widget, gpointer        data) {
+  if(gtk_toggle_button_get_active(widget)) {
+    active_receiver->agc=GPOINTER_TO_INT(data);
+    set_agc(active_receiver, active_receiver->agc);
+    vfo_update();
+  }
 }
 
 void agc_menu(GtkWidget *parent) {
@@ -106,7 +106,7 @@ void agc_menu(GtkWidget *parent) {
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_off), active_receiver->agc==AGC_OFF);
   gtk_widget_show(b_off);
   gtk_grid_attach(GTK_GRID(grid),b_off,col,row,1,1);
-  g_signal_connect(b_off,"pressed",G_CALLBACK(agc_select_cb),(gpointer)(long)AGC_OFF);
+  g_signal_connect(b_off,"toggled",G_CALLBACK(agc_select_cb),(gpointer)(long)AGC_OFF);
 
   col++;
 
@@ -115,7 +115,7 @@ void agc_menu(GtkWidget *parent) {
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_long), active_receiver->agc==AGC_LONG);
   gtk_widget_show(b_long);
   gtk_grid_attach(GTK_GRID(grid),b_long,col,row,1,1);
-  g_signal_connect(b_long,"pressed",G_CALLBACK(agc_select_cb),(gpointer)(long)AGC_LONG);
+  g_signal_connect(b_long,"toggled",G_CALLBACK(agc_select_cb),(gpointer)(long)AGC_LONG);
 
   col++;
 
@@ -124,7 +124,7 @@ void agc_menu(GtkWidget *parent) {
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_slow), active_receiver->agc==AGC_SLOW);
   gtk_widget_show(b_slow);
   gtk_grid_attach(GTK_GRID(grid),b_slow,col,row,1,1);
-  g_signal_connect(b_slow,"pressed",G_CALLBACK(agc_select_cb),(gpointer)(long)AGC_SLOW);
+  g_signal_connect(b_slow,"toggled",G_CALLBACK(agc_select_cb),(gpointer)(long)AGC_SLOW);
 
   col++;
 
@@ -133,7 +133,7 @@ void agc_menu(GtkWidget *parent) {
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_medium), active_receiver->agc==AGC_MEDIUM);
   gtk_widget_show(b_medium);
   gtk_grid_attach(GTK_GRID(grid),b_medium,col,row,1,1);
-  g_signal_connect(b_medium,"pressed",G_CALLBACK(agc_select_cb),(gpointer)(long)AGC_MEDIUM);
+  g_signal_connect(b_medium,"toggled",G_CALLBACK(agc_select_cb),(gpointer)(long)AGC_MEDIUM);
 
   col++;
 
@@ -142,7 +142,7 @@ void agc_menu(GtkWidget *parent) {
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_fast), active_receiver->agc==AGC_FAST);
   gtk_widget_show(b_fast);
   gtk_grid_attach(GTK_GRID(grid),b_fast,col,row,1,1);
-  g_signal_connect(b_fast,"pressed",G_CALLBACK(agc_select_cb),(gpointer)(long)AGC_FAST);
+  g_signal_connect(b_fast,"toggled",G_CALLBACK(agc_select_cb),(gpointer)(long)AGC_FAST);
 
   gtk_container_add(GTK_CONTAINER(content),grid);
 

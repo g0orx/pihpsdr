@@ -127,12 +127,9 @@ static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
             }
             if(b!=band_get_current()) {
               BAND *band=band_set_current(b);
-              BANDSTACK_ENTRY *entry=bandstack_entry_get_current();
-              //setMode(entry->mode);
               set_mode(active_receiver,entry->mode);
               FILTER* band_filters=filters[entry->mode];
               FILTER* band_filter=&band_filters[entry->filter];
-              //setFilter(band_filter->low,band_filter->high);
               set_filter(active_receiver,band_filter->low,band_filter->high);
               if(active_receiver->id==0) {
                 set_alex_rx_antenna(band->alexRxAntenna);
