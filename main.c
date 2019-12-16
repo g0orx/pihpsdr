@@ -223,6 +223,19 @@ fprintf(stderr,"width=%d height=%d\n", display_width, display_height);
     display_width=MAX_DISPLAY_WIDTH;
     display_height=MAX_DISPLAY_HEIGHT;
     full_screen=0;
+  } else {
+    //
+    // Some RaspPi variants report slightly too large screen sizes
+    // on a 7-inch screen, e.g. 848*480 while the physical resolution is 800*480
+    // Therefore, as a work-around, limit window size to 800*480
+    //
+    if (display_width > MAX_DISPLAY_WIDTH) {
+      display_width = MAX_DISPLAY_WIDTH;
+    }
+    if (display_height > MAX_DISPLAY_HEIGHT) {
+      display_height = MAX_DISPLAY_HEIGHT;
+    }
+    full_screen=1;
   }
 
 fprintf(stderr,"display_width=%d display_height=%d\n", display_width, display_height);
