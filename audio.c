@@ -282,6 +282,7 @@ g_print("audio_close_output: rx=%d handle=%p buffer=%p\n",rx->id,rx->playback_ha
 }
 
 void audio_close_input() {
+  void *p;
 g_print("audio_close_input\n");
   running=FALSE;
   if(mic_read_thread_id!=NULL) {
@@ -299,9 +300,18 @@ g_print("audio_close_input: free mic buffer\n");
     g_free(mic_buffer);
     mic_buffer=NULL;
   }
+  //
+  // We do not want to do a mutex lock/unlock for every single mic sample
+  // accessed. Since only the ring buffer is maintained by the functions
+  // audio_get_next_mic_sample() and in the "mic read thread",
+  // it is more than enough to wait 2 msec after setting mic_ring_buffer to NULL
+  // before actually releasing the storage.
+  //
   if (mic_ring_buffer != NULL) {
-    free(mic_ring_buffer);
+    p=mic_ring_buffer;
     mic_ring_buffer=NULL;
+    usleep(2);
+    g_free(p);
   }
 }
 
@@ -321,6 +331,7 @@ int cw_audio_write(float sample){
 	
   RECEIVER *rx = active_receiver;
  
+  g_mutex_lock(&rx->local_audio_mutex);
   if(rx->playback_handle!=NULL && rx->local_audio_buffer!=NULL) {
 
     switch(rx->local_audio_format) {
@@ -360,6 +371,7 @@ g_print("audio delay=%ld trim=%ld\n",delay,trim);
             if(rc==-EPIPE) {
               if ((rc = snd_pcm_prepare (rx->playback_handle)) < 0) {
                 g_print("audio_write: cannot prepare audio interface for use %ld (%s)\n", rc, snd_strerror (rc));
+                g_mutex_unlock(&rx->local_audio_mutex);
                 return rc;
               } else {
                 // ignore short write
@@ -371,6 +383,7 @@ g_print("audio delay=%ld trim=%ld\n",delay,trim);
       rx->local_audio_buffer_offset=0;
     }
   }
+  g_mutex_unlock(&rx->local_audio_mutex);
   return 0;
 }
 
@@ -388,8 +401,6 @@ int audio_write(RECEIVER *rx,float left_sample,float right_sample) {
   gint32 *long_buffer;
   gint16 *short_buffer;
 
-  g_mutex_lock(&rx->local_audio_mutex);
-
   if(can_transmit) {
     mode=transmitter->mode;
   }
@@ -404,9 +415,11 @@ int audio_write(RECEIVER *rx,float left_sample,float right_sample) {
   //
 
   if (rx == active_receiver && isTransmitting() && (mode==modeCWU || mode==modeCWL)) {
-    g_mutex_unlock(&rx->local_audio_mutex);
     return 0;
   }
+
+  // lock AFTER checking the "quick return" condition but BEFORE checking the pointers
+  g_mutex_lock(&rx->local_audio_mutex);
 
   if(rx->playback_handle!=NULL && rx->local_audio_buffer!=NULL) {
     switch(rx->local_audio_format) {
@@ -515,7 +528,9 @@ g_print("mic_read_thread: snd_pcm_start\n");
 	    //
 	    // put sample into ring buffer
 	    //
-	    if (mic_ring_buffer) {
+	    if (mic_ring_buffer != NULL) {
+              // the "existence" of the ring buffer is now guaranteed for 1 msec,
+	      // see audio_close_input().
 	      newpt=mic_ring_write_pt +1;
 	      if (newpt == MICRINGLEN) newpt=0;
 	      if (newpt != mic_ring_read_pt) {
@@ -553,6 +568,8 @@ float audio_get_next_mic_sample() {
     // no buffer, or nothing in buffer: insert silence
     sample=0.0;
   } else {
+    // the "existence" of the ring buffer is now guaranteed for 1 msec,
+    // see audio_close_input(),
     newpt = mic_ring_read_pt+1;
     if (newpt == MICRINGLEN) newpt=0;
     sample=mic_ring_buffer[mic_ring_read_pt];
@@ -685,6 +702,11 @@ g_print("input_device: name=%s descr=%s\n",name,descr);
 #endif
     }
 
+//
+//  For these three items, use free() instead of g_free(),
+//  since these have been allocated by ALSA via
+//  snd_device_name_get_hint()
+//
     if (name != NULL)
       free(name);
     if (descr != NULL)

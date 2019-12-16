@@ -222,6 +222,8 @@ int pa_mic_cb(const void *inputBuffer, void *outputBuffer, unsigned long framesP
 	// put sample into ring buffer
 	//
 	if (mic_ring_buffer != NULL) {
+          // the "existence" of the ring buffer is now guaranteed for 1 msec,
+          // see audio_close_input(),
 	  newpt=mic_ring_write_pt +1;
 	  if (newpt == MICRINGLEN) newpt=0;
 	  if (newpt != mic_ring_read_pt) {
@@ -256,6 +258,8 @@ float audio_get_next_mic_sample() {
     // no buffer, or nothing in buffer: insert silence
     sample=0.0;
   } else {
+    // the "existence" of the ring buffer is now guaranteed for 1 msec,
+    // see audio_close_input(),
     newpt = mic_ring_read_pt+1;
     if (newpt == MICRINGLEN) newpt=0;
     sample=mic_ring_buffer[mic_ring_read_pt];
@@ -300,7 +304,7 @@ int audio_open_output(RECEIVER *rx)
     return -1;
   }
 
-
+  g_mutex_lock(&rx->local_audio_mutex);
   bzero( &outputParameters, sizeof( outputParameters ) ); //not necessary if you are filling in all the fields
   outputParameters.channelCount = 1;   // Always MONO
   outputParameters.device = padev;
@@ -319,6 +323,7 @@ int audio_open_output(RECEIVER *rx)
     rx->playback_handle = NULL;
     if (rx->local_audio_buffer) g_free(rx->local_audio_buffer);
     rx->local_audio_buffer = NULL;
+    g_mutex_unlock(&rx->local_audio_mutex);
     return -1;
   }
 
@@ -328,12 +333,14 @@ int audio_open_output(RECEIVER *rx)
     rx->playback_handle=NULL;
     if (rx->local_audio_buffer) g_free(rx->local_audio_buffer);
     rx->local_audio_buffer = NULL;
+    g_mutex_unlock(&rx->local_audio_mutex);
     return -1;
   }
   // Write one buffer to avoid under-flow errors
   // (this gives us 5 msec to pass before we have to call audio_write the first time)
   bzero(rx->local_audio_buffer, (size_t) BUFFER_SIZE*sizeof(float));
   err=Pa_WriteStream(rx->playback_handle, rx->local_audio_buffer, (unsigned long) BUFFER_SIZE);
+  g_mutex_unlock(&rx->local_audio_mutex);
   return 0;
 }
 
@@ -345,6 +352,7 @@ int audio_open_output(RECEIVER *rx)
 void audio_close_input()
 {
   PaError err;
+  void *p;
 
   fprintf(stderr,"AudioCloseInput: %s\n", transmitter->microphone_name);
 
@@ -359,9 +367,18 @@ void audio_close_input()
     }
     record_handle=NULL;
   }
+  //
+  // We do not want to do a mutex lock/unlock for every single mic sample
+  // accessed. Since only the ring buffer is maintained by the functions
+  // audio_get_next_mic_sample() and in the "mic callback" function,
+  // it is more than enough to wait 2 msec after setting mic_ring_buffer to NULL
+  // before actually releasing the storage.
+  //
   if (mic_ring_buffer != NULL) {
-    g_free(mic_ring_buffer);
+    p=mic_ring_buffer;
     mic_ring_buffer=NULL;
+    usleep(2);
+    g_free(p);
   }
 }
 
@@ -375,7 +392,7 @@ void audio_close_output(RECEIVER *rx) {
 
   fprintf(stderr,"AudioCloseOutput: %s\n", rx->audio_name);
 
-// free the buffer first, this then indicates to audio_write to do nothing
+  g_mutex_lock(&rx->local_audio_mutex);
   if(rx->local_audio_buffer!=NULL) {
     g_free(rx->local_audio_buffer);
     rx->local_audio_buffer=NULL;
@@ -392,6 +409,7 @@ void audio_close_output(RECEIVER *rx) {
     }
     rx->playback_handle=NULL;
   }
+  g_mutex_unlock(&rx->local_audio_mutex);
 }
 
 //
@@ -404,8 +422,12 @@ void audio_close_output(RECEIVER *rx) {
 int audio_write (RECEIVER *rx, float left, float right)
 {
   PaError err;
-  int mode=transmitter->mode;
+  int mode=modeUSB;
   float *buffer = rx->local_audio_buffer;
+
+  if (can_transmit) {
+    mode=transmitter->mode;
+  }
   //
   // We have to stop the stream here if a CW side tone may occur.
   // This might cause underflows, but we cannot use audio_write
@@ -414,8 +436,11 @@ int audio_write (RECEIVER *rx, float left, float right)
   // If *not* doing CW, the stream continues because we might wish
   // to listen to this rx while transmitting.
   //
-  if (rx == active_receiver && isTransmitting() && (mode==modeCWU || mode==modeCWL)) return 0;
+  if (rx == active_receiver && isTransmitting() && (mode==modeCWU || mode==modeCWL)) {
+    return 0;
+  }
 
+  g_mutex_lock(&rx->local_audio_mutex);
   if (rx->playback_handle != NULL && rx->local_audio_buffer != NULL) {
     buffer[rx->local_audio_buffer_offset++] = (left+right)*0.5;  //   mix to MONO   
     if (rx->local_audio_buffer_offset == BUFFER_SIZE) {
@@ -424,6 +449,7 @@ int audio_write (RECEIVER *rx, float left, float right)
       // do not check on errors, there will be underflows every now and then
     }
   }
+  g_mutex_unlock(&rx->local_audio_mutex);
   return 0;
 }
 

@@ -50,7 +50,6 @@
 #include "new_menu.h"
 #include "rigctl.h"
 #include "ext.h"
-#include "noise_menu.h"
 #ifdef FREEDV
 #include "freedv.h"
 #endif
@@ -400,7 +399,7 @@ void vfo_mode_changed(int m) {
   active_receiver->snb=mode_settings[m].snb;
 
   // make changes effective
-  update_noise();
+  g_idle_add(ext_update_noise, NULL);
   switch(id) {
     case 0:
       receiver_mode_changed(receiver[0]);

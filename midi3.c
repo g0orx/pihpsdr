@@ -367,6 +367,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 		active_receiver->nr = 1;
 		active_receiver->nr2= 0;
 	      }
+	      g_idle_add(ext_update_noise, NULL);
 	      g_idle_add(ext_vfo_update, NULL);
 	    }
 	    break;

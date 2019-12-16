@@ -386,6 +386,7 @@ static gboolean update_display(gpointer data) {
 #ifdef PURESIGNAL
     if(tx->puresignal && tx->feedback) {
       RECEIVER *rx_feedback=receiver[PS_RX_FEEDBACK];
+      g_mutex_lock(&rx_feedback->mutex);
       GetPixels(rx_feedback->id,0,rx_feedback->pixel_samples,&rc);
       int full  = rx_feedback->pixels;  // number of pixels in the feedback spectrum
       int width = tx->pixels;           // number of pixels to copy from the feedback spectrum
@@ -394,6 +395,7 @@ static gboolean update_display(gpointer data) {
       float *rfp=rx_feedback->pixel_samples+start;
       // if full == width, then we just copy all samples
       memcpy(tfp, rfp, width*sizeof(float));
+      g_mutex_unlock(&rx_feedback->mutex);
     } else {
 #endif
       GetPixels(tx->id,0,tx->pixel_samples,&rc);

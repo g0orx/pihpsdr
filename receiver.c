@@ -813,10 +813,13 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
     //
     // need a buffer for pixels for the spectrum of the feedback
     // signal (MON button).
-    // NewProtocol: Since we want to display only 48 kHz instead of
-    // 192 kHz, we make a spectrum with four times the pixels and then
+    // NewProtocol: Since we want to display only 24 kHz instead of
+    // 192 kHz, we make a spectrum with eight times the pixels and then
     // display only the central part.
+    //
+    // Also need a mutex, when changing sample rate
     // 
+    g_mutex_init(&rx->mutex);
     if (protocol == ORIGINAL_PROTOCOL) {
 	rx->pixels=(sample_rate/24000) * width;
     } else {
@@ -828,7 +831,7 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
   rx->iq_input_buffer=g_new(double,2*rx->buffer_size);
   //rx->audio_buffer=NULL;
   rx->audio_sequence=0L;
-  rx->pixel_samples=malloc(sizeof(float)*(rx->pixels));
+  rx->pixel_samples=g_new(float,rx->pixels);
 
   rx->samples=0;
   rx->displaying=0;
@@ -1179,13 +1182,11 @@ void receiver_change_sample_rate(RECEIVER *rx,int sample_rate) {
   rx->sample_rate=sample_rate;
   int scale=rx->sample_rate/48000;
   rx->output_samples=rx->buffer_size/scale;
-  rx->audio_output_buffer=g_new(gdouble,2*rx->output_samples);
   rx->hz_per_pixel=(double)rx->sample_rate/(double)rx->width;
 
 g_print("receiver_change_sample_rate: id=%d rate=%d scale=%d buffer_size=%d output_samples=%d\n",rx->id,sample_rate,scale,rx->buffer_size,rx->output_samples);
 #ifdef PURESIGNAL
   if (rx->id == PS_RX_FEEDBACK) {
-    float *fp, *ofp;
     if (protocol == ORIGINAL_PROTOCOL) {
       rx->pixels = 2* scale * rx->width;
     } else {
@@ -1193,12 +1194,8 @@ g_print("receiver_change_sample_rate: id=%d rate=%d scale=%d buffer_size=%d outp
       // PS feedback receiver is fixed.
       rx->pixels = 8 * rx->width;
     }
-    // make sure pixel_samples is always a valid pointer
-    // ... probably pure DL1YCF's paranoia
-    fp=malloc(sizeof(float)*rx->pixels);
-    ofp=rx->pixel_samples;
-    rx->pixel_samples=fp;
-    free(ofp);
+    g_free(rx->pixel_samples);
+    rx->pixel_samples=g_new(float,rx->pixels);
     init_analyzer(rx);
     fprintf(stderr,"PS FEEDBACK change sample rate:id=%d rate=%d buffer_size=%d output_samples=%d\n",
                    rx->id, rx->sample_rate, rx->buffer_size, rx->output_samples);
@@ -1206,6 +1203,10 @@ g_print("receiver_change_sample_rate: id=%d rate=%d scale=%d buffer_size=%d outp
     return;
   }
 #endif
+  if (rx->audio_output_buffer != NULL) {
+    g_free(rx->audio_output_buffer);
+  }
+  rx->audio_output_buffer=g_new(gdouble,2*rx->output_samples);
 
   SetChannelState(rx->id,0,1);
   init_analyzer(rx);
@@ -1460,7 +1461,7 @@ void full_rx_buffer(RECEIVER *rx) {
 
   g_mutex_lock(&rx->mutex);
 
-  // noise blanker works on origianl IQ samples
+  // noise blanker works on original IQ samples
   if(rx->nb) {
      xanbEXT (rx->id, rx->iq_input_buffer, rx->iq_input_buffer);
   }
