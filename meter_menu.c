@@ -63,9 +63,7 @@ static void alc_meter_select_cb (GtkToggleButton *widget, gpointer        data) 
 }
 
 static void analog_cb(GtkToggleButton *widget, gpointer data) {
-  if(gtk_toggle_button_get_active(widget)) {
-    analog_meter=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-  }
+  analog_meter=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 }
 
 

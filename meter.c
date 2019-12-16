@@ -217,7 +217,6 @@ void meter_update(RECEIVER *rx,int meter_type,double value,double reverse,double
   double offset;
   cairo_t *cr;
   cr = cairo_create (meter_surface);
-
 if(analog_meter) {
   cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
   cairo_paint (cr);
@@ -228,6 +227,11 @@ if(analog_meter) {
     case SMETER:
       {
       double level=value+(double)adc_attenuation[rx->adc];
+#ifdef SOAPYSDR
+      if(protocol==SOAPYSDR_PROTOCOL) {
+       level-=rx->rf_gain;
+      }
+#endif
       if (filter_board == CHARLY25) {
 	// preamp/dither encodes the preamp level
         if (rx->preamp) level -= 18.0;
@@ -543,6 +547,11 @@ if(analog_meter) {
       text_location=10;
       offset=5.0;
       double level=value+(double)adc_attenuation[rx->adc];
+#ifdef SOAPYSDR
+      if(protocol==SOAPYSDR_PROTOCOL) {
+       level-=rx->rf_gain;
+      }
+#endif
       if (filter_board == CHARLY25) {
 	// preamp/dither encodes the preamp level
         if (rx->preamp) level -= 18.0;
