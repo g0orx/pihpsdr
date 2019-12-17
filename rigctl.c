@@ -2782,7 +2782,7 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                                    BAND *band=band_get_band(b);
                                                    band->alexRxAntenna = work_int;
                                                 } else {
-                                                   fprintf(stderr,"RIGCTL ZZOA illegal val Band=%d Val=%d\n",int_band,work_int);
+                                                   fprintf(stderr,"RIGCTL ZZOA illegal val Band=%d Val=%d\n",b,work_int);
                                                 }
                                              }
                                          }

@@ -150,7 +150,8 @@ static long response_sequence=0;
 static long highprio_rcvd_sequence=0;
 static long micsamples_sequence=0;
 
-static int response;
+// This is shared with new_protocol_programmer.c
+int response;
 
 //static sem_t send_high_priority_sem;
 //static int send_high_priority=0;

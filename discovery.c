@@ -127,7 +127,7 @@ static gboolean midi_cb(GtkWidget *widget, GdkEventButton *event, gpointer data)
       char *filename, *cp;
       struct stat statbuf;
       GtkFileChooser *chooser = GTK_FILE_CHOOSER (opfile);
-      char *contents;
+      char *contents = NULL;
       filename = gtk_file_chooser_get_filename (chooser);
       fdin =open(filename, O_RDONLY);
       bytes_read = bytes_written = 0;

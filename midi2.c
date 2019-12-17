@@ -159,6 +159,8 @@ static struct {
 static enum MIDIaction keyword2action(char *s) {
     int i=0;
 
+    // cppcheck will spot an error here. But the last string in ActionTable is NULL
+    // so the index (i) will never become out-of-bounds.
     for (i=0; 1; i++) {
 	if (ActionTable[i].str == NULL) {
 	  fprintf(stderr,"MIDI: action keyword %s NOT FOUND.\n", s);

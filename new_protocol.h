@@ -58,8 +58,9 @@ extern sem_t response_sem;
 
 /*
 extern long response_sequence;
-extern int response;
 */
+// DL1YCF: "response" is global (used in new_protocol_programmer.c)
+extern int response;
 
 extern unsigned int exciter_power;
 extern unsigned int alex_forward_power;

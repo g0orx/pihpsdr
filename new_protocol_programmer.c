@@ -97,7 +97,7 @@ void new_protocol_programmer(char *filename ) {
     // read the file in
     int r;
     int b=0;
-    while((r==fread(&source[b],sizeof(char),512, fp))>0) {
+    while((r=fread(&source[b],sizeof(char),512, fp))>0) {
         b+=r;
     }
 
@@ -163,7 +163,6 @@ void programmer_send_block(long block) {
 }
 
 void *programmer_thread(void *arg) {
-    int response;
     int result;
     struct timespec ts;
 
