@@ -359,8 +359,6 @@ static gboolean update_display(gpointer data) {
   TRANSMITTER *tx=(TRANSMITTER *)data;
   int rc;
 
-  int i;
-
 //fprintf(stderr,"update_display: tx id=%d\n",tx->id);
   if(tx->displaying) {
 #ifdef AUDIO_SAMPLES
@@ -386,6 +384,7 @@ static gboolean update_display(gpointer data) {
 #ifdef PURESIGNAL
     if(tx->puresignal && tx->feedback) {
       RECEIVER *rx_feedback=receiver[PS_RX_FEEDBACK];
+      g_mutex_lock(&rx_feedback->mutex);
       GetPixels(rx_feedback->id,0,rx_feedback->pixel_samples,&rc);
       int full  = rx_feedback->pixels;  // number of pixels in the feedback spectrum
       int width = tx->pixels;           // number of pixels to copy from the feedback spectrum
@@ -394,6 +393,7 @@ static gboolean update_display(gpointer data) {
       float *rfp=rx_feedback->pixel_samples+start;
       // if full == width, then we just copy all samples
       memcpy(tfp, rfp, width*sizeof(float));
+      g_mutex_unlock(&rx_feedback->mutex);
     } else {
 #endif
       GetPixels(tx->id,0,tx->pixel_samples,&rc);
@@ -542,8 +542,6 @@ static void init_analyzer(TRANSMITTER *tx) {
     int span_clip_h = 0;
     int pixels=tx->pixels;
     int stitches = 1;
-    int avm = 0;
-    double tau = 0.001 * 120.0;
     int calibration_data_set = 0;
     double span_min_freq = 0.0;
     double span_max_freq = 0.0;
@@ -897,7 +895,7 @@ void tx_set_pre_emphasize(TRANSMITTER *tx,int state) {
 static void full_tx_buffer(TRANSMITTER *tx) {
   long isample;
   long qsample;
-  double gain, sidevol, ramp, fgain;
+  double gain, sidevol, ramp;
   double *dp;
   int j;
   int error;
@@ -905,7 +903,6 @@ static void full_tx_buffer(TRANSMITTER *tx) {
   int sidetone=0;
   static int txflag=0;
   static long last_qsample=0;
-  long delta;
 
   // It is important to query tx->mode and tune only *once* within this function, to assure that
   // the two "if (cwmode)" clauses give the same result.

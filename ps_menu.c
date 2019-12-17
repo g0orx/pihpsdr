@@ -338,7 +338,6 @@ static void twotone_cb(GtkWidget *widget, gpointer data) {
 }
 
 void ps_menu(GtkWidget *parent) {
-  GtkWidget *b;
   int i;
 
   parent_window=parent;

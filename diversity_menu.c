@@ -124,7 +124,6 @@ void update_diversity_phase(double increment) {
 }
 
 void diversity_menu(GtkWidget *parent) {
-  int i;
 
   parent_window=parent;
 

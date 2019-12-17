@@ -618,7 +618,7 @@ void radio_menu(GtkWidget *parent) {
   col++;
 
 #ifdef USBOZY
-  if (protocol==ORIGINAL_PROTOCOL && (device == DEVICE_OZY) || (device == DEVICE_METIS))
+  if (protocol==ORIGINAL_PROTOCOL && (device == DEVICE_OZY || device == DEVICE_METIS))
 #else
   if (protocol==ORIGINAL_PROTOCOL && radio->device == DEVICE_METIS)
 #endif

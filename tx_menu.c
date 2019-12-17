@@ -223,7 +223,6 @@ static void tune_value_changed_cb(GtkWidget *widget, gpointer data) {
 }
 
 void tx_menu(GtkWidget *parent) {
-  GtkWidget *b;
   int i;
 
   parent_window=parent;

@@ -58,8 +58,9 @@ extern sem_t response_sem;
 
 /*
 extern long response_sequence;
-extern int response;
 */
+// DL1YCF: "response" is global (used in new_protocol_programmer.c)
+extern int response;
 
 extern unsigned int exciter_power;
 extern unsigned int alex_forward_power;
@@ -88,7 +89,6 @@ extern int getMox();
 extern void setTune(int state);
 extern int getTune();
 
-extern void new_protocol_process_local_mic(float sample);
 extern void new_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right_audio_sample);
 extern void new_protocol_iq_samples(int isample,int qsample);
 extern void new_protocol_flush_iq_samples();

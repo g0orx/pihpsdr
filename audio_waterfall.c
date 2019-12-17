@@ -140,7 +140,7 @@ void audio_waterfall_update() {
     int width=gdk_pixbuf_get_width(pixbuf);
     int height=gdk_pixbuf_get_height(pixbuf);
     int rowstride=gdk_pixbuf_get_rowstride(pixbuf);
-    int channels=gdk_pixbuf_get_n_channels(pixbuf);
+    int channels=gdk_pixbuf_get_n_channels(pixbuf);  // used in debug code
 
 //fprintf(stderr,"audio_waterfall_update: width=%d height=%d rowsstride=%d channels=%d\n",width,height,rowstride,channels);
 

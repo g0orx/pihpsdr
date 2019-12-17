@@ -151,9 +151,7 @@ gboolean main_delete (GtkWidget *widget) {
 }
 
 static int init(void *data) {
-  char *res;
   char wisdom_directory[1024];
-  int rc;
 
   //fprintf(stderr,"init\n");
 
@@ -170,12 +168,12 @@ static int init(void *data) {
   // Depending on the WDSP version, the file is wdspWisdom or wdspWisdom00.
   // sem_trywait() is not elegant, replaced this with wisdom_running variable.
   //
-  res=getcwd(wisdom_directory, sizeof(wisdom_directory));
+  getcwd(wisdom_directory, sizeof(wisdom_directory));
   strcpy(&wisdom_directory[strlen(wisdom_directory)],"/");
   fprintf(stderr,"Securing wisdom file in directory: %s\n", wisdom_directory);
   status_text("Creating FFTW Wisdom file ...");
   wisdom_running=1;
-  rc=pthread_create(&wisdom_thread_id, NULL, wisdom_thread, wisdom_directory);
+  pthread_create(&wisdom_thread_id, NULL, wisdom_thread, wisdom_directory);
   while (wisdom_running) {
       // wait for the wisdom thread to complete, meanwhile
       // handling any GTK events.
@@ -196,7 +194,7 @@ static void activate_pihpsdr(GtkApplication *app, gpointer data) {
 
   fprintf(stderr,"Build: %s %s\n",build_date,version);
 
-  fprintf(stderr,"GTK+ version %d.%d.%d\n", gtk_major_version, gtk_minor_version, gtk_micro_version);
+  fprintf(stderr,"GTK+ version %ud.%ud.%ud\n", gtk_major_version, gtk_minor_version, gtk_micro_version);
   uname(&unameData);
   fprintf(stderr,"sysname: %s\n",unameData.sysname);
   fprintf(stderr,"nodename: %s\n",unameData.nodename);
@@ -223,6 +221,19 @@ fprintf(stderr,"width=%d height=%d\n", display_width, display_height);
     display_width=MAX_DISPLAY_WIDTH;
     display_height=MAX_DISPLAY_HEIGHT;
     full_screen=0;
+  } else {
+    //
+    // Some RaspPi variants report slightly too large screen sizes
+    // on a 7-inch screen, e.g. 848*480 while the physical resolution is 800*480
+    // Therefore, as a work-around, limit window size to 800*480
+    //
+    if (display_width > MAX_DISPLAY_WIDTH) {
+      display_width = MAX_DISPLAY_WIDTH;
+    }
+    if (display_height > MAX_DISPLAY_HEIGHT) {
+      display_height = MAX_DISPLAY_HEIGHT;
+    }
+    full_screen=1;
   }
 
 fprintf(stderr,"display_width=%d display_height=%d\n", display_width, display_height);

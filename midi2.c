@@ -148,8 +148,7 @@ static struct {
 	{ VOXLEVEL,   		"VOXLEVEL"},
 	{ MIDI_XIT_CLEAR,  	"XITCLEAR"},
 	{ XIT_VAL,  		"XITVAL"},
-        { ACTION_NONE,  	"NONE"},
-        { ACTION_NONE,  	NULL}
+        { ACTION_NONE,  	"NONE"}
 };
 
 /*
@@ -159,14 +158,11 @@ static struct {
 static enum MIDIaction keyword2action(char *s) {
     int i=0;
 
-    for (i=0; 1; i++) {
-	if (ActionTable[i].str == NULL) {
-	  fprintf(stderr,"MIDI: action keyword %s NOT FOUND.\n", s);
-	  return ACTION_NONE;
-	}
+    for (i=0; i< (sizeof(ActionTable) / sizeof(ActionTable[0])); i++) {
 	if (!strcmp(s, ActionTable[i].str)) return ActionTable[i].action;
-   }
-   /* NOTREACHED */
+    }
+    fprintf(stderr,"MIDI: action keyword %s NOT FOUND.\n", s);
+    return ACTION_NONE;
 }
 
 /*

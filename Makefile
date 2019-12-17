@@ -41,9 +41,6 @@ PURESIGNAL_INCLUDE=PURESIGNAL
 # uncomment the line below to include support for STEMlab discovery (WITHOUT AVAHI)
 #STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_NOAVAHI
 
-# uncomment the line below to include support for Pi SDR
-#PI_SDR_INCLUDE=PI_SDR
-
 # uncomment the line below to include MIDI support
 MIDI_INCLUDE=MIDI
 
@@ -210,26 +207,22 @@ STEMLAB_HEADERS=stemlab_discovery.h
 STEMLAB_OBJS=stemlab_discovery.o
 endif
 
-ifeq ($(PI_SDR_INCLUDE),PI_SDR)
-PI_SDR_OPTIONS=-D PI_SDR
-endif
-
 GTKINCLUDES=`pkg-config --cflags gtk+-3.0`
 GTKLIBS=`pkg-config --libs gtk+-3.0`
 
 AUDIO_LIBS=-lasound
 #AUDIO_LIBS=-lsoundio
 
-OPTIONS=-g -Wno-deprecated-declarations $(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) \
+CFLAGS=	-g -Wno-deprecated-declarations -O3
+OPTIONS=$(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) \
 	$(I2C_OPTIONS) $(GPIO_OPTIONS) $(SOAPYSDR_OPTIONS) $(FREEDV_OPTIONS) $(LOCALCW_OPTIONS) $(RADIOBERRY_OPTIONS) \
-	$(PI_SDR_OPTIONS) $(PSK_OPTIONS) $(STEMLAB_OPTIONS) \
-        $(CONTROLLER2_OPTIONS) \
-	-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION) -O3
+	$(PSK_OPTIONS) $(STEMLAB_OPTIONS) $(CONTROLLER2_OPTIONS) \
+	-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION)
 
 LIBS=-lrt -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(PSKLIBS) $(GTKLIBS) $(GPIO_LIBS) $(I2C_LIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS) $(STEMLAB_LIBS) $(MIDI_LIBS)
 INCLUDES=$(GTKINCLUDES)
 
-COMPILE=$(CC) $(OPTIONS) $(INCLUDES)
+COMPILE=$(CC) $(CFLAGS) $(OPTIONS) $(INCLUDES)
 
 .c.o:
 	$(COMPILE) -c -o $@ $<
@@ -450,39 +443,63 @@ $(PROGRAM):  $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) $(FREEDV_OBJ
 		$(SOAPYSDR_OBJS) $(FREEDV_OBJS) $(LOCALCW_OBJS) $(PSK_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(LIBS)
 
+.PHONY:	all
 all:	prebuild  $(PROGRAM) $(HEADERS) $(REMOTE_HEADERS) $(USBOZY_HEADERS) $(SOAPYSDR_HEADERS) \
 	$(FREEDV_HEADERS) $(LOCALCW_HEADERS) $(I2C_HEADERS) $(GPIO_HEADERS) $(PSK_HEADERS) \
 	$(PURESIGNAL_HEADERS) $(MIDI_HEADERS) $(STEMLAB_HEADERS) $(SOURCES) $(REMOTE_SOURCES) \
 	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(FREEDV_SOURCES) $(I2C_SOURCES) $(GPIO_SOURCES) \
 	$(PSK_SOURCES) $(PURESIGNAL_SOURCES) $(MIDI_SOURCES)$(STEMLAB_SOURCES)
 
+.PHONY:	prebuild
 prebuild:
 	rm -f version.o
 
+#
+# On some platforms, INCLUDES contains "-pthread"  (from a pkg-config output)
+# which is not a valid cppcheck option
+# Therefore, correct this here. Furthermore, we can add additional options to CPP
+# in the variable CPPOPTIONS
+#
+CPPOPTIONS= --enable=all --suppress=shadowVariable --suppress=variableScope
+CPPINCLUDES:=$(shell echo $(INCLUDES) | sed -e "s/-pthread / /" )
+
+.PHONY:	cppcheck
+cppcheck:
+	cppcheck $(CPPOPTIONS) $(OPTIONS) $(CPPINCLUDES) $(SOURCES) $(REMOTE_SOURCES) \
+	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(FREEDV_SOURCES) $(I2C_SOURCES) $(GPIO_SOURCES) \
+	$(PSK_SOURCES) $(PURESIGNAL_SOURCES) $(MIDI_SOURCES)$(STEMLAB_SOURCES)
+
+.PHONY:	clean
 clean:
 	-rm -f *.o
 	-rm -f $(PROGRAM) hpsdrsim
 
+.PHONY:	install
 install: $(PROGRAM)
 	cp $(PROGRAM) /usr/local/bin
 
+.PHONY:	release
 release: $(PROGRAM)
 	cp $(PROGRAM) release/pihpsdr
 	cd release; tar cvf pihpsdr.tar pihpsdr
 	cd release; tar cvf pihpsdr-$(GIT_VERSION).tar pihpsdr
 
+.PHONY:	nocontroller
 nocontroller: clean controller1 $(PROGRAM)
 	cp $(PROGRAM) release/pihpsdr
 	cd release; tar cvf pihpsdr-nocontroller.$(GIT_VERSION).tar pihpsdr
 
+.PHONY:	controller1
 controller1: clean $(PROGRAM)
 	cp $(PROGRAM) release/pihpsdr
 	cd release; tar cvf pihpsdr-controller1.$(GIT_VERSION).tar pihpsdr
 
+.PHONY:	controller2v1
 controller2v1: clean $(PROGRAM)
 	cp $(PROGRAM) release/pihpsdr
 	cd release; tar cvf pihpsdr-controller2-v1.$(GIT_VERSION).tar pihpsdr
 
+.PHONY:	controller2v2
 controller2v2: clean $(PROGRAM)
 	cp $(PROGRAM) release/pihpsdr
 	cd release; tar cvf pihpsdr-controller2-v2.$(GIT_VERSION).tar pihpsdr

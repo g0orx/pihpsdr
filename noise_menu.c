@@ -143,9 +143,6 @@ static void snb_cb(GtkWidget *widget, gpointer data) {
 }
 
 void noise_menu(GtkWidget *parent) {
-  GtkWidget *b;
-  int i;
-
   parent_window=parent;
 
   dialog=gtk_dialog_new();

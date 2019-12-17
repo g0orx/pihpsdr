@@ -480,10 +480,6 @@ void ozy_i2c_readvars() {
 
 	fprintf(stderr,"ozy_i2c_init: starting\n");	
 
-	if (rc != 0) {
-		fprintf(stderr,"ozy_i2c_init: failed open %d\n",rc);
-	}
-
 	rc = ozy_i2c_read(buffer,2,I2C_MERC1_FW);	
 	if(rc<0) {
 		perror("ozy_i2c_init2: failed");
@@ -573,7 +569,7 @@ static int file_exists (const char * fileName)
 	return ( i == 0 ) ? 1 : 0 ;
 }
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 int filePath (char *sOut, const char *sIn) {
 	int rc = 0;
 
@@ -586,7 +582,7 @@ int filePath (char *sOut, const char *sIn) {
 		char xPath [PATH_MAX] = {0};
 		char *p;
 
-		int  rc = readlink ("/proc/self/exe", xPath, sizeof(xPath));
+		int  rc = readlink ("/proc/self/exe", xPath, sizeof(xPath)); // rc SHADOWED
 
 		// try to detect the directory from which the executable has been loaded
 		if (rc >= 0) {
@@ -650,7 +646,7 @@ int ozy_initialise()
 	ozy_set_led(1,0);
 	ozy_close();
 	ozy_open();
-	rc=ozy_get_firmware_string(ozy_firmware_version,8);
+	ozy_get_firmware_string(ozy_firmware_version,8);
 	fprintf(stderr,"Ozy FX2 version: %s\n",ozy_firmware_version);
 		
 	ozy_i2c_readvars();

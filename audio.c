@@ -73,6 +73,14 @@ AUDIO_DEVICE input_devices[MAX_AUDIO_DEVICES];
 int n_output_devices;
 AUDIO_DEVICE output_devices[MAX_AUDIO_DEVICES];
 
+//
+// Ring buffer for "local microphone" samples
+//
+#define MICRINGLEN 2048
+float  *mic_ring_buffer=NULL;
+int     mic_ring_read_pt=0;
+int     mic_ring_write_pt=0;
+
 int audio_open_output(RECEIVER *rx) {
   int err;
   snd_pcm_hw_params_t *hw_params;
@@ -242,6 +250,13 @@ g_print("audio_open_input: mic_buffer: size=%d channels=%d sample=%ld bytes\n",m
       break;
   }
 
+g_print("audio_open_input: allocating ring buffer\n");
+  mic_ring_buffer=(float *) g_new(float,MICRINGLEN);
+  mic_ring_read_pt = mic_ring_write_pt=0;
+  if (mic_ring_buffer == NULL) {
+    return -1;
+  }
+
 g_print("audio_open_input: creating mic_read_thread\n");
   GError *error;
   mic_read_thread_id = g_thread_try_new("microphone",mic_read_thread,NULL,&error);
@@ -267,6 +282,7 @@ g_print("audio_close_output: rx=%d handle=%p buffer=%p\n",rx->id,rx->playback_ha
 }
 
 void audio_close_input() {
+  void *p;
 g_print("audio_close_input\n");
   running=FALSE;
   if(mic_read_thread_id!=NULL) {
@@ -283,6 +299,19 @@ g_print("audio_close_input: snd_pcm_close\n");
 g_print("audio_close_input: free mic buffer\n");
     g_free(mic_buffer);
     mic_buffer=NULL;
+  }
+  //
+  // We do not want to do a mutex lock/unlock for every single mic sample
+  // accessed. Since only the ring buffer is maintained by the functions
+  // audio_get_next_mic_sample() and in the "mic read thread",
+  // it is more than enough to wait 2 msec after setting mic_ring_buffer to NULL
+  // before actually releasing the storage.
+  //
+  if (mic_ring_buffer != NULL) {
+    p=mic_ring_buffer;
+    mic_ring_buffer=NULL;
+    usleep(2);
+    g_free(p);
   }
 }
 
@@ -302,6 +331,7 @@ int cw_audio_write(float sample){
 	
   RECEIVER *rx = active_receiver;
  
+  g_mutex_lock(&rx->local_audio_mutex);
   if(rx->playback_handle!=NULL && rx->local_audio_buffer!=NULL) {
 
     switch(rx->local_audio_format) {
@@ -341,6 +371,7 @@ g_print("audio delay=%ld trim=%ld\n",delay,trim);
             if(rc==-EPIPE) {
               if ((rc = snd_pcm_prepare (rx->playback_handle)) < 0) {
                 g_print("audio_write: cannot prepare audio interface for use %ld (%s)\n", rc, snd_strerror (rc));
+                g_mutex_unlock(&rx->local_audio_mutex);
                 return rc;
               } else {
                 // ignore short write
@@ -352,6 +383,7 @@ g_print("audio delay=%ld trim=%ld\n",delay,trim);
       rx->local_audio_buffer_offset=0;
     }
   }
+  g_mutex_unlock(&rx->local_audio_mutex);
   return 0;
 }
 
@@ -369,8 +401,6 @@ int audio_write(RECEIVER *rx,float left_sample,float right_sample) {
   gint32 *long_buffer;
   gint16 *short_buffer;
 
-  g_mutex_lock(&rx->local_audio_mutex);
-
   if(can_transmit) {
     mode=transmitter->mode;
   }
@@ -385,9 +415,11 @@ int audio_write(RECEIVER *rx,float left_sample,float right_sample) {
   //
 
   if (rx == active_receiver && isTransmitting() && (mode==modeCWU || mode==modeCWL)) {
-    g_mutex_unlock(&rx->local_audio_mutex);
     return 0;
   }
+
+  // lock AFTER checking the "quick return" condition but BEFORE checking the pointers
+  g_mutex_lock(&rx->local_audio_mutex);
 
   if(rx->playback_handle!=NULL && rx->local_audio_buffer!=NULL) {
     switch(rx->local_audio_format) {
@@ -473,6 +505,7 @@ g_print("mic_read_thread: snd_pcm_start\n");
         }
       }
     } else {
+      int newpt;
       // process the mic input
       for(i=0;i<mic_buffer_size;i++) {
         switch(record_audio_format) {
@@ -491,13 +524,26 @@ g_print("mic_read_thread: snd_pcm_start\n");
         }
         switch(protocol) {
           case ORIGINAL_PROTOCOL:
-            old_protocol_process_local_mic(sample);
-            break;
           case NEW_PROTOCOL:
-            new_protocol_process_local_mic(sample);
+	    //
+	    // put sample into ring buffer
+	    //
+	    if (mic_ring_buffer != NULL) {
+              // the "existence" of the ring buffer is now guaranteed for 1 msec,
+	      // see audio_close_input().
+	      newpt=mic_ring_write_pt +1;
+	      if (newpt == MICRINGLEN) newpt=0;
+	      if (newpt != mic_ring_read_pt) {
+	        // buffer space available, do the write
+	        mic_ring_buffer[mic_ring_write_pt]=sample;
+	        // atomic update of mic_ring_write_pt
+	        mic_ring_write_pt=newpt;
+	      }
+            }
             break;
 #ifdef SOAPYSDR
           case SOAPYSDR_PROTOCOL:
+            // Note that this call ends up deeply in the TX engine
             soapy_protocol_process_local_mic(sample);
             break;
 #endif
@@ -509,6 +555,28 @@ g_print("mic_read_thread: snd_pcm_start\n");
   }
 g_print("mic_read_thread: exiting\n");
   return NULL;
+}
+
+//
+// Utility function for retrieving mic samples
+// from ring buffer
+//
+float audio_get_next_mic_sample() {
+  int newpt;
+  float sample;
+  if ((mic_ring_buffer == NULL) || (mic_ring_read_pt == mic_ring_write_pt)) {
+    // no buffer, or nothing in buffer: insert silence
+    sample=0.0;
+  } else {
+    // the "existence" of the ring buffer is now guaranteed for 1 msec,
+    // see audio_close_input(),
+    newpt = mic_ring_read_pt+1;
+    if (newpt == MICRINGLEN) newpt=0;
+    sample=mic_ring_buffer[mic_ring_read_pt];
+    // atomic update of read pointer
+    mic_ring_read_pt=newpt;
+  }
+  return sample;
 }
 
 void audio_get_cards() {
@@ -550,33 +618,35 @@ g_print("audio_get_cards\n");
       // input devices
       snd_pcm_info_set_stream(pcminfo, SND_PCM_STREAM_CAPTURE);
       if ((err = snd_ctl_pcm_info(handle, pcminfo)) == 0) {
-        device_id=malloc(128);
+        device_id=g_new(char,128);
         snprintf(device_id, 128, "plughw:%d,%d %s", card, dev, snd_ctl_card_info_get_name(info));
         if(n_input_devices<MAX_AUDIO_DEVICES) {
           input_devices[n_input_devices].name=g_new0(char,strlen(device_id)+1);
           strcpy(input_devices[n_input_devices].name,device_id);
           input_devices[n_input_devices].description=g_new0(char,strlen(device_id)+1);
           strcpy(input_devices[n_input_devices].description,device_id);
-          input_devices[n_input_devices].index=i;
+          input_devices[n_input_devices].index=0;  // not used
           n_input_devices++;
 g_print("input_device: %s\n",device_id);
         }
+	g_free(device_id);
       }
 
       // ouput devices
       snd_pcm_info_set_stream(pcminfo, SND_PCM_STREAM_PLAYBACK);
       if ((err = snd_ctl_pcm_info(handle, pcminfo)) == 0) {
-        device_id=malloc(128);
+        device_id=g_new(char,128);
         snprintf(device_id, 128, "plughw:%d,%d %s", card, dev, snd_ctl_card_info_get_name(info));
         if(n_output_devices<MAX_AUDIO_DEVICES) {
           output_devices[n_output_devices].name=g_new0(char,strlen(device_id)+1);
           strcpy(output_devices[n_output_devices].name,device_id);
           output_devices[n_output_devices].description=g_new0(char,strlen(device_id)+1);
           strcpy(output_devices[n_output_devices].description,device_id);
-          input_devices[n_output_devices].index=i;
+          input_devices[n_output_devices].index=0; // not used
           n_output_devices++;
 g_print("output_device: %s\n",device_id);
         }
+	g_free(device_id);
       }
     }
     snd_ctl_close(handle);
@@ -606,7 +676,7 @@ g_print("output_device: %s\n",device_id);
             i++;
           }
           output_devices[n_output_devices].description[i]='\0';
-          input_devices[n_output_devices].index=i;
+          input_devices[n_output_devices].index=0;  // not used
           n_output_devices++;
 g_print("output_device: name=%s descr=%s\n",name,descr);
         //}
@@ -624,7 +694,7 @@ g_print("output_device: name=%s descr=%s\n",name,descr);
             i++;
           }
           input_devices[n_input_devices].description[i]='\0';
-          input_devices[n_input_devices].index=i;
+          input_devices[n_input_devices].index=0;  // not used
           n_input_devices++;
 g_print("input_device: name=%s descr=%s\n",name,descr);
         //}
@@ -632,6 +702,11 @@ g_print("input_device: name=%s descr=%s\n",name,descr);
 #endif
     }
 
+//
+//  For these three items, use free() instead of g_free(),
+//  since these have been allocated by ALSA via
+//  snd_device_name_get_hint()
+//
     if (name != NULL)
       free(name);
     if (descr != NULL)

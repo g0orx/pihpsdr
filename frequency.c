@@ -473,7 +473,7 @@ char* getFrequencyInfo(long long frequency,int filter_low,int filter_high) {
     }
 
 if(info) {
-  g_print("getFrequencyInfo: %s tx=%d\n", info->info, info->transmit);
+  //g_print("getFrequencyInfo: %s tx=%d\n", info->info, info->transmit);
 }
 
     return result;

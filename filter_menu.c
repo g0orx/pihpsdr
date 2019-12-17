@@ -124,7 +124,6 @@ static void var_spin_high_cb (GtkWidget *widget, gpointer data) {
 }
 
 void filter_menu(GtkWidget *parent) {
-  GtkWidget *b;
   int i;
 
   parent_window=parent;

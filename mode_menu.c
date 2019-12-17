@@ -68,9 +68,7 @@ static gboolean mode_select_cb (GtkWidget *widget, gpointer        data) {
 }
 
 void mode_menu(GtkWidget *parent) {
-  GtkWidget *b;
   int i;
-  BAND *band;
 
   parent_window=parent;
 

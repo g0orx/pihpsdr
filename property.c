@@ -81,7 +81,6 @@ void saveProperties(char* filename) {
     PROPERTY* property;
     FILE* f=fopen(filename,"w+");
     char line[512];
-    char version[32];
 
     fprintf(stderr,"saveProperties: %s\n",filename);
 

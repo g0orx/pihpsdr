@@ -957,8 +957,6 @@ void gpio_restore_actions() {
 
 void gpio_restore_state() {
   char* value;
-  char name[80];
-  int i;
 
   loadProperties("gpio.props");
   value=getProperty("ENABLE_VFO_ENCODER");
@@ -1111,8 +1109,6 @@ void gpio_save_actions() {
 }
 
 void gpio_save_state() {
-  int i;
-  char name[80];
   char value[80];
 
   sprintf(value,"%d",ENABLE_VFO_ENCODER);
@@ -1307,7 +1303,6 @@ void gpio_cw_sidetone_set(int level) {
 #endif
 
 int gpio_init() {
-  int i;
 
   fprintf(stderr,"gpio_wiringpi: gpio_init\n");
 

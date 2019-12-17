@@ -650,7 +650,6 @@ void top_encoder_select(int pos) {
 void encoder_menu(GtkWidget *parent) {
   int row=0;
   int col=0;
-  int i;
 
   dialog=gtk_dialog_new();
   gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent_window));

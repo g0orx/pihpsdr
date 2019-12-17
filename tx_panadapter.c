@@ -100,7 +100,6 @@ tx_panadapter_button_press_event_cb (GtkWidget      *widget,
                GdkEventButton *event,
                gpointer        data)
 {
-  int x=(int)event->x;
   if (event->button == 1) {
     last_x=(int)event->x;
     has_moved=FALSE;
@@ -118,7 +117,7 @@ tx_panadapter_button_release_event_cb (GtkWidget      *widget,
 {
   TRANSMITTER *tx=(TRANSMITTER *)data;
   int display_width=gtk_widget_get_allocated_width (tx->panadapter);
-  int display_height=gtk_widget_get_allocated_height (tx->panadapter);
+  //int display_height=gtk_widget_get_allocated_height (tx->panadapter);
 
   if(pressed) {
     int x=(int)event->x;
@@ -180,11 +179,7 @@ tx_panadapter_scroll_event_cb (GtkWidget      *widget,
 
 void tx_panadapter_update(TRANSMITTER *tx) {
   int i;
-  int result;
   float *samples;
-  float saved_max;
-  float saved_min;
-  cairo_text_extents_t extents;
 
   if(tx->panadapter_surface) {
 
@@ -248,8 +243,6 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   }
 
   // plot frequency markers
-  long long f;
-  long long divisor=20000;
   //long long half=24000LL; //(long long)(tx->output_rate/2);
   long long half=6000LL; //(long long)(tx->output_rate/2);
   long long frequency;
@@ -270,8 +263,9 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   }
 
 #ifdef TX_FREQ_MARKERS
-  //divisor=5000LL;
-  divisor=50000LL;
+  long long f;
+  cairo_text_extents_t extents;
+  long long divisor=50000;
   for(i=0;i<display_width;i++) {
     f = frequency - half + (long) (hz_per_pixel * i);
     if (f > 0) {

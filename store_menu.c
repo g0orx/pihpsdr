@@ -114,7 +114,6 @@ static gboolean recall_select_cb (GtkWidget *widget, gpointer data) {
 void store_menu(GtkWidget *parent) {
   GtkWidget *b;
   int i;
-  BAND *band;
   char label_str[50];
 
   parent_window=parent;

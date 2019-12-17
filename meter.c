@@ -183,7 +183,6 @@ meter_press_event_cb (GtkWidget *widget,
 
 
 GtkWidget* meter_init(int width,int height,GtkWidget *parent) {
-  GError *error;
 
 fprintf(stderr,"meter_init: width=%d height=%d\n",width,height);
   meter_width=width;
@@ -211,7 +210,6 @@ fprintf(stderr,"meter_init: width=%d height=%d\n",width,height);
 
 void meter_update(RECEIVER *rx,int meter_type,double value,double reverse,double exciter,double alc) {
   
-  char text[128];
   char sf[32];
   int text_location;
   double offset;

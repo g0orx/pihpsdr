@@ -64,11 +64,7 @@ MEM mem[NUM_OF_MEMORYS];  // This makes it a compile time option
 void memSaveState() {
     char name[128];
     char value[128];
-    int current;
-    BANDSTACK_ENTRY* entry;
-    int workvar;
     int b;
-    int stack;
 
     for(b=0;b<NUM_OF_MEMORYS;b++) {
       if(strlen(mem[b].title)>0) {
@@ -96,10 +92,7 @@ void memSaveState() {
 void memRestoreState() {
     char* value;
     int b;
-    int stack;
     char name[128];
-    BANDSTACK_ENTRY* entry;
-    int current;
 
     // Initialize the array with default values
     // Allows this to be a compile time option..
@@ -115,23 +108,31 @@ void memRestoreState() {
     for(b=0;b<NUM_OF_MEMORYS;b++) {
         sprintf(name,"mem.%d.title",b);
         value=getProperty(name);
-        if(value) strcpy(mem[b].title,value);
-        fprintf(stderr,"RESTORE: index=%d title=%s\n",b,value);
+        if(value) {
+          strcpy(mem[b].title,value);
+          fprintf(stderr,"RESTORE: index=%d title=%s\n",b,value);
+	}
 
         sprintf(name,"mem.%d.freqA",b);
         value=getProperty(name);
-        if(value) mem[b].frequency=atoll(value);
-        fprintf(stderr,"RESTORE MEM:Mem %d=FreqA %11lld\n",b,mem[b].frequency);
+        if(value) {
+	  mem[b].frequency=atoll(value);
+          fprintf(stderr,"RESTORE MEM:Mem %d=FreqA %11lld\n",b,mem[b].frequency);
+	}
 
         sprintf(name,"mem.%d.mode",b);
         value=getProperty(name);
-        if(value) mem[b].mode=atoi(value);
-        fprintf(stderr,"RESTORE: index=%d mode=%d\n",b,mem[b].mode);
+        if(value) {
+	  mem[b].mode=atoi(value);
+          fprintf(stderr,"RESTORE: index=%d mode=%d\n",b,mem[b].mode);
+	}
 
         sprintf(name,"mem.%d.filter",b);
         value=getProperty(name);
-        if(value) mem[b].filter=atoi(value);
-        fprintf(stderr,"RESTORE: index=%d filter=%d\n",b,mem[b].filter);
+        if(value) {
+	  mem[b].filter=atoi(value);
+          fprintf(stderr,"RESTORE: index=%d filter=%d\n",b,mem[b].filter);
+	}
     }
 
     //value=getProperty("band");

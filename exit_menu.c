@@ -127,7 +127,7 @@ static gboolean reboot_cb (GtkWidget *widget, GdkEventButton *event, gpointer da
 #endif
   }
   radioSaveState();
-  int rc=system("reboot");
+  system("reboot");
   _exit(0);
 }
 
@@ -149,7 +149,7 @@ static gboolean shutdown_cb (GtkWidget *widget, GdkEventButton *event, gpointer 
 #endif
   }
   radioSaveState();
-  int rc=system("shutdown -h -P now");
+  system("shutdown -h -P now");
   _exit(0);
 }
 

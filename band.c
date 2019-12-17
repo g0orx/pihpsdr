@@ -395,7 +395,6 @@ BAND *band_set_current(int b) {
 void bandSaveState() {
     char name[128];
     char value[128];
-    int current;
     BANDSTACK_ENTRY* entry;
 
     int b;
@@ -517,7 +516,6 @@ void bandRestoreState() {
     int stack;
     char name[128];
     BANDSTACK_ENTRY* entry;
-    int current;
 
     for(b=0;b<BANDS+XVTRS;b++) {
         sprintf(name,"band.%d.title",b);

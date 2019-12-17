@@ -141,8 +141,6 @@ static void cw_keyer_sidetone_frequency_value_changed_cb(GtkWidget *widget, gpoi
 }
 
 void cw_menu(GtkWidget *parent) {
-  int i;
-
   parent_window=parent;
 
   dialog=gtk_dialog_new();

@@ -57,7 +57,6 @@ static int vox_timeout_cb(gpointer data) {
 }
 
 static int level_update(void *data) {
-  char title[16];
   if(run_level) {
     gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(level),peak);
 
@@ -121,7 +120,6 @@ static gboolean enable_cb (GtkWidget *widget, GdkEventButton *event, gpointer da
 }
 
 static void start_level_thread() {
-  int rc;
   run_level=1;
   level_thread_id = g_thread_new( "VOX level", level_thread, NULL);
   if(!level_thread_id ) {
@@ -148,8 +146,6 @@ static void vox_hang_value_changed_cb(GtkWidget *widget, gpointer data) {
 }
 
 void vox_menu(GtkWidget *parent) {
-  int i;
-
   parent_window=parent;
 
   dialog=gtk_dialog_new();

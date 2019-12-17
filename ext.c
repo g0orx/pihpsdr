@@ -39,6 +39,7 @@
 #include "filter.h"
 #include "band.h"
 #include "bandstack.h"
+#include "noise_menu.h"
 #include "wdsp.h"
 
 // The following calls functions can be called usig g_idle_add
@@ -613,3 +614,7 @@ int ext_set_rf_gain(void *data) {
   return 0;
 }
 
+int ext_update_noise(void *data) {
+  update_noise();
+  return 0;
+}

@@ -212,11 +212,7 @@ void update_toolbar_labels() {
       gtk_button_set_label(GTK_BUTTON(sim_s3),"Band");
       gtk_button_set_label(GTK_BUTTON(sim_s4),"Mode");
       gtk_button_set_label(GTK_BUTTON(sim_s5),"Filter");
-      if(can_transmit) {
-        gtk_button_set_label(GTK_BUTTON(sim_s6),"Mox");
-      } else {
-        gtk_button_set_label(GTK_BUTTON(sim_s6),"");
-      }
+      gtk_button_set_label(GTK_BUTTON(sim_s6),"");
       if(full_tune) {
         set_button_text_color(sim_s1,"red");
       }
@@ -461,7 +457,7 @@ static void exit_cb(GtkWidget *widget, gpointer data) {
                            G_CALLBACK (gtk_widget_destroy),
                            dialog);
 
-  int result=gtk_dialog_run(GTK_DIALOG(dialog));
+  gtk_dialog_run(GTK_DIALOG(dialog));
 
 }
 

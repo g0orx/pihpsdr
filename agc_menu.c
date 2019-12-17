@@ -64,9 +64,6 @@ static void agc_select_cb (GtkToggleButton *widget, gpointer        data) {
 }
 
 void agc_menu(GtkWidget *parent) {
-  GtkWidget *b;
-  int i;
-  BAND *band;
 
   parent_window=parent;
 
