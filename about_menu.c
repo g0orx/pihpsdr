@@ -58,6 +58,7 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 void about_menu(GtkWidget *parent) {
   int i;
   char text[2048];
+  char line[128];
   char addr[64];
   char interface_addr[64];
 
@@ -95,66 +96,57 @@ void about_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),close_b,0,row,1,1);
   row++;
 
-  int lines=0;
-
   sprintf(text,"piHPSDR by John Melton G0ORX/N6LYT");
-  lines++;
-  sprintf(text,"%s\n\nWith help from:",text);
-  lines++;
-  sprintf(text,"%s\n    Steve Wilson, KA6S, RIGCTL (CAT over TCP)",text);
-  lines++;
-  sprintf(text,"%s\n    Laurence Barker, G8NJJ, USB OZY Support",text);
-  lines++;
-  sprintf(text,"%s\n    Johan Maas, PA3GSB, RadioBerry support",text);
-  lines++;
-  sprintf(text,"%s\n    Ken Hopper, N9VV, Testing and Documentation",text);
-  lines++;
-  sprintf(text,"%s\n    Christoph v. Wüllen, DL1YCF, Pure Signal, Diversity, MIDI",text);
-  lines++;
-  lines++;
+  strcat(text,"\n\nWith help from:");
+  strcat(text,"\n    Steve Wilson, KA6S: RIGCTL (CAT over TCP)");
+  strcat(text,"\n    Laurence Barker, G8NJJ: USB OZY Support");
+  strcat(text,"\n    Johan Maas, PA3GSB: RadioBerry support");
+  strcat(text,"\n    Ken Hopper, N9VV: Testing and Documentation");
+  strcat(text,"\n    Christoph van Wüllen, DL1YCF: CW, Pure Signal, Diversity, MIDI ");
 
-  sprintf(text,"%s\n\nBuild date: %s", text, build_date);
-  lines++;
+  sprintf(line,"\n\nBuild date: %s", build_date);
+  strcat(text,line);
 
-  sprintf(text,"%s\nBuild version: %s", text, version);
-  lines++;
+  sprintf(line,"\nBuild version: %s", version);
+  strcat(text,line);
 
-  sprintf(text,"%s\nWDSP version: %d.%02d", text, GetWDSPVersion()/100, GetWDSPVersion()%100);
-  lines++;
+  sprintf(line,"\nWDSP version: %d.%02d", GetWDSPVersion()/100, GetWDSPVersion()%100);
+  strcat(text,line);
 
-  sprintf(text,"%s\n\nDevice: %s Protocol %s v%d.%d",text,radio->name,radio->protocol==ORIGINAL_PROTOCOL?"1":"2",radio->software_version/10,radio->software_version%10);
-  lines++;
+  sprintf(line,"\n\nDevice: %s Protocol %s v%d.%d",radio->name,radio->protocol==ORIGINAL_PROTOCOL?"1":"2",radio->software_version/10,radio->software_version%10);
+  strcat(text,line);
 
   switch(radio->protocol) {
     case ORIGINAL_PROTOCOL:
     case NEW_PROTOCOL:
 #ifdef USBOZY
       if(radio->device==DEVICE_OZY) {
-        sprintf(text,"%s\nDevice OZY: USB /dev/ozy Protocol %s v%d.%d",text,radio->protocol==ORIGINAL_PROTOCOL?"1":"2",radio->software_version/10,radio->software_version%10);
+        sprintf(line,"\nDevice OZY: USB /dev/ozy Protocol %s v%d.%d",radio->protocol==ORIGINAL_PROTOCOL?"1":"2",radio->software_version/10,radio->software_version%10);
+        strcat(text,line);
       } else {
 #endif
         
         strcpy(addr,inet_ntoa(radio->info.network.address.sin_addr));
         strcpy(interface_addr,inet_ntoa(radio->info.network.interface_address.sin_addr));
-        sprintf(text,"%s\nDevice Mac Address: %02X:%02X:%02X:%02X:%02X:%02X",text,
+        sprintf(line,"\nDevice Mac Address: %02X:%02X:%02X:%02X:%02X:%02X",
                 radio->info.network.mac_address[0],
                 radio->info.network.mac_address[1],
                 radio->info.network.mac_address[2],
                 radio->info.network.mac_address[3],
                 radio->info.network.mac_address[4],
                 radio->info.network.mac_address[5]);
-        sprintf(text,"%s\nDevice IP Address: %s on %s (%s)",text,addr,radio->info.network.interface_name,interface_addr);
+        strcat(text,line);
+        sprintf(line,"\nDevice IP Address: %s on %s (%s)",addr,radio->info.network.interface_name,interface_addr);
+        strcat(text,line);
 
 #ifdef USBOZY
       }
 #endif
       break;
   }
-  lines++;
 
 #ifdef FREEDV
-  sprintf(text,"%s\n\nIncludes: FREEDV",text);
-  lines++;
+  strcat(text,"\n\nIncludes: FREEDV");
 #endif
 
   label=gtk_label_new(text);
