@@ -788,7 +788,6 @@ vfo_scroll_event_cb (GtkWidget      *widget,
                GdkEventScroll *event,
                gpointer        data)
 {
-  int i;
   if(event->direction==GDK_SCROLL_UP) {
     vfo_move(step,TRUE);
   } else {
@@ -1095,7 +1094,7 @@ void vfo_update() {
         cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         cairo_show_text(cr, temp_text);
 
-        char *info=getFrequencyInfo(af,active_receiver->filter_low,active_receiver->filter_high);
+        getFrequencyInfo(af,active_receiver->filter_low,active_receiver->filter_high);
 /*
         cairo_move_to(cr, (my_width/4)*3, 50);
         cairo_show_text(cr, getFrequencyInfo(af));
@@ -1198,7 +1197,6 @@ vfo_press_event_cb (GtkWidget *widget,
 }
 
 GtkWidget* vfo_init(int width,int height,GtkWidget *parent) {
-  int i;
 
 fprintf(stderr,"vfo_init: width=%d height=%d\n", width, height);
 

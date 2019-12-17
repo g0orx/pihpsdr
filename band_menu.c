@@ -58,7 +58,6 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 }
 
 gboolean band_select_cb (GtkWidget *widget, gpointer        data) {
-  GtkWidget *label;
   int b=GPOINTER_TO_UINT(data);
   set_button_text_color(last_band,"black");
   last_band=widget;
@@ -68,7 +67,6 @@ gboolean band_select_cb (GtkWidget *widget, gpointer        data) {
 }
 
 void band_menu(GtkWidget *parent) {
-  GtkWidget *b;
   int i,j;
   BAND *band;
 

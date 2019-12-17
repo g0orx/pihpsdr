@@ -94,8 +94,6 @@ static void ae_cb(GtkWidget *widget, gpointer data) {
 }
 
 void dsp_menu(GtkWidget *parent) {
-  int i;
-
   parent_window=parent;
 
   dialog=gtk_dialog_new();

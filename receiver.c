@@ -80,7 +80,6 @@ void receiver_weak_notify(gpointer data,GObject  *obj) {
 gboolean receiver_button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data) {
   RECEIVER *rx=(RECEIVER *)data;
   if(rx==active_receiver) {
-    int x=(int)event->x;
     if (event->button == 1) {
       last_x=(int)event->x;
       has_moved=FALSE;
@@ -106,8 +105,8 @@ gboolean receiver_button_release_event(GtkWidget *widget, GdkEventButton *event,
       g_idle_add(ext_start_rx,NULL);
     }
   } else {
-    int display_width=gtk_widget_get_allocated_width (rx->panadapter);
-    int display_height=gtk_widget_get_allocated_height (rx->panadapter);
+    //int display_width=gtk_widget_get_allocated_width (rx->panadapter);
+    //int display_height=gtk_widget_get_allocated_height (rx->panadapter);
     if(pressed) {
       int x=(int)event->x;
       if (event->button == 1) {
@@ -615,17 +614,13 @@ void set_displaying(RECEIVER *rx,int state) {
   if(state) {
     rx->update_timer_id=gdk_threads_add_timeout_full(G_PRIORITY_HIGH_IDLE,1000/rx->fps, update_display, rx, NULL);
   } else {
-    if(rx->update_timer_id!=-1) {
-      rx->update_timer_id=-1;
-    }
+    rx->update_timer_id=-1;
   }
 }
 
 void set_mode(RECEIVER *rx,int m) {
-  int local_mode=m;
 #ifdef PSK
   if(vfo[rx->id].mode!=modePSK && m==modePSK) {
-    local_mode=modeUSB;
     //init_psk();
     show_psk();
   } else if(vfo[rx->id].mode==modePSK && m!=modePSK) {
@@ -721,8 +716,6 @@ static void init_analyzer(RECEIVER *rx) {
     int span_clip_h = 0;
     int pixels=rx->pixels;
     int stitches = 1;
-    int avm = 0;
-    double tau = 0.001 * 120.0;
     int calibration_data_set = 0;
     double span_min_freq = 0.0;
     double span_max_freq = 0.0;
@@ -1456,7 +1449,6 @@ static void process_rx_buffer(RECEIVER *rx) {
 }
 
 void full_rx_buffer(RECEIVER *rx) {
-  int j;
   int error;
 
   g_mutex_lock(&rx->mutex);

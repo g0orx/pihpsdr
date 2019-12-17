@@ -202,7 +202,7 @@ void set_attenuation_value(double value) {
       gtk_container_add(GTK_CONTAINER(content),attenuation_scale);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
       //gtk_widget_show_all(scale_dialog);
-      int result=gtk_dialog_run(GTK_DIALOG(scale_dialog));
+      gtk_dialog_run(GTK_DIALOG(scale_dialog));
     } else {
       g_source_remove(scale_timer);
       gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc_attenuation[active_receiver->adc]);
@@ -313,7 +313,7 @@ void set_agc_gain(int rx,double value) {
       gtk_container_add(GTK_CONTAINER(content),agc_scale);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
       //gtk_widget_show_all(scale_dialog);
-      int result=gtk_dialog_run(GTK_DIALOG(scale_dialog));
+      gtk_dialog_run(GTK_DIALOG(scale_dialog));
     } else {
       g_source_remove(scale_timer);
       gtk_range_set_value (GTK_RANGE(agc_scale),receiver[rx]->agc_gain);
@@ -365,7 +365,7 @@ void set_af_gain(int rx,double value) {
       gtk_container_add(GTK_CONTAINER(content),af_gain_scale);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
       //gtk_widget_show_all(scale_dialog);
-      int result=gtk_dialog_run(GTK_DIALOG(scale_dialog));
+      gtk_dialog_run(GTK_DIALOG(scale_dialog));
     } else {
       g_source_remove(scale_timer);
       gtk_range_set_value (GTK_RANGE(af_gain_scale),receiver[rx]->volume*100.0);
@@ -415,7 +415,7 @@ void set_rf_gain(int rx,double value) {
       gtk_container_add(GTK_CONTAINER(content),rf_gain_scale);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
       //gtk_widget_show_all(scale_dialog);
-      int result=gtk_dialog_run(GTK_DIALOG(scale_dialog));
+      gtk_dialog_run(GTK_DIALOG(scale_dialog));
     } else {
       g_source_remove(scale_timer);
       gtk_range_set_value (GTK_RANGE(rf_gain_scale),receiver[rx]->rf_gain);
@@ -443,7 +443,7 @@ void set_filter_width(int rx,int width) {
       gtk_container_add(GTK_CONTAINER(content),filter_width_scale);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
       //gtk_widget_show_all(scale_dialog);
-      int result=gtk_dialog_run(GTK_DIALOG(scale_dialog));
+      gtk_dialog_run(GTK_DIALOG(scale_dialog));
     } else {
       g_source_remove(scale_timer);
       gtk_range_set_value (GTK_RANGE(filter_width_scale),(double)width);
@@ -486,7 +486,7 @@ void set_mic_gain(double value) {
         gtk_container_add(GTK_CONTAINER(content),mic_gain_scale);
         scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
         //gtk_widget_show_all(scale_dialog);
-        int result=gtk_dialog_run(GTK_DIALOG(scale_dialog));
+        gtk_dialog_run(GTK_DIALOG(scale_dialog));
       } else {
         g_source_remove(scale_timer);
         gtk_range_set_value (GTK_RANGE(mic_gain_scale),mic_gain);
@@ -519,7 +519,7 @@ void set_linein_gain(int value) {
       gtk_container_add(GTK_CONTAINER(content),mic_gain_scale);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
       //gtk_widget_show_all(scale_dialog);
-      int result=gtk_dialog_run(GTK_DIALOG(scale_dialog));
+      gtk_dialog_run(GTK_DIALOG(scale_dialog));
     } else {
       g_source_remove(scale_timer);
       gtk_range_set_value (GTK_RANGE(mic_gain_scale),linein_gain);
@@ -568,7 +568,7 @@ void set_drive(double value) {
       gtk_container_add(GTK_CONTAINER(content),drive_scale);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
       //gtk_widget_show_all(scale_dialog);
-      int result=gtk_dialog_run(GTK_DIALOG(scale_dialog));
+      gtk_dialog_run(GTK_DIALOG(scale_dialog));
     } else {
       g_source_remove(scale_timer);
       gtk_range_set_value (GTK_RANGE(drive_scale),value);
@@ -636,7 +636,7 @@ void set_squelch() {
       gtk_widget_show(squelch_scale);
       gtk_container_add(GTK_CONTAINER(content),squelch_scale);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
-      int result=gtk_dialog_run(GTK_DIALOG(scale_dialog));
+      gtk_dialog_run(GTK_DIALOG(scale_dialog));
     } else {
       g_source_remove(scale_timer);
       gtk_range_set_value (GTK_RANGE(squelch_scale),active_receiver->squelch);
@@ -671,7 +671,7 @@ void set_compression(TRANSMITTER* tx) {
       gtk_widget_show(comp_scale);
       gtk_container_add(GTK_CONTAINER(content),comp_scale);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
-      int result=gtk_dialog_run(GTK_DIALOG(scale_dialog));
+      gtk_dialog_run(GTK_DIALOG(scale_dialog));
     } else {
       g_source_remove(scale_timer);
       gtk_range_set_value (GTK_RANGE(comp_scale),tx->compressor_level);
@@ -703,7 +703,7 @@ void show_diversity_gain() {
       gtk_container_add(GTK_CONTAINER(content),diversity_gain_scale);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
       //gtk_widget_show_all(scale_dialog);
-      int result=gtk_dialog_run(GTK_DIALOG(scale_dialog));
+      gtk_dialog_run(GTK_DIALOG(scale_dialog));
     } else {
       g_source_remove(scale_timer);
       gtk_range_set_value (GTK_RANGE(diversity_gain_scale),div_gain);
@@ -730,7 +730,7 @@ void show_diversity_phase() {
       gtk_container_add(GTK_CONTAINER(content),diversity_phase_scale);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
       //gtk_widget_show_all(scale_dialog);
-      int result=gtk_dialog_run(GTK_DIALOG(scale_dialog));
+      gtk_dialog_run(GTK_DIALOG(scale_dialog));
     } else {
       g_source_remove(scale_timer);
       gtk_range_set_value (GTK_RANGE(diversity_phase_scale),div_phase);

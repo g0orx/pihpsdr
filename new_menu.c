@@ -442,7 +442,7 @@ static gboolean test_cb (GtkWidget *widget, GdkEventButton *event, gpointer data
 
 void new_menu()
 {
-  int i, j, id;
+  int i;
 
   if(dialog==NULL) {
 

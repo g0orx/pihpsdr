@@ -109,7 +109,6 @@ static void value_changed_cb (GtkWidget *widget, gpointer data) {
 }
 
 void equalizer_menu(GtkWidget *parent) {
-  int i;
 
   if(can_transmit) {
     tx_menu=TRUE;

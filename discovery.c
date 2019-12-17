@@ -110,7 +110,6 @@ static gboolean midi_cb(GtkWidget *widget, GdkEventButton *event, gpointer data)
     GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_OPEN;
     gint res;
     int fdin, fdout;
-    char c;
     size_t len,bytes_read,bytes_written;
 
     opfile = gtk_file_chooser_dialog_new ("Import MIDI description",

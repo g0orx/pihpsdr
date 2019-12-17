@@ -115,10 +115,7 @@ static gboolean panadapter_scroll_event_cb(GtkWidget *widget, GdkEventScroll *ev
 void rx_panadapter_update(RECEIVER *rx) {
   int i;
   int x1,x2;
-  int result;
   float *samples;
-  float saved_max;
-  float saved_min;
   cairo_text_extents_t extents;
 
   gboolean active=active_receiver==rx;
@@ -479,9 +476,6 @@ void rx_panadapter_update(RECEIVER *rx) {
 }
 
 void rx_panadapter_init(RECEIVER *rx, int width,int height) {
-
-  int display_width=width;
-  int display_height=height;
 
   rx->panadapter_surface=NULL;
   rx->panadapter = gtk_drawing_area_new ();

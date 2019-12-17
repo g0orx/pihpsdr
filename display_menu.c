@@ -128,8 +128,6 @@ static void display_toolbar_cb(GtkWidget *widget, gpointer data) {
 }
 
 void display_menu(GtkWidget *parent) {
-  int i;
-
   parent_window=parent;
 
   dialog=gtk_dialog_new();

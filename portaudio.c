@@ -136,7 +136,7 @@ unsigned char *micbuffer = NULL;
 int audio_open_input()
 {
   PaError err;
-  PaStreamParameters inputParameters, outputParameters;
+  PaStreamParameters inputParameters;
   long framesPerBuffer;
   int i;
   int padev;
@@ -444,7 +444,7 @@ int audio_write (RECEIVER *rx, float left, float right)
   if (rx->playback_handle != NULL && rx->local_audio_buffer != NULL) {
     buffer[rx->local_audio_buffer_offset++] = (left+right)*0.5;  //   mix to MONO   
     if (rx->local_audio_buffer_offset == BUFFER_SIZE) {
-      err=Pa_WriteStream(rx->playback_handle, rx->local_audio_buffer, (unsigned long) BUFFER_SIZE);
+      Pa_WriteStream(rx->playback_handle, rx->local_audio_buffer, (unsigned long) BUFFER_SIZE);
       rx->local_audio_buffer_offset=0;
       // do not check on errors, there will be underflows every now and then
     }
@@ -461,7 +461,7 @@ int cw_audio_write(float sample) {
   if (rx->playback_handle != NULL && rx->local_audio_buffer != NULL) {
     buffer[rx->local_audio_buffer_offset++] = sample;
     if (rx->local_audio_buffer_offset == BUFFER_SIZE) {
-      err=Pa_WriteStream(rx->playback_handle, rx->local_audio_buffer, (unsigned long) BUFFER_SIZE);
+      Pa_WriteStream(rx->playback_handle, rx->local_audio_buffer, (unsigned long) BUFFER_SIZE);
       // do not check on errors, there will be underflows every now and then
       rx->local_audio_buffer_offset=0;
     }

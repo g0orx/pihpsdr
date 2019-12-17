@@ -625,7 +625,7 @@ g_print("audio_get_cards\n");
           strcpy(input_devices[n_input_devices].name,device_id);
           input_devices[n_input_devices].description=g_new0(char,strlen(device_id)+1);
           strcpy(input_devices[n_input_devices].description,device_id);
-          input_devices[n_input_devices].index=i;
+          input_devices[n_input_devices].index=0;  // not used
           n_input_devices++;
 g_print("input_device: %s\n",device_id);
         }
@@ -642,7 +642,7 @@ g_print("input_device: %s\n",device_id);
           strcpy(output_devices[n_output_devices].name,device_id);
           output_devices[n_output_devices].description=g_new0(char,strlen(device_id)+1);
           strcpy(output_devices[n_output_devices].description,device_id);
-          input_devices[n_output_devices].index=i;
+          input_devices[n_output_devices].index=0; // not used
           n_output_devices++;
 g_print("output_device: %s\n",device_id);
         }
@@ -676,7 +676,7 @@ g_print("output_device: %s\n",device_id);
             i++;
           }
           output_devices[n_output_devices].description[i]='\0';
-          input_devices[n_output_devices].index=i;
+          input_devices[n_output_devices].index=0;  // not used
           n_output_devices++;
 g_print("output_device: name=%s descr=%s\n",name,descr);
         //}
@@ -694,7 +694,7 @@ g_print("output_device: name=%s descr=%s\n",name,descr);
             i++;
           }
           input_devices[n_input_devices].description[i]='\0';
-          input_devices[n_input_devices].index=i;
+          input_devices[n_input_devices].index=0;  // not used
           n_input_devices++;
 g_print("input_device: name=%s descr=%s\n",name,descr);
         //}

@@ -52,8 +52,8 @@ static void save_xvtr () {
     const char *maxf;
     const char *lof;
     const char *loerr;
-    const char *txlof;
-    const char *txloerr;
+    const char *txlof;   // used in temporarily de-activated code
+    const char *txloerr; // used in temporarily de-activated code
     for(i=BANDS;i<BANDS+XVTRS;i++) {
       BAND *xvtr=band_get_band(i);
       BANDSTACK *bandstack=xvtr->bandstack;
@@ -98,7 +98,6 @@ fprintf(stderr,"min=%s:%lld max=%s:%lld lo=%s:%lld\n",minf,xvtr->frequencyMin,ma
 }
 
 void update_receiver(int band,gboolean error) {
-  int i;
   RECEIVER *rx=active_receiver;
   gboolean saved_ctun;
 //g_print("update_receiver: band=%d error=%d\n",band,error);
@@ -207,7 +206,7 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 }
 
 void xvtr_menu(GtkWidget *parent) {
-  int i,j;
+  int i;
   char f[16];
 
 fprintf(stderr,"xvtr_menu\n");

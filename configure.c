@@ -552,7 +552,7 @@ void configure_gpio(GtkWidget *parent) {
   gtk_container_add(GTK_CONTAINER(content),grid);
 
   gtk_widget_show_all(dialog);
-  int result=gtk_dialog_run(GTK_DIALOG(dialog));
+  gtk_dialog_run(GTK_DIALOG(dialog));
 
 }
 #endif

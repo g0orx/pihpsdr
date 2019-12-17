@@ -412,10 +412,10 @@ void new_protocol_init(int pixels) {
     response_sem=sem_open("RESPONSE", O_CREAT | O_EXCL, 0700, 0);
     if (response_sem == SEM_FAILED) perror("ResponseSemaphore");
 #else
-    rc=sem_init(&response_sem, 0, 0);
+    rc=sem_init(&response_sem, 0, 0); // check return value!
 #endif
-    //rc=sem_init(&send_high_priority_sem, 0, 1);
-    //rc=sem_init(&send_general_sem, 0, 1);
+    //rc=sem_init(&send_high_priority_sem, 0, 1); // check return value!
+    //rc=sem_init(&send_general_sem, 0, 1); // check return value!
 
 #ifdef __APPLE__
     sem_unlink("COMMRESREADY");
@@ -425,8 +425,8 @@ void new_protocol_init(int pixels) {
     command_response_sem_buffer=sem_open("COMMRESBUF", O_CREAT | O_EXCL, 0700, 0);
     if (command_response_sem_buffer == SEM_FAILED) perror("CommandResponseBufferSemaphore");
 #else
-    rc=sem_init(&command_response_sem_ready, 0, 0);
-    rc=sem_init(&command_response_sem_buffer, 0, 0);
+    rc=sem_init(&command_response_sem_ready, 0, 0); // check return value!
+    rc=sem_init(&command_response_sem_buffer, 0, 0); // check return value!
 #endif
     command_response_thread_id = g_thread_new( "command_response thread",command_response_thread, NULL);
     if( ! command_response_thread_id ) {
@@ -442,8 +442,8 @@ void new_protocol_init(int pixels) {
     high_priority_sem_buffer=sem_open("HIGHBUF",   O_CREAT | O_EXCL, 0700, 0);
     if (high_priority_sem_buffer == SEM_FAILED) perror("HIGHPriorityBufferSemaphore");
 #else
-    rc=sem_init(&high_priority_sem_ready, 0, 0);
-    rc=sem_init(&high_priority_sem_buffer, 0, 0);
+    rc=sem_init(&high_priority_sem_ready, 0, 0); // check return value!
+    rc=sem_init(&high_priority_sem_buffer, 0, 0); // check return value!
 #endif
     high_priority_thread_id = g_thread_new( "high_priority thread", high_priority_thread, NULL);
     if( ! high_priority_thread_id ) {
@@ -459,8 +459,8 @@ void new_protocol_init(int pixels) {
     mic_line_sem_buffer=sem_open("MICBUF",   O_CREAT | O_EXCL, 0700, 0);
     if (mic_line_sem_buffer == SEM_FAILED) perror("MicLineBufferSemaphore");
 #else
-    rc=sem_init(&mic_line_sem_ready, 0, 0);
-    rc=sem_init(&mic_line_sem_buffer, 0, 0);
+    rc=sem_init(&mic_line_sem_ready, 0, 0); // check return value!
+    rc=sem_init(&mic_line_sem_buffer, 0, 0); // check return value!
 #endif
     mic_line_thread_id = g_thread_new( "mic_line thread", mic_line_thread, NULL);
     if( ! mic_line_thread_id ) {
@@ -492,8 +492,8 @@ void new_protocol_init(int pixels) {
         perror("IQbufferSemaphore");
       }
 #else
-      rc=sem_init(&iq_sem_ready[i], 0, 0);
-      rc=sem_init(&iq_sem_buffer[i], 0, 0);
+      rc=sem_init(&iq_sem_ready[i], 0, 0); // check return value!
+      rc=sem_init(&iq_sem_buffer[i], 0, 0); // check return value!
 #endif
       iq_thread_id[i] = g_thread_new( "iq thread", iq_thread, GINT_TO_POINTER(i));
     }
@@ -620,7 +620,7 @@ static void new_protocol_general() {
     }
 
     if(rc!=sizeof(general_buffer)) {
-      fprintf(stderr,"sendto socket for general: %d rather than %ld",rc,sizeof(general_buffer));
+      fprintf(stderr,"sendto socket for general: %d rather than %ld",rc,(long)sizeof(general_buffer));
     }
 
     general_sequence++;
@@ -1130,7 +1130,7 @@ static void new_protocol_high_priority() {
     }
  
     if(rc!=sizeof(high_priority_buffer_to_radio)) {
-      fprintf(stderr,"sendto socket for high_priority: %d rather than %ld",rc,sizeof(high_priority_buffer_to_radio));
+      fprintf(stderr,"sendto socket for high_priority: %d rather than %ld",rc,(long)sizeof(high_priority_buffer_to_radio));
     }
 
     high_priority_sequence++;
@@ -1230,7 +1230,7 @@ static void new_protocol_transmit_specific() {
     }
 
     if(rc!=sizeof(transmit_specific_buffer)) {
-      fprintf(stderr,"sendto socket for transmit_specific: %d rather than %ld",rc,sizeof(transmit_specific_buffer));
+      fprintf(stderr,"sendto socket for transmit_specific: %d rather than %ld",rc,(long)sizeof(transmit_specific_buffer));
     }
 
     tx_specific_sequence++;
@@ -1326,7 +1326,7 @@ static void new_protocol_receive_specific() {
     }
  
     if(rc!=sizeof(receive_specific_buffer)) {
-      fprintf(stderr,"sendto socket for receive_specific: %d rather than %ld",rc,sizeof(receive_specific_buffer));
+      fprintf(stderr,"sendto socket for receive_specific: %d rather than %ld",rc,(long)sizeof(receive_specific_buffer));
     }
 
     rx_specific_sequence++;
@@ -1368,7 +1368,6 @@ double calibrate(int v) {
 
 static gpointer new_protocol_thread(gpointer data) {
 
-    int i;
     int ddc;
     short sourceport;
     unsigned char *buffer;
@@ -1572,8 +1571,8 @@ static gpointer iq_thread(gpointer data) {
 }
 
 static void process_iq_data(unsigned char *buffer, RECEIVER *rx) {
-  long long timestamp;
-  int bitspersample;
+  //long long timestamp;   // never used
+  int bitspersample;     // used in debug code
   int samplesperframe;
   int b;
   int leftsample;
@@ -1581,15 +1580,15 @@ static void process_iq_data(unsigned char *buffer, RECEIVER *rx) {
   double leftsampledouble;
   double rightsampledouble;
 
-  timestamp=((long long)(buffer[4]&0xFF)<<56)
-           +((long long)(buffer[5]&0xFF)<<48)
-           +((long long)(buffer[6]&0xFF)<<40)
-           +((long long)(buffer[7]&0xFF)<<32)
-           +((long long)(buffer[8]&0xFF)<<24)
-           +((long long)(buffer[9]&0xFF)<<16)
-           +((long long)(buffer[10]&0xFF)<<8)
-           +((long long)(buffer[11]&0xFF)   );
-  bitspersample=((buffer[12]&0xFF)<<8)+(buffer[13]&0xFF);
+  //timestamp=((long long)(buffer[4]&0xFF)<<56)
+  //         +((long long)(buffer[5]&0xFF)<<48)
+  //         +((long long)(buffer[6]&0xFF)<<40)
+  //         +((long long)(buffer[7]&0xFF)<<32)
+  //         +((long long)(buffer[8]&0xFF)<<24)
+  //         +((long long)(buffer[9]&0xFF)<<16)
+  //         +((long long)(buffer[10]&0xFF)<<8)
+  //         +((long long)(buffer[11]&0xFF)   );
+  bitspersample=((buffer[12]&0xFF)<<8)+(buffer[13]&0xFF);   // used in debug code
   samplesperframe=((buffer[14]&0xFF)<<8)+(buffer[15]&0xFF);
 
 //g_print("process_iq_data: rx=%d bitspersample=%d samplesperframe=%d\n",rx->id, bitspersample,samplesperframe);
@@ -1617,9 +1616,8 @@ static void process_iq_data(unsigned char *buffer, RECEIVER *rx) {
 // at the end
 //
 static void process_div_iq_data(unsigned char*buffer) {
-  long sequence;
-  long long timestamp;
-  int bitspersample;
+  // long long timestamp; // never used
+  // int bitspersample;   // never used
   int samplesperframe;
   int b;
   int leftsample0;
@@ -1631,16 +1629,16 @@ static void process_div_iq_data(unsigned char*buffer) {
   double leftsampledouble1;
   double rightsampledouble1;
   
-  timestamp=((long long)(buffer[ 4]&0xFF)<<56)
-           +((long long)(buffer[ 5]&0xFF)<<48)
-           +((long long)(buffer[ 6]&0xFF)<<40)
-           +((long long)(buffer[ 7]&0xFF)<<32)
-           +((long long)(buffer[ 8]&0xFF)<<24)
-           +((long long)(buffer[ 9]&0xFF)<<16)
-           +((long long)(buffer[10]&0xFF)<< 8)
-           +((long long)(buffer[11]&0xFF)    );
+  //timestamp=((long long)(buffer[ 4]&0xFF)<<56)
+  //         +((long long)(buffer[ 5]&0xFF)<<48)
+  //         +((long long)(buffer[ 6]&0xFF)<<40)
+  //         +((long long)(buffer[ 7]&0xFF)<<32)
+  //         +((long long)(buffer[ 8]&0xFF)<<24)
+  //         +((long long)(buffer[ 9]&0xFF)<<16)
+  //         +((long long)(buffer[10]&0xFF)<< 8)
+  //         +((long long)(buffer[11]&0xFF)    );
 
-  bitspersample=((buffer[12]&0xFF)<<8)+(buffer[13]&0xFF);
+  //bitspersample=((buffer[12]&0xFF)<<8)+(buffer[13]&0xFF);
   samplesperframe=((buffer[14]&0xFF)<<8)+(buffer[15]&0xFF);
 
   b=16;
@@ -1677,9 +1675,8 @@ static void process_div_iq_data(unsigned char*buffer) {
 }
 
 static void process_ps_iq_data(unsigned char *buffer) {
-  long sequence;
-  long long timestamp;
-  int bitspersample;
+  //long long timestamp; // never used
+  int bitspersample;     // used in debug code
   int samplesperframe;
   int b;
   int leftsample0;
@@ -1691,16 +1688,16 @@ static void process_ps_iq_data(unsigned char *buffer) {
   double leftsampledouble1;
   double rightsampledouble1;
 
-  timestamp=((long long)(buffer[ 4]&0xFF)<<56)
-           +((long long)(buffer[ 5]&0xFF)<<48)
-           +((long long)(buffer[ 6]&0xFF)<<40)
-           +((long long)(buffer[ 7]&0xFF)<<32)
-           +((long long)(buffer[ 8]&0xFF)<<24)
-           +((long long)(buffer[ 9]&0xFF)<<16)
-           +((long long)(buffer[10]&0xFF)<< 8)
-           +((long long)(buffer[11]&0xFF)    );
+  //timestamp=((long long)(buffer[ 4]&0xFF)<<56)
+  //         +((long long)(buffer[ 5]&0xFF)<<48)
+  //         +((long long)(buffer[ 6]&0xFF)<<40)
+  //         +((long long)(buffer[ 7]&0xFF)<<32)
+  //         +((long long)(buffer[ 8]&0xFF)<<24)
+  //         +((long long)(buffer[ 9]&0xFF)<<16)
+  //         +((long long)(buffer[10]&0xFF)<< 8)
+  //         +((long long)(buffer[11]&0xFF)    );
 
-  bitspersample=((buffer[12]&0xFF)<<8)+(buffer[13]&0xFF);
+  bitspersample=((buffer[12]&0xFF)<<8)+(buffer[13]&0xFF); // used in debug code
   samplesperframe=((buffer[14]&0xFF)<<8)+(buffer[15]&0xFF);
 
 //fprintf(stderr,"process_ps_iq_data: bitspersample=%d samplesperframe=%d\n", bitspersample,samplesperframe);
@@ -1757,8 +1754,6 @@ static void process_high_priority(unsigned char *buffer) {
     int previous_dot;
     int previous_dash;
 
-    int id=active_receiver->id;
-
     sequence=((high_priority_buffer[0]&0xFF)<<24)+((high_priority_buffer[1]&0xFF)<<16)+((high_priority_buffer[2]&0xFF)<<8)+(high_priority_buffer[3]&0xFF);
     if (sequence != highprio_rcvd_sequence) {
 	fprintf(stderr,"HighPrio SeqErr Expected=%ld Seen=%ld\n", highprio_rcvd_sequence, sequence);
@@ -1793,7 +1788,7 @@ static void process_high_priority(unsigned char *buffer) {
 #endif
     }
 
-    int tx_vfo=split?VFO_B:VFO_A;
+    //int tx_vfo=split?VFO_B:VFO_A;
     //if(vfo[tx_vfo].mode==modeCWL || vfo[tx_vfo].mode==modeCWU) {
     //  local_ptt=local_ptt|dot|dash;
     //}
@@ -1857,7 +1852,7 @@ void new_protocol_cw_audio_samples(short left_audio_sample,short right_audio_sam
 
     rc=sendto(data_socket,audiobuffer,sizeof(audiobuffer),0,(struct sockaddr*)&audio_addr,audio_addr_length);
     if(rc!=sizeof(audiobuffer)) {
-      fprintf(stderr,"sendto socket failed for %ld bytes of audio: %d\n",sizeof(audiobuffer),rc);
+      fprintf(stderr,"sendto socket failed for %ld bytes of audio: %d\n",(long)sizeof(audiobuffer),rc);
     }
     audioindex=4;
     audiosequence++;
@@ -1891,7 +1886,7 @@ void new_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right
 
     rc=sendto(data_socket,audiobuffer,sizeof(audiobuffer),0,(struct sockaddr*)&audio_addr,audio_addr_length);
     if(rc!=sizeof(audiobuffer)) {
-      fprintf(stderr,"sendto socket failed for %ld bytes of audio: %d\n",sizeof(audiobuffer),rc);
+      fprintf(stderr,"sendto socket failed for %ld bytes of audio: %d\n",(long)sizeof(audiobuffer),rc);
     }
     audioindex=4;
     audiosequence++;

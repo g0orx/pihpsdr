@@ -457,7 +457,7 @@ static void exit_cb(GtkWidget *widget, gpointer data) {
                            G_CALLBACK (gtk_widget_destroy),
                            dialog);
 
-  int result=gtk_dialog_run(GTK_DIALOG(dialog));
+  gtk_dialog_run(GTK_DIALOG(dialog));
 
 }
 

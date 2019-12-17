@@ -67,7 +67,6 @@ static gboolean bandstack_select_cb (GtkWidget *widget, gpointer        data) {
 }
 
 void bandstack_menu(GtkWidget *parent) {
-  GtkWidget *b;
   int i;
 
   parent_window=parent;

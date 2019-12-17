@@ -636,9 +636,9 @@ void send_resp (int client_sock,char * msg) {
         fprintf(stderr,"RIGCTL: RESP=%s\n",msg);
     #endif
     if(client_sock == -1) { // Serial port 
-       int bytes=write(fd,msg,strlen(msg));   
+       write(fd,msg,strlen(msg));   
     } else {  // TCP/IP port
-       int bytes=write(client_sock, msg, strlen(msg));
+       write(client_sock, msg, strlen(msg));
     }
 }
 
@@ -648,7 +648,6 @@ void send_resp (int client_sock,char * msg) {
 
 static gpointer rigctl_server(gpointer data) {
   int port=GPOINTER_TO_INT(data);
-  int rc;
   int on=1;
   int i;
 
@@ -694,9 +693,6 @@ static gpointer rigctl_server(gpointer data) {
     for(i=0;i<MAX_CLIENTS;i++) {
       if(client[i].socket==-1) {
 
-        int client_socket;
-        struct sockaddr_in client_address;
-        int client_address_length;
         fprintf(stderr,"Using client: %d\n",i);
 
         client[i].socket=accept(server_socket,(struct sockaddr*)&client[i].address,&client[i].address_length);
@@ -726,8 +722,6 @@ static gpointer rigctl_server(gpointer data) {
 }
 
 static gpointer rigctl_client (gpointer data) {
-   int len;
-   int c;
    
    CLIENT *client=(CLIENT *)data;
 
@@ -749,7 +743,6 @@ static gpointer rigctl_client (gpointer data) {
    int numbytes;
    char  cmd_input[MAXDATASIZE] ;
    char cmd_save[80];
-   char cw_check_buf[4];
 
     while(server_running && (numbytes=recv(client->socket , cmd_input , MAXDATASIZE-2 , 0)) > 0 ) {
          for(i=0;i<numbytes;i++)  { work_buf[i] = cmd_input[i]; }
@@ -852,7 +845,6 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
         int work_int;     
         int new_low, new_high;
         int zzid_flag;
-        double meter;
         double forward;
         double reverse;
         double vswr;
@@ -1529,7 +1521,6 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                           }
         else if((strcmp(cmd_str,"DO")==0) && zzid_flag == 1)  {  
                                             // PiHPSDR - ZZDO - Set/Read Waterfall Hi Limit 
-                                             if(zzid_flag == 1) { // ZZDO
                                                if(len<=2) {
                                                   if(active_receiver->waterfall_high <0) {
                                                      sprintf(msg,"ZZDO-%03d;",abs(active_receiver->waterfall_high));
@@ -1550,7 +1541,6 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                                     send_resp(client_sock,"?;");
                                                   }
                                                }
-                                             }
                                           }
         else if((strcmp(cmd_str,"DQ")==0) && (zzid_flag == 0)) {  
                                             // TS-2000 - DQ - ETs/and reads the DCS function status - not supported
@@ -2433,11 +2423,7 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
 						    if(zzid_flag == 0) {
 						       if(len <=2) {
 							  work_int = (int) ((mic_gain +10.0)* 100.0/60.0);
-                                                          if(zzid_flag == 0) {
-							     sprintf(msg,"MG%03d;",work_int);
-                                                          } else {
-							     sprintf(msg,"ZZMG%03d;",work_int);
-                                                          }
+							  sprintf(msg,"MG%03d;",work_int);
 							  send_resp(client_sock,msg);
 						       } else {
 							  int tval = atoi(&cmd_input[2]);                
@@ -2694,17 +2680,17 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
 						    // PiHPSDR - ZZNR - Set/Read Noise Reduction function status
 						    if(len <=2) {
                                                       if(zzid_flag == 0) {
-                                                         if (active_receiver->nr==1 & active_receiver->nr2==0) { 
+                                                         if (active_receiver->nr==1 && active_receiver->nr2==0) { 
                                                             send_resp(client_sock,"NR1;"); 
-                                                         } else if (active_receiver->nr==1 & active_receiver->nr2==1) { 
+                                                         } else if (active_receiver->nr==1 && active_receiver->nr2==1) { 
                                                            send_resp(client_sock,"NR2;"); 
                                                          } else {
                                                            send_resp(client_sock,"NR0;"); 
                                                          }
                                                       } else {
-                                                         if (active_receiver->nr==1 & active_receiver->nr2==0) { 
+                                                         if (active_receiver->nr==1 && active_receiver->nr2==0) { 
                                                             send_resp(client_sock,"ZZNR1;"); 
-                                                         } else if (active_receiver->nr==1 & active_receiver->nr2==1) { 
+                                                         } else if (active_receiver->nr==1 && active_receiver->nr2==1) { 
                                                            send_resp(client_sock,"ZZNR2;"); 
                                                          } else {
                                                            send_resp(client_sock,"ZZNR0;"); 
@@ -3452,11 +3438,7 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                                         }
                                                         break;
                                                  } 
-                                                 if(zzid_flag == 0) {
-                                                    sprintf(msg,"ST%02d;",coded_step_val);
-                                                 } else {
-                                                    sprintf(msg,"ZZST%02d;",coded_step_val);
-                                                 }
+                                                 sprintf(msg,"ST%02d;",coded_step_val);
                                                  send_resp(client_sock,msg); 
                                              } else {
                                                  coded_step_val = atoi(&cmd_input[2]);   
@@ -3892,14 +3874,13 @@ void set_blocking (int fd, int should_block)
 static gpointer serial_server(gpointer data) {
      // We're going to Read the Serial port and
      // when we get data we'll send it to parse_cmd
-     int num_chars;
      char ser_buf[MAXDATASIZE];
      char work_buf[MAXDATASIZE];
      const char s[2]=";";
      char *p;
      char *d;
      char save_buf[MAXDATASIZE] = "";
-     int str_len = 0;
+     int str_len;
      cat_control++;
      while(1) {
         int num_chars = read (fd, ser_buf, sizeof ser_buf);
@@ -3996,7 +3977,6 @@ void disable_serial () {
 //                   (Port numbers now const ints instead of defines..) 
 //
 void launch_rigctl () {
-   int err;
    
    fprintf(stderr, "LAUNCHING RIGCTL!!\n");
 

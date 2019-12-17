@@ -413,7 +413,6 @@ static gboolean menu_cb (GtkWidget *widget, GdkEventButton *event, gpointer data
 
 void start_radio() {
   int i;
-  int x;
   int y;
 //fprintf(stderr,"start_radio: selected radio=%p device=%d\n",radio,radio->device);
   gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_WATCH));
@@ -1217,7 +1216,6 @@ void frequency_changed(RECEIVER *rx) {
     }
 #endif
   } else {
-    double f=(double)(vfo[0].frequency-vfo[0].lo);
     if(radio->protocol==NEW_PROTOCOL) {
       schedule_high_priority();
 #ifdef SOAPYSDR
@@ -1522,7 +1520,6 @@ void set_alex_attenuation(int v) {
 }
 
 void radioRestoreState() {
-    char name[80];
     char *value;
 
 fprintf(stderr,"radioRestoreState: %s\n",property_path);
@@ -1782,7 +1779,6 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
 
 void radioSaveState() {
     int i;
-    char name[80];
     char value[80];
 
 fprintf(stderr,"radioSaveState: %s\n",property_path);

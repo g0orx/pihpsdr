@@ -21,7 +21,7 @@ int show_error(void *data) {
   gtk_container_add(GTK_CONTAINER(content),label);
   gtk_widget_show(label);
   timer=g_timeout_add(5000,timeout_cb,NULL);
-  int result=gtk_dialog_run(GTK_DIALOG(dialog));
+  gtk_dialog_run(GTK_DIALOG(dialog));
   return FALSE;
 }
 

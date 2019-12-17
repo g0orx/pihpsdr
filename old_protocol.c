@@ -266,7 +266,6 @@ void old_protocol_set_mic_sample_rate(int rate) {
 
 void old_protocol_init(int rx,int pixels,int rate) {
   int i;
-  int num_hpsdr_receivers=how_many_receivers();
   fprintf(stderr,"old_protocol_init: num_hpsdr_receivers=%d\n",how_many_receivers());
 
   old_protocol_set_mic_sample_rate(rate);
@@ -325,8 +324,6 @@ void old_protocol_init(int rx,int pixels,int rate) {
 //
 static void start_usb_receive_threads()
 {
-  int rc;
-
   fprintf(stderr,"old_protocol starting USB receive thread: buffer_size=%d\n",buffer_size);
 
   ozy_EP6_rx_thread_id = g_thread_new( "OZY EP6 RX", ozy_ep6_rx_thread, NULL);
@@ -352,7 +349,6 @@ static gpointer ozy_ep4_rx_thread(gpointer arg)
 //
 static gpointer ozy_ep6_rx_thread(gpointer arg) {
   int bytes;
-  unsigned char buffer[2048];
 
   fprintf(stderr, "old_protocol: USB EP6 receive_thread\n");
   running=1;
@@ -791,11 +787,11 @@ static long long channel_freq(int chan) {
 static int how_many_receivers() {
   //
   // Depending on how the program is compiled and which board we have,
-  // we use a FIXED number of receivers except for RADIOBERRY and PI_SDR,
+  // we use a FIXED number of receivers except for RADIOBERRY,
   // where the number may be dynamically changed
   //
   int ret;
-#if defined(RADIOBERRY) || defined(PI_SDR)
+#ifdef RADIOBERRY
         ret = receivers;     // 1 or 2
 #else
         ret = RECEIVERS;     // 2
@@ -806,19 +802,32 @@ static int how_many_receivers() {
     // we need at least 2, and up to 5 for Orion2 boards. This is so because
     // the TX DAC is hard-wired to RX4 for HERMES,STEMLAB and to RX5 for ANGELIA
     // and beyond.
-    ret = 2;  // METIS?
-    if (device == DEVICE_HERMES  || device == DEVICE_STEMLAB) ret = 4;
-    if (device == DEVICE_ANGELIA || device == DEVICE_ORION || device == DEVICE_ORION2) ret = 5;
+    switch (device) {
+      case DEVICE_HERMES:
+      case DEVICE_STEMLAB:
+	ret=4;  // TX feedback hard-wired to RX4
+	break;
+      case DEVICE_ANGELIA:
+      case DEVICE_ORION:
+      case DEVICE_ORION2:
+	ret=5;  // TX feedback hard-wired to RX5
+	break;
+      default:
+	//
+	// older FPGAs support no more than two receivers
+	// then TX feedback is wired to RX2
+	//
+	ret=2;
+	break;
+    }
 #endif
     return ret;
 }
 
 static void process_ozy_input_buffer(unsigned char  *buffer) {
-  int i,j;
+  int i;
   int r;
   int b=0;
-  unsigned char ozy_samples[8*8];
-  int bytes;
   int previous_ptt;
   int previous_dot;
   int previous_dash;
@@ -828,10 +837,7 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
   float fsample;
   double left_sample_double;
   double right_sample_double;
-  double mic_sample_double;
   double gain=pow(10.0, mic_gain / 20.0);
-  int left_sample_1;
-  int right_sample_1;
   double left_sample_double_rx;
   double right_sample_double_rx;
   double left_sample_double_tx;

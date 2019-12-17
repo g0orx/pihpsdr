@@ -103,8 +103,6 @@ static void parity_cb(GtkWidget *widget, gpointer data) {
 }
 
 void rigctl_menu(GtkWidget *parent) {
-  int i;
-
   parent_window=parent;
 
   dialog=gtk_dialog_new();

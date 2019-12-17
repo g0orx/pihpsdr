@@ -104,8 +104,7 @@ fprintf(stderr,"%d=%s\n",i,sw_string[i]);
 void switch_menu(GtkWidget *parent) {
   int row=0;
   int col=0;
-  int i;
-  char label[32];
+  char label[64];
 
   dialog=gtk_dialog_new();
   gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent_window));
