@@ -51,8 +51,10 @@ int n_output_devices=0;
 
 //
 // Ring buffer for "local microphone" samples
+// NOTE: lead large buffer for some "loopback" devices which produce
+//       samples in large chunks if fed from digimode programs.
 //
-#define MICRINGLEN 2048
+#define MICRINGLEN 6000
 float  *mic_ring_buffer=NULL;
 int     mic_ring_read_pt=0;
 int     mic_ring_write_pt=0;
@@ -318,7 +320,7 @@ int audio_open_output(RECEIVER *rx)
   rx->local_audio_buffer=g_new(float,BUFFER_SIZE);
   rx->local_audio_buffer_offset=0;
   err = Pa_OpenStream(&(rx->playback_handle), NULL, &outputParameters, 48000.0, framesPerBuffer, paNoFlag, NULL, NULL);
-  if (err != paNoError) {
+  if (err != paNoError || rx->local_audio_buffer == NULL) {
     fprintf(stderr,"PORTAUDIO ERROR: out open stream: %s\n",Pa_GetErrorText(err));
     rx->playback_handle = NULL;
     if (rx->local_audio_buffer) g_free(rx->local_audio_buffer);
@@ -339,7 +341,7 @@ int audio_open_output(RECEIVER *rx)
   // Write one buffer to avoid under-flow errors
   // (this gives us 5 msec to pass before we have to call audio_write the first time)
   bzero(rx->local_audio_buffer, (size_t) BUFFER_SIZE*sizeof(float));
-  err=Pa_WriteStream(rx->playback_handle, rx->local_audio_buffer, (unsigned long) BUFFER_SIZE);
+  Pa_WriteStream(rx->playback_handle, rx->local_audio_buffer, (unsigned long) BUFFER_SIZE);
   g_mutex_unlock(&rx->local_audio_mutex);
   return 0;
 }
@@ -441,10 +443,10 @@ int audio_write (RECEIVER *rx, float left, float right)
   }
 
   g_mutex_lock(&rx->local_audio_mutex);
-  if (rx->playback_handle != NULL && rx->local_audio_buffer != NULL) {
+  if (rx->playback_handle != NULL && buffer != NULL) {
     buffer[rx->local_audio_buffer_offset++] = (left+right)*0.5;  //   mix to MONO   
     if (rx->local_audio_buffer_offset == BUFFER_SIZE) {
-      Pa_WriteStream(rx->playback_handle, rx->local_audio_buffer, (unsigned long) BUFFER_SIZE);
+      Pa_WriteStream(rx->playback_handle, buffer, (unsigned long) BUFFER_SIZE);
       rx->local_audio_buffer_offset=0;
       // do not check on errors, there will be underflows every now and then
     }

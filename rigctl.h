@@ -10,7 +10,6 @@ int   rigctlGetMode();
 int   lookup_band(int);
 char * rigctlGetFilter();
 void set_freqB(long long);
-int set_band(void *);
 extern int cat_control;
 int set_alc(gpointer);
 extern int rigctl_busy;

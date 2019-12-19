@@ -86,7 +86,7 @@ static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
   double  mult;
   long long f;
   static int set = 0;
-  int id, b;
+  long long *fp;
 
   // Instead of messing with LOCALE settings,
   // we print a "0.0" and look what the decimal
@@ -152,20 +152,9 @@ static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
       f = ((long long)(atof(buffer)*mult)+5)/10;
       sprintf(output, "<big>%lld</big>", f);
       gtk_label_set_markup (GTK_LABEL (label), output);
-      id=active_receiver->id;
-      b = get_band_from_frequency(f);
-      if (b < 0) {
-	b=bandGen;
-      }
-      //
-      // If new frequency is outside of current band,
-      // behave as if the user had chosen the new band
-      // via the menu prior to changing the frequency
-      //
-      if (b != vfo[id].band) {
-        g_idle_add(ext_vfo_band_changed, GINT_TO_POINTER(b));
-      }
-      setFrequency(f);
+      fp = malloc(sizeof(long long));
+      *fp = f;
+      g_idle_add(ext_set_frequency, fp);
       g_idle_add(ext_vfo_update,NULL);
       set = 1;
     }

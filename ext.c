@@ -65,7 +65,6 @@ int ext_set_frequency(void *data) {
   long long freq = *(long long *)data;
   int id=active_receiver->id;
   int b = get_band_from_frequency(freq);
-  if (b < 0) b=bandGen;
   if (b != vfo[id].band) {
     vfo_band_changed(b);
   }

@@ -121,10 +121,6 @@ static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
             sprintf(output, "<big>%lld</big>", f);
             gtk_label_set_markup (GTK_LABEL (label), output);
             int b=get_band_from_frequency(f);
-            if(b<0) {
-              fprintf(stderr,"get_band_from_frequency: failed for f=%lld\n",f);
-              b=bandGen;
-            }
             if(b!=band_get_current()) {
               BAND *band=band_set_current(b);
               set_mode(active_receiver,entry->mode);

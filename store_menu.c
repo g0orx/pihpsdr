@@ -98,7 +98,6 @@ static gboolean recall_select_cb (GtkWidget *widget, gpointer data) {
     fprintf(stderr,"recall_select_cb: mode=%d\n",mem[index].mode);
     fprintf(stderr,"recall_select_cb: filter=%d\n",mem[index].filter);
     
-    //set_band(mem[index].frequency,index);
     vfo[active_receiver->id].frequency = new_freq;
     vfo[active_receiver->id].band = get_band_from_frequency(new_freq);
     vfo[active_receiver->id].mode = mem[index].mode;
