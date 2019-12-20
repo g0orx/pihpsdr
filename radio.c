@@ -1748,6 +1748,7 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
 
 #ifdef SOAPYSDR
   if(radio->device==SOAPYSDR_USB_DEVICE) {
+    char name[128];
     for(int i=0;i<radio->info.soapy.rx_gains;i++) {
       sprintf(name,"radio.adc[0].rx_gain.%s",radio->info.soapy.rx_gain[i]) ;
       value=getProperty(name);
@@ -1960,6 +1961,7 @@ fprintf(stderr,"radioSaveState: %s\n",property_path);
 
 #ifdef SOAPYSDR
     if(radio->device==SOAPYSDR_USB_DEVICE) {
+      char name[128];
       for(int i=0;i<radio->info.soapy.rx_gains;i++) {
         sprintf(name,"radio.adc[0].rx_gain.%s",radio->info.soapy.rx_gain[i]);
         sprintf(value,"%d", adc[0].rx_gain[i]);

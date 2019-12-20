@@ -268,12 +268,6 @@ static void *receive_thread(void *arg) {
   long long timeNs=0;
   long timeoutUs=100000L;
   int i;
-#ifdef TIMING
-  struct timeval tv;
-  long start_time, end_time;
-  rate_samples=0;
-  gettimeofday(&tv, NULL); start_time=tv.tv_usec + 1000000 * tv.tv_sec;
-#endif
   RECEIVER *rx=(RECEIVER *)arg;
   float *buffer=g_new(float,max_samples*2);
   void *buffs[]={buffer};
@@ -288,36 +282,8 @@ fprintf(stderr,"soapy_protocol: receive_thread\n");
       rx->buffer[i*2]=(double)buffer[i*2];
       rx->buffer[(i*2)+1]=(double)buffer[(i*2)+1];
     }
-/*
-    if(rx->resampler!=NULL) {
-      int out_elements=xresample(rx->resampler);
-g_print("resampler: elements in=%d out=%d\n",elements,out_elements);
-      for(i=0;i<out_elements;i++) {
-        if(iqswap) {
-          qsample=rx->resampled_buffer[i*2];
-          isample=rx->resampled_buffer[(i*2)+1];
-        } else {
-          isample=rx->resampled_buffer[i*2];
-          qsample=rx->resampled_buffer[(i*2)+1];
-        }
-        add_iq_samples(rx,isample,qsample);
-      }
-*/
     if(rx->sample_rate!=radio_sample_rate) {
       for(int i=0;i<elements;i+=rx->resample_step) {
-/*
-        isample=0.0;
-        qsample=0.0;
-        for(int j=0;j<rx->resample_step;j++) {
-          isample+=rx->buffer[(i+j)*2];
-          qsample+=rx->buffer[((i+j)*2)+1];
-        }
-        if(iqswap) {
-          add_iq_samples(rx,qsample/(double)rx->resample_step,isample/(double)rx->resample_step);
-        } else {
-          add_iq_samples(rx,isample/(double)rx->resample_step,qsample/(double)rx->resample_step);
-        }
-*/
         isample=rx->buffer[i*2];
         qsample=rx->buffer[(i*2)+1];
         if(iqswap) {
@@ -335,15 +301,6 @@ g_print("resampler: elements in=%d out=%d\n",elements,out_elements);
         } else {
           add_iq_samples(rx,isample,qsample);
         }
-#ifdef TIMING
-        rate_samples++;
-        if(rate_samples>=rx->sample_rate) {
-          gettimeofday(&tv, NULL); end_time=tv.tv_usec + 1000000 * tv.tv_sec;
-          fprintf(stderr,"%d samples in %ld usec\n",rx->sample_rate,end_time-start_time);
-          rate_samples=0;
-          start_time=end_time;
-        }
-#endif
       }
     }
   }
@@ -354,7 +311,6 @@ fprintf(stderr,"soapy_protocol: receive_thread: SoapySDRDevice_closeStream\n");
   SoapySDRDevice_closeStream(soapy_device,rx_stream);
 fprintf(stderr,"soapy_protocol: receive_thread: SoapySDRDevice_unmake\n");
   SoapySDRDevice_unmake(soapy_device);
-  //_exit(0);
 }
 
 void soapy_protocol_process_local_mic(float sample) {
@@ -379,8 +335,6 @@ void soapy_protocol_iq_samples(float isample,float qsample) {
     output_buffer[(output_buffer_index*2)+1]=qsample;
     output_buffer_index++;
     if(output_buffer_index>=max_tx_samples) {
-// write the buffer
-//g_print("soapy_protocol_iq_samples: writeStream\n");
       int elements=SoapySDRDevice_writeStream(soapy_device,tx_stream,tx_buffs,max_tx_samples,&flags,timeNs,timeoutUs);
       if(elements!=max_tx_samples) {
         g_print("soapy_protocol_iq_samples: writeStream returned %d for %d elements\n",elements,max_tx_samples);
