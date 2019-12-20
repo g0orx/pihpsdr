@@ -90,7 +90,7 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
 }
 
 /*
- * This data structre connects names as used in the midi.inp file with
+ * This data structre connects names as used in the midi.props file with
  * our MIDIaction enum values.
  * Take care that no key word is contained in another one!
  * Example: use "CURRVFO" not "VFO" otherwise there is possibly
@@ -152,7 +152,7 @@ static struct {
 };
 
 /*
- * Translation from keyword in midi.inp file to MIDIaction
+ * Translation from keyword in midi.props file to MIDIaction
  */
 
 static enum MIDIaction keyword2action(char *s) {
@@ -188,7 +188,7 @@ void MIDIstartup() {
     for (i=0; i<128; i++) MidiCommandsTable.desc[i]=NULL;
     MidiCommandsTable.pitch=NULL;
 
-    fpin=fopen("midi.inp", "r");
+    fpin=fopen("midi.props", "r");
     if (!fpin) return;
 
     for (;;) {

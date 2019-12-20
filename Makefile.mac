@@ -539,7 +539,7 @@ hpsdrsim:       hpsdrsim.o newhpsdrsim.o
 #	$HOME -> Application Support -> piHPSDR
 #
 #       That is the directory where the WDSP wisdom file (created upon first
-#       start of piHPSDR) but also the radio settings and the midi.inp file
+#       start of piHPSDR) but also the radio settings and the midi.props file
 #       are stored.
 #
 #############################################################################

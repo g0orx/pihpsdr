@@ -106,5 +106,6 @@ int ext_start_tx(void *data);
 int ext_diversity_update(void *data);
 int ext_sat_update(void *data);
 int ext_set_rf_gain(void *data);
+int ext_set_duplex(void *data);
 
 int ext_update_noise(void *data);

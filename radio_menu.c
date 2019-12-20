@@ -196,8 +196,10 @@ static void split_cb(GtkWidget *widget, gpointer data) {
   vfo_update();
 }
 
-static void duplex_cb(GtkWidget *widget, gpointer data) {
-  duplex=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+//
+// call-able from outside, e.g. toolbar or MIDI
+//
+void setDuplex() {
   if(duplex) {
     gtk_container_remove(GTK_CONTAINER(fixed),transmitter->panel);
     reconfigure_transmitter(transmitter,display_width/4,display_height/2);
@@ -209,6 +211,11 @@ static void duplex_cb(GtkWidget *widget, gpointer data) {
     reconfigure_transmitter(transmitter,display_width,rx_height*receivers);
   }
   vfo_update();
+}
+
+static void duplex_cb(GtkWidget *widget, gpointer data) {
+  duplex=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+  setDuplex();
 }
 
 static void sat_cb(GtkWidget *widget, gpointer data) {
