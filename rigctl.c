@@ -1750,11 +1750,6 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                                *p= new_freqA;
                                                g_idle_add(ext_set_frequency,(gpointer)p);
                                                g_idle_add(ext_vfo_update,NULL);
-                                               //g_idle_add(set_band,(gpointer) p_int);
-                                               //long long * freq_p;
-                                               //*freq_p=new_freqA;
-                                               //setFrequency(new_freqA);
-                                               //g_idle_add(gui_vfo_move_to,(gpointer)freq_p);
                                                return;
                                             } else {
                                                if(len==2) {
@@ -4032,113 +4027,6 @@ void set_freqB(long long new_freqB) {
 }
 
 
-int set_band (gpointer data) {
-  
-  BANDSTACK *bandstack;
-  long long new_freq = *(long long *) data;
-  free(data);
-
-  #ifdef RIGCTL_DEBUG
-  fprintf(stderr,"RIGCTL set_band: New freq=%lld\n",new_freq);
-  #endif
-
-  // If CTUN=1 - can only change frequencies within the sample_rate range!
-  if((vfo[active_receiver->id].ctun == 1) &&
-        ((vfo[active_receiver->id].ctun_frequency + (active_receiver->sample_rate/2) < new_freq) ||
-         (vfo[active_receiver->id].ctun_frequency - (active_receiver->sample_rate/2) > new_freq))) {
-       fprintf(stderr,"RIGCTL: *** set_band: CTUN Bounce ***\n");
-       return 0;
-  }
-
-  int b = get_band_from_frequency (new_freq);
-
-  if(b == -1) { // Not in the ham bands!
-     // We're not going to update the bandstack - but rather just
-     // change the frequency and move on  
-        vfo[active_receiver->id].frequency=new_freq;
-        receiver_vfo_changed(receiver[active_receiver->id]);
-        g_idle_add(ext_vfo_update,NULL);
-        return 0;
-  }
-
-  #ifdef RIGCTL_DEBUG
-  fprintf(stderr,"RIGCTL set_band: New Band=%d\n",b);
-  #endif
-  int id=active_receiver->id;
-
-  //if(id==0) {
-  //  fprintf(stderr,"RIGCTL set_band: id=0\n");
-  //  vfo_save_bandstack();
-  //}
-  if(b==vfo[id].band) {
-    //fprintf(stderr,"RIGCTL set_band:b=cur_band \n");
-    // same band selected - step to the next band stack
-    bandstack=bandstack_get_bandstack(b);
-    vfo[id].bandstack++;
-    if(vfo[id].bandstack>=bandstack->entries) {
-      //fprintf(stderr,"VFO_BAND_CHANGED: bandstack set to 0\n");
-      vfo[id].bandstack=0;
-    }
-  } else {
-    // new band - get band stack entry
-    //fprintf(stderr,"VFO_BAND_CHANGED: new_band\n");
-    bandstack=bandstack_get_bandstack(b)      ;
-    vfo[id].bandstack=bandstack->current_entry;
-    //fprintf(stderr,"VFO_BAND_CHANGED: vfo[id].banstack=%d\n",vfo[id].bandstack);
-  }
-
-  BAND *band=band_get_band(b);
-  BANDSTACK_ENTRY *entry=&bandstack->entry[vfo[id].bandstack];
-  if(vfo[id].band != b) {
-     vfo[id].mode=entry->mode;
-  }
-  vfo[id].band=b;
-  entry->frequency = new_freq;
-  //vfo[id].frequency=entry->frequency;
-  if(vfo[id].ctun == 1) {
-      fprintf(stderr,"RIGCTL: set_band #### Change frequency");
-      if(new_freq > vfo[id].ctun_frequency) {
-         vfo[id].offset = new_freq - vfo[id].ctun_frequency; 
-      } else {
-         vfo[id].offset = vfo[id].ctun_frequency - new_freq; 
-      }
-      fprintf(stderr,"RIGCTL: set_band OFSET= %011lld\n",vfo[id].offset);
-  } else {
-      entry->frequency = new_freq;
-  }
-
-  //vfo[id].mode=entry->mode;
-  vfo[id].filter=entry->filter;
-  vfo[id].lo=band->frequencyLO;
-
-  switch(id) {
-    case 0:
-      bandstack->current_entry=vfo[id].bandstack;
-      receiver_vfo_changed(receiver[id]);
-      BAND *band=band_get_band(vfo[id].band);
-      set_alex_rx_antenna(band->alexRxAntenna);
-      set_alex_tx_antenna(band->alexTxAntenna);
-      set_alex_attenuation(band->alexAttenuation);
-      receiver_vfo_changed(receiver[0]);
-      break;
-   case 1:
-      if(receivers==2) {
-        receiver_vfo_changed(receiver[1]);
-      }
-      break;
-  }
-
-  if(split) {
-    tx_set_mode(transmitter,vfo[VFO_B].mode);
-  } else {
-    tx_set_mode(transmitter,vfo[VFO_A].mode);
-  }
-  calcDriveLevel();
-  //calcTuneDriveLevel();
-  g_idle_add(ext_vfo_update,NULL);
-
-  return 0;
-}
 int set_alc(gpointer data) {
     int * lcl_ptr = (int *) data;
     alc = *lcl_ptr;

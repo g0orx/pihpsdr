@@ -75,8 +75,10 @@ AUDIO_DEVICE output_devices[MAX_AUDIO_DEVICES];
 
 //
 // Ring buffer for "local microphone" samples
+// NOTE: lead large buffer for some "loopback" devices which produce
+//       samples in large chunks if fed from digimode programs.
 //
-#define MICRINGLEN 2048
+#define MICRINGLEN 6000
 float  *mic_ring_buffer=NULL;
 int     mic_ring_read_pt=0;
 int     mic_ring_write_pt=0;
