@@ -205,7 +205,7 @@ int main(int argc, char *argv[])
         double run,off,inc;
 
 /*
- *      Examples for ATLAS:     ATLAS bus with Mercury/Penelope boards
+ *      Examples for METIS:     ATLAS bus with Mercury/Penelope boards
  *      Examples for HERMES:    ANAN10, ANAN100
  *      Examples for ANGELIA:   ANAN100D
  *      Examples for ORION:     ANAN200D
@@ -221,13 +221,14 @@ int main(int argc, char *argv[])
         NEWDEVICE=NEW_DEVICE_ORION2;
 
         for (i=1; i<argc; i++) {
-            if (!strncmp(argv[i],"-atlas"  ,      6))  {OLDDEVICE=DEVICE_ATLAS;       NEWDEVICE=NEW_DEVICE_ATLAS;}
+            if (!strncmp(argv[i],"-atlas"  ,      6))  {OLDDEVICE=DEVICE_METIS;       NEWDEVICE=NEW_DEVICE_ATLAS;}
             if (!strncmp(argv[i],"-hermes" ,      7))  {OLDDEVICE=DEVICE_HERMES;      NEWDEVICE=NEW_DEVICE_HERMES;}
-            if (!strncmp(argv[i],"-hermes2" ,     8))  {OLDDEVICE=DEVICE_HERMES2;     NEWDEVICE=NEW_DEVICE_HERMES2;}
+            if (!strncmp(argv[i],"-griffin" ,     8))  {OLDDEVICE=DEVICE_GRIFFIN;     NEWDEVICE=NEW_DEVICE_HERMES2;}
             if (!strncmp(argv[i],"-angelia" ,     8))  {OLDDEVICE=DEVICE_ANGELIA;     NEWDEVICE=NEW_DEVICE_ANGELIA;}
             if (!strncmp(argv[i],"-orion" ,       6))  {OLDDEVICE=DEVICE_ORION;       NEWDEVICE=NEW_DEVICE_ORION;}
             if (!strncmp(argv[i],"-orion2" ,      7))  {OLDDEVICE=DEVICE_ORION2;      NEWDEVICE=NEW_DEVICE_ORION2;}
             if (!strncmp(argv[i],"-hermeslite" , 11))  {OLDDEVICE=DEVICE_HERMES_LITE; NEWDEVICE=NEW_DEVICE_HERMES_LITE;}
+            if (!strncmp(argv[i],"-hermeslite2", 12))  {OLDDEVICE=DEVICE_HERMES_LITE2;NEWDEVICE=NEW_DEVICE_HERMES_LITE2;}
             if (!strncmp(argv[i],"-c25"    ,      4))  {OLDDEVICE=DEVICE_C25;         NEWDEVICE=NEW_DEVICE_HERMES;}
             if (!strncmp(argv[i],"-diversity",   10))  {diversity=1;}
             if (!strncmp(argv[i],"-audio",        6))  {do_audio=1;}
@@ -236,13 +237,15 @@ int main(int argc, char *argv[])
         }
 
         switch (OLDDEVICE) {
-            case   DEVICE_ATLAS:   fprintf(stderr,"DEVICE is ATLASS\n");      c1=3.3; c2=0.090; break;
-            case   DEVICE_HERMES:  fprintf(stderr,"DEVICE is HERMES\n");      c1=3.3; c2=0.095; break;
-            case   DEVICE_HERMES2: fprintf(stderr,"DEVICE is HERMES (2)\n");  c1=3.3; c2=0.095; break;
-            case   DEVICE_ANGELIA: fprintf(stderr,"DEVICE is ANGELIA\n");     c1=3.3; c2=0.095; break;
-            case   DEVICE_ORION:   fprintf(stderr,"DEVICE is ORION\n");       c1=5.0; c2=0.108; break;
-            case   DEVICE_ORION2:  fprintf(stderr,"DEVICE is ORION-II\n");    c1=5.0; c2=0.108; break;
-            case   DEVICE_C25:     fprintf(stderr,"DEVICE is STEMlab/C25\n"); c1=3.3; c2=0.090; break;
+            case   DEVICE_METIS:        fprintf(stderr,"DEVICE is METIS\n");         c1=3.3; c2=0.090; break;
+            case   DEVICE_HERMES:       fprintf(stderr,"DEVICE is HERMES\n");        c1=3.3; c2=0.095; break;
+            case   DEVICE_GRIFFIN:      fprintf(stderr,"DEVICE is GRIFFIN\n");       c1=3.3; c2=0.095; break;
+            case   DEVICE_ANGELIA:      fprintf(stderr,"DEVICE is ANGELIA\n");       c1=3.3; c2=0.095; break;
+            case   DEVICE_HERMES_LITE:  fprintf(stderr,"DEVICE is HermesLite V1\n"); c1=3.3; c2=0.095; break;
+            case   DEVICE_HERMES_LITE2: fprintf(stderr,"DEVICE is HermesLite V2\n"); c1=3.3; c2=0.095; break;
+            case   DEVICE_ORION:        fprintf(stderr,"DEVICE is ORION\n");         c1=5.0; c2=0.108; break;
+            case   DEVICE_ORION2:       fprintf(stderr,"DEVICE is ORION MkII\n");    c1=5.0; c2=0.108; break;
+            case   DEVICE_C25:          fprintf(stderr,"DEVICE is STEMlab/C25\n");   c1=3.3; c2=0.090; break;
         }
 
 //
@@ -1039,9 +1042,29 @@ void process_ep2(uint8_t *frame)
    	   chk_data((frame[3] & 0x0F) >> 0, MetisDB9  , "MetisDB9");
    	   chk_data((frame[3] & 0x10) >> 4, MerTxATT1 , "Mercury Att on TX/1");
 
-   	   chk_data((frame[4] & 0x1F) >> 0, rx_att[0], "RX1 ATT");
-   	   chk_data((frame[4] & 0x20) >> 5, rx1_attE, "RX1 ATT enable");
-
+           if (frame[4] & 0x40)   {
+	     // Some firmware/emulators use bit6 to indicate a 6-bit format
+	     // for a combined attenuator/preamplifier with the AD9866 chip.
+	     // The value is between 0 and 60 and formally correspondes to
+	     // to an RX gain of -12 to +48 dB. However the front-end hardware
+	     // determines which is the correct "zero level", that is, the gain
+	     // which corresponds to full-amplitude IQ samples for a 0 dBm input.
+	     // Experimentally, we set this "zero level" to +16 dB that (that is,
+	     // a RxGain value of 28). So the "attenuation" is (28 -G) where G
+	     // is the RXgain value.
+	     // NOTE: according to the AD9866 data sheet, this "calibration value"
+	     //       should be 22 instead of 28, while a value of 31 is used
+	     //       by the HermesLite firmware  when bit6 is not set.
+	     //
+	     chk_data(28 -(frame[4] & 0x3F) , rx_att[0], "RX1 HL ATT/GAIN");
+           } else {
+             chk_data((frame[4] & 0x1F) >> 0, rx_att[0], "RX1 ATT");
+             chk_data((frame[4] & 0x20) >> 5, rx1_attE, "RX1 ATT enable");
+	     //
+	     // Some hardware emulates "switching off ATT and preamp" by setting ATT
+	     // to 20 dB, because the preamp cannot be switched.
+	     // if (!rx1_attE) rx_att[0]=20;
+           }
 	   if (OLDDEVICE != DEVICE_C25) {
 	     // Set RX amplification factors. No switchable preamps available normally.
              rxatt_dbl[0]=pow(10.0, -0.05*(10*AlexAtt+rx_att[0]));
@@ -1280,12 +1303,12 @@ void *handler_ep6(void *arg)
 				myqsample=0;
 				break;
 			    }
-			    if (OLDDEVICE == DEVICE_ATLAS && ptt && (k==1)) {
+			    if ((OLDDEVICE == DEVICE_METIS || OLDDEVICE == DEVICE_HERMES_LITE) && ptt && (k==1)) {
 				// METIS: TX DAC signal goes to RX2 when TXing
 				myisample=dacisample;
 				myqsample=dacqsample;
 			    }
-			    if ((OLDDEVICE==DEVICE_HERMES || OLDDEVICE==DEVICE_HERMES2 || OLDDEVICE==DEVICE_C25) && ptt && (k==3)) {
+			    if ((OLDDEVICE==DEVICE_HERMES || OLDDEVICE==DEVICE_GRIFFIN || OLDDEVICE==DEVICE_C25 || OLDDEVICE==DEVICE_HERMES_LITE2) && ptt && (k==3)) {
 				// HERMES: TX DAC signal goes to RX4 when TXing
 				myisample=dacisample;
 				myqsample=dacqsample;

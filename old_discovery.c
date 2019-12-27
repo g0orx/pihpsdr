@@ -433,11 +433,13 @@ fprintf(stderr,"discover_receive_thread\n");
                             discovered[devices].frequency_max=61440000.0;
                             break;
                         case DEVICE_HERMES_LITE:
-#ifdef RADIOBERRY
-                            strcpy(discovered[devices].name,"Radioberry");
-#else
+			    // could also be a RadioBerry disguising itself as HermesLite
                             strcpy(discovered[devices].name,"Hermes Lite");		
-#endif
+                            discovered[devices].frequency_min=0.0;
+                            discovered[devices].frequency_max=30720000.0;
+                            break;
+                        case DEVICE_HERMES_LITE2:
+                            strcpy(discovered[devices].name,"Hermes Lite 2");		
                             discovered[devices].frequency_min=0.0;
                             discovered[devices].frequency_max=30720000.0;
                             break;

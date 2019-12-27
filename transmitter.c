@@ -436,6 +436,7 @@ static gboolean update_display(gpointer data) {
             constant2=0.108;
             break;
           case DEVICE_HERMES_LITE:
+          case DEVICE_HERMES_LITE2:
             break;
         }
 
@@ -484,6 +485,7 @@ static gboolean update_display(gpointer data) {
             constant2=0.108;
             break;
           case NEW_DEVICE_HERMES_LITE:
+          case NEW_DEVICE_HERMES_LITE2:
             constant1=3.3;
             constant2=0.09;
             break;

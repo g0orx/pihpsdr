@@ -16,22 +16,24 @@
 // differes in old and new protocol
 //
 
-#define DEVICE_ATLAS           0
+#define DEVICE_METIS           0
 #define DEVICE_HERMES          1
-#define DEVICE_HERMES2         2
+#define DEVICE_GRIFFIN         2
 #define DEVICE_ANGELIA         4
 #define DEVICE_ORION           5
 #define DEVICE_HERMES_LITE     6
+#define DEVICE_HERMES_LITE2    7
 #define DEVICE_ORION2         10
 #define DEVICE_C25           100
 
-#define NEW_DEVICE_ATLAS       0
-#define NEW_DEVICE_HERMES      1
-#define NEW_DEVICE_HERMES2     2
-#define NEW_DEVICE_ANGELIA     3
-#define NEW_DEVICE_ORION       4
-#define NEW_DEVICE_ORION2      5
-#define NEW_DEVICE_HERMES_LITE 6
+#define NEW_DEVICE_ATLAS        0
+#define NEW_DEVICE_HERMES       1
+#define NEW_DEVICE_HERMES2      2
+#define NEW_DEVICE_ANGELIA      3
+#define NEW_DEVICE_ORION        4
+#define NEW_DEVICE_ORION2       5
+#define NEW_DEVICE_HERMES_LITE  6
+#define NEW_DEVICE_HERMES_LITE2 7
 
 EXTERN int OLDDEVICE;
 EXTERN int NEWDEVICE;

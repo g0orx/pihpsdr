@@ -165,7 +165,6 @@ int receivers;
 ADC adc[2];
 DAC dac[2];
 int adc_attenuation[2];
-int rx_gain_slider[2];
 
 int locked;
 
@@ -277,6 +276,8 @@ extern double meter_calibration;
 extern double display_calibration;
 
 extern int can_transmit;
+
+extern int have_rx_gain;   // TRUE on HermesLite/RadioBerry
 
 extern void radio_stop();
 extern void reconfigure_radio();
