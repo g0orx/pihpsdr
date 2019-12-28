@@ -1172,21 +1172,6 @@ void ozy_send_buffer() {
     if(active_receiver->dither) {
 	output_buffer[C3]|=LT2208_DITHER_ON;
     }
-#ifdef RADIOBERRY
-    //
-    // RadioBerry seems to encode the RXgain different from HERMES_LITE:
-    // the dither bit is hi-jacked for bit5 of RXgain
-    //
-    if (have_rx_gain) {
-        output_buffer[C3] &= ~LT2208_DITHER_ON;  // clear dither bit if if was set
-        int rxgain = rx_gain_calibration - adc_attenuation[active_receiver->adc];
-        if (rxgain <  0) rxgain=0;
-        if (rxgain > 60) rxgain=60;
-	if (rxgain > 31)  {
-		output_buffer[C3]|=LT2208_DITHER_ON;
-	}
-    }
-#endif
     if (filter_board == CHARLY25 && active_receiver->preamp) {
       output_buffer[C3]|=LT2208_GAIN_ON;
     }
@@ -1473,21 +1458,12 @@ void ozy_send_buffer() {
           int rxgain = rx_gain_calibration - adc_attenuation[active_receiver->adc];
           if (rxgain <  0) rxgain=0;
           if (rxgain > 60) rxgain=60;
-#ifdef RADIOBERRY
-	  // encode lower 5 bits of RXgain
-          if (isTransmitting()) {
-            output_buffer[C4]=0x20 | (transmitter->attenuation & 0x1F);
-          } else {
-            output_buffer[C4]=0x20 | (rxgain & 0x1F);
-          }
-#else
 	  // encode all 6 bits of RXgain in ATT value and set bit6
           if (isTransmitting()) {
 	    output_buffer[C4] = 0x40 | (31 - (transmitter->attenuation & 0x1F));
           } else { 
 	    output_buffer[C4] = 0x40 | (rxgain & 0x3F);
           }
-#endif
         } else {
           if (isTransmitting()) {
             output_buffer[C4]=0x20 | (transmitter->attenuation & 0x1F);
