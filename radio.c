@@ -435,7 +435,7 @@ void start_radio() {
 	    case DEVICE_HERMES_LITE:
 	    case DEVICE_HERMES_LITE2:
 		have_rx_gain=1;
-		rx_gain_calibration=25;
+		rx_gain_alibration=25;
 		break;
 	    default:
 		have_rx_gain=0;
@@ -448,9 +448,11 @@ void start_radio() {
 	    case NEW_DEVICE_HERMES_LITE:
 	    case NEW_DEVICE_HERMES_LITE2:
 		have_rx_gain=1;
+		rx_gain_alibration=25;
 		break;
 	    default:
 		have_rx_gain=0;
+		rx_gain_calibration=0;
 		break;
 	}
 	break;
