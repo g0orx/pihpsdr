@@ -160,7 +160,7 @@ static void attenuation_value_changed_cb(GtkWidget *widget, gpointer data) {
     //from 0 - 48 db; the rx-gain slider functions as a gain slider with att = 0;
     //att set to 20 for good power measurement.
     int rx_gain_slider_value = (int)gtk_range_get_value(GTK_RANGE(attenuation_scale));
-    adc_attenuation[active_receiver->adc]= 28 - rx_gain_slider_value;
+    adc_attenuation[active_receiver->adc]= rx_gain_calibration - rx_gain_slider_value;
     set_attenuation(adc_attenuation[active_receiver->adc]);
   } else {
     adc_attenuation[active_receiver->adc]=(int)gtk_range_get_value(GTK_RANGE(attenuation_scale));
@@ -172,7 +172,7 @@ void set_attenuation_value(double value) {
   adc_attenuation[active_receiver->adc]=(int)value;
   if(display_sliders) {
     if (have_rx_gain) {
-	gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)(28-adc_attenuation[active_receiver->adc]));
+	gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)(rx_gain_calibration-adc_attenuation[active_receiver->adc]));
     } else {
         gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc_attenuation[active_receiver->adc]);
     }
@@ -786,7 +786,7 @@ fprintf(stderr,"sliders_init: width=%d height=%d\n", width,height);
 
   if (have_rx_gain) {
 	attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 60.0, 1.0);
-	gtk_range_set_value (GTK_RANGE(attenuation_scale),28-adc_attenuation[active_receiver->adc]);
+	gtk_range_set_value (GTK_RANGE(attenuation_scale),rx_gain_calibration-adc_attenuation[active_receiver->adc]);
   } else {
 	attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 31.0, 1.0);
 	gtk_range_set_value (GTK_RANGE(attenuation_scale),adc_attenuation[active_receiver->adc]);

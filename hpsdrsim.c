@@ -178,7 +178,7 @@ int main(int argc, char *argv[])
 	pthread_attr_t attr;
 	pthread_t thread;
 
-	uint8_t reply[11] = { 0xef, 0xfe, 2, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 32, 1 };
+	uint8_t reply[11] = { 0xef, 0xfe, 2, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0, 1 };
 
 	uint8_t id[4] = { 0xef, 0xfe, 1, 6 };
 	uint32_t code;
@@ -587,7 +587,13 @@ int main(int argc, char *argv[])
 				if (active_thread || new_protocol_running()) {
 				    reply[2] = 3;
 				}
+				reply[9]=31; // software version
 				reply[10] = OLDDEVICE;
+				if (OLDDEVICE == DEVICE_HERMES_LITE2) {
+				    // use HL1 device ID and new software version
+				    reply[9]=41;
+				    reply[10]=DEVICE_HERMES_LITE;
+				}
 				memset(buffer, 0, 60);
 				memcpy(buffer, reply, 11);
 
@@ -1049,14 +1055,14 @@ void process_ep2(uint8_t *frame)
 	     // to an RX gain of -12 to +48 dB. However the front-end hardware
 	     // determines which is the correct "zero level", that is, the gain
 	     // which corresponds to full-amplitude IQ samples for a 0 dBm input.
-	     // Experimentally, we set this "zero level" to +16 dB that (that is,
-	     // a RxGain value of 28). So the "attenuation" is (28 -G) where G
+	     // Experimentally, we set this "zero level" to +13 dB that (that is,
+	     // a RxGain value of 25). So the "attenuation" is (25 -G) where G
 	     // is the RXgain value.
 	     // NOTE: according to the AD9866 data sheet, this "calibration value"
-	     //       should be 22 instead of 28, while a value of 31 is used
+	     //       should be 22 instead of 25, while a value of 31 is used
 	     //       by the HermesLite firmware  when bit6 is not set.
 	     //
-	     chk_data(28 -(frame[4] & 0x3F) , rx_att[0], "RX1 HL ATT/GAIN");
+	     chk_data(25 -(frame[4] & 0x3F) , rx_att[0], "RX1 HL ATT/GAIN");
            } else {
              chk_data((frame[4] & 0x1F) >> 0, rx_att[0], "RX1 ATT");
              chk_data((frame[4] & 0x20) >> 5, rx1_attE, "RX1 ATT enable");

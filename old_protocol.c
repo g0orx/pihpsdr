@@ -1169,23 +1169,24 @@ void ozy_send_buffer() {
     if(active_receiver->random) {
       output_buffer[C3]|=LT2208_RANDOM_ON;
     }
+    if(active_receiver->dither) {
+	output_buffer[C3]|=LT2208_DITHER_ON;
+    }
+#ifdef RADIOBERRY
     //
     // RadioBerry seems to encode the RXgain different from HERMES_LITE:
     // the dither bit is hi-jacked for bit5 of RXgain
+    //
     if (have_rx_gain) {
-#ifdef RADIOBERRY
-        // adc_attenuation is in the range 28 ... -32 and maps to 0 ... 60
-	if (adc_attenuation[active_receiver->adc] > 3)  { // RxGain > 31
-		output_buffer[C3]|=LT2208_DITHER_OFF;
-	} else {
-		output_buffer[C3]|=LT2208_DITHER_ON;
-	}
-#endif
-    } else {
-	if(active_receiver->dither) {
+        output_buffer[C3] &= ~LT2208_DITHER_ON;  // clear dither bit if if was set
+        int rxgain = rx_gain_calibration - adc_attenuation[active_receiver->adc];
+        if (rxgain <  0) rxgain=0;
+        if (rxgain > 60) rxgain=60;
+	if (rxgain > 31)  {
 		output_buffer[C3]|=LT2208_DITHER_ON;
 	}
     }
+#endif
     if (filter_board == CHARLY25 && active_receiver->preamp) {
       output_buffer[C3]|=LT2208_GAIN_ON;
     }
@@ -1469,25 +1470,22 @@ void ozy_send_buffer() {
 	  // to behave differently and stores bit5 of the gain in the
 	  // dither bit (see above) and a 5-bit attenuation value here.
 	  //
+          int rxgain = rx_gain_calibration - adc_attenuation[active_receiver->adc];
+          if (rxgain <  0) rxgain=0;
+          if (rxgain > 60) rxgain=60;
 #ifdef RADIOBERRY
-	  // adc_attenuation is in the range 28 ... -32
-	  int att = 28 + adc_attenuationctive_receiver->adc];  // RxGain: 0 ... 60
-          if (att <  0) att=0;
-          if (att > 60) att=60;
-          if (att > 31) att -= 32;  // high bit set above in dither
+	  // encode lower 5 bits of RXgain
           if (isTransmitting()) {
             output_buffer[C4]=0x20 | (transmitter->attenuation & 0x1F);
           } else {
-            output_buffer[C4]=0x20|att;
+            output_buffer[C4]=0x20 | (rxgain & 0x1F);
           }
 #else
-	  int att = 28 - adc_attenuation[active_receiver->adc];
-          if (att <  0) att=0;
-          if (att > 60) att=60;
+	  // encode all 6 bits of RXgain in ATT value and set bit6
           if (isTransmitting()) {
 	    output_buffer[C4] = 0x40 | (31 - (transmitter->attenuation & 0x1F));
           } else { 
-	    output_buffer[C4] = 0x40 | att;
+	    output_buffer[C4] = 0x40 | (rxgain & 0x3F);
           }
 #endif
         } else {
