@@ -57,9 +57,9 @@ BANDSTACK_ENTRY bandstack_entries80[] =
      {3850000LL,modeLSB,filterF5,-2800,-200,-2800,-200}};
 
 BANDSTACK_ENTRY bandstack_entries60_WRC15[] =
-    {{5352750LL,modeCWU,filterF6,200,2800,200,2800},    // WRC15 60m band allocation
-     {5357000LL,modeUSB,filterF5,200,2800,200,2800},    // sub-bands reflect IARU R1
-     {5363000LL,modeUSB,filterF5,200,2800,200,2800}};   // recommendation
+    {{5352750LL,modeCWU,filterF6,200,2800,200,2800},
+     {5357000LL,modeUSB,filterF5,200,2800,200,2800},
+     {5363000LL,modeUSB,filterF5,200,2800,200,2800}};
 
 BANDSTACK_ENTRY bandstack_entries60_OTHER[] =
     {{5332000LL,modeUSB,filterF5,-2800,-200,-2800,-200}, // default channels for
@@ -317,15 +317,10 @@ CHANNEL band_channels_60m_UK[UK_CHANNEL_ENTRIES] =
 
 //
 // Many countries have now allowed ham radio on the 60m
-// band based on WRC15. There are no "channels", but
-// an IARU region 1 recommendation can be read that
-// there is a CW segment, an all-mode segment
-// and a small weak-signal segment.
+// band based on WRC15. There is a single 15 kHz wide "channel"
 //
 CHANNEL band_channels_60m_WRC15[WRC15_CHANNEL_ENTRIES] =
-     {{5352750LL, 2500LL},    // CW channel:           5351.5 to 5354   kHz
-      {5360000LL,12000LL},    // Phone and DigiModes:  5354   to 5360   kHz
-      {5366250LL, 500LL}};    // Weak narrow signals:  5366   to 5366.5 kHz
+     {{5359000LL,15000LL}};
 
 CHANNEL band_channels_60m_OTHER[OTHER_CHANNEL_ENTRIES] =
      {{5332000LL,2800LL},

@@ -372,6 +372,7 @@ struct frequency_info frequencyInfo[]=
         {    4750000LL,     4999999LL, "60M Short Wave",                     bandGen, FALSE},
         {    5000000LL,     5000000LL, "WWV",                                bandWWV, FALSE},
         {    5261250LL,     5408000LL, "60M",                                band60,  TRUE },
+        {    5261250LL,     5408000LL, "60M",                                band60,  FALSE},
         {    5900000LL,     6200000LL, "49M Short Wave",                     bandGen, FALSE},
         {    7000000LL,     7299999LL, "40M",                                band40,  TRUE },
         {    7300000LL,     7350000LL, "41M Short Wave",                     bandGen, FALSE},
