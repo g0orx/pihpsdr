@@ -103,7 +103,7 @@ static gboolean start_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
 #ifdef MIDI
 //
 // This is a file open dialog. If we choose a readable file here, it is just copied
-// to file "midi.inp" in the local directory
+// to file "midi.props" in the local directory
 //
 static gboolean midi_cb(GtkWidget *widget, GdkEventButton *event, gpointer data) {
     GtkWidget *opfile,*message;
@@ -135,7 +135,7 @@ static gboolean midi_cb(GtkWidget *widget, GdkEventButton *event, gpointer data)
         len=statbuf.st_size;
         //
         // Now first read the whole contents of the file, and then write it out.
-        // This is for new-bees trying to import the midi.inp in the working dir
+        // This is for new-bees trying to import the midi.props in the working dir
         //
         contents=g_new(char, len);
         bytes_read = bytes_written = 0;
@@ -148,8 +148,8 @@ static gboolean midi_cb(GtkWidget *widget, GdkEventButton *event, gpointer data)
       if (contents && bytes_read == len) {
 	// should this file exist as a link or symlink, or should it
 	// be read-only, remove it first
-	unlink("midi.inp");
-        fdout=open("midi.inp", O_WRONLY | O_CREAT, 0644);
+	unlink("midi.props");
+        fdout=open("midi.props", O_WRONLY | O_CREAT, 0644);
         if (fdout >= 0) {
           bytes_written=write(fdout, contents, len);
           close(fdout);

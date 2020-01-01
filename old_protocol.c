@@ -606,10 +606,12 @@ static int rx_feedback_channel() {
   int ret;
   switch (device) {
     case DEVICE_METIS:
+    case DEVICE_HERMES_LITE:
       ret=0;
       break;
     case DEVICE_HERMES:
     case DEVICE_STEMLAB:
+    case DEVICE_HERMES_LITE2:
       ret=2;
       break;
     case DEVICE_ANGELIA:
@@ -631,10 +633,12 @@ static int tx_feedback_channel() {
   int ret;
   switch (device) {
     case DEVICE_METIS:
+    case DEVICE_HERMES_LITE:
       ret=1;
       break;
     case DEVICE_HERMES:
     case DEVICE_STEMLAB:
+    case DEVICE_HERMES_LITE2:
       ret=3;
       break;
     case DEVICE_ANGELIA:
@@ -662,15 +666,19 @@ static int second_receiver_channel() {
   // Depending on the device and whether we compiled for PURESIGNAL,
   // return the channel number of the second receiver
   //
+  int ret=1;
 #ifdef PURESIGNAL
-  if(device==DEVICE_HERMES_LITE) {
-    return 1;
-  } else {
-    return 2;
+  switch (device) {
+    case DEVICE_METIS:
+    case DEVICE_HERMES_LITE:
+      ret=1;
+      break;
+    default:
+      ret=2;
+      break;
   }
-#else
-  return 1;
 #endif
+  return ret;
 }
 
 static long long channel_freq(int chan) {
@@ -767,7 +775,8 @@ static long long channel_freq(int chan) {
     }
   } else {
     //
-    // determine frequency associated with VFO #vfonum
+    // determine RX frequency associated with VFO #vfonum
+    // This is the center freq in CTUN mode.
     //
     freq=vfo[vfonum].frequency-vfo[vfonum].lo;
     if(vfo[vfonum].rit_enabled) {
@@ -787,15 +796,9 @@ static long long channel_freq(int chan) {
 static int how_many_receivers() {
   //
   // Depending on how the program is compiled and which board we have,
-  // we use a FIXED number of receivers except for RADIOBERRY,
-  // where the number may be dynamically changed
+  // we use a FIXED number of receivers.
   //
-  int ret;
-#ifdef RADIOBERRY
-        ret = receivers;     // 1 or 2
-#else
-        ret = RECEIVERS;     // 2
-#endif
+  int ret = RECEIVERS;
 
 #ifdef PURESIGNAL
     // for PureSignal, the number of receivers needed is hard-coded below.
@@ -803,8 +806,13 @@ static int how_many_receivers() {
     // the TX DAC is hard-wired to RX4 for HERMES,STEMLAB and to RX5 for ANGELIA
     // and beyond.
     switch (device) {
+      case DEVICE_METIS:
+      case DEVICE_HERMES_LITE:
+	ret=2;  // TX feedback hard-wired to RX2
+	break;
       case DEVICE_HERMES:
       case DEVICE_STEMLAB:
+      case DEVICE_HERMES_LITE2:
 	ret=4;  // TX feedback hard-wired to RX4
 	break;
       case DEVICE_ANGELIA:
@@ -813,11 +821,7 @@ static int how_many_receivers() {
 	ret=5;  // TX feedback hard-wired to RX5
 	break;
       default:
-	//
-	// older FPGAs support no more than two receivers
-	// then TX feedback is wired to RX2
-	//
-	ret=2;
+	ret=2; // This is the minimum for PURESIGNAL
 	break;
     }
 #endif
@@ -1165,18 +1169,9 @@ void ozy_send_buffer() {
     if(active_receiver->random) {
       output_buffer[C3]|=LT2208_RANDOM_ON;
     }
-#ifdef RADIOBERRY
-	if (rx_gain_slider[active_receiver->adc] > 31) 
-	{
-		output_buffer[C3]|=LT2208_DITHER_OFF;}
-	else {
-		output_buffer[C3]|=LT2208_DITHER_ON;
-	}
-#else
-	if(active_receiver->dither) {
-		output_buffer[C3]|=LT2208_DITHER_ON;
-	}
-#endif
+    if(active_receiver->dither) {
+	output_buffer[C3]|=LT2208_DITHER_ON;
+    }
     if (filter_board == CHARLY25 && active_receiver->preamp) {
       output_buffer[C3]|=LT2208_GAIN_ON;
     }
@@ -1449,20 +1444,33 @@ void ozy_send_buffer() {
         output_buffer[C3]=0x00;
         output_buffer[C4]=0x00;
   
-#ifdef RADIOBERRY
-	int att = 63 - rx_gain_slider[active_receiver->adc];
-        output_buffer[C4]=0x20|att;
-#else
-	// must set bit 5 ("Att enable") all the time
 	// upon TX, use transmitter->attenuation
 	// Usually the firmware takes care of this, but it is no
 	// harm to do this here as well
-        if (isTransmitting()) {
-          output_buffer[C4]=0x20 | (transmitter->attenuation & 0x1F);
+        if (have_rx_gain) {
+	  //
+	  // HERMESlite has a RXgain value in the range 0-60 that
+	  // is stored in gx_gain_slider. The firmware uses bit 6
+	  // of C4 to determine this case. However RadioBerry seems
+	  // to behave differently and stores bit5 of the gain in the
+	  // dither bit (see above) and a 5-bit attenuation value here.
+	  //
+          int rxgain = rx_gain_calibration - adc_attenuation[active_receiver->adc];
+          if (rxgain <  0) rxgain=0;
+          if (rxgain > 60) rxgain=60;
+	  // encode all 6 bits of RXgain in ATT value and set bit6
+          if (isTransmitting()) {
+	    output_buffer[C4] = 0x40 | (31 - (transmitter->attenuation & 0x1F));
+          } else { 
+	    output_buffer[C4] = 0x40 | (rxgain & 0x3F);
+          }
         } else {
-          output_buffer[C4]=0x20 | (adc_attenuation[0] & 0x1F);
-        } 
-#endif
+          if (isTransmitting()) {
+            output_buffer[C4]=0x20 | (transmitter->attenuation & 0x1F);
+          } else {
+            output_buffer[C4]=0x20 | (adc_attenuation[0] & 0x1F);
+          } 
+        }
 	break;
       case 5:
         output_buffer[C0]=0x16;

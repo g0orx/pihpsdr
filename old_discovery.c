@@ -406,6 +406,7 @@ fprintf(stderr,"discover_receive_thread\n");
                 if(devices<MAX_DEVICES) {
                     discovered[devices].protocol=ORIGINAL_PROTOCOL;
                     discovered[devices].device=buffer[10]&0xFF;
+                    discovered[devices].software_version=buffer[9]&0xFF;
                     switch(discovered[devices].device) {
                         case DEVICE_METIS:
                             strcpy(discovered[devices].name,"Metis");
@@ -433,11 +434,23 @@ fprintf(stderr,"discover_receive_thread\n");
                             discovered[devices].frequency_max=61440000.0;
                             break;
                         case DEVICE_HERMES_LITE:
-#ifdef RADIOBERRY
-                            strcpy(discovered[devices].name,"Radioberry");
-#else
-                            strcpy(discovered[devices].name,"Hermes Lite");		
-#endif
+			    //
+			    // It seems that some HermesLite V2 boards use
+			    // DEVICE_HERMES_LITE as the ID and a software version
+			    // that is larger or equal to 40, while the original
+			    // (V1) HermesLite boards have software versions up to 31.
+			    // Therefore this is possibly a HL2 board!
+			    if (discovered[devices].software_version < 40) {
+                              strcpy(discovered[devices].name,"HermesLite V1");		
+			    } else {
+                              strcpy(discovered[devices].name,"HermesLite V2");		
+			      discovered[devices].device = DEVICE_HERMES_LITE2;
+			    }
+                            discovered[devices].frequency_min=0.0;
+                            discovered[devices].frequency_max=30720000.0;
+                            break;
+                        case DEVICE_HERMES_LITE2:
+                            strcpy(discovered[devices].name,"HermesLite V2");		
                             discovered[devices].frequency_min=0.0;
                             discovered[devices].frequency_max=30720000.0;
                             break;
@@ -460,7 +473,6 @@ fprintf(stderr,"discover_receive_thread\n");
                             break;
                     }
 g_print("old_discovery: name=%s min=%f max=%f\n",discovered[devices].name, discovered[devices].frequency_min, discovered[devices].frequency_max);
-                    discovered[devices].software_version=buffer[9]&0xFF;
                     for(i=0;i<6;i++) {
                         discovered[devices].info.network.mac_address[i]=buffer[i+3];
                     }

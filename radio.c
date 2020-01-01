@@ -258,6 +258,8 @@ int mox=0;
 int tune=0;
 int memory_tune=0;
 int full_tune=0;
+int have_rx_gain=0;
+int rx_gain_calibration=25;
 
 //long long displayFrequency=14250000;
 //long long ddsFrequency=14250000;
@@ -419,7 +421,50 @@ void start_radio() {
 
   int rc;
 
-  switch(radio->protocol) {
+  protocol=radio->protocol;
+  device=radio->device;
+
+  //
+  // have_rx_gain determines whether we have "ATT" or "RX Gain" Sliders
+  // It is set for HermesLite (and RadioBerry, for that matter)
+  //
+  have_rx_gain=0;
+  switch (protocol) {
+    case ORIGINAL_PROTOCOL:
+	switch (device) {
+	    case DEVICE_HERMES_LITE:
+	    case DEVICE_HERMES_LITE2:
+		have_rx_gain=1;
+		rx_gain_calibration=25;
+		break;
+	    default:
+		have_rx_gain=0;
+		rx_gain_calibration=0;
+		break;
+	}
+	break;
+    case NEW_PROTOCOL:
+	switch (device) {
+	    case NEW_DEVICE_HERMES_LITE:
+	    case NEW_DEVICE_HERMES_LITE2:
+		have_rx_gain=1;
+		rx_gain_calibration=25;
+		break;
+	    default:
+		have_rx_gain=0;
+		rx_gain_calibration=0;
+		break;
+	}
+	break;
+    default:
+	have_rx_gain=0;
+	break;
+  }
+
+  //
+  // can_transmit decides whether we have a transmitter.
+  //
+  switch(protocol) {
     case ORIGINAL_PROTOCOL:
     case NEW_PROTOCOL:
       can_transmit=1;
@@ -432,7 +477,9 @@ void start_radio() {
 #endif
   }
 
-
+//
+// A semaphore for safely writing to the props file
+//
 #ifdef __APPLE__
   sem_unlink("PROPERTY");
   property_sem=sem_open("PROPERTY", O_CREAT | O_EXCL, 0700, 0);
@@ -450,18 +497,21 @@ void start_radio() {
   sem_post(&property_sem);
 #endif
 
+//
+//  Create text for the top line of the piHPSDR window
+//
     char text[256];
-    switch(radio->protocol) {
+    switch(protocol) {
       case ORIGINAL_PROTOCOL:
       case NEW_PROTOCOL:
 #ifdef USBOZY
-        if(radio->device==DEVICE_OZY) {
-          sprintf(text,"%s (%s) on USB /dev/ozy\n", radio->name, radio->protocol==ORIGINAL_PROTOCOL?"Protocol 1":"Protocol 2");
+        if(device==DEVICE_OZY) {
+          sprintf(text,"%s (%s) on USB /dev/ozy\n", radio->name, protocol==ORIGINAL_PROTOCOL?"Protocol 1":"Protocol 2");
         } else {
 #endif
           sprintf(text,"Starting %s (%s v%d.%d)",
                         radio->name,
-                        radio->protocol==ORIGINAL_PROTOCOL?"Protocol 1":"Protocol 2",
+                        protocol==ORIGINAL_PROTOCOL?"Protocol 1":"Protocol 2",
                         radio->software_version/10,
                         radio->software_version%10);
 #ifdef USBOZY
@@ -477,7 +527,7 @@ void start_radio() {
   char ip[32];
   char iface[32];
 
-  switch(radio->protocol) {
+  switch(protocol) {
     case ORIGINAL_PROTOCOL:
       strcpy(p,"Protocol 1");
       sprintf(version,"v%d.%d)",
@@ -526,7 +576,7 @@ void start_radio() {
     case ORIGINAL_PROTOCOL:
     case NEW_PROTOCOL:
 #ifdef USBOZY
-      if(radio->device==DEVICE_OZY) {
+      if(device==DEVICE_OZY) {
         sprintf(text,"%s (%s) on USB /dev/ozy\n", radio->name, p);
       } else {
 #endif
@@ -560,13 +610,13 @@ void start_radio() {
 
   gtk_window_set_title (GTK_WINDOW (top_window), text);
 
-  protocol=radio->protocol;
-  device=radio->device;
-
-  switch(radio->protocol) {
+//
+// determine name of the props file
+//
+  switch(protocol) {
     case ORIGINAL_PROTOCOL:
     case NEW_PROTOCOL:
-      switch(radio->device) {
+      switch(device) {
 #ifdef USBOZY
         case DEVICE_OZY:
           sprintf(property_path,"ozy.props");
@@ -590,9 +640,9 @@ void start_radio() {
 #endif
   }
 
-  switch(radio->protocol) {
+  switch(protocol) {
     case ORIGINAL_PROTOCOL:
-      switch(radio->device) {
+      switch(device) {
         case DEVICE_ORION2:
           //meter_calibration=3.0;
           //display_calibration=3.36;
@@ -604,7 +654,7 @@ void start_radio() {
       }
       break;
     case NEW_PROTOCOL:
-      switch(radio->device) {
+      switch(device) {
         case NEW_DEVICE_ORION2:
           //meter_calibration=3.0;
           //display_calibration=3.36;
@@ -617,14 +667,16 @@ void start_radio() {
       break;
   }
  
-  // Code moved here from rx_menu because n_adc is of general interest:
-  // Determine Number of ADCs.
+  //
+  // Determine number of ADCs in the device
+  //
   switch(protocol) {
     case ORIGINAL_PROTOCOL:
       switch(device) {
         case DEVICE_METIS: // No support for multiple MERCURY cards on a single ATLAS bus.
         case DEVICE_HERMES:
         case DEVICE_HERMES_LITE:
+        case DEVICE_HERMES_LITE2:
           n_adc=1;
           break;
         default:
@@ -640,6 +692,7 @@ void start_radio() {
         case NEW_DEVICE_HERMES:
         case NEW_DEVICE_HERMES2:
         case NEW_DEVICE_HERMES_LITE:
+        case NEW_DEVICE_HERMES_LITE2:
           n_adc=1;
           break;
         default:
@@ -663,7 +716,7 @@ void start_radio() {
   iqswap=0;
 
 #ifdef SOAPYSDR
-  if(radio->device==SOAPYSDR_USB_DEVICE) {
+  if(device==SOAPYSDR_USB_DEVICE) {
     iqswap=1;
     receivers=1;
   }
@@ -671,8 +724,6 @@ void start_radio() {
 
   adc_attenuation[0]=0;
   adc_attenuation[1]=0;
-  rx_gain_slider[0] = 0;
-  rx_gain_slider[1] = 0;
 
   adc[0].antenna=ANTENNA_1;
   adc[0].filters=AUTOMATIC;
@@ -684,7 +735,7 @@ void start_radio() {
   adc[0].attenuation=0;
 #ifdef SOAPYSDR
   adc[0].antenna=2; // LNAL
-  if(radio->device==SOAPYSDR_USB_DEVICE) {
+  if(device==SOAPYSDR_USB_DEVICE) {
     adc[0].rx_gain=malloc(radio->info.soapy.rx_gains*sizeof(gint));
     for (size_t i = 0; i < radio->info.soapy.rx_gains; i++) {
       adc[0].rx_gain[i]=0;
@@ -708,7 +759,7 @@ void start_radio() {
   adc[1].attenuation=0;
 #ifdef SOAPYSDR
   adc[1].antenna=3; // LNAW
-  if(radio->device==SOAPYSDR_USB_DEVICE) {
+  if(device==SOAPYSDR_USB_DEVICE) {
     adc[1].rx_gain=malloc(radio->info.soapy.rx_gains*sizeof(gint));
     for (size_t i = 0; i < radio->info.soapy.rx_gains; i++) {
       adc[1].rx_gain[i]=0;
@@ -828,6 +879,9 @@ void start_radio() {
     set_offset(receiver[i],vfo[i].offset);
   }
 
+  //
+  // Sanity check: in old protocol, all receivers must have the same sample rate
+  //
   if((protocol==ORIGINAL_PROTOCOL) && (RECEIVERS==2) && (receiver[0]->sample_rate!=receiver[1]->sample_rate)) {
     receiver[1]->sample_rate=receiver[0]->sample_rate;
   }
@@ -874,7 +928,7 @@ void start_radio() {
   }
 #endif
   
-  switch(radio->protocol) {
+  switch(protocol) {
     case ORIGINAL_PROTOCOL:
       old_protocol_init(0,display_width,receiver[0]->sample_rate);
       break;
@@ -996,7 +1050,8 @@ void start_radio() {
 
   //
   // MIDIstartup must not be called before the radio is completely set up, since
-  // then MIDI can asynchronously trigger actions
+  // then MIDI can asynchronously trigger actions which require the radio already
+  // running. So this is the last thing we do when starting the radio.
   //
 #ifdef MIDI
   MIDIstartup();
@@ -1205,7 +1260,7 @@ void frequency_changed(RECEIVER *rx) {
     SetRXAShiftFreq(rx->id, (double)vfo[0].offset);
     RXANBPSetShiftFrequency(rx->id, (double)vfo[0].offset);
 #ifdef SOAPYSDR
-    if(radio->protocol==SOAPYSDR_PROTOCOL) {
+    if(protocol==SOAPYSDR_PROTOCOL) {
 /*
       if(radio->can_transmit) {
         if(radio->transmitter!=NULL && radio->transmitter->rx==rx) {
@@ -1216,10 +1271,10 @@ void frequency_changed(RECEIVER *rx) {
     }
 #endif
   } else {
-    if(radio->protocol==NEW_PROTOCOL) {
+    if(protocol==NEW_PROTOCOL) {
       schedule_high_priority();
 #ifdef SOAPYSDR
-    } else if(radio->protocol==SOAPYSDR_PROTOCOL) {
+    } else if(protocol==SOAPYSDR_PROTOCOL) {
       soapy_protocol_set_rx_frequency(rx,VFO_A);
 /*
       if(radio->can_transmit) {
@@ -1734,11 +1789,6 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     value=getProperty("adc_1_attenuation");
     if(value) adc_attenuation[1]=atoi(value);
 	
-    value=getProperty("rx1_gain_slider");
-    if(value) rx_gain_slider[0]=atoi(value);
-    value=getProperty("rx2_gain_slider");
-    if(value) rx_gain_slider[1]=atoi(value);
-
     value=getProperty("split");
     if(value) split=atoi(value);
     value=getProperty("duplex");
@@ -1747,7 +1797,7 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     if(value) sat_mode=atoi(value);
 
 #ifdef SOAPYSDR
-  if(radio->device==SOAPYSDR_USB_DEVICE) {
+  if(device==SOAPYSDR_USB_DEVICE) {
     char name[128];
     for(int i=0;i<radio->info.soapy.rx_gains;i++) {
       sprintf(name,"radio.adc[0].rx_gain.%s",radio->info.soapy.rx_gain[i]) ;
@@ -1954,13 +2004,8 @@ fprintf(stderr,"radioSaveState: %s\n",property_path);
     sprintf(value,"%d",adc_attenuation[1]);
     setProperty("adc_1_attenuation",value);
 	
-    sprintf(value,"%d",rx_gain_slider[0]);
-    setProperty("rx1_gain_slider",value);
-    sprintf(value,"%d",rx_gain_slider[1]);
-    setProperty("rx2_gain_slider",value);
-
 #ifdef SOAPYSDR
-    if(radio->device==SOAPYSDR_USB_DEVICE) {
+    if(device==SOAPYSDR_USB_DEVICE) {
       char name[128];
       for(int i=0;i<radio->info.soapy.rx_gains;i++) {
         sprintf(name,"radio.adc[0].rx_gain.%s",radio->info.soapy.rx_gain[i]);

@@ -97,7 +97,7 @@ gboolean displayHF;
 
 #define UK_CHANNEL_ENTRIES 11
 #define OTHER_CHANNEL_ENTRIES 5
-#define WRC15_CHANNEL_ENTRIES 3
+#define WRC15_CHANNEL_ENTRIES 1
 
 extern int channel_entries;
 extern CHANNEL *band_channels_60m;

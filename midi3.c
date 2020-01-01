@@ -34,7 +34,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
     int    *ip;
 
     //
-    // Handle cases in alphabetical order of the key words in midi.inp
+    // Handle cases in alphabetical order of the key words in midi.props
     //
     switch (action) {
 	/////////////////////////////////////////////////////////// "A2B"
@@ -234,12 +234,10 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    break;
 	/////////////////////////////////////////////////////////// "DUP"
         case MIDI_DUP:
-            if(duplex) {
-              duplex=0;
-            } else {
-              duplex=1;
-            }
-            g_idle_add(ext_vfo_update, NULL);
+	    if (can_transmit) {
+	      duplex=duplex==1?0:1;
+              g_idle_add(ext_set_duplex, NULL);
+	    }
             break;
 	/////////////////////////////////////////////////////////// "FILTERDOWN"
 	/////////////////////////////////////////////////////////// "FILTERUP"
@@ -331,7 +329,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    break;
 	/////////////////////////////////////////////////////////// "MOX"
 	case MIDI_MOX: // only key supported
-	    if (type == MIDI_KEY) {
+	    if (type == MIDI_KEY && can_transmit) {
 	        new = !mox;
 		g_idle_add(ext_mox_update, GINT_TO_POINTER(new));
 	    }
@@ -613,7 +611,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    break;    
 	/////////////////////////////////////////////////////////// "TUNE"
 	case MIDI_TUNE: // only key supported
-	    if (type == MIDI_KEY) {
+	    if (type == MIDI_KEY && can_transmit) {
 	        new = !tune;
 		g_idle_add(ext_tune_update, GINT_TO_POINTER(new));
 	    }

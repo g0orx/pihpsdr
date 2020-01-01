@@ -30,6 +30,7 @@
 #include "diversity_menu.h"
 #include "vfo.h"
 #include "radio.h"
+#include "radio_menu.h"
 #include "new_menu.h"
 #include "new_protocol.h"
 #ifdef PURESIGNAL
@@ -615,5 +616,10 @@ int ext_set_rf_gain(void *data) {
 
 int ext_update_noise(void *data) {
   update_noise();
+  return 0;
+}
+
+int ext_set_duplex(void *data) {
+  setDuplex();
   return 0;
 }

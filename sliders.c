@@ -135,11 +135,11 @@ int sliders_active_receiver_changed(void *data) {
       gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc_attenuation[active_receiver->adc]);
     }
     char title[64];
-#ifdef RADIOBERRY
+    if (have_rx_gain) {
 	sprintf(title,"RX GAIN"/*,active_receiver->adc*/);
-#else
-    sprintf(title,"ATT (dB)"/*,active_receiver->adc*/);
-#endif
+    } else {
+        sprintf(title,"ATT (dB)"/*,active_receiver->adc*/);
+    }
     gtk_label_set_text(GTK_LABEL(attenuation_label),title);
     sliders_update();
   }
@@ -153,30 +153,29 @@ int scale_timeout_cb(gpointer data) {
 }
 
 static void attenuation_value_changed_cb(GtkWidget *widget, gpointer data) {
-#ifdef RADIOBERRY
-  //redfined the att slider to a rx-gain slider.
-  //AD9866 contains a pga amplifier from -12 - 48 dB
-  //from -12 to 0; the rx-gain slider functions as an att slider
-  //from 0 - 48 db; the rx-gain slider functions as a gain slider with att = 0;
-  //att set to 20 for good power measurement.
-  int rx_gain_slider_value = (int)gtk_range_get_value(GTK_RANGE(attenuation_scale));
-  rx_gain_slider[active_receiver->adc]=rx_gain_slider_value;
-  adc_attenuation[active_receiver->adc]= MAX((12 - rx_gain_slider_value), 0);
-  set_attenuation(adc_attenuation[active_receiver->adc]);
-#else
-  adc_attenuation[active_receiver->adc]=(int)gtk_range_get_value(GTK_RANGE(attenuation_scale));
-  set_attenuation(adc_attenuation[active_receiver->adc]);
-#endif
+  if (have_rx_gain) {
+    //redfined the att slider to a rx-gain slider.
+    //AD9866 contains a pga amplifier from -12 - 48 dB
+    //from -12 to 0; the rx-gain slider functions as an att slider
+    //from 0 - 48 db; the rx-gain slider functions as a gain slider with att = 0;
+    //att set to 20 for good power measurement.
+    int rx_gain_slider_value = (int)gtk_range_get_value(GTK_RANGE(attenuation_scale));
+    adc_attenuation[active_receiver->adc]= rx_gain_calibration - rx_gain_slider_value;
+    set_attenuation(adc_attenuation[active_receiver->adc]);
+  } else {
+    adc_attenuation[active_receiver->adc]=(int)gtk_range_get_value(GTK_RANGE(attenuation_scale));
+    set_attenuation(adc_attenuation[active_receiver->adc]);
+  }
 }
 
 void set_attenuation_value(double value) {
   adc_attenuation[active_receiver->adc]=(int)value;
   if(display_sliders) {
-#ifdef RADIOBERRY
-	gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)rx_gain_slider[active_receiver->adc]);
-#else
-    gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc_attenuation[active_receiver->adc]);
-#endif
+    if (have_rx_gain) {
+	gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)(rx_gain_calibration-adc_attenuation[active_receiver->adc]));
+    } else {
+        gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc_attenuation[active_receiver->adc]);
+    }
   } else {
     if(scale_status!=ATTENUATION) {
       if(scale_status!=NONE) {
@@ -187,12 +186,12 @@ void set_attenuation_value(double value) {
     }
     if(scale_status==NONE) {
       char title[64];
-#ifdef RADIOBERRY
+      if (have_rx_gain) {
 	  sprintf(title,"RX GAIN - ADC-%d (dB)",active_receiver->adc);
-#else
-      sprintf(title,"Attenuation - ADC-%d (dB)",active_receiver->adc);
-#endif     
-	  scale_status=ATTENUATION;
+      } else {
+          sprintf(title,"Attenuation - ADC-%d (dB)",active_receiver->adc);
+      }
+      scale_status=ATTENUATION;
       scale_dialog=gtk_dialog_new_with_buttons(title,GTK_WINDOW(top_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
       GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
       attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 31.0, 1.00);
@@ -775,23 +774,24 @@ fprintf(stderr,"sliders_init: width=%d height=%d\n", width,height);
   g_signal_connect(G_OBJECT(agc_scale),"value_changed",G_CALLBACK(agcgain_value_changed_cb),NULL);
 
   char title[64];
-#ifdef RADIOBERRY
+  if (have_rx_gain) {
 	sprintf(title,"RX-GAIN:"/*,active_receiver->adc*/);
-#else
-  sprintf(title,"ATT (dB)"/*,active_receiver->adc*/);
-#endif
+  } else {
+        sprintf(title,"ATT (dB)"/*,active_receiver->adc*/);
+  }
   attenuation_label=gtk_label_new(title);
   gtk_widget_override_font(attenuation_label, pango_font_description_from_string("Sans 10"));
   gtk_widget_show(attenuation_label);
   gtk_grid_attach(GTK_GRID(sliders),attenuation_label,6,0,1,1);
 
-#ifdef RADIOBERRY
+  if (have_rx_gain) {
 	attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 60.0, 1.0);
-	gtk_range_set_value (GTK_RANGE(attenuation_scale),rx_gain_slider[active_receiver->adc]);
-#else
+	gtk_range_set_value (GTK_RANGE(attenuation_scale),rx_gain_calibration-adc_attenuation[active_receiver->adc]);
+  } else {
 	attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 31.0, 1.0);
 	gtk_range_set_value (GTK_RANGE(attenuation_scale),adc_attenuation[active_receiver->adc]);
-#endif
+  }
+ 
   gtk_widget_override_font(attenuation_scale, pango_font_description_from_string("Sans 10"));
   
   gtk_widget_show(attenuation_scale);

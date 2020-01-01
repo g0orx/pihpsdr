@@ -28,28 +28,30 @@
 #define MAX_DEVICES 16
 
 
-#define DEVICE_METIS 0
-#define DEVICE_HERMES 1
-#define DEVICE_GRIFFIN 2
-#define DEVICE_ANGELIA 4
-#define DEVICE_ORION 5
-#define DEVICE_HERMES_LITE 6
 // ANAN 7000DLE and 8000DLE uses 10 as the device type in old protocol
-#define DEVICE_ORION2 10 
 // Newer STEMlab hpsdr emulators use 100 instead of 1
-#define DEVICE_STEMLAB 100
+#define DEVICE_METIS          0
+#define DEVICE_HERMES         1
+#define DEVICE_GRIFFIN        2
+#define DEVICE_ANGELIA        4
+#define DEVICE_ORION          5
+#define DEVICE_HERMES_LITE    6
+#define DEVICE_HERMES_LITE2   7
+#define DEVICE_ORION2        10 
+#define DEVICE_STEMLAB      100
 
 #ifdef USBOZY
 #define DEVICE_OZY 7
 #endif
 
-#define NEW_DEVICE_ATLAS 0
-#define NEW_DEVICE_HERMES 1
-#define NEW_DEVICE_HERMES2 2
-#define NEW_DEVICE_ANGELIA 3
-#define NEW_DEVICE_ORION 4
-#define NEW_DEVICE_ORION2 5
-#define NEW_DEVICE_HERMES_LITE 6
+#define NEW_DEVICE_ATLAS        0
+#define NEW_DEVICE_HERMES       1
+#define NEW_DEVICE_HERMES2      2
+#define NEW_DEVICE_ANGELIA      3
+#define NEW_DEVICE_ORION        4
+#define NEW_DEVICE_ORION2       5
+#define NEW_DEVICE_HERMES_LITE  6
+#define NEW_DEVICE_HERMES_LITE2 7
 
 #ifdef SOAPYSDR
 #define SOAPYSDR_USB_DEVICE 0

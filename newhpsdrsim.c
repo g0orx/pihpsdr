@@ -714,6 +714,7 @@ void *highprio_thread(void *data) {
      }
      // rxatt0 depends both on ALEX att and Step Att, so re-calc. it each time
      if (NEWDEVICE == NEW_DEVICE_ORION2) {
+	// There is no step attenuator on ANAN7000
 	rxatt0_dbl=pow(10.0, -0.05*stepatt0);
      } else {
 	rxatt0_dbl=pow(10.0, -0.05*(stepatt0+10*alex0[14]+20*alex0[13]));

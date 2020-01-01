@@ -18,3 +18,4 @@
 */
 
 extern void radio_menu(GtkWidget *parent);
+extern void setDuplex(void);
