@@ -592,8 +592,6 @@ static gpointer receive_thread(gpointer arg) {
 // at various places,
 // we define here the channel number of the receivers, as well as the
 // number of HPSDR receivers to use (up to 5)
-// These are FIXED numbers and depend on the device and whether the code
-// is compiled with or without PURESIGNAL
 // Furthermore, we provide a function that determines the frequency for
 // a given (HPSDR) receiver and for the transmitter.
 //
@@ -601,7 +599,8 @@ static gpointer receive_thread(gpointer arg) {
 
 static int rx_feedback_channel() {
   //
-  // Depending on the device, return channel number of RX feedback receiver
+  // For radios with small FPGAS only supporting 2 RX, use RX1.
+  // Else, use the last RX before the TX feedback channel.
   //
   int ret;
   switch (device) {
@@ -628,7 +627,11 @@ static int rx_feedback_channel() {
 
 static int tx_feedback_channel() {
   //
-  // Depending on the device, return channel number of TX feedback receiver
+  // Radios with small FPGAs use RX2
+  // HERMES uses RX4,
+  // and Angelia and beyond use RX5
+  //
+  // This is hard-coded in the firmware.
   //
   int ret;
   switch (device) {
@@ -654,37 +657,16 @@ static int tx_feedback_channel() {
 }
 
 static int first_receiver_channel() {
-  //
-  // Depending on the device and whether we compiled for PURESIGNAL,
-  // return the channel number of the first receiver
-  //
   return 0;
 }
 
 static int second_receiver_channel() {
-  //
-  // Depending on the device and whether we compiled for PURESIGNAL,
-  // return the channel number of the second receiver
-  //
-  int ret=1;
-#ifdef PURESIGNAL
-  switch (device) {
-    case DEVICE_METIS:
-    case DEVICE_HERMES_LITE:
-      ret=1;
-      break;
-    default:
-      ret=2;
-      break;
-  }
-#endif
-  return ret;
+  return 1;
 }
 
 static long long channel_freq(int chan) {
   //
-  // Depending on PURESIGNAL and DIVERSITY, return
-  // the frequency associated with the current HPSDR
+  // Return the frequency associated with the current HPSDR
   // RX channel (0 <= chan <= 4).
   //
   // This function returns the TX frequency if chan is
@@ -700,28 +682,9 @@ static long long channel_freq(int chan) {
   int vfonum;
   long long freq;
 
+  // RX1 and RX2 are normally used for the first and second receiver.
+  // all other channels are used for PURESIGNAL and get the TX frequency
   switch (chan) {
-#ifdef PURESIGNAL
-    case 0:
-      vfonum=receiver[0]->id;
-      break;
-    case 1:
-      if(device==DEVICE_HERMES_LITE) {
-        vfonum=receiver[1]->id;
-      } else {
-        vfonum=receiver[0]->id;
-      }
-      break;
-    case 2:
-    case 3:
-    case 4:
-      if (diversity_enabled) {
-	vfonum=receiver[0]->id;
-      } else {
-	vfonum=receiver[1]->id;
-      }
-      break;
-#else
     case 0:
       vfonum=receiver[0]->id;
       break;
@@ -732,14 +695,12 @@ static long long channel_freq(int chan) {
 	vfonum=receiver[1]->id;
       }
       break;
-#endif
-    default:   // hook for determining the TX frequency
+    default:   // TX frequency used for all other channels
       vfonum=-1;
       break;
   }
   //
-  // When transmitting with PURESIGNAL, set frequency of PS feedback and TX DAC channels
-  // to the tx frequency
+  // Radios with small FPGAs use RX1/RX2 for feedback while transmitting,
   //
   if (isTransmitting() && transmitter->puresignal && (chan == rx_feedback_channel() || chan == tx_feedback_channel())) {
     vfonum = -1;
@@ -750,19 +711,12 @@ static long long channel_freq(int chan) {
     // We have to adjust by the offset for CTUN mode
     //
     if(active_receiver->id==VFO_A) {
-      if(split) { 
-        vfonum=VFO_B;
-      } else {
-        vfonum=VFO_A;
-      }
+      vfonum = split ? VFO_B : VFO_A;
     } else {
-      if(split) {
-        vfonum=VFO_A;
-      } else {
-        vfonum=VFO_B;
-      }
+      vfonum = split ? VFO_A : VFO_B;
     }
-    freq=vfo[vfonum].frequency-vfo[vfonum].lo+vfo[vfonum].offset;
+    freq=vfo[vfonum].frequency-vfo[vfonum].lo;
+    if (vfo[vfonum].ctun) freq += vfo[vfonum].offset;
     if(transmitter->xit_enabled) {
       freq+=transmitter->xit;
     }
@@ -795,16 +749,18 @@ static long long channel_freq(int chan) {
 
 static int how_many_receivers() {
   //
-  // Depending on how the program is compiled and which board we have,
-  // we use a FIXED number of receivers.
+  // For DIVERSITY, we need at least two RX channels
+  // When PURESIGNAL is active, we need to include the TX DAC channel.
   //
-  int ret = RECEIVERS;
+  int ret = receivers;   	// 1 or 2
+  if (diversity_enabled) ret=2; // need both RX channels, even if there is only one RX
 
 #ifdef PURESIGNAL
     // for PureSignal, the number of receivers needed is hard-coded below.
     // we need at least 2, and up to 5 for Orion2 boards. This is so because
     // the TX DAC is hard-wired to RX4 for HERMES,STEMLAB and to RX5 for ANGELIA
     // and beyond.
+  if (transmitter->puresignal) {
     switch (device) {
       case DEVICE_METIS:
       case DEVICE_HERMES_LITE:
@@ -824,8 +780,9 @@ static int how_many_receivers() {
 	ret=2; // This is the minimum for PURESIGNAL
 	break;
     }
+  }
 #endif
-    return ret;
+  return ret;
 }
 
 static void process_ozy_input_buffer(unsigned char  *buffer) {
@@ -988,10 +945,8 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
         }
       } // end of loop over the receiver channels
 
-      // TX without PURESIGNAL: receivers are shut down -- do nothing
-
       //
-      // Process mic samples. Take them from buffer or from
+      // Process mic samples. Take them from radio or from
       // "local microphone" ring buffer
       //
       mic_sample  = (short)(buffer[b++]<<8);
@@ -1097,6 +1052,8 @@ void ozy_send_buffer() {
   int i;
   BAND *band;
   int num_hpsdr_receivers=how_many_receivers();
+  int rx1channel = first_receiver_channel();
+  int rx2channel = second_receiver_channel();
 
   output_buffer[SYNC0]=SYNC;
   output_buffer[SYNC1]=SYNC;
@@ -1499,21 +1456,18 @@ void ozy_send_buffer() {
         output_buffer[C0]=0x1C;
         output_buffer[C1]=0x00;
         output_buffer[C2]=0x00;
-#ifdef PURESIGNAL
         // if n_adc == 1, there is only a single ADC, so we can leave everything
         // set to zero
 	if (n_adc  > 1) {
-	    // Angelia, Orion, Orion2 have two ADCs, so we use the ADC settings from the menu
-            output_buffer[C1]|=receiver[0]->adc;			// RX1 bound to ADC of first receiver
-            output_buffer[C1]|=(receiver[1]->adc<<2);			// RX2 actually unsused with PURESIGNAL
-            output_buffer[C1]|=receiver[1]->adc<<4;			// RX3 bound to ADC of second receiver
-            								// RX4 is PS_RX_Feedback and bound to ADC0
-	    								// RX5 is hard-wired to the TX DAC and needs no ADC setting.
+	    // set adc of the two RX associated with the two piHPSDR receivers
+	    if (diversity_enabled) {
+	      // use ADC0 for RX1 and ADC1 for RX2 (fixed setting)
+	      output_buffer[C1]|=0x04;
+	    } else {
+	      output_buffer[C1]|=(receiver[0]->adc<<(2*rx1channel));
+	      output_buffer[C1]|=(receiver[1]->adc<<(2*rx2channel));
+	    }
 	}
-#else
-        output_buffer[C1]|=receiver[0]->adc;				// ADC of first receiver
-        output_buffer[C1]|=(receiver[1]->adc<<2);			// ADC of second receiver
-#endif
         output_buffer[C3]=0x00;
         output_buffer[C3]|=transmitter->attenuation;			// Step attenuator of first ADC, value used when TXing
         output_buffer[C4]=0x00;
