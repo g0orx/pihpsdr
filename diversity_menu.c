@@ -61,7 +61,18 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 }
 
 static void diversity_cb(GtkWidget *widget, gpointer data) {
+  //
+  // If we have only one receiver, then changing diversity
+  // changes the number of HPSR receivers so we restart the
+  // original protocol
+  //
+  if (protocol == ORIGINAL_PROTOCOL && receivers == 1) {
+    old_protocol_stop();
+  }
   diversity_enabled=diversity_enabled==1?0:1;
+  if (protocol == ORIGINAL_PROTOCOL && receivers == 1) {
+    old_protocol_run();
+  }
   if (protocol == NEW_PROTOCOL) {
     schedule_high_priority();
     schedule_receive_specific();

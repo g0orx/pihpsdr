@@ -1070,6 +1070,13 @@ void radio_change_receivers(int r) {
   // number of receivers has not changed.
   if (receivers == r) return;
   fprintf(stderr,"radio_change_receivers: from %d to %d\n",receivers,r);
+  //
+  // When changing the number of receivers, restart the
+  // old protocol
+  //
+  if (protocol == ORIGINAL_PROTOCOL) {
+    old_protocol_stop();
+  }
   switch(r) {
     case 1:
 	set_displaying(receiver[1],0);
@@ -1086,6 +1093,9 @@ void radio_change_receivers(int r) {
   active_receiver=receiver[0];
   if(protocol==NEW_PROTOCOL) {
     schedule_high_priority();
+  }
+  if (protocol == ORIGINAL_PROTOCOL) {
+    old_protocol_run();
   }
 }
 

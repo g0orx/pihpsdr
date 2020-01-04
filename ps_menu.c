@@ -28,6 +28,7 @@
 #include "toolbar.h"
 #include "transmitter.h"
 #include "new_protocol.h"
+#include "old_protocol.h"
 #include "vfo.h"
 #include "ext.h"
 
@@ -286,7 +287,17 @@ static void ps_ant_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void enable_cb(GtkWidget *widget, gpointer data) {
+  //
+  // Enabling/Disabling changes the number of required
+  // of HPSR receivers so we restart the original protocol
+  //
+  if (protocol == ORIGINAL_PROTOCOL) {
+    old_protocol_stop();
+  }
   g_idle_add(ext_tx_set_ps,GINT_TO_POINTER(gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget))));
+  if (protocol == ORIGINAL_PROTOCOL) {
+    old_protocol_run();
+  }
 }
 
 static void auto_cb(GtkWidget *widget, gpointer data) {
