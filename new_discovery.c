@@ -217,6 +217,8 @@ gpointer new_discover_receive_thread(gpointer data) {
                 if(devices<MAX_DEVICES) {
                     discovered[devices].protocol=NEW_PROTOCOL;
                     discovered[devices].device=buffer[11]&0xFF;
+                    discovered[devices].software_version=buffer[13]&0xFF;
+                    discovered[devices].status=status;
                     switch(discovered[devices].device) {
 			case NEW_DEVICE_ATLAS:
                             strcpy(discovered[devices].name,"Atlas");
@@ -249,12 +251,12 @@ gpointer new_discover_receive_thread(gpointer data) {
                             frequency_max=61440000.0;
                             break;
 			case NEW_DEVICE_HERMES_LITE:
-                            strcpy(discovered[devices].name,"Hermes Lite");
-                            frequency_min=0.0;
-                            frequency_max=30720000.0;
-                            break;
-			case NEW_DEVICE_HERMES_LITE2:
-                            strcpy(discovered[devices].name,"Hermes Lite 2");
+			    if (discovered[devices].software_version < 40) {
+                              strcpy(discovered[devices].name,"Hermes Lite V1");
+			    } else {
+                              strcpy(discovered[devices].name,"Hermes Lite V2");
+			      discovered[devices].device = NEW_DEVICE_HERMES_LITE2;
+			    }
                             frequency_min=0.0;
                             frequency_max=30720000.0;
                             break;
@@ -264,11 +266,9 @@ gpointer new_discover_receive_thread(gpointer data) {
                             frequency_max=30720000.0;
                             break;
                     }
-                    discovered[devices].software_version=buffer[13]&0xFF;
                     for(i=0;i<6;i++) {
                         discovered[devices].info.network.mac_address[i]=buffer[i+5];
                     }
-                    discovered[devices].status=status;
                     memcpy((void*)&discovered[devices].info.network.address,(void*)&addr,sizeof(addr));
                     discovered[devices].info.network.address_length=sizeof(addr);
                     memcpy((void*)&discovered[devices].info.network.interface_address,(void*)&interface_addr,sizeof(interface_addr));
