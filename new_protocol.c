@@ -745,7 +745,8 @@ static void new_protocol_high_priority() {
 //  Set DUC frequency
 //
 
-    txFrequency=vfo[txvfo].frequency-vfo[txvfo].lo+vfo[txvfo].offset;
+    txFrequency=vfo[txvfo].frequency-vfo[txvfo].lo;
+    if (vfo[txvfo].ctun) txFrequency += vfo[txvfo].offset;
     if(transmitter->xit_enabled) {
       txFrequency+=transmitter->xit;
     }

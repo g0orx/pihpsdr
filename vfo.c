@@ -296,6 +296,7 @@ void vfo_band_changed(int b) {
 
   // turn off ctun
   vfo[id].ctun=0;
+  vfo[id].offset=0;
 
   switch(id) {
     case 0:
