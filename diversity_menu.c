@@ -28,6 +28,7 @@
 #include "diversity_menu.h"
 #include "radio.h"
 #include "new_protocol.h"
+#include "old_protocol.h"
 #include "sliders.h"
 
 #include <math.h> 
