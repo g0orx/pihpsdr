@@ -575,6 +575,13 @@ static void init_analyzer(TRANSMITTER *tx) {
             span_max_freq, //frequency at last pixel value
             max_w //max samples to hold in input ring buffers
     );
+   //
+   // This cannot be changed for the TX panel,
+   // use peak mode
+   //
+   SetDisplayDetectorMode(tx->id, 0, DETECTOR_MODE_PEAK);
+   SetDisplayAverageMode(tx->id, 0,  AVERAGE_MODE_NONE);
+
 
 }
 
