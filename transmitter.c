@@ -1289,6 +1289,10 @@ void tx_set_displaying(TRANSMITTER *tx,int state) {
 
 void tx_set_ps(TRANSMITTER *tx,int state) {
 #ifdef PURESIGNAL
+  if (protocol == ORIGINAL_PROTOCOL) {
+    old_protocol_stop();
+    usleep(100000);
+  }
   if(state) {
     tx->puresignal=1;
     SetPSControl(tx->id, 0, 0, 1, 0);
@@ -1301,6 +1305,9 @@ void tx_set_ps(TRANSMITTER *tx,int state) {
   if (protocol == NEW_PROTOCOL) {
     schedule_high_priority();
     schedule_receive_specific();
+  }
+  if (protocol == ORIGINAL_PROTOCOL) {
+    old_protocol_run();
   }
   g_idle_add(ext_vfo_update,NULL);
 #endif
