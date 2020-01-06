@@ -28,7 +28,6 @@
 #include "toolbar.h"
 #include "transmitter.h"
 #include "new_protocol.h"
-#include "old_protocol.h"
 #include "vfo.h"
 #include "ext.h"
 
@@ -41,18 +40,18 @@ static GtkWidget *set_pk;
 static GtkWidget *tx_att;
 
 /*
- * PureSignal 2.0 default parameters and declarations
+ * PureSignal 2.0 parameters and declarations
  */
 
-static double ampdelay  = 20e-9;   // 20 nsec
+static double ampdelay  = 150e-9;  // 150 nsec
 static int    ints      = 16;
-static int    spi       = 256;
-static int    stbl      = 0;
-static int    map       = 1;
-static int    pin       = 1;
-static double ptol      = 0.8;
-static double moxdelay  = 0.1;
-static double loopdelay = 0.0;
+static int    spi       = 256;     // ints=16/spi=256 corresponds to "TINT=0.5 dB"
+static int    stbl      = 0;	   // "Stbl" un-checked
+static int    map       = 1;       // "Map"  checked
+static int    pin       = 1;	   // "Pin"  checked
+static double ptol      = 0.8;     // "Relax Tolerance" un-checked
+static double moxdelay  = 0.2;     // "MOX Wait" 0.2 sec
+static double loopdelay = 0.0;     // "CAL Wait" 0.0 sec
 
 //
 // The following declarations are missing in wdsp.h
@@ -287,17 +286,7 @@ static void ps_ant_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void enable_cb(GtkWidget *widget, gpointer data) {
-  //
-  // Enabling/Disabling changes the number of required
-  // of HPSR receivers so we restart the original protocol
-  //
-  if (protocol == ORIGINAL_PROTOCOL) {
-    old_protocol_stop();
-  }
   g_idle_add(ext_tx_set_ps,GINT_TO_POINTER(gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget))));
-  if (protocol == ORIGINAL_PROTOCOL) {
-    old_protocol_run();
-  }
 }
 
 static void auto_cb(GtkWidget *widget, gpointer data) {
@@ -570,14 +559,6 @@ void ps_menu(GtkWidget *parent) {
 
   gtk_container_add(GTK_CONTAINER(content),grid);
   sub_menu=dialog;
-
-// DL1YCF: This is not the default setting,
-// but in my experience in behaves better in difficult situations.
-// This is commented out because it is not recommended by the
-// WDSP manual.
-//  ints=8;
-//  spi=512;
-//  ampdelay=100e-9;
 
   SetPSIntsAndSpi(transmitter->id, ints, spi);
   SetPSStabilize(transmitter->id, stbl);
