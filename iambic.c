@@ -376,7 +376,7 @@ static void* keyer_thread(void *arg) {
 	// swallow any cw_events posted during the last "cw hang" time.
         if (!kcwl && !kcwr) continue;
 
-        if (!mox) {
+        if (!mox && cw_breakin) {
           g_idle_add(ext_mox_update, (gpointer)(long) 1);
           // Wait for mox, that is, wait for WDSP shutting down the RX and
           // firing up the TX. This induces a small delay when hitting the key for
