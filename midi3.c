@@ -234,7 +234,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    break;
 	/////////////////////////////////////////////////////////// "DUP"
         case MIDI_DUP:
-	    if (can_transmit) {
+	    if (can_transmit && !isTransmitting()) {
 	      duplex=duplex==1?0:1;
               g_idle_add(ext_set_duplex, NULL);
 	    }

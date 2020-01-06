@@ -50,6 +50,10 @@ static GtkWidget *tx_gains[2];
 static GtkWidget *sat_b;
 static GtkWidget *rsat_b;
 
+static GtkWidget *receivers_1;
+static GtkWidget *receivers_2;
+static GtkWidget *duplex_b;
+
 static void cleanup() {
   if(dialog!=NULL) {
     gtk_widget_destroy(dialog);
@@ -214,6 +218,10 @@ void setDuplex() {
 }
 
 static void duplex_cb(GtkWidget *widget, gpointer data) {
+  if (isTransmitting()) {
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (duplex_b), duplex);
+    return;
+  }
   duplex=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
   setDuplex();
 }
@@ -319,6 +327,15 @@ static void sample_rate_cb(GtkToggleButton *widget, gpointer data) {
 }
 
 static void receivers_cb(GtkToggleButton *widget, gpointer data) {
+  //
+  // reconfigure_radio requires that the RX panels are active
+  // (segfault otherwise), therefore ignore this while TXing
+  //
+  if (isTransmitting()) {
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (receivers_1), receivers==1);
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (receivers_2), receivers==2);
+    return;
+  }
   if(gtk_toggle_button_get_active(widget)) {
     radio_change_receivers(GPOINTER_TO_INT(data));
   }
@@ -403,14 +420,14 @@ void radio_menu(GtkWidget *parent) {
 
   row++;
   
-  GtkWidget *receivers_1=gtk_radio_button_new_with_label(NULL,"1");
+             receivers_1=gtk_radio_button_new_with_label(NULL,"1");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (receivers_1), receivers==1);
   gtk_grid_attach(GTK_GRID(grid),receivers_1,col,row,1,1);
   g_signal_connect(receivers_1,"toggled",G_CALLBACK(receivers_cb),(gpointer *)1);
 
   row++;
 
-  GtkWidget *receivers_2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(receivers_1),"2");
+             receivers_2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(receivers_1),"2");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (receivers_2), receivers==2);
   gtk_grid_attach(GTK_GRID(grid),receivers_2,col,row,1,1);
   g_signal_connect(receivers_2,"toggled",G_CALLBACK(receivers_cb),(gpointer *)2);
@@ -684,7 +701,7 @@ void radio_menu(GtkWidget *parent) {
 
   col++;
 
-  GtkWidget *duplex_b=gtk_check_button_new_with_label("Duplex");
+             duplex_b=gtk_check_button_new_with_label("Duplex");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (duplex_b), duplex);
   gtk_grid_attach(GTK_GRID(grid),duplex_b,col,row,1,1);
   g_signal_connect(duplex_b,"toggled",G_CALLBACK(duplex_cb),NULL);
