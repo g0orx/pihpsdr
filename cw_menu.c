@@ -271,7 +271,7 @@ void cw_menu(GtkWidget *parent) {
   g_signal_connect(cw_keyer_weight_b,"value_changed",G_CALLBACK(cw_keyer_weight_value_changed_cb),NULL);
 
 #ifdef LOCALCW
-  GtkWidget *cw_keyer_internal_b=gtk_check_button_new_with_label("CW Internal");
+  GtkWidget *cw_keyer_internal_b=gtk_check_button_new_with_label("CW handled in Radio");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (cw_keyer_internal_b), cw_keyer_internal);
   gtk_widget_show(cw_keyer_internal_b);
   gtk_grid_attach(GTK_GRID(grid),cw_keyer_internal_b,0,10,1,1);
