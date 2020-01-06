@@ -1672,6 +1672,12 @@ static void metis_restart() {
   // reset current rx
   current_rx=0;
 
+  //
+  // When restarting, clear the IQ and audio samples
+  //
+  for(i=8;i<OZY_BUFFER_SIZE;i++) {
+    output_buffer[i]=0;
+  }
   // 
   // Some (older) HPSDR apps on the RedPitaya have very small
   // buffers that over-run if too much data is sent
@@ -1684,7 +1690,7 @@ static void metis_restart() {
     ozy_send_buffer();
   }
 
-  sleep(1);
+  usleep(250000L);
 
   // start the data flowing
   metis_start_stop(1);
