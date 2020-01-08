@@ -30,6 +30,7 @@
 #include "new_protocol.h"
 #include "old_protocol.h"
 #include "sliders.h"
+#include "ext.h"
 
 #include <math.h> 
 
@@ -78,6 +79,7 @@ static void diversity_cb(GtkWidget *widget, gpointer data) {
     schedule_high_priority();
     schedule_receive_specific();
   }
+  g_idle_add(ext_vfo_update, NULL);
 }
 
 //

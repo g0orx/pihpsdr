@@ -262,9 +262,9 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     }
   }
 
+  cairo_text_extents_t extents;
 #ifdef TX_FREQ_MARKERS
   long long f;
-  cairo_text_extents_t extents;
   long long divisor=50000;
   for(i=0;i<display_width;i++) {
     f = frequency - half + (long) (hz_per_pixel * i);
