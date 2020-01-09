@@ -46,6 +46,7 @@
 #ifdef SOAPYSDR
 #include "soapy_protocol.h"
 #endif
+#include "vfo.h"
 
 int audio = 0;
 int mic_buffer_size = 720; // samples (both left and right)
