@@ -219,14 +219,21 @@ static int info_thread(gpointer arg) {
       old5_2=info[5];
       switch(state) {
         case 0:
-          if(newcal && (info[4]>181 || (info[4]<=128 && transmitter->attenuation>0))) {
-	    if (info[4] > 0) {
+	  //
+	  // A value of 175 means 1.2 dB too strong
+	  // A value of 132 means 1.2 dB too weak
+	  //
+          if(newcal && ((info[4]>175 && transmitter->attenuation < 31) || (info[4]<=132 && transmitter->attenuation>0))) {
+            if (info[4] > 256) {
+	      // If signal is very strong, start with large attenuation and then step up
+	      ddb = 100.0;  // this makes the attenuation 31 dB in the next step
+            } else if (info[4] > 0) {
               ddb= 20.0 * log10((double)info[4]/152.293);
 	    } else {
 	      // This happens when the "Drive" slider is moved to zero
-	      ddb= -100.0;
+	      ddb= -100.0;  // this makes the attenuation zero in the next step
 	    }
-            new_att=transmitter->attenuation + (int)ddb;
+            new_att=transmitter->attenuation + (int)lround(ddb);
 	    // keep new value of attenuation in allowed range
 	    if (new_att <  0) new_att= 0;
 	    if (new_att > 31) new_att=31;
