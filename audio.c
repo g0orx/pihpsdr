@@ -398,14 +398,10 @@ int audio_write(RECEIVER *rx,float left_sample,float right_sample) {
   snd_pcm_sframes_t delay;
   long rc;
   long trim;
-  int mode=modeUSB;
+  int txmode=get_tx_mode();
   float *float_buffer;
   gint32 *long_buffer;
   gint16 *short_buffer;
-
-  if(can_transmit) {
-    mode=transmitter->mode;
-  }
 
   //
   // We have to stop the stream here if a CW side tone may occur.
@@ -416,7 +412,7 @@ int audio_write(RECEIVER *rx,float left_sample,float right_sample) {
   // to listen to this rx while transmitting.
   //
 
-  if (rx == active_receiver && isTransmitting() && (mode==modeCWU || mode==modeCWL)) {
+  if (rx == active_receiver && isTransmitting() && (txmode==modeCWU || txmode==modeCWL)) {
     return 0;
   }
 

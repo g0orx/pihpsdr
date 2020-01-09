@@ -710,11 +710,7 @@ static long long channel_freq(int chan) {
     // indicates that we should use the TX frequency.
     // We have to adjust by the offset for CTUN mode
     //
-    if(active_receiver->id==VFO_A) {
-      vfonum = split ? VFO_B : VFO_A;
-    } else {
-      vfonum = split ? VFO_A : VFO_B;
-    }
+    vfonum=get_tx_vfo();
     freq=vfo[vfonum].frequency-vfo[vfonum].lo;
     if (vfo[vfonum].ctun) freq += vfo[vfonum].offset;
     if(transmitter->xit_enabled) {
@@ -805,8 +801,6 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
   double right_sample_double_tx;
 
   int id=active_receiver->id;
-
-  int tx_vfo=split?VFO_B:VFO_A;
 
   int num_hpsdr_receivers=how_many_receivers();
   int rxfdbk = rx_feedback_channel();
@@ -1048,7 +1042,8 @@ static void process_bandscope_buffer(char  *buffer) {
 
 void ozy_send_buffer() {
 
-  int mode;
+  int txmode=get_tx_mode();
+  int txvfo=get_tx_vfo();
   int i;
   BAND *band;
   int num_hpsdr_receivers=how_many_receivers();
@@ -1102,9 +1097,7 @@ void ozy_send_buffer() {
     }
     band=band_get_band(vfo[VFO_A].band);
     if(isTransmitting()) {
-      if(split) {
-        band=band_get_band(vfo[VFO_B].band);
-      }
+      band=band_get_band(vfo[txvfo].band);
       output_buffer[C2]|=band->OCtx<<1;
       if(tune) {
         if(OCmemory_tune_time!=0) {
@@ -1294,12 +1287,7 @@ void ozy_send_buffer() {
 	// Therefore, when in CW mode, send the TX drive level also when receiving.
 	// (it would be sufficient to do so only with internal CW).
 	//
-        if(split) {
-          mode=vfo[1].mode;
-        } else {
-          mode=vfo[0].mode;
-        }
-        if(isTransmitting() || (mode == modeCWU) || (mode == modeCWL)) {
+        if(isTransmitting() || (txmode == modeCWU) || (txmode == modeCWL)) {
           if(tune && !transmitter->tune_use_drive) {
             double fac=sqrt((double)transmitter->tune_percent * 0.01);
             power=(int)((double)transmitter->drive_level*fac);
@@ -1474,13 +1462,8 @@ void ozy_send_buffer() {
         break;
       case 7:
         output_buffer[C0]=0x1E;
-        if(split) {
-          mode=vfo[1].mode;
-        } else {
-          mode=vfo[0].mode;
-        }
         output_buffer[C1]=0x00;
-        if((mode==modeCWU || mode==modeCWL) && !tune && cw_keyer_internal && !transmitter->twotone) {
+        if((txmode==modeCWU || txmode==modeCWL) && !tune && cw_keyer_internal && !transmitter->twotone) {
           output_buffer[C1]|=0x01;
         }
         output_buffer[C2]=cw_keyer_sidetone_volume;
@@ -1530,13 +1513,8 @@ void ozy_send_buffer() {
   }
 
   // set mox
-  if(split) {
-    mode=vfo[1].mode;
-  } else {
-    mode=vfo[0].mode;
-  }
   if (isTransmitting()) {
-    if(mode==modeCWU || mode==modeCWL) {
+    if(txmode==modeCWU || txmode==modeCWL) {
 //
 //    For "internal" CW, we should not set
 //    the MOX bit, everything is done in the FPGA.

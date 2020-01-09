@@ -582,14 +582,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	case MIDI_SPLIT: // only key supported
 	    // toggle split mode
 	    if (type == MIDI_KEY) {
-	      if(!split) {
-		split=1;
-		tx_set_mode(transmitter,vfo[VFO_B].mode);
-	      } else {
-		split=0;
-		tx_set_mode(transmitter,vfo[VFO_A].mode);
-	      }
-	      g_idle_add(ext_vfo_update, NULL);
+              g_idle_add(ext_split_toggle, NULL);
 	    }
 	    break;
 	/////////////////////////////////////////////////////////// "SWAPRX"

@@ -186,11 +186,9 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   int display_width=gtk_widget_get_allocated_width (tx->panadapter);
   int display_height=gtk_widget_get_allocated_height (tx->panadapter);
 
-  // id = VFO which contains the TX frequency
-  int id = active_receiver->id;
-  if (split) {
-    id = 1-id;
-  }
+  int txvfo = get_tx_vfo();
+  int txmode = get_tx_mode();
+
   samples=tx->pixel_samples;
 
   hz_per_pixel=(double)tx->iq_output_rate/(double)tx->pixels;
@@ -203,7 +201,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
 
   
   // filter
-  if (vfo[id].mode != modeCWU && vfo[id].mode != modeCWL) {
+  if (txmode != modeCWU && txmode != modeCWL) {
     cairo_set_source_rgb (cr, 0.25, 0.25, 0.25);
     filter_left=(double)display_width/2.0+((double)tx->filter_low/hz_per_pixel);
     filter_right=(double)display_width/2.0+((double)tx->filter_high/hz_per_pixel);
@@ -246,17 +244,17 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   //long long half=24000LL; //(long long)(tx->output_rate/2);
   long long half=6000LL; //(long long)(tx->output_rate/2);
   long long frequency;
-  if(vfo[id].ctun) {
-    frequency=vfo[id].ctun_frequency-vfo[id].lo_tx;
+  if(vfo[txvfo].ctun) {
+    frequency=vfo[txvfo].ctun_frequency-vfo[txvfo].lo_tx;
   } else {
-    frequency=vfo[id].frequency-vfo[id].lo_tx;
+    frequency=vfo[txvfo].frequency-vfo[txvfo].lo_tx;
   }
   double vfofreq=(double)display_width * 0.5;
   if (!cw_is_on_vfo_freq) {
-    if(vfo[id].mode==modeCWU) {
+    if(txmode==modeCWU) {
       frequency+=(long long)cw_keyer_sidetone_frequency;
       vfofreq -=  (double) cw_keyer_sidetone_frequency/hz_per_pixel;
-    } else if(vfo[id].mode==modeCWL) {
+    } else if(txmode==modeCWL) {
       frequency-=(long long)cw_keyer_sidetone_frequency;
       vfofreq +=  (double) cw_keyer_sidetone_frequency/hz_per_pixel;
     }
@@ -295,7 +293,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   // band edges
   long long min_display=frequency-half;
   long long max_display=frequency+half;
-  int b=vfo[id].band;
+  int b=vfo[txvfo].band;
   BAND *band=band_get_band(b);
   if(band->frequencyMin!=0LL) {
     cairo_set_source_rgb (cr, 1.0, 0.0, 0.0);

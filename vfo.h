@@ -85,5 +85,9 @@ extern void vfo_a_to_b();
 extern void vfo_b_to_a();
 extern void vfo_a_swap_b();
 
+extern int get_tx_vfo();
+extern int get_tx_mode();
+extern long long get_tx_freq();
+
 extern void vfo_xvtr_changed();
 #endif

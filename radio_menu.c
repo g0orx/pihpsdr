@@ -40,6 +40,7 @@
 #endif
 #include "gpio.h"
 #include "vfo.h"
+#include "ext.h"
 
 static GtkWidget *parent_window=NULL;
 static GtkWidget *menu_b=NULL;
@@ -196,12 +197,12 @@ static void iqswap_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void split_cb(GtkWidget *widget, gpointer data) {
-  split=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-  vfo_update();
+  int new=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+  if (new != split) g_idle_add(ext_split_toggle, NULL);
 }
 
 //
-// call-able from outside, e.g. toolbar or MIDI
+// call-able from outside, e.g. toolbar or MIDI, through g_idle_add
 //
 void setDuplex() {
   if(duplex) {
@@ -214,7 +215,7 @@ void setDuplex() {
     gtk_widget_destroy(transmitter->dialog);
     reconfigure_transmitter(transmitter,display_width,rx_height*receivers);
   }
-  vfo_update();
+  g_idle_add(ext_vfo_update, NULL);
 }
 
 static void duplex_cb(GtkWidget *widget, gpointer data) {
@@ -228,7 +229,7 @@ static void duplex_cb(GtkWidget *widget, gpointer data) {
 
 static void sat_cb(GtkWidget *widget, gpointer data) {
   sat_mode=gtk_combo_box_get_active(GTK_COMBO_BOX(widget));
-  vfo_update();
+  g_idle_add(ext_vfo_update, NULL);
 }
 
 static void load_filters(void) {

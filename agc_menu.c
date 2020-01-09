@@ -32,6 +32,7 @@
 #include "receiver.h"
 #include "vfo.h"
 #include "button_text.h"
+#include "ext.h"
 
 static GtkWidget *parent_window=NULL;
 
@@ -59,7 +60,7 @@ static void agc_select_cb (GtkToggleButton *widget, gpointer        data) {
   if(gtk_toggle_button_get_active(widget)) {
     active_receiver->agc=GPOINTER_TO_INT(data);
     set_agc(active_receiver, active_receiver->agc);
-    vfo_update();
+    g_idle_add(ext_vfo_update, NULL);
   }
 }
 

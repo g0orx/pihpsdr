@@ -276,15 +276,7 @@ static void aswapb_cb (GtkWidget *widget, gpointer data) {
 }
 
 static void split_cb (GtkWidget *widget, gpointer data) {
-  if(can_transmit) {
-    split=split==1?0:1;
-    if(split) {
-      tx_set_mode(transmitter,vfo[VFO_B].mode);
-    } else {
-      tx_set_mode(transmitter,vfo[VFO_A].mode);
-    }
-    g_idle_add(ext_vfo_update,NULL);
-  }
+  g_idle_add(ext_split_toggle, NULL);
 }
 
 static void duplex_cb (GtkWidget *widget, gpointer data) {

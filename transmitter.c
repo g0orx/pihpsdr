@@ -113,6 +113,7 @@ static gint update_out_of_band(gpointer data) {
 
 void transmitter_set_out_of_band(TRANSMITTER *tx) {
   tx->out_of_band=1;
+  g_idle_add(ext_vfo_update,NULL);
   tx->out_of_band_timer_id=gdk_threads_add_timeout_full(G_PRIORITY_HIGH_IDLE,1000,update_out_of_band, tx, NULL);
 }
 
@@ -755,11 +756,6 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%p iq_output_buf
   TXASetMP(tx->id, tx->low_latency);
 
 
-  int mode=vfo[VFO_A].mode;
-  if(split) {
-    mode=vfo[VFO_B].mode;
-  }
-
   SetTXABandpassWindow(tx->id, 1);
   SetTXABandpassRun(tx->id, 1);
 
@@ -806,7 +802,7 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%p iq_output_buf
   SetTXACompressorGain(tx->id, tx->compressor_level);
   SetTXACompressorRun(tx->id, tx->compressor);
 
-  tx_set_mode(tx,mode);
+  tx_set_mode(tx,get_tx_mode());
 
   XCreateAnalyzer(tx->id, &rc, 262144, 1, 1, "");
   if (rc != 0) {
@@ -850,14 +846,9 @@ void tx_set_mode(TRANSMITTER* tx,int mode) {
 }
 
 void tx_set_filter(TRANSMITTER *tx,int low,int high) {
-  int mode;
-  if(split) {
-    mode=vfo[1].mode;
-  } else {
-    mode=vfo[0].mode;
-  }
+  int txmode=get_tx_mode();
 
-  switch(mode) {
+  switch(txmode) {
     case modeLSB:
     case modeCWL:
     case modeDIGL:
