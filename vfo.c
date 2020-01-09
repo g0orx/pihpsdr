@@ -1049,39 +1049,6 @@ void vfo_update() {
         cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         cairo_show_text(cr, temp_text);
 
-       
-        long long txfreq;
-        int txlow, txhigh;
-
-        if (can_transmit) {
-          txfreq = (txvfo == 0) ? af : bf;
-          if (transmitter->xit_enabled) txfreq += transmitter->xit;
-	  //
-	  // In CW modes, the signal is generated explicitly (without WDSP),
-	  // so we can assume a zero-width filter. Note that the CW signal
-	  // can be on the VFO frequency or offset by the side tone freq.
-	  //
-          switch (transmitter->mode) {
-	    case modeCWU:
-              txlow = txhigh = cw_is_on_vfo_freq ? 0 : cw_keyer_sidetone_frequency;
-	      break;
-	    case modeCWL:
-              txlow = txhigh = cw_is_on_vfo_freq ? 0 : -cw_keyer_sidetone_frequency;
-	      break;
-	    default:
-              txlow =transmitter->filter_low;
-              txhigh=transmitter->filter_high;
-	    break;
-	  }
-	} else {
-	  //
-	  // If there is no transmitter, use VFO frequency of active receiver
-	  //
-	  txfreq = (id == 0) ? af : bf;
-	  txlow = 0;
-	  txhigh =0;
-	}
-        getFrequencyInfo(txfreq, txlow, txhigh);
 /*
         cairo_move_to(cr, (my_width/4)*3, 50);
         cairo_show_text(cr, getFrequencyInfo(af));
