@@ -55,9 +55,8 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 static void pa_value_changed_cb(GtkWidget *widget, gpointer data) {
   BAND *band=(BAND *)data;
   band->pa_calibration=gtk_spin_button_get_value(GTK_SPIN_BUTTON(widget));
-  int v=VFO_A;
-  if(split) v=VFO_B;
-  int b=vfo[v].band;
+  int txvfo=get_tx_vfo();
+  int b=vfo[txvfo].band;
   BAND *current=band_get_band(b);
   if(band==current) {
     calcDriveLevel();

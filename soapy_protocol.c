@@ -369,10 +369,7 @@ void soapy_protocol_set_tx_frequency(TRANSMITTER *tx) {
   int rc;
   double f;
 
-  v=active_receiver->id;
-  if(split) {
-    v=active_receiver->id==0?1:0;
-  }
+  v=get_tx_vfo();
   if(soapy_device!=NULL) {
     //f=(double)(vfo[v].frequency+vfo[v].ctun_frequency-vfo[v].lo_tx);
     if(vfo[v].ctun) {

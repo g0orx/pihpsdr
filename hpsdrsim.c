@@ -762,6 +762,10 @@ int main(int argc, char *argv[])
 				  buffer[20]=2;
 				  buffer[21]=1;
 				  buffer[22]=3;
+				  // HERMES_LITE2 is a HermesLite with a new software version
+				  if (NEWDEVICE == NEW_DEVICE_HERMES_LITE2) {
+				    buffer[11]=NEW_DEVICE_HERMES_LITE;
+				  }
 				  sendto(sock_udp, buffer, 60, 0, (struct sockaddr *)&addr_from, sizeof(addr_from));
 				  break;
 				}

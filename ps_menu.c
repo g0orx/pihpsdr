@@ -40,18 +40,18 @@ static GtkWidget *set_pk;
 static GtkWidget *tx_att;
 
 /*
- * PureSignal 2.0 default parameters and declarations
+ * PureSignal 2.0 parameters and declarations
  */
 
-static double ampdelay  = 20e-9;   // 20 nsec
+static double ampdelay  = 150e-9;  // 150 nsec
 static int    ints      = 16;
-static int    spi       = 256;
-static int    stbl      = 0;
-static int    map       = 1;
-static int    pin       = 1;
-static double ptol      = 0.8;
-static double moxdelay  = 0.1;
-static double loopdelay = 0.0;
+static int    spi       = 256;     // ints=16/spi=256 corresponds to "TINT=0.5 dB"
+static int    stbl      = 0;	   // "Stbl" un-checked
+static int    map       = 1;       // "Map"  checked
+static int    pin       = 1;	   // "Pin"  checked
+static double ptol      = 0.8;     // "Relax Tolerance" un-checked
+static double moxdelay  = 0.2;     // "MOX Wait" 0.2 sec
+static double loopdelay = 0.0;     // "CAL Wait" 0.0 sec
 
 //
 // The following declarations are missing in wdsp.h
@@ -219,14 +219,21 @@ static int info_thread(gpointer arg) {
       old5_2=info[5];
       switch(state) {
         case 0:
-          if(newcal && (info[4]>181 || (info[4]<=128 && transmitter->attenuation>0))) {
-	    if (info[4] > 0) {
+	  //
+	  // A value of 175 means 1.2 dB too strong
+	  // A value of 132 means 1.2 dB too weak
+	  //
+          if(newcal && ((info[4]>175 && transmitter->attenuation < 31) || (info[4]<=132 && transmitter->attenuation>0))) {
+            if (info[4] > 256) {
+	      // If signal is very strong, start with large attenuation and then step up
+	      ddb = 100.0;  // this makes the attenuation 31 dB in the next step
+            } else if (info[4] > 0) {
               ddb= 20.0 * log10((double)info[4]/152.293);
 	    } else {
 	      // This happens when the "Drive" slider is moved to zero
-	      ddb= -100.0;
+	      ddb= -100.0;  // this makes the attenuation zero in the next step
 	    }
-            new_att=transmitter->attenuation + (int)ddb;
+            new_att=transmitter->attenuation + (int)lround(ddb);
 	    // keep new value of attenuation in allowed range
 	    if (new_att <  0) new_att= 0;
 	    if (new_att > 31) new_att=31;
@@ -559,14 +566,6 @@ void ps_menu(GtkWidget *parent) {
 
   gtk_container_add(GTK_CONTAINER(content),grid);
   sub_menu=dialog;
-
-// DL1YCF: This is not the default setting,
-// but in my experience in behaves better in difficult situations.
-// This is commented out because it is not recommended by the
-// WDSP manual.
-//  ints=8;
-//  spi=512;
-//  ampdelay=100e-9;
 
   SetPSIntsAndSpi(transmitter->id, ints, spi);
   SetPSStabilize(transmitter->id, stbl);

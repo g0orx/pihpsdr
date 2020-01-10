@@ -1070,6 +1070,13 @@ void radio_change_receivers(int r) {
   // number of receivers has not changed.
   if (receivers == r) return;
   fprintf(stderr,"radio_change_receivers: from %d to %d\n",receivers,r);
+  //
+  // When changing the number of receivers, restart the
+  // old protocol
+  //
+  if (protocol == ORIGINAL_PROTOCOL) {
+    old_protocol_stop();
+  }
   switch(r) {
     case 1:
 	set_displaying(receiver[1],0);
@@ -1086,6 +1093,9 @@ void radio_change_receivers(int r) {
   active_receiver=receiver[0];
   if(protocol==NEW_PROTOCOL) {
     schedule_high_priority();
+  }
+  if (protocol == ORIGINAL_PROTOCOL) {
+    old_protocol_run();
   }
 }
 
@@ -1340,11 +1350,8 @@ void setTune(int state) {
         }
       }
 
-      int mode=vfo[VFO_A].mode;
-      if(split) {
-        mode=vfo[VFO_B].mode;
-      }
-      pre_tune_mode=mode;
+      int txmode=get_tx_mode();
+      pre_tune_mode=txmode;
       pre_tune_cw_internal=cw_keyer_internal;
 
       //
@@ -1352,7 +1359,7 @@ void setTune(int state) {
       // in LSB/DIGL,     tune 1000 Hz below carrier
       // all other (CW, AM, FM): tune on carrier freq.
       //
-      switch(mode) {
+      switch(txmode) {
         case modeLSB:
         case modeDIGL:
           SetTXAPostGenToneFreq(transmitter->id,-(double)1000.0);
@@ -1371,7 +1378,7 @@ void setTune(int state) {
       SetTXAPostGenMode(transmitter->id,0);
       SetTXAPostGenRun(transmitter->id,1);
 
-      switch(mode) {
+      switch(txmode) {
         case modeCWL:
           cw_keyer_internal=0;
           tx_set_mode(transmitter,modeLSB);
@@ -1461,8 +1468,7 @@ double getDrive() {
 
 static int calcLevel(double d) {
   int level=0;
-  int v=VFO_A;
-  if(split) v=VFO_B;
+  int v=get_tx_vfo();
 
   BAND *band=band_get_band(vfo[v].band);
   double target_dbm = 10.0 * log10(d * 1000.0);

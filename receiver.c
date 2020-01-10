@@ -889,8 +889,12 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
     init_analyzer(rx);
   }
 
-  SetDisplayDetectorMode(rx->id, 0, display_detector_mode);
-  SetDisplayAverageMode(rx->id, 0,  display_average_mode);
+  //
+  // This cannot be changed for the PS feedback receiver,
+  // use peak mode
+  //
+  SetDisplayDetectorMode(rx->id, 0, DETECTOR_MODE_PEAK);
+  SetDisplayAverageMode(rx->id, 0,  AVERAGE_MODE_NONE);
 
   return rx;
 }

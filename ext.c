@@ -82,6 +82,10 @@ static int vfo_timeout_cb(void * data) {
   return 0;
 }
 
+//
+// ALL calls to vfo_update should go through g_idle_add(ext_vfo_update)
+// such that they can be filtered out if they come at high rate
+//
 int ext_vfo_update(void *data) {
   if (vfo_timeout ==0) {
     vfo_timeout=g_timeout_add(100, vfo_timeout_cb, NULL);
@@ -207,16 +211,15 @@ int ext_update_vfo_step(void *data) {
       i++;
       if(steps[i]!=0) {
         step=steps[i];
-        vfo_update();
       }
     } else {
       i--;
       if(i>=0) {
         step=steps[i];
-        vfo_update();
       }
     }
   }
+  g_idle_add(ext_vfo_update, NULL);
   return 0;
 }
 
@@ -337,7 +340,7 @@ int ext_nr_update(void *data) {
   }
   SetRXAANRRun(active_receiver->id, active_receiver->nr);
   SetRXAEMNRRun(active_receiver->id, active_receiver->nr2);
-  vfo_update();
+  g_idle_add(ext_vfo_update, NULL);
   return 0;
 }
 
@@ -360,7 +363,7 @@ int ext_nb_update(void *data) {
   }
   SetEXTANBRun(active_receiver->id, active_receiver->nb);
   SetEXTNOBRun(active_receiver->id, active_receiver->nb2);
-  vfo_update();
+  g_idle_add(ext_vfo_update, NULL);
   return 0;
 }
 
@@ -373,7 +376,7 @@ int ext_snb_update(void *data) {
     mode_settings[vfo[active_receiver->id].mode].snb=0;
   }
   SetRXASNBARun(active_receiver->id, active_receiver->snb);
-  vfo_update();
+  g_idle_add(ext_vfo_update, NULL);
   return 0;
 }
 
@@ -448,21 +451,21 @@ int ext_bandstack_minus(void *data) {
 
 int ext_lock_update(void *data) {
   locked=locked==1?0:1;
-  vfo_update();
+  g_idle_add(ext_vfo_update, NULL);
   return 0;
 }
 
 int ext_rit_update(void *data) {
   vfo[active_receiver->id].rit_enabled=vfo[active_receiver->id].rit_enabled==1?0:1;
   receiver_frequency_changed(active_receiver);
-  vfo_update();
+  g_idle_add(ext_vfo_update, NULL);
   return 0;
 }
 
 int ext_rit_clear(void *data) {
   vfo[active_receiver->id].rit=0;
   receiver_frequency_changed(active_receiver);
-  vfo_update();
+  g_idle_add(ext_vfo_update, NULL);
   return 0;
 }
 
@@ -473,14 +476,14 @@ int ext_xit_update(void *data) {
       schedule_high_priority();
     }
   }
-  vfo_update();
+  g_idle_add(ext_vfo_update, NULL);
   return 0;
 }
 
 int ext_xit_clear(void *data) {
   if(can_transmit) {
     transmitter->xit=0;
-    vfo_update();
+    g_idle_add(ext_vfo_update, NULL);
   }
   return 0;
 }
@@ -523,7 +526,7 @@ int ext_ctun_update(void *data) {
   }
   vfo[id].ctun_frequency=vfo[id].frequency;
   set_offset(active_receiver,vfo[id].offset);
-  vfo_update();
+  g_idle_add(ext_vfo_update, NULL);
   return 0;
 }
 
@@ -533,19 +536,15 @@ int ext_agc_update(void *data) {
     active_receiver->agc=0;
   }
   set_agc(active_receiver, active_receiver->agc);
-  vfo_update();
+  g_idle_add(ext_vfo_update, NULL);
   return 0;
 }
 
-int ext_split_update(void *data) {
+int ext_split_toggle(void *data) {
   if(can_transmit) {
     split=split==1?0:1;
-    if(split) {
-      tx_set_mode(transmitter,vfo[VFO_B].mode);
-    } else {
-      tx_set_mode(transmitter,vfo[VFO_A].mode);
-    }
-  vfo_update();
+    tx_set_mode(transmitter,get_tx_mode());
+    g_idle_add(ext_vfo_update, NULL);
   }
   return 0;
 }
@@ -570,7 +569,7 @@ int ext_diversity_update(void *data) {
       schedule_high_priority();
       schedule_receive_specific();
     }
-    vfo_update();
+    g_idle_add(ext_vfo_update, NULL);
   }
   return 0;
 }
@@ -587,7 +586,7 @@ int ext_sat_update(void *data) {
       sat_mode=SAT_NONE;
       break;
   }
-  vfo_update();
+  g_idle_add(ext_vfo_update, NULL);
   return 0;
 }
 
@@ -597,7 +596,7 @@ int ext_function_update(void *data) {
     function=0;
   }
   update_toolbar_labels();
-  vfo_update();
+  g_idle_add(ext_vfo_update, NULL);
   return 0;
 }
 

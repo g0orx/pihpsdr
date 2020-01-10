@@ -233,6 +233,7 @@ void register_midi_device(char *myname) {
     }
     if (!found) {
 	fprintf(stderr,"MIDI device %s NOT FOUND!\n", myname);
+        return;
     }
     // Found our MIDI input device. Spawn off a thread reading data
     ret = pthread_create(&midi_thread_id, NULL, midi_thread, NULL);

@@ -215,6 +215,8 @@
 #include "iambic.h"
 #include "transmitter.h"
 #include "ext.h"
+#include "mode.h"
+#include "vfo.h"
 
 static void* keyer_thread(void *arg);
 static pthread_t keyer_thread_id;
@@ -352,6 +354,7 @@ static void* keyer_thread(void *arg) {
     int i;
     int kdelay;
     int old_volume;
+    int txmode;
 #ifdef __APPLE__
     struct timespec now;
 #endif
@@ -376,7 +379,9 @@ static void* keyer_thread(void *arg) {
 	// swallow any cw_events posted during the last "cw hang" time.
         if (!kcwl && !kcwr) continue;
 
-        if (!mox) {
+	// check mode: to not induce RX/TX transition if not in CW mode
+        txmode=get_tx_mode();
+        if (!mox && cw_breakin && (txmode == modeCWU || txmode == modeCWL)) {
           g_idle_add(ext_mox_update, (gpointer)(long) 1);
           // Wait for mox, that is, wait for WDSP shutting down the RX and
           // firing up the TX. This induces a small delay when hitting the key for

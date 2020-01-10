@@ -526,7 +526,7 @@ static int e_function_pressed(void *data) {
       g_idle_add(ext_agc_update,NULL);
       break;
     case SPLIT:
-      if(can_transmit) g_idle_add(ext_split_update,NULL);
+      if(can_transmit) g_idle_add(ext_split_toggle,NULL);
       break;
     case DIVERSITY:
       g_idle_add(ext_diversity_update,GINT_TO_POINTER(0));

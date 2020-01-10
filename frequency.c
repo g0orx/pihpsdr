@@ -510,11 +510,86 @@ g_print("getBand for %lld is %s (%d)\n",frequency,info->info,info->band);
     return result;
 }
 
+///////////////////////////////////////////////////////
+//                                                   //
+//   New, self-contained  version of canTransmit()   //
+//                                                   //
+///////////////////////////////////////////////////////
+
+#include "radio.h"
+#include "vfo.h"
+#include "band.h"
+
 int canTransmit() {
-    int result=0;
-    if(info!=0) {
-        result=info->transmit;
+    int result;
+    long long txfreq, flow, fhigh;
+    int txb, txvfo, txmode;
+    BAND *txband;
+    int i;
+
+    //
+    // If there is no transmitter, we cannot transmit
+    //
+    if (!can_transmit) return 0;
+
+    //
+    // In the code canTransmit() is always ORed with tx_out_of_band, 
+    // but this should be done in ONE PLACE (here)
+    //
+    if (tx_out_of_band) return 1;
+
+    txvfo=get_tx_vfo();
+    txb=vfo[txvfo].band;
+
+    //
+    // See if we have a band
+    //
+    if (txb == bandGen) return 0;
+
+    //
+    // Determine the edges of our band
+    // and the edges of our TX signal
+    //
+    txband=band_get_band(vfo[txvfo].band);
+    txfreq=get_tx_freq();
+    txmode=get_tx_mode();
+
+    switch (txmode) {
+      case modeCWU:
+	flow = fhigh = cw_is_on_vfo_freq ? txfreq : txfreq + cw_keyer_sidetone_frequency;
+	break;
+      case modeCWL:
+	flow = fhigh = cw_is_on_vfo_freq ? txfreq : txfreq - cw_keyer_sidetone_frequency;
+	break;
+      default:
+	flow = txfreq + transmitter->filter_low;
+	fhigh= txfreq + transmitter->filter_high;
+	break;
     }
+
+    if (txb == band60) {
+      //
+      // For 60m band, ensure signal is within one of the "channels"
+      //
+      result=0;
+      for(i=0;i<channel_entries;i++) {
+        long long low_freq=band_channels_60m[i].frequency-(band_channels_60m[i].width/(long long)2);
+        long long hi_freq=band_channels_60m[i].frequency+(band_channels_60m[i].width/(long long)2);
+//fprintf(stderr,"TRY CHANNEL: low=%lld high=%lld SIGNAL: low=%lld high=%lld\n", low_freq, hi_freq, flow, fhigh);
+        if(flow>=low_freq && fhigh<=hi_freq) {
+//fprintf(stderr,"60m channel OK: chan=%d flow=%lld fhigh=%lld\n", i, flow, fhigh);
+	  result = 1;
+          break;
+        }
+      }
+//fprintf(stderr,"60m channel NOT FOUND: flow=%lld fhigh=%lld\n", flow, fhigh);
+    } else {
+      //
+      // For other bands, return true if signal within band
+      //
+      result = flow >= txband->frequencyMin && fhigh <= txband->frequencyMax;
+    }
+//fprintf(stderr,"CANTRANSMIT: low=%lld  high=%lld transmit=%d\n", flow, fhigh, result);
     return result;
 }
 

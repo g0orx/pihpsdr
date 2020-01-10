@@ -296,6 +296,7 @@ void vfo_band_changed(int b) {
 
   // turn off ctun
   vfo[id].ctun=0;
+  vfo[id].offset=0;
 
   switch(id) {
     case 0:
@@ -317,11 +318,7 @@ void vfo_band_changed(int b) {
   }
 
   if(can_transmit) {
-    if(split) {
-      tx_set_mode(transmitter,vfo[VFO_B].mode);
-    } else {
-      tx_set_mode(transmitter,vfo[VFO_A].mode);
-    }
+    tx_set_mode(transmitter,get_tx_mode());
     //
     // If the band has changed, it is necessary to re-calculate
     // the drive level. Furthermore, possibly the "PA disable"
@@ -366,11 +363,7 @@ void vfo_bandstack_changed(int b) {
   }
 
   if(can_transmit) {
-    if(split) {
-      tx_set_mode(transmitter,vfo[VFO_B].mode);
-    } else {
-      tx_set_mode(transmitter,vfo[VFO_A].mode);
-    }
+      tx_set_mode(transmitter,get_tx_mode());
   }
   //
   // I do not think the band can change within this function.
@@ -413,11 +406,7 @@ void vfo_mode_changed(int m) {
       break;
   }
   if(can_transmit) {
-    if(split) {
-      tx_set_mode(transmitter,vfo[VFO_B].mode);
-    } else {
-      tx_set_mode(transmitter,vfo[VFO_A].mode);
-    }
+      tx_set_mode(transmitter,get_tx_mode());
   }
   //
   // changing modes may change BFO frequency
@@ -466,9 +455,7 @@ void vfo_a_to_b() {
     receiver_vfo_changed(receiver[1]);
   }
   if(can_transmit) {
-    if(split) {
-      tx_set_mode(transmitter,vfo[VFO_B].mode);
-    }
+    tx_set_mode(transmitter,get_tx_mode());
   }
   g_idle_add(ext_vfo_update,NULL);
 }
@@ -485,9 +472,7 @@ void vfo_b_to_a() {
   vfo[VFO_A].rit=vfo[VFO_B].rit;
   receiver_vfo_changed(receiver[0]);
   if(can_transmit) {
-    if(!split) {
-      tx_set_mode(transmitter,vfo[VFO_B].mode);
-    }
+    tx_set_mode(transmitter,get_tx_mode());
   }
   g_idle_add(ext_vfo_update,NULL);
 }
@@ -538,11 +523,7 @@ void vfo_a_swap_b() {
     receiver_vfo_changed(receiver[1]);
   }
   if(can_transmit) {
-    if(split) {
-      tx_set_mode(transmitter,vfo[VFO_B].mode);
-    } else {
-      tx_set_mode(transmitter,vfo[VFO_A].mode);
-    }
+    tx_set_mode(transmitter,get_tx_mode());
   }
   g_idle_add(ext_vfo_update,NULL);
 }
@@ -831,6 +812,8 @@ static gboolean vfo_draw_cb (GtkWidget *widget,
 void vfo_update() {
     
     int id=active_receiver->id;
+    int txvfo=get_tx_vfo();
+
     FILTER* band_filters=filters[vfo[id].mode];
     FILTER* band_filter=&band_filters[vfo[id].filter];
     if(vfo_surface) {
@@ -884,32 +867,19 @@ void vfo_update() {
 	// If it is out-of-band, we display "Out of band" in red.
         // Frequencies we are not transmitting on are displayed in green
 	// (dimmed if the freq. does not belong to the active receiver).
-        // Depending on which receiver is the active one, and if we use split,
-        // the following frequencies are used for transmitting (see old_protocol.c):
-	// id == 0, split == 0 : TX freq = VFO_A
-	// id == 0, split == 1 : TX freq = VFO_B
-	// id == 1, split == 0 : TX freq = VFO_B
-	// id == 1, split == 1 : TX freq = VFO_A
 
+        // Frequencies of VFO A and B
 
-        long long af;
-        if(isTransmitting() && !split) {
-          if(vfo[0].ctun) {
-            af=(double)(vfo[0].ctun_frequency-vfo[0].lo_tx);
-          } else {
-            af=(double)(vfo[0].frequency-vfo[0].lo_tx);
-          }
-        } else {
-          if(vfo[0].ctun) {
-            af=(double)(vfo[0].ctun_frequency);
-          } else {
-            af=(double)(vfo[0].frequency);
-          }
-        }
+        long long af = vfo[0].ctun ? vfo[0].ctun_frequency : vfo[0].frequency;
+        long long bf = vfo[1].ctun ? vfo[1].ctun_frequency : vfo[1].frequency;
+
+        int oob=0;
+        if (can_transmit) oob=transmitter->out_of_band;
 
         sprintf(temp_text,"VFO A: %0lld.%06lld",af/(long long)1000000,af%(long long)1000000);
-        if(isTransmitting() && ((id  == 0 && !split) || (id == 1 && split))) {
-	    if (transmitter->out_of_band) sprintf(temp_text,"VFO A: Out of band");
+
+        if(txvfo == 0 && (isTransmitting() || oob)) {
+            if (oob) sprintf(temp_text,"VFO A: Out of band");
             cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
         } else {
             if(id==0) {
@@ -922,24 +892,9 @@ void vfo_update() {
         cairo_set_font_size(cr, 22); 
         cairo_show_text(cr, temp_text);
 
-
-        long long bf;
-        if(isTransmitting() && split) {
-          if(vfo[1].ctun) {
-            bf=(double)(vfo[1].ctun_frequency-vfo[1].lo_tx);
-          } else {
-            bf=(double)(vfo[1].frequency-vfo[1].lo_tx);
-          }
-        } else {
-          if(vfo[1].ctun) {
-            bf=(double)(vfo[1].ctun_frequency);
-          } else {
-            bf=(double)(vfo[1].frequency);
-          }
-        }
         sprintf(temp_text,"VFO B: %0lld.%06lld",bf/(long long)1000000,bf%(long long)1000000);
-        if(isTransmitting() && ((id == 0 && split) || (id == 1 && !split))) {
-	    if (transmitter->out_of_band) sprintf(temp_text,"VFO B: Out of band");
+        if(txvfo == 1 && (isTransmitting() || oob)) {
+            if (oob) sprintf(temp_text,"VFO B: Out of band");
             cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
         } else {
             if(id==1) {
@@ -1094,37 +1049,6 @@ void vfo_update() {
         cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         cairo_show_text(cr, temp_text);
 
-        //
-        // af: Frequency of VFO_A, bf: Frequency of VFO_B, without xit/rit etc.
-        //
-        long long txfreq;
-        int txlow, txhigh;
-
-        if ((id == 0 && ! split) || (id == 1 && split)) {
-	  // txfreq derived from VFO A
-          txfreq=af;
-        } else {
-          txfreq=bf;
-        }
-        if (transmitter->xit_enabled) txfreq += transmitter->xit;
-	//
-	// In CW modes, the signal is generated explicitly (without WDSP),
-	// so we can assume a zero-width filter. Note that the CW signal
-	// can be on the VFO frequency or offset by the side tone freq.
-	//
-        switch (transmitter->mode) {
-	  case modeCWU:
-            txlow = txhigh = cw_is_on_vfo_freq ? 0 : cw_keyer_sidetone_frequency;
-	    break;
-	  case modeCWL:
-            txlow = txhigh = cw_is_on_vfo_freq ? 0 : -cw_keyer_sidetone_frequency;
-	    break;
-	  default:
-            txlow =transmitter->filter_low;
-            txhigh=transmitter->filter_high;
-	    break;
-	}
-        getFrequencyInfo(txfreq, txlow, txhigh);
 /*
         cairo_move_to(cr, (my_width/4)*3, 50);
         cairo_show_text(cr, getFrequencyInfo(af));
@@ -1252,4 +1176,36 @@ fprintf(stderr,"vfo_init: width=%d height=%d\n", width, height);
                      | GDK_SCROLL_MASK);
 
   return vfo_panel;
+}
+
+//
+// Some utility functions to get characteristics of the current
+// transmitter. These functions can be used even if there is no
+// transmitter (transmitter->mode may segfault).
+//
+
+int get_tx_vfo() {
+  int txvfo=active_receiver->id;
+  if (split) txvfo = 1 - txvfo;
+  return txvfo;
+}
+
+int get_tx_mode() {
+  int txvfo=active_receiver->id;
+  if (split) txvfo = 1 - txvfo;
+  if (can_transmit) {
+    return vfo[txvfo].mode;
+  } else {
+    return modeUSB;
+  }
+}
+
+long long get_tx_freq() {
+  int txvfo=active_receiver->id;
+  if (split) txvfo = 1 - txvfo;
+  if (vfo[txvfo].ctun) {
+    return  vfo[txvfo].ctun_frequency;
+  } else {
+    return vfo[txvfo].frequency;
+  }
 }

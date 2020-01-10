@@ -113,6 +113,7 @@ static gint update_out_of_band(gpointer data) {
 
 void transmitter_set_out_of_band(TRANSMITTER *tx) {
   tx->out_of_band=1;
+  g_idle_add(ext_vfo_update,NULL);
   tx->out_of_band_timer_id=gdk_threads_add_timeout_full(G_PRIORITY_HIGH_IDLE,1000,update_out_of_band, tx, NULL);
 }
 
@@ -575,6 +576,13 @@ static void init_analyzer(TRANSMITTER *tx) {
             span_max_freq, //frequency at last pixel value
             max_w //max samples to hold in input ring buffers
     );
+   //
+   // This cannot be changed for the TX panel,
+   // use peak mode
+   //
+   SetDisplayDetectorMode(tx->id, 0, DETECTOR_MODE_PEAK);
+   SetDisplayAverageMode(tx->id, 0,  AVERAGE_MODE_NONE);
+
 
 }
 
@@ -748,11 +756,6 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%p iq_output_buf
   TXASetMP(tx->id, tx->low_latency);
 
 
-  int mode=vfo[VFO_A].mode;
-  if(split) {
-    mode=vfo[VFO_B].mode;
-  }
-
   SetTXABandpassWindow(tx->id, 1);
   SetTXABandpassRun(tx->id, 1);
 
@@ -799,7 +802,7 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%p iq_output_buf
   SetTXACompressorGain(tx->id, tx->compressor_level);
   SetTXACompressorRun(tx->id, tx->compressor);
 
-  tx_set_mode(tx,mode);
+  tx_set_mode(tx,get_tx_mode());
 
   XCreateAnalyzer(tx->id, &rc, 262144, 1, 1, "");
   if (rc != 0) {
@@ -843,14 +846,9 @@ void tx_set_mode(TRANSMITTER* tx,int mode) {
 }
 
 void tx_set_filter(TRANSMITTER *tx,int low,int high) {
-  int mode;
-  if(split) {
-    mode=vfo[1].mode;
-  } else {
-    mode=vfo[0].mode;
-  }
+  int txmode=get_tx_mode();
 
-  switch(mode) {
+  switch(txmode) {
     case modeLSB:
     case modeCWL:
     case modeDIGL:
@@ -1282,6 +1280,10 @@ void tx_set_displaying(TRANSMITTER *tx,int state) {
 
 void tx_set_ps(TRANSMITTER *tx,int state) {
 #ifdef PURESIGNAL
+  if (protocol == ORIGINAL_PROTOCOL) {
+    old_protocol_stop();
+    usleep(100000);
+  }
   if(state) {
     tx->puresignal=1;
     SetPSControl(tx->id, 0, 0, 1, 0);
@@ -1294,6 +1296,9 @@ void tx_set_ps(TRANSMITTER *tx,int state) {
   if (protocol == NEW_PROTOCOL) {
     schedule_high_priority();
     schedule_receive_specific();
+  }
+  if (protocol == ORIGINAL_PROTOCOL) {
+    old_protocol_run();
   }
   g_idle_add(ext_vfo_update,NULL);
 #endif

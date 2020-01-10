@@ -573,13 +573,10 @@ g_print("iq_addr=%s\n",inet_ntoa(radio->info.network.address.sin_addr));
 static void new_protocol_general() {
     BAND *band;
     int rc;
+    int txvfo=get_tx_vfo();
 
     pthread_mutex_lock(&general_mutex);
-    if(split) {
-      band=band_get_band(vfo[VFO_B].band);
-    } else {
-      band=band_get_band(vfo[VFO_A].band);
-    }
+    band=band_get_band(vfo[txvfo].band);
     memset(general_buffer, 0, sizeof(general_buffer));
 
     general_buffer[0]=general_sequence>>24;
@@ -633,9 +630,9 @@ static void new_protocol_high_priority() {
     long long rxFrequency;
     long long txFrequency;
     long phase;
-    int txmode;
     int ddc;
-    int txvfo;
+    int txvfo=get_tx_vfo();
+    int txmode=get_tx_mode();
 
     if(data_socket==-1) {
       return;
@@ -648,25 +645,6 @@ static void new_protocol_high_priority() {
     high_priority_buffer_to_radio[1]=high_priority_sequence>>16;
     high_priority_buffer_to_radio[2]=high_priority_sequence>>8;
     high_priority_buffer_to_radio[3]=high_priority_sequence;
-
-    //
-    // Determine VFO controlling the TX frequency
-    // and the associated mode
-    //
-    if(active_receiver->id==VFO_A) {
-      if(split) {
-        txvfo=VFO_B;
-      } else {
-	txvfo=VFO_A;
-      }
-    } else {
-      if(split) {
-        txvfo=VFO_A;
-      } else {
-	txvfo=VFO_B;
-      }
-    }
-    txmode=vfo[txvfo].mode;
 
     high_priority_buffer_to_radio[4]=running;
 //
@@ -745,7 +723,8 @@ static void new_protocol_high_priority() {
 //  Set DUC frequency
 //
 
-    txFrequency=vfo[txvfo].frequency-vfo[txvfo].lo+vfo[txvfo].offset;
+    txFrequency=vfo[txvfo].frequency-vfo[txvfo].lo;
+    if (vfo[txvfo].ctun) txFrequency += vfo[txvfo].offset;
     if(transmitter->xit_enabled) {
       txFrequency+=transmitter->xit;
     }
@@ -793,12 +772,7 @@ static void new_protocol_high_priority() {
     high_priority_buffer_to_radio[345]=power&0xFF;
 
     if(isTransmitting()) {
-
-      if(split) {
-        band=band_get_band(vfo[VFO_B].band);
-      } else {
-        band=band_get_band(vfo[VFO_A].band);
-      }
+      band=band_get_band(vfo[txvfo].band);
       high_priority_buffer_to_radio[1401]=band->OCtx<<1;
       if(tune) {
         if(OCmemory_tune_time!=0) {
@@ -1141,7 +1115,7 @@ static void new_protocol_high_priority() {
 static unsigned char last_50=0;
 
 static void new_protocol_transmit_specific() {
-    int mode;
+    int txmode=get_tx_mode();
     int rc;
 
     pthread_mutex_lock(&tx_spec_mutex);
@@ -1152,15 +1126,10 @@ static void new_protocol_transmit_specific() {
     transmit_specific_buffer[2]=tx_specific_sequence>>8;
     transmit_specific_buffer[3]=tx_specific_sequence;
 
-    if(split) {
-      mode=vfo[1].mode;
-    } else {
-      mode=vfo[0].mode;
-    }
     transmit_specific_buffer[4]=1; // 1 DAC
     transmit_specific_buffer[5]=0; //  default no CW
 
-    if ((mode==modeCWU || mode==modeCWL) && cw_keyer_internal) {
+    if ((txmode==modeCWU || txmode==modeCWL) && cw_keyer_internal) {
       //
       // Set this byte only if in CW, and if using the "internal" keyer
       //
@@ -1788,10 +1757,6 @@ static void process_high_priority(unsigned char *buffer) {
 #endif
     }
 
-    //int tx_vfo=split?VFO_B:VFO_A;
-    //if(vfo[tx_vfo].mode==modeCWL || vfo[tx_vfo].mode==modeCWU) {
-    //  local_ptt=local_ptt|dot|dash;
-    //}
     if(previous_ptt!=local_ptt) {
       g_idle_add(ext_mox_update,(gpointer)(long)(local_ptt));
     }
@@ -1829,10 +1794,10 @@ static void process_mic_data(int bytes) {
 
 void new_protocol_cw_audio_samples(short left_audio_sample,short right_audio_sample) {
   int rc;
-  int mode=transmitter->mode;
+  int txmode=get_tx_mode();
   //
   // Only process samples if transmitting in CW
-  if (isTransmitting() && (mode==modeCWU || mode==modeCWL)) {
+  if (isTransmitting() && (txmode==modeCWU || txmode==modeCWL)) {
 
   // insert the samples
   audiobuffer[audioindex++]=left_audio_sample>>8;
@@ -1863,10 +1828,10 @@ void new_protocol_cw_audio_samples(short left_audio_sample,short right_audio_sam
 
 void new_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right_audio_sample) {
   int rc;
-  int mode=transmitter->mode;
+  int txmode=get_tx_mode();
   //
   // Only process samples if NOT transmitting in CW
-  if (isTransmitting() && (mode==modeCWU || mode==modeCWL)) return;
+  if (isTransmitting() && (txmode==modeCWU || txmode==modeCWL)) return;
 
   // insert the samples
   audiobuffer[audioindex++]=left_audio_sample>>8;
