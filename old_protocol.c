@@ -1198,6 +1198,11 @@ void ozy_send_buffer() {
 
 
     output_buffer[C4]=0x04;  // duplex
+    //
+    // This is used to phase-synchronize RX1 and RX2 on some boards
+    // and enforces that the RX1 and RX2 frequencies are the same.
+    //
+    if (diversity_enabled) output_buffer[C4] |= 0x80;
 
     // 0 ... 7 maps on 1 ... 8 receivers
     output_buffer[C4]|=(num_hpsdr_receivers-1)<<3;
@@ -1429,7 +1434,12 @@ void ozy_send_buffer() {
 	  if (isTransmitting()) {
             output_buffer[C1]=0x3F;
           } else {
-            output_buffer[C1]=0x20 | (adc_attenuation[receiver[1]->adc] & 0x1F);
+	    // if diversity is enabled, use RX1 att value for RX2
+            if (diversity_enabled) {
+              output_buffer[C1]=0x20 | (adc_attenuation[receiver[0]->adc] & 0x1F);
+	    } else {
+              output_buffer[C1]=0x20 | (adc_attenuation[receiver[1]->adc] & 0x1F);
+	    }
           }
         }
         output_buffer[C2]=0x00; // ADC3 attenuator disabled.
