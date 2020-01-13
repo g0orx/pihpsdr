@@ -859,22 +859,21 @@ void start_radio() {
   if(display_toolbar) {
     rx_height-=TOOLBAR_HEIGHT;
   }
-  int tx_height=rx_height;
-  rx_height=rx_height/RECEIVERS;
+  //int tx_height=rx_height;
 
   //
   // To be on the safe side, we create ALL receiver panels here
   // If upon startup, we only should display one panel, we do the switch below
   //
   for(i=0;i<RECEIVERS;i++) {
-    receiver[i]=create_receiver(i, buffer_size, fft_size, display_width, updates_per_second, display_width, rx_height);
+    receiver[i]=create_receiver(i, buffer_size, fft_size, display_width, updates_per_second, display_width, rx_height/RECEIVERS);
     setSquelch(receiver[i]);
     receiver[i]->x=0;
     receiver[i]->y=y;
     gtk_fixed_put(GTK_FIXED(fixed),receiver[i]->panel,0,y);
     g_object_ref((gpointer)receiver[i]->panel);
     set_displaying(receiver[i],1);
-    y+=rx_height;
+    y+=rx_height/RECEIVERS;
     // Upon startup, if RIT or CTUN is active, tell WDSP.
     set_offset(receiver[i],vfo[i].offset);
   }
