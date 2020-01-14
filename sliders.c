@@ -695,7 +695,7 @@ void show_diversity_gain() {
       scale_status=DIVERSITY_GAIN;
       scale_dialog=gtk_dialog_new_with_buttons("Diversity Gain",GTK_WINDOW(top_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
       GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
-      diversity_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-12.0, 12.0, 0.1);
+      diversity_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-25.0, 25.0, 0.1);
       gtk_widget_set_size_request (diversity_gain_scale, 400, 30);
       gtk_range_set_value (GTK_RANGE(diversity_gain_scale),div_gain);
       gtk_widget_show(diversity_gain_scale);
