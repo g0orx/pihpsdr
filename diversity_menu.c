@@ -37,18 +37,25 @@
 static GtkWidget *parent_window=NULL;
 
 static GtkWidget *dialog=NULL;
-static GtkWidget *gain_scale=NULL;
-static GtkWidget *phase_scale=NULL;
+static GtkWidget *gain_coarse_scale=NULL;
+static GtkWidget *gain_fine_scale=NULL;
+static GtkWidget *phase_fine_scale=NULL;
+static GtkWidget *phase_coarse_scale=NULL;
 
 static GtkWidget *level;
+
+static double gain_coarse, gain_fine;
+static double phase_coarse, phase_fine;
 
 static void cleanup() {
   if(dialog!=NULL) {
     gtk_widget_destroy(dialog);
     dialog=NULL;
     sub_menu=NULL;
-    gain_scale=NULL;
-    phase_scale=NULL;
+    gain_coarse_scale=NULL;
+    gain_fine_scale=NULL;
+    phase_coarse_scale=NULL;
+    phase_fine_scale=NULL;
   }
 }
 
@@ -87,54 +94,75 @@ static void diversity_cb(GtkWidget *widget, gpointer data) {
 // The DIVERSITY rotation parameters must be re-calculated
 // each time the gain or the phase changes.
 //
-static void set_gain(double gain) {
+static void set_gain_phase() {
   double amplitude,arg;
-  div_gain=gain;
   amplitude=pow(10.0, 0.05*div_gain);
   arg=div_phase*0.017453292519943295769236907684886;
   div_cos=amplitude*cos(arg);
   div_sin=amplitude*sin(arg);
+  fprintf(stderr,"GAIN=%f PHASE=%f\n", div_gain, div_phase);
 }
 
-static void gain_value_changed_cb(GtkWidget *widget, gpointer data) {
-  set_gain(gtk_range_get_value(GTK_RANGE(widget)));
+static void gain_coarse_changed_cb(GtkWidget *widget, gpointer data) {
+  gain_coarse=gtk_range_get_value(GTK_RANGE(widget));
+  div_gain=gain_coarse+gain_fine;
+  set_gain_phase();
+}
+
+static void gain_fine_changed_cb(GtkWidget *widget, gpointer data) {
+  gain_fine=gtk_range_get_value(GTK_RANGE(widget));
+  div_gain=gain_coarse+gain_fine;
+  set_gain_phase();
+}
+
+static void phase_coarse_changed_cb(GtkWidget *widget, gpointer data) {
+  phase_coarse=gtk_range_get_value(GTK_RANGE(widget));
+  div_phase=phase_coarse+phase_fine;
+  set_gain_phase();
+}
+
+static void phase_fine_changed_cb(GtkWidget *widget, gpointer data) {
+  phase_fine=gtk_range_get_value(GTK_RANGE(widget));
+  div_phase=phase_coarse+phase_fine;
+  set_gain_phase();
 }
 
 void update_diversity_gain(double increment) {
   double g=div_gain+(increment/10);
-  if(g<-12.0) g=-12.0;
-  if(g>12.0) g=12.0;
-  if(gain_scale!=NULL) {
-    gtk_range_set_value(GTK_RANGE(gain_scale),div_gain);
+  if(g<-25.0) g=-25.0;
+  if(g>25.0) g=25.0;
+  div_gain=g;
+  //
+  // calculate coarse and fine value
+  //
+  gain_coarse=round(div_gain);
+  gain_fine=div_gain - gain_coarse;
+  if(gain_coarse_scale!=NULL && gain_fine_scale != NULL) {
+    gtk_range_set_value(GTK_RANGE(gain_coarse_scale),gain_coarse);
+    gtk_range_set_value(GTK_RANGE(gain_fine_scale),gain_fine);
   } else {
     show_diversity_gain();
   }
-  set_gain(g);
-}
-
-static void set_phase(double phase) {
-  double amplitude,arg;
-  div_phase=phase;
-  amplitude=pow(10.0, 0.05*div_gain);
-  arg=div_phase*0.017453292519943295769236907684886;
-  div_cos=amplitude*cos(arg);
-  div_sin=amplitude*sin(arg);
-}
-
-static void phase_value_changed_cb(GtkWidget *widget, gpointer data) {
-  set_phase(gtk_range_get_value(GTK_RANGE(widget)));
+  set_gain_phase();
 }
 
 void update_diversity_phase(double increment) {
   double p=div_phase+increment;
   if(p<0.0) p=360.0;
   if(p>360.0) p=0.0;
-  if(phase_scale!=NULL) {
-    gtk_range_set_value(GTK_RANGE(phase_scale),div_phase);
+  div_phase=p;
+  //
+  // calculate coarse and fine
+  //
+  phase_coarse=2.0*round(div_phase*0.5);
+  phase_fine=div_phase-phase_coarse;
+  if(phase_coarse_scale!=NULL && phase_fine_scale != NULL) {
+    gtk_range_set_value(GTK_RANGE(phase_coarse_scale),phase_coarse);
+    gtk_range_set_value(GTK_RANGE(phase_fine_scale),phase_coarse);
   } else {
     show_diversity_phase();
   }
-  set_phase(p);
+  set_gain_phase();
 }
 
 void diversity_menu(GtkWidget *parent) {
@@ -147,6 +175,13 @@ void diversity_menu(GtkWidget *parent) {
   gtk_window_set_title(GTK_WINDOW(dialog),"piHPSDR - Diversity");
   g_signal_connect (dialog, "delete_event", G_CALLBACK (delete_event), NULL);
 
+  //
+  // set coarse/fine values from actual values
+  //
+  gain_coarse=round(div_gain);
+  gain_fine=div_gain-gain_coarse;
+  phase_coarse=2.0*round(div_phase*0.5);
+  phase_fine=div_phase-phase_coarse;
   GdkRGBA color;
   color.red = 1.0;
   color.green = 1.0;
@@ -173,29 +208,53 @@ void diversity_menu(GtkWidget *parent) {
   g_signal_connect(diversity_b,"toggled",G_CALLBACK(diversity_cb),NULL);
 
 
-  GtkWidget *gain_label=gtk_label_new("Gain:");
-  gtk_misc_set_alignment (GTK_MISC(gain_label), 0, 0);
-  gtk_widget_show(gain_label);
-  gtk_grid_attach(GTK_GRID(grid),gain_label,0,1,1,1);
+  GtkWidget *gain_coarse_label=gtk_label_new("Gain (dB, coarse):");
+  gtk_misc_set_alignment (GTK_MISC(gain_coarse_label), 0, 0);
+  gtk_widget_show(gain_coarse_label);
+  gtk_grid_attach(GTK_GRID(grid),gain_coarse_label,0,1,1,1);
 
-  gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-12.0,+12.0,0.1);
-  gtk_widget_set_size_request (gain_scale, 300, 25);
-  gtk_range_set_value(GTK_RANGE(gain_scale),div_gain);
-  gtk_widget_show(gain_scale);
-  gtk_grid_attach(GTK_GRID(grid),gain_scale,1,1,1,1);
-  g_signal_connect(G_OBJECT(gain_scale),"value_changed",G_CALLBACK(gain_value_changed_cb),NULL);
+  gain_coarse_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-25.0,+25.0,0.5);
+  gtk_widget_set_size_request (gain_coarse_scale, 300, 25);
+  gtk_range_set_value(GTK_RANGE(gain_coarse_scale),gain_coarse);
+  gtk_widget_show(gain_coarse_scale);
+  gtk_grid_attach(GTK_GRID(grid),gain_coarse_scale,1,1,1,1);
+  g_signal_connect(G_OBJECT(gain_coarse_scale),"value_changed",G_CALLBACK(gain_coarse_changed_cb),NULL);
 
-  GtkWidget *phase_label=gtk_label_new("Phase:");
-  gtk_misc_set_alignment (GTK_MISC(phase_label), 0, 0);
-  gtk_widget_show(phase_label);
-  gtk_grid_attach(GTK_GRID(grid),phase_label,0,2,1,1);
+  GtkWidget *gain_fine_label=gtk_label_new("Gain (dB, fine):");
+  gtk_misc_set_alignment (GTK_MISC(gain_fine_label), 0, 0);
+  gtk_widget_show(gain_fine_label);
+  gtk_grid_attach(GTK_GRID(grid),gain_fine_label,0,2,1,1);
 
-  phase_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0,360.0,1.0);
-  gtk_widget_set_size_request (phase_scale, 300, 25);
-  gtk_range_set_value(GTK_RANGE(phase_scale),div_phase);
-  gtk_widget_show(phase_scale);
-  gtk_grid_attach(GTK_GRID(grid),phase_scale,1,2,1,1);
-  g_signal_connect(G_OBJECT(phase_scale),"value_changed",G_CALLBACK(phase_value_changed_cb),NULL);
+  gain_fine_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-2.0,+2.0,0.05);
+  gtk_widget_set_size_request (gain_fine_scale, 300, 25);
+  gtk_range_set_value(GTK_RANGE(gain_fine_scale),gain_fine);
+  gtk_widget_show(gain_fine_scale);
+  gtk_grid_attach(GTK_GRID(grid),gain_fine_scale,1,2,1,1);
+  g_signal_connect(G_OBJECT(gain_fine_scale),"value_changed",G_CALLBACK(gain_fine_changed_cb),NULL);
+
+  GtkWidget *phase_coarse_label=gtk_label_new("Phase (coarse):");
+  gtk_misc_set_alignment (GTK_MISC(phase_coarse_label), 0, 0);
+  gtk_widget_show(phase_coarse_label);
+  gtk_grid_attach(GTK_GRID(grid),phase_coarse_label,0,3,1,1);
+
+  phase_coarse_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0,360.0,2.0);
+  gtk_widget_set_size_request (phase_coarse_scale, 300, 25);
+  gtk_range_set_value(GTK_RANGE(phase_coarse_scale),phase_coarse);
+  gtk_widget_show(phase_coarse_scale);
+  gtk_grid_attach(GTK_GRID(grid),phase_coarse_scale,1,3,1,1);
+  g_signal_connect(G_OBJECT(phase_coarse_scale),"value_changed",G_CALLBACK(phase_coarse_changed_cb),NULL);
+
+  GtkWidget *phase_fine_label=gtk_label_new("Phase (fine):");
+  gtk_misc_set_alignment (GTK_MISC(phase_fine_label), 0, 0);
+  gtk_widget_show(phase_fine_label);
+  gtk_grid_attach(GTK_GRID(grid),phase_fine_label,0,4,1,1);
+
+  phase_fine_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-5.0,5.0,0.1);
+  gtk_widget_set_size_request (phase_fine_scale, 300, 25);
+  gtk_range_set_value(GTK_RANGE(phase_fine_scale),phase_fine);
+  gtk_widget_show(phase_fine_scale);
+  gtk_grid_attach(GTK_GRID(grid),phase_fine_scale,1,4,1,1);
+  g_signal_connect(G_OBJECT(phase_fine_scale),"value_changed",G_CALLBACK(phase_fine_changed_cb),NULL);
 
   
   gtk_container_add(GTK_CONTAINER(content),grid);
