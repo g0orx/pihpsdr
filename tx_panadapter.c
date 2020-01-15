@@ -210,8 +210,8 @@ void tx_panadapter_update(TRANSMITTER *tx) {
 
   }
 
-  // plot the levels 0, -20, 40, ... dBm (green line with label)
-  // also plot gray lines at -10, -30, -50, ... dBm (without label)
+  // plot the levels   0, -20,  40, ... dBm (turquoise line with label)
+  // plot the levels -10, -30, -50, ... dBm (dark turquoise line without label)
   double dbm_per_line=(double)display_height/((double)tx->panadapter_high-(double)tx->panadapter_low);
   cairo_set_source_rgb (cr, 0.00, 1.00, 1.00);
   cairo_set_line_width(cr, 1.0);
@@ -232,7 +232,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
         cairo_show_text(cr, v);
         cairo_stroke(cr);
       } else {
-        cairo_set_source_rgb (cr, 0.25, 0.25, 0.25);
+        cairo_set_source_rgb (cr, 0.00, 0.66, 0.66);
         cairo_move_to(cr,0.0,y);
         cairo_line_to(cr,(double)display_width,y);
         cairo_stroke(cr);
