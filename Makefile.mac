@@ -442,7 +442,7 @@ all:	prebuild  $(PROGRAM) $(HEADERS) $(REMOTE_HEADERS) $(USBOZY_HEADERS) $(SOAPY
 	$(FREEDV_HEADERS) $(LOCALCW_HEADERS) $(I2C_HEADERS) $(GPIO_HEADERS) $(PSK_HEADERS) \
 	$(PURESIGNAL_HEADERS) $(MIDI_HEADERS) $(STEMLAB_HEADERS) $(SOURCES) $(REMOTE_SOURCES) \
 	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(FREEDV_SOURCES) $(I2C_SOURCES) $(GPIO_SOURCES) \
-	$(PSK_SOURCES) $(PURESIGNAL_SOURCES) $(MIDI_SOURCES)$(STEMLAB_SOURCES)
+	$(PSK_SOURCES) $(PURESIGNAL_SOURCES) $(MIDI_SOURCES) $(STEMLAB_SOURCES) $(LOCALCW_SOURCES)
 
 prebuild:
 	rm -f version.o
@@ -453,14 +453,14 @@ prebuild:
 # Therefore, correct this here. Furthermore, we can add additional options to CPP
 # in the variable CPPOPTIONS
 #
-CPPOPTIONS= --enable=all --suppress=shadowVariable --suppress=variableScope -q
+CPPOPTIONS= --enable=all --suppress=shadowVariable --suppress=variableScope -D__APPLE__
 CPPINCLUDES:=$(shell echo $(INCLUDES) | sed -e "s/-pthread / /" )
 
 .PHONY:	cppcheck
 cppcheck:
 	cppcheck $(CPPOPTIONS) $(OPTIONS) $(CPPINCLUDES) $(SOURCES) $(REMOTE_SOURCES) \
 	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(FREEDV_SOURCES) $(I2C_SOURCES) $(GPIO_SOURCES) \
-	$(PSK_SOURCES) $(PURESIGNAL_SOURCES) $(MIDI_SOURCES) $(STEMLAB_SOURCES)
+	$(PSK_SOURCES) $(PURESIGNAL_SOURCES) $(MIDI_SOURCES) $(STEMLAB_SOURCES) $(LOCALCW_SOURCES)
 
 clean:
 	-rm -f *.o
