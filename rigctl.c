@@ -612,13 +612,6 @@ static gpointer rigctl_cw_thread(gpointer data)
   return NULL;
 }
 
-void gui_vfo_move_to(gpointer data) {
-   long long freq = *(long long *) data;
-   fprintf(stderr,"GUI: %11lld\n",freq);
-   return;
-   //vfo_move_to(freq);
-}
-
 // This looks up the frequency of the Active receiver with 
 // protection for 1 versus 2 receivers
 long long rigctl_getFrequency() {
@@ -2002,6 +1995,7 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                                 #endif
                                                 send_resp(client_sock,msg);
                                                } else {
+                                                 int f;
                                                  // Try to set filters here!
                                                  // CW - legal values  50  80  100 150 200 300 400 500 600 1000 2000
                                                  //      Pi HPSDR map  50  100 100 100 250 250 400 500 600 1000
