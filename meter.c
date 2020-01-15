@@ -249,8 +249,8 @@ if(analog_meter) {
       double y;
       double angle;
       double radians;
-      double cx=(double)meter_width/2.0;
-      double cy=(double)meter_width/2.0;
+      double cx=(double)meter_width/2.0;  // cx == cy throughout
+      double cy=(double)meter_width/2.0;  // cx == cy throughout
       double radius=cy-20.0;
 
       cairo_set_line_width(cr, 1.0);
@@ -355,8 +355,8 @@ if(analog_meter) {
       double y;
       double angle;
       double radians;
-      double cx=(double)meter_width/2.0;
-      double cy=(double)meter_width/2.0;
+      double cx=(double)meter_width/2.0;  // cx == cy throughout
+      double cy=(double)meter_width/2.0;  // cx == cy throughout
       double radius=cy-20.0;
 
       cairo_set_line_width(cr, 1.0);

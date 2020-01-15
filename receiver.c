@@ -509,26 +509,28 @@ fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
 
 void reconfigure_receiver(RECEIVER *rx,int height) {
   int y=0;
+  //
+  // myheight is the size of the waterfall or the panadapter
+  // which is the full or half of the height depending on whether BOTH
+  // are displayed
+  //
+  int myheight=(rx->display_panadapter && rx->display_waterfall) ? height/2 : height;
 
-  rx->height=height;
+  rx->height=height;  // total height
 
   if(rx->display_panadapter) {
-    int height=rx->height;
-    if(rx->display_waterfall) {
-      height=height/2;
-    }
     if(rx->panadapter==NULL) {
-fprintf(stderr,"reconfigure_receiver: panadapter_init: width:%d height:%d\n",rx->width,height);
-      rx_panadapter_init(rx, rx->width,height);
-      gtk_fixed_put(GTK_FIXED(rx->panel),rx->panadapter,0,y);
+fprintf(stderr,"reconfigure_receiver: panadapter_init: width:%d height:%d\n",rx->width,myheight);
+      rx_panadapter_init(rx, rx->width,myheight);
+      gtk_fixed_put(GTK_FIXED(rx->panel),rx->panadapter,0,y);  // y=0 here always
     } else {
        // set the size
-//fprintf(stderr,"reconfigure_receiver: panadapter set_size_request: width:%d height:%d\n",rx->width,height);
-      gtk_widget_set_size_request(rx->panadapter, rx->width, height);
+//fprintf(stderr,"reconfigure_receiver: panadapter set_size_request: width:%d height:%d\n",rx->width,myheight);
+      gtk_widget_set_size_request(rx->panadapter, rx->width, myheight);
       // move the current one
       gtk_fixed_move(GTK_FIXED(rx->panel),rx->panadapter,0,y);
     }
-    y+=height;
+    y+=myheight;
   } else {
     if(rx->panadapter!=NULL) {
       gtk_container_remove(GTK_CONTAINER(rx->panel),rx->panadapter);
@@ -538,18 +540,14 @@ fprintf(stderr,"reconfigure_receiver: panadapter_init: width:%d height:%d\n",rx-
   }
 
   if(rx->display_waterfall) {
-    int height=rx->height;
-    if(rx->display_panadapter) {
-      height=height/2;
-    }
     if(rx->waterfall==NULL) {
-fprintf(stderr,"reconfigure_receiver: waterfall_init: width:%d height:%d\n",rx->width,height);
-      waterfall_init(rx,rx->width,height);
-      gtk_fixed_put(GTK_FIXED(rx->panel),rx->waterfall,0,y);
+fprintf(stderr,"reconfigure_receiver: waterfall_init: width:%d height:%d\n",rx->width,myheight);
+      waterfall_init(rx,rx->width,myheight);
+      gtk_fixed_put(GTK_FIXED(rx->panel),rx->waterfall,0,y);  // y=0 if ONLY waterfall is present
     } else {
       // set the size
-fprintf(stderr,"reconfigure_receiver: waterfall set_size_request: width:%d height:%d\n",rx->width,height);
-      gtk_widget_set_size_request(rx->waterfall, rx->width, height);
+fprintf(stderr,"reconfigure_receiver: waterfall set_size_request: width:%d height:%d\n",rx->width,myheight);
+      gtk_widget_set_size_request(rx->waterfall, rx->width, myheight);
       // move the current one
       gtk_fixed_move(GTK_FIXED(rx->panel),rx->waterfall,0,y);
     }
