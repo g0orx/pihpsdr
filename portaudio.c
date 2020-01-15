@@ -423,7 +423,6 @@ void audio_close_output(RECEIVER *rx) {
 //
 int audio_write (RECEIVER *rx, float left, float right)
 {
-  PaError err;
   int mode=modeUSB;
   float *buffer = rx->local_audio_buffer;
 
@@ -456,7 +455,6 @@ int audio_write (RECEIVER *rx, float left, float right)
 }
 
 int cw_audio_write(float sample) {
-  PaError err;
   RECEIVER *rx = active_receiver;
   float *buffer = rx->local_audio_buffer;
 
