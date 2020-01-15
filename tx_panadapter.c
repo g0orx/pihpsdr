@@ -260,7 +260,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     }
   }
 
-  cairo_text_extents_t extents;
+  cairo_text_extents_t extents;  // used also in FREEDV code
 #ifdef TX_FREQ_MARKERS
   long long f;
   long long divisor=50000;

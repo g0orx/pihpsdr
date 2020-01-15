@@ -86,7 +86,6 @@ int     mic_ring_write_pt=0;
 
 int audio_open_output(RECEIVER *rx) {
   int err;
-  snd_pcm_hw_params_t *hw_params;
   unsigned int rate=48000;
   unsigned int channels=2;
   int soft_resample=1;
@@ -104,7 +103,7 @@ g_print("audio_open_output: rx=%d %s buffer_size=%d\n",rx->id,rx->audio_name,rx-
  
 
   i=0;
-  while(i<128 && rx->audio_name[i]!=' ') {
+  while(i<127 && rx->audio_name[i]!=' ') {
     hw[i]=rx->audio_name[i];
     i++;
   }
@@ -165,7 +164,6 @@ g_print("audio_open_output: local_audio_buffer: size=%d sample=%ld\n",rx->local_
 	
 int audio_open_input() {
   int err;
-  snd_pcm_hw_params_t *hw_params;
   unsigned int rate=48000;
   unsigned int channels=1;
   int soft_resample=1;
@@ -360,14 +358,14 @@ int cw_audio_write(float sample){
 
       trim=0;
 
-/*
+      int max_delay=rx->local_audio_buffer_size*4;
       if(snd_pcm_delay(rx->playback_handle,&delay)==0) {
-        if(delay>2048) {
-          trim=delay-2048;
-g_print("audio delay=%ld trim=%ld\n",delay,trim);
+        if(delay>max_delay) {
+          trim=delay-max_delay;
+g_print("audio delay=%ld trim=%ld audio_buffer_size=%d\n",delay,trim,rx->local_audio_buffer_size);
         }
       }
-*/
+
       if(trim<rx->local_audio_buffer_size) {
         if ((rc = snd_pcm_writei (rx->playback_handle, rx->local_audio_buffer, rx->local_audio_buffer_size-trim)) != rx->local_audio_buffer_size-trim) {
           if(rc<0) {

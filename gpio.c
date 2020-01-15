@@ -910,8 +910,10 @@ static void pI2CInterrupt() {
 
 void gpio_restore_actions() {
   char* value;
+#if defined (CONTROLLER2_V2) || defined (CONTROLLER2_V1)
   char name[80];
   int i;
+#endif
 
   value=getProperty("settle_time");
   if(value) settle_time=atoi(value);
@@ -1064,8 +1066,10 @@ void gpio_restore_state() {
 }
 
 void gpio_save_actions() {
+#if defined (CONTROLLER2_V2) || defined (CONTROLLER2_V1)
   int i;
   char name[80];
+#endif
   char value[80];
 
   sprintf(value,"%d",settle_time);
@@ -1584,12 +1588,6 @@ static int vfo_encoder_changed(void *data) {
 
 static void encoder_changed(int action,int pos) {
   double value;
-  int mode;
-  int id;
-  FILTER * band_filters=filters[vfo[active_receiver->id].mode];
-  FILTER *band_filter;
-  FILTER *filter;
-  int new_val;
 
   switch(action) {
     case ENCODER_AF_GAIN_RX1:

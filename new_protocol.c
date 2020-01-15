@@ -1541,7 +1541,7 @@ static gpointer iq_thread(gpointer data) {
 
 static void process_iq_data(unsigned char *buffer, RECEIVER *rx) {
   //long long timestamp;   // never used
-  int bitspersample;     // used in debug code
+  int bitspersample;       // used in debug code
   int samplesperframe;
   int b;
   int leftsample;

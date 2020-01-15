@@ -843,7 +843,6 @@ int rit_on () {
 // 
 void parse_cmd ( char * cmd_input,int len,int client_sock) {
         int work_int;     
-        int new_low, new_high;
         int zzid_flag;
         double forward;
         double reverse;
@@ -1807,7 +1806,7 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                             // Next data will be rest of freq
                                             // Len<7 - frequency?
                                             if(len>4) { //We are receiving freq info
-                                               long long new_freqA = atoll(&cmd_input[2]);              
+                                               //long long new_freqA = atoll(&cmd_input[2]);              
                                                //setFrequency(new_freqA);
                                             } else {
                                                sprintf(msg,"FC%011lld;",rigctl_getFrequency());
@@ -1948,10 +1947,6 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                             // CW - legal values  50  80  100 150 200 300 400 500 600 1000 2000
                                             //      Pi HPSDR map  50  100 100 100 250 250 400 500 600 1000
                                             //                    25                                   750
-                                             /*entry= (BANDSTACK_ENTRY *)
-                                                         bandstack_entry_get_current();
-                                             FILTER* band_filters=filters[entry->mode];
-                                             FILTER* band_filter=&band_filters[entry->filter];*/
                                              BAND *band=band_get_band(vfo[active_receiver->id].band);
                                              BANDSTACK *bandstack=band->bandstack;
                                              BANDSTACK_ENTRY *entry=&bandstack->entry[vfo[active_receiver->id].bandstack];
@@ -2012,32 +2007,23 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                                  //      Pi HPSDR map  50  100 100 100 250 250 400 500 600 1000
                                                  //                    25                                   750
                                                  work_int = atoi(&cmd_input[2]);
-                                                 int f=5;
                                                  switch (work_int) {
-
-                                                    case 50:  new_low = 25; new_high = 25; f=8; break;
-                                                    case 80:  new_low = 50; new_high = 50; f=7; break;
-                                                    case 100:  new_low = 50; new_high = 50; f=7; break;
-                                                    case 150:  new_low = 50; new_high = 50; f=7; break;
-                                                    case 200:  new_low = 125; new_high = 125; f=6; break;
-                                                    case 300:  new_low = 125; new_high = 125; f=6; break;
-                                                    case 400:  new_low = 200; new_high = 200; f=5; break;
-                                                    case 500:  new_low = 250; new_high = 250; f=4; break;
-                                                    case 600:  new_low = 300; new_high = 300; f=3; break;
-                                                    case 1000:  new_low = 500; new_high = 500; f=0; break;
-                                                    case 2000:  new_low = 500; new_high = 500; f=0; break;
-                                                    default: new_low  = band_filter->low;
-                                                             new_high = band_filter->high;
-                                                             f=10;
-
+                                                    case 50:   f= 8; break;
+                                                    case 80:   f= 7; break;
+                                                    case 100:  f= 7; break;
+                                                    case 150:  f= 7; break;
+                                                    case 200:  f= 6; break;
+                                                    case 300:  f= 6; break;
+                                                    case 400:  f= 5; break;
+                                                    case 500:  f= 4; break;
+                                                    case 600:  f= 3; break;
+                                                    case 1000: f= 0; break;
+                                                    case 2000: f= 0; break;
+                                                    default:   f=10; break;
                                                  }
                                                #ifdef  RIGCTL_DEBUG
-                                                 fprintf(stderr,"RIGCTL: FW Filter new_low=%d new_high=%d f=%d\n",new_low,new_high,f);
+                                                 fprintf(stderr,"RIGCTL: FW CW Filter width=%d piHPSDR type=%d\n", work_int, f);
                                                #endif
-                                               // entry->filter = new_low * 2 ;
-                                               //setFilter(new_low,new_high);
-                                               //set_filter(active_receiver,new_low,new_high);
-                                               //g_idle_add(ext_vfo_update,NULL);
                                                g_idle_add(ext_vfo_filter_changed,(gpointer)(long)f);
                                               }
                                             } else {
@@ -2318,36 +2304,6 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                                      fprintf(stderr,"MD command Unknown\n");
                                                      #endif
                                                }
-#if 0
-                                            // Other stuff to switch modes goes here..
-                                            // since new_mode has the interpreted command in 
-                                            // in it now.
-                                            entry= (BANDSTACK_ENTRY *) 
-                                                  bandstack_entry_get_current();
-                                            entry->mode=new_mode;
-                                            // BUG - kills the system when there is some
-                                            // GPIO activity and Mode sets occur. Used twittling the
- 					    // frequency along with setting mode between USB/LSB with
-					    // flrig. Tried doing the g_idle_add trick - but don't know the
-					    // the magic to get that to compile without warnings 
-                                            //setMode(entry->mode);
-                                            set_mode(active_receiver,entry->mode);
-                                            // Moved the ext_vfo_update down after filter updated. (John G0ORX)
-                                            //g_idle_add(ext_vfo_update,NULL);
-                                            
-                                            FILTER* band_filters=filters[entry->mode];
-                                            FILTER* band_filter=&band_filters[entry->filter];
-                                            //setFilter(band_filter->low,band_filter->high);
-                                            set_filter(active_receiver,band_filter->low,band_filter->high);
-                                            /* Need a way to update VFO info here..*/
-                                            g_idle_add(ext_vfo_update,NULL);
-#endif
-					    // DL1YCF: I do not understand why the above code is so complicated.
-					    //         It is also problematic that the mode of the transmitter
-					    //         is not updated. I think one should simply behave as if
-					    //         a mode change had been selected from the menu. To this
-					    //         end, I added an interface for vfo_mode_changed in ext.c,
-					    //         to be able to call it using g_idle_add.
 					    g_idle_add(ext_vfo_mode_changed, (void *) (long) new_mode);
                                             }  else {     // Read Mode
                                                int curr_mode;
@@ -3591,8 +3547,6 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                                work_int = atoi(&cmd_input[2]);
                                                if((work_int >=0) && (work_int <=7)) {
                                                   BAND *xvtr=band_get_band(BANDS+work_int);
-                                                  BANDSTACK *bandstack=xvtr->bandstack;
-                                                  BANDSTACK_ENTRY *entry=bandstack->entry;
                                                   strcpy(lcl_buf,xvtr->title);
                                                   lcl_buf[strlen(lcl_buf)] = ' '; // Replace the last entry with ' ';
                                                   lcl_buf[15] = '\0';
@@ -3609,8 +3563,6 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                                if((work_int >=0) && (work_int <=7)) {
 
                                                   BAND *xvtr=band_get_band(BANDS+work_int);
-                                                  BANDSTACK *bandstack=xvtr->bandstack;
-                                                  BANDSTACK_ENTRY *entry=bandstack->entry;
                                                   tempc = cmd_input[4]; 
                                                   cmd_input[4]='\0';
                                                   xvtr->disablePA = atoi(&cmd_input[3]); 
@@ -3871,7 +3823,6 @@ static gpointer serial_server(gpointer data) {
      // when we get data we'll send it to parse_cmd
      char ser_buf[MAXDATASIZE];
      char work_buf[MAXDATASIZE];
-     const char s[2]=";";
      char *p;
      char *d;
      char save_buf[MAXDATASIZE] = "";
@@ -4019,9 +3970,6 @@ void rigctlSetFilterHigh(int val){
 
 void set_freqB(long long new_freqB) {      
 
-   //BANDSTACK_ENTRY *bandstack = bandstack_entry_get_current();
-   //bandstack->frequencyB = new_freqB;
-   //frequencyB = new_freqB;
    vfo[VFO_B].frequency = new_freqB;   
    g_idle_add(ext_vfo_update,NULL);
 }
