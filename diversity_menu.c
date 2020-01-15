@@ -100,7 +100,7 @@ static void set_gain_phase() {
   arg=div_phase*0.017453292519943295769236907684886;
   div_cos=amplitude*cos(arg);
   div_sin=amplitude*sin(arg);
-  fprintf(stderr,"GAIN=%f PHASE=%f\n", div_gain, div_phase);
+//fprintf(stderr,"GAIN=%f PHASE=%f\n", div_gain, div_phase);
 }
 
 static void gain_coarse_changed_cb(GtkWidget *widget, gpointer data) {
