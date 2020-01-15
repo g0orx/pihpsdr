@@ -1088,8 +1088,12 @@ static void new_protocol_high_priority() {
       high_priority_buffer_to_radio[1443]=transmitter->attenuation;
       high_priority_buffer_to_radio[1442]=31;
     } else {
-      high_priority_buffer_to_radio[1443]=adc_attenuation[0];
-      high_priority_buffer_to_radio[1442]=adc_attenuation[1];
+      high_priority_buffer_to_radio[1443]=adc_attenuation[0];	
+      if (diversity_enabled) {
+        high_priority_buffer_to_radio[1442]=adc_attenuation[0];  // DIVERSITY: ADC0 att value for ADC1 as well
+      } else {
+        high_priority_buffer_to_radio[1442]=adc_attenuation[1];
+      }
     }
 
 //
@@ -1112,7 +1116,7 @@ static void new_protocol_high_priority() {
     pthread_mutex_unlock(&hi_prio_mutex);
 }
 
-static unsigned char last_50=0;
+static unsigned char last_50=0;  // debug code
 
 static void new_protocol_transmit_specific() {
     int txmode=get_tx_mode();
@@ -1180,10 +1184,10 @@ static void new_protocol_transmit_specific() {
       transmit_specific_buffer[50]|=0x10;
     }
 
-    if(last_50!=transmit_specific_buffer[50]) {
-      last_50=transmit_specific_buffer[50];
-//fprintf(stderr,"tx_specific: 50=%02X\n",transmit_specific_buffer[50]);
-    }
+    if(last_50!=transmit_specific_buffer[50]) {				//debug
+      last_50=transmit_specific_buffer[50];				//debug
+//fprintf(stderr,"tx_specific: 50=%02X\n",transmit_specific_buffer[50]);//debug
+    }									//debug
 
     // 0..31
     transmit_specific_buffer[51]=linein_gain;
