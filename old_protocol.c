@@ -799,6 +799,10 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
   double right_sample_double_rx;
   double left_sample_double_tx;
   double right_sample_double_tx;
+  double left_sample_double_main;
+  double right_sample_double_main;
+  double left_sample_double_aux;
+  double right_sample_double_aux;
 
   int id=active_receiver->id;
 
@@ -913,17 +917,17 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
 	  // receiving with DIVERSITY. Get sample pairs and feed to diversity mixer
 	  //
           if (r == rx1channel) {
-            left_sample_double_rx=left_sample_double;
-            right_sample_double_rx=right_sample_double;
+            left_sample_double_main=left_sample_double;
+            right_sample_double_main=right_sample_double;
           } else if (r == rx2channel) {
-            left_sample_double_tx=left_sample_double;
-            right_sample_double_tx=right_sample_double;
+            left_sample_double_aux=left_sample_double;
+            right_sample_double_aux=right_sample_double;
           }
-	  // this is pure paranoia, it allows for div_main < div_aux
+	  // this is pure paranoia, it allows for rx2channel < rx1channel
           if (r+1 == num_hpsdr_receivers) {
-            add_div_iq_samples(receiver[0], left_sample_double_rx,right_sample_double_rx,left_sample_double_tx,right_sample_double_tx);
+            add_div_iq_samples(receiver[0], left_sample_double_main,right_sample_double_main,left_sample_double_aux,right_sample_double_aux);
 	    // if we have a second receiver, display "auxiliary" receiver as well
-            if (receivers >1) add_iq_samples(receiver[1], left_sample_double_tx,right_sample_double_tx);
+            if (receivers >1) add_iq_samples(receiver[1], left_sample_double_aux,right_sample_double_aux);
           }
 	}
 

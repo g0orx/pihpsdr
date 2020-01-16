@@ -314,15 +314,36 @@ void update_action_table() {
   // Depending on the values of mox, puresignal, and diversity,
   // determine the actions to be taken when a DDC packet arrives
   //
-  int flag;
-  flag=0;
-  if (device==NEW_DEVICE_ANGELIA || device==NEW_DEVICE_ORION || device == NEW_DEVICE_ORION2) flag +=1000;
-  if (isTransmitting())                                                                      flag +=100;
-  if (transmitter->puresignal)                                                               flag +=10;
-  if (diversity_enabled)                                                                     flag +=1;
 
+  int flag=0;
+  int xmit=isTransmitting();  // store such that it cannot change while building the flag
+  int newdev=(device==NEW_DEVICE_ANGELIA || device==NEW_DEVICE_ORION || device == NEW_DEVICE_ORION2);
+
+  if (duplex && xmit)			flag +=10000;
+  if (newdev)				flag +=1000;
+  if (xmit)				flag +=100;
+  if (transmitter->puresignal && xmit)	flag +=10;
+  if (diversity_enabled && !xmit)	flag +=1;
+
+  // Note that the PURESIGNAL and DUPLEX flags are only set in the TX cases, since they
+  // make no difference upon RXing
+  // Note further, we do not use the diversity mixer upon transmitting.
   //
-  // Set up rxcase and rxid for each of the 16 possible cases
+  // Therefore, the following 12 values for flag are possible:
+  // flag=     0
+  // flag=     1
+  // flag=   100
+  // flag=   110
+  // flag=  1000
+  // flag=  1001
+  // flag=  1100
+  // flag=  1110
+  // flag= 10100
+  // flag= 10110
+  // flag= 11100
+  // flag= 11110
+  //
+  // Set up rxcase and rxid for each of the 12 cases
   // note that rxid[i] can be left unspecified if rxcase[i] == RXACTION_SKIP
   //
   rxcase[0] = RXACTION_SKIP;
@@ -330,8 +351,8 @@ void update_action_table() {
   rxcase[2] = RXACTION_SKIP;
   rxcase[3] = RXACTION_SKIP;
   switch (flag) {
-    case    0:								// HERMES, RX, no DIVERSITY
-    case   10:
+    case       0:							// HERMES, RX, no DIVERSITY
+    case   10100:							// HERMES, TX, no PURESIGNAL, DUPLEX
 	rxid[0]=0;
 	rxcase[0] = RXACTION_NORMAL;
         if (receivers > 1) {
@@ -339,33 +360,34 @@ void update_action_table() {
 	  rxcase[1] = RXACTION_NORMAL;
         }
 	break;
-    case    1:								// HERMES, RX, DIVERSITY
-    case   11:								// ORION, RX, DIVERSITY
-    case 1001:
-    case 1011:
+    case     1:								// HERMES or ORION, RX, DIVERSITY
+    case  1001:
 	rxid[0]=0;
 	rxcase[0] = RXACTION_DIV;
 	break;
-    case  100:								// HERMES, TX, no PURESIGNAL
-    case  101:
-    case 1100:								// ORION, TX, no PURESIGNAL
-    case 1101:								// ORION, TX, no PURESIGNAL
+    case  100:								// HERMES or ORION, TX, no PURESIGNAL, no DUPLEX
+    case 1100:
 	// just skip samples
 	break;
-    case  110:								// HERMES, TX, PURESIGNAL
-    case  111:
-    case 1110:								// ORION, TX, PURESIGNAL
-    case 1111:
+    case  110:								// HERMES or ORION, TX, PURESIGNAL, no DUPLEX
+    case 1110:
+    case 10110:								// HERMES, TX, DUPLEX, PS: duplex is ignored
 	rxcase[0] = RXACTION_PS;
 	break;
+    case 11110:								// ORION, TX, PURESIGNAL, DUPLEX
+	rxcase[0] = RXACTION_PS;
+	/* FALLTHROUGH */
     case 1000:								// ORION, RX, no DIVERSITY
-    case 1010:
+    case 11100:								// ORION, TX, no PURESIGNAL, DUPLEX
 	rxid[2]=0;
 	rxcase[2] = RXACTION_NORMAL;
         if (receivers > 1) {
 	  rxid[3]=1;
 	  rxcase[3] = RXACTION_NORMAL;
         }
+	break;
+    default:
+	fprintf(stderr,"ACTION TABLE: case not handled: %d\n", flag);
 	break;
   }
 }
@@ -662,7 +684,7 @@ static void new_protocol_high_priority() {
 //  Set DDC frequencies
 //
 
-    if (diversity_enabled) {
+    if (diversity_enabled && !isTransmitting()) {
 	//
 	// Use frequency of first receiver for both DDC0 and DDC1
 	// This is overridden later if we do PURESIGNAL TX
@@ -1234,7 +1256,11 @@ static void new_protocol_receive_specific() {
         receive_specific_buffer[5]|=receiver[i]->dither<<ddc; // dither enable
         receive_specific_buffer[6]|=receiver[i]->random<<ddc; // random enable
 	if (!isTransmitting() && !diversity_enabled) {
-	  // Upon TX (with and without PURESIGNAL), and upon diversity reception, deactivate DDCs
+	  // normal RX without diversity
+          receive_specific_buffer[7]|=(1<<ddc); // DDC enable
+	}
+	if (isTransmitting() && duplex) {
+	  // transmitting with duplex
           receive_specific_buffer[7]|=(1<<ddc); // DDC enable
 	}
         receive_specific_buffer[17+(ddc*6)]=receiver[i]->adc;
@@ -1263,7 +1289,7 @@ static void new_protocol_receive_specific() {
       receive_specific_buffer[26]=24;		// bits per sample
       receive_specific_buffer[1363]=0x02;       // sync DDC1 to DDC0
 
-      receive_specific_buffer[7]=1; 		// enable  DDC0 but disable all others
+      receive_specific_buffer[7] |=1; 		// enable  DDC0
     }
     if (diversity_enabled && ! isTransmitting()) {
 //
