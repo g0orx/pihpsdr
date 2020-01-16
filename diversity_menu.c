@@ -129,13 +129,17 @@ static void phase_fine_changed_cb(GtkWidget *widget, gpointer data) {
 
 void update_diversity_gain(double increment) {
   double g=div_gain+(increment/10);
-  if(g<-25.0) g=-25.0;
-  if(g>25.0) g=25.0;
+  if(g<-27.0) g=-27.0;
+  if(g>27.0) g=27.0;
   div_gain=g;
   //
-  // calculate coarse and fine value
+  // calculate coarse and fine value.
+  // if gain is 27, we can only use coarse=25 and fine=2,
+  // but normally we want to keep "fine" small
   //
   gain_coarse=round(div_gain);
+  if (gain_coarse >  25.0) gain_coarse= 25.0;
+  if (gain_coarse < -25.0) gain_coarse=-25.0;
   gain_fine=div_gain - gain_coarse;
   if(gain_coarse_scale!=NULL && gain_fine_scale != NULL) {
     gtk_range_set_value(GTK_RANGE(gain_coarse_scale),gain_coarse);
@@ -148,8 +152,8 @@ void update_diversity_gain(double increment) {
 
 void update_diversity_phase(double increment) {
   double p=div_phase+increment;
-  if(p<0.0) p=360.0;
-  if(p>360.0) p=0.0;
+  while (p >  180.0) p -= 360.0;
+  while (p < -180.0) p += 360.0;
   div_phase=p;
   //
   // calculate coarse and fine
@@ -176,9 +180,15 @@ void diversity_menu(GtkWidget *parent) {
   g_signal_connect (dialog, "delete_event", G_CALLBACK (delete_event), NULL);
 
   //
-  // set coarse/fine values from actual values
+  // set coarse/fine values from "sanitized" actual values
   //
+  if (div_gain >  27.0)  div_gain= 27.0;
+  if (div_gain < -27.0)  div_gain=-27.0;
+  while (div_phase >  180.0) div_phase -=360.0;
+  while (div_phase < -180.0) div_phase +=360.0;
   gain_coarse=round(div_gain);
+  if (gain_coarse >  25.0) gain_coarse= 25.0;
+  if (gain_coarse < -25.0) gain_coarse=-25.0;
   gain_fine=div_gain-gain_coarse;
   phase_coarse=2.0*round(div_phase*0.5);
   phase_fine=div_phase-phase_coarse;
@@ -237,7 +247,7 @@ void diversity_menu(GtkWidget *parent) {
   gtk_widget_show(phase_coarse_label);
   gtk_grid_attach(GTK_GRID(grid),phase_coarse_label,0,3,1,1);
 
-  phase_coarse_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0,360.0,2.0);
+  phase_coarse_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-180.0,180.0,2.0);
   gtk_widget_set_size_request (phase_coarse_scale, 300, 25);
   gtk_range_set_value(GTK_RANGE(phase_coarse_scale),phase_coarse);
   gtk_widget_show(phase_coarse_scale);
