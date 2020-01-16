@@ -360,8 +360,8 @@ void update_action_table() {
 	  rxcase[1] = RXACTION_NORMAL;
         }
 	break;
-    case     1:								// HERMES or ORION, RX, DIVERSITY
-    case  1001:
+    case     1:								// never occurs since HERMES has only 1 ADC
+    case  1001:								// ORION, RX, DIVERSITY
 	rxid[0]=0;
 	rxcase[0] = RXACTION_DIV;
 	break;
