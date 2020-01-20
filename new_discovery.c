@@ -72,35 +72,13 @@ void new_discovery() {
     getifaddrs(&addrs);
     ifa = addrs;
 
-//
-//  count number of "up and running" interfaces
-//
-    int num_up_and_running = 0;
-    while (ifa) {
-      if (ifa->ifa_addr) {
-        if (ifa->ifa_addr->sa_family == AF_INET
-            && (ifa->ifa_flags & IFF_UP) == IFF_UP
-            && (ifa->ifa_flags & IFF_RUNNING) == IFF_RUNNING) {
-                num_up_and_running++;
-        }
-      }
-      ifa=ifa->ifa_next;
-    }
-
-    ifa=addrs;
     while (ifa) {
         g_main_context_iteration(NULL, 0);
         if (ifa->ifa_addr) {
           if(ifa->ifa_addr->sa_family == AF_INET &&
             (ifa->ifa_flags&IFF_UP)==IFF_UP &&
             (ifa->ifa_flags&IFF_RUNNING)==IFF_RUNNING) {
-//
-// if this is the loopback interface, do the discover only if
-// there is at most one interface
-//
-                if ((ifa->ifa_flags & IFF_LOOPBACK) != IFF_LOOPBACK
-                    || num_up_and_running <= 1)
-                                new_discover(ifa);
+		new_discover(ifa);
           }
         }
         ifa = ifa->ifa_next;
