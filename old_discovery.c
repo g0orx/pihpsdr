@@ -515,32 +515,40 @@ void old_discovery() {
 fprintf(stderr,"old_discovery\n");
     getifaddrs(&addrs);
     ifa = addrs;
+//
+//  count number of "up and running" interfaces
+//
+    int num_up_and_running = 0;
+    while (ifa) {
+      if (ifa->ifa_addr) {
+	if (ifa->ifa_addr->sa_family == AF_INET
+	    && (ifa->ifa_flags & IFF_UP) == IFF_UP
+            && (ifa->ifa_flags & IFF_RUNNING) == IFF_RUNNING) {
+		num_up_and_running++;
+	}
+      }
+      ifa=ifa->ifa_next;
+    }
+	
+    ifa=addrs;
     while (ifa) {
         g_main_context_iteration(NULL, 0);
-        if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET) {
-#if 0
+        if (ifa->ifa_addr) {
+ 	  if(ifa->ifa_addr->sa_family == AF_INET &&
+            (ifa->ifa_flags&IFF_UP)==IFF_UP &&
+            (ifa->ifa_flags&IFF_RUNNING)==IFF_RUNNING) {
 //
-// used to be a hook for RADIOBERRY, but does is really need the
-// loopback interface?
+// if this is the loopback interface, do the discover only if
+// there is at most one interface
 //
-			if((ifa->ifa_flags&IFF_UP)==IFF_UP
-                && (ifa->ifa_flags&IFF_RUNNING)==IFF_RUNNING) {
+		if ((ifa->ifa_flags & IFF_LOOPBACK) != IFF_LOOPBACK
+		    || num_up_and_running <= 1)
 				discover(ifa);
-			}
-#else
-            if((ifa->ifa_flags&IFF_UP)==IFF_UP
-                && (ifa->ifa_flags&IFF_RUNNING)==IFF_RUNNING
-                && (ifa->ifa_flags&IFF_LOOPBACK)!=IFF_LOOPBACK) {
-                discover(ifa);
-            }
-#endif 
+	  }
         }
         ifa = ifa->ifa_next;
     }
     freeifaddrs(addrs);
-
-    // Do one additional "discover" for a fixed TCP address
-    discover(NULL);
 
     fprintf(stderr, "discovery found %d devices\n",devices);
 
