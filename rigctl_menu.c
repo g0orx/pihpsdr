@@ -138,7 +138,8 @@ void rigctl_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),rigctl_enable_b,0,1,1,1);
   g_signal_connect(rigctl_enable_b,"toggled",G_CALLBACK(rigctl_enable_cb),NULL);
  
-  GtkWidget *rigctl_port_label =gtk_label_new("RigCtl Port Number");
+  GtkWidget *rigctl_port_label =gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(rigctl_port_label), "<b>RigCtl Port Number</b>");
   //gtk_widget_override_font(band_label, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(rigctl_port_label);
   gtk_grid_attach(GTK_GRID(grid),rigctl_port_label,0,2,1,1);
@@ -157,7 +158,8 @@ void rigctl_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),serial_enable_b,0,3,1,1);
   g_signal_connect(serial_enable_b,"toggled",G_CALLBACK(serial_enable_cb),NULL);
 
-  GtkWidget *serial_text_label=gtk_label_new("Serial Port: /dev/ttyUSB");
+  GtkWidget *serial_text_label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(serial_text_label), "<b>Serial Port: /dev/ttyUSB</b>");
   gtk_grid_attach(GTK_GRID(grid),serial_text_label,0,4,1,1);
 
   GtkWidget *serial_port_spinner =gtk_spin_button_new_with_range(0,7,1);
@@ -167,7 +169,8 @@ void rigctl_menu(GtkWidget *parent) {
   g_signal_connect(serial_port_spinner,"value_changed",G_CALLBACK(serial_value_changed_cb),NULL);
 
   // Serial baud rate here
-  GtkWidget *baud_rate_label =gtk_label_new("Baud Rate:");
+  GtkWidget *baud_rate_label =gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(baud_rate_label), "<b>Baud Rate:</b>");
   gtk_widget_show(baud_rate_label);
   gtk_grid_attach(GTK_GRID(grid),baud_rate_label,0,5,1,1);
   

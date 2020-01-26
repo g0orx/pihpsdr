@@ -109,3 +109,6 @@ int ext_set_rf_gain(void *data);
 int ext_set_duplex(void *data);
 
 int ext_update_noise(void *data);
+#ifdef PURESIGNAL
+int ext_start_ps(void *data);
+#endif

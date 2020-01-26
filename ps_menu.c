@@ -43,7 +43,7 @@ static GtkWidget *tx_att;
  * PureSignal 2.0 parameters and declarations
  */
 
-static double ampdelay  = 150e-9;  // 150 nsec
+static double ampdelay  = 150e-9;   // 150 nsec
 static int    ints      = 16;
 static int    spi       = 256;     // ints=16/spi=256 corresponds to "TINT=0.5 dB"
 static int    stbl      = 0;	   // "Stbl" un-checked
@@ -219,7 +219,7 @@ static int info_thread(gpointer arg) {
       old5_2=info[5];
       switch(state) {
         case 0:
-	  //
+          //
 	  // A value of 175 means 1.2 dB too strong
 	  // A value of 132 means 1.2 dB too weak
 	  //

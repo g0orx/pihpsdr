@@ -24,10 +24,6 @@
 
 #define SMETER 0
 #define POWER 1
-#ifdef PSK
-#define PSKMETER 2
-#endif
-
 
 extern GtkWidget* meter_init(int width,int height,GtkWidget *parent);
 extern void meter_update(RECEIVER *rx,int meter_type,double value,double reverse,double exciter,double alc);

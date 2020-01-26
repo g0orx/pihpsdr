@@ -35,9 +35,6 @@
 #include "vfo.h"
 #include "button_text.h"
 #include "ext.h"
-#ifdef FREEDV
-#include "freedv.h"
-#endif
 
 static GtkWidget *parent_window=NULL;
 static GtkWidget *dialog=NULL;
@@ -183,12 +180,6 @@ static void vfo_cb(GtkComboBox *widget,gpointer data) {
   g_idle_add(ext_vfo_update,NULL);
 }
 
-#ifdef FREEDV
-static void enable_freedv_cb(GtkWidget *widget, gpointer data) {
-  set_freedv(gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)));
-}
-#endif
-
 #ifdef PURESIGNAL
 static void enable_ps_cb(GtkWidget *widget, gpointer data) {
   tx_set_ps(transmitter,gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)));
@@ -305,13 +296,6 @@ void vfo_menu(GtkWidget *parent) {
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (enable_squelch), active_receiver->squelch_enable);
   gtk_grid_attach(GTK_GRID(grid),enable_squelch,3,5,1,1);
   g_signal_connect(enable_squelch,"toggled",G_CALLBACK(squelch_enable_cb),NULL);
-
-#ifdef FREEDV
-  GtkWidget *enable_freedv=gtk_check_button_new_with_label("Enable FreeDV");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (enable_freedv), active_receiver->freedv);
-  gtk_grid_attach(GTK_GRID(grid),enable_freedv,3,6,1,1);
-  g_signal_connect(enable_freedv,"toggled",G_CALLBACK(enable_freedv_cb),NULL);
-#endif
 
 #ifdef PURESIGNAL
   if(can_transmit) {

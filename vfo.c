@@ -38,7 +38,6 @@
 #include "filter.h"
 #include "bandstack.h"
 #include "band.h"
-#include "frequency.h"
 #include "new_protocol.h"
 #include "property.h"
 #include "radio.h"
@@ -50,9 +49,6 @@
 #include "new_menu.h"
 #include "rigctl.h"
 #include "ext.h"
-#ifdef FREEDV
-#include "freedv.h"
-#endif
 
 static GtkWidget *parent_window;
 static int my_width;
@@ -196,22 +192,27 @@ void vfo_restore_state() {
   char *value;
 
   for(i=0;i<MAX_VFOS;i++) {
+g_print("vfo_restore_state: %d\n",i);
 
     vfo[i].band=band20;
     vfo[i].bandstack=0;
     vfo[i].frequency=14010000;
 #ifdef SOAPYSDR
     if(radio->protocol==SOAPYSDR_PROTOCOL) {
+      vfo[i].band=band144;
+      vfo[i].bandstack=0;
       vfo[i].frequency=144010000;
     }
 #endif
     vfo[i].mode=modeCWU;
-    vfo[i].filter=6;
+    vfo[i].filter=filterF6;
     vfo[i].lo=0;
     vfo[i].offset=0;
     vfo[i].rit_enabled=0;
     vfo[i].rit=0;
     vfo[i].ctun=0;
+
+g_print("vfo_restore_state: band=%d frequency=%lld\n",vfo[i].band,vfo[i].frequency);
 
     sprintf(name,"vfo.%d.band",i);
     value=getProperty(name);
@@ -363,7 +364,7 @@ void vfo_bandstack_changed(int b) {
   }
 
   if(can_transmit) {
-      tx_set_mode(transmitter,get_tx_mode());
+    tx_set_mode(transmitter,get_tx_mode());
   }
   //
   // I do not think the band can change within this function.
@@ -406,7 +407,7 @@ void vfo_mode_changed(int m) {
       break;
   }
   if(can_transmit) {
-      tx_set_mode(transmitter,get_tx_mode());
+    tx_set_mode(transmitter,get_tx_mode());
   }
   //
   // changing modes may change BFO frequency
@@ -827,23 +828,12 @@ void vfo_update() {
             CAIRO_FONT_SLANT_NORMAL,
             CAIRO_FONT_WEIGHT_BOLD);
 
-        char dv[32];
-        strcpy(dv,"");
-#ifdef FREEDV
-        if(active_receiver->freedv) {
-          sprintf(dv,"FreeDV %s", freedv_get_mode_string());
-        }
-#endif
-        cairo_set_font_size(cr, 12);
-        cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
-        cairo_move_to(cr, 5, 15);
-        
         switch(vfo[id].mode) {
           case modeFMN:
             if(active_receiver->deviation==2500) {
-              sprintf(temp_text,"%s 8k %s",mode_string[vfo[id].mode],dv);
+              sprintf(temp_text,"%s 8k",mode_string[vfo[id].mode]);
             } else {
-              sprintf(temp_text,"%s 16k %s",mode_string[vfo[id].mode],dv);
+              sprintf(temp_text,"%s 16k",mode_string[vfo[id].mode]);
             }
             break;
           case modeCWL:
@@ -854,7 +844,7 @@ void vfo_update() {
           case modeUSB:
           case modeDSB:
           case modeAM:
-            sprintf(temp_text,"%s %s %s",mode_string[vfo[id].mode],band_filter->title,dv);
+            sprintf(temp_text,"%s %s",mode_string[vfo[id].mode],band_filter->title);
             break;
           default:
             sprintf(temp_text,"%s %s",mode_string[vfo[id].mode],band_filter->title);
@@ -864,9 +854,6 @@ void vfo_update() {
 
 	// In what follows, we want to display the VFO frequency
 	// on which we currently transmit a signal with red colour.
-	// If it is out-of-band, we display "Out of band" in red.
-        // Frequencies we are not transmitting on are displayed in green
-	// (dimmed if the freq. does not belong to the active receiver).
 
         // Frequencies of VFO A and B
 
@@ -875,9 +862,7 @@ void vfo_update() {
 
         int oob=0;
         if (can_transmit) oob=transmitter->out_of_band;
-
         sprintf(temp_text,"VFO A: %0lld.%06lld",af/(long long)1000000,af%(long long)1000000);
-
         if(txvfo == 0 && (isTransmitting() || oob)) {
             if (oob) sprintf(temp_text,"VFO A: Out of band");
             cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);

@@ -109,11 +109,37 @@ static void tx_ant_cb(GtkToggleButton *widget, gpointer data) {
 
 static void show_hf() {
   int i;
-    for(i=0;i<BANDS;i++) {
+  int bands=BANDS;
+  switch(protocol) {
+    case ORIGINAL_PROTOCOL:
+      switch(device) {
+        case DEVICE_HERMES_LITE:
+        case DEVICE_HERMES_LITE2:
+          bands=band10+1;
+          break;
+        default:
+          bands=band6+1;
+          break;
+      }
+      break;
+    case NEW_PROTOCOL:
+      switch(device) {
+        case NEW_DEVICE_HERMES_LITE:
+        case NEW_DEVICE_HERMES_LITE2:
+          bands=band10+1;
+          break;
+        default:
+          bands=band6+1;
+          break;
+      }
+      break;
+  }
+    for(i=0;i<bands;i++) {
       BAND *band=band_get_band(i);
       if(strlen(band->title)>0) {
-        GtkWidget *band_label=gtk_label_new(band->title);
+        GtkWidget *band_label=gtk_label_new(NULL);
         //gtk_widget_override_font(band_label, pango_font_description_from_string("Arial 18"));
+        gtk_label_set_markup(GTK_LABEL(band_label), band->title);
         gtk_widget_show(band_label);
         gtk_grid_attach(GTK_GRID(grid),band_label,0,i+2,1,1);
 
@@ -184,8 +210,9 @@ static void show_xvtr() {
     for(i=0;i<XVTRS;i++) {
       BAND *band=band_get_band(BANDS+i);
       if(strlen(band->title)>0) {
-        GtkWidget *band_label=gtk_label_new(band->title);
+        GtkWidget *band_label=gtk_label_new(NULL);
         //gtk_widget_override_font(band_label, pango_font_description_from_string("Arial 18"));
+        gtk_label_set_markup(GTK_LABEL(band_label), band->title);
         gtk_widget_show(band_label);
         gtk_grid_attach(GTK_GRID(grid),band_label,0,i+2,1,1);
 
@@ -335,57 +362,68 @@ void ant_menu(GtkWidget *parent) {
 
 
   if(protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL) {
-    GtkWidget *rx_ant_label=gtk_label_new("Receive");
+    GtkWidget *rx_ant_label=gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(rx_ant_label), "<b>Receive</b>");
     //gtk_widget_override_font(rx_ant_label, pango_font_description_from_string("Arial 18"));
     gtk_widget_show(rx_ant_label);
     gtk_grid_attach(GTK_GRID(grid),rx_ant_label,0,1,1,1);
 
-    GtkWidget *rx1_label=gtk_label_new("1");
+    GtkWidget *rx1_label=gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(rx1_label), "<b>1</b>");
     //gtk_widget_override_font(rx1_label, pango_font_description_from_string("Arial 18"));
     gtk_widget_show(rx1_label);
     gtk_grid_attach(GTK_GRID(grid),rx1_label,1,1,1,1);
 
-    GtkWidget *rx2_label=gtk_label_new("2");
+    GtkWidget *rx2_label=gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(rx2_label), "<b>2</b>");
     //gtk_widget_override_font(rx2_label, pango_font_description_from_string("Arial 18"));
     gtk_widget_show(rx2_label);
     gtk_grid_attach(GTK_GRID(grid),rx2_label,2,1,1,1);
 
-    GtkWidget *rx3_label=gtk_label_new("3");
+    GtkWidget *rx3_label=gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(rx3_label), "<b>3</b>");
     //gtk_widget_override_font(rx3_label, pango_font_description_from_string("Arial 18"));
     gtk_widget_show(rx3_label);
     gtk_grid_attach(GTK_GRID(grid),rx3_label,3,1,1,1);
 
-    GtkWidget *ext1_label=gtk_label_new("EXT1");
+    GtkWidget *ext1_label=gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(ext1_label), "<b>EXT1</b>");
     //gtk_widget_override_font(ext1_label, pango_font_description_from_string("Arial 18"));
     gtk_widget_show(ext1_label);
     gtk_grid_attach(GTK_GRID(grid),ext1_label,4,1,1,1);
 
-    GtkWidget *ext2_label=gtk_label_new("EXT2");
+    GtkWidget *ext2_label=gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(ext2_label), "<b>EXT2</b>");
     //gtk_widget_override_font(ext2_label, pango_font_description_from_string("Arial 18"));
     gtk_widget_show(ext2_label);
     gtk_grid_attach(GTK_GRID(grid),ext2_label,5,1,1,1);
 
-    GtkWidget *xvtr_label=gtk_label_new("XVTR");
+    GtkWidget *xvtr_label=gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(xvtr_label), "<b>XVTR</b>");
     //gtk_widget_override_font(xvtr_label, pango_font_description_from_string("Arial 18"));
     gtk_widget_show(xvtr_label);
     gtk_grid_attach(GTK_GRID(grid),xvtr_label,6,1,1,1);
 
-    GtkWidget *tx_ant_label=gtk_label_new("Transmit");
+    GtkWidget *tx_ant_label=gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(tx_ant_label), "<b>Transmit</b>");
     //gtk_widget_override_font(tx_ant_label, pango_font_description_from_string("Arial 18"));
     gtk_widget_show(tx_ant_label);
     gtk_grid_attach(GTK_GRID(grid),tx_ant_label,7,1,1,1);
 
-    GtkWidget *tx1_label=gtk_label_new("1");
+    GtkWidget *tx1_label=gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(tx1_label), "<b>1</b>");
     //gtk_widget_override_font(tx1_label, pango_font_description_from_string("Arial 18"));
     gtk_widget_show(tx1_label);
     gtk_grid_attach(GTK_GRID(grid),tx1_label,8,1,1,1);
 
-    GtkWidget *tx2_label=gtk_label_new("2");
+    GtkWidget *tx2_label=gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(tx2_label), "<b>2</b>");
     //gtk_widget_override_font(tx2_label, pango_font_description_from_string("Arial 18"));
     gtk_widget_show(tx2_label);
     gtk_grid_attach(GTK_GRID(grid),tx2_label,9,1,1,1);
 
-    GtkWidget *tx3_label=gtk_label_new("3");
+    GtkWidget *tx3_label=gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(tx3_label), "<b>3</b>");
     //gtk_widget_override_font(tx3_label, pango_font_description_from_string("Arial 18"));
     gtk_widget_show(tx3_label);
     gtk_grid_attach(GTK_GRID(grid),tx3_label,10,1,1,1);
@@ -399,7 +437,8 @@ void ant_menu(GtkWidget *parent) {
 
 g_print("rx_antennas=%ld\n",radio->info.soapy.rx_antennas);
     if(radio->info.soapy.rx_antennas>0) {
-      GtkWidget *antenna_label=gtk_label_new("RX Antenna:");
+      GtkWidget *antenna_label=gtk_label_new(NULL);
+      gtk_label_set_markup(GTK_LABEL(antenna_label), "<b>RX Antenna:</b>");
       gtk_grid_attach(GTK_GRID(grid),antenna_label,0,1,1,1);
       adc0_antenna_combo_box=gtk_combo_box_text_new();
 
@@ -415,7 +454,8 @@ g_print("rx_antennas=%ld\n",radio->info.soapy.rx_antennas);
     if(can_transmit) {
       g_print("tx_antennas=%ld\n",radio->info.soapy.tx_antennas);
       if(radio->info.soapy.tx_antennas>0) {
-        GtkWidget *antenna_label=gtk_label_new("TX Antenna:");
+        GtkWidget *antenna_label=gtk_label_new(NULL);
+        gtk_label_set_markup(GTK_LABEL(antenna_label), "<b>TX Antenna:</b>");
         gtk_grid_attach(GTK_GRID(grid),antenna_label,0,2,1,1);
         dac0_antenna_combo_box=gtk_combo_box_text_new();
   

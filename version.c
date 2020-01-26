@@ -20,12 +20,21 @@
 char build_date[]=GIT_DATE;
 char build_version[]=GIT_VERSION;
 
-#if defined (CONTROLLER2_V1)
-char version[]="2.0.7-beta (Controller2 V1)";
-#elif defined (CONTROLLER2_V2)
-char version[]="2.0.7-beta (Controller2 V2)";
-#elif defined (GPIO)
-char version[]="2.0.7-beta (Controller1)";
-#else
-char version[]="2.0.7-beta";
+char version[]="2.0.0-RC1"
+#if defined(GPIO) || defined(PURESIGNAL) || defined(SOAPYSDR) || defined(MIDI)
+" includes"
 #endif
+#ifdef GPIO
+" GPIO"
+#endif
+#ifdef PURESIGNAL
+" PURESIGNAL"
+#endif
+#ifdef SOAPYSDR
+" SOAPYSDR"
+#endif
+#ifdef MIDI
+" MIDI"
+#endif
+
+;

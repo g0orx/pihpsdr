@@ -181,7 +181,7 @@ void exit_menu(GtkWidget *parent) {
   int row=0;
   int col=0;
 
-  GtkWidget *close_b=gtk_button_new_with_label("Close");
+  GtkWidget *close_b=gtk_button_new_with_label("Cancel");
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,col,row,1,1);
 

@@ -37,9 +37,6 @@
 #include "rx_panadapter.h"
 #include "vfo.h"
 #include "mode.h"
-#ifdef FREEDV
-#include "freedv.h"
-#endif
 #ifdef GPIO
 #include "gpio.h"
 #endif
@@ -123,11 +120,6 @@ void rx_panadapter_update(RECEIVER *rx) {
   int display_width=gtk_widget_get_allocated_width (rx->panadapter);
   int display_height=gtk_widget_get_allocated_height (rx->panadapter);
 
-#ifdef FREEDV
-  if(rx->freedv) {
-    display_height=display_height-20;
-  }
-#endif
   samples=rx->pixel_samples;
 
   //clear_panadater_surface();
@@ -392,7 +384,11 @@ void rx_panadapter_update(RECEIVER *rx) {
 
   samples[0]=-200.0;
   samples[display_width-1]=-200.0;
-  s1=(double)samples[0]+(double)adc_attenuation[rx->adc];
+  if(have_rx_gain) {
+    s1=(double)samples[0]+40.0-(adc_attenuation[rx->adc]+12.0);
+  } else {
+    s1=(double)samples[0]+(double)adc_attenuation[rx->adc];
+  }
   if (filter_board == ALEX && rx->adc == 0) s1 += (double)(10*rx->alex_attenuation);
 #ifdef SOAPYSDR
   if(protocol==SOAPYSDR_PROTOCOL) {
@@ -405,7 +401,11 @@ void rx_panadapter_update(RECEIVER *rx) {
                         / (rx->panadapter_high - rx->panadapter_low));
   cairo_move_to(cr, 0.0, s1);
   for(i=1;i<display_width;i++) {
-    s2=(double)samples[i]+(double)adc_attenuation[rx->adc];
+    if(have_rx_gain) {
+      s2=(double)samples[i]+40.0-(adc_attenuation[rx->adc]+12.0);
+    } else {
+      s2=(double)samples[i]+(double)adc_attenuation[rx->adc];
+    }
     if (filter_board == ALEX && rx->adc == 0) s2 += (double)(10*rx->alex_attenuation);
 #ifdef SOAPYSDR
     if(protocol==SOAPYSDR_PROTOCOL) {
@@ -435,36 +435,28 @@ void rx_panadapter_update(RECEIVER *rx) {
   cairo_set_line_width(cr, 1.0);
   cairo_stroke(cr);
 
-#ifdef FREEDV
-  if(rx->freedv) {
-    cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
-    cairo_rectangle(cr,0,display_height,display_width,display_height+20);
-    cairo_fill(cr);
+#ifdef GPIO
+  if(active && controller==CONTROLLER1) {
+    char text[64];
 
-    cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
-    cairo_set_font_size(cr, 18);
-    cairo_move_to(cr, 0.0, (double)display_height+20.0-2.0);
-    cairo_show_text(cr, rx->freedv_text_data);
-  }
-#endif
-
-#if !defined (CONTROLLER2_V2) && !defined (CONTROLLER2_V1) && defined (GPIO)
-  if(active) {
     cairo_set_source_rgb(cr,1.0,1.0,0.0);
     cairo_set_font_size(cr,16);
     if(ENABLE_E2_ENCODER) {
-      cairo_move_to(cr, display_width-150,30);
-      cairo_show_text(cr, encoder_string[e2_encoder_action]);
+      cairo_move_to(cr, display_width-200,30);
+      sprintf(text,"%s (%s)",encoder_string[e2_encoder_action],sw_string[e2_sw_action]);
+      cairo_show_text(cr, text);
     }
 
     if(ENABLE_E3_ENCODER) {
-      cairo_move_to(cr, display_width-150,50);
-      cairo_show_text(cr, encoder_string[e3_encoder_action]);
+      cairo_move_to(cr, display_width-200,50);
+      sprintf(text,"%s (%s)",encoder_string[e3_encoder_action],sw_string[e3_sw_action]);
+      cairo_show_text(cr, text);
     }
 
     if(ENABLE_E4_ENCODER) {
-      cairo_move_to(cr, display_width-150,70);
-      cairo_show_text(cr, encoder_string[e4_encoder_action]);
+      cairo_move_to(cr, display_width-200,70);
+      sprintf(text,"%s (%s)",encoder_string[e4_encoder_action],sw_string[e4_sw_action]);
+      cairo_show_text(cr, text);
     }
   }
 #endif

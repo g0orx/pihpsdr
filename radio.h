@@ -46,6 +46,16 @@
 #define OLD_ORION_MIC_BIAS_DISABLED 0x00
 #define OLD_ORION_MIC_BIAS_ENABLED 0x20
 
+enum {
+  PA_1W=0,
+  PA_10W,
+  PA_30W,
+  PA_50W,
+  PA_100W,
+  PA_200W,
+  PA_500W
+};
+
 extern DISCOVERED *radio;
 
 extern GtkWidget *fixed;
@@ -81,12 +91,10 @@ extern RECEIVER *active_receiver;
 
 extern TRANSMITTER *transmitter;
 
-/*
+
 #define PA_DISABLED 0
 #define PA_ENABLED 1
 
-#define APOLLO_TUNER 1
-*/
 #define KEYER_STRAIGHT 0
 #define KEYER_MODE_A 1
 #define KEYER_MODE_B 2
@@ -125,7 +133,9 @@ extern int tx_leveler;
 extern double tone_level;
 
 extern int filter_board;
-extern int pa;
+extern int pa_enabled;
+extern int pa_power;
+extern int pa_trim[11];
 extern int apollo_tuner;
 
 extern int updates_per_second;
@@ -318,10 +328,6 @@ extern void calculate_display_average();
 
 extern void set_filter_type(int filter_type);
 extern void set_filter_size(int filter_size);
-
-#ifdef FREEDV
-extern void set_freedv(int state);
-#endif
 
 extern void radio_change_region(int region);
 

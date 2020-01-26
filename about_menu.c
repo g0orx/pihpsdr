@@ -144,10 +144,6 @@ void about_menu(GtkWidget *parent) {
       break;
   }
 
-#ifdef FREEDV
-  strcat(text,"\n\nIncludes: FREEDV");
-#endif
-
   label=gtk_label_new(text);
   gtk_label_set_justify(GTK_LABEL(label),GTK_JUSTIFY_LEFT);
   gtk_grid_attach(GTK_GRID(grid),label,1,row,4,1);

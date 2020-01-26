@@ -179,6 +179,7 @@ void diversity_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),gain_label,0,1,1,1);
 
   gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-12.0,+12.0,0.1);
+  gtk_range_set_increments (GTK_RANGE(gain_scale),1.0,1.0);
   gtk_widget_set_size_request (gain_scale, 300, 25);
   gtk_range_set_value(GTK_RANGE(gain_scale),div_gain);
   gtk_widget_show(gain_scale);
@@ -191,6 +192,7 @@ void diversity_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),phase_label,0,2,1,1);
 
   phase_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0,360.0,1.0);
+  gtk_range_set_increments (GTK_RANGE(phase_scale),1.0,1.0);
   gtk_widget_set_size_request (phase_scale, 300, 25);
   gtk_range_set_value(GTK_RANGE(phase_scale),div_phase);
   gtk_widget_show(phase_scale);

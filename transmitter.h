@@ -59,6 +59,7 @@ typedef struct _transmitter {
 
   int panadapter_low;
   int panadapter_high;
+  int panadapter_step;
 
   cairo_surface_t *panadapter_surface;
 
@@ -91,12 +92,6 @@ typedef struct _transmitter {
 
   int drive_level;
  
-#ifdef FREEDV
-  char freedv_text_data[64];
-  int freedv_text_index;
-  int freedv_samples;
-#endif
-
   int compressor;
   double compressor_level;
 

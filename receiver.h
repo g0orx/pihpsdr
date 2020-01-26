@@ -139,14 +139,6 @@ typedef struct _receiver {
   gdouble *buffer;
   gint resample_step;
 
-#ifdef FREEDV
-  GMutex freedv_mutex;
-  gint freedv;
-  gint freedv_samples;
-  gchar freedv_text_data[64];
-  gint freedv_text_index;
-#endif
-
   gint x;
   gint y;
 } RECEIVER;

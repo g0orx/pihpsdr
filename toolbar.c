@@ -29,7 +29,6 @@
 #include "toolbar.h"
 #include "mode.h"
 #include "filter.h"
-#include "frequency.h"
 #include "bandstack.h"
 #include "band.h"
 #include "discovered.h"
@@ -276,7 +275,7 @@ static void aswapb_cb (GtkWidget *widget, gpointer data) {
 }
 
 static void split_cb (GtkWidget *widget, gpointer data) {
-  g_idle_add(ext_split_toggle, NULL);
+  g_idle_add(ext_split_toggle,NULL);
 }
 
 static void duplex_cb (GtkWidget *widget, gpointer data) {

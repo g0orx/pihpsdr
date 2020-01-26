@@ -35,9 +35,6 @@
 #include "tx_panadapter.h"
 #include "vfo.h"
 #include "mode.h"
-#ifdef FREEDV
-#include "freedv.h"
-#endif
 #ifdef GPIO
 #include "gpio.h"
 #endif
@@ -186,6 +183,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   int display_width=gtk_widget_get_allocated_width (tx->panadapter);
   int display_height=gtk_widget_get_allocated_height (tx->panadapter);
 
+
   int txvfo = get_tx_vfo();
   int txmode = get_tx_mode();
 
@@ -220,7 +218,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
 
   for(i=tx->panadapter_high;i>=tx->panadapter_low;i--) {
     char v[32];
-    if((abs(i)%10) ==0) {
+    if((abs(i)%tx->panadapter_step) ==0) {
       double y = (double)(tx->panadapter_high-i)*dbm_per_line;
       if ((abs(i) % 20) == 0) {
         cairo_set_source_rgb (cr, 0.00, 1.00, 1.00);
@@ -351,34 +349,32 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   cairo_set_line_width(cr, 1.0);
   cairo_stroke(cr);
 
-#ifdef FREEDV
-  if(active_receiver->freedv) {
-    cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
-    cairo_set_font_size(cr, 16);
-    cairo_text_extents(cr, transmitter->freedv_text_data, &extents);
-    cairo_move_to(cr, (double)display_width/2.0-(extents.width/2.0),(double)display_height-2.0);
-    cairo_show_text(cr, transmitter->freedv_text_data);
+#ifdef GPIO
+  if(controller==CONTROLLER1 && !duplex) {
+    char text[64];
+
+    cairo_set_source_rgb(cr,1.0,1.0,0.0);
+    cairo_set_font_size(cr,16);
+    if(ENABLE_E2_ENCODER) {
+      cairo_move_to(cr, display_width-200,30);
+      sprintf(text,"%s (%s)",encoder_string[e2_encoder_action],sw_string[e2_sw_action]);
+      cairo_show_text(cr, text);
+    }
+
+    if(ENABLE_E3_ENCODER) {
+      cairo_move_to(cr, display_width-200,50);
+      sprintf(text,"%s (%s)",encoder_string[e3_encoder_action],sw_string[e3_sw_action]);
+      cairo_show_text(cr, text);
+    }
+
+    if(ENABLE_E4_ENCODER) {
+      cairo_move_to(cr, display_width-200,70);
+      sprintf(text,"%s (%s)",encoder_string[e4_encoder_action],sw_string[e4_sw_action]);
+      cairo_show_text(cr, text);
+    }
   }
 #endif
 
-#if !defined (CONTROLLER2_V2) && !defined (CONTROLLER2_V1) && defined (GPIO)
-  cairo_set_source_rgb(cr,1.0,1.0,0.0);
-  cairo_set_font_size(cr,16);
-  if(ENABLE_E2_ENCODER) {
-    cairo_move_to(cr, display_width-150,30);
-    cairo_show_text(cr, encoder_string[e2_encoder_action]);
-  }
-
-  if(ENABLE_E3_ENCODER) {
-    cairo_move_to(cr, display_width-150,50);
-    cairo_show_text(cr, encoder_string[e3_encoder_action]);
-  }
-
-  if(ENABLE_E4_ENCODER) {
-    cairo_move_to(cr, display_width-150,70);
-    cairo_show_text(cr, encoder_string[e4_encoder_action]);
-  }
-#endif
 
 #ifdef PURESIGNAL
   if(tx->puresignal) {
@@ -403,7 +399,11 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     cairo_set_source_rgb(cr,1.0,0.0,0.0);
     cairo_set_font_size(cr, 16);
 
-    sprintf(text,"FWD: %0.3f",transmitter->fwd);
+    if(transmitter->fwd<0.0001) {
+      sprintf(text,"FWD: %0.3f",transmitter->exciter);
+    } else {
+      sprintf(text,"FWD: %0.3f",transmitter->fwd);
+    }
     cairo_move_to(cr,10,15);
     cairo_show_text(cr, text);
 
@@ -414,6 +414,16 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     sprintf(text,"ALC: %0.3f",transmitter->alc);
     cairo_move_to(cr,10,45);
     cairo_show_text(cr, text);
+
+/*
+    sprintf(text,"FWD: %0.8f",transmitter->fwd);
+    cairo_move_to(cr,10,60);
+    cairo_show_text(cr, text);
+
+    sprintf(text,"EXC: %0.3f",transmitter->exciter);
+    cairo_move_to(cr,10,75);
+    cairo_show_text(cr, text);
+*/
   }
 
   cairo_destroy (cr);

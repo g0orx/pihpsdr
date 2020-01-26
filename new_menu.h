@@ -19,6 +19,9 @@ extern void start_store();
 extern void start_rx();
 extern void start_tx();
 extern void start_diversity();
+#ifdef PURESIGNAL
+extern void start_ps();
+#endif
 
 extern void encoder_step(int encoder,int step);
 

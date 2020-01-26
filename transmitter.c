@@ -48,10 +48,6 @@
 #ifdef SOAPYSDR
 #include "soapy_protocol.h"
 #endif
-#ifdef FREEDV
-#include "freedv.h"
-#endif
-#include "audio_waterfall.h"
 #include "audio.h"
 #include "ext.h"
 
@@ -224,13 +220,6 @@ void transmitter_save_state(TRANSMITTER *tx) {
   sprintf(name,"transmitter.%d.am_carrier_level",tx->id);
   sprintf(value,"%f",tx->am_carrier_level);
   setProperty(name,value);
-#ifdef FREEDV
-  if(strlen(tx->freedv_text_data)>0) {
-    sprintf(name,"transmitter.%d.freedv_text_data",tx->id);
-    sprintf(value,"%s",tx->freedv_text_data);
-    setProperty(name,value);
-  }
-#endif
   sprintf(name,"transmitter.%d.drive",tx->id);
   sprintf(value,"%d",tx->drive);
   setProperty(name,value);
@@ -325,11 +314,6 @@ void transmitter_restore_state(TRANSMITTER *tx) {
   sprintf(name,"transmitter.%d.am_carrier_level",tx->id);
   value=getProperty(name);
   if(value) tx->am_carrier_level=atof(value);
-#ifdef FREEDV
-  sprintf(name,"transmitter.%d.freedv_text_data",tx->id);
-  value=getProperty(name);
-  if(value) strcpy(tx->freedv_text_data,value);
-#endif
   sprintf(name,"transmitter.%d.drive",tx->id);
   value=getProperty(name);
   if(value) tx->drive=atoi(value);
@@ -356,20 +340,51 @@ void transmitter_restore_state(TRANSMITTER *tx) {
   if(value) tx->xit=atoll(value);
 }
 
+static double compute_power(double p) {
+  double interval=10.0;
+  switch(pa_power) {
+    case PA_1W:
+      interval=100.0; // mW
+      break;
+    case PA_10W:
+      interval=1.0; // W
+      break;
+    case PA_30W:
+      interval=3.0; // W
+      break;
+    case PA_50W:
+      interval=5.0; // W
+      break;
+    case PA_100W:
+      interval=10.0; // W
+      break;
+    case PA_200W:
+      interval=20.0; // W
+      break;
+    case PA_500W:
+      interval=50.0; // W
+      break;
+  }
+  int i=0;
+  if(p>(double)pa_trim[10]) {
+    i=9;
+  } else {
+    while(p>(double)pa_trim[i]) {
+      i++;
+    }
+    if(i>0) i--;
+  }
+
+  double frac = (p - (double)pa_trim[i]) / ((double)pa_trim[i + 1] - (double)pa_trim[i]);
+  return interval * ((1.0 - frac) * (double)i + frac * (double)(i + 1));
+}
+
 static gboolean update_display(gpointer data) {
   TRANSMITTER *tx=(TRANSMITTER *)data;
   int rc;
 
 //fprintf(stderr,"update_display: tx id=%d\n",tx->id);
   if(tx->displaying) {
-#ifdef AUDIO_SAMPLES
-    if(audio_samples!=NULL) {
-      GetPixels(CHANNEL_AUDIO,0,audio_samples,&rc);
-      if(rc) {
-        audio_waterfall_update();
-      }
-    }
-#endif
     // if "MON" button is active (tx->feedback is TRUE),
     // then obtain spectrum pixels from PS_RX_FEEDBACK,
     // that is, display the (attenuated) TX signal from the "antenna"
@@ -408,10 +423,20 @@ static gboolean update_display(gpointer data) {
     transmitter->alc=GetTXAMeter(tx->id, alc);
     double constant1=3.3;
     double constant2=0.095;
+    int fwd_cal_offset=6;
 
-    int power;
+    int fwd_power;
+    int rev_power;
+    int ex_power;
     double v1;
 
+    fwd_power=alex_forward_power;
+    rev_power=alex_reverse_power;
+    if(device==DEVICE_HERMES_LITE || device==DEVICE_HERMES_LITE2) {
+      ex_power=0;
+    } else {
+      ex_power=exciter_power;
+    }
     switch(protocol) {
       case ORIGINAL_PROTOCOL:
         switch(device) {
@@ -431,31 +456,44 @@ static gboolean update_display(gpointer data) {
           case DEVICE_ORION:
             constant1=5.0;
             constant2=0.108;
+            fwd_cal_offset=4;
             break;
           case DEVICE_ORION2:
             constant1=5.0;
-            constant2=0.108;
+            constant2=0.08;
+            fwd_cal_offset=18;
             break;
           case DEVICE_HERMES_LITE:
           case DEVICE_HERMES_LITE2:
+            // possible reversed depending polarity of current sense transformer
+            if(rev_power>fwd_power) {
+              fwd_power=alex_reverse_power;
+              rev_power=alex_forward_power;
+            }
+            constant1=3.3;
+            constant2=1.4;
+            fwd_cal_offset=6;
             break;
         }
 
-        power=alex_forward_power;
-        if(power==0) {
-          power=exciter_power;
+        if(fwd_power==0) {
+          fwd_power=ex_power;
         }
-        v1=((double)power/4095.0)*constant1;
+        fwd_power=fwd_power-fwd_cal_offset;
+        v1=((double)fwd_power/4095.0)*constant1;
         transmitter->fwd=(v1*v1)/constant2;
 
-        power=exciter_power;
-        v1=((double)power/4095.0)*constant1;
-        transmitter->exciter=(v1*v1)/constant2;
+        if(device==DEVICE_HERMES_LITE || device==DEVICE_HERMES_LITE2) {
+          transmitter->exciter=0.0;
+        } else {
+          ex_power=ex_power-fwd_cal_offset;
+          v1=((double)ex_power/4095.0)*constant1;
+          transmitter->exciter=(v1*v1)/constant2;
+        }
 
         transmitter->rev=0.0;
-        if(alex_forward_power!=0) {
-          power=alex_reverse_power;
-          v1=((double)power/4095.0)*constant1;
+        if(fwd_power!=0) {
+          v1=((double)rev_power/4095.0)*constant1;
           transmitter->rev=(v1*v1)/constant2;
         }
         break;
@@ -480,10 +518,12 @@ static gboolean update_display(gpointer data) {
           case NEW_DEVICE_ORION:
             constant1=5.0;
             constant2=0.108;
+            fwd_cal_offset=4;
             break;
           case NEW_DEVICE_ORION2:
             constant1=5.0;
-            constant2=0.108;
+            constant2=0.08;
+            fwd_cal_offset=18;
             break;
           case NEW_DEVICE_HERMES_LITE:
           case NEW_DEVICE_HERMES_LITE2:
@@ -492,21 +532,23 @@ static gboolean update_display(gpointer data) {
             break;
         }
 
-        power=alex_forward_power;
-        if(power==0) {
-          power=exciter_power;
+        fwd_power=alex_forward_power;
+        if(fwd_power==0) {
+          fwd_power=exciter_power;
         }
-        v1=((double)power/4095.0)*constant1;
+        fwd_power=fwd_power-fwd_cal_offset;
+        v1=((double)fwd_power/4095.0)*constant1;
         transmitter->fwd=(v1*v1)/constant2;
 
-        power=exciter_power;
-        v1=((double)power/4095.0)*constant1;
+        ex_power=exciter_power;
+        ex_power=ex_power-fwd_cal_offset;
+        v1=((double)ex_power/4095.0)*constant1;
         transmitter->exciter=(v1*v1)/constant2;
 
         transmitter->rev=0.0;
         if(alex_forward_power!=0) {
-          power=alex_reverse_power;
-          v1=((double)power/4095.0)*constant1;
+          rev_power=alex_reverse_power;
+          v1=((double)rev_power/4095.0)*constant1;
           transmitter->rev=(v1*v1)/constant2;
         }
         break;
@@ -520,8 +562,12 @@ static gboolean update_display(gpointer data) {
 #endif
     }
 
+    double fwd=compute_power(transmitter->fwd);
+
+//g_print("transmitter: meter_update: fwd:%f->%f rev:%f ex_fwd=%d alex_fwd=%d alex_rev=%d\n",transmitter->fwd,fwd,transmitter->rev,exciter_power,alex_forward_power,alex_reverse_power);
+
     if(!duplex) {
-      meter_update(active_receiver,POWER,transmitter->fwd,transmitter->rev,transmitter->exciter,transmitter->alc);
+      meter_update(active_receiver,POWER,/*transmitter->*/fwd,transmitter->rev,transmitter->exciter,transmitter->alc);
     }
 
     return TRUE; // keep going
@@ -582,7 +628,6 @@ static void init_analyzer(TRANSMITTER *tx) {
    //
    SetDisplayDetectorMode(tx->id, 0, DETECTOR_MODE_PEAK);
    SetDisplayAverageMode(tx->id, 0,  AVERAGE_MODE_NONE);
-
 
 }
 
@@ -666,6 +711,7 @@ TRANSMITTER *create_transmitter(int id, int buffer_size, int fft_size, int fps, 
 
   tx->panadapter_high=0;
   tx->panadapter_low=-60;
+  tx->panadapter_step=10;
 
   tx->displaying=0;
   
@@ -693,11 +739,6 @@ fprintf(stderr,"create_transmitter: id=%d buffer_size=%d mic_sample_rate=%d mic_
 
   tx->deviation=2500;
   tx->am_carrier_level=0.5;
-
-#ifdef FREEDV
-  strcpy(tx->freedv_text_data,"Call, Name and Location");
-  tx->freedv_samples=0;
-#endif
 
   tx->drive=50;
   tx->tune_percent=10;
@@ -1244,32 +1285,6 @@ void add_ps_iq_samples(TRANSMITTER *tx, double i_sample_tx,double q_sample_tx, d
   }
 #endif
 }
-
-#ifdef FREEDV
-void add_freedv_mic_sample(TRANSMITTER *tx, float mic_sample) {
-  int i,s;
-
-  //if(active_receiver->freedv && isTransmitting() && !tune) {
-  if(!tune) {
-    if(tx->freedv_samples==0) {
-      //int modem_samples=mod_sample_freedv(mic_sample);
-      short vs=(short)((double)mic_sample*pow(10.0, mic_gain / 20.0));
-      int modem_samples=mod_sample_freedv(vs);
-      if(modem_samples!=0) {
-        for(s=0;s<modem_samples;s++) {
-          for(i=0;i<freedv_resample;i++) { // 8K to 48K
-            add_mic_sample(tx,mod_out[s]);
-          }
-        }
-      }
-    }
-    tx->freedv_samples++;
-    if(tx->freedv_samples>=freedv_resample) {
-      tx->freedv_samples=0;
-    }
-  }
-}
-#endif
 
 void tx_set_displaying(TRANSMITTER *tx,int state) {
   tx->displaying=state;

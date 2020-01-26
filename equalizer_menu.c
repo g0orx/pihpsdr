@@ -167,19 +167,24 @@ void equalizer_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),enable_b,0,1,1,1);
 
 
-  GtkWidget *label=gtk_label_new("Preamp");
+  GtkWidget *label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(label), "<b>Preamp</b>");
   gtk_grid_attach(GTK_GRID(grid),label,0,2,1,2);
 
-  label=gtk_label_new("Low");
+  label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(label), "<b>Low</b>");
   gtk_grid_attach(GTK_GRID(grid),label,0,4,1,2);
 
-  label=gtk_label_new("Mid");
+  label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(label), "<b>Mid</b>");
   gtk_grid_attach(GTK_GRID(grid),label,0,6,1,2);
 
-  label=gtk_label_new("High");
+  label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(label), "<b>High</b>");
   gtk_grid_attach(GTK_GRID(grid),label,0,8,1,2);
 
   preamp_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-12.0,15.0,1.0);
+  gtk_range_set_increments (GTK_RANGE(preamp_scale),1.0,1.0);
   if(can_transmit) {
     gtk_range_set_value(GTK_RANGE(preamp_scale),(double)tx_equalizer[0]);
   } else {
@@ -199,6 +204,7 @@ void equalizer_menu(GtkWidget *parent) {
   gtk_scale_add_mark(GTK_SCALE(preamp_scale),15.0,GTK_POS_LEFT,"15dB");
 
   low_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-12.0,15.0,1.0);
+  gtk_range_set_increments (GTK_RANGE(low_scale),1.0,1.0);
   if(can_transmit) {
     gtk_range_set_value(GTK_RANGE(low_scale),(double)tx_equalizer[1]);
   } else {
@@ -218,6 +224,7 @@ void equalizer_menu(GtkWidget *parent) {
   gtk_scale_add_mark(GTK_SCALE(low_scale),15.0,GTK_POS_LEFT,"15dB");
 
   mid_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-12.0,15.0,1.0);
+  gtk_range_set_increments (GTK_RANGE(mid_scale),1.0,1.0);
   if(can_transmit) {
     gtk_range_set_value(GTK_RANGE(mid_scale),(double)tx_equalizer[2]);
   } else {
@@ -237,6 +244,7 @@ void equalizer_menu(GtkWidget *parent) {
   gtk_scale_add_mark(GTK_SCALE(mid_scale),15.0,GTK_POS_LEFT,"15dB");
 
   high_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-12.0,15.0,1.0);
+  gtk_range_set_increments (GTK_RANGE(high_scale),1.0,1.0);
   if(can_transmit) {
     gtk_range_set_value(GTK_RANGE(high_scale),(double)tx_equalizer[3]);
   } else {

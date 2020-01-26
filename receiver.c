@@ -48,21 +48,12 @@
 #ifdef SOAPYSDR
 #include "soapy_protocol.h"
 #endif
-#ifdef FREEDV
-#include "freedv.h"
-#endif
-#include "audio_waterfall.h"
 #include "ext.h"
 #include "new_menu.h"
 
 
 #define min(x,y) (x<y?x:y)
 #define max(x,y) (x<y?y:x)
-
-#ifdef PSK
-static int psk_samples=0;
-static int psk_resample=6;  // convert from 48000 to 8000
-#endif
 
 static gint last_x;
 static gboolean has_moved=FALSE;
@@ -104,6 +95,8 @@ gboolean receiver_button_release_event(GtkWidget *widget, GdkEventButton *event,
     if(event->button==3) {
       g_idle_add(ext_start_rx,NULL);
     }
+
+    g_print("receiver: %d adc=%d attenuation=%d rx_gain_calibration=%d\n",rx->id,rx->adc,adc_attenuation[rx->adc],rx_gain_calibration);
   } else {
     //int display_width=gtk_widget_get_allocated_width (rx->panadapter);
     //int display_height=gtk_widget_get_allocated_height (rx->panadapter);
@@ -315,11 +308,6 @@ void receiver_save_state(RECEIVER *rx) {
   sprintf(value,"%f",rx->squelch);
   setProperty(name,value);
 
-#ifdef FREEDV
-  sprintf(name,"receiver.%d.freedv",rx->id);
-  sprintf(value,"%d",rx->freedv);
-  setProperty(name,value);
-#endif
 }
 
 void receiver_restore_state(RECEIVER *rx) {
@@ -500,11 +488,6 @@ fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
   value=getProperty(name);
   if(value) rx->squelch=atof(value);
 
-#ifdef FREEDV
-  sprintf(name,"receiver.%d.freedv",rx->id);
-  value=getProperty(name);
-  if(value) rx->freedv=atoi(value);
-#endif
 }
 
 void reconfigure_receiver(RECEIVER *rx,int height) {
@@ -574,31 +557,12 @@ static gint update_display(gpointer data) {
     GetPixels(rx->id,0,rx->pixel_samples,&rc);
     if(rc) {
       if(rx->display_panadapter) {
-        switch(vfo[rx->id].mode) {
-#ifdef PSK
-          case modePSK:
-            psk_waterfall_update(rx);
-            break;
-#endif
-          default:
-            rx_panadapter_update(rx);
-            break;
-        }
+        rx_panadapter_update(rx);
       }
       if(rx->display_waterfall) {
         waterfall_update(rx);
       }
     }
-
-#ifdef AUDIO_SAMPLES
-    if(audio_samples!=NULL) {
-      GetPixels(CHANNEL_AUDIO,0,audio_samples,&rc);
-      if(rc) {
-        //audio_waterfall_update();
-      }
-    }
-#endif
-
 
     if(active_receiver==rx) {
       double m=GetRXAMeter(rx->id,smeter)+meter_calibration;
@@ -619,15 +583,6 @@ void set_displaying(RECEIVER *rx,int state) {
 }
 
 void set_mode(RECEIVER *rx,int m) {
-#ifdef PSK
-  if(vfo[rx->id].mode!=modePSK && m==modePSK) {
-    //init_psk();
-    show_psk();
-  } else if(vfo[rx->id].mode==modePSK && m!=modePSK) {
-    //close_psk();
-    show_waterfall();
-  }
-#endif
   vfo[rx->id].mode=m;
   SetRXAMode(rx->id, vfo[rx->id].mode);
 }
@@ -1034,13 +989,6 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
 
   rx->filter_high=525;
   rx->filter_low=275;
-#ifdef FREEDV
-  g_mutex_init(&rx->freedv_mutex);
-  rx->freedv=0;
-  rx->freedv_samples=0;
-  strcpy(rx->freedv_text_data,"");
-  rx->freedv_text_index=0;
-#endif
 
   rx->deviation=2500;
 
@@ -1113,15 +1061,7 @@ fprintf(stderr,"RXASetMP %d\n",rx->low_latency);
 
   SetRXAPanelGain1(rx->id, rx->volume);
   SetRXAPanelBinaural(rx->id, binaural);
-#ifdef FREEDV
-  if(rx->freedv) {
-    SetRXAPanelRun(rx->id, 0);
-  } else {
-#endif
-    SetRXAPanelRun(rx->id, 1);
-#ifdef FREEDV
-  }
-#endif
+  SetRXAPanelRun(rx->id, 1);
 
   if(enable_rx_equalizer) {
     SetRXAGrphEQ(rx->id, rx_equalizer);
@@ -1144,12 +1084,6 @@ fprintf(stderr,"RXASetMP %d\n",rx->low_latency);
   SetDisplayDetectorMode(rx->id, 0, display_detector_mode);
   SetDisplayAverageMode(rx->id, 0,  display_average_mode);
    
-#ifdef FREEDV
-  if(rx->freedv) {
-    init_freedv(rx);
-  }
-#endif
-
   calculate_display_average(rx);
 
   create_visual(rx);
@@ -1215,6 +1149,7 @@ g_print("receiver_change_sample_rate: id=%d rate=%d scale=%d buffer_size=%d outp
   if(protocol==SOAPYSDR_PROTOCOL) {
     rx->resample_step=radio_sample_rate/rx->sample_rate;
 g_print("receiver_change_sample_rate: resample_step=%d\n",rx->resample_step);
+    soapy_protocol_set_mic_sample_rate(rx->sample_rate);
   }
 #endif
 
@@ -1289,78 +1224,6 @@ void receiver_vfo_changed(RECEIVER *rx) {
   //receiver_filter_changed(rx);
 }
 
-#ifdef FREEDV
-static void process_freedv_rx_buffer(RECEIVER *rx) {
-  short left_audio_sample;
-  short right_audio_sample;
-  int i;
-  int demod_samples;
-  for(i=0;i<rx->output_samples;i++) {
-    if(rx->freedv_samples==0) {
-      if(isTransmitting()) {
-        left_audio_sample=0;
-        right_audio_sample=0;
-      } else {
-        left_audio_sample=(short)(rx->audio_output_buffer[i*2]*32767.0);
-        right_audio_sample=(short)(rx->audio_output_buffer[(i*2)+1]*32767.0);
-      }
-      demod_samples=demod_sample_freedv((left_audio_sample+right_audio_sample)/2);
-      if(demod_samples!=0) {
-        int s;
-        int t;
-        for(s=0;s<demod_samples;s++) {
-          if(freedv_sync) {
-            left_audio_sample=right_audio_sample=(short)((double)speech_out[s]*rx->volume);
-          } else {
-            left_audio_sample=right_audio_sample=(short)((double)speech_out[s]*rx->volume);
-            //left_audio_sample=right_audio_sample=0;
-          }
-          for(t=0;t<freedv_resample;t++) { // 8k to 48k
-
-            if(rx->local_audio) {
-              if(rx!=active_receiver && rx->mute_when_not_active) {
-                audio_write(rx,0,0);
-              } else {
-                switch(rx->audio_channel) {
-                  case STEREO:
-                    audio_write(rx,left_audio_sample,right_audio_sample);
-                    break;
-                  case LEFT:
-                    audio_write(rx,left_audio_sample,0);
-                    break;
-                  case RIGHT:
-                    audio_write(rx,0,right_audio_sample);
-                    break;
-                }
-              }
-            }
-
-            if(rx==active_receiver) {
-              switch(protocol) {
-                case ORIGINAL_PROTOCOL:
-                  old_protocol_audio_samples(rx,left_audio_sample,right_audio_sample);
-                  break;
-                case NEW_PROTOCOL:
-                  new_protocol_audio_samples(rx,left_audio_sample,right_audio_sample);
-                  break;
-#ifdef SOAPYSDR
-                case SOAPYSDR_PROTOCOL:
-                  break;
-#endif
-              }
-            }
-          }
-        }
-      }
-    }
-    rx->freedv_samples++;
-    if(rx->freedv_samples>=freedv_resample) {
-      rx->freedv_samples=0;
-    }
-  }
-}
-#endif
-
 static void process_rx_buffer(RECEIVER *rx) {
   gdouble left_sample,right_sample;
   short left_audio_sample,right_audio_sample;
@@ -1376,17 +1239,6 @@ static void process_rx_buffer(RECEIVER *rx) {
       right_sample=rx->audio_output_buffer[(i*2)+1];
       left_audio_sample=(short)(left_sample*32767.0);
       right_audio_sample=(short)(right_sample*32767.0);
-#ifdef PSK
-      if(vfo[rx->id].mode==modePSK) {
-        if(psk_samples==0) {
-          psk_demod((double)((left_audio_sample+right_audio_sample)/2));
-        }
-        psk_samples++;
-        if(psk_samples==psk_resample) {
-          psk_samples=0;
-        }
-      }
-#endif
     }
 
     if(rx->local_audio) {
@@ -1475,18 +1327,8 @@ void full_rx_buffer(RECEIVER *rx) {
     Spectrum0(1, rx->id, 0, 0, rx->iq_input_buffer);
   }
 
-#ifdef FREEDV
-  g_mutex_lock(&rx->freedv_mutex);
-  if(rx->freedv) {
-    process_freedv_rx_buffer(rx);
-  } else {
-#endif
 //g_print("full_rx_buffer: rx=%d buffer_size=%d samples=%d\n",rx->id,rx->buffer_size,rx->samples);
-    process_rx_buffer(rx);
-#ifdef FREEDV
-  }
-  g_mutex_unlock(&rx->freedv_mutex);
-#endif
+  process_rx_buffer(rx);
   g_mutex_unlock(&rx->mutex);
 }
 
