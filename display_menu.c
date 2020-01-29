@@ -171,7 +171,8 @@ void display_menu(GtkWidget *parent) {
   row++;
   col=0;
 
-  GtkWidget *frames_per_second_label=gtk_label_new("Frames Per Second: ");
+  GtkWidget *frames_per_second_label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(frames_per_second_label), "<b>Frames Per Second:</b>");
   //gtk_widget_override_font(frames_per_second_label, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(frames_per_second_label);
   gtk_grid_attach(GTK_GRID(grid),frames_per_second_label,col,row,1,1);
@@ -188,7 +189,8 @@ void display_menu(GtkWidget *parent) {
   row++;
   col=0;
 
-  GtkWidget *panadapter_high_label=gtk_label_new("Panadapter High: ");
+  GtkWidget *panadapter_high_label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(panadapter_high_label), "<b>Panadapter High: </b>");
   //gtk_widget_override_font(panadapter_high_label, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(panadapter_high_label);
   gtk_grid_attach(GTK_GRID(grid),panadapter_high_label,col,row,1,1);
@@ -205,7 +207,8 @@ void display_menu(GtkWidget *parent) {
   row++;
   col=0;
 
-  GtkWidget *panadapter_low_label=gtk_label_new("Panadapter Low: ");
+  GtkWidget *panadapter_low_label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(panadapter_low_label), "<b>Panadapter Low: </b>");
   //gtk_widget_override_font(panadapter_low_label, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(panadapter_low_label);
   gtk_grid_attach(GTK_GRID(grid),panadapter_low_label,col,row,1,1);
@@ -222,7 +225,8 @@ void display_menu(GtkWidget *parent) {
   row++;
   col=0;
 
-  GtkWidget *panadapter_step_label=gtk_label_new("Panadapter Step: ");
+  GtkWidget *panadapter_step_label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(panadapter_step_label), "<b>Panadapter Step: </b>");
   //gtk_widget_override_font(panadapter_step_label, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(panadapter_step_label);
   gtk_grid_attach(GTK_GRID(grid),panadapter_step_label,col,row,1,1);
@@ -239,7 +243,8 @@ void display_menu(GtkWidget *parent) {
   row++;
   col=0;
 
-  GtkWidget *waterfall_automatic_label=gtk_label_new("Waterfall Automatic: ");
+  GtkWidget *waterfall_automatic_label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(waterfall_automatic_label), "<b>Waterfall Automatic: </b>");
   //gtk_widget_override_font(waterfall_automatic_label, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(waterfall_automatic_label);
   gtk_grid_attach(GTK_GRID(grid),waterfall_automatic_label,col,row,1,1);
@@ -256,7 +261,8 @@ void display_menu(GtkWidget *parent) {
   row++;
   col=0;
 
-  GtkWidget *waterfall_high_label=gtk_label_new("Waterfall High: ");
+  GtkWidget *waterfall_high_label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(waterfall_high_label), "<b>Waterfall High: </b>");
   //gtk_widget_override_font(waterfall_high_label, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(waterfall_high_label);
   gtk_grid_attach(GTK_GRID(grid),waterfall_high_label,col,row,1,1);
@@ -273,7 +279,8 @@ void display_menu(GtkWidget *parent) {
   row++;
   col=0;
 
-  GtkWidget *waterfall_low_label=gtk_label_new("Waterfall Low: ");
+  GtkWidget *waterfall_low_label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(waterfall_low_label), "<b>Waterfall Low: </b>");
   //gtk_widget_override_font(waterfall_low_label, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(waterfall_low_label);
   gtk_grid_attach(GTK_GRID(grid),waterfall_low_label,col,row,1,1);
@@ -290,7 +297,8 @@ void display_menu(GtkWidget *parent) {
   col=2;
   row=1;
 
-  GtkWidget *detector_mode_label=gtk_label_new("Detector: ");
+  GtkWidget *detector_mode_label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(detector_mode_label), "<b>Detector:</b>");
   //gtk_widget_override_font(detector_mode_label, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(detector_mode_label);
   gtk_grid_attach(GTK_GRID(grid),detector_mode_label,col,row,1,1);
@@ -332,6 +340,7 @@ void display_menu(GtkWidget *parent) {
   row=1;
 
   GtkWidget *average_mode_label=gtk_label_new("Averaging: ");
+  gtk_label_set_markup(GTK_LABEL(average_mode_label), "<b>Averaging:</b>");
   //gtk_widget_override_font(average_mode_label, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(average_mode_label);
   gtk_grid_attach(GTK_GRID(grid),average_mode_label,col,row,1,1);

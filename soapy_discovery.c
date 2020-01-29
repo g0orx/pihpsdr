@@ -252,6 +252,7 @@ void soapy_discovery() {
   SoapySDRKwargs args={};
 
 fprintf(stderr,"soapy_discovery\n");
+  rtlsdr_count=0;
   SoapySDRKwargs *results = SoapySDRDevice_enumerate(NULL, &length);
 fprintf(stderr,"soapy_discovery: length=%d\n",length);
   for (i = 0; i < length; i++) {

@@ -5,15 +5,6 @@ GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 # uncomment the line below to include GPIO (For original piHPSDR Controller and Controller2)
 GPIO_INCLUDE=GPIO
 
-# uncomment the line below to include MCP23017 I2C (required for Controller2)
-#I2C_INCLUDE=I2C
-
-# uncomment the line below to include CONTROLLER2_V1 (single encoders) (Also uncomment GPIO and I2C)
-#CONTROLLER2_V1_INCLUDE=CONTROLLER2_V1
-
-# uncomment the line below to include CONTROLLER2_V2 (dual encoders) (Also uncomment GPIO and I2C)
-#CONTROLLER2_V2_INCLUDE=CONTROLLER2_V2
-
 # uncomment the line below to include USB Ozy support
 # USBOZY_INCLUDE=USBOZY
 
@@ -21,16 +12,10 @@ GPIO_INCLUDE=GPIO
 PURESIGNAL_INCLUDE=PURESIGNAL
 
 # uncomment the line to below include support local CW keyer
-LOCALCW_INCLUDE=LOCALCW
+#LOCALCW_INCLUDE=LOCALCW
 
 # uncomment the line below for SoapySDR
-#SOAPYSDR_INCLUDE=SOAPYSDR
-
-# uncomment the line below to include support for psk31
-#PSK_INCLUDE=PSK
-
-# uncomment the line to below include support for FreeDV codec2
-#FREEDV_INCLUDE=FREEDV
+SOAPYSDR_INCLUDE=SOAPYSDR
 
 # uncomment the line to below include support for sx1509 i2c expander
 #SX1509_INCLUDE=sx1509
@@ -39,7 +24,7 @@ LOCALCW_INCLUDE=LOCALCW
 #STEMLAB_DISCOVERY=STEMLAB_DISCOVERY
 
 # uncomment the line below to include support for STEMlab discovery (WITHOUT AVAHI)
-# STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_NOAVAHI
+#STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_NOAVAHI
 
 # uncomment the line below to include MIDI support
 MIDI_INCLUDE=MIDI
@@ -49,13 +34,6 @@ MIDI_INCLUDE=MIDI
 
 CC=gcc
 LINK=gcc
-
-ifeq ($(CONTROLLER2_V2_INCLUDE),CONTROLLER2_V2)
-CONTROLLER2_OPTIONS=-D CONTROLLER2_V2
-endif
-ifeq ($(CONTROLLER2_V1_INCLUDE),CONTROLLER2_V1)
-CONTROLLER2_OPTIONS=-D CONTROLLER2_V1
-endif
 
 ifeq ($(MIDI_INCLUDE),MIDI)
 MIDI_OPTIONS=-D MIDI
@@ -115,35 +93,6 @@ soapy_protocol.o
 endif
 
 
-ifeq ($(PSK_INCLUDE),PSK)
-PSK_OPTIONS=-D PSK
-PSKLIBS=-lpsk
-PSK_SOURCES= \
-psk.c \
-psk_waterfall.c
-PSK_HEADERS= \
-psk.h \
-psk_waterfall.h
-PSK_OBJS= \
-psk.o \
-psk_waterfall.o
-endif
-
-
-ifeq ($(FREEDV_INCLUDE),FREEDV)
-FREEDV_OPTIONS=-D FREEDV
-FREEDVLIBS=-lcodec2
-FREEDV_SOURCES= \
-freedv.c \
-freedv_menu.c
-FREEDV_HEADERS= \
-freedv.h \
-freedv_menu.h
-FREEDV_OBJS= \
-freedv.o \
-freedv_menu.o
-endif
-
 ifeq ($(LOCALCW_INCLUDE),LOCALCW)
 LOCALCW_OPTIONS=-D LOCALCW
 LOCALCW_SOURCES= iambic.c
@@ -153,27 +102,25 @@ endif
 
 ifeq ($(GPIO_INCLUDE),GPIO)
   GPIO_OPTIONS=-D GPIO
-  GPIO_LIBS=-lwiringPi
+  GPIO_LIBS=-lwiringPi -li2c
   GPIO_SOURCES= \
+  i2c.c \
+  gpio_menu.c \
   gpio.c \
   encoder_menu.c \
   switch_menu.c
   GPIO_HEADERS= \
+  i2c.h \
+  gpio_menu.h \
   gpio.h \
   encoder_menu.h \
   switch_menu.h
   GPIO_OBJS= \
+  i2c.o \
+  gpio_menu.o \
   gpio.o \
   encoder_menu.o \
   switch_menu.o
-endif
-
-ifeq ($(I2C_INCLUDE),I2C)
-  I2C_OPTIONS=-D I2C
-  I2C_LIBS=-li2c
-  I2C_SOURCES=i2c.c
-  I2C_HEADERS=i2c.h
-  I2C_OBJS=i2c.o
 endif
 
 #
@@ -208,11 +155,11 @@ AUDIO_LIBS=-lasound
 
 CFLAGS=	-g -Wno-deprecated-declarations -O3
 OPTIONS=$(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) \
-	$(I2C_OPTIONS) $(GPIO_OPTIONS) $(SOAPYSDR_OPTIONS) $(FREEDV_OPTIONS) $(LOCALCW_OPTIONS) \
-	$(PSK_OPTIONS) $(STEMLAB_OPTIONS) $(CONTROLLER2_OPTIONS) \
+	$(GPIO_OPTIONS) $(SOAPYSDR_OPTIONS) $(LOCALCW_OPTIONS) \
+	$(STEMLAB_OPTIONS) \
 	-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION)
 
-LIBS=-lrt -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(PSKLIBS) $(GTKLIBS) $(GPIO_LIBS) $(I2C_LIBS) $(SOAPYSDRLIBS) $(FREEDVLIBS) $(STEMLAB_LIBS) $(MIDI_LIBS)
+LIBS=-lrt -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(STEMLAB_LIBS) $(MIDI_LIBS)
 INCLUDES=$(GTKINCLUDES)
 
 COMPILE=$(CC) $(CFLAGS) $(OPTIONS) $(INCLUDES)
@@ -224,10 +171,7 @@ PROGRAM=pihpsdr
 
 SOURCES= \
 audio.c \
-audio_waterfall.c \
 band.c \
-configure.c \
-frequency.c \
 discovered.c \
 discovery.c \
 filter.c \
@@ -293,12 +237,9 @@ cwramp.c
 
 HEADERS= \
 audio.h \
-audio_waterfall.h \
 agc.h \
 alex.h \
 band.h \
-configure.h \
-frequency.h \
 bandstack.h \
 channel.h \
 discovered.h \
@@ -363,10 +304,7 @@ error_handler.h
 
 OBJS= \
 audio.o \
-audio_waterfall.o \
 band.o \
-configure.o \
-frequency.o \
 discovered.o \
 discovery.o \
 filter.o \
@@ -429,19 +367,19 @@ ext.o \
 error_handler.o \
 cwramp.o
 
-$(PROGRAM):  $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) $(FREEDV_OBJS) \
-		$(LOCALCW_OBJS) $(I2C_OBJS) $(GPIO_OBJS) $(PSK_OBJS) $(PURESIGNAL_OBJS) \
+$(PROGRAM):  $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) \
+		$(LOCALCW_OBJS) $(GPIO_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS)
-	$(LINK) -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(I2C_OBJS) $(GPIO_OBJS) \
-		$(SOAPYSDR_OBJS) $(FREEDV_OBJS) $(LOCALCW_OBJS) $(PSK_OBJS) $(PURESIGNAL_OBJS) \
+	$(LINK) -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(GPIO_OBJS) \
+		$(SOAPYSDR_OBJS) $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(LIBS)
 
 .PHONY:	all
 all:	prebuild  $(PROGRAM) $(HEADERS) $(REMOTE_HEADERS) $(USBOZY_HEADERS) $(SOAPYSDR_HEADERS) \
-	$(FREEDV_HEADERS) $(LOCALCW_HEADERS) $(I2C_HEADERS) $(GPIO_HEADERS) $(PSK_HEADERS) \
+	$(LOCALCW_HEADERS) $(GPIO_HEADERS) \
 	$(PURESIGNAL_HEADERS) $(MIDI_HEADERS) $(STEMLAB_HEADERS) $(SOURCES) $(REMOTE_SOURCES) \
-	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(FREEDV_SOURCES) $(I2C_SOURCES) $(GPIO_SOURCES) \
-	$(PSK_SOURCES) $(PURESIGNAL_SOURCES) $(MIDI_SOURCES) $(LOCALCW_SOURCES) $(STEMLAB_SOURCES)
+	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(GPIO_SOURCES) \
+	$(PURESIGNAL_SOURCES) $(MIDI_SOURCES) $(LOCALCW_SOURCES) $(STEMLAB_SOURCES)
 
 .PHONY:	prebuild
 prebuild:
@@ -459,8 +397,8 @@ CPPINCLUDES:=$(shell echo $(INCLUDES) | sed -e "s/-pthread / /" )
 .PHONY:	cppcheck
 cppcheck:
 	cppcheck $(CPPOPTIONS) $(OPTIONS) $(CPPINCLUDES) $(SOURCES) $(REMOTE_SOURCES) \
-	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(FREEDV_SOURCES) $(I2C_SOURCES) $(GPIO_SOURCES) \
-	$(PSK_SOURCES) $(PURESIGNAL_SOURCES) $(MIDI_SOURCES) $(STEMLAB_SOURCES) $(LOCALCW_SOURCES)
+	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(GPIO_SOURCES) \
+	$(PURESIGNAL_SOURCES) $(MIDI_SOURCES) $(STEMLAB_SOURCES) $(LOCALCW_SOURCES)
 
 .PHONY:	clean
 clean:
@@ -515,3 +453,13 @@ newhpsdrsim.o:	newhpsdrsim.c hpsdrsim.h
 
 hpsdrsim:	hpsdrsim.o newhpsdrsim.o
 	$(LINK) -o hpsdrsim hpsdrsim.o newhpsdrsim.o -lasound -lm -lpthread
+
+
+debian:
+	cp $(PROGRAM) pkg/pihpsdr/usr/local/bin
+	cp /usr/local/lib/libwdsp.so pkg/pihpsdr/usr/local/lib
+	cp release/pihpsdr/hpsdr.png pkg/pihpsdr/usr/share/pihpsdr
+	cp release/pihpsdr/hpsdr_icon.png pkg/pihpsdr/usr/share/pihpsdr
+	cp release/pihpsdr/pihpsdr.desktop pkg/pihpsdr/usr/share/applications
+	cd pkg; dpkg-deb --build pihpsdr
+

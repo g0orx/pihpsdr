@@ -40,6 +40,7 @@ extern void set_drive(double drive);
 //extern void set_tune(double tune);
 extern void set_attenuation_value(double attenuation);
 extern void set_filter_width(int rx,int width);
+extern void set_filter_shift(int rx,int width);
 extern GtkWidget *sliders_init(int my_width, int my_height);
 
 extern void sliders_update();

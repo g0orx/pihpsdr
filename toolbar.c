@@ -29,7 +29,6 @@
 #include "toolbar.h"
 #include "mode.h"
 #include "filter.h"
-#include "frequency.h"
 #include "bandstack.h"
 #include "band.h"
 #include "discovered.h"
@@ -276,7 +275,7 @@ static void aswapb_cb (GtkWidget *widget, gpointer data) {
 }
 
 static void split_cb (GtkWidget *widget, gpointer data) {
-  g_idle_add(ext_split_toggle, NULL);
+  g_idle_add(ext_split_toggle,NULL);
 }
 
 static void duplex_cb (GtkWidget *widget, gpointer data) {
@@ -440,6 +439,8 @@ static void exit_cb(GtkWidget *widget, gpointer data) {
   g_signal_connect(b_halt,"pressed",G_CALLBACK(halt_cb),NULL);
 
   gtk_container_add(GTK_CONTAINER(content),grid);
+  GtkWidget *close_button=gtk_dialog_add_button(GTK_DIALOG(dialog),"Cancel",GTK_RESPONSE_OK);
+  //gtk_widget_override_font(close_button, pango_font_description_from_string("Arial 18"));
   gtk_widget_show_all(dialog);
 
   g_signal_connect_swapped (dialog,

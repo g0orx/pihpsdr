@@ -97,7 +97,8 @@ void fft_menu(GtkWidget *parent) {
   int row=1;
   int col=0;
 
-  GtkWidget *filter_type_label=gtk_label_new("Filter Type: ");
+  GtkWidget *filter_type_label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(filter_type_label), "<b>Filter Type</b>");
   gtk_grid_attach(GTK_GRID(grid),filter_type_label,col,row,1,1);
   
   row++;

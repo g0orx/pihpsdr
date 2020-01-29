@@ -237,23 +237,23 @@ fprintf(stderr,"xvtr_menu\n");
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
-  GtkWidget *label=gtk_label_new("Title");
+  GtkWidget *label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(label), "<b>Title</b>");
   gtk_grid_attach(GTK_GRID(grid),label,0,1,1,1);
-  label=gtk_label_new("Min Freq(MHz)");
+  label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(label), "<b>Min Freq(MHz)</b>");
   gtk_grid_attach(GTK_GRID(grid),label,1,1,1,1);
-  label=gtk_label_new("Max Freq(MHz)");
+  label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(label), "<b>Max Freq(MHz)</b>");
   gtk_grid_attach(GTK_GRID(grid),label,2,1,1,1);
-  label=gtk_label_new("LO Freq(MHz)");
+  label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(label), "<b>LO Freq(MHz)</b>");
   gtk_grid_attach(GTK_GRID(grid),label,3,1,1,1);
-  label=gtk_label_new("LO Err(Hz)");
+  label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(label), "<b>LO Err(MHz)</b>");
   gtk_grid_attach(GTK_GRID(grid),label,4,1,1,1);
-/*
-  label=gtk_label_new("TX LO Freq(MHz)");
-  gtk_grid_attach(GTK_GRID(grid),label,5,1,1,1);
-  label=gtk_label_new("TX LO Err(Hz)");
-  gtk_grid_attach(GTK_GRID(grid),label,6,1,1,1);
-*/
-  label=gtk_label_new("Disable PA");
+  label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(label), "<b>Disable PA</b>");
   gtk_grid_attach(GTK_GRID(grid),label,7,1,1,1);
 
 
@@ -292,22 +292,6 @@ fprintf(stderr,"xvtr_menu\n");
     gtk_entry_set_text(GTK_ENTRY(lo_error[i]),f);
     gtk_grid_attach(GTK_GRID(grid),lo_error[i],4,i+2,1,1);
     g_signal_connect(lo_error[i],"changed",G_CALLBACK(lo_error_cb),GINT_TO_POINTER(i));
-
-/*
-    tx_lo_frequency[i]=gtk_entry_new();
-    gtk_entry_set_width_chars(GTK_ENTRY(tx_lo_frequency[i]),7);
-    sprintf(f,"%5.3f",(double)xvtr->txFrequencyLO/1000000.0);
-    gtk_entry_set_text(GTK_ENTRY(tx_lo_frequency[i]),f);
-    gtk_grid_attach(GTK_GRID(grid),tx_lo_frequency[i],5,i+2,1,1);
-    g_signal_connect(tx_lo_frequency[i],"changed",G_CALLBACK(tx_lo_frequency_cb),GINT_TO_POINTER(i));
-
-    tx_lo_error[i]=gtk_entry_new();
-    gtk_entry_set_width_chars(GTK_ENTRY(tx_lo_error[i]),9);
-    sprintf(f,"%lld",xvtr->txErrorLO);
-    gtk_entry_set_text(GTK_ENTRY(tx_lo_error[i]),f);
-    gtk_grid_attach(GTK_GRID(grid),tx_lo_error[i],6,i+2,1,1);
-    g_signal_connect(tx_lo_error[i],"changed",G_CALLBACK(tx_lo_error_cb),GINT_TO_POINTER(i));
-*/
 
     disable_pa[i]=gtk_check_button_new();
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(disable_pa[i]),xvtr->disablePA);

@@ -36,9 +36,6 @@
 #include "oc_menu.h"
 #include "cw_menu.h"
 #include "store_menu.h"
-#ifdef FREEDV
-#include "freedv_menu.h"
-#endif
 #include "xvtr_menu.h"
 #include "equalizer_menu.h"
 #include "radio.h"
@@ -56,12 +53,11 @@
 #include "tx_menu.h"
 #include "ps_menu.h"
 #include "encoder_menu.h"
-#if defined (CONTROLLER2_V2) || defined (CONTROLLER2_V1)
 #include "switch_menu.h"
-#endif
 #include "vfo_menu.h"
 #include "fft_menu.h"
 #include "main.h"
+#include "gpio.h"
 
 
 static GtkWidget *menu_b=NULL;
@@ -157,7 +153,6 @@ static gboolean rigctl_cb (GtkWidget *widget, GdkEventButton *event, gpointer da
   return TRUE;
 }
 
-#ifdef GPIO
 static gboolean encoder_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   cleanup();
   fprintf(stderr, "new_menu: calling encoder_menu\n");
@@ -165,15 +160,12 @@ static gboolean encoder_cb (GtkWidget *widget, GdkEventButton *event, gpointer d
   return TRUE;
 }
 
-#if defined (CONTROLLER2_V2) || defined (CONTROLLER2_V1)
 static gboolean switch_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   cleanup();
   fprintf(stderr, "new_menu: calling switch_menu\n");
   switch_menu(top_window);
   return TRUE;
 }
-#endif
-#endif
 
 static gboolean cw_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   cleanup();
@@ -186,14 +178,6 @@ static gboolean oc_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) 
   oc_menu(top_window);
   return TRUE;
 }
-
-#ifdef FREEDV
-static gboolean freedv_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  cleanup();
-  freedv_menu(top_window);
-  return TRUE;
-}
-#endif
 
 static gboolean xvtr_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   cleanup();
@@ -531,13 +515,6 @@ void new_menu()
     gtk_grid_attach(GTK_GRID(grid),oc_b,(i%5),i/5,1,1);
     i++;
 
-#ifdef FREEDV
-    GtkWidget *freedv_b=gtk_button_new_with_label("FreeDV");
-    g_signal_connect (freedv_b, "button-press-event", G_CALLBACK(freedv_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),freedv_b,(i%5),i/5,1,1);
-    i++;
-#endif
-
     GtkWidget *display_b=gtk_button_new_with_label("Display");
     g_signal_connect (display_b, "button-press-event", G_CALLBACK(display_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),display_b,(i%5),i/5,1,1);
@@ -586,12 +563,12 @@ void new_menu()
     gtk_grid_attach(GTK_GRID(grid),encoders_b,(i%5),i/5,1,1);
     i++;
 
-#if defined (CONTROLLER2_V2) || defined (CONTROLLER2_V1)
-    GtkWidget *switches_b=gtk_button_new_with_label("Switches");
-    g_signal_connect (switches_b, "button-press-event", G_CALLBACK(switch_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),switches_b,(i%5),i/5,1,1);
-    i++;
-#endif
+    if(controller==CONTROLLER2_V1 || controller==CONTROLLER2_V2) {
+      GtkWidget *switches_b=gtk_button_new_with_label("Switches");
+      g_signal_connect (switches_b, "button-press-event", G_CALLBACK(switch_cb), NULL);
+      gtk_grid_attach(GTK_GRID(grid),switches_b,(i%5),i/5,1,1);
+      i++;
+    }
 #endif
 
 //

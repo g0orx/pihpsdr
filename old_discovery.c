@@ -515,19 +515,21 @@ void old_discovery() {
 fprintf(stderr,"old_discovery\n");
     getifaddrs(&addrs);
     ifa = addrs;
-
     while (ifa) {
         g_main_context_iteration(NULL, 0);
-        if (ifa->ifa_addr) {
- 	  if(ifa->ifa_addr->sa_family == AF_INET &&
-            (ifa->ifa_flags&IFF_UP)==IFF_UP &&
-            (ifa->ifa_flags&IFF_RUNNING)==IFF_RUNNING) {
-		discover(ifa);
-	  }
+        if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET) {
+            if((ifa->ifa_flags&IFF_UP)==IFF_UP
+                && (ifa->ifa_flags&IFF_RUNNING)==IFF_RUNNING) {
+                //&& (ifa->ifa_flags&IFF_LOOPBACK)!=IFF_LOOPBACK) {
+                discover(ifa);
+            }
         }
         ifa = ifa->ifa_next;
     }
     freeifaddrs(addrs);
+
+    // Do one additional "discover" for a fixed TCP address
+    discover(NULL);
 
     fprintf(stderr, "discovery found %d devices\n",devices);
 

@@ -210,7 +210,8 @@ void rx_menu(GtkWidget *parent) {
   switch(protocol) {
     case NEW_PROTOCOL:
       {
-      GtkWidget *sample_rate_label=gtk_label_new("Sample Rate");
+      GtkWidget *sample_rate_label=gtk_label_new(NULL);
+      gtk_label_set_markup(GTK_LABEL(sample_rate_label), "<b>Sample Rate</b>");
       gtk_grid_attach(GTK_GRID(grid),sample_rate_label,x,1,1,1);
 
       GtkWidget *sample_rate_48=gtk_radio_button_new_with_label(NULL,"48000");
@@ -252,7 +253,8 @@ void rx_menu(GtkWidget *parent) {
     case SOAPYSDR_PROTOCOL:
       {
       int row=1;
-      GtkWidget *sample_rate_label=gtk_label_new("Sample Rate");
+      GtkWidget *sample_rate_label=gtk_label_new(NULL);
+      gtk_label_set_markup(GTK_LABEL(sample_rate_label), "<b>Sample Rate</b>");
       gtk_grid_attach(GTK_GRID(grid),sample_rate_label,x,row,1,1);
       row++;
       
@@ -306,7 +308,8 @@ void rx_menu(GtkWidget *parent) {
       if (filter_board == ALEX && active_receiver->adc == 0
           && ((protocol==ORIGINAL_PROTOCOL && device != DEVICE_ORION2) || (protocol==NEW_PROTOCOL && device != NEW_DEVICE_ORION2))) {
   
-        GtkWidget *alex_att_label=gtk_label_new("Alex Attenuator");
+        GtkWidget *alex_att_label=gtk_label_new(NULL);
+        gtk_label_set_markup(GTK_LABEL(alex_att_label), "<b>Alex Attenuator</b>");
         gtk_grid_attach(GTK_GRID(grid), alex_att_label, x, 5, 1, 1);
         GtkWidget *last_alex_att_b = NULL;
         for (i = 0; i <= 3; i++) {

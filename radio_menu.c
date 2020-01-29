@@ -157,6 +157,10 @@ static void dac0_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
 */
 #endif
 
+static void rx_gain_calibration_value_changed_cb(GtkWidget *widget, gpointer data) {
+  rx_gain_calibration=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+}
+
 static void vfo_divisor_value_changed_cb(GtkWidget *widget, gpointer data) {
   vfo_encoder_divisor=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
 }
@@ -397,7 +401,8 @@ void radio_menu(GtkWidget *parent) {
 
   col++;
 
-  GtkWidget *region_label=gtk_label_new("Region: ");
+  GtkWidget *region_label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(region_label), "<b>Region:</b>");
   gtk_grid_attach(GTK_GRID(grid),region_label,col,row,1,1);
   
   col++;
@@ -416,19 +421,21 @@ void radio_menu(GtkWidget *parent) {
   row++;
   col=0;
 
-  GtkWidget *receivers_label=gtk_label_new("Receivers: ");
+  GtkWidget *receivers_label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(receivers_label), "<b>Receivers:</b>");
+  gtk_label_set_justify(GTK_LABEL(receivers_label),GTK_JUSTIFY_LEFT);
   gtk_grid_attach(GTK_GRID(grid),receivers_label,col,row,1,1);
 
   row++;
   
-             receivers_1=gtk_radio_button_new_with_label(NULL,"1");
+  receivers_1=gtk_radio_button_new_with_label(NULL,"1");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (receivers_1), receivers==1);
   gtk_grid_attach(GTK_GRID(grid),receivers_1,col,row,1,1);
   g_signal_connect(receivers_1,"toggled",G_CALLBACK(receivers_cb),(gpointer *)1);
 
   row++;
 
-             receivers_2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(receivers_1),"2");
+  receivers_2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(receivers_1),"2");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (receivers_2), receivers==2);
   gtk_grid_attach(GTK_GRID(grid),receivers_2,col,row,1,1);
   g_signal_connect(receivers_2,"toggled",G_CALLBACK(receivers_cb),(gpointer *)2);
@@ -441,7 +448,8 @@ void radio_menu(GtkWidget *parent) {
   switch(protocol) {
     case ORIGINAL_PROTOCOL:
       {
-      GtkWidget *sample_rate_label=gtk_label_new("Sample Rate:");
+      GtkWidget *sample_rate_label=gtk_label_new(NULL);
+      gtk_label_set_markup(GTK_LABEL(sample_rate_label), "<b>Sample Rate:</b>");
       gtk_grid_attach(GTK_GRID(grid),sample_rate_label,col,row,1,1);
       row++;
 
@@ -494,7 +502,8 @@ void radio_menu(GtkWidget *parent) {
 #ifdef SOAPYSDR
     case SOAPYSDR_PROTOCOL:
       {
-      GtkWidget *sample_rate_label=gtk_label_new("Sample Rate:");
+      GtkWidget *sample_rate_label=gtk_label_new(NULL);
+      gtk_label_set_markup(GTK_LABEL(sample_rate_label), "<b>Sample Rate:</b>");
       gtk_grid_attach(GTK_GRID(grid),sample_rate_label,col,row,1,1);
       row++;
 
@@ -555,8 +564,9 @@ void radio_menu(GtkWidget *parent) {
 
     row=1;
 
-    GtkWidget *sample_rate_label=gtk_label_new("Filter Board:");
-    gtk_grid_attach(GTK_GRID(grid),sample_rate_label,col,row,1,1);
+    GtkWidget *filter_board_label=gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(filter_board_label), "<b>Filter Board:</b>");
+    gtk_grid_attach(GTK_GRID(grid),filter_board_label,col,row,1,1);
     row++;
 
     GtkWidget *none_b = gtk_radio_button_new_with_label(NULL, "NONE");
@@ -596,7 +606,8 @@ void radio_menu(GtkWidget *parent) {
 
   row=1;
 
-  GtkWidget *rit_label=gtk_label_new("R/XIT step (Hz): ");
+  GtkWidget *rit_label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(rit_label), "<b>RIT/XIT step (Hz):</b>");
   gtk_grid_attach(GTK_GRID(grid),rit_label,col,row,1,1);
   row++;
 
@@ -622,7 +633,8 @@ void radio_menu(GtkWidget *parent) {
   col++;
   row=1;
 
-  GtkWidget *vfo_divisor_label=gtk_label_new("VFO Encoder Divisor: ");
+  GtkWidget *vfo_divisor_label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(vfo_divisor_label), "<b>VFO Encoder Divisor:</b>");
   gtk_grid_attach(GTK_GRID(grid),vfo_divisor_label,col,row,1,1);
   row++;
 
@@ -649,7 +661,8 @@ void radio_menu(GtkWidget *parent) {
 #endif
   {
     row=1;
-    GtkWidget *atlas_label=gtk_label_new("Atlas bus: ");
+    GtkWidget *atlas_label=gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(atlas_label), "<b>Atlas bus:</b>");
     gtk_grid_attach(GTK_GRID(grid),atlas_label,col,row,1,1);
     row++;
 
@@ -702,7 +715,7 @@ void radio_menu(GtkWidget *parent) {
 
   col++;
 
-             duplex_b=gtk_check_button_new_with_label("Duplex");
+  duplex_b=gtk_check_button_new_with_label("Duplex");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (duplex_b), duplex);
   gtk_grid_attach(GTK_GRID(grid),duplex_b,col,row,1,1);
   g_signal_connect(duplex_b,"toggled",G_CALLBACK(duplex_cb),NULL);
@@ -719,6 +732,22 @@ void radio_menu(GtkWidget *parent) {
   g_signal_connect(sat_combo,"changed",G_CALLBACK(sat_cb),NULL);
 
   row++;
+
+  if(have_rx_gain) {
+    col=0;
+    GtkWidget *rx_gain_label=gtk_label_new("RX Gain Calibration:");
+    gtk_label_set_markup(GTK_LABEL(rx_gain_label), "<b>RX Gain Calibration:</b>");
+    gtk_grid_attach(GTK_GRID(grid),rx_gain_label,col,row,1,1);
+    col++;
+    
+    GtkWidget *rx_gain_calibration_b=gtk_spin_button_new_with_range(-50.0,50.0,1.0);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(rx_gain_calibration_b),(double)rx_gain_calibration);
+    gtk_grid_attach(GTK_GRID(grid),rx_gain_calibration_b,col,row,1,1);
+    g_signal_connect(rx_gain_calibration_b,"value_changed",G_CALLBACK(rx_gain_calibration_value_changed_cb),NULL);
+
+    row++;
+  }
+
   if(row>temp_row) temp_row=row;
 
 #ifdef SOAPYSDR
@@ -726,14 +755,17 @@ void radio_menu(GtkWidget *parent) {
   if(radio->device==SOAPYSDR_USB_DEVICE) {
     int i;
     if(radio->info.soapy.rx_gains>0) {
-      GtkWidget *rx_gain=gtk_label_new("Rx Gains:");
+      GtkWidget *rx_gain=gtk_label_new(NULL);
+      gtk_label_set_markup(GTK_LABEL(rx_gain), "<b>RX Gains:</b>");
+      gtk_label_set_justify(GTK_LABEL(rx_gain),GTK_JUSTIFY_LEFT);
       gtk_grid_attach(GTK_GRID(grid),rx_gain,col,row,1,1);
     }
 
     if(can_transmit) {
       if(radio->info.soapy.tx_gains>0) {
         col=2;
-        GtkWidget *tx_gain=gtk_label_new("Tx Gains:");
+        GtkWidget *tx_gain=gtk_label_new(NULL);
+        gtk_label_set_markup(GTK_LABEL(tx_gain), "<b>TX Gains:</b>");
         gtk_grid_attach(GTK_GRID(grid),tx_gain,col,row,1,1);
       }
     }

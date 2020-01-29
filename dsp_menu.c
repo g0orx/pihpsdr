@@ -121,16 +121,19 @@ void dsp_menu(GtkWidget *parent) {
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
-  GtkWidget *agc_hang_threshold_label=gtk_label_new("AGC Hang Threshold:");
+  GtkWidget *agc_hang_threshold_label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(agc_hang_threshold_label), "<b>AGC Hang Threshold</b>");
   gtk_widget_show(agc_hang_threshold_label);
   gtk_grid_attach(GTK_GRID(grid),agc_hang_threshold_label,0,1,1,1);
   GtkWidget *agc_hang_threshold_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0.0, 100.0, 1.0);
+  gtk_range_set_increments (GTK_RANGE(agc_hang_threshold_scale),1.0,1.0);
   gtk_range_set_value (GTK_RANGE(agc_hang_threshold_scale),active_receiver->agc_hang_threshold);
   gtk_widget_show(agc_hang_threshold_scale);
   gtk_grid_attach(GTK_GRID(grid),agc_hang_threshold_scale,1,1,2,1);
   g_signal_connect(G_OBJECT(agc_hang_threshold_scale),"value_changed",G_CALLBACK(agc_hang_threshold_value_changed_cb),NULL);
 
-  GtkWidget *pre_post_agc_label=gtk_label_new("NR/NR2/ANF");
+  GtkWidget *pre_post_agc_label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(pre_post_agc_label), "<b>NR/NR2/ANF</b>");
   //gtk_widget_override_font(pre_post_agc_label, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(pre_post_agc_label);
   gtk_grid_attach(GTK_GRID(grid),pre_post_agc_label,0,2,1,1);
@@ -147,7 +150,8 @@ void dsp_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),post_agc_b,2,2,1,1);
   g_signal_connect(post_agc_b,"toggled",G_CALLBACK(pre_post_agc_cb),(gpointer *)1);
 
-  GtkWidget *nr2_gain_label=gtk_label_new("NR2 Gain Method");
+  GtkWidget *nr2_gain_label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(nr2_gain_label), "<b>NR Gain Method</b>");
   //gtk_widget_override_font(nr2_gain_label, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(nr2_gain_label);
   gtk_grid_attach(GTK_GRID(grid),nr2_gain_label,0,3,1,1);
@@ -171,6 +175,7 @@ void dsp_menu(GtkWidget *parent) {
   g_signal_connect(gamma_b,"toggled",G_CALLBACK(nr2_gain_cb),(gpointer *)2);
 
   GtkWidget *nr2_npe_method_label=gtk_label_new("NR2 NPE Method");
+  gtk_label_set_markup(GTK_LABEL(nr2_npe_method_label), "<b>NR2 NPE Method</b>");
   //gtk_widget_override_font(nr2_npe_method_label, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(nr2_npe_method_label);
   gtk_grid_attach(GTK_GRID(grid),nr2_npe_method_label,0,4,1,1);

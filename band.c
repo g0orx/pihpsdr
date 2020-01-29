@@ -27,11 +27,16 @@
 #include "mode.h"
 #include "alex.h"
 #include "property.h"
+#include "radio.h"
+#include "vfo.h"
 
 #define LINESDR
 
 int band=band20;
 int xvtr_band=BANDS;
+
+char* outOfBand="Out of band";
+int info_band;
 
 /* --------------------------------------------------------------------------*/
 /**
@@ -265,7 +270,9 @@ BANDSTACK bandstack_xvtr_7={3,0,bandstack_entries_xvtr_7};
 
 
 BAND bands[BANDS+XVTRS] = 
-    {{"160",&bandstack160,0,0,0,0,0,ALEX_ATTENUATION_0dB,53.0,1800000LL,2000000LL,0LL,0LL,0},
+     {{"136kHz",&bandstack136,0,0,0,0,0,ALEX_ATTENUATION_0dB,53.0,135700LL,137800LL,0LL,0LL,0},
+     {"472kHz",&bandstack472,0,0,0,0,0,ALEX_ATTENUATION_0dB,53.0,472000LL,479000LL,0LL,0LL,0},
+     {"160",&bandstack160,0,0,0,0,0,ALEX_ATTENUATION_0dB,53.0,1800000LL,2000000LL,0LL,0LL,0},
      {"80",&bandstack80,0,0,0,0,0,ALEX_ATTENUATION_0dB,53.0,3500000LL,4000000LL,0LL,0LL,0},
      {"60",&bandstack60,0,0,0,0,0,ALEX_ATTENUATION_0dB,53.0,5330500LL,5403500LL,0LL,0LL,0},
      {"40",&bandstack40,0,0,0,0,0,ALEX_ATTENUATION_0dB,53.0,7000000LL,7300000LL,0LL,0LL,0},
@@ -289,8 +296,6 @@ BAND bands[BANDS+XVTRS] =
 #endif
      {"GEN",&bandstackGEN,0,0,0,0,0,ALEX_ATTENUATION_0dB,53.0,0LL,0LL,0LL,0LL,0},
      {"WWV",&bandstackWWV,0,0,0,0,0,ALEX_ATTENUATION_0dB,53.0,0LL,0LL,0LL,0LL,0},
-     {"136kHz",&bandstack136,0,0,0,0,0,ALEX_ATTENUATION_0dB,53.0,135700LL,137800LL,0LL,0LL,0},
-     {"472kHz",&bandstack472,0,0,0,0,0,ALEX_ATTENUATION_0dB,53.0,472000LL,479000LL,0LL,0LL,0},
 // XVTRS
      {"",&bandstack_xvtr_0,0,0,0,0,0,ALEX_ATTENUATION_0dB,53.0,0LL,0LL,0LL,0LL,0},
      {"",&bandstack_xvtr_1,0,0,0,0,0,ALEX_ATTENUATION_0dB,53.0,0LL,0LL,0LL,0LL,0},
@@ -644,3 +649,146 @@ int get_band_from_frequency(long long f) {
 g_print("get_band_from_frequency: %lld id %d\n",f,found);
   return found;
 }
+
+char* getFrequencyInfo(long long frequency,int filter_low,int filter_high) {
+    char* result=outOfBand;
+    int i;
+
+    long long flow=frequency+(long long)filter_low;
+    long long fhigh=frequency+(long long)filter_high;
+
+
+    int b;
+
+    info_band=BANDS+XVTRS;
+    for(b=0;b<BANDS+XVTRS;b++) {
+      BAND *band=band_get_band(b);
+      if(strlen(band->title)>0) {
+
+        if(flow>=band->frequencyMin && fhigh<=band->frequencyMax) {
+          if(b==band60) {
+            for(i=0;i<channel_entries;i++) {
+              long long low_freq=band_channels_60m[i].frequency-(band_channels_60m[i].width/(long long)2);
+              long long hi_freq=band_channels_60m[i].frequency+(band_channels_60m[i].width/(long long)2);
+              if(flow>=low_freq && fhigh<=hi_freq) {
+                info_band=b;
+                result=band->title;
+                break;
+              }
+            }
+          } else {
+            info_band=b;
+            result=band->title;
+            break;
+          }
+        }
+      }
+    }
+
+g_print("getFrequencyInfo %lld is %s\n",frequency,result);
+
+    return result;
+}
+
+int canTransmit() {
+    int result;
+    long long txfreq, flow, fhigh;
+    int txb, txvfo, txmode;
+    BAND *txband;
+    int i;
+
+    //
+    // If there is no transmitter, we cannot transmit
+    //
+    if (!can_transmit) return 0;
+
+    //
+    // In the code canTransmit() is always ORed with tx_out_of_band,
+    // but this should be done in ONE PLACE (here)
+    //
+    if (tx_out_of_band) return 1;
+
+    txvfo=get_tx_vfo();
+    txb=vfo[txvfo].band;
+
+    //
+    // See if we have a band
+    //
+if(info_band!=bandGen
+       && info_band!=bandWWV
+#ifdef SOAPYSDR
+       && info_band!=bandAIR
+#endif
+      ) {
+        result=TRUE;
+    }
+
+    if (txb == bandGen
+        || txb  ==bandWWV
+#ifdef SOAPYSDR
+        || txb  ==bandAIR
+#endif
+       ) return 0;
+
+    //
+    // Determine the edges of our band
+    // and the edges of our TX signal
+    //
+    txband=band_get_band(vfo[txvfo].band);
+    txfreq=get_tx_freq();
+    txmode=get_tx_mode();
+    switch (txmode) {
+      case modeCWU:
+        flow = fhigh = cw_is_on_vfo_freq ? txfreq : txfreq + cw_keyer_sidetone_frequency;
+        break;
+      case modeCWL:
+        flow = fhigh = cw_is_on_vfo_freq ? txfreq : txfreq - cw_keyer_sidetone_frequency;
+        break;
+      default:
+        flow = txfreq + transmitter->filter_low;
+        fhigh= txfreq + transmitter->filter_high;
+        break;
+    }
+
+    if (txb == band60) {
+      //
+      // For 60m band, ensure signal is within one of the "channels"
+      //
+      result=0;
+      for(i=0;i<channel_entries;i++) {
+        long long low_freq=band_channels_60m[i].frequency-(band_channels_60m[i].width/(long long)2);
+        long long hi_freq=band_channels_60m[i].frequency+(band_channels_60m[i].width/(long long)2);
+//fprintf(stderr,"TRY CHANNEL: low=%lld high=%lld SIGNAL: low=%lld high=%lld\n", low_freq, hi_freq, flow, fhigh);
+        if(flow>=low_freq && fhigh<=hi_freq) {
+//fprintf(stderr,"60m channel OK: chan=%d flow=%lld fhigh=%lld\n", i, flow, fhigh);
+          result = 1;
+          break;
+        }
+      }
+//fprintf(stderr,"60m channel NOT FOUND: flow=%lld fhigh=%lld\n", flow, fhigh);
+    } else {
+      //
+      // For other bands, return true if signal within band
+      //
+      result = flow >= txband->frequencyMin && fhigh <= txband->frequencyMax;
+    }
+//fprintf(stderr,"CANTRANSMIT: low=%lld  high=%lld transmit=%d\n", flow, fhigh, result);
+    return result;
+}
+
+
+/*
+int canTransmit() {
+    int result=FALSE;
+    if (tx_out_of_band) return TRUE;
+    if(info_band!=bandGen
+       && info_band!=bandWWV 
+#ifdef SOAPYSDR
+       && info_band!=bandAIR
+#endif
+      ) {
+        result=TRUE;
+    }
+    return result;
+}
+*/

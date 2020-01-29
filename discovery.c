@@ -49,6 +49,9 @@
 #include "stemlab_discovery.h"
 #endif
 #include "ext.h"
+#ifdef GPIO
+#include "gpio.h"
+#endif
 #include "configure.h"
 
 static GtkWidget *discovery_dialog;
@@ -62,6 +65,10 @@ GtkWidget *tcpaddr;
 #define IPADDR_LEN 20
 static char ipaddr_tcp_buf[IPADDR_LEN] = "10.10.10.10";
 char *ipaddr_tcp = &ipaddr_tcp_buf[0];
+
+static gboolean delete_event_cb(GtkWidget *widget, GdkEvent *event, gpointer data) {
+  _exit(0);
+}
 
 static gboolean start_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   radio=(DISCOVERED *)data;
@@ -198,9 +205,17 @@ static gboolean midi_cb(GtkWidget *widget, GdkEventButton *event, gpointer data)
 #endif
 
 #ifdef GPIO
+/*
 static gboolean gpio_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   configure_gpio(discovery_dialog);
   return TRUE;
+}
+*/
+
+static void gpio_changed_cb(GtkWidget *widget, gpointer data) {
+  controller=gtk_combo_box_get_active(GTK_COMBO_BOX(widget));
+  gpio_set_defaults(controller);
+  gpio_save_state();
 }
 #endif
 
@@ -304,6 +319,7 @@ void discovery() {
     //gtk_window_set_decorated(GTK_WINDOW(discovery_dialog),FALSE);
 
     //gtk_widget_override_font(discovery_dialog, pango_font_description_from_string("FreeMono 16"));
+    g_signal_connect(discovery_dialog, "delete_event", G_CALLBACK(delete_event_cb), NULL);
 
     GdkRGBA color;
     color.red = 1.0;
@@ -352,6 +368,7 @@ void discovery() {
     //gtk_window_set_decorated(GTK_WINDOW(discovery_dialog),FALSE);
 
     //gtk_widget_override_font(discovery_dialog, pango_font_description_from_string("FreeMono 16"));
+    g_signal_connect(discovery_dialog, "delete_event", G_CALLBACK(delete_event_cb), NULL);
 
     GdkRGBA color;
     color.red = 1.0;
@@ -497,9 +514,26 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
 
     }
 #ifdef GPIO
+/*
     GtkWidget *gpio_b=gtk_button_new_with_label("Config GPIO");
     g_signal_connect (gpio_b, "button-press-event", G_CALLBACK(gpio_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),gpio_b,0,i,1,1);
+*/
+
+    controller=CONTROLLER2_V2;
+    gpio_set_defaults(controller);
+    gpio_restore_state();
+
+    GtkWidget *gpio=gtk_combo_box_text_new();
+    gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(gpio),NULL,"No Controller");
+    gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(gpio),NULL,"Controller1");
+    gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(gpio),NULL,"Controller2 V1");
+    gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(gpio),NULL,"Controller2 V2");
+    gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(gpio),NULL,"Custom");
+    gtk_grid_attach(GTK_GRID(grid),gpio,0,i,1,1);
+
+    gtk_combo_box_set_active(GTK_COMBO_BOX(gpio),controller);
+    g_signal_connect(gpio,"changed",G_CALLBACK(gpio_changed_cb),NULL);
 #endif
 
     GtkWidget *discover_b=gtk_button_new_with_label("Discover");

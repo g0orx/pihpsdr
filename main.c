@@ -57,7 +57,6 @@
 #ifdef SOAPYSDR
 #include "soapy_protocol.h"
 #endif
-#include "frequency.h"   // for canTransmit
 #include "ext.h"
 
 struct utsname unameData;

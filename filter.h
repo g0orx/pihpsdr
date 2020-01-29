@@ -47,17 +47,20 @@ typedef struct _FILTER FILTER;
 #define filterVar1 10
 #define filterVar2 11
 
-int filter;
+extern int filter;
 
-int filterLow;
-int filterHigh;
+extern int filterLow;
+extern int filterHigh;
 
-int txFilterLowCut;
-int txFilterHighCut;
+extern int txFilterLowCut;
+extern int txFilterHighCut;
 
-FILTER *filters[MODES];
+extern FILTER *filters[MODES];
 
-void filterSaveState();
-void filterRestoreState();
-void filter_width_changed(int rx,int increment);
+extern gint filter_step;
+
+extern void filterSaveState();
+extern void filterRestoreState();
+extern void filter_width_changed(int rx,int increment);
+extern void filter_shift_changed(int rx,int increment);
 #endif

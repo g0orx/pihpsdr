@@ -32,9 +32,7 @@
 #include "vfo.h"
 #include "button_text.h"
 #include "gpio.h"
-#if defined (CONTROLLER2_V2) || defined (CONTROLLER_V1)
 #include "i2c.h"
-#endif
 
 static GtkWidget *parent_window=NULL;
 
@@ -58,7 +56,6 @@ static GtkWidget *b_panadapter_low;
 static GtkWidget *b_squelch;
 static GtkWidget *b_compression;
 
-#ifdef CONTROLLER2_V2
 static GtkWidget *b_top_af_gain_rx1;
 static GtkWidget *b_top_af_gain_rx2;
 static GtkWidget *b_top_agc_gain_rx1;
@@ -76,31 +73,20 @@ static GtkWidget *b_top_panadapter_high;
 static GtkWidget *b_top_panadapter_low;
 static GtkWidget *b_top_squelch;
 static GtkWidget *b_top_compression;
-#endif
 
 enum {
   ENC2,
-#ifdef CONTROLLER2_V2
   ENC2_TOP,
-#endif
   ENC2_SW,
   ENC3,
-#ifdef CONTROLLER2_V2
   ENC3_TOP,
-#endif
   ENC3_SW,
   ENC4,
-#ifdef CONTROLLER2_V2
   ENC4_TOP,
-#endif
   ENC4_SW,
-#if defined (CONTROLLER2_V2) || defined (CONTROLLER2_V1)
   ENC5,
-#if defined (CONTROLLER2_V2)
   ENC5_TOP,
-#endif
   ENC5_SW,
-#endif
 };
 
 typedef struct _choice {
@@ -136,37 +122,27 @@ static void enc_select_cb(GtkWidget *widget,gpointer data) {
     case ENC2:
       e2_encoder_action=choice->action;
       break;
-#ifdef CONTROLLER2_V2
     case ENC2_TOP:
       e2_top_encoder_action=choice->action;
       break;
-#endif
     case ENC3:
       e3_encoder_action=choice->action;
       break;
-#ifdef CONTROLLER2_V2
     case ENC3_TOP:
       e3_top_encoder_action=choice->action;
       break;
-#endif
     case ENC4:
       e4_encoder_action=choice->action;
       break;
-#ifdef CONTROLLER2_V2
     case ENC4_TOP:
       e4_top_encoder_action=choice->action;
       break;
-#endif
-#if defined (CONTROLLER2_V2) || defined (CONTROLLER2_V1)
     case ENC5:
       e5_encoder_action=choice->action;
       break;
-#endif
-#if defined (CONTROLLER2_V2)
     case ENC5_TOP:
       e5_top_encoder_action=choice->action;
       break;
-#endif
   }
   gtk_button_set_label(GTK_BUTTON(choice->button),encoder_string[choice->action]);
 }
@@ -209,11 +185,9 @@ static void sw_select_cb(GtkWidget *widget,gpointer data) {
     case ENC4_SW:
       e4_sw_action=choice->action;
       break;
-#ifdef CONTROLLER2_V2
     case ENC5_SW:
       e5_sw_action=choice->action;
       break;
-#endif
   }
   gtk_button_set_label(GTK_BUTTON(choice->button),sw_string[choice->action]);
 }
@@ -268,11 +242,9 @@ GtkWidget* getRadioButton(int action) {
     case ENCODER_DRIVE:
       button=b_drive;
       break;
-/*
     case ENCODER_TUNE_DRIVE:
       button=b_tune_drive;
       break;
-*/
     case ENCODER_RIT_RX1:
       button=b_rit_rx1;
       break;
@@ -304,7 +276,6 @@ GtkWidget* getRadioButton(int action) {
   return button;
 }
 
-#ifdef CONTROLLER2_V2
 GtkWidget* getTopRadioButton(int action) {
   GtkWidget* button;
   switch(action) {
@@ -364,8 +335,6 @@ GtkWidget* getTopRadioButton(int action) {
   }
   return button;
 }
-#endif
-
 
 static gboolean select_cb (GtkWidget *widget, gpointer data) {
   GtkWidget *button;
@@ -389,7 +358,6 @@ static gboolean select_cb (GtkWidget *widget, gpointer data) {
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (button), TRUE);
 }
 
-#ifdef CONTROLLER2_V2
 static gboolean top_select_cb (GtkWidget *widget, gpointer data) {
   GtkWidget *button;
   int action;
@@ -411,7 +379,6 @@ static gboolean top_select_cb (GtkWidget *widget, gpointer data) {
   button=getTopRadioButton(action);
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (button), TRUE);
 }
-#endif
 
 void encoder_select(int pos) {
   int action;
@@ -466,7 +433,6 @@ void encoder_select(int pos) {
 
 }
 
-#ifdef CONTROLLER2_V2
 void top_encoder_select(int pos) {
   int action;
   GtkWidget *button;
@@ -533,7 +499,6 @@ void top_encoder_select(int pos) {
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (button), TRUE);
 
 }
-#endif
 
   static gboolean action_select_cb (GtkWidget *widget, gpointer data) {
     int action=(int)data;
@@ -553,7 +518,6 @@ void top_encoder_select(int pos) {
     }
   }
 
-#ifdef CONTROLLER2_V2
   static gboolean top_action_select_cb (GtkWidget *widget, gpointer data) {
     int action=(int)data;
     switch(encoder) {
@@ -571,7 +535,6 @@ void top_encoder_select(int pos) {
         break;
     }
   }
-#endif
 
   static gboolean enc2_cb(GtkWidget *widget, gpointer data) {
     int i=gtk_combo_box_get_active (GTK_COMBO_BOX(widget));
@@ -609,7 +572,6 @@ void top_encoder_select(int pos) {
     return TRUE;
   }
 
-#ifdef CONTROLLER2_V2
   static gboolean enc2_top_cb(GtkWidget *widget, gpointer data) {
     int i=gtk_combo_box_get_active (GTK_COMBO_BOX(widget));
     e2_top_encoder_action=i;
@@ -645,7 +607,6 @@ void top_encoder_select(int pos) {
     e5_top_encoder_action=i;
     return TRUE;
   }
-#endif
 
 void encoder_menu(GtkWidget *parent) {
   int row=0;
@@ -673,33 +634,36 @@ void encoder_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),close_b,col,row,1,1);
 
   row++;
-  col=1;
-#ifdef CONTROLLER2_V2
-#ifdef CONTROLLER2_V1
-  GtkWidget *label_encoder=gtk_label_new("Encoder");
+  col=0;
+  GtkWidget *label_encoder=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(label_encoder), "<b>Encoder</b>");
   gtk_grid_attach(GTK_GRID(grid),label_encoder,col,row,1,1);
   col++;
-#else
-  GtkWidget *label_bottom=gtk_label_new("Bottom");
-  gtk_grid_attach(GTK_GRID(grid),label_bottom,col,row,1,1);
-  col++;
-  GtkWidget *label_top=gtk_label_new("Top");
-  gtk_grid_attach(GTK_GRID(grid),label_top,col,row,1,1);
-  col++;
-#endif
-#else
-  GtkWidget *label_encoder=gtk_label_new("Encoder");
-  gtk_grid_attach(GTK_GRID(grid),label_encoder,col,row,1,1);
-  col++;
-#endif
-  GtkWidget *label_switch=gtk_label_new("Switch");
+  if(controller==CONTROLLER2_V2) {
+    GtkWidget *label_bottom=gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(label_bottom), "<b>Bottom</b>");
+    gtk_grid_attach(GTK_GRID(grid),label_bottom,col,row,1,1);
+    col++;
+    GtkWidget *label_top=gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(label_top), "<b>Top</b>");
+    gtk_grid_attach(GTK_GRID(grid),label_top,col,row,1,1);
+    col++;
+  } else {
+    GtkWidget *label_bottom=gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(label_bottom), "<b>Encoder</b>");
+    gtk_grid_attach(GTK_GRID(grid),label_bottom,col,row,1,1);
+    col++;
+  }
+  GtkWidget *label_switch=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(label_switch), "<b>Switch</b>");
   gtk_grid_attach(GTK_GRID(grid),label_switch,col,row,1,1);
   col++;
 
   row++;
   col=0;
 
-  GtkWidget *enc2_title=gtk_label_new("ENC2: ");
+  GtkWidget *enc2_title=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(enc2_title), "<b>ENC2: </b>");
   gtk_grid_attach(GTK_GRID(grid),enc2_title,col,row,1,1);
   col++;
 
@@ -708,12 +672,12 @@ void encoder_menu(GtkWidget *parent) {
   g_signal_connect(enc2,"button_press_event",G_CALLBACK(enc_cb),GINT_TO_POINTER(ENC2));
   col++;
   
-#ifdef CONTROLLER2_V2
-  GtkWidget *enc2_top=gtk_button_new_with_label(encoder_string[e2_top_encoder_action]);
-  gtk_grid_attach(GTK_GRID(grid),enc2_top,col,row,1,1);
-  g_signal_connect(enc2_top,"button_press_event",G_CALLBACK(enc_cb),GINT_TO_POINTER(ENC2_TOP));
-  col++;
-#endif
+  if(controller==CONTROLLER2_V2) {
+    GtkWidget *enc2_top=gtk_button_new_with_label(encoder_string[e2_top_encoder_action]);
+    gtk_grid_attach(GTK_GRID(grid),enc2_top,col,row,1,1);
+    g_signal_connect(enc2_top,"button_press_event",G_CALLBACK(enc_cb),GINT_TO_POINTER(ENC2_TOP));
+    col++;
+  }
 
   GtkWidget *enc2_sw=gtk_button_new_with_label(sw_string[e2_sw_action]);
   gtk_grid_attach(GTK_GRID(grid),enc2_sw,col,row,1,1);
@@ -722,7 +686,8 @@ void encoder_menu(GtkWidget *parent) {
   row++;
   col=0;
 
-  GtkWidget *enc3_title=gtk_label_new("ENC3: ");
+  GtkWidget *enc3_title=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(enc3_title), "<b>ENC3: </b>");
   gtk_grid_attach(GTK_GRID(grid),enc3_title,col,row,1,1);
   col++;
 
@@ -731,12 +696,12 @@ void encoder_menu(GtkWidget *parent) {
   g_signal_connect(enc3,"button_press_event",G_CALLBACK(enc_cb),GINT_TO_POINTER(ENC3));
   col++;
   
-#ifdef CONTROLLER2_V2
-  GtkWidget *enc3_top=gtk_button_new_with_label(encoder_string[e3_top_encoder_action]);
-  gtk_grid_attach(GTK_GRID(grid),enc3_top,col,row,1,1);
-  g_signal_connect(enc3_top,"button_press_event",G_CALLBACK(enc_cb),GINT_TO_POINTER(ENC3_TOP));
-  col++;
-#endif
+  if(controller==CONTROLLER2_V2) {
+    GtkWidget *enc3_top=gtk_button_new_with_label(encoder_string[e3_top_encoder_action]);
+    gtk_grid_attach(GTK_GRID(grid),enc3_top,col,row,1,1);
+    g_signal_connect(enc3_top,"button_press_event",G_CALLBACK(enc_cb),GINT_TO_POINTER(ENC3_TOP));
+    col++;
+  }
 
   GtkWidget *enc3_sw=gtk_button_new_with_label(sw_string[e3_sw_action]);
   gtk_grid_attach(GTK_GRID(grid),enc3_sw,col,row,1,1);
@@ -745,7 +710,8 @@ void encoder_menu(GtkWidget *parent) {
   row++;
   col=0;
 
-  GtkWidget *enc4_title=gtk_label_new("ENC4: ");
+  GtkWidget *enc4_title=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(enc4_title), "<b>ENC4: </b>");
   gtk_grid_attach(GTK_GRID(grid),enc4_title,col,row,1,1);
   col++;
 
@@ -754,12 +720,12 @@ void encoder_menu(GtkWidget *parent) {
   g_signal_connect(enc4,"button_press_event",G_CALLBACK(enc_cb),GINT_TO_POINTER(ENC4));
   col++;
   
-#ifdef CONTROLLER2_V2
-  GtkWidget *enc4_top=gtk_button_new_with_label(encoder_string[e4_top_encoder_action]);
-  gtk_grid_attach(GTK_GRID(grid),enc4_top,col,row,1,1);
-  g_signal_connect(enc4_top,"button_press_event",G_CALLBACK(enc_cb),GINT_TO_POINTER(ENC4_TOP));
-  col++;
-#endif
+  if(controller==CONTROLLER2_V2) {
+    GtkWidget *enc4_top=gtk_button_new_with_label(encoder_string[e4_top_encoder_action]);
+    gtk_grid_attach(GTK_GRID(grid),enc4_top,col,row,1,1);
+    g_signal_connect(enc4_top,"button_press_event",G_CALLBACK(enc_cb),GINT_TO_POINTER(ENC4_TOP));
+    col++;
+  }
 
   GtkWidget *enc4_sw=gtk_button_new_with_label(sw_string[e4_sw_action]);
   gtk_grid_attach(GTK_GRID(grid),enc4_sw,col,row,1,1);
@@ -768,27 +734,28 @@ void encoder_menu(GtkWidget *parent) {
   row++;
   col=0;
 
-#if defined (CONTROLLER2_V2) || defined (CONTROLLER2_V1)
-  GtkWidget *enc5_title=gtk_label_new("ENC5: ");
-  gtk_grid_attach(GTK_GRID(grid),enc5_title,col,row,1,1);
-  col++;
+  if(controller==CONTROLLER2_V1 || controller==CONTROLLER2_V2) {
+    GtkWidget *enc5_title=gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(enc5_title), "<b>ENC5: </b>");
+    gtk_grid_attach(GTK_GRID(grid),enc5_title,col,row,1,1);
+    col++;
 
-  GtkWidget *enc5=gtk_button_new_with_label(encoder_string[e5_encoder_action]);
-  gtk_grid_attach(GTK_GRID(grid),enc5,col,row,1,1);
-  g_signal_connect(enc5,"button_press_event",G_CALLBACK(enc_cb),GINT_TO_POINTER(ENC5));
-  col++;
+    GtkWidget *enc5=gtk_button_new_with_label(encoder_string[e5_encoder_action]);
+    gtk_grid_attach(GTK_GRID(grid),enc5,col,row,1,1);
+    g_signal_connect(enc5,"button_press_event",G_CALLBACK(enc_cb),GINT_TO_POINTER(ENC5));
+    col++;
   
-#if defined (CONTROLLER2_V2)
-  GtkWidget *enc5_top=gtk_button_new_with_label(encoder_string[e5_top_encoder_action]);
-  gtk_grid_attach(GTK_GRID(grid),enc5_top,col,row,1,1);
-  g_signal_connect(enc5_top,"button_press_event",G_CALLBACK(enc_cb),GINT_TO_POINTER(ENC5_TOP));
-  col++;
-#endif
+    if(controller==CONTROLLER2_V2) {
+      GtkWidget *enc5_top=gtk_button_new_with_label(encoder_string[e5_top_encoder_action]);
+      gtk_grid_attach(GTK_GRID(grid),enc5_top,col,row,1,1);
+      g_signal_connect(enc5_top,"button_press_event",G_CALLBACK(enc_cb),GINT_TO_POINTER(ENC5_TOP));
+      col++;
+    }
 
-  GtkWidget *enc5_sw=gtk_button_new_with_label(sw_string[e5_sw_action]);
-  gtk_grid_attach(GTK_GRID(grid),enc5_sw,col,row,1,1);
-  g_signal_connect(enc5_sw,"button_press_event",G_CALLBACK(sw_cb),GINT_TO_POINTER(ENC5_SW));
-#endif
+    GtkWidget *enc5_sw=gtk_button_new_with_label(sw_string[e5_sw_action]);
+    gtk_grid_attach(GTK_GRID(grid),enc5_sw,col,row,1,1);
+    g_signal_connect(enc5_sw,"button_press_event",G_CALLBACK(sw_cb),GINT_TO_POINTER(ENC5_SW));
+  }
 
   gtk_container_add(GTK_CONTAINER(content),grid);
 

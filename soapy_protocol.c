@@ -49,12 +49,6 @@
 #include "audio.h"
 #include "signal.h"
 #include "vfo.h"
-#ifdef FREEDV
-#include "freedv.h"
-#endif
-#ifdef PSK
-#include "psk.h"
-#endif
 #include "ext.h"
 #include "error_handler.h"
 
@@ -79,8 +73,8 @@ static int rate_samples;
 
 static gboolean running;
 
+static int mic_samples=0;
 static int mic_sample_divisor=1;
-
 
 static int max_tx_samples;
 static float *output_buffer;
@@ -104,8 +98,9 @@ void soapy_protocol_create_receiver(RECEIVER *rx) {
   if(rx->sample_rate!=radio_sample_rate) {
     soapy_rx_sample_rate=radio_sample_rate;
   }
+  mic_sample_divisor=soapy_rx_sample_rate/48000;
 
-fprintf(stderr,"soapy_protocol_create_receiver: setting samplerate=%f adc=%d\n",(double)soapy_rx_sample_rate,rx->adc);
+fprintf(stderr,"soapy_protocol_create_receiver: setting samplerate=%f adc=%d mic_sample_divisor=%d\n",(double)soapy_rx_sample_rate,rx->adc,mic_sample_divisor);
   rc=SoapySDRDevice_setSampleRate(soapy_device,SOAPY_SDR_RX,rx->adc,(double)soapy_rx_sample_rate);
   if(rc!=0) {
     fprintf(stderr,"soapy_protocol_create_receiver: SoapySDRDevice_setSampleRate(%f) failed: %s\n",(double)soapy_rx_sample_rate,SoapySDR_errToStr(rc));
@@ -271,6 +266,7 @@ static void *receive_thread(void *arg) {
   RECEIVER *rx=(RECEIVER *)arg;
   float *buffer=g_new(float,max_samples*2);
   void *buffs[]={buffer};
+  float fsample;
   running=TRUE;
 fprintf(stderr,"soapy_protocol: receive_thread\n");
   while(running) {
@@ -291,6 +287,14 @@ fprintf(stderr,"soapy_protocol: receive_thread\n");
         } else {
           add_iq_samples(rx,isample,qsample);
         }
+        if(can_transmit) {
+          mic_samples++;
+          if(mic_samples>=mic_sample_divisor) { // reduce to 48000
+            fsample = transmitter->local_microphone ? audio_get_next_mic_sample() : (float)0.0;
+            add_mic_sample(transmitter,fsample);
+            mic_samples=0;
+          }
+        }
       }
     } else {
       for(i=0;i<elements;i++) {
@@ -300,6 +304,14 @@ fprintf(stderr,"soapy_protocol: receive_thread\n");
           add_iq_samples(rx,qsample,isample);
         } else {
           add_iq_samples(rx,isample,qsample);
+        }
+        if(can_transmit) {
+          mic_samples++;
+          if(mic_samples>=mic_sample_divisor) { // reduce to 48000
+            fsample = transmitter->local_microphone ? audio_get_next_mic_sample() : (float)0.0;
+            add_mic_sample(transmitter,fsample);
+            mic_samples=0;
+          }
         }
       }
     }
@@ -314,15 +326,7 @@ fprintf(stderr,"soapy_protocol: receive_thread: SoapySDRDevice_unmake\n");
 }
 
 void soapy_protocol_process_local_mic(float sample) {
-#ifdef FREEDV
-  if(active_receiver->freedv) {
-    add_freedv_mic_sample(transmitter,sample);
-  } else {
-#endif
-    add_mic_sample(transmitter,sample);
-#ifdef FREEDV
-  }
-#endif
+  add_mic_sample(transmitter,sample);
 }
 
 void soapy_protocol_iq_samples(float isample,float qsample) {

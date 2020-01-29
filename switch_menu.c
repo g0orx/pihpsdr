@@ -17,7 +17,6 @@
 *
 */
 
-#if defined (CONTROLLER2_V2) || defined (CONTROLLER2_V1)
 #include <gtk/gtk.h>
 #include <stdio.h>
 #include <string.h>
@@ -105,6 +104,7 @@ void switch_menu(GtkWidget *parent) {
   int row=0;
   int col=0;
   char label[64];
+  int i;
 
   dialog=gtk_dialog_new();
   gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent_window));
@@ -133,255 +133,258 @@ void switch_menu(GtkWidget *parent) {
   row++;
   col=0;
 
-#if !defined (CONTROLLER2_V2) && !defined (CONTROLLER2_V1)
+  switch(controller) {
+    default:
+      {
+      GtkWidget *sw7_title=gtk_label_new("SW7: ");
+      gtk_grid_attach(GTK_GRID(grid),sw7_title,col,row,1,1);
+      col++;
 
-  GtkWidget *sw7_title=gtk_label_new("SW7: ");
-  gtk_grid_attach(GTK_GRID(grid),sw7_title,col,row,1,1);
-  col++;
+      GtkWidget *sw7_combo_box=gtk_combo_box_text_new();
+      for(i=0;i<SWITCH_ACTIONS;i++) {
+        gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(sw7_combo_box),NULL,sw_string[i]);
+      }
+      gtk_combo_box_set_active(GTK_COMBO_BOX(sw7_combo_box),sw_action[6]);
+      g_signal_connect(sw7_combo_box,"changed",G_CALLBACK(sw_cb),GINT_TO_POINTER(CONTROLLER1_SW7));
+      gtk_grid_attach(GTK_GRID(grid),sw7_combo_box,col,row,1,1);
+      col++;
 
-  GtkWidget *sw7_combo_box=gtk_combo_box_text_new();
-  for(i=0;i<SWITCH_ACTIONS;i++) {
-    gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(sw7_combo_box),NULL,sw_string[i]);
-  }
-  gtk_combo_box_set_active(GTK_COMBO_BOX(sw7_combo_box),sw_action[6]);
-  g_signal_connect(sw7_combo_box,"changed",G_CALLBACK(sw_cb),GINT_TO_POINTER(SW7));
-  gtk_grid_attach(GTK_GRID(grid),sw7_combo_box,col,row,1,1);
-  col++;
+      GtkWidget *sw1_title=gtk_label_new("SW1: ");
+      gtk_grid_attach(GTK_GRID(grid),sw1_title,col,row,1,1);
+      col++;
 
-  GtkWidget *sw1_title=gtk_label_new("SW1: ");
-  gtk_grid_attach(GTK_GRID(grid),sw1_title,col,row,1,1);
-  col++;
+      GtkWidget *sw1_combo_box=gtk_combo_box_text_new();
+      for(i=0;i<SWITCH_ACTIONS;i++) {
+        gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(sw1_combo_box),NULL,sw_string[i]);
+      }
+      gtk_combo_box_set_active(GTK_COMBO_BOX(sw1_combo_box),sw_action[0]);
+      g_signal_connect(sw1_combo_box,"changed",G_CALLBACK(sw_cb),GINT_TO_POINTER(CONTROLLER1_SW1));
+      gtk_grid_attach(GTK_GRID(grid),sw1_combo_box,col,row,1,1);
+      row++;
+      col=0;
 
-  GtkWidget *sw1_combo_box=gtk_combo_box_text_new();
-  for(i=0;i<SWITCH_ACTIONS;i++) {
-    gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(sw1_combo_box),NULL,sw_string[i]);
-  }
-  gtk_combo_box_set_active(GTK_COMBO_BOX(sw1_combo_box),sw_action[0]);
-  g_signal_connect(sw1_combo_box,"changed",G_CALLBACK(sw_cb),GINT_TO_POINTER(SW1));
-  gtk_grid_attach(GTK_GRID(grid),sw1_combo_box,col,row,1,1);
-  row++;
-  col=0;
+      GtkWidget *sw2_title=gtk_label_new("SW2: ");
+      gtk_grid_attach(GTK_GRID(grid),sw2_title,col,row,1,1);
+      col++;
 
-  GtkWidget *sw2_title=gtk_label_new("SW2: ");
-  gtk_grid_attach(GTK_GRID(grid),sw2_title,col,row,1,1);
-  col++;
+      GtkWidget *sw2_combo_box=gtk_combo_box_text_new();
+      for(i=0;i<SWITCH_ACTIONS;i++) {
+        gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(sw2_combo_box),NULL,sw_string[i]);
+      }
+      gtk_combo_box_set_active(GTK_COMBO_BOX(sw2_combo_box),sw_action[1]);
+      g_signal_connect(sw2_combo_box,"changed",G_CALLBACK(sw_cb),GINT_TO_POINTER(CONTROLLER1_SW2));
+      gtk_grid_attach(GTK_GRID(grid),sw2_combo_box,col,row,1,1);
+      col++;
 
-  GtkWidget *sw2_combo_box=gtk_combo_box_text_new();
-  for(i=0;i<SWITCH_ACTIONS;i++) {
-    gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(sw2_combo_box),NULL,sw_string[i]);
-  }
-  gtk_combo_box_set_active(GTK_COMBO_BOX(sw2_combo_box),sw_action[1]);
-  g_signal_connect(sw2_combo_box,"changed",G_CALLBACK(sw_cb),GINT_TO_POINTER(SW2));
-  gtk_grid_attach(GTK_GRID(grid),sw2_combo_box,col,row,1,1);
-  col++;
+      GtkWidget *sw3_title=gtk_label_new("SW3: ");
+      gtk_grid_attach(GTK_GRID(grid),sw3_title,col,row,1,1);
+      col++;
 
-  GtkWidget *sw3_title=gtk_label_new("SW3: ");
-  gtk_grid_attach(GTK_GRID(grid),sw3_title,col,row,1,1);
-  col++;
+      GtkWidget *sw3_combo_box=gtk_combo_box_text_new();
+      for(i=0;i<SWITCH_ACTIONS;i++) {
+        gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(sw3_combo_box),NULL,sw_string[i]);
+      }
+      gtk_combo_box_set_active(GTK_COMBO_BOX(sw3_combo_box),sw_action[2]);
+      g_signal_connect(sw3_combo_box,"changed",G_CALLBACK(sw_cb),GINT_TO_POINTER(CONTROLLER1_SW3));
+      gtk_grid_attach(GTK_GRID(grid),sw3_combo_box,col,row,1,1);
+      row++;
+      col=0;
 
-  GtkWidget *sw3_combo_box=gtk_combo_box_text_new();
-  for(i=0;i<SWITCH_ACTIONS;i++) {
-    gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(sw3_combo_box),NULL,sw_string[i]);
-  }
-  gtk_combo_box_set_active(GTK_COMBO_BOX(sw3_combo_box),sw_action[2]);
-  g_signal_connect(sw3_combo_box,"changed",G_CALLBACK(sw_cb),GINT_TO_POINTER(SW3));
-  gtk_grid_attach(GTK_GRID(grid),sw3_combo_box,col,row,1,1);
-  row++;
-  col=0;
+      GtkWidget *sw4_title=gtk_label_new("SW4: ");
+      gtk_grid_attach(GTK_GRID(grid),sw4_title,col,row,1,1);
+      col++;
 
-  GtkWidget *sw4_title=gtk_label_new("SW4: ");
-  gtk_grid_attach(GTK_GRID(grid),sw4_title,col,row,1,1);
-  col++;
+      GtkWidget *sw4_combo_box=gtk_combo_box_text_new();
+      for(i=0;i<SWITCH_ACTIONS;i++) {
+        gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(sw4_combo_box),NULL,sw_string[i]);
+      }
+      gtk_combo_box_set_active(GTK_COMBO_BOX(sw4_combo_box),sw_action[3]);
+      g_signal_connect(sw4_combo_box,"changed",G_CALLBACK(sw_cb),GINT_TO_POINTER(CONTROLLER1_SW4));
+      gtk_grid_attach(GTK_GRID(grid),sw4_combo_box,col,row,1,1);
+      col++;
 
-  GtkWidget *sw4_combo_box=gtk_combo_box_text_new();
-  for(i=0;i<SWITCH_ACTIONS;i++) {
-    gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(sw4_combo_box),NULL,sw_string[i]);
-  }
-  gtk_combo_box_set_active(GTK_COMBO_BOX(sw4_combo_box),sw_action[3]);
-  g_signal_connect(sw4_combo_box,"changed",G_CALLBACK(sw_cb),GINT_TO_POINTER(SW4));
-  gtk_grid_attach(GTK_GRID(grid),sw4_combo_box,col,row,1,1);
-  col++;
+      GtkWidget *sw5_title=gtk_label_new("SW5: ");
+      gtk_grid_attach(GTK_GRID(grid),sw5_title,col,row,1,1);
+      col++;
 
-  GtkWidget *sw5_title=gtk_label_new("SW5: ");
-  gtk_grid_attach(GTK_GRID(grid),sw5_title,col,row,1,1);
-  col++;
+      GtkWidget *sw5_combo_box=gtk_combo_box_text_new();
+      for(i=0;i<SWITCH_ACTIONS;i++) {
+        gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(sw5_combo_box),NULL,sw_string[i]);
+      }
+      gtk_combo_box_set_active(GTK_COMBO_BOX(sw5_combo_box),sw_action[4]);
+      g_signal_connect(sw5_combo_box,"changed",G_CALLBACK(sw_cb),GINT_TO_POINTER(CONTROLLER1_SW5));
+      gtk_grid_attach(GTK_GRID(grid),sw5_combo_box,col,row,1,1);
+      row++;
+      col=0;
 
-  GtkWidget *sw5_combo_box=gtk_combo_box_text_new();
-  for(i=0;i<SWITCH_ACTIONS;i++) {
-    gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(sw5_combo_box),NULL,sw_string[i]);
-  }
-  gtk_combo_box_set_active(GTK_COMBO_BOX(sw5_combo_box),sw_action[4]);
-  g_signal_connect(sw5_combo_box,"changed",G_CALLBACK(sw_cb),GINT_TO_POINTER(SW5));
-  gtk_grid_attach(GTK_GRID(grid),sw5_combo_box,col,row,1,1);
-  row++;
-  col=0;
+      GtkWidget *sw6_title=gtk_label_new("SW6: ");
+      gtk_grid_attach(GTK_GRID(grid),sw6_title,col,row,1,1);
+      col++;
 
-  GtkWidget *sw6_title=gtk_label_new("SW6: ");
-  gtk_grid_attach(GTK_GRID(grid),sw6_title,col,row,1,1);
-  col++;
+      GtkWidget *sw6_combo_box=gtk_combo_box_text_new();
+      for(i=0;i<SWITCH_ACTIONS;i++) {
+        gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(sw6_combo_box),NULL,sw_string[i]);
+      }
+      gtk_combo_box_set_active(GTK_COMBO_BOX(sw6_combo_box),sw_action[5]);
+      g_signal_connect(sw6_combo_box,"changed",G_CALLBACK(sw_cb),GINT_TO_POINTER(CONTROLLER1_SW6));
+      gtk_grid_attach(GTK_GRID(grid),sw6_combo_box,col,row,1,1);
+      col++;
 
-  GtkWidget *sw6_combo_box=gtk_combo_box_text_new();
-  for(i=0;i<SWITCH_ACTIONS;i++) {
-    gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(sw6_combo_box),NULL,sw_string[i]);
-  }
-  gtk_combo_box_set_active(GTK_COMBO_BOX(sw6_combo_box),sw_action[5]);
-  g_signal_connect(sw6_combo_box,"changed",G_CALLBACK(sw_cb),GINT_TO_POINTER(SW6));
-  gtk_grid_attach(GTK_GRID(grid),sw6_combo_box,col,row,1,1);
-  col++;
+      GtkWidget *sw8_title=gtk_label_new("SW8: ");
+      gtk_grid_attach(GTK_GRID(grid),sw8_title,col,row,1,1);
+      col++;
 
-  GtkWidget *sw8_title=gtk_label_new("SW8: ");
-  gtk_grid_attach(GTK_GRID(grid),sw8_title,col,row,1,1);
-  col++;
+      GtkWidget *sw8_combo_box=gtk_combo_box_text_new();
+      for(i=0;i<SWITCH_ACTIONS;i++) {
+        gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(sw8_combo_box),NULL,sw_string[i]);
+      }
+      gtk_combo_box_set_active(GTK_COMBO_BOX(sw8_combo_box),sw_action[7]);
+      g_signal_connect(sw8_combo_box,"changed",G_CALLBACK(sw_cb),GINT_TO_POINTER(CONTROLLER1_SW8));
+      gtk_grid_attach(GTK_GRID(grid),sw8_combo_box,col,row,1,1);
+      col++;
+      }
+      break;
 
-  GtkWidget *sw8_combo_box=gtk_combo_box_text_new();
-  for(i=0;i<SWITCH_ACTIONS;i++) {
-    gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(sw8_combo_box),NULL,sw_string[i]);
-  }
-  gtk_combo_box_set_active(GTK_COMBO_BOX(sw8_combo_box),sw_action[7]);
-  g_signal_connect(sw8_combo_box,"changed",G_CALLBACK(sw_cb),GINT_TO_POINTER(SW8));
-  gtk_grid_attach(GTK_GRID(grid),sw8_combo_box,col,row,1,1);
-  col++;
+    case CONTROLLER2_V1:
+    case CONTROLLER2_V2:
+      {
+      col=8;
 
-#else
+      GtkWidget *sw13=gtk_button_new_with_label(sw_string[sw_action[CONTROLLER2_SW13]]);
+      GtkWidget *sw13_label=gtk_bin_get_child(GTK_BIN(sw13));
+      sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[CONTROLLER2_SW13]]);
+      gtk_label_set_markup (GTK_LABEL(sw13_label), label);
+      gtk_grid_attach(GTK_GRID(grid),sw13,col,row,1,1);
+      g_signal_connect (sw13, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(CONTROLLER2_SW13));
+      row++;
+      col=7;
 
-  col=8;
+      GtkWidget *sw12=gtk_button_new_with_label(sw_string[sw_action[CONTROLLER2_SW12]]);
+      GtkWidget *sw12_label=gtk_bin_get_child(GTK_BIN(sw12));
+      sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[CONTROLLER2_SW12]]);
+      gtk_label_set_markup (GTK_LABEL(sw12_label), label);
+      gtk_grid_attach(GTK_GRID(grid),sw12,col,row,1,1);
+      g_signal_connect (sw12, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(CONTROLLER2_SW12));
+      col++;
 
-  GtkWidget *sw13=gtk_button_new_with_label(sw_string[sw_action[SW13]]);
-  GtkWidget *sw13_label=gtk_bin_get_child(GTK_BIN(sw13));
-  sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[SW13]]);
-  gtk_label_set_markup (GTK_LABEL(sw13_label), label);
-  gtk_grid_attach(GTK_GRID(grid),sw13,col,row,1,1);
-  g_signal_connect (sw13, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(SW13));
-  row++;
-  col=7;
+      GtkWidget *sw11=gtk_button_new_with_label(sw_string[sw_action[CONTROLLER2_SW11]]);
+      GtkWidget *sw11_label=gtk_bin_get_child(GTK_BIN(sw11));
+      sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[CONTROLLER2_SW11]]);
+      gtk_label_set_markup (GTK_LABEL(sw11_label), label);
+      gtk_grid_attach(GTK_GRID(grid),sw11,col,row,1,1);
+      g_signal_connect (sw11, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(CONTROLLER2_SW11));
+      row++;
+      col=7;
 
-  GtkWidget *sw12=gtk_button_new_with_label(sw_string[sw_action[SW12]]);
-  GtkWidget *sw12_label=gtk_bin_get_child(GTK_BIN(sw12));
-  sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[SW12]]);
-  gtk_label_set_markup (GTK_LABEL(sw12_label), label);
-  gtk_grid_attach(GTK_GRID(grid),sw12,col,row,1,1);
-  g_signal_connect (sw12, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(SW12));
-  col++;
+      GtkWidget *sw10=gtk_button_new_with_label(sw_string[sw_action[CONTROLLER2_SW10]]);
+      GtkWidget *sw10_label=gtk_bin_get_child(GTK_BIN(sw10));
+      sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[CONTROLLER2_SW10]]);
+      gtk_label_set_markup (GTK_LABEL(sw10_label), label);
+      gtk_grid_attach(GTK_GRID(grid),sw10,col,row,1,1);
+      g_signal_connect (sw10, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(CONTROLLER2_SW10));
+      col++;
 
-  GtkWidget *sw11=gtk_button_new_with_label(sw_string[sw_action[SW11]]);
-  GtkWidget *sw11_label=gtk_bin_get_child(GTK_BIN(sw11));
-  sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[SW11]]);
-  gtk_label_set_markup (GTK_LABEL(sw11_label), label);
-  gtk_grid_attach(GTK_GRID(grid),sw11,col,row,1,1);
-  g_signal_connect (sw11, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(SW11));
-  row++;
-  col=7;
+      GtkWidget *sw9=gtk_button_new_with_label(sw_string[sw_action[CONTROLLER2_SW9]]);
+      GtkWidget *sw9_label=gtk_bin_get_child(GTK_BIN(sw9));
+      sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[CONTROLLER2_SW9]]);
+      gtk_label_set_markup (GTK_LABEL(sw9_label), label);
+      gtk_grid_attach(GTK_GRID(grid),sw9,col,row,1,1);
+      g_signal_connect (sw9, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(CONTROLLER2_SW9));
+      row++;
+      col=7;
 
-  GtkWidget *sw10=gtk_button_new_with_label(sw_string[sw_action[SW10]]);
-  GtkWidget *sw10_label=gtk_bin_get_child(GTK_BIN(sw10));
-  sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[SW10]]);
-  gtk_label_set_markup (GTK_LABEL(sw10_label), label);
-  gtk_grid_attach(GTK_GRID(grid),sw10,col,row,1,1);
-  g_signal_connect (sw10, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(SW10));
-  col++;
+      GtkWidget *sw7=gtk_button_new_with_label(sw_string[sw_action[CONTROLLER2_SW7]]);
+      GtkWidget *sw7_label=gtk_bin_get_child(GTK_BIN(sw7));
+      sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[CONTROLLER2_SW7]]);
+      gtk_label_set_markup (GTK_LABEL(sw7_label), label);
+      gtk_grid_attach(GTK_GRID(grid),sw7,col,row,1,1);
+      g_signal_connect (sw7, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(CONTROLLER2_SW7));
+      col++;
 
-  GtkWidget *sw9=gtk_button_new_with_label(sw_string[sw_action[SW9]]);
-  GtkWidget *sw9_label=gtk_bin_get_child(GTK_BIN(sw9));
-  sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[SW9]]);
-  gtk_label_set_markup (GTK_LABEL(sw9_label), label);
-  gtk_grid_attach(GTK_GRID(grid),sw9,col,row,1,1);
-  g_signal_connect (sw9, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(SW9));
-  row++;
-  col=7;
+      GtkWidget *sw8=gtk_button_new_with_label(sw_string[sw_action[CONTROLLER2_SW8]]);
+      GtkWidget *sw8_label=gtk_bin_get_child(GTK_BIN(sw8));
+      sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[CONTROLLER2_SW8]]);
+      gtk_label_set_markup (GTK_LABEL(sw8_label), label);
+      gtk_grid_attach(GTK_GRID(grid),sw8,col,row,1,1);
+      g_signal_connect (sw8, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(CONTROLLER2_SW8));
+      row++;
+      col=7;
 
-  GtkWidget *sw7=gtk_button_new_with_label(sw_string[sw_action[SW7]]);
-  GtkWidget *sw7_label=gtk_bin_get_child(GTK_BIN(sw7));
-  sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[SW7]]);
-  gtk_label_set_markup (GTK_LABEL(sw7_label), label);
-  gtk_grid_attach(GTK_GRID(grid),sw7,col,row,1,1);
-  g_signal_connect (sw7, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(SW7));
-  col++;
+      GtkWidget *sw16=gtk_button_new_with_label(sw_string[sw_action[CONTROLLER2_SW16]]);
+      GtkWidget *sw16_label=gtk_bin_get_child(GTK_BIN(sw16));
+      sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[CONTROLLER2_SW16]]);
+      gtk_label_set_markup (GTK_LABEL(sw16_label), label);
+      gtk_grid_attach(GTK_GRID(grid),sw16,col,row,1,1);
+      g_signal_connect (sw16, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(CONTROLLER2_SW16));
+      col++;
 
-  GtkWidget *sw8=gtk_button_new_with_label(sw_string[sw_action[SW8]]);
-  GtkWidget *sw8_label=gtk_bin_get_child(GTK_BIN(sw8));
-  sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[SW8]]);
-  gtk_label_set_markup (GTK_LABEL(sw8_label), label);
-  gtk_grid_attach(GTK_GRID(grid),sw8,col,row,1,1);
-  g_signal_connect (sw8, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(SW8));
-  row++;
-  col=7;
+      GtkWidget *sw17=gtk_button_new_with_label(sw_string[sw_action[CONTROLLER2_SW17]]);
+      GtkWidget *sw17_label=gtk_bin_get_child(GTK_BIN(sw17));
+      sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[CONTROLLER2_SW17]]);
+      gtk_label_set_markup (GTK_LABEL(sw17_label), label);
+      gtk_grid_attach(GTK_GRID(grid),sw17,col,row,1,1);
+      g_signal_connect (sw17, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(CONTROLLER2_SW17));
+      row++;
+      col=0;
 
-  GtkWidget *sw16=gtk_button_new_with_label(sw_string[sw_action[SW16]]);
-  GtkWidget *sw16_label=gtk_bin_get_child(GTK_BIN(sw16));
-  sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[SW16]]);
-  gtk_label_set_markup (GTK_LABEL(sw16_label), label);
-  gtk_grid_attach(GTK_GRID(grid),sw16,col,row,1,1);
-  g_signal_connect (sw16, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(SW16));
-  col++;
-
-  GtkWidget *sw17=gtk_button_new_with_label(sw_string[sw_action[SW17]]);
-  GtkWidget *sw17_label=gtk_bin_get_child(GTK_BIN(sw17));
-  sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[SW17]]);
-  gtk_label_set_markup (GTK_LABEL(sw17_label), label);
-  gtk_grid_attach(GTK_GRID(grid),sw17,col,row,1,1);
-  g_signal_connect (sw17, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(SW17));
-  row++;
-  col=0;
-
-  GtkWidget *sw2=gtk_button_new_with_label(sw_string[sw_action[SW2]]);
-  GtkWidget *sw2_label=gtk_bin_get_child(GTK_BIN(sw2));
-  sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[SW2]]);
-  gtk_label_set_markup (GTK_LABEL(sw2_label), label);
-  gtk_grid_attach(GTK_GRID(grid),sw2,col,row,1,1);
-  g_signal_connect (sw2, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(SW2));
-  col++;
+      GtkWidget *sw2=gtk_button_new_with_label(sw_string[sw_action[CONTROLLER2_SW2]]);
+      GtkWidget *sw2_label=gtk_bin_get_child(GTK_BIN(sw2));
+      sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[CONTROLLER2_SW2]]);
+      gtk_label_set_markup (GTK_LABEL(sw2_label), label);
+      gtk_grid_attach(GTK_GRID(grid),sw2,col,row,1,1);
+      g_signal_connect (sw2, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(CONTROLLER2_SW2));
+      col++;
   
-  GtkWidget *sw3=gtk_button_new_with_label(sw_string[sw_action[SW3]]);
-  GtkWidget *sw3_label=gtk_bin_get_child(GTK_BIN(sw3));
-  sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[SW3]]);
-  gtk_label_set_markup (GTK_LABEL(sw3_label), label);
-  gtk_grid_attach(GTK_GRID(grid),sw3,col,row,1,1);
-  g_signal_connect (sw3, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(SW3));
-  col++;
+      GtkWidget *sw3=gtk_button_new_with_label(sw_string[sw_action[CONTROLLER2_SW3]]);
+      GtkWidget *sw3_label=gtk_bin_get_child(GTK_BIN(sw3));
+      sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[CONTROLLER2_SW3]]);
+      gtk_label_set_markup (GTK_LABEL(sw3_label), label);
+      gtk_grid_attach(GTK_GRID(grid),sw3,col,row,1,1);
+      g_signal_connect (sw3, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(CONTROLLER2_SW3));
+      col++;
   
-  GtkWidget *sw4=gtk_button_new_with_label(sw_string[sw_action[SW4]]);
-  GtkWidget *sw4_label=gtk_bin_get_child(GTK_BIN(sw4));
-  sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[SW4]]);
-  gtk_label_set_markup (GTK_LABEL(sw4_label), label);
-  gtk_grid_attach(GTK_GRID(grid),sw4,col,row,1,1);
-  g_signal_connect (sw4, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(SW4));
-  col++;
+      GtkWidget *sw4=gtk_button_new_with_label(sw_string[sw_action[CONTROLLER2_SW4]]);
+      GtkWidget *sw4_label=gtk_bin_get_child(GTK_BIN(sw4));
+      sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[CONTROLLER2_SW4]]);
+      gtk_label_set_markup (GTK_LABEL(sw4_label), label);
+      gtk_grid_attach(GTK_GRID(grid),sw4,col,row,1,1);
+      g_signal_connect (sw4, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(CONTROLLER2_SW4));
+      col++;
   
-  GtkWidget *sw5=gtk_button_new_with_label(sw_string[sw_action[SW5]]);
-  GtkWidget *sw5_label=gtk_bin_get_child(GTK_BIN(sw5));
-  sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[SW5]]);
-  gtk_label_set_markup (GTK_LABEL(sw5_label), label);
-  gtk_grid_attach(GTK_GRID(grid),sw5,col,row,1,1);
-  g_signal_connect (sw5, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(SW5));
-  col++;
+      GtkWidget *sw5=gtk_button_new_with_label(sw_string[sw_action[CONTROLLER2_SW5]]);
+      GtkWidget *sw5_label=gtk_bin_get_child(GTK_BIN(sw5));
+      sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[CONTROLLER2_SW5]]);
+      gtk_label_set_markup (GTK_LABEL(sw5_label), label);
+      gtk_grid_attach(GTK_GRID(grid),sw5,col,row,1,1);
+      g_signal_connect (sw5, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(CONTROLLER2_SW5));
+      col++;
   
-  GtkWidget *sw6=gtk_button_new_with_label(sw_string[sw_action[SW6]]);
-  GtkWidget *sw6_label=gtk_bin_get_child(GTK_BIN(sw6));
-  sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[SW6]]);
-  gtk_label_set_markup (GTK_LABEL(sw6_label), label);
-  gtk_grid_attach(GTK_GRID(grid),sw6,col,row,1,1);
-  g_signal_connect (sw6, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(SW6));
-  col++;
+      GtkWidget *sw6=gtk_button_new_with_label(sw_string[sw_action[CONTROLLER2_SW6]]);
+      GtkWidget *sw6_label=gtk_bin_get_child(GTK_BIN(sw6));
+      sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[CONTROLLER2_SW6]]);
+      gtk_label_set_markup (GTK_LABEL(sw6_label), label);
+      gtk_grid_attach(GTK_GRID(grid),sw6,col,row,1,1);
+      g_signal_connect (sw6, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(CONTROLLER2_SW6));
+      col++;
   
-  GtkWidget *sw14=gtk_button_new_with_label(sw_string[sw_action[SW14]]);
-  GtkWidget *sw14_label=gtk_bin_get_child(GTK_BIN(sw14));
-  sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[SW14]]);
-  gtk_label_set_markup (GTK_LABEL(sw14_label), label);
-  gtk_grid_attach(GTK_GRID(grid),sw14,col,row,1,1);
-  g_signal_connect (sw14, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(SW14));
-  col++;
+      GtkWidget *sw14=gtk_button_new_with_label(sw_string[sw_action[CONTROLLER2_SW14]]);
+      GtkWidget *sw14_label=gtk_bin_get_child(GTK_BIN(sw14));
+      sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[CONTROLLER2_SW14]]);
+      gtk_label_set_markup (GTK_LABEL(sw14_label), label);
+      gtk_grid_attach(GTK_GRID(grid),sw14,col,row,1,1);
+      g_signal_connect (sw14, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(CONTROLLER2_SW14));
+      col++;
   
-  GtkWidget *sw15=gtk_button_new_with_label(sw_string[sw_action[SW15]]);
-  GtkWidget *sw15_label=gtk_bin_get_child(GTK_BIN(sw15));
-  sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[SW15]]);
-  gtk_label_set_markup (GTK_LABEL(sw15_label), label);
-  gtk_grid_attach(GTK_GRID(grid),sw15,col,row,1,1);
-  g_signal_connect (sw15, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(SW15));
-  col++;
-
-
-
-#endif
+      GtkWidget *sw15=gtk_button_new_with_label(sw_string[sw_action[CONTROLLER2_SW15]]);
+      GtkWidget *sw15_label=gtk_bin_get_child(GTK_BIN(sw15));
+      sprintf(label,"<span size=\"smaller\">%s</span>",sw_string[sw_action[CONTROLLER2_SW15]]);
+      gtk_label_set_markup (GTK_LABEL(sw15_label), label);
+      gtk_grid_attach(GTK_GRID(grid),sw15,col,row,1,1);
+      g_signal_connect (sw15, "button_press_event", G_CALLBACK(sw_cb), GINT_TO_POINTER(CONTROLLER2_SW15));
+      col++;
+      }
+      break;
+  }
 
   gtk_container_add(GTK_CONTAINER(content),grid);
 
@@ -389,4 +392,3 @@ void switch_menu(GtkWidget *parent) {
 
   gtk_widget_show_all(dialog);
 }
-#endif

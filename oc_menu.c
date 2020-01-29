@@ -140,30 +140,35 @@ void oc_menu(GtkWidget *parent) {
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
-  GtkWidget *band_title=gtk_label_new("Band");
+  GtkWidget *band_title=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(band_title), "<b>Band</b>");
   //gtk_widget_override_font(band_title, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(band_title);
   gtk_grid_attach(GTK_GRID(grid),band_title,0,1,1,1);
 
-  GtkWidget *rx_title=gtk_label_new("Rx");
+  GtkWidget *rx_title=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(rx_title), "<b>Rx</b>");
   //gtk_widget_override_font(rx_title, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(rx_title);
   gtk_grid_attach(GTK_GRID(grid),rx_title,4,1,1,1);
 
-  GtkWidget *tx_title=gtk_label_new("Tx");
+  GtkWidget *tx_title=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(tx_title), "<b>Tx</b>");
   //gtk_widget_override_font(tx_title, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(tx_title);
   gtk_grid_attach(GTK_GRID(grid),tx_title,11,1,1,1);
 
-  GtkWidget *tune_title=gtk_label_new("Tune (ORed with TX)");
+  GtkWidget *tune_title=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(tune_title), "<b>Tune (ORed with TX)</b>");
   //gtk_widget_override_font(tune_title, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(tune_title);
   gtk_grid_attach(GTK_GRID(grid),tune_title,18,1,2,1);
 
   for(i=1;i<8;i++) {
-    char oc_id[8];
-    sprintf(oc_id,"%d",i);
-    GtkWidget *oc_rx_title=gtk_label_new(oc_id);
+    char oc_id[16];
+    sprintf(oc_id,"<b>%d</b>",i);
+    GtkWidget *oc_rx_title=gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(oc_rx_title), oc_id);
     //gtk_widget_override_font(oc_rx_title, pango_font_description_from_string("Arial 18"));
     gtk_widget_show(oc_rx_title);
     gtk_grid_attach(GTK_GRID(grid),oc_rx_title,i,2,1,1);
@@ -173,33 +178,95 @@ void oc_menu(GtkWidget *parent) {
     gtk_grid_attach(GTK_GRID(grid),oc_tx_title,i+7,2,1,1);
   }
 
-  for(i=0;i<BANDS+XVTRS;i++) {
+  int bands=BANDS;
+  switch(protocol) {
+    case ORIGINAL_PROTOCOL:
+      switch(device) {
+        case DEVICE_HERMES_LITE:
+        case DEVICE_HERMES_LITE2:
+          bands=band10+1;
+          break;
+        default:
+          bands=band6+1;
+          break;
+      }
+      break;
+    case NEW_PROTOCOL:
+      switch(device) {
+        case NEW_DEVICE_HERMES_LITE:
+        case NEW_DEVICE_HERMES_LITE2:
+          bands=band10+1;
+          break;
+        default:
+          bands=band6+1;
+          break;
+      }
+      break;
+  }
+
+  int row=3;
+
+  for(i=0;i<bands;i++) {
     BAND *band=band_get_band(i);
     if(strlen(band->title)>0) {
-    GtkWidget *band_label=gtk_label_new(band->title);
-    //gtk_widget_override_font(band_label, pango_font_description_from_string("Arial 18"));
-    gtk_widget_show(band_label);
-    gtk_grid_attach(GTK_GRID(grid),band_label,0,i+3,1,1);
+      GtkWidget *band_label=gtk_label_new(NULL);
+      char band_text[16];
+      sprintf(band_text,"<b>%s</b>",band->title);
+      gtk_label_set_markup(GTK_LABEL(band_label), band_text);
+      //gtk_widget_override_font(band_label, pango_font_description_from_string("Arial 18"));
+      gtk_widget_show(band_label);
+      gtk_grid_attach(GTK_GRID(grid),band_label,0,row,1,1);
 
-    int mask;
-    for(j=1;j<8;j++) {
-      mask=0x01<<(j-1);
-      GtkWidget *oc_rx_b=gtk_check_button_new();
-      //gtk_widget_override_font(oc_rx_b, pango_font_description_from_string("Arial 18"));
-      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (oc_rx_b), (band->OCrx&mask)==mask);
-      gtk_widget_show(oc_rx_b);
-      gtk_grid_attach(GTK_GRID(grid),oc_rx_b,j,i+3,1,1);
-      g_signal_connect(oc_rx_b,"toggled",G_CALLBACK(oc_rx_cb),(gpointer)(long)(j+(i<<4)));
+      int mask;
+      for(j=1;j<8;j++) {
+        mask=0x01<<(j-1);
+        GtkWidget *oc_rx_b=gtk_check_button_new();
+        //gtk_widget_override_font(oc_rx_b, pango_font_description_from_string("Arial 18"));
+        gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (oc_rx_b), (band->OCrx&mask)==mask);
+        gtk_widget_show(oc_rx_b);
+        gtk_grid_attach(GTK_GRID(grid),oc_rx_b,j,row,1,1);
+        g_signal_connect(oc_rx_b,"toggled",G_CALLBACK(oc_rx_cb),(gpointer)(long)(j+(i<<4)));
+  
+        GtkWidget *oc_tx_b=gtk_check_button_new();
+        //gtk_widget_override_font(oc_tx_b, pango_font_description_from_string("Arial 18"));
+        gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (oc_tx_b), (band->OCtx&mask)==mask);
+        gtk_widget_show(oc_tx_b);
+        gtk_grid_attach(GTK_GRID(grid),oc_tx_b,j+7,row,1,1);
+        g_signal_connect(oc_tx_b,"toggled",G_CALLBACK(oc_tx_cb),(gpointer)(long)(j+(i<<4)));
 
-      GtkWidget *oc_tx_b=gtk_check_button_new();
-      //gtk_widget_override_font(oc_tx_b, pango_font_description_from_string("Arial 18"));
-      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (oc_tx_b), (band->OCtx&mask)==mask);
-      gtk_widget_show(oc_tx_b);
-      gtk_grid_attach(GTK_GRID(grid),oc_tx_b,j+7,i+3,1,1);
-      g_signal_connect(oc_tx_b,"toggled",G_CALLBACK(oc_tx_cb),(gpointer)(long)(j+(i<<4)));
-
+      }
+      row++;
     }
   }
+
+  for(i=BANDS;i<BANDS+XVTRS;i++) {
+    BAND *band=band_get_band(i);
+    if(strlen(band->title)>0) {
+      GtkWidget *band_label=gtk_label_new(band->title);
+      //gtk_widget_override_font(band_label, pango_font_description_from_string("Arial 18"));
+      gtk_widget_show(band_label);
+      gtk_grid_attach(GTK_GRID(grid),band_label,0,row,1,1);
+
+      int mask;
+      for(j=1;j<8;j++) {
+        mask=0x01<<(j-1);
+        GtkWidget *oc_rx_b=gtk_check_button_new();
+        //gtk_widget_override_font(oc_rx_b, pango_font_description_from_string("Arial 18"));
+        gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (oc_rx_b), (band->OCrx&mask)==mask);
+        gtk_widget_show(oc_rx_b);
+        gtk_grid_attach(GTK_GRID(grid),oc_rx_b,j,row,1,1);
+        g_signal_connect(oc_rx_b,"toggled",G_CALLBACK(oc_rx_cb),(gpointer)(long)(j+(i<<4)));
+  
+        GtkWidget *oc_tx_b=gtk_check_button_new();
+        //gtk_widget_override_font(oc_tx_b, pango_font_description_from_string("Arial 18"));
+        gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (oc_tx_b), (band->OCtx&mask)==mask);
+        gtk_widget_show(oc_tx_b);
+        gtk_grid_attach(GTK_GRID(grid),oc_tx_b,j+7,row,1,1);
+        g_signal_connect(oc_tx_b,"toggled",G_CALLBACK(oc_tx_cb),(gpointer)(long)(j+(i<<4)));
+
+      }
+      row++;
+    }
   }
 
   int mask;
@@ -220,7 +287,8 @@ void oc_menu(GtkWidget *parent) {
     g_signal_connect(oc_tune_b,"toggled",G_CALLBACK(oc_tune_cb),(gpointer)(long)j);
   }
 
-  GtkWidget *oc_full_tune_time_title=gtk_label_new("Full Tune(ms):");
+  GtkWidget *oc_full_tune_time_title=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(oc_full_tune_time_title), "Full Tune(ms):");
   //gtk_widget_override_font(oc_full_tune_time_title, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(oc_full_tune_time_title);
   gtk_grid_attach(GTK_GRID(grid),oc_full_tune_time_title,18,j+1,2,1);
@@ -234,7 +302,8 @@ void oc_menu(GtkWidget *parent) {
   g_signal_connect(oc_full_tune_time_b,"value_changed",G_CALLBACK(oc_full_tune_time_cb),NULL);
   j++;
 
-  GtkWidget *oc_memory_tune_time_title=gtk_label_new("Memory Tune(ms):");
+  GtkWidget *oc_memory_tune_time_title=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(oc_memory_tune_time_title), "Memory Tune(ms):");
   //gtk_widget_override_font(oc_memory_tune_time_title, pango_font_description_from_string("Arial 18"));
   gtk_widget_show(oc_memory_tune_time_title);
   gtk_grid_attach(GTK_GRID(grid),oc_memory_tune_time_title,18,j+1,2,1);

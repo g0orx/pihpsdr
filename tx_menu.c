@@ -92,6 +92,10 @@ static void panadapter_low_value_changed_cb(GtkWidget *widget, gpointer data) {
   transmitter->panadapter_low=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
 }
 
+static void panadapter_step_value_changed_cb(GtkWidget *widget, gpointer data) {
+  transmitter->panadapter_step=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+}
+
 static void am_carrier_level_value_changed_cb(GtkWidget *widget, gpointer data) {
   transmitter->am_carrier_level=gtk_spin_button_get_value(GTK_SPIN_BUTTON(widget));
   transmitter_set_am_carrier_level(transmitter);
@@ -259,8 +263,74 @@ void tx_menu(GtkWidget *parent) {
   row++;
   col=0;
 
-  if(protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL) {
-    micin_b=gtk_radio_button_new_with_label_from_widget(NULL,"Mic In");
+  if(n_input_devices>0) {
+    GtkWidget *local_microphone_b=gtk_check_button_new_with_label("Local Microphone");
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (local_microphone_b), transmitter->local_microphone);
+    gtk_widget_show(local_microphone_b);
+    gtk_grid_attach(GTK_GRID(grid),local_microphone_b,col,row,1,1);
+    g_signal_connect(local_microphone_b,"toggled",G_CALLBACK(local_microphone_cb),NULL);
+    col++;
+
+    input=gtk_combo_box_text_new();
+    for(i=0;i<n_input_devices;i++) {
+      gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(input),NULL,input_devices[i].name);
+      if(transmitter->microphone_name!=NULL) {
+        if(strcmp(transmitter->microphone_name,input_devices[i].name)==0) {
+          gtk_combo_box_set_active(GTK_COMBO_BOX(input),i);
+        }
+      }
+    }
+
+    // If the combo box shows no device, take the first one
+    i=gtk_combo_box_get_active(GTK_COMBO_BOX(input));
+    if (i < 0) {
+      gtk_combo_box_set_active(GTK_COMBO_BOX(input),0);
+    }
+
+    gtk_grid_attach(GTK_GRID(grid),input,col,row,3,1);
+    g_signal_connect(input,"changed",G_CALLBACK(local_input_changed_cb),NULL);
+  }
+
+  row++;
+  col=0;
+
+  gboolean device_has_microphone_input=FALSE;
+  switch(protocol) {
+    case ORIGINAL_PROTOCOL:
+      switch(device) {
+        case DEVICE_METIS:
+        case DEVICE_HERMES:
+        case DEVICE_GRIFFIN:
+        case DEVICE_ANGELIA:
+        case DEVICE_ORION:
+        case DEVICE_ORION2:
+          device_has_microphone_input=TRUE;
+          break;
+      }
+      break;
+    case NEW_PROTOCOL:
+      switch(device) {
+        case NEW_DEVICE_ATLAS:
+        case NEW_DEVICE_HERMES:
+        case NEW_DEVICE_HERMES2:
+        case NEW_DEVICE_ANGELIA:
+        case NEW_DEVICE_ORION:
+        case NEW_DEVICE_ORION2:
+          device_has_microphone_input=TRUE;
+          break;
+      }
+      break;
+  }
+
+  if(device_has_microphone_input) {
+    micboost_b=gtk_check_button_new_with_label("Radio Mic Boost");
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (micboost_b), mic_boost);
+    gtk_grid_attach(GTK_GRID(grid),micboost_b,col,row,1,1);
+    g_signal_connect(micboost_b,"toggled",G_CALLBACK(micboost_cb),NULL);
+
+    col++;
+
+    micin_b=gtk_radio_button_new_with_label_from_widget(NULL,"Radio Mic In");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (micin_b), mic_linein==0);
     gtk_widget_show(micin_b);
     gtk_grid_attach(GTK_GRID(grid),micin_b,col,row,1,1);
@@ -268,19 +338,11 @@ void tx_menu(GtkWidget *parent) {
 
     col++;
 
-    linein_b=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(micin_b),"Line In");
+    linein_b=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(micin_b),"Radio Line In");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (linein_b), mic_linein==1);
     gtk_widget_show(linein_b);
     gtk_grid_attach(GTK_GRID(grid),linein_b,col,row,1,1);
     g_signal_connect(linein_b,"toggled",G_CALLBACK(linein_changed),NULL);
-
-    row++;
-    col=0;
-
-    micboost_b=gtk_check_button_new_with_label("Mic Boost (radio only)");
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (micboost_b), mic_boost);
-    gtk_grid_attach(GTK_GRID(grid),micboost_b,col,row,2,1);
-    g_signal_connect(micboost_b,"toggled",G_CALLBACK(micboost_cb),NULL);
 
     row++;
     col=0;
@@ -300,18 +362,12 @@ void tx_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),comp,col,row,1,1);
   g_signal_connect(comp,"value-changed",G_CALLBACK(comp_cb),NULL);
 
+
   row++;
   col=0;
 
-  GtkWidget *label=gtk_label_new("TX Filter: ");
-#ifdef GTK316
-  gtk_label_set_xalign(GTK_LABEL(label),0);
-#endif
-  gtk_grid_attach(GTK_GRID(grid),label,col,row,1,1);
 
-  col++;
-
-  GtkWidget *use_rx_filter_b=gtk_check_button_new_with_label("Use RX filter");
+  GtkWidget *use_rx_filter_b=gtk_check_button_new_with_label("Use RX Filter");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (use_rx_filter_b), transmitter->use_rx_filter);
   gtk_widget_show(use_rx_filter_b);
   gtk_grid_attach(GTK_GRID(grid),use_rx_filter_b,col,row,1,1);
@@ -319,6 +375,14 @@ void tx_menu(GtkWidget *parent) {
 
   col++;
 
+  GtkWidget *label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(label), "<b>TX Filter: </b>");
+#ifdef GTK316
+  gtk_label_set_xalign(GTK_LABEL(label),0);
+#endif
+  gtk_grid_attach(GTK_GRID(grid),label,col,row,1,1);
+
+  col++;
   tx_spin_low=gtk_spin_button_new_with_range(0.0,8000.0,1.0);
   gtk_spin_button_set_value(GTK_SPIN_BUTTON(tx_spin_low),(double)tx_filter_low);
   gtk_grid_attach(GTK_GRID(grid),tx_spin_low,col,row,1,1);
@@ -343,39 +407,8 @@ void tx_menu(GtkWidget *parent) {
 
   int saved_row=row;
 
-  if(n_input_devices>0) {
-    GtkWidget *local_microphone_b=gtk_check_button_new_with_label("Local Microphone Input");
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (local_microphone_b), transmitter->local_microphone);
-    gtk_widget_show(local_microphone_b);
-    gtk_grid_attach(GTK_GRID(grid),local_microphone_b,col,row++,2,1);
-    g_signal_connect(local_microphone_b,"toggled",G_CALLBACK(local_microphone_cb),NULL);
-
-    input=gtk_combo_box_text_new();
-    for(i=0;i<n_input_devices;i++) {
-      gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(input),NULL,input_devices[i].name);
-      if(transmitter->microphone_name!=NULL) {
-        if(strcmp(transmitter->microphone_name,input_devices[i].name)==0) {
-          gtk_combo_box_set_active(GTK_COMBO_BOX(input),i);
-        }
-      }
-    }
-
-    // If the combo box shows no device, take the first one
-    i=gtk_combo_box_get_active(GTK_COMBO_BOX(input));
-    if (i < 0) {
-      gtk_combo_box_set_active(GTK_COMBO_BOX(input),0);
-    }
-
-    gtk_grid_attach(GTK_GRID(grid),input,col,row++,1,1);
-    g_signal_connect(input,"changed",G_CALLBACK(local_input_changed_cb),NULL);
-
-
-  }
-
-  row=saved_row;
-  col=3;
-
-  GtkWidget *panadapter_high_label=gtk_label_new("Panadapter High: ");
+  GtkWidget *panadapter_high_label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(panadapter_high_label), "<b>Panadapter High: </b>");
 #ifdef GTK316
   gtk_label_set_xalign(GTK_LABEL(panadapter_high_label),0);
 #endif
@@ -384,21 +417,32 @@ void tx_menu(GtkWidget *parent) {
 
   col++;
 
-  GtkWidget *panadapter_high_r=gtk_spin_button_new_with_range(-220.0,100.0,1.0);
-  gtk_spin_button_set_value(GTK_SPIN_BUTTON(panadapter_high_r),(double)transmitter->panadapter_high);
-  gtk_widget_show(panadapter_high_r);
-  gtk_grid_attach(GTK_GRID(grid),panadapter_high_r,col,row,1,1);
-  g_signal_connect(panadapter_high_r,"value_changed",G_CALLBACK(panadapter_high_value_changed_cb),NULL);
-
-  row++;
-  col=3;
-
-  GtkWidget *panadapter_low_label=gtk_label_new("Panadapter Low: ");
+  GtkWidget *panadapter_low_label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(panadapter_low_label), "<b>Panadapter Low: </b>");
 #ifdef GTK316
   gtk_label_set_xalign(GTK_LABEL(panadapter_low_label),0);
 #endif
   gtk_widget_show(panadapter_low_label);
   gtk_grid_attach(GTK_GRID(grid),panadapter_low_label,col,row,1,1);
+
+  col++;
+
+  GtkWidget *panadapter_step_label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(panadapter_step_label), "<b>Panadapter Step: </b>");
+#ifdef GTK316
+  gtk_label_set_xalign(GTK_LABEL(panadapter_step_label),0);
+#endif
+  gtk_widget_show(panadapter_step_label);
+  gtk_grid_attach(GTK_GRID(grid),panadapter_step_label,col,row,1,1);
+
+  row++;
+  col=0;
+
+  GtkWidget *panadapter_high_r=gtk_spin_button_new_with_range(-220.0,100.0,1.0);
+  gtk_spin_button_set_value(GTK_SPIN_BUTTON(panadapter_high_r),(double)transmitter->panadapter_high);
+  gtk_widget_show(panadapter_high_r);
+  gtk_grid_attach(GTK_GRID(grid),panadapter_high_r,col,row,1,1);
+  g_signal_connect(panadapter_high_r,"value_changed",G_CALLBACK(panadapter_high_value_changed_cb),NULL);
 
   col++;
 
@@ -408,10 +452,19 @@ void tx_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),panadapter_low_r,col,row,1,1);
   g_signal_connect(panadapter_low_r,"value_changed",G_CALLBACK(panadapter_low_value_changed_cb),NULL);
 
-  row++;
-  col=3;
+  col++;
 
-  GtkWidget *am_carrier_level_label=gtk_label_new("AM Carrier Level: ");
+  GtkWidget *panadapter_step_r=gtk_spin_button_new_with_range(-400.0,100.0,1.0);
+  gtk_spin_button_set_value(GTK_SPIN_BUTTON(panadapter_step_r),(double)transmitter->panadapter_step);
+  gtk_widget_show(panadapter_step_r);
+  gtk_grid_attach(GTK_GRID(grid),panadapter_step_r,col,row,1,1);
+  g_signal_connect(panadapter_step_r,"value_changed",G_CALLBACK(panadapter_step_value_changed_cb),NULL);
+
+  row++;
+  col=0;
+
+  GtkWidget *am_carrier_level_label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(am_carrier_level_label), "<b>AM Carrier Level:</b>");
 #ifdef GTK316
   gtk_label_set_xalign(GTK_LABEL(am_carrier_level_label),0);
 #endif
@@ -427,7 +480,7 @@ void tx_menu(GtkWidget *parent) {
   g_signal_connect(am_carrier_level,"value_changed",G_CALLBACK(am_carrier_level_value_changed_cb),NULL);
 
   row++;
-  col=3;
+  col=0;
 
   GtkWidget *emp_b=gtk_check_button_new_with_label("FM TX Pre-emphasize before limiting");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (emp_b), pre_emphasize);
@@ -436,7 +489,7 @@ void tx_menu(GtkWidget *parent) {
   g_signal_connect(emp_b,"toggled",G_CALLBACK(emp_cb),NULL);
 
   row++;
-  col=3;
+  col=0;
 
   GtkWidget *ctcss_b=gtk_check_button_new_with_label("CTCSS Enable");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ctcss_b), transmitter->ctcss);
@@ -451,7 +504,7 @@ void tx_menu(GtkWidget *parent) {
   g_signal_connect(ctcss_spin,"value-changed",G_CALLBACK(ctcss_spin_cb),NULL);
   
   row++;
-  col=3;
+  col=0;
 
   GtkWidget *tune_use_drive_b=gtk_check_button_new_with_label("Tune use drive");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (tune_use_drive_b), transmitter->tune_use_drive);
@@ -460,9 +513,10 @@ void tx_menu(GtkWidget *parent) {
   g_signal_connect(tune_use_drive_b,"toggled",G_CALLBACK(tune_use_drive_cb),NULL);
 
   row++;
-  col=3;
+  col=0;
   
-  GtkWidget *tune_percent_label=gtk_label_new("Tune Percent: ");
+  GtkWidget *tune_percent_label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(tune_percent_label), "<b>Tune Percent:</b>");
 #ifdef GTK316
   gtk_label_set_xalign(GTK_LABEL(tune_percent_label),0);
 #endif

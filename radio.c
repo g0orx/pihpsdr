@@ -51,10 +51,6 @@
 #ifdef SOAPYSDR
 #include "soapy_protocol.h"
 #endif
-#ifdef FREEDV
-#include "freedv.h"
-#endif
-#include "audio_waterfall.h"
 #ifdef GPIO
 #include "gpio.h"
 #endif
@@ -88,14 +84,6 @@
 #define SLIDERS_HEIGHT (100)
 #define TOOLBAR_HEIGHT (30)
 #define WATERFALL_HEIGHT (105)
-#ifdef PSK
-#define PSK_WATERFALL_HEIGHT (90)
-#define PSK_HEIGHT (display_height-(VFO_HEIGHT+PSK_WATERFALL_HEIGHT+SLIDERS_HEIGHT+TOOLBAR_HEIGHT))
-#endif
-
-#ifdef FREEDV
-#define FREEDV_WATERFALL_HEIGHT (105)
-#endif
 
 GtkWidget *fixed;
 static GtkWidget *vfo_panel;
@@ -105,39 +93,30 @@ static GtkWidget *sliders;
 static GtkWidget *toolbar;
 static GtkWidget *panadapter;
 static GtkWidget *waterfall;
-#ifdef PSK
-static GtkWidget *psk;
-static GtkWidget *psk_waterfall;
-#endif
 static GtkWidget *audio_waterfall;
 
 #ifdef GPIO
 static GtkWidget *encoders;
 static cairo_surface_t *encoders_surface = NULL;
 #endif
-#ifdef WIRIINGPI
-static GtkWidget *encoders;
-static cairo_surface_t *encoders_surface = NULL;
-#endif
+	gint sat_mode;
 
-gint sat_mode;
+	int region=REGION_OTHER;
 
-int region=REGION_OTHER;
+	int echo=0;
 
-int echo=0;
+	int radio_sample_rate;
+	gboolean iqswap;
 
-int radio_sample_rate;
-gboolean iqswap;
+	static gint save_timer_id;
 
-static gint save_timer_id;
+	DISCOVERED *radio=NULL;
 
-DISCOVERED *radio=NULL;
-
-char property_path[128];
+	char property_path[128];
 #ifdef __APPLE__
-sem_t *property_sem;
+        sem_t *property_sem;
 #else
-sem_t property_sem;
+        sem_t property_sem;
 #endif
 
 RECEIVER *receiver[MAX_RECEIVERS];
@@ -164,8 +143,9 @@ int alc=TXA_ALC_AV;
 double tone_level=0.2;
 
 int filter_board=ALEX;
-//int pa=PA_ENABLED;
-//int apollo_tuner=0;
+int pa_enabled=PA_ENABLED;
+int pa_power=0;
+int pa_trim[11];
 
 int updates_per_second=10;
 
@@ -341,7 +321,7 @@ g_print("radio_stop: RX1: CloseChannel: %d\n",receiver[1]->id);
 void reconfigure_radio() {
   int i;
   int y;
-//fprintf(stderr,"reconfigure_radio: receivers=%d\n",receivers);
+//g_print("reconfigure_radio: receivers=%d\n",receivers);
   rx_height=display_height-VFO_HEIGHT;
   if(display_sliders) {
     rx_height-=SLIDERS_HEIGHT;
@@ -416,13 +396,120 @@ static gboolean menu_cb (GtkWidget *widget, GdkEventButton *event, gpointer data
 void start_radio() {
   int i;
   int y;
-//fprintf(stderr,"start_radio: selected radio=%p device=%d\n",radio,radio->device);
+//g_print("start_radio: selected radio=%p device=%d\n",radio,radio->device);
   gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_WATCH));
 
   int rc;
 
   protocol=radio->protocol;
   device=radio->device;
+
+  // set the default power output
+  switch(protocol) {
+    case ORIGINAL_PROTOCOL:
+      switch(device) {
+        case DEVICE_METIS:
+          pa_power=PA_1W;
+          break;
+        case DEVICE_HERMES:
+          pa_power=PA_100W;
+          break;
+        case DEVICE_GRIFFIN:
+          pa_power=PA_100W;
+          break;
+        case DEVICE_ANGELIA:
+          pa_power=PA_100W;
+          break;
+        case DEVICE_ORION:
+          pa_power=PA_100W;
+          break;
+        case DEVICE_HERMES_LITE:
+          pa_power=PA_1W;
+          break;
+        case DEVICE_HERMES_LITE2:
+          pa_power=PA_10W;
+          break;
+        case DEVICE_ORION2:
+          pa_power=PA_200W;
+          break;
+        case DEVICE_STEMLAB:
+          pa_power=PA_100W;
+          break;
+      }
+      break;
+    case NEW_PROTOCOL:
+      switch(device) {
+        case NEW_DEVICE_ATLAS:
+          pa_power=PA_1W;
+          break;
+        case NEW_DEVICE_HERMES:
+        case NEW_DEVICE_HERMES2:
+          pa_power=PA_100W;
+          break;
+        case NEW_DEVICE_ANGELIA:
+          pa_power=PA_100W;
+          break;
+        case NEW_DEVICE_ORION:
+          pa_power=PA_100W;
+          break;
+        case NEW_DEVICE_HERMES_LITE:
+          pa_power=PA_1W;
+          break;
+        case NEW_DEVICE_HERMES_LITE2:
+          pa_power=PA_10W;
+          break;
+        case NEW_DEVICE_ORION2:
+          pa_power=PA_200W;
+          break;
+        case DEVICE_STEMLAB:
+          pa_power=PA_100W;
+          break;
+      }
+      break;
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
+      pa_power=PA_1W;
+      break;
+#endif
+  }
+
+  switch(pa_power) {
+    case PA_1W:
+      for(i=0;i<11;i++) {
+        pa_trim[i]=i*100;
+      }
+      break;
+    case PA_10W:
+      for(i=0;i<11;i++) {
+        pa_trim[i]=i;
+      }
+      break;
+    case PA_30W:
+      for(i=0;i<11;i++) {
+        pa_trim[i]=i*3;
+      }
+      break;
+    case PA_50W:
+      for(i=0;i<11;i++) {
+        pa_trim[i]=i*5;
+      }
+      break;
+    case PA_100W:
+      for(i=0;i<11;i++) {
+        pa_trim[i]=i*10;
+      }
+      break;
+    case PA_200W:
+      for(i=0;i<11;i++) {
+        pa_trim[i]=i*20;
+      }
+      break;
+    case PA_500W:
+      for(i=0;i<11;i++) {
+        pa_trim[i]=i*50;
+      }
+      break;
+  }
 
   //
   // have_rx_gain determines whether we have "ATT" or "RX Gain" Sliders
@@ -488,7 +575,7 @@ void start_radio() {
   rc=sem_init(&property_sem, 0, 0);
 #endif
   if(rc!=0) {
-    fprintf(stderr,"start_radio: sem_init failed for property_sem: %d\n", rc);
+    g_print("start_radio: sem_init failed for property_sem: %d\n", rc);
     exit(-1);
   }
 #ifdef __APPLE__
@@ -725,6 +812,11 @@ void start_radio() {
   adc_attenuation[0]=0;
   adc_attenuation[1]=0;
 
+  if(have_rx_gain) {
+    adc_attenuation[0]=25;
+    adc_attenuation[1]=25;
+  }
+
   adc[0].antenna=ANTENNA_1;
   adc[0].filters=AUTOMATIC;
   adc[0].hpf=HPF_13;
@@ -775,21 +867,26 @@ void start_radio() {
   radio_sample_rate=radio->info.soapy.sample_rate;
 #endif
 
-//fprintf(stderr,"meter_calibration=%f display_calibration=%f\n", meter_calibration, display_calibration);
+//g_print("meter_calibration=%f display_calibration=%f\n", meter_calibration, display_calibration);
 
-#if defined (CONTROLLER2_V2) || defined (CONTROLLER2_V1)
-  display_sliders=0;
-  display_toolbar=0;
+#ifdef GPIO
+  switch(controller) {
+    case CONTROLLER2_V1:
+    case CONTROLLER2_V2:
+      display_sliders=0;
+      display_toolbar=0;
+      break;
+    default:
+      display_sliders=1;
+      display_toolbar=1;
+      break;
+  }
 #else
   display_sliders=1;
   display_toolbar=1;
 #endif
 
-#ifdef GPIO
-  gpio_restore_state();
-#endif
   radioRestoreState();
-
 
 //
 // It is possible that an option has been read in
@@ -828,11 +925,11 @@ void start_radio() {
   gtk_container_remove(GTK_CONTAINER(top_window),grid);
   gtk_container_add(GTK_CONTAINER(top_window), fixed);
 
-//fprintf(stderr,"radio: vfo_init\n");
+//g_print("radio: vfo_init\n");
   vfo_panel = vfo_init(VFO_WIDTH,VFO_HEIGHT,top_window);
   gtk_fixed_put(GTK_FIXED(fixed),vfo_panel,0,y);
 
-//fprintf(stderr,"radio: meter_init\n");
+//g_print("radio: meter_init\n");
   meter = meter_init(METER_WIDTH,METER_HEIGHT,top_window);
   gtk_fixed_put(GTK_FIXED(fixed),meter,VFO_WIDTH,y);
 
@@ -859,7 +956,6 @@ void start_radio() {
   if(display_toolbar) {
     rx_height-=TOOLBAR_HEIGHT;
   }
-  //int tx_height=rx_height;
 
   //
   // To be on the safe side, we create ALL receiver panels here
@@ -887,7 +983,7 @@ void start_radio() {
 
   active_receiver=receiver[0];
 
-  //fprintf(stderr,"Create transmitter\n");
+  //g_print("Create transmitter\n");
   if(can_transmit) {
     if(duplex) {
       transmitter=create_transmitter(CHANNEL_TX, buffer_size, fft_size, updates_per_second, display_width/4, display_height/2);
@@ -899,6 +995,8 @@ void start_radio() {
     }
     transmitter->x=0;
     transmitter->y=VFO_HEIGHT;
+
+    calcDriveLevel();
 
 #ifdef PURESIGNAL
     tx_set_ps_sample_rate(transmitter,protocol==NEW_PROTOCOL?192000:active_receiver->sample_rate);
@@ -915,14 +1013,16 @@ void start_radio() {
 #endif
   
 #ifdef GPIO
-  if(gpio_init()<0) {
-    fprintf(stderr,"GPIO failed to initialize\n");
+  if(controller!=NO_CONTROLLER) {
+    if(gpio_init()<0) {
+      g_print("GPIO failed to initialize\n");
+    }
   }
 #endif
 #ifdef LOCALCW
   // init local keyer if enabled
   if (cw_keyer_internal == 0) {
-	fprintf(stderr,"Initialize keyer.....\n");
+	g_print("Initialize keyer.....\n");
     keyer_update();
   }
 #endif
@@ -942,7 +1042,7 @@ void start_radio() {
   }
 
   if(display_sliders) {
-//fprintf(stderr,"create sliders\n");
+//g_print("create sliders\n");
     sliders = sliders_init(display_width,SLIDERS_HEIGHT);
     gtk_fixed_put(GTK_FIXED(fixed),sliders,0,y);
     y+=SLIDERS_HEIGHT;
@@ -968,24 +1068,10 @@ void start_radio() {
   }
 
   gtk_widget_show_all (fixed);
-//#ifdef FREEDV
-//  if(!active_receiver->freedv) {
-//    gtk_widget_hide(audio_waterfall);
-//  }
-//#endif
-
   
 
   // save every 30 seconds
   //save_timer_id=gdk_threads_add_timeout(30000, save_cb, NULL);
-
-#ifdef PSK
-  if(vfo[active_receiver->id].mode==modePSK) {
-    show_psk();
-  } else {
-    show_waterfall();
-  }
-#endif
 
   if(rigctl_enable) {
     launch_rigctl();
@@ -1059,7 +1145,7 @@ void start_radio() {
 }
 
 void disable_rigctl() {
-   fprintf(stderr,"RIGCTL: disable_rigctl()\n");
+   g_print("RIGCTL: disable_rigctl()\n");
    close_rigctl_ports();
 }
  
@@ -1068,7 +1154,7 @@ void radio_change_receivers(int r) {
   // The button in the radio menu will call this function even if the
   // number of receivers has not changed.
   if (receivers == r) return;
-  fprintf(stderr,"radio_change_receivers: from %d to %d\n",receivers,r);
+  g_print("radio_change_receivers: from %d to %d\n",receivers,r);
   //
   // When changing the number of receivers, restart the
   // old protocol
@@ -1122,6 +1208,7 @@ void radio_change_sample_rate(int rate) {
 #ifdef SOAPYSDR
     case SOAPYSDR_PROTOCOL:
       soapy_protocol_change_sample_rate(receiver[0],rate);
+      soapy_protocol_set_mic_sample_rate(rate);
       break;
 #endif
   }
@@ -1132,11 +1219,6 @@ static void rxtx(int state) {
 
   if(state) {
     // switch to tx
-#ifdef FREEDV
-    if(active_receiver->freedv) {
-      freedv_reset_tx_text_index();
-    }
-#endif
 #ifdef PURESIGNAL
     RECEIVER *rx_feedback=receiver[PS_RX_FEEDBACK];
     RECEIVER *tx_feedback=receiver[PS_TX_FEEDBACK];
@@ -1162,11 +1244,6 @@ static void rxtx(int state) {
         gtk_container_remove(GTK_CONTAINER(fixed),receiver[i]->panel);
       }
     }
-//#ifdef FREEDV
-//    if(active_receiver->freedv) {
-//      gtk_widget_show(audio_waterfall);
-//    }
-//#endif
 
     if(duplex) {
       gtk_widget_show_all(transmitter->dialog);
@@ -1200,11 +1277,6 @@ static void rxtx(int state) {
     } else {
       gtk_container_remove(GTK_CONTAINER(fixed), transmitter->panel);
     }
-//#ifdef FREEDV
-//    if(active_receiver->freedv) {
-//      gtk_widget_hide(audio_waterfall);
-//    }
-//#endif
     if(!duplex) {
       for(i=0;i<receivers;i++) {
         gtk_fixed_put(GTK_FIXED(fixed),receiver[i]->panel,receiver[i]->x,receiver[i]->y);
@@ -1212,11 +1284,6 @@ static void rxtx(int state) {
         set_displaying(receiver[i],1);
       }
     }
-//#ifdef FREEDV
-//    if(active_receiver->freedv) {
-//      gtk_widget_show(audio_waterfall);
-//    }
-//#endif
   }
 
 #ifdef PURESIGNAL
@@ -1264,7 +1331,7 @@ void vox_changed(int state) {
 }
 
 void frequency_changed(RECEIVER *rx) {
-//fprintf(stderr,"frequency_changed: channel=%d frequency=%ld lo=%ld error=%ld ctun=%d offset=%ld\n",rx->channel,rx->frequency_a,rx->lo_a,rx->error_a,rx->ctun,rx->offset);
+//g_print("frequency_changed: channel=%d frequency=%ld lo=%ld error=%ld ctun=%d offset=%ld\n",rx->channel,rx->frequency_a,rx->lo_a,rx->error_a,rx->ctun,rx->offset);
   if(vfo[0].ctun) {
     SetRXAShiftFreq(rx->id, (double)vfo[0].offset);
     RXANBPSetShiftFrequency(rx->id, (double)vfo[0].offset);
@@ -1485,7 +1552,6 @@ static int calcLevel(double d) {
 
   level=(int)(actual_volts*255.0);
 
-//fprintf(stderr,"calcLevel: %f calib=%f level=%d\n",d, gbb, level);
   return level;
 }
 
@@ -1494,7 +1560,7 @@ void calcDriveLevel() {
     if(isTransmitting()  && protocol==NEW_PROTOCOL) {
       schedule_high_priority();
     }
-//fprintf(stderr,"calcDriveLevel: drive=%d drive_level=%d\n",transmitter->drive,transmitter->drive_level);
+//g_print("calcDriveLevel: drive=%d drive_level=%d\n",transmitter->drive,transmitter->drive_level);
 }
 
 void setDrive(double value) {
@@ -1532,11 +1598,6 @@ void set_attenuation(int value) {
       case NEW_PROTOCOL:
         schedule_high_priority();
         break;
-#ifdef SOAPYSDR
-      case SOAPYSDR_PROTOCOL:
-        //soapy_protocol_set_attenuation(value);
-        break;
-#endif
     }
 }
 
@@ -1580,16 +1641,18 @@ void set_alex_attenuation(int v) {
 }
 
 void radioRestoreState() {
+    char name[32];
     char *value;
+    int i;
 
-fprintf(stderr,"radioRestoreState: %s\n",property_path);
-//fprintf(stderr,"sem_wait\n");
+g_print("radioRestoreState: %s\n",property_path);
+//g_print("sem_wait\n");
 #ifdef __APPLE__
     sem_wait(property_sem);
 #else
     sem_wait(&property_sem);
 #endif
-//fprintf(stderr,"sem_wait: returner\n");
+//g_print("sem_wait: returner\n");
     loadProperties(property_path);
 
     value=getProperty("diversity_enabled");
@@ -1616,12 +1679,15 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
     if(value) tx_out_of_band=atoi(value);
     value=getProperty("filter_board");
     if(value) filter_board=atoi(value);
-/*
-    value=getProperty("apollo_tuner");
-    if(value) apollo_tuner=atoi(value);
-    value=getProperty("pa");
-    if(value) pa=atoi(value);
-*/
+    value=getProperty("pa_enabled");
+    if(value) pa_enabled=atoi(value);
+    value=getProperty("pa_power");
+    if(value) pa_power=atoi(value);
+    for(i=0;i<11;i++) {
+      sprintf(name,"pa_trim[%d]",i);
+      value=getProperty(name);
+      if(value) pa_trim[i]=atoi(value);
+    }
     value=getProperty("updates_per_second");
     if(value) updates_per_second=atoi(value);
     value=getProperty("display_filled");
@@ -1781,9 +1847,6 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
 #ifdef GPIO
     gpio_restore_actions();
 #endif
-#ifdef FREEDV
-    freedv_restore_state();
-#endif
     value=getProperty("rigctl_enable");
     if(value) rigctl_enable=atoi(value);
     value=getProperty("rigctl_port_base");
@@ -1825,7 +1888,7 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
 #endif
 
 	
-//fprintf(stderr,"sem_post\n");
+//g_print("sem_post\n");
 #ifdef __APPLE__
     sem_post(property_sem);
 #else
@@ -1836,15 +1899,15 @@ fprintf(stderr,"radioRestoreState: %s\n",property_path);
 void radioSaveState() {
     int i;
     char value[80];
+    char name[32];
 
-fprintf(stderr,"radioSaveState: %s\n",property_path);
-//fprintf(stderr,"sem_wait\n");
+g_print("radioSaveState: %s\n",property_path);
 #ifdef __APPLE__
     sem_wait(property_sem);
 #else
     sem_wait(&property_sem);
 #endif
-//fprintf(stderr,"sem_wait: returned\n");
+    clearProperties();
     sprintf(value,"%d",diversity_enabled);
     setProperty("diversity_enabled",value);
     sprintf(value,"%f",div_gain);
@@ -1909,6 +1972,15 @@ fprintf(stderr,"radioSaveState: %s\n",property_path);
     setProperty("tx_filter_low",value);
     sprintf(value,"%d",tx_filter_high);
     setProperty("tx_filter_high",value);
+    sprintf(value,"%d",pa_enabled);
+    setProperty("pa_enabled",value);
+    sprintf(value,"%d",pa_power);
+    setProperty("pa_power",value);
+    for(i=0;i<11;i++) {
+      sprintf(name,"pa_trim[%d]",i);
+      sprintf(value,"%d",pa_trim[i]);
+      setProperty(name,value);
+    }
 
     sprintf(value,"%lld",step);
     setProperty("step",value);
@@ -2088,16 +2160,14 @@ fprintf(stderr,"radioSaveState: %s\n",property_path);
     sprintf(value,"%d",sat_mode);
     setProperty("sat_mode",value);
 
-#ifdef FREEDV
-    freedv_save_state();
-#endif
-
     filterSaveState();
     bandSaveState();
     memSaveState();
 
 #ifdef GPIO
-    gpio_save_actions();
+    if(controller!=NO_CONTROLLER) {
+      gpio_save_actions();
+    }
 #endif
 
     sprintf(value,"%d",rigctl_enable);
@@ -2106,7 +2176,7 @@ fprintf(stderr,"radioSaveState: %s\n",property_path);
     setProperty("rigctl_port_base",value);
 
     saveProperties(property_path);
-fprintf(stderr,"sem_post\n");
+g_print("sem_post\n");
 #ifdef __APPLE__
     sem_post(property_sem);
 #else
@@ -2128,7 +2198,7 @@ void calculate_display_average(RECEIVER *rx) {
 void set_filter_type(int filter_type) {
   int i;
 
-  //fprintf(stderr,"set_filter_type: %d\n",filter_type);
+  //g_print("set_filter_type: %d\n",filter_type);
   for(i=0;i<RECEIVERS;i++) {
     receiver[i]->low_latency=filter_type;
     RXASetMP(receiver[i]->id, filter_type);
@@ -2140,7 +2210,7 @@ void set_filter_type(int filter_type) {
 void set_filter_size(int filter_size) {
   int i;
 
-  //fprintf(stderr,"set_filter_size: %d\n",filter_size);
+  //g_print("set_filter_size: %d\n",filter_size);
   for(i=0;i<RECEIVERS;i++) {
     receiver[i]->fft_size=filter_size;
     RXASetNC(receiver[i]->id, filter_size);
@@ -2148,24 +2218,6 @@ void set_filter_size(int filter_size) {
   transmitter->fft_size=filter_size;
   TXASetNC(transmitter->id, filter_size);
 }
-
-#ifdef FREEDV
-void set_freedv(int state) {
-fprintf(stderr,"set_freedv: rx=%p state=%d\n",active_receiver,state);
-  g_mutex_lock(&active_receiver->freedv_mutex);
-  active_receiver->freedv=state;
-  if(active_receiver->freedv) {
-    SetRXAPanelRun(active_receiver->id, 0);
-    init_freedv(active_receiver);
-    transmitter->freedv_samples=0;
-  } else {
-    SetRXAPanelRun(active_receiver->id, 1);
-    close_freedv(active_receiver);
-  }
-  g_mutex_unlock(&active_receiver->freedv_mutex);
-  g_idle_add(ext_vfo_update,NULL);
-}
-#endif
 
 void radio_change_region(int r) {
   region=r;

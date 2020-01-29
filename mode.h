@@ -32,12 +32,7 @@
 #define modeDIGL 9
 #define modeSAM 10
 #define modeDRM 11
-#ifdef PSK
-#define modePSK 12
-#define MODES 13
-#else
 #define MODES 12
-#endif
 
 char *mode_string[MODES];
 

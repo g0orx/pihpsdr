@@ -133,55 +133,53 @@ void i2c_interrupt() {
         int i=-1;
         switch(ints) {
           case SW_2:
-            i=SW2;
+            i=CONTROLLER2_SW2;
             break;
           case SW_3:
-            i=SW3;
+            i=CONTROLLER2_SW3;
             break;
           case SW_4:
-            i=SW4;
+            i=CONTROLLER2_SW4;
             break;
           case SW_5:
-            i=SW5;
+            i=CONTROLLER2_SW5;
             break;
           case SW_6:
-            i=SW6;
+            i=CONTROLLER2_SW6;
             break;
           case SW_7:
-            i=SW7;
+            i=CONTROLLER2_SW7;
             break;
           case SW_8:
-            i=SW8;
+            i=CONTROLLER2_SW8;
             break;
-#if defined (CONTROLLER2_V2) || defined (CONTROLLER2_V1)
           case SW_9:
-            i=SW9;
+            i=CONTROLLER2_SW9;
             break;
           case SW_10:
-            i=SW10;
+            i=CONTROLLER2_SW10;
             break;
           case SW_11:
-            i=SW11;
+            i=CONTROLLER2_SW11;
             break;
           case SW_12:
-            i=SW12;
+            i=CONTROLLER2_SW12;
             break;
           case SW_13:
-            i=SW13;
+            i=CONTROLLER2_SW13;
             break;
           case SW_14:
-            i=SW14;
+            i=CONTROLLER2_SW14;
             break;
           case SW_15:
-            i=SW15;
+            i=CONTROLLER2_SW15;
             break;
           case SW_16:
-            i=SW16;
+            i=CONTROLLER2_SW16;
             break;
           case SW_17:
-            i=SW17;
+            i=CONTROLLER2_SW17;
             break;
-#endif
         }
 //g_print("i1c_interrupt: sw=%d action=%d\n",i,sw_action[i]);
         switch(sw_action[i]) {

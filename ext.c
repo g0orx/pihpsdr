@@ -574,6 +574,13 @@ int ext_diversity_update(void *data) {
   return 0;
 }
 
+#ifdef PURESIGNAL
+int ext_start_ps(void *data) {
+  start_ps();
+  return 0;
+}
+#endif
+
 int ext_sat_update(void *data) {
   switch(sat_mode) {
     case SAT_NONE:

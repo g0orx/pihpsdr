@@ -207,24 +207,6 @@ FILTER filterDRM[FILTERS]={
     {-3300,3300,"Var2"}
     };
 
-#ifdef PSK
-FILTER filterPSK[FILTERS]={
-    {150,5150,"5.0k"},
-    {150,4550,"4.4k"},
-    {150,3950,"3.8k"},
-    {150,3150,"3k"},
-    {150,3050,"2.9k"},
-    {150,2850,"2.7k"},
-    {150,2550,"2.4k"},
-    {150,2250,"2.1k"},
-    {150,1950,"1.8k"},
-    {150,1150,"1.0k"},
-    {150,2850,"Var1"},
-    {150,2850,"Var2"}
-    };
-#endif
-
-
 FILTER *filters[]={
     filterLSB
     ,filterUSB
@@ -238,11 +220,9 @@ FILTER *filters[]={
     ,filterDIGL
     ,filterSAM
     ,filterDRM
-#ifdef PSK
-    ,filterPSK
-#endif
-
 };
+
+gint filter_step=5;
 
 void filterSaveState() {
     char value[128];
@@ -443,18 +423,57 @@ void filter_width_changed(int rx,int increment) {
 fprintf(stderr,"filter_width_changed: rx=%d mode=%d filter=%d increment=%d\n",rx,vfo[id].mode,vfo[id].filter,increment);
 
   if(vfo[id].filter==filterVar1 || vfo[id].filter==filterVar2) {
-    filter->high=filter->high+increment;
-fprintf(stderr,"filter->low=%d filter->high=%d\n",filter->low,filter->high);
-    if(vfo[id].mode==modeCWL || vfo[id].mode==modeCWU) {
-      filter->low=filter->high;
+
+    switch(vfo[id].mode) {
+      case modeCWL:
+      case modeLSB:
+      case modeDIGL:
+        filter->low=filter->low-(increment*filter_step);
+        break;
+      case modeCWU:
+      case modeUSB:
+      case modeDIGU:
+        filter->high=filter->high+(increment*filter_step);
+        break;
+      default:
+        filter->low=filter->low-(increment*filter_step);
+        filter->high=filter->high+(increment*filter_step);
+        break;
     }
     vfo_filter_changed(vfo[id].filter);
-    int width=filter->high-filter->low;
-    if(vfo[id].mode==modeCWL || vfo[id].mode==modeCWU) {
-      width=filter->high;
-    } else {
-      if(width<0) width=filter->low-filter->high;
-    }
-    set_filter_width(id,width);
+    set_filter_width(id,filter->high-filter->low);
   }
+}
+
+void filter_shift_changed(int rx,int increment) {
+  int id=receiver[rx]->id;
+  FILTER *mode_filters=filters[vfo[id].mode];
+  FILTER *filter=&mode_filters[vfo[id].filter];
+
+fprintf(stderr,"filter_shift_changed: rx=%d mode=%d filter=%d increment=%d\n",rx,vfo[id].mode,vfo[id].filter,increment);
+
+  if(vfo[id].filter==filterVar1 || vfo[id].filter==filterVar2) {
+    switch(vfo[id].mode) {
+      case modeCWL:
+      case modeLSB:
+      case modeDIGL:
+        filter->low=filter->low+(increment*filter_step);
+        filter->high=filter->high+(increment*filter_step);
+        set_filter_shift(id,filter->high);
+        break;
+      case modeCWU:
+      case modeUSB:
+      case modeDIGU:
+        filter->low=filter->low+(increment*filter_step);
+        filter->high=filter->high+(increment*filter_step);
+        set_filter_shift(id,filter->low);
+        break;
+
+      default:
+        // not for AM, FM, DSB
+        break;
+    }
+    vfo_filter_changed(vfo[id].filter);
+  }
+
 }

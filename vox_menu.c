@@ -176,7 +176,8 @@ void vox_menu(GtkWidget *parent) {
   g_signal_connect (enable_b, "pressed", G_CALLBACK(enable_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),enable_b,3,0,1,1);
 
-  GtkWidget *level_label=gtk_label_new("Mic Level:");
+  GtkWidget *level_label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(level_label), "<b>Mic Level:</b>");
   gtk_misc_set_alignment (GTK_MISC(level_label), 0, 0);
   gtk_widget_show(level_label);
   gtk_grid_attach(GTK_GRID(grid),level_label,0,1,1,1);
@@ -186,24 +187,28 @@ void vox_menu(GtkWidget *parent) {
   gtk_widget_show(level);
   gtk_grid_attach(GTK_GRID(grid),level,1,1,3,1);
 
-  GtkWidget *threshold_label=gtk_label_new("VOX Threshold:");
+  GtkWidget *threshold_label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(threshold_label), "<b>VOX Threshold:</b>");
   gtk_misc_set_alignment (GTK_MISC(threshold_label), 0, 0);
   gtk_widget_show(threshold_label);
   gtk_grid_attach(GTK_GRID(grid),threshold_label,0,2,1,1);
 
   GtkWidget *vox_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0,1000.0,1.0);
 //  gtk_widget_set_size_request (vox_scale, 300, 25);
+  gtk_range_set_increments (GTK_RANGE(vox_scale),1.0,1.0);
   gtk_range_set_value(GTK_RANGE(vox_scale),vox_threshold*1000.0);
   gtk_widget_show(vox_scale);
   gtk_grid_attach(GTK_GRID(grid),vox_scale,1,2,3,1);
   g_signal_connect(G_OBJECT(vox_scale),"value_changed",G_CALLBACK(vox_value_changed_cb),NULL);
   
-  GtkWidget *hang_label=gtk_label_new("VOX Hang (ms):");
+  GtkWidget *hang_label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(hang_label), "<b>VOX Hand (ms):</b>");
   gtk_misc_set_alignment (GTK_MISC(hang_label), 0, 0);
   gtk_widget_show(hang_label);
   gtk_grid_attach(GTK_GRID(grid),hang_label,0,4,1,1);
 
   GtkWidget *vox_hang_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0,1000.0,1.0);
+  gtk_range_set_increments (GTK_RANGE(vox_hang_scale),1.0,1.0);
   gtk_range_set_value(GTK_RANGE(vox_hang_scale),vox_hang);
   gtk_widget_show(vox_hang_scale);
   gtk_grid_attach(GTK_GRID(grid),vox_hang_scale,1,4,3,1);

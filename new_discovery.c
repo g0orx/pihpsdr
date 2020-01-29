@@ -71,7 +71,6 @@ void new_discovery() {
     struct ifaddrs *addrs,*ifa;
     getifaddrs(&addrs);
     ifa = addrs;
-
     while (ifa) {
         g_main_context_iteration(NULL, 0);
         if (ifa->ifa_addr) {

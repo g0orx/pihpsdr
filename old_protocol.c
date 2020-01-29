@@ -49,12 +49,6 @@
 #include "signal.h"
 #include "toolbar.h"
 #include "vfo.h"
-#ifdef FREEDV
-#include "freedv.h"
-#endif
-#ifdef PSK
-#include "psk.h"
-#endif
 #include "ext.h"
 #include "iambic.h"
 #include "error_handler.h"
@@ -165,13 +159,6 @@ static int current_rx=0;
 static int samples=0;
 static int mic_samples=0;
 static int mic_sample_divisor=1;
-#ifdef FREEDV
-static int freedv_divisor=6;
-#endif
-#ifdef PSK
-static int psk_samples=0;
-static int psk_divisor=6;
-#endif
 
 static int local_ptt=0;
 static int dash=0;
@@ -266,13 +253,13 @@ void old_protocol_set_mic_sample_rate(int rate) {
 
 void old_protocol_init(int rx,int pixels,int rate) {
   int i;
-  fprintf(stderr,"old_protocol_init: num_hpsdr_receivers=%d\n",how_many_receivers());
+  g_print("old_protocol_init: num_hpsdr_receivers=%d\n",how_many_receivers());
 
   old_protocol_set_mic_sample_rate(rate);
 
   if(transmitter->local_microphone) {
     if(audio_open_input()!=0) {
-      fprintf(stderr,"audio_open_input failed\n");
+      g_print("audio_open_input failed\n");
       transmitter->local_microphone=0;
     }
   }
@@ -284,14 +271,14 @@ void old_protocol_init(int rx,int pixels,int rate) {
 // if we have a USB interfaced Ozy device:
 //
   if (device == DEVICE_OZY) {
-    fprintf(stderr,"old_protocol_init: initialise ozy on USB\n");
+    g_print("old_protocol_init: initialise ozy on USB\n");
     ozy_initialise();
     start_usb_receive_threads();
   }
   else
 #endif
   {
-    fprintf(stderr,"old_protocol starting receive thread: buffer_size=%d output_buffer_size=%d\n",buffer_size,output_buffer_size);
+    g_print("old_protocol starting receive thread: buffer_size=%d output_buffer_size=%d\n",buffer_size,output_buffer_size);
     if (radio->use_tcp) {
       open_tcp_socket();
     } else  {
@@ -300,14 +287,14 @@ void old_protocol_init(int rx,int pixels,int rate) {
     receive_thread_id = g_thread_new( "old protocol", receive_thread, NULL);
     if( ! receive_thread_id )
     {
-      fprintf(stderr,"g_thread_new failed on receive_thread\n");
+      g_print("g_thread_new failed on receive_thread\n");
       exit( -1 );
     }
-    fprintf(stderr, "receive_thread: id=%p\n",receive_thread_id);
+    g_print( "receive_thread: id=%p\n",receive_thread_id);
   }
 
 
-  fprintf(stderr,"old_protocol_init: prime radio\n");
+  g_print("old_protocol_init: prime radio\n");
   for(i=8;i<OZY_BUFFER_SIZE;i++) {
     output_buffer[i]=0;
   }
@@ -324,12 +311,12 @@ void old_protocol_init(int rx,int pixels,int rate) {
 //
 static void start_usb_receive_threads()
 {
-  fprintf(stderr,"old_protocol starting USB receive thread: buffer_size=%d\n",buffer_size);
+  g_print("old_protocol starting USB receive thread: buffer_size=%d\n",buffer_size);
 
   ozy_EP6_rx_thread_id = g_thread_new( "OZY EP6 RX", ozy_ep6_rx_thread, NULL);
   if( ! ozy_EP6_rx_thread_id )
   {
-    fprintf(stderr,"g_thread_new failed for ozy_ep6_rx_thread\n");
+    g_print("g_thread_new failed for ozy_ep6_rx_thread\n");
     exit( -1 );
   }
 }
@@ -350,7 +337,7 @@ static gpointer ozy_ep4_rx_thread(gpointer arg)
 static gpointer ozy_ep6_rx_thread(gpointer arg) {
   int bytes;
 
-  fprintf(stderr, "old_protocol: USB EP6 receive_thread\n");
+  g_print( "old_protocol: USB EP6 receive_thread\n");
   running=1;
  
   while (running)
@@ -359,12 +346,12 @@ static gpointer ozy_ep6_rx_thread(gpointer arg) {
 
     if (bytes == 0)
     {
-      fprintf(stderr,"old_protocol_ep6_read: ozy_read returned 0 bytes... retrying\n");
+      g_print("old_protocol_ep6_read: ozy_read returned 0 bytes... retrying\n");
       continue;
     }
     else if (bytes != EP6_BUFFER_SIZE)
     {
-      fprintf(stderr,"old_protocol_ep6_read: OzyBulkRead failed %d bytes\n",bytes);
+      g_print("old_protocol_ep6_read: OzyBulkRead failed %d bytes\n",bytes);
       perror("ozy_read(EP6 read failed");
       //exit(1);
     }
@@ -411,6 +398,7 @@ static void open_udp_socket() {
     if (setsockopt(tmp, SOL_SOCKET, SO_RCVBUF, &optval, sizeof(optval))<0) {
       perror("data_socket: SO_RCVBUF");
     }
+
     //
     // set a timeout for receive
     // This is necessary because we might already "sit" in an UDP recvfrom() call while
@@ -425,6 +413,7 @@ static void open_udp_socket() {
     }
 
     // bind to the interface
+g_print("binding UDP socket to %s:%d\n",inet_ntoa(radio->info.network.interface_address.sin_addr),ntohs(radio->info.network.interface_address.sin_port));
     if(bind(tmp,(struct sockaddr*)&radio->info.network.interface_address,radio->info.network.interface_length)<0) {
       perror("old_protocol: bind socket failed for data_socket\n");
       exit(-1);
@@ -433,7 +422,7 @@ static void open_udp_socket() {
     memcpy(&data_addr,&radio->info.network.address,radio->info.network.address_length);
     data_addr.sin_port=htons(DATA_PORT);
     data_socket=tmp;
-    fprintf(stderr,"UDP socket established: %d\n", data_socket);
+    g_print("UDP socket established: %d\n", data_socket);
 }
 
 static void open_tcp_socket() {
@@ -448,7 +437,7 @@ static void open_tcp_socket() {
     memcpy(&data_addr,&radio->info.network.address,radio->info.network.address_length);
     data_addr.sin_port=htons(DATA_PORT);
     data_addr.sin_family = AF_INET;
-    fprintf(stderr,"Trying to open TCP connection to %s\n", inet_ntoa(radio->info.network.address.sin_addr));
+    g_print("Trying to open TCP connection to %s\n", inet_ntoa(radio->info.network.address.sin_addr));
 
     tmp=socket(AF_INET, SOCK_STREAM, 0);
     if (tmp < 0) {
@@ -473,7 +462,7 @@ static void open_tcp_socket() {
       perror("tcp_socket: SO_RCVBUF");
     }
     tcp_socket=tmp;
-    fprintf(stderr,"TCP socket established: %d\n", tcp_socket);
+    g_print("TCP socket established: %d\n", tcp_socket);
 }
 
 static gpointer receive_thread(gpointer arg) {
@@ -485,7 +474,7 @@ static gpointer receive_thread(gpointer arg) {
   int ep;
   uint32_t sequence;
 
-  fprintf(stderr, "old_protocol: receive_thread\n");
+  g_print( "old_protocol: receive_thread\n");
   running=1;
 
   length=sizeof(addr);
@@ -542,7 +531,7 @@ static gpointer receive_thread(gpointer arg) {
 	      // A sequence error with a seqnum of zero usually indicates a METIS restart
 	      // and is no error condition
               if (sequence != 0 && sequence != last_seq_num+1) {
-		fprintf(stderr,"SEQ ERROR: last %ld, recvd %ld\n", (long) last_seq_num, (long) sequence);
+		g_print("SEQ ERROR: last %ld, recvd %ld\n", (long) last_seq_num, (long) sequence);
 	      }
 	      last_seq_num=sequence;
               switch(ep) {
@@ -567,19 +556,19 @@ static gpointer receive_thread(gpointer arg) {
 */
                   break;
                 default:
-                  fprintf(stderr,"unexpected EP %d length=%d\n",ep,bytes_read);
+                  g_print("unexpected EP %d length=%d\n",ep,bytes_read);
                   break;
               }
               break;
             case 2:  // response to a discovery packet
-              fprintf(stderr,"unexepected discovery response when not in discovery mode\n");
+              g_print("unexepected discovery response when not in discovery mode\n");
               break;
             default:
-              fprintf(stderr,"unexpected packet type: 0x%02X\n",buffer[2]);
+              g_print("unexpected packet type: 0x%02X\n",buffer[2]);
               break;
           }
         } else {
-          fprintf(stderr,"received bad header bytes on data port %02X,%02X\n",buffer[0],buffer[1]);
+          g_print("received bad header bytes on data port %02X,%02X\n",buffer[0],buffer[1]);
         }
         break;
     }
@@ -699,7 +688,6 @@ static long long channel_freq(int chan) {
       vfonum=-1;
       break;
   }
-  //
   // Radios with small FPGAs use RX1/RX2 for feedback while transmitting,
   //
   if (isTransmitting() && transmitter->puresignal && (chan == rx_feedback_channel() || chan == tx_feedback_channel())) {
@@ -778,7 +766,7 @@ static int how_many_receivers() {
     }
   }
 #endif
-  return ret;
+    return ret;
 }
 
 static void process_ozy_input_buffer(unsigned char  *buffer) {
@@ -856,15 +844,15 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
         IO3=(control_in[1]&0x08)?0:1;
         if(mercury_software_version!=control_in[2]) {
           mercury_software_version=control_in[2];
-          fprintf(stderr,"  Mercury Software version: %d (0x%0X)\n",mercury_software_version,mercury_software_version);
+          g_print("  Mercury Software version: %d (0x%0X)\n",mercury_software_version,mercury_software_version);
         }
         if(penelope_software_version!=control_in[3]) {
           penelope_software_version=control_in[3];
-          fprintf(stderr,"  Penelope Software version: %d (0x%0X)\n",penelope_software_version,penelope_software_version);
+          g_print("  Penelope Software version: %d (0x%0X)\n",penelope_software_version,penelope_software_version);
         }
         if(ozy_software_version!=control_in[4]) {
           ozy_software_version=control_in[4];
-          fprintf(stderr,"FPGA firmware version: %d.%d\n",ozy_software_version/10,ozy_software_version%10);
+          g_print("FPGA firmware version: %d.%d\n",ozy_software_version/10,ozy_software_version%10);
         }
         break;
       case 1:
@@ -953,15 +941,7 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
       mic_samples++;
       if(mic_samples>=mic_sample_divisor) { // reduce to 48000
         fsample = transmitter->local_microphone ? audio_get_next_mic_sample() : (float) mic_sample * 0.00003051;
-#ifdef FREEDV
-        if(active_receiver->freedv) {
-          add_freedv_mic_sample(transmitter,fsample);
-        } else {
-#endif
-          add_mic_sample(transmitter,fsample);
-#ifdef FREEDV
-        }
-#endif
+        add_mic_sample(transmitter,fsample);
         mic_samples=0;
       }
 
@@ -972,7 +952,7 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
     time(&t);
     gmt=gmtime(&t);
 
-    fprintf(stderr,"%s: process_ozy_input_buffer: did not find sync: restarting\n",
+    g_print("%s: process_ozy_input_buffer: did not find sync: restarting\n",
             asctime(gmt));
 
 
@@ -1221,7 +1201,7 @@ void ozy_send_buffer() {
       // Out of paranoia: print warning and choose ANT1
       //
       if (i<0 || i>2) {
-          fprintf(stderr,"WARNING: illegal TX antenna chosen, using ANT1\n");
+          g_print("WARNING: illegal TX antenna chosen, using ANT1\n");
           transmitter->alex_antenna=0;
           i=0;
       }
@@ -1287,6 +1267,7 @@ void ozy_send_buffer() {
         {
         BAND *band=band_get_current_band();
         int power=0;
+static int last_power=0;
 	//
 	// Some HPSDR apps for the RedPitaya generate CW inside the FPGA, but while
 	// doing this, DriveLevel changes are processed by the server, but do not become effective.
@@ -1304,7 +1285,14 @@ void ozy_send_buffer() {
             power=transmitter->drive_level;
           }
         }
-  
+
+if(last_power!=power) {
+  g_print("power=%d\n",power);
+  last_power=power;
+}
+
+
+
         output_buffer[C0]=0x12;
         output_buffer[C1]=power&0xFF;
         output_buffer[C2]=0x00;
@@ -1316,12 +1304,15 @@ void ozy_send_buffer() {
         if(mic_linein) {
           output_buffer[C2]|=0x02;
         }
-        if(filter_board==APOLLO) {
+        if(filter_board==APOLLO || device==DEVICE_HERMES_LITE2) {
           output_buffer[C2]|=0x2C;
         }
         if((filter_board==APOLLO) && tune) {
           output_buffer[C2]|=0x10;
         }
+        if((device==DEVICE_HERMES_LITE2) && pa_enabled) {
+          output_buffer[C2]|=0x10; // Enable PA
+        } 
         if(band_get_current()==band6) {
           output_buffer[C3]=output_buffer[C3]|0x40; // Alex 6M low noise amplifier
         }
@@ -1409,7 +1400,7 @@ void ozy_send_buffer() {
 	  // to behave differently and stores bit5 of the gain in the
 	  // dither bit (see above) and a 5-bit attenuation value here.
 	  //
-          int rxgain = rx_gain_calibration - adc_attenuation[active_receiver->adc];
+          int rxgain = - adc_attenuation[active_receiver->adc]+12; // -12..48 to 0..60
           if (rxgain <  0) rxgain=0;
           if (rxgain > 60) rxgain=60;
 	  // encode all 6 bits of RXgain in ATT value and set bit6
@@ -1551,7 +1542,7 @@ void ozy_send_buffer() {
  * ship out line after each complete run
  */
   if (proto_mod && command == 1) {
-    fprintf(stderr,"DIS=%d DRIVE=%3d PTT=%d i1=%4d RXout=%d RXant=%d i2=%d TXrel=%d FB=%d BP=%d LNA=%d HPF=%02x LPF=%02x\n",
+    g_print("DIS=%d DRIVE=%3d PTT=%d i1=%4d RXout=%d RXant=%d i2=%d TXrel=%d FB=%d BP=%d LNA=%d HPF=%02x LPF=%02x\n",
      C3_TXDIS, C1_DRIVE, PC_PTT, CASE1, C3_RX1_OUT, C3_RX1_ANT, CASE2, C4_TX_REL,
      C2_FB, C3_BP, C3_LNA, C3_HPF, C4_LPF);
     proto_mod=0;
@@ -1569,7 +1560,7 @@ void ozy_send_buffer() {
 #endif
   metis_write(0x02,output_buffer,OZY_BUFFER_SIZE);
 
-  //fprintf(stderr,"C0=%02X C1=%02X C2=%02X C3=%02X C4=%02X\n",
+  //g_print("C0=%02X C1=%02X C2=%02X C3=%02X C4=%02X\n",
   //                output_buffer[C0],output_buffer[C1],output_buffer[C2],output_buffer[C3],output_buffer[C4]);
 }
 
@@ -1682,7 +1673,7 @@ static void metis_restart() {
     ozy_send_buffer();
   }
 
-  usleep(250000L);
+  usleep(250000);
 
   // start the data flowing
   metis_start_stop(1);
@@ -1735,7 +1726,7 @@ static void metis_start_stop(int command) {
     tcp_socket=-1;
     usleep(100000);  // give some time to swallow incoming TCP packets
     close(tmp);
-    fprintf(stderr,"TCP socket closed\n");
+    g_print("TCP socket closed\n");
   }
 
 #ifdef USBOZY
@@ -1751,7 +1742,7 @@ static void metis_send_buffer(unsigned char* buffer,int length) {
 
   if (tcp_socket >= 0) {
     if (length != 1032) {
-       fprintf(stderr,"PROGRAMMING ERROR: TCP LENGTH != 1032\n");
+       g_print("PROGRAMMING ERROR: TCP LENGTH != 1032\n");
        exit(-1);
     }
     if(sendto(tcp_socket,buffer,length,0,NULL, 0) != length) {
@@ -1763,7 +1754,7 @@ static void metis_send_buffer(unsigned char* buffer,int length) {
     }
   } else {
     // This should not happen
-    fprintf(stderr,"METIS send: neither UDP nor TCP socket available!\n");
+    g_print("METIS send: neither UDP nor TCP socket available!\n");
     exit(-1);
   }
 }
