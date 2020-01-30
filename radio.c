@@ -1381,6 +1381,13 @@ void setTune(int state) {
       mox=0;
     }
     if(state) {
+      if (transmitter->puresignal) {
+	//
+	//    Reset PS engine
+	//
+        SetPSControl(transmitter->id, 1, 0, 0, 0);
+	usleep(50000);
+      }
       if(full_tune) {
         if(OCfull_tune_time!=0) {
           struct timeval te;
@@ -1464,6 +1471,12 @@ void setTune(int state) {
           tx_set_mode(transmitter,pre_tune_mode);
           cw_keyer_internal=pre_tune_cw_internal;
           break;
+      }
+      if (transmitter->puresignal) {
+	//
+	//    Resume PS
+	//
+	SetPSControl(transmitter->id, 0, 0, 1, 0);
       }
     }
     tune=state;
