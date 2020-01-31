@@ -357,16 +357,17 @@ static void* keyer_thread(void *arg) {
         sem_wait(&cw_event);
 #endif
 
+	// swallow any cw_events posted during the last "cw hang" time.
+        if (!kcwl && !kcwr) continue;
+
 	//
 	// If using GPIO side tone information, mute CW side tone
 	// as long as the keyer thread is active
 	//
 	if (gpio_cw_sidetone_enabled()) {
 	  old_volume=cw_keyer_sidetone_volume;
+	  cw_keyer_sidetone_volume=0;
 	}
-
-	// swallow any cw_events posted during the last "cw hang" time.
-        if (!kcwl && !kcwr) continue;
 
 	// check mode: to not induce RX/TX transition if not in CW mode
         txmode=get_tx_mode();
@@ -614,13 +615,13 @@ static void* keyer_thread(void *arg) {
 #else
             clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
 #endif
-	    //
-	    // If we have reduced the side tone volume, restore it!
-	    //
-	    if (gpio_cw_sidetone_enabled()) {
-	      cw_keyer_sidetone_volume = old_volume;
-	    }
         }
+	//
+	// If we have reduced the side tone volume, restore it!
+	//
+	if (gpio_cw_sidetone_enabled()) {
+	  cw_keyer_sidetone_volume = old_volume;
+	}
 
     }
     fprintf(stderr,"keyer_thread: EXIT\n");
