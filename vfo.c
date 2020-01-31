@@ -850,6 +850,9 @@ void vfo_update() {
             sprintf(temp_text,"%s %s",mode_string[vfo[id].mode],band_filter->title);
             break;
         }
+        cairo_set_font_size(cr, 12);
+        cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
+        cairo_move_to(cr, 5, 15);
         cairo_show_text(cr, temp_text);
 
 	// In what follows, we want to display the VFO frequency
