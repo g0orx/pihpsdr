@@ -2,7 +2,7 @@
 GIT_DATE := $(firstword $(shell git --no-pager show --date=short --format="%ai" --name-only))
 GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 
-# uncomment the line below to include GPIO (For original piHPSDR Controller and Controller2)
+# uncomment the line below to include GPIO (For original piHPSDR Controller and Controller2 with i2c)
 GPIO_INCLUDE=GPIO
 
 # uncomment the line below to include USB Ozy support
@@ -12,7 +12,7 @@ GPIO_INCLUDE=GPIO
 PURESIGNAL_INCLUDE=PURESIGNAL
 
 # uncomment the line to below include support local CW keyer
-#LOCALCW_INCLUDE=LOCALCW
+LOCALCW_INCLUDE=LOCALCW
 
 # uncomment the line below for SoapySDR
 SOAPYSDR_INCLUDE=SOAPYSDR
@@ -104,18 +104,21 @@ ifeq ($(GPIO_INCLUDE),GPIO)
   GPIO_OPTIONS=-D GPIO
   GPIO_LIBS=-lwiringPi -li2c
   GPIO_SOURCES= \
+  configure.c \
   i2c.c \
   gpio_menu.c \
   gpio.c \
   encoder_menu.c \
   switch_menu.c
   GPIO_HEADERS= \
+  configure.h \
   i2c.h \
   gpio_menu.h \
   gpio.h \
   encoder_menu.h \
   switch_menu.h
   GPIO_OBJS= \
+  configure.o \
   i2c.o \
   gpio_menu.o\
   gpio.o \
@@ -378,7 +381,7 @@ $(PROGRAM):  $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) \
 all:	prebuild  $(PROGRAM) $(HEADERS) $(REMOTE_HEADERS) $(USBOZY_HEADERS) $(SOAPYSDR_HEADERS) \
 	$(LOCALCW_HEADERS) $(GPIO_HEADERS) \
 	$(PURESIGNAL_HEADERS) $(MIDI_HEADERS) $(STEMLAB_HEADERS) $(SOURCES) $(REMOTE_SOURCES) \
-	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(GPIO_SOURCES) \
+	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(LOCAL_CW_SOURCES) $(GPIO_SOURCES) \
 	$(PURESIGNAL_SOURCES) $(MIDI_SOURCES)$(STEMLAB_SOURCES)
 
 .PHONY:	prebuild

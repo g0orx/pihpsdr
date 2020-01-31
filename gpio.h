@@ -208,11 +208,6 @@ extern int E5_TOP_ENCODER_A;
 extern int E5_TOP_ENCODER_B;
 extern int E5_FUNCTION;
 
-extern int ENABLE_E2_BUTTON;
-extern int ENABLE_E3_BUTTON;
-extern int ENABLE_E4_BUTTON;
-extern int ENABLE_E5_BUTTON;
-
 extern int ENABLE_S1_BUTTON;
 extern int S1_BUTTON;
 extern int ENABLE_S2_BUTTON;

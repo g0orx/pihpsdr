@@ -131,6 +131,7 @@ static void controller_select_cb(GtkToggleButton *widget,gpointer data) {
   }
 }
 
+/*
 void configure_gpio(GtkWidget *parent) {
 
   gpio_restore_state();
@@ -194,5 +195,6 @@ void configure_gpio(GtkWidget *parent) {
   gtk_dialog_run(GTK_DIALOG(dialog));
 
 }
+*/
 #endif
 
