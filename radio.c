@@ -1383,7 +1383,19 @@ void setTune(int state) {
     if(state) {
       if (transmitter->puresignal) {
 	//
-	//    Reset PS engine
+	// DL1YCF:
+	// Some users have reported that especially when having
+	// very long (10 hours) operating times with PS, hitting
+	// the "TUNE" button makes the PS algorithm crazy, such that
+	// it produces a very broad line spectrum. Experimentally, it
+	// has been observed that this can be avoided by hitting
+	// "Off" in the PS menu before hitting "TUNE", and hitting
+	// "Restart" in the PS menu when tuning is complete.
+	//
+	// It is therefore suggested to to so implicitly when PS
+	// is enabled.
+	//
+	// So before start tuning: Reset PS engine
 	//
         SetPSControl(transmitter->id, 1, 0, 0, 0);
 	usleep(50000);
@@ -1474,7 +1486,9 @@ void setTune(int state) {
       }
       if (transmitter->puresignal) {
 	//
-	//    Resume PS
+	// DL1YCF:
+	// Since we have done a "PS reset" when we started tuning,
+	// resume PS engine now.
 	//
 	SetPSControl(transmitter->id, 0, 0, 1, 0);
       }
