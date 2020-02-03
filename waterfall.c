@@ -127,7 +127,6 @@ void waterfall_update(RECEIVER *rx) {
     int width=gdk_pixbuf_get_width(rx->pixbuf);
     int height=gdk_pixbuf_get_height(rx->pixbuf);
     int rowstride=gdk_pixbuf_get_rowstride(rx->pixbuf);
-    int channels=gdk_pixbuf_get_n_channels(rx->pixbuf);
 
     hz_per_pixel=(double)rx->sample_rate/(double)display_width;
 

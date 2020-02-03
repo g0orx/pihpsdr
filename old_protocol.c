@@ -787,6 +787,10 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
   double right_sample_double_rx;
   double left_sample_double_tx;
   double right_sample_double_tx;
+  double left_sample_double_main;
+  double right_sample_double_main;
+  double left_sample_double_aux;
+  double right_sample_double_aux;
 
   int id=active_receiver->id;
 
@@ -901,17 +905,17 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
 	  // receiving with DIVERSITY. Get sample pairs and feed to diversity mixer
 	  //
           if (r == rx1channel) {
-            left_sample_double_rx=left_sample_double;
-            right_sample_double_rx=right_sample_double;
+            left_sample_double_main=left_sample_double;
+            right_sample_double_main=right_sample_double;
           } else if (r == rx2channel) {
-            left_sample_double_tx=left_sample_double;
-            right_sample_double_tx=right_sample_double;
+            left_sample_double_aux=left_sample_double;
+            right_sample_double_aux=right_sample_double;
           }
-	  // this is pure paranoia, it allows for div_main < div_aux
+	  // this is pure paranoia, it allows for rx2channel < rx1channel
           if (r+1 == num_hpsdr_receivers) {
-            add_div_iq_samples(receiver[0], left_sample_double_rx,right_sample_double_rx,left_sample_double_tx,right_sample_double_tx);
+            add_div_iq_samples(receiver[0], left_sample_double_main,right_sample_double_main,left_sample_double_aux,right_sample_double_aux);
 	    // if we have a second receiver, display "auxiliary" receiver as well
-            if (receivers >1) add_iq_samples(receiver[1], left_sample_double_tx,right_sample_double_tx);
+            if (receivers >1) add_iq_samples(receiver[1], left_sample_double_aux,right_sample_double_aux);
           }
 	}
 
@@ -1178,6 +1182,11 @@ void ozy_send_buffer() {
 
 
     output_buffer[C4]=0x04;  // duplex
+    //
+    // This is used to phase-synchronize RX1 and RX2 on some boards
+    // and enforces that the RX1 and RX2 frequencies are the same.
+    //
+    if (diversity_enabled) output_buffer[C4] |= 0x80;
 
     // 0 ... 7 maps on 1 ... 8 receivers
     output_buffer[C4]|=(num_hpsdr_receivers-1)<<3;
@@ -1283,7 +1292,7 @@ if(last_power!=power) {
 }
 
 
-  
+
         output_buffer[C0]=0x12;
         output_buffer[C1]=power&0xFF;
         output_buffer[C2]=0x00;
@@ -1303,7 +1312,7 @@ if(last_power!=power) {
         }
         if((device==DEVICE_HERMES_LITE2) && pa_enabled) {
           output_buffer[C2]|=0x10; // Enable PA
-        }
+        } 
         if(band_get_current()==band6) {
           output_buffer[C3]=output_buffer[C3]|0x40; // Alex 6M low noise amplifier
         }
@@ -1391,7 +1400,7 @@ if(last_power!=power) {
 	  // to behave differently and stores bit5 of the gain in the
 	  // dither bit (see above) and a 5-bit attenuation value here.
 	  //
-          int rxgain = rx_gain_calibration - adc_attenuation[active_receiver->adc]+12; // -12..48 to 0..60
+          int rxgain = - adc_attenuation[active_receiver->adc]+12; // -12..48 to 0..60
           if (rxgain <  0) rxgain=0;
           if (rxgain > 60) rxgain=60;
 	  // encode all 6 bits of RXgain in ATT value and set bit6
@@ -1420,7 +1429,12 @@ if(last_power!=power) {
 	  if (isTransmitting()) {
             output_buffer[C1]=0x3F;
           } else {
-            output_buffer[C1]=0x20 | (adc_attenuation[receiver[1]->adc] & 0x1F);
+	    // if diversity is enabled, use RX1 att value for RX2
+            if (diversity_enabled) {
+              output_buffer[C1]=0x20 | (adc_attenuation[receiver[0]->adc] & 0x1F);
+	    } else {
+              output_buffer[C1]=0x20 | (adc_attenuation[receiver[1]->adc] & 0x1F);
+	    }
           }
         }
         output_buffer[C2]=0x00; // ADC3 attenuator disabled.
@@ -1735,8 +1749,7 @@ static void metis_send_buffer(unsigned char* buffer,int length) {
       perror("sendto socket failed for TCP metis_send_data\n");
     }
   } else if (data_socket >= 0) {
-    int rc;
-    if((rc=sendto(data_socket,buffer,length,0,(struct sockaddr*)&data_addr,sizeof(data_addr)))!=length) {
+    if(sendto(data_socket,buffer,length,0,(struct sockaddr*)&data_addr,sizeof(data_addr))!=length) {
       perror("sendto socket failed for UDP metis_send_data\n");
     }
   } else {

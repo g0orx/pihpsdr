@@ -279,7 +279,7 @@ static void split_cb (GtkWidget *widget, gpointer data) {
 }
 
 static void duplex_cb (GtkWidget *widget, gpointer data) {
-  if(can_transmit) {
+  if(can_transmit && !isTransmitting()) {
     duplex=(duplex==1)?0:1;
     g_idle_add(ext_set_duplex,NULL);
   }

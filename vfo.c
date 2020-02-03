@@ -857,6 +857,9 @@ void vfo_update() {
 
 	// In what follows, we want to display the VFO frequency
 	// on which we currently transmit a signal with red colour.
+	// If it is out-of-band, we display "Out of band" in red.
+	// Frequencies we are not transmitting on are displayed in green
+	// (dimmed if the freq. does not belong to the active receiver).
 
         // Frequencies of VFO A and B
 

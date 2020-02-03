@@ -180,7 +180,7 @@ int ext_radio_change_sample_rate(void *data) {
 }
 
 int ext_update_squelch(void *data) {
-  set_squelch(active_receiver);
+  set_squelch();
   return 0;
 }
 

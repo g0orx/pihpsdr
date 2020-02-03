@@ -514,13 +514,9 @@ void stemlab_discovery(void) {
 
 
 void stemlab_discovery() {
-  size_t len;
   char txt[150];
   CURL *curl_handle;
   CURLcode curl_error;
-  FILE *fpin;
-  char *p;
-  int i;
   int app_list;
   struct sockaddr_in ip_address;
   struct sockaddr_in netmask;
@@ -548,9 +544,9 @@ void stemlab_discovery() {
   }
   app_list=0;
   sprintf(txt,"http://%s",ipaddr_tcp);
-  curl_error = curl_easy_setopt(curl_handle, CURLOPT_URL, txt);
-  curl_error = curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, (long) 5);
-  curl_error = curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, get_list_cb);
+  curl_easy_setopt(curl_handle, CURLOPT_URL, txt);
+  curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, (long) 5);
+  curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, get_list_cb);
   curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, &app_list);
   curl_error = curl_easy_perform(curl_handle);
   curl_easy_cleanup(curl_handle);
@@ -574,9 +570,9 @@ void stemlab_discovery() {
       return;
     }
     sprintf(txt,"http://%s/bazaar?apps=", ipaddr_tcp);
-    curl_error = curl_easy_setopt(curl_handle, CURLOPT_URL, txt);
-    curl_error = curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, (long) 20);
-    curl_error = curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, app_list_cb);
+    curl_easy_setopt(curl_handle, CURLOPT_URL, txt);
+    curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, (long) 20);
+    curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, app_list_cb);
     curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, &app_list);
     curl_error = curl_easy_perform(curl_handle);
     curl_easy_cleanup(curl_handle);

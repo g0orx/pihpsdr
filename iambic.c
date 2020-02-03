@@ -72,36 +72,21 @@
  *
  * - cw_keyer_spacing can now be set/un-set in the CW menu (cw_menu.c)
  *
- * - changing the scheduling policy now becomes only effective for the keyer thread, because
- *   sched_setscheduler() is called at the beginning and the end of the keyer thread with
- *   pid argument 0 (even better: use gettid() return value).
- *   NOTE: this is Linux-specific. Better switch to POSIX calls (e.g. pthread_setschedparam).
- *   mlockall and munlockall still apply process-wide and are therefore executed in
- *   keyer_init/keyer_close.
- *
- *   APPLE MacOS: if we run this in MacOS, most likely we are not "root". Therefore no locking/scheduling.
- *
  * b) SIDE TONE GENERATION
  * =======================
  *
- * There is a possibility to generate a side tone on one of the GPIO ports. This is necessary at
- * speeds greater than 20 wpm since there is a 50 msec delay (due to the LINUX sound system) between
- * generating the side tone and when it finally appears in the head-phone. The GPIO side tone comes
- * without a delay.
+ * Getting a delay-free side tone is absolutely necessary at elevated CW speed (say, > 20 wpm).
+ * The LINUX sound system produces a delay of up to 50 msec which is more than a dot length.
+ * Therefore we offer delay-free side tone information on the GPIO.
  *
- * The volume of the CW side tone in the standard audio channel is reduced to zero while producing
- * a square wave on the GPIO pin. The idea is to low-pass this signal and combine it with the audio
- * output (hardware mixer).
+ * However, LINUX is not a real-time operating system, and producing a square wave with exactly
+ * the side tone frequency is not possible (the tone is not very stable). Therefore we just
+ * give the tone information (output high = tone on, output low = tone off), and one has to
+ * build a tone generator connected to a buzzer or small speaker, and use the GPIO output line
+ * to switch the tone on and off.
  *
- * In the previous version, the side tone was generate using the softTone functionality of wiringPI
- * within the GPIO module. However, this has a drawback:
- * one creates two high-priority threads (the tone generator and the keyer)
- * both firing at high speed (once a milli-sec and faster). This made the frequency of the tone quite
- * unstable. Instead, the side tone is now explicitly generated within the keyer (if GPIO side tone is activated)
- * by periodically writing "1" and "0" to the GPIO output while waiting for the end of the just-being-sent
- * dot or dash. Furthermore, the frequency of the side tone has been stabilized by "sleeping" UNTIL the
- * pre-calculated output-switching time (and not FOR the calculated amount, this is, using TIMER_ABSTIME
- * in clock_nanosleep).
+ * The volume of the CW side tone in the standard audio channel is reduced to zero while
+ * using the "GPIO side tone" feature.
  *
  * c) CW VOX
  * =========
@@ -112,8 +97,7 @@
  *
  * - cw_keyer_spacing can now be set/un-set in the CW menu (cw_menu.c)
  *
- * - during a dot or dash when no GPIO side tone is produced, the keyer thread simply waits and
- *   does no busy spinning.
+ * - during a dot or dash the keyer thread simply waits and does no busy spinning.
  *
  * d) DOT/DASH MEMORY
  * ==================
@@ -343,28 +327,25 @@ void set_keyer_out(int state) {
   } else {
     cw_hold_key(0); // this stops a CW pulse in transmitter.c
   }
+  //
+  // If GPIO sidetone information is requested,
+  // set GPIO pin to the state
+  //
+  if (gpio_cw_sidetone_enabled()) {
+    gpio_cw_sidetone_set(state);
+  }
 }
 
 static void* keyer_thread(void *arg) {
     int pos;
     struct timespec loop_delay;
     int interval = 1000000; // 1 ms
-    int sidewait;
-    int sideloop;
     int i;
     int kdelay;
     int old_volume;
     int txmode;
 #ifdef __APPLE__
     struct timespec now;
-#endif
-
-#ifndef __APPLE__
-    struct sched_param param;
-    param.sched_priority = MY_PRIORITY;
-    if(sched_setscheduler((pid_t)0, SCHED_FIFO, &param) == -1) {
-            perror("sched_setscheduler failed");
-    }
 #endif
 
     fprintf(stderr,"keyer_thread  state running= %d\n", running);
@@ -378,6 +359,15 @@ static void* keyer_thread(void *arg) {
 
 	// swallow any cw_events posted during the last "cw hang" time.
         if (!kcwl && !kcwr) continue;
+
+	//
+	// If using GPIO side tone information, mute CW side tone
+	// as long as the keyer thread is active
+	//
+	if (gpio_cw_sidetone_enabled()) {
+	  old_volume=cw_keyer_sidetone_volume;
+	  cw_keyer_sidetone_volume=0;
+	}
 
 	// check mode: to not induce RX/TX transition if not in CW mode
         txmode=get_tx_mode();
@@ -430,108 +420,31 @@ static void* keyer_thread(void *arg) {
                     if (*kdash) {                  // send manual dashes
                       set_keyer_out(1);
             	      clock_gettime(CLOCK_MONOTONIC, &loop_delay);
-		      // wait until dash is released
-		      if (gpio_cw_sidetone_enabled()) {
-		        // produce tone
-		        // Note. Using clock_nanosleep with ABSTIME is absolutely
-		        //       necessary to produce a stable frequency.
-		        //       You still may painfully recognize that LINUX
-		        //       e.g. on a RaspberryPi is not a real-time
-		        //       operating system.
-			// Mute "normal" CW side tone, it will be reactivated
-			// at the end of the following delay.
-                        old_volume=cw_keyer_sidetone_volume;
-                        cw_keyer_sidetone_volume=0;
-                        sidewait=500000000/cw_keyer_sidetone_frequency;
-		        for (;;) {
-                      	  gpio_cw_sidetone_set(1);
-			  loop_delay.tv_nsec += sidewait;
-            		  while (loop_delay.tv_nsec >= NSEC_PER_SEC) {
-                	    loop_delay.tv_nsec -= NSEC_PER_SEC;
-                	    loop_delay.tv_sec++;
-            		  }
+		      // wait until dash is released. Check once a milli-sec
+		      for (;;) {
+			loop_delay.tv_nsec += interval;
+            		while (loop_delay.tv_nsec >= NSEC_PER_SEC) {
+                	  loop_delay.tv_nsec -= NSEC_PER_SEC;
+                	  loop_delay.tv_sec++;
+            		}
+			if (!*kdash) break;
 #ifdef __APPLE__
-                	  clock_gettime(CLOCK_MONOTONIC, &now);
-                	  now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
-                	  now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
-                	  while (now.tv_nsec < 0) {
-                    	    now.tv_nsec += 1000000000;
-                    	    now.tv_sec--;
-                	  }
-                	  nanosleep(&now, NULL);
+                	clock_gettime(CLOCK_MONOTONIC, &now);
+                	now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
+                	now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
+                	while (now.tv_nsec < 0) {
+                    	  now.tv_nsec += 1000000000;
+                    	  now.tv_sec--;
+                	}
+                	nanosleep(&now, NULL);
 #else
-            		  clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
+            		clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
 #endif
-                    	  gpio_cw_sidetone_set(0);
-			  loop_delay.tv_nsec += sidewait;
-            		  while (loop_delay.tv_nsec >= NSEC_PER_SEC) {
-                	    loop_delay.tv_nsec -= NSEC_PER_SEC;
-                	    loop_delay.tv_sec++;
-            		  }
-			  if (!*kdash) break;
-#ifdef __APPLE__
-                	  clock_gettime(CLOCK_MONOTONIC, &now);
-                	  now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
-                	  now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
-                	  while (now.tv_nsec < 0) {
-                    	    now.tv_nsec += 1000000000;
-                    	    now.tv_sec--;
-                	  }
-                	  nanosleep(&now, NULL);
-#else
-            		  clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
-#endif
-		        }
-		      } else {
-			// No-GPIO-sidetone case:
-			// wait until dash is released. Check once a milli-sec
-			for (;;) {
-			  loop_delay.tv_nsec += interval;
-            		  while (loop_delay.tv_nsec >= NSEC_PER_SEC) {
-                	    loop_delay.tv_nsec -= NSEC_PER_SEC;
-                	    loop_delay.tv_sec++;
-            		  }
-			  if (!*kdash) break;
-#ifdef __APPLE__
-                	  clock_gettime(CLOCK_MONOTONIC, &now);
-                	  now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
-                	  now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
-                	  while (now.tv_nsec < 0) {
-                    	    now.tv_nsec += 1000000000;
-                    	    now.tv_sec--;
-                	  }
-                	  nanosleep(&now, NULL);
-#else
-            		  clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
-#endif
-			}
-                      }
+		      }
 		      // dash released.
                       set_keyer_out(0);
 		      // since we stay in CHECK mode, re-trigger cwvox here
 		      cwvox=cw_keyer_hang_time;
-		      // wait at least 10ms before re-activating sidetone,
-		      // to allow the envelope of the side tone reaching zero
-                      if (gpio_cw_sidetone_enabled()) {
-			  loop_delay.tv_nsec += 10*interval;
-            		  while (loop_delay.tv_nsec >= NSEC_PER_SEC) {
-                	    loop_delay.tv_nsec -= NSEC_PER_SEC;
-                	    loop_delay.tv_sec++;
-            		  }
-#ifdef __APPLE__
-                	  clock_gettime(CLOCK_MONOTONIC, &now);
-                	  now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
-                	  now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
-                	  while (now.tv_nsec < 0) {
-                    	    now.tv_nsec += 1000000000;
-                    	    now.tv_sec--;
-                	  }
-                	  nanosleep(&now, NULL);
-#else
-            		  clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
-#endif
-			  cw_keyer_sidetone_volume=old_volume;
-                      }
                     }
 		    if (*kdot) {
 			// "bug" mode: dot key activates automatic dots
@@ -553,69 +466,24 @@ static void* keyer_thread(void *arg) {
                 dash_held = *kdash;
                 set_keyer_out(1);
             	clock_gettime(CLOCK_MONOTONIC, &loop_delay);
-		if (gpio_cw_sidetone_enabled()) {
-                  old_volume=cw_keyer_sidetone_volume;
-                  cw_keyer_sidetone_volume=0;
-                  sidewait=500000000/cw_keyer_sidetone_frequency;
-                  sideloop=(500000*dot_length)/sidewait;
-                  for (i=0; i<sideloop; i++) {
-                    gpio_cw_sidetone_set(1);
-                    loop_delay.tv_nsec += sidewait;
-                    while (loop_delay.tv_nsec >= NSEC_PER_SEC) {
-                      loop_delay.tv_nsec -= NSEC_PER_SEC;
-                      loop_delay.tv_sec++;
-                    } 
-#ifdef __APPLE__
-                    clock_gettime(CLOCK_MONOTONIC, &now);
-                    now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
-                    now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
-                    while (now.tv_nsec < 0) {
-                      now.tv_nsec += 1000000000;
-                      now.tv_sec--;
-                    }
-                    nanosleep(&now, NULL);
-#else
-                    clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
-#endif
-                    gpio_cw_sidetone_set(0);
-                    loop_delay.tv_nsec += sidewait;
-                    while (loop_delay.tv_nsec >= NSEC_PER_SEC) {
-                      loop_delay.tv_nsec -= NSEC_PER_SEC;
-                      loop_delay.tv_sec++;
-		    }
-#ifdef __APPLE__
-                    clock_gettime(CLOCK_MONOTONIC, &now);
-                    now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
-                    now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
-                    while (now.tv_nsec < 0) {
-                      now.tv_nsec += 1000000000;
-                      now.tv_sec--;
-                    }
-                    nanosleep(&now, NULL);
-#else
-                    clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
-#endif
-                  }
-		} else {
-		  // No-GPIO-sidetone case: just wait
-                  loop_delay.tv_nsec += 1000000 * dot_length;
-                  while (loop_delay.tv_nsec >= NSEC_PER_SEC) {
-                    loop_delay.tv_nsec -= NSEC_PER_SEC;
-                    loop_delay.tv_sec++;
-		  }
-#ifdef __APPLE__
-                    clock_gettime(CLOCK_MONOTONIC, &now);
-                    now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
-                    now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
-                    while (now.tv_nsec < 0) {
-                      now.tv_nsec += 1000000000;
-                      now.tv_sec--;
-                    }
-                    nanosleep(&now, NULL);
-#else
-                  clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
-#endif
+		// Wait one dot length, then key-up
+                loop_delay.tv_nsec += 1000000 * dot_length;
+                while (loop_delay.tv_nsec >= NSEC_PER_SEC) {
+                  loop_delay.tv_nsec -= NSEC_PER_SEC;
+                  loop_delay.tv_sec++;
 		}
+#ifdef __APPLE__
+                clock_gettime(CLOCK_MONOTONIC, &now);
+                now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
+                now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
+                while (now.tv_nsec < 0) {
+                  now.tv_nsec += 1000000000;
+                  now.tv_sec--;
+                }
+                nanosleep(&now, NULL);
+#else
+                clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
+#endif
                 set_keyer_out(0);
                 key_state = DOTDELAY;       // add inter-character spacing of one dot length
 		kdelay=0;
@@ -624,9 +492,6 @@ static void* keyer_thread(void *arg) {
             case DOTDELAY:
                 kdelay++;
                 if (kdelay > dot_length) {
-		  if (gpio_cw_sidetone_enabled()) {
-		    cw_keyer_sidetone_volume=old_volume;
-		  }
 		  if (cw_keyer_mode == KEYER_STRAIGHT) {
 		    // bug mode: continue sending dots or exit, depending on current dot key status
 		    key_state = EXITLOOP;
@@ -663,69 +528,24 @@ static void* keyer_thread(void *arg) {
 		dot_held = *kdot;  // remember if dot is still held at beginning of the dash
                 set_keyer_out(1);
                 clock_gettime(CLOCK_MONOTONIC, &loop_delay);
-		if (gpio_cw_sidetone_enabled()) {
-                  old_volume=cw_keyer_sidetone_volume;
-                  cw_keyer_sidetone_volume=0;
-                  sidewait=500000000/cw_keyer_sidetone_frequency;
-                  sideloop=(500000*dash_length)/sidewait;
-                  for (i=0; i<sideloop; i++) {
-                    gpio_cw_sidetone_set(1);
-                    loop_delay.tv_nsec += sidewait;
-                    while (loop_delay.tv_nsec >= NSEC_PER_SEC) {
-                      loop_delay.tv_nsec -= NSEC_PER_SEC;
-                      loop_delay.tv_sec++;
-                    }
+		// Wait one dash length and then key-up
+                loop_delay.tv_nsec += 1000000L * dash_length;
+                while (loop_delay.tv_nsec >= NSEC_PER_SEC) {
+                  loop_delay.tv_nsec -= NSEC_PER_SEC;
+                  loop_delay.tv_sec++;
+                }
 #ifdef __APPLE__
-                    clock_gettime(CLOCK_MONOTONIC, &now);
-                    now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
-                    now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
-                    while (now.tv_nsec < 0) {
-                      now.tv_nsec += 1000000000;
-                      now.tv_sec--;
-                    }
-                    nanosleep(&now, NULL);
+                clock_gettime(CLOCK_MONOTONIC, &now);
+                now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
+                now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
+                while (now.tv_nsec < 0) {
+                  now.tv_nsec += 1000000000;
+                  now.tv_sec--;
+                }
+                nanosleep(&now, NULL);
 #else
-                    clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
+                clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
 #endif
-                    gpio_cw_sidetone_set(0);
-                    loop_delay.tv_nsec += sidewait;
-                    while (loop_delay.tv_nsec >= NSEC_PER_SEC) {
-                      loop_delay.tv_nsec -= NSEC_PER_SEC;
-                      loop_delay.tv_sec++;
-                    }
-#ifdef __APPLE__
-                    clock_gettime(CLOCK_MONOTONIC, &now);
-                    now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
-                    now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
-                    while (now.tv_nsec < 0) {
-                      now.tv_nsec += 1000000000;
-                      now.tv_sec--;
-                    }
-                    nanosleep(&now, NULL);
-#else
-                    clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
-#endif
-                  }
-		} else {
-		  // No-GPIO-sidetone case: just wait
-                  loop_delay.tv_nsec += 1000000L * dash_length;
-                  while (loop_delay.tv_nsec >= NSEC_PER_SEC) {
-                    loop_delay.tv_nsec -= NSEC_PER_SEC;
-                    loop_delay.tv_sec++;
-                  }
-#ifdef __APPLE__
-                    clock_gettime(CLOCK_MONOTONIC, &now);
-                    now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
-                    now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
-                    while (now.tv_nsec < 0) {
-                      now.tv_nsec += 1000000000;
-                      now.tv_sec--;
-                    }
-                    nanosleep(&now, NULL);
-#else
-                  clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
-#endif
-		}
                 set_keyer_out(0);
                 key_state = DASHDELAY;       // add inter-character spacing of one dot length
 		kdelay=0;
@@ -736,9 +556,6 @@ static void* keyer_thread(void *arg) {
 		// we never arrive here in STRAIGHT/BUG mode
                 kdelay++;
                 if (kdelay > dot_length) {
-		  if (gpio_cw_sidetone_enabled()) {
-		    cw_keyer_sidetone_volume=old_volume;
-		  }
 //
 //                  DL1YCF:
 //                  This is my understanding where MODE A comes in:
@@ -779,8 +596,8 @@ static void* keyer_thread(void *arg) {
             }
 
 	    // time stamp in loop_delay is either the last time stamp from the
-	    // top of the loop, or the last time stamp from tone generation
-	    // NOTE: we are using ABSTIME here to produce accurate delays.
+	    // top of the loop, or the time stamp from the last key-down/key-up transition.
+	    // wait another milli-second before cycling the outer loop
             loop_delay.tv_nsec += interval;
             while (loop_delay.tv_nsec >= NSEC_PER_SEC) {
                 loop_delay.tv_nsec -= NSEC_PER_SEC;
@@ -799,13 +616,15 @@ static void* keyer_thread(void *arg) {
             clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
 #endif
         }
+	//
+	// If we have reduced the side tone volume, restore it!
+	//
+	if (gpio_cw_sidetone_enabled()) {
+	  cw_keyer_sidetone_volume = old_volume;
+	}
 
     }
     fprintf(stderr,"keyer_thread: EXIT\n");
-#ifndef __APPLE__
-    param.sched_priority = 0;
-    sched_setscheduler((pid_t) 0, SCHED_OTHER, &param);
-#endif
     return NULL;
 }
 
@@ -825,9 +644,6 @@ void keyer_close() {
     sem_close(&cw_event);
 #endif
 
-#ifndef __APPLE__
-    munlockall();
-#endif
 }
 
 int keyer_init() {
@@ -835,12 +651,6 @@ int keyer_init() {
 
     fprintf(stderr,".... starting keyer thread.\n");
     
-#ifndef __APPLE__
-    if(mlockall(MCL_CURRENT|MCL_FUTURE) == -1) {
-            perror("mlockall failed");
-    }
-#endif
-
 #ifdef __APPLE__
     sem_unlink("CW");
     cw_event=sem_open("CW", O_CREAT | O_EXCL, 0700, 0);

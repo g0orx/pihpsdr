@@ -1058,7 +1058,7 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 	    // tx->output_samples equals tx->buffer_size
 	    // Take TX envelope from the 48kHz shape buffer
 	    //
-            sidevol= 258.0 * cw_keyer_sidetone_volume;  // between 0.0 and 32766.0
+            sidevol= 64.0 * cw_keyer_sidetone_volume;  // between 0.0 and 8128.0
 	    isample=0;				    // will be constantly zero
             for(j=0;j<tx->output_samples;j++) {
 	      ramp=cw_shape_buffer48[j];	    	    // between 0.0 and 1.0
@@ -1174,7 +1174,7 @@ void add_mic_sample(TRANSMITTER *tx,float mic_sample) {
 	// store the ramp value in cw_shape_buffer, but also use it for shaping the "local"
 	// side tone
 	ramp=cwramp48[cw_shape];
-	cwsample=0.0078 * getNextSideToneSample() * cw_keyer_sidetone_volume * ramp;
+	cwsample=0.00197 * getNextSideToneSample() * cw_keyer_sidetone_volume * ramp;
 	cw_audio_write(cwsample);
         cw_shape_buffer48[tx->samples]=ramp;
 	//

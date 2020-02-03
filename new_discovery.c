@@ -73,12 +73,12 @@ void new_discovery() {
     ifa = addrs;
     while (ifa) {
         g_main_context_iteration(NULL, 0);
-        if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET) {
-            if((ifa->ifa_flags&IFF_UP)==IFF_UP
-                && (ifa->ifa_flags&IFF_RUNNING)==IFF_RUNNING
-                && (ifa->ifa_flags&IFF_LOOPBACK)!=IFF_LOOPBACK) {
-                new_discover(ifa);
-            }
+        if (ifa->ifa_addr) {
+          if(ifa->ifa_addr->sa_family == AF_INET &&
+            (ifa->ifa_flags&IFF_UP)==IFF_UP &&
+            (ifa->ifa_flags&IFF_RUNNING)==IFF_RUNNING) {
+		new_discover(ifa);
+          }
         }
         ifa = ifa->ifa_next;
     }
@@ -251,12 +251,14 @@ gpointer new_discover_receive_thread(gpointer data) {
                             frequency_max=61440000.0;
                             break;
 			case NEW_DEVICE_HERMES_LITE:
-                            if (discovered[devices].software_version < 40) {
+			    if (discovered[devices].software_version < 40) {
                               strcpy(discovered[devices].name,"Hermes Lite V1");
 			    } else {
                               strcpy(discovered[devices].name,"Hermes Lite V2");
 			      discovered[devices].device = NEW_DEVICE_HERMES_LITE2;
 			    }
+                            frequency_min=0.0;
+                            frequency_max=30720000.0;
                             break;
                         default:
                             strcpy(discovered[devices].name,"Unknown");

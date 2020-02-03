@@ -2,9 +2,6 @@
 GIT_DATE := $(firstword $(shell git --no-pager show --date=short --format="%ai" --name-only))
 GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 
-# uncomment the line below to include GPIO (For original piHPSDR Controller and Controller2)
-#GPIO_INCLUDE=GPIO
-
 # uncomment the line below to include USB Ozy support
 # USBOZY_INCLUDE=USBOZY
 
@@ -105,23 +102,6 @@ LOCALCW_HEADERS= iambic.h
 LOCALCW_OBJS   = iambic.o
 endif
 
-ifeq ($(GPIO_INCLUDE),GPIO)
-  GPIO_OPTIONS=-D GPIO
-  GPIO_LIBS=-lwiringPi
-  GPIO_SOURCES= \
-  gpio.c \
-  encoder_menu.c \
-  switch_menu.c
-  GPIO_HEADERS= \
-  gpio.h \
-  encoder_menu.h \
-  switch_menu.h
-  GPIO_OBJS= \
-  gpio.o \
-  encoder_menu.o \
-  switch_menu.o
-endif
-
 #
 # We have two versions of STEMLAB_DISCOVERY here,
 # the second one has to be used
@@ -154,12 +134,12 @@ AUDIO_LIBS=-lportaudio -O3
 
 CFLAGS=	-g -Wno-deprecated-declarations
 OPTIONS=$(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) \
-	$(GPIO_OPTIONS) $(SOAPYSDR_OPTIONS) $(LOCALCW_OPTIONS) \
+	$(SOAPYSDR_OPTIONS) $(LOCALCW_OPTIONS) \
 	$(STEMLAB_OPTIONS) \
         $(CONTROLLER2_OPTIONS) $(AUDIO_OPTIONS) \
 	-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION)
 
-LIBS=     -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(STEMLAB_LIBS) $(MIDI_LIBS)
+LIBS=     -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(GTKLIBS) $(SOAPYSDRLIBS) $(STEMLAB_LIBS) $(MIDI_LIBS)
 INCLUDES=$(GTKINCLUDES)
 
 COMPILE=$(CC) $(CFLAGS) $(OPTIONS) $(INCLUDES)
@@ -373,17 +353,17 @@ error_handler.o \
 cwramp.o
 
 $(PROGRAM):  $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) \
-		$(LOCALCW_OBJS) $(GPIO_OBJS) $(PURESIGNAL_OBJS) \
+		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS)
-	$(LINK) -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(GPIO_OBJS) \
+	$(LINK) -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) \
 		$(SOAPYSDR_OBJS) $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(LIBS)
 
 all:	prebuild  $(PROGRAM) $(HEADERS) $(REMOTE_HEADERS) $(USBOZY_HEADERS) $(SOAPYSDR_HEADERS) \
-	$(LOCALCW_HEADERS) $(GPIO_HEADERS) \
+	$(LOCALCW_HEADERS) \
 	$(PURESIGNAL_HEADERS) $(MIDI_HEADERS) $(STEMLAB_HEADERS) $(SOURCES) $(REMOTE_SOURCES) \
-	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(GPIO_SOURCES) \
-	$(PURESIGNAL_SOURCES) $(MIDI_SOURCES)$(STEMLAB_SOURCES)
+	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) \
+	$(PURESIGNAL_SOURCES) $(MIDI_SOURCES) $(STEMLAB_SOURCES) $(LOCALCW_SOURCES)
 
 prebuild:
 	rm -f version.o
@@ -394,14 +374,14 @@ prebuild:
 # Therefore, correct this here. Furthermore, we can add additional options to CPP
 # in the variable CPPOPTIONS
 #
-CPPOPTIONS= --enable=all --suppress=shadowVariable --suppress=variableScope -q
+CPPOPTIONS= --enable=all --suppress=shadowVariable --suppress=variableScope -D__APPLE__
 CPPINCLUDES:=$(shell echo $(INCLUDES) | sed -e "s/-pthread / /" )
 
 .PHONY:	cppcheck
 cppcheck:
 	cppcheck $(CPPOPTIONS) $(OPTIONS) $(CPPINCLUDES) $(SOURCES) $(REMOTE_SOURCES) \
-	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(GPIO_SOURCES) \
-	$(PURESIGNAL_SOURCES) $(MIDI_SOURCES)$(STEMLAB_SOURCES)
+	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) \
+	$(PURESIGNAL_SOURCES) $(MIDI_SOURCES) $(STEMLAB_SOURCES) $(LOCALCW_SOURCES)
 
 clean:
 	-rm -f *.o
@@ -477,11 +457,11 @@ hpsdrsim:       hpsdrsim.o newhpsdrsim.o
 #       are stored.
 #
 #############################################################################
-app:	$(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(LIMESDR_OBJS) \
-		$(LOCALCW_OBJS) $(GPIO_OBJS) \
+app:	$(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) \
+		$(LOCALCW_OBJS) \
 		$(PURESIGNAL_OBJS) $(MIDI_OBJS) $(STEMLAB_OBJS)
 	$(LINK) -headerpad_max_install_names -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) \
-		$(USBOZY_OBJS) $(GPIO_OBJS) $(LIMESDR_OBJS) \
+		$(USBOZY_OBJS)  \
 		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(LIBS)
 	@rm -rf pihpsdr.app

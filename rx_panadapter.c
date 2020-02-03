@@ -390,6 +390,10 @@ void rx_panadapter_update(RECEIVER *rx) {
     s1=(double)samples[0]+(double)adc_attenuation[rx->adc];
   }
   if (filter_board == ALEX && rx->adc == 0) s1 += (double)(10*rx->alex_attenuation);
+  if (filter_board == CHARLY25) {
+    if (rx->preamp) s1 -= 18.0;
+    if (rx->dither) s1 -= 18.0;
+  }
 #ifdef SOAPYSDR
   if(protocol==SOAPYSDR_PROTOCOL) {
     s1-=rx->rf_gain;
@@ -407,6 +411,10 @@ void rx_panadapter_update(RECEIVER *rx) {
       s2=(double)samples[i]+(double)adc_attenuation[rx->adc];
     }
     if (filter_board == ALEX && rx->adc == 0) s2 += (double)(10*rx->alex_attenuation);
+    if (filter_board == CHARLY25) {
+      if (rx->preamp) s2 -= 18.0;
+      if (rx->dither) s2 -= 18.0;
+    }
 #ifdef SOAPYSDR
     if(protocol==SOAPYSDR_PROTOCOL) {
       s2-=rx->rf_gain;
@@ -460,7 +468,6 @@ void rx_panadapter_update(RECEIVER *rx) {
     }
   }
 #endif
-
 
   cairo_destroy (cr);
   gtk_widget_queue_draw (rx->panadapter);

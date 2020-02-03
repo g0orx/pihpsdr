@@ -217,7 +217,7 @@ void setDuplex() {
     GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(transmitter->dialog));
     gtk_container_remove(GTK_CONTAINER(content),transmitter->panel);
     gtk_widget_destroy(transmitter->dialog);
-    reconfigure_transmitter(transmitter,display_width,rx_height*receivers);
+    reconfigure_transmitter(transmitter,display_width,rx_height);
   }
   g_idle_add(ext_vfo_update, NULL);
 }

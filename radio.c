@@ -956,22 +956,20 @@ void start_radio() {
   if(display_toolbar) {
     rx_height-=TOOLBAR_HEIGHT;
   }
-  int tx_height=rx_height;
-  rx_height=rx_height/RECEIVERS;
 
   //
   // To be on the safe side, we create ALL receiver panels here
   // If upon startup, we only should display one panel, we do the switch below
   //
   for(i=0;i<RECEIVERS;i++) {
-    receiver[i]=create_receiver(i, buffer_size, fft_size, display_width, updates_per_second, display_width, rx_height);
+    receiver[i]=create_receiver(i, buffer_size, fft_size, display_width, updates_per_second, display_width, rx_height/RECEIVERS);
     setSquelch(receiver[i]);
     receiver[i]->x=0;
     receiver[i]->y=y;
     gtk_fixed_put(GTK_FIXED(fixed),receiver[i]->panel,0,y);
     g_object_ref((gpointer)receiver[i]->panel);
     set_displaying(receiver[i],1);
-    y+=rx_height;
+    y+=rx_height/RECEIVERS;
     // Upon startup, if RIT or CTUN is active, tell WDSP.
     set_offset(receiver[i],vfo[i].offset);
   }
@@ -1383,6 +1381,25 @@ void setTune(int state) {
       mox=0;
     }
     if(state) {
+      if (transmitter->puresignal) {
+	//
+	// DL1YCF:
+	// Some users have reported that especially when having
+	// very long (10 hours) operating times with PS, hitting
+	// the "TUNE" button makes the PS algorithm crazy, such that
+	// it produces a very broad line spectrum. Experimentally, it
+	// has been observed that this can be avoided by hitting
+	// "Off" in the PS menu before hitting "TUNE", and hitting
+	// "Restart" in the PS menu when tuning is complete.
+	//
+	// It is therefore suggested to to so implicitly when PS
+	// is enabled.
+	//
+	// So before start tuning: Reset PS engine
+	//
+        SetPSControl(transmitter->id, 1, 0, 0, 0);
+	usleep(50000);
+      }
       if(full_tune) {
         if(OCfull_tune_time!=0) {
           struct timeval te;
@@ -1466,6 +1483,14 @@ void setTune(int state) {
           tx_set_mode(transmitter,pre_tune_mode);
           cw_keyer_internal=pre_tune_cw_internal;
           break;
+      }
+      if (transmitter->puresignal) {
+	//
+	// DL1YCF:
+	// Since we have done a "PS reset" when we started tuning,
+	// resume PS engine now.
+	//
+	SetPSControl(transmitter->id, 0, 0, 1, 0);
       }
     }
     tune=state;
