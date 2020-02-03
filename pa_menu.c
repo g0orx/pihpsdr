@@ -108,7 +108,7 @@ static void show_W(int watts,gboolean reset) {
   }
 
   for(i=1;i<11;i++) {
-    sprintf(text,"<b>%dW</b>",pa_trim[i]);
+    sprintf(text,"<b>%dW</b>",i*increment);
     GtkWidget *label=gtk_label_new(NULL);
     gtk_label_set_markup(GTK_LABEL(label), text);
     gtk_grid_attach(GTK_GRID(grid2),label,0,i,1,1);

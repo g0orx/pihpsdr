@@ -152,7 +152,7 @@ gboolean main_delete (GtkWidget *widget) {
 static int init(void *data) {
   char wisdom_directory[1024];
 
-  //fprintf(stderr,"init\n");
+  fprintf(stderr,"init\n");
 
   audio_get_cards();
 
@@ -237,9 +237,8 @@ fprintf(stderr,"width=%d height=%d\n", display_width, display_height);
 
 fprintf(stderr,"display_width=%d display_height=%d\n", display_width, display_height);
 
-  //fprintf(stderr,"create top level window\n");
+  fprintf(stderr,"create top level window\n");
   top_window = gtk_application_window_new (app);
-fprintf(stderr,"top_window=%p\n",top_window);
   if(full_screen) {
     fprintf(stderr,"full screen\n");
     gtk_window_fullscreen(GTK_WINDOW(top_window));
@@ -248,7 +247,7 @@ fprintf(stderr,"top_window=%p\n",top_window);
   gtk_window_set_title (GTK_WINDOW (top_window), "piHPSDR");
   gtk_window_set_position(GTK_WINDOW(top_window),GTK_WIN_POS_CENTER_ALWAYS);
   gtk_window_set_resizable(GTK_WINDOW(top_window), FALSE);
-  //fprintf(stderr,"setting top window icon\n");
+  fprintf(stderr,"setting top window icon\n");
   GError *error;
   if(!gtk_window_set_icon_from_file (GTK_WINDOW(top_window), "hpsdr.png", &error)) {
     fprintf(stderr,"Warning: failed to set icon for top_window\n");
@@ -266,61 +265,47 @@ fprintf(stderr,"top_window=%p\n",top_window);
   g_signal_connect(top_window, "key_press_event", G_CALLBACK(keypress_cb), NULL);
 
 
-//fprintf(stderr,"create fixed container\n");
-  //fixed=gtk_fixed_new();
-  //gtk_container_add(GTK_CONTAINER(top_window), fixed);
-
-//fprintf(stderr,"create grid\n");
+fprintf(stderr,"create grid\n");
   grid = gtk_grid_new();
   gtk_widget_set_size_request(grid, display_width, display_height);
   gtk_grid_set_row_homogeneous(GTK_GRID(grid),FALSE);
   gtk_grid_set_column_homogeneous(GTK_GRID(grid),FALSE);
-//fprintf(stderr,"add grid\n");
+fprintf(stderr,"add grid\n");
   gtk_container_add (GTK_CONTAINER (top_window), grid);
 
-//fprintf(stderr,"create image\n");
+fprintf(stderr,"create image\n");
   GtkWidget  *image=gtk_image_new_from_file("hpsdr.png");
-//fprintf(stderr,"add image to grid\n");
+fprintf(stderr,"add image to grid\n");
   gtk_grid_attach(GTK_GRID(grid), image, 0, 0, 1, 4);
 
-//fprintf(stderr,"create pi label\n");
-  char build[64];
+fprintf(stderr,"create pi label\n");
+  char build[128];
   sprintf(build,"build: %s %s",build_date, version);
   GtkWidget *pi_label=gtk_label_new("piHPSDR by John Melton g0orx/n6lyt");
   gtk_label_set_justify(GTK_LABEL(pi_label),GTK_JUSTIFY_LEFT);
   gtk_widget_show(pi_label);
-//fprintf(stderr,"add pi label to grid\n");
+fprintf(stderr,"add pi label to grid\n");
   gtk_grid_attach(GTK_GRID(grid),pi_label,1,0,1,1);
 
-//fprintf(stderr,"create build label\n");
+fprintf(stderr,"create build label\n");
   GtkWidget *build_date_label=gtk_label_new(build);
   gtk_label_set_justify(GTK_LABEL(build_date_label),GTK_JUSTIFY_LEFT);
   gtk_widget_show(build_date_label);
-//fprintf(stderr,"add build label to grid\n");
+fprintf(stderr,"add build label to grid\n");
   gtk_grid_attach(GTK_GRID(grid),build_date_label,1,1,1,1);
 
-//fprintf(stderr,"create status\n");
+fprintf(stderr,"create status\n");
   status=gtk_label_new("");
   gtk_label_set_justify(GTK_LABEL(status),GTK_JUSTIFY_LEFT);
   //gtk_widget_override_font(status, pango_font_description_from_string("FreeMono 18"));
   gtk_widget_show(status);
-//fprintf(stderr,"add status to grid\n");
+fprintf(stderr,"add status to grid\n");
   gtk_grid_attach(GTK_GRID(grid), status, 1, 3, 1, 1);
-
-/*
-fprintf(stderr,"create exit button\n");
-  GtkWidget *button = gtk_button_new_with_label ("Exit");
-  //g_signal_connect (button, "clicked", G_CALLBACK (print_hello), NULL);
-  g_signal_connect_swapped (button, "clicked", G_CALLBACK (gtk_widget_destroy), top_window);
-fprintf(stderr,"add exit button to grid\n");
-  gtk_grid_attach(GTK_GRID(grid), button, 1, 4, 1, 1);
-*/
 
   gtk_widget_show_all(top_window);
 
+fprintf(stderr,"g_idle_add: init\n");
   g_idle_add(init,NULL);
-  //g_idle_add(discovery,NULL);
-
 
 }
 

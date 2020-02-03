@@ -19,9 +19,9 @@
 #include "vfo.h"
 #include "ext.h"
 
-#define I2C_DEVICE "/dev/i2c-1"
-#define ADDRESS_1 0X20
-#define ADDRESS_2 0X23
+char *i2c_device="/dev/i2c-1";
+unsigned int i2c_address_1=0X20;
+unsigned int i2c_address_2=0X23;
 
 #define SW_2  0X8000
 #define SW_3  0X4000
@@ -40,12 +40,16 @@
 #define SW_16 0X0200
 #define SW_17 0X0100
 
+unsigned int i2c_sw[16]=
+    { SW_2,SW_3,SW_4,SW_5,SW_6,SW_7,SW_8,SW_9,
+      SW_10,SW_11,SW_12,SW_13,SW_14,SW_15,SW_16,SW_17 };
+
 static int write_byte_data(unsigned char addr,unsigned char reg, unsigned char data) {
   int fd;
   int rc;
 
-  if((fd=open(I2C_DEVICE, O_RDWR))<0) {
-    fprintf(stderr,"cannot open %s: %s\n",I2C_DEVICE,strerror(errno));
+  if((fd=open(i2c_device, O_RDWR))<0) {
+    fprintf(stderr,"cannot open %s: %s\n",i2c_device,strerror(errno));
     return(-1);
   }
 
@@ -69,8 +73,8 @@ static unsigned char read_byte_data(unsigned char addr,unsigned char reg) {
   int fd;
   int rc;
 
-  if((fd=open(I2C_DEVICE, O_RDWR))<0) {
-    fprintf(stderr,"cannot open %s: %s\n",I2C_DEVICE,strerror(errno));
+  if((fd=open(i2c_device, O_RDWR))<0) {
+    fprintf(stderr,"cannot open %s: %s\n",i2c_device,strerror(errno));
     exit(1);
   }
 
@@ -94,8 +98,8 @@ static unsigned int read_word_data(unsigned char addr,unsigned char reg) {
   int fd;
   int rc;
 
-  if((fd=open(I2C_DEVICE, O_RDWR))<0) {
-    fprintf(stderr,"c$cannot open %s: %s\n",I2C_DEVICE,strerror(errno));
+  if((fd=open(i2c_device, O_RDWR))<0) {
+    fprintf(stderr,"c$cannot open %s: %s\n",i2c_device,strerror(errno));
     exit(1);
   }
 
@@ -121,16 +125,20 @@ static void frequencyStep(int pos) {
 }
 
 void i2c_interrupt() {
-  int flags;
-  int ints;
+  unsigned int flags;
+  unsigned int ints;
 
   do {
-    flags=read_word_data(ADDRESS_1,0x0E);
+    flags=read_word_data(i2c_address_1,0x0E);
     if(flags) {
-      ints=read_word_data(ADDRESS_1,0x10);
+      ints=read_word_data(i2c_address_1,0x10);
 //g_print("i2c_interrupt: flags=%04X ints=%04X\n",flags,ints);
       if(ints) {
-        int i=-1;
+        int i;
+        for(i=0;i<16;i++) {
+          if(i2c_sw[i]==ints) break;
+        }
+/*
         switch(ints) {
           case SW_2:
             i=CONTROLLER2_SW2;
@@ -181,123 +189,126 @@ void i2c_interrupt() {
             i=CONTROLLER2_SW17;
             break;
         }
+*/
+        if(i<16) {
 //g_print("i1c_interrupt: sw=%d action=%d\n",i,sw_action[i]);
-        switch(sw_action[i]) {
-          case TUNE:
-            if(can_transmit) {
-              int tune=getTune();
-              if(tune==0) tune=1; else tune=0;
-              g_idle_add(ext_tune_update,GINT_TO_POINTER(tune));
-            }
-            break;
-          case MOX:
-            if(can_transmit) {
-              int mox=getMox();
-              if(mox==0) mox=1; else mox=0;
-              g_idle_add(ext_mox_update,GINT_TO_POINTER(mox));
-            }
-            break;
-          case PS:
+          switch(sw_action[i]) {
+            case TUNE:
+              if(can_transmit) {
+                int tune=getTune();
+                if(tune==0) tune=1; else tune=0;
+                  g_idle_add(ext_tune_update,GINT_TO_POINTER(tune));
+              }
+              break;
+            case MOX:
+              if(can_transmit) {
+                int mox=getMox();
+                if(mox==0) mox=1; else mox=0;
+                g_idle_add(ext_mox_update,GINT_TO_POINTER(mox));
+              }
+              break;
+            case PS:
 #ifdef PURESIGNAL
-            if(can_transmit) g_idle_add(ext_ps_update,NULL);
+              if(can_transmit) g_idle_add(ext_ps_update,NULL);
 #endif
-            break;
-          case TWO_TONE:
-            if(can_transmit) g_idle_add(ext_two_tone,NULL);
-            break;
-          case NR:
-            g_idle_add(ext_nr_update,NULL);
-            break;
-          case NB:
-            g_idle_add(ext_nb_update,NULL);
-            break;
-          case SNB:
-            g_idle_add(ext_snb_update,NULL);
-            break;
-          case RIT:
-            g_idle_add(ext_rit_update,NULL);
-            break;
-          case RIT_CLEAR:
-            g_idle_add(ext_rit_clear,NULL);
-            break;
-          case XIT:
-            if(can_transmit) g_idle_add(ext_xit_update,NULL);
-            break;
-          case XIT_CLEAR:
-            if(can_transmit) g_idle_add(ext_xit_clear,NULL);
-            break;
-          case BAND_PLUS:
-            g_idle_add(ext_band_plus,NULL);
-            break;
-          case BAND_MINUS:
-            g_idle_add(ext_band_minus,NULL);
-            break;
-          case BANDSTACK_PLUS:
-            g_idle_add(ext_bandstack_plus,NULL);
-            break;
-          case BANDSTACK_MINUS:
-            g_idle_add(ext_bandstack_minus,NULL);
-            break;
-          case MODE_PLUS:
-            g_idle_add(ext_mode_plus,NULL);
-            break;
-          case MODE_MINUS:
-            g_idle_add(ext_mode_minus,NULL);
-            break;
-          case FILTER_PLUS:
-            g_idle_add(ext_filter_plus,NULL);
-            break;
-          case FILTER_MINUS:
-            g_idle_add(ext_filter_minus,NULL);
-            break;
-          case A_TO_B:
-            g_idle_add(ext_vfo_a_to_b,NULL);
-            break;
-          case B_TO_A:
-            g_idle_add(ext_vfo_b_to_a,NULL);
-            break;
-          case A_SWAP_B:
-            g_idle_add(ext_vfo_a_swap_b,NULL);
-            break;
-          case LOCK:
-            g_idle_add(ext_lock_update,NULL);
-            break;
-          case CTUN:
-            g_idle_add(ext_ctun_update,NULL);
-            break;
-          case AGC:
-            g_idle_add(ext_agc_update,NULL);
-            break;
-          case SPLIT:
-            if(can_transmit) g_idle_add(ext_split_toggle,NULL);
-            break;
-          case DIVERSITY:
-            g_idle_add(ext_diversity_update,GINT_TO_POINTER(0));
-            break;
-          case SAT:
-            if(can_transmit) g_idle_add(ext_sat_update,NULL);
-            break;
-          case MENU_BAND:
-            g_idle_add(ext_band_update,NULL);
-            break;
-          case MENU_BANDSTACK:
-            g_idle_add(ext_bandstack_update,NULL);
-            break;
-          case MENU_MODE:
-            g_idle_add(ext_mode_update,NULL);
-            break;
-          case MENU_FILTER:
-            g_idle_add(ext_filter_update,NULL);
-            break;
-          case MENU_FREQUENCY:
-            g_idle_add(ext_frequency_update,NULL);
-            break;
-          case MENU_MEMORY:
-            g_idle_add(ext_memory_update,NULL);
-            break;
-          case MENU_DIVERSITY:
-            g_idle_add(ext_diversity_update,GINT_TO_POINTER(1));
-            break;
+              break;
+            case TWO_TONE:
+              if(can_transmit) g_idle_add(ext_two_tone,NULL);
+              break;
+            case NR:
+              g_idle_add(ext_nr_update,NULL);
+              break;
+            case NB:
+              g_idle_add(ext_nb_update,NULL);
+              break;
+            case SNB:
+              g_idle_add(ext_snb_update,NULL);
+              break;
+            case RIT:
+              g_idle_add(ext_rit_update,NULL);
+              break;
+            case RIT_CLEAR:
+              g_idle_add(ext_rit_clear,NULL);
+              break;
+            case XIT:
+              if(can_transmit) g_idle_add(ext_xit_update,NULL);
+              break;
+            case XIT_CLEAR:
+              if(can_transmit) g_idle_add(ext_xit_clear,NULL);
+              break;
+            case BAND_PLUS:
+              g_idle_add(ext_band_plus,NULL);
+              break;
+            case BAND_MINUS:
+              g_idle_add(ext_band_minus,NULL);
+              break;
+            case BANDSTACK_PLUS:
+              g_idle_add(ext_bandstack_plus,NULL);
+              break;
+            case BANDSTACK_MINUS:
+              g_idle_add(ext_bandstack_minus,NULL);
+              break;
+            case MODE_PLUS:
+              g_idle_add(ext_mode_plus,NULL);
+              break;
+            case MODE_MINUS:
+              g_idle_add(ext_mode_minus,NULL);
+              break;
+            case FILTER_PLUS:
+              g_idle_add(ext_filter_plus,NULL);
+              break;
+            case FILTER_MINUS:
+              g_idle_add(ext_filter_minus,NULL);
+              break;
+            case A_TO_B:
+              g_idle_add(ext_vfo_a_to_b,NULL);
+              break;
+            case B_TO_A:
+              g_idle_add(ext_vfo_b_to_a,NULL);
+              break;
+            case A_SWAP_B:
+              g_idle_add(ext_vfo_a_swap_b,NULL);
+              break;
+            case LOCK:
+              g_idle_add(ext_lock_update,NULL);
+              break;
+            case CTUN:
+              g_idle_add(ext_ctun_update,NULL);
+              break;
+            case AGC:
+              g_idle_add(ext_agc_update,NULL);
+              break;
+            case SPLIT:
+              if(can_transmit) g_idle_add(ext_split_toggle,NULL);
+              break;
+            case DIVERSITY:
+              g_idle_add(ext_diversity_update,GINT_TO_POINTER(0));
+              break;
+            case SAT:
+              if(can_transmit) g_idle_add(ext_sat_update,NULL);
+              break;
+            case MENU_BAND:
+              g_idle_add(ext_band_update,NULL);
+              break;
+            case MENU_BANDSTACK:
+              g_idle_add(ext_bandstack_update,NULL);
+              break;
+            case MENU_MODE:
+              g_idle_add(ext_mode_update,NULL);
+              break;
+            case MENU_FILTER:
+              g_idle_add(ext_filter_update,NULL);
+              break;
+            case MENU_FREQUENCY:
+              g_idle_add(ext_frequency_update,NULL);
+              break;
+            case MENU_MEMORY:
+              g_idle_add(ext_memory_update,NULL);
+              break;
+            case MENU_DIVERSITY:
+              g_idle_add(ext_diversity_update,GINT_TO_POINTER(1));
+              break;
+          }
         }
       }
     }
@@ -310,46 +321,46 @@ void i2c_init() {
 
 fprintf(stderr,"i2c_init\n");
   // setup i2c
-  if(write_byte_data(ADDRESS_1,0x0A,0x44)<0) return;
-  if(write_byte_data(ADDRESS_1,0x0B,0x44)<0) return;
+  if(write_byte_data(i2c_address_1,0x0A,0x44)<0) return;
+  if(write_byte_data(i2c_address_1,0x0B,0x44)<0) return;
 
   // disable interrupt
-  if(write_byte_data(ADDRESS_1,0x04,0x00)<0) return;
-  if(write_byte_data(ADDRESS_1,0x05,0x00)<0) return;
+  if(write_byte_data(i2c_address_1,0x04,0x00)<0) return;
+  if(write_byte_data(i2c_address_1,0x05,0x00)<0) return;
 
   // clear defaults
-  if(write_byte_data(ADDRESS_1,0x06,0x00)<0) return;
-  if(write_byte_data(ADDRESS_1,0x07,0x00)<0) return;
+  if(write_byte_data(i2c_address_1,0x06,0x00)<0) return;
+  if(write_byte_data(i2c_address_1,0x07,0x00)<0) return;
 
   // OLAT
-  if(write_byte_data(ADDRESS_1,0x14,0x00)<0) return;
-  if(write_byte_data(ADDRESS_1,0x15,0x00)<0) return;
+  if(write_byte_data(i2c_address_1,0x14,0x00)<0) return;
+  if(write_byte_data(i2c_address_1,0x15,0x00)<0) return;
 
   // set GPIOA for pullups
-  if(write_byte_data(ADDRESS_1,0x0C,0xFF)<0) return;
-  if(write_byte_data(ADDRESS_1,0x0D,0xFF)<0) return;
+  if(write_byte_data(i2c_address_1,0x0C,0xFF)<0) return;
+  if(write_byte_data(i2c_address_1,0x0D,0xFF)<0) return;
 
   // reverse polarity
-  if(write_byte_data(ADDRESS_1,0x02,0xFF)<0) return;
-  if(write_byte_data(ADDRESS_1,0x03,0xFF)<0) return;
+  if(write_byte_data(i2c_address_1,0x02,0xFF)<0) return;
+  if(write_byte_data(i2c_address_1,0x03,0xFF)<0) return;
 
   // set GPIOA/B for input
-  if(write_byte_data(ADDRESS_1,0x00,0xFF)<0) return;
-  if(write_byte_data(ADDRESS_1,0x01,0xFF)<0) return;
+  if(write_byte_data(i2c_address_1,0x00,0xFF)<0) return;
+  if(write_byte_data(i2c_address_1,0x01,0xFF)<0) return;
 
   // INTCON
-  if(write_byte_data(ADDRESS_1,0x08,0x00)<0) return;
-  if(write_byte_data(ADDRESS_1,0x09,0x00)<0) return;
+  if(write_byte_data(i2c_address_1,0x08,0x00)<0) return;
+  if(write_byte_data(i2c_address_1,0x09,0x00)<0) return;
 
   // setup for an MCP23017 interrupt
-  if(write_byte_data(ADDRESS_1,0x04,0xFF)<0) return;
-  if(write_byte_data(ADDRESS_1,0x05,0xFF)<0) return;
+  if(write_byte_data(i2c_address_1,0x04,0xFF)<0) return;
+  if(write_byte_data(i2c_address_1,0x05,0xFF)<0) return;
 
   // flush any interrupts
   do {
-    flags=read_word_data(ADDRESS_1,0x0E);
+    flags=read_word_data(i2c_address_1,0x0E);
     if(flags) {
-      ints=read_word_data(ADDRESS_1,0x10);
+      ints=read_word_data(i2c_address_1,0x10);
       fprintf(stderr,"flush interrupt: flags=%04X ints=%04X\n",flags,ints);
     }
   } while(flags!=0);

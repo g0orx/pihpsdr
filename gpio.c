@@ -105,11 +105,6 @@ int E5_TOP_ENCODER_A;
 int E5_TOP_ENCODER_B;
 int E5_FUNCTION;
 
-int ENABLE_E2_BUTTON;
-int ENABLE_E3_BUTTON;
-int ENABLE_E4_BUTTON;
-int ENABLE_E5_BUTTON;
-
 int ENABLE_S1_BUTTON;
 int S1_BUTTON;
 int ENABLE_S2_BUTTON;
@@ -126,10 +121,6 @@ int ENABLE_MOX_BUTTON;
 int MOX_BUTTON;
 int ENABLE_FUNCTION_BUTTON;
 int FUNCTION_BUTTON;
-int ENABLE_E2_BUTTON;
-int ENABLE_E3_BUTTON;
-int ENABLE_E4_BUTTON;
-
 
 #ifdef LOCALCW
 int CWL_BUTTON=14;
@@ -839,10 +830,6 @@ g_print("gpio_set_defaults: %d\n",ctrlr);
       ENABLE_S6_BUTTON=0;
       ENABLE_MOX_BUTTON=0;
       ENABLE_FUNCTION_BUTTON=0;
-      ENABLE_E2_BUTTON=0;
-      ENABLE_E3_BUTTON=0;
-      ENABLE_E4_BUTTON=0;
-      ENABLE_E5_BUTTON=0;
       ENABLE_E5_ENCODER=0;
       ENABLE_E2_TOP_ENCODER=0;
       ENABLE_E3_TOP_ENCODER=0;
@@ -886,10 +873,6 @@ g_print("gpio_set_defaults: %d\n",ctrlr);
       MOX_BUTTON=2;
       ENABLE_FUNCTION_BUTTON=1;
       FUNCTION_BUTTON=3;
-      ENABLE_E2_BUTTON=1;
-      ENABLE_E3_BUTTON=1;
-      ENABLE_E4_BUTTON=1;
-      ENABLE_E5_BUTTON=0;
       ENABLE_E5_ENCODER=0;
       ENABLE_E2_TOP_ENCODER=0;
       ENABLE_E3_TOP_ENCODER=0;
@@ -933,10 +916,6 @@ g_print("gpio_set_defaults: %d\n",ctrlr);
       E5_ENCODER_A=6;
       E5_ENCODER_B=10;
       E5_FUNCTION=5;
-      ENABLE_E2_BUTTON=1;
-      ENABLE_E3_BUTTON=1;
-      ENABLE_E4_BUTTON=1;
-      ENABLE_E5_BUTTON=1;
       ENABLE_S1_BUTTON=0;
       ENABLE_S2_BUTTON=0;
       ENABLE_S3_BUTTON=0;
@@ -1015,10 +994,6 @@ g_print("gpio_set_defaults: %d\n",ctrlr);
       E5_TOP_ENCODER_A=10;
       E5_TOP_ENCODER_B=6;
       E5_FUNCTION=5;
-      ENABLE_E2_BUTTON=1;
-      ENABLE_E3_BUTTON=1;
-      ENABLE_E4_BUTTON=1;
-      ENABLE_E5_BUTTON=1;
       ENABLE_S1_BUTTON=0;
       ENABLE_S2_BUTTON=0;
       ENABLE_S3_BUTTON=0;
@@ -1204,20 +1179,12 @@ void gpio_restore_state() {
   value=getProperty("MOX_BUTTON");
   if(value) MOX_BUTTON=atoi(value);
 
-  value=getProperty("ENABLE_E2_BUTTON");
-  if(value) ENABLE_E2_BUTTON=atoi(value);
   value=getProperty("E2_FUNCTION");
   if(value) E2_FUNCTION=atoi(value);
-  value=getProperty("ENABLE_E3_BUTTON");
-  if(value) ENABLE_E3_BUTTON=atoi(value);
   value=getProperty("E3_FUNCTION");
   if(value) E3_FUNCTION=atoi(value);
-  value=getProperty("ENABLE_E4_BUTTON");
-  if(value) ENABLE_E4_BUTTON=atoi(value);
   value=getProperty("E4_FUNCTION");
   if(value) E4_FUNCTION=atoi(value);
-  value=getProperty("ENABLE_E5_BUTTON");
-  if(value) ENABLE_E5_BUTTON=atoi(value);
   value=getProperty("E5_FUNCTION");
   if(value) E5_FUNCTION=atoi(value);
 
@@ -1235,6 +1202,21 @@ void gpio_restore_state() {
  value=getProperty("ENABLE_GPIO_SIDETONE");		
  if(value) ENABLE_GPIO_SIDETONE=atoi(value);		
 #endif
+
+  if(controller!=CONTROLLER1) {
+    value=getProperty("i2c_device");
+    if(value) {
+      i2c_device=g_new(char,strlen(value)+1);
+      strcpy(i2c_device,value);
+    }
+    for(int i=0;i<16;i++) {
+      sprintf(name,"i2c_sw[%d]",i);
+      value=getProperty(name);
+      if(value) i2c_sw[i]=atoi(value);
+    }
+ 
+  }
+
 
 }
 
@@ -1291,11 +1273,12 @@ g_print("gpio_save_actions: controller=%d\n",controller);
       setProperty(name,value);		
     }
   }
-g_print("e2_encoder_action: %d\n",e2_encoder_action);
+  
 }
 
 void gpio_save_state() {
   char value[80];
+  char name[80];
 
   clearProperties();
   sprintf(value,"%d",controller);
@@ -1373,22 +1356,27 @@ void gpio_save_state() {
   sprintf(value,"%d",MOX_BUTTON);
   setProperty("MOX_BUTTON",value);
 
-  sprintf(value,"%d",ENABLE_E2_BUTTON);
-  setProperty("ENABLE_E2_BUTTON",value);
   sprintf(value,"%d",E2_FUNCTION);
   setProperty("E2_FUNCTION",value);
-  sprintf(value,"%d",ENABLE_E3_BUTTON);
-  setProperty("ENABLE_E3_BUTTON",value);
   sprintf(value,"%d",E3_FUNCTION);
   setProperty("E3_FUNCTION",value);
-  sprintf(value,"%d",ENABLE_E4_BUTTON);
-  setProperty("ENABLE_E4_BUTTON",value);
   sprintf(value,"%d",E4_FUNCTION);
   setProperty("E4_FUNCTION",value);
-  sprintf(value,"%d",ENABLE_E5_BUTTON);
-  setProperty("ENABLE_E5_BUTTON",value);
   sprintf(value,"%d",E5_FUNCTION);
   setProperty("E5_FUNCTION",value);
+
+  if(controller!=CONTROLLER1) {
+    setProperty("i2c_device",i2c_device);		
+    sprintf(value,"%d",i2c_address_1);
+    setProperty("i2c_address_1",value);		
+    for(int i=0;i<16;i++) {
+      sprintf(name,"i2c_sw[%d]",i);
+      sprintf(value,"%d",i2c_sw[i]);
+      setProperty(name,value);		
+    }
+
+  }
+
 #ifdef LOCALCW		
   sprintf(value,"%d",ENABLE_CW_BUTTONS);		
   setProperty("ENABLE_CW_BUTTONS",value);		

@@ -36,5 +36,9 @@ char version[]="2.0.0-RC1"
 #ifdef MIDI
 " MIDI"
 #endif
+#ifdef LOCALCW
+" LOCALCW"
+#endif
+
 
 ;

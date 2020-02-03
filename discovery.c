@@ -51,8 +51,8 @@
 #include "ext.h"
 #ifdef GPIO
 #include "gpio.h"
-#endif
 #include "configure.h"
+#endif
 
 static GtkWidget *discovery_dialog;
 static DISCOVERED *d;
@@ -205,12 +205,10 @@ static gboolean midi_cb(GtkWidget *widget, GdkEventButton *event, gpointer data)
 #endif
 
 #ifdef GPIO
-/*
 static gboolean gpio_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   configure_gpio(discovery_dialog);
   return TRUE;
 }
-*/
 
 static void gpio_changed_cb(GtkWidget *widget, gpointer data) {
   controller=gtk_combo_box_get_active(GTK_COMBO_BOX(widget));
@@ -514,12 +512,6 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
 
     }
 #ifdef GPIO
-/*
-    GtkWidget *gpio_b=gtk_button_new_with_label("Config GPIO");
-    g_signal_connect (gpio_b, "button-press-event", G_CALLBACK(gpio_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),gpio_b,0,i,1,1);
-*/
-
     controller=CONTROLLER2_V2;
     gpio_set_defaults(controller);
     gpio_restore_state();
@@ -551,6 +543,13 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
 #endif
 
     i++;
+
+#ifdef GPIO
+    GtkWidget *gpio_b=gtk_button_new_with_label("Configure GPIO");
+    g_signal_connect (gpio_b, "button-press-event", G_CALLBACK(gpio_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),gpio_b,0,i,1,1);
+#endif
+
     GtkWidget *tcp_b=gtk_button_new_with_label("Use new TCP Addr:");
     g_signal_connect (tcp_b, "button-press-event", G_CALLBACK(tcp_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),tcp_b,1,i,1,1);
