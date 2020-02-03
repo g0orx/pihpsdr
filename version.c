@@ -40,5 +40,4 @@ char version[]="2.0.0-RC1"
 " LOCALCW"
 #endif
 
-
 ;

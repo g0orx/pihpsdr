@@ -1102,6 +1102,7 @@ g_print("e2_encoder_action: %d\n",e2_encoder_action);
 
 void gpio_restore_state() {
   char* value;
+  char name[80];
 
   loadProperties("gpio.props");
   value=getProperty("controller");
