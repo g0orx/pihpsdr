@@ -1038,6 +1038,7 @@ g_print("controller=%d e2_encoder_action: %d\n",ctrlr,e2_encoder_action);
 
 void gpio_restore_actions() {
   char* value;
+  char name[80];
   int i;
 
 g_print("gpio_restore_actions: controller=%d\n",controller);
