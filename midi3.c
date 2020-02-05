@@ -232,6 +232,54 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 #endif
             g_idle_add(ext_vfo_update, NULL);
 	    break;
+	/////////////////////////////////////////////////////////// "DIVGAIN"
+	case DIV_GAIN:  // knob or wheel supported
+            switch (type) {
+              case MIDI_KNOB:
+		dnew = 10.0*(-25.0 + 0.5*val - div_gain);
+                break;
+              case MIDI_WHEEL:
+                dnew= val;
+                break;
+              default:
+                // do not change
+                // we should not come here anyway
+		dnew = 0.0;
+                break;
+            }
+	    // dnew is the delta times 10
+	    dp=malloc(sizeof(double));
+	    *dp=dnew;
+            g_idle_add(ext_diversity_change_gain, dp);
+            break;
+        /////////////////////////////////////////////////////////// "DIVPHASE"
+        case DIV_PHASE:  // knob or wheel supported
+            switch (type) {
+              case MIDI_KNOB:
+                dnew = (-180.0 + 3.6*val - div_phase);
+                break;
+              case MIDI_WHEEL:
+                dnew= val;
+                break;
+              default:
+                // do not change
+                // we should not come here anyway
+                dnew = 0.0;
+                break;
+            }
+            // dnew is the delta
+            dp=malloc(sizeof(double));
+            *dp=dnew;
+            g_idle_add(ext_diversity_change_phase, dp);
+            break;
+        /////////////////////////////////////////////////////////// "DIVTOGGLE"
+        case DIV_TOGGLE:   // only key supported
+            if (type == MIDI_KEY) {
+                // enable/disable DIVERSITY
+                diversity_enabled = diversity_enabled ? 0 : 1;
+                g_idle_add(ext_vfo_update, NULL);
+            }
+            break;
 	/////////////////////////////////////////////////////////// "DUP"
         case MIDI_DUP:
 	    if (can_transmit && !isTransmitting()) {
