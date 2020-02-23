@@ -102,7 +102,7 @@ endif
 
 ifeq ($(GPIO_INCLUDE),GPIO)
   GPIO_OPTIONS=-D GPIO
-  GPIO_LIBS=-lwiringPi -li2c
+  GPIO_LIBS=-lwiringPi
   GPIO_SOURCES= \
   configure.c \
   i2c.c \
