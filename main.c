@@ -58,6 +58,7 @@
 #include "soapy_protocol.h"
 #endif
 #include "ext.h"
+#include "vfo.h"
 
 struct utsname unameData;
 
