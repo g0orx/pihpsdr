@@ -43,7 +43,6 @@ struct _vfo {
 
   long long lo;
   long long offset;
-  long long lo_tx;
 
 } vfo[MAX_VFOS];
 

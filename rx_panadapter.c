@@ -263,12 +263,12 @@ void rx_panadapter_update(RECEIVER *rx) {
       divisor=50000L;
       break;
     case 768000:
-      divisor=50000L;
+      divisor=100000L;
       break;
     case 1048576:
     case 1536000:
     case 2097152:
-      divisor=100000L;
+      divisor=200000L;
       break;
   }
   for(i=0;i<display_width;i++) {

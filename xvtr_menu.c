@@ -68,14 +68,6 @@ static void save_xvtr () {
         xvtr->frequencyLO=(long long)(atof(lof)*1000000.0);
         loerr=gtk_entry_get_text(GTK_ENTRY(lo_error[i]));
         xvtr->errorLO=atoll(loerr);
-/*
-        txlof=gtk_entry_get_text(GTK_ENTRY(tx_lo_frequency[i]));
-        xvtr->txFrequencyLO=(long long)(atof(txlof)*1000000.0);
-        txloerr=gtk_entry_get_text(GTK_ENTRY(tx_lo_error[i]));
-        xvtr->txErrorLO=atoll(txloerr);
-*/
-        xvtr->txFrequencyLO=0LL;
-        xvtr->txErrorLO=0LL;
         xvtr->disablePA=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(disable_pa[i]));
 
         for(b=0;b<bandstack->entries;b++) {
@@ -105,7 +97,6 @@ void update_receiver(int band,gboolean error) {
     BAND *xvtr=band_get_band(band);
 //g_print("update_receiver: found band: %s\n",xvtr->title);
     vfo[0].lo=xvtr->frequencyLO+xvtr->errorLO;
-    vfo[0].lo_tx=xvtr->txFrequencyLO+xvtr->txErrorLO;
     saved_ctun=vfo[0].ctun;
     if(saved_ctun) {
       vfo[0].ctun=FALSE;
@@ -168,22 +159,6 @@ g_print("lo_error_update: band=%d\n",vfo[0].band);
   }
   xvtr->errorLO=xvtr->errorLO+offset;
   update_receiver(vfo[0].band,TRUE);
-}
-
-void tx_lo_frequency_cb(GtkEditable *editable,gpointer user_data) {
-  int band=GPOINTER_TO_INT(user_data);
-  BAND *xvtr=band_get_band(band);
-  const char* lof=gtk_entry_get_text(GTK_ENTRY(tx_lo_frequency[band]));
-  xvtr->txFrequencyLO=(long long)(atof(lof)*1000000.0);
-  update_receiver(band,FALSE);
-}
-
-void tx_lo_error_cb(GtkEditable *editable,gpointer user_data) {
-  int band=GPOINTER_TO_INT(user_data);
-  BAND *xvtr=band_get_band(band);
-  const char* errorf=gtk_entry_get_text(GTK_ENTRY(tx_lo_error[band]));
-  xvtr->txErrorLO=atoll(errorf);
-  update_receiver(band,TRUE);
 }
 
 static void cleanup() {
