@@ -4,12 +4,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <linux/i2c-dev.h>
-#include <i2c/smbus.h>
+//#include <i2c/smbus.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
 
 #include <gtk/gtk.h>
-#include "i2c.h"
+//#include "i2c.h"
+#include "wiringPiI2C.h"
 #include "gpio.h"
 #include "band.h"
 #include "band_menu.h"
@@ -22,6 +23,8 @@
 char *i2c_device="/dev/i2c-1";
 unsigned int i2c_address_1=0X20;
 unsigned int i2c_address_2=0X23;
+
+static int fd;
 
 #define SW_2  0X8000
 #define SW_3  0X4000
@@ -45,76 +48,25 @@ unsigned int i2c_sw[16]=
       SW_10,SW_11,SW_12,SW_13,SW_14,SW_15,SW_16,SW_17 };
 
 static int write_byte_data(unsigned char addr,unsigned char reg, unsigned char data) {
-  int fd;
   int rc;
 
-  if((fd=open(i2c_device, O_RDWR))<0) {
-    fprintf(stderr,"cannot open %s: %s\n",i2c_device,strerror(errno));
-    return(-1);
-  }
-
-  if(ioctl(fd,I2C_SLAVE,addr)<0) {
-    fprintf(stderr,"cannot aquire access to I2C device at 0x%02X\n",addr);
-    return(-1);
-  }
-
-  rc=i2c_smbus_write_byte_data(fd,reg,data);
-  if(rc<0) {
-    fprintf(stderr,"i2c_smbus_write_byte_data failed: device=%02X 0x%02X to 0x%02X: %s\n",addr,data,reg,strerror(errno));
-    return(-1);
-  }
-
-  close(fd);
+  rc=wiringPiI2CWriteReg8(fd,reg,data);
   
   return 0;
 }
 
 static unsigned char read_byte_data(unsigned char addr,unsigned char reg) {
-  int fd;
   int rc;
 
-  if((fd=open(i2c_device, O_RDWR))<0) {
-    fprintf(stderr,"cannot open %s: %s\n",i2c_device,strerror(errno));
-    exit(1);
-  }
-
-  if(ioctl(fd,I2C_SLAVE,addr)<0) {
-    fprintf(stderr,"cannot aquire access to I2C device at 0x%x\n",addr);
-    exit(1);
-  }
-
-  rc=i2c_smbus_read_byte_data(fd,reg);
-  if(rc<0) {
-    fprintf(stderr,"i2c_smbus_read_byte_data failed: 0x%2X: %s\n",reg,strerror(errno));
-    exit(1);
-  }
-
-  close(fd);
+  rc=wiringPiI2CReadReg8(fd,reg);
 
   return rc;
 }
 
 static unsigned int read_word_data(unsigned char addr,unsigned char reg) {
-  int fd;
   int rc;
 
-  if((fd=open(i2c_device, O_RDWR))<0) {
-    fprintf(stderr,"c$cannot open %s: %s\n",i2c_device,strerror(errno));
-    exit(1);
-  }
-
-  if(ioctl(fd,I2C_SLAVE,addr)<0) {
-    fprintf(stderr,"cannot aquire access to I2C device at 0x%x\n",addr);
-    exit(1);
-  }
-
-  rc=i2c_smbus_read_word_data(fd,reg);
-  if(rc<0) {
-    fprintf(stderr,"i2c_smbus_read_word_data failed: 0x%2X: %s\n",reg,strerror(errno));
-    exit(1);
-  }
-
-  close(fd);
+  rc=wiringPiI2CReadReg16(fd,reg);
 
   return rc;
 }
@@ -320,6 +272,13 @@ void i2c_init() {
   int flags, ints;
 
 fprintf(stderr,"i2c_init\n");
+
+  fd=wiringPiI2CSetup(i2c_address_1);
+  if(fd<0) {
+    g_print("i2c_init failed: fd=%d\n",fd);
+    return;
+  }
+
   // setup i2c
   if(write_byte_data(i2c_address_1,0x0A,0x44)<0) return;
   if(write_byte_data(i2c_address_1,0x0B,0x44)<0) return;
@@ -357,11 +316,16 @@ fprintf(stderr,"i2c_init\n");
   if(write_byte_data(i2c_address_1,0x05,0xFF)<0) return;
 
   // flush any interrupts
+  int count=0;
   do {
     flags=read_word_data(i2c_address_1,0x0E);
     if(flags) {
       ints=read_word_data(i2c_address_1,0x10);
       fprintf(stderr,"flush interrupt: flags=%04X ints=%04X\n",flags,ints);
+      count++;
+      if(count==10) {
+        return;
+      }
     }
   } while(flags!=0);
   
