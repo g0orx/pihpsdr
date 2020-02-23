@@ -109,20 +109,34 @@ static void* wisdom_thread(void *arg) {
 //
 gboolean keypress_cb(GtkWidget *widget, GdkEventKey *event, gpointer data) {
 
-  if (event->keyval == GDK_KEY_space && radio != NULL) {
-    if(getTune()==1) {
-      setTune(0);
-    }
-    if(getMox()==1) {
-      setMox(0);
-    } else if(canTransmit() || tx_out_of_band) {
-      setMox(1);
-    } else {
-      transmitter_set_out_of_band(transmitter);
-    }
-    g_idle_add(ext_vfo_update,NULL);
-    return TRUE;
+   if (radio != NULL) {
+	  if (event->keyval == GDK_KEY_space) {
+		  
+		  fprintf(stderr, "space");
+		  
+		if(getTune()==1) {
+		  setTune(0);
+		}
+		if(getMox()==1) {
+		  setMox(0);
+		} else if(canTransmit() || tx_out_of_band) {
+		  setMox(1);
+		} else {
+		  transmitter_set_out_of_band(transmitter);
+		}
+		g_idle_add(ext_vfo_update,NULL);
+		return TRUE;
+	  }
+	  if (event->keyval == GDK_KEY_d ) {
+		vfo_move(step,TRUE);
+		return TRUE;
+	  }
+	  if (event->keyval == GDK_KEY_u ) {
+		 vfo_move(-step,TRUE);
+		 return TRUE;
+	  }
   }
+  
   return FALSE;
 }
 

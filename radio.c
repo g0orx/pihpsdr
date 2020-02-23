@@ -1013,11 +1013,9 @@ void start_radio() {
 #endif
   
 #ifdef GPIO
-  if(controller!=NO_CONTROLLER) {
     if(gpio_init()<0) {
       g_print("GPIO failed to initialize\n");
     }
-  }
 #endif
 #ifdef LOCALCW
   // init local keyer if enabled
