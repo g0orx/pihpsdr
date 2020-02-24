@@ -100,6 +100,7 @@ static void show_W(int watts,gboolean reset) {
   int i;
   char text[16];
   int increment=watts/10;
+  double limit;
 
   if(reset) {
     for(i=0;i<11;i++) {
@@ -112,8 +113,13 @@ static void show_W(int watts,gboolean reset) {
     GtkWidget *label=gtk_label_new(NULL);
     gtk_label_set_markup(GTK_LABEL(label), text);
     gtk_grid_attach(GTK_GRID(grid2),label,0,i,1,1);
+    if(watts>=30 && watts <=100) {
+      limit=(double)((i*increment)+100);
+    } else {
+      limit=(double)((i+2)*increment);
+    }
 
-    GtkWidget *spin=gtk_spin_button_new_with_range(0.0,(double)((i+2)*increment),1.0);
+    GtkWidget *spin=gtk_spin_button_new_with_range(0.0,limit,1.0);
     gtk_grid_attach(GTK_GRID(grid2),spin,1,i,1,1);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(spin),(double)pa_trim[i]);
     g_signal_connect(spin,"value_changed",G_CALLBACK(trim_changed_cb),GINT_TO_POINTER(i));
