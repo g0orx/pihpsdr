@@ -232,7 +232,8 @@ memory.c \
 led.c \
 ext.c \
 error_handler.c \
-cwramp.c
+cwramp.c \
+protocols.c
 
 
 HEADERS= \
@@ -299,7 +300,8 @@ store_menu.h \
 memory.h \
 led.h \
 ext.h \
-error_handler.h
+error_handler.h \
+protocols.h
 
 
 OBJS= \
@@ -365,7 +367,8 @@ memory.o \
 led.o \
 ext.o \
 error_handler.o \
-cwramp.o
+cwramp.o \
+protocols.o
 
 $(PROGRAM):  $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) \
 		$(LOCALCW_OBJS) $(GPIO_OBJS) $(PURESIGNAL_OBJS) \
