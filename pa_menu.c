@@ -36,6 +36,13 @@ static GtkWidget *dialog=NULL;
 
 static GtkWidget *grid2;
 
+//
+// we need all these "spin" widgets as a static variable
+// to continously update their displayed values during
+// a "single shot" calibration
+//
+static GtkWidget *spin[11];
+
 static void cleanup() {
   if(dialog!=NULL) {
     gtk_widget_destroy(dialog);
@@ -71,7 +78,32 @@ static void tx_out_of_band_cb(GtkWidget *widget, gpointer data) {
 
 static void trim_changed_cb(GtkWidget *widget, gpointer data) {
   int i=GPOINTER_TO_INT(data);
+  int k, flag;
+  flag = 0;
+  //
+  // The 'flag' indicates that we do a single-shot calibration,
+  // that is, the pa_trim[] values reflect a constant
+  // factor and the last pa_trim[] value is changed.
+  // In a single-shot calibration, change all the "lower" pa_trim
+  // values to maintain the constant factor, and update the
+  // text fields of the spinners.
+  //
+  if (i == 10) {
+    flag = 1;
+    for (k=1; k<10; k++) {
+      if (pa_trim[k] != (k*pa_trim[10])/10) flag=0;
+    }
+  }
+
   pa_trim[i]=gtk_spin_button_get_value(GTK_SPIN_BUTTON(widget));
+
+  if (flag) {
+    // note that we have i==10 if the flag is nonzero.
+    for (k=1; k<10; k++) {
+      pa_trim[k]=(k*pa_trim[10])/10;
+      gtk_spin_button_set_value(GTK_SPIN_BUTTON(spin[k]),(double)pa_trim[k]);
+    }
+  }
 }
 
 static void show_1W(gboolean reset) {
@@ -89,10 +121,15 @@ static void show_1W(gboolean reset) {
     gtk_label_set_markup(GTK_LABEL(label), text);
     gtk_grid_attach(GTK_GRID(grid2),label,0,i,1,1);
 
-    GtkWidget *spin=gtk_spin_button_new_with_range(0.0,(double)((i+2)*100),1.0);
-    gtk_grid_attach(GTK_GRID(grid2),spin,1,i,1,1);
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(spin),(double)pa_trim[i]);
-    g_signal_connect(spin,"value_changed",G_CALLBACK(trim_changed_cb),GINT_TO_POINTER(i));
+    //
+    // We *need* a maximum value for the spinner, but a quite large
+    // value does not harm. So we allow up to 5 times the nominal
+    // value.
+    //
+    spin[i]=gtk_spin_button_new_with_range(0.0,(double)(5*i*100),1.0);
+    gtk_grid_attach(GTK_GRID(grid2),spin[i],1,i,1,1);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(spin[i]),(double)pa_trim[i]);
+    g_signal_connect(spin[i],"value_changed",G_CALLBACK(trim_changed_cb),GINT_TO_POINTER(i));
   }
 }
 
@@ -113,10 +150,15 @@ static void show_W(int watts,gboolean reset) {
     gtk_label_set_markup(GTK_LABEL(label), text);
     gtk_grid_attach(GTK_GRID(grid2),label,0,i,1,1);
 
-    GtkWidget *spin=gtk_spin_button_new_with_range(0.0,(double)((i+2)*increment),1.0);
-    gtk_grid_attach(GTK_GRID(grid2),spin,1,i,1,1);
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(spin),(double)pa_trim[i]);
-    g_signal_connect(spin,"value_changed",G_CALLBACK(trim_changed_cb),GINT_TO_POINTER(i));
+    //
+    // We *need* a maximum value for the spinner, but a quite large
+    // value does not harm. So we allow up to 5 times the nominal
+    // value.
+    //
+    spin[i]=gtk_spin_button_new_with_range(0.0,(double)(5*i*increment),1.0);
+    gtk_grid_attach(GTK_GRID(grid2),spin[i],1,i,1,1);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(spin[i]),(double)pa_trim[i]);
+    g_signal_connect(spin[i],"value_changed",G_CALLBACK(trim_changed_cb),GINT_TO_POINTER(i));
   }
 }
 
@@ -124,6 +166,7 @@ static void clear_W() {
   int i;
   for(i=0;i<10;i++) {
     gtk_grid_remove_row(GTK_GRID(grid2),1);
+    spin[i]=NULL;
   }
 }
 
