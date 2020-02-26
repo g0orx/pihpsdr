@@ -641,6 +641,7 @@ static unsigned long s6_debounce=0;
 
 static void s6Alert() {
     int t=millis();
+    g_print("s6Alert\n");
     if(millis()<s6_debounce) {
       return;
     }
@@ -1399,6 +1400,8 @@ void gpio_save_state() {
 
 static void setup_pin(int pin, int up_down, void(*pAlert)(void)) {
   int rc;
+g_print("setup_pin: pin=%d ip_down=%d pAlert=%p\n",pin,up_down,pAlert);
+  pinMode(pin,GPIO);
   pinMode(pin,INPUT);
   pullUpDnControl(pin,up_down);
   usleep(10000);
@@ -1580,14 +1583,17 @@ int gpio_init() {
       setup_pin(S3_BUTTON, PUD_UP, &s3Alert);
     }
   
+    g_print("ENABLE_S4_BUTTON: %d\n",ENABLE_S4_BUTTON);
     if(ENABLE_S4_BUTTON) {
       setup_pin(S4_BUTTON, PUD_UP, &s4Alert);
     }
   
+    g_print("ENABLE_S5_BUTTON: %d\n",ENABLE_S5_BUTTON);
     if(ENABLE_S5_BUTTON) {
       setup_pin(S5_BUTTON, PUD_UP, &s5Alert);
     }
   
+    g_print("ENABLE_S6_BUTTON: %d\n",ENABLE_S6_BUTTON);
     if(ENABLE_S6_BUTTON) {
       setup_pin(S6_BUTTON, PUD_UP, &s6Alert);
     }

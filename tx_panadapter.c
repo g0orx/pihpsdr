@@ -241,13 +241,12 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   }
 
   // plot frequency markers
-  //long long half=24000LL; //(long long)(tx->output_rate/2);
   long long half=6000LL; //(long long)(tx->output_rate/2);
   long long frequency;
   if(vfo[txvfo].ctun) {
-    frequency=vfo[txvfo].ctun_frequency-vfo[txvfo].lo_tx;
+    frequency=vfo[txvfo].ctun_frequency;
   } else {
-    frequency=vfo[txvfo].frequency-vfo[txvfo].lo_tx;
+    frequency=vfo[txvfo].frequency;
   }
   double vfofreq=(double)display_width * 0.5;
   if (!cw_is_on_vfo_freq) {

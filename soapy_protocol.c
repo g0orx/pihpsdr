@@ -375,11 +375,10 @@ void soapy_protocol_set_tx_frequency(TRANSMITTER *tx) {
 
   v=get_tx_vfo();
   if(soapy_device!=NULL) {
-    //f=(double)(vfo[v].frequency+vfo[v].ctun_frequency-vfo[v].lo_tx);
     if(vfo[v].ctun) {
-      f=(double)(vfo[v].ctun_frequency-vfo[v].lo_tx);
+      f=(double)(vfo[v].ctun_frequency);
     } else {
-      f=(double)(vfo[v].frequency-vfo[v].lo_tx);
+      f=(double)(vfo[v].frequency);
     }
 
     if(transmitter->xit_enabled) {

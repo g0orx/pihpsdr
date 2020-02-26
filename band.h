@@ -73,8 +73,6 @@ struct _BAND {
     long long frequencyMax;
     long long frequencyLO;
     long long errorLO;
-    long long txFrequencyLO;
-    long long txErrorLO;
     int disablePA;
 };
 

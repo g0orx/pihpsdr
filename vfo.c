@@ -168,9 +168,6 @@ void vfo_save_state() {
     sprintf(name,"vfo.%d.lo",i);
     sprintf(value,"%lld",vfo[i].lo);
     setProperty(name,value);
-    sprintf(name,"vfo.%d.lo_tx",i);
-    sprintf(value,"%lld",vfo[i].lo_tx);
-    setProperty(name,value);
     sprintf(name,"vfo.%d.ctun_frequency",i);
     sprintf(value,"%lld",vfo[i].ctun_frequency);
     setProperty(name,value);
@@ -244,9 +241,6 @@ g_print("vfo_restore_state: band=%d frequency=%lld\n",vfo[i].band,vfo[i].frequen
     sprintf(name,"vfo.%d.filter",i);
     value=getProperty(name);
     if(value) vfo[i].filter=atoi(value);
-    sprintf(name,"vfo.%d.lo_tx",i);
-    value=getProperty(name);
-    if(value) vfo[i].lo_tx=atoll(value);
     // Sanity check: if !ctun, offset must be zero
     if (!vfo[i].ctun) {
 	vfo[i].offset=0;
@@ -293,7 +287,6 @@ void vfo_band_changed(int b) {
   vfo[id].mode=entry->mode;
   vfo[id].filter=entry->filter;
   vfo[id].lo=band->frequencyLO+band->errorLO;
-  vfo[id].lo_tx=band->txFrequencyLO+band->txErrorLO;
 
   // turn off ctun
   vfo[id].ctun=0;

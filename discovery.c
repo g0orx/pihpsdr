@@ -53,6 +53,7 @@
 #include "gpio.h"
 #include "configure.h"
 #endif
+#include "protocols.h"
 
 static GtkWidget *discovery_dialog;
 static DISCOVERED *d;
@@ -204,6 +205,11 @@ static gboolean midi_cb(GtkWidget *widget, GdkEventButton *event, gpointer data)
 }
 #endif
 
+static gboolean protocols_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  configure_protocols(discovery_dialog);
+  return TRUE;
+}
+
 #ifdef GPIO
 static gboolean gpio_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   configure_gpio(discovery_dialog);
@@ -252,6 +258,9 @@ static gboolean tcp_cb (GtkWidget *widget, GdkEventButton *event, gpointer data)
 
 void discovery() {
 //fprintf(stderr,"discovery\n");
+
+  protocols_restore_state();
+
   selected_device=0;
   devices=0;
 
@@ -288,23 +297,31 @@ void discovery() {
 #endif
 
 #ifdef STEMLAB_DISCOVERY
+  if(enable_stemlab) {
 #ifdef NO_AVAHI
-  status_text("Looking for STEMlab WEB apps");
+    status_text("Looking for STEMlab WEB apps");
 #else
-  status_text("STEMlab (Avahi) ... Discovering Devices");
+    status_text("STEMlab (Avahi) ... Discovering Devices");
 #endif
-  stemlab_discovery();
+    stemlab_discovery();
+  }
 #endif
 
-  status_text("Protocol 1 ... Discovering Devices");
-  old_discovery();
+  if(enable_protocol_1) {
+    status_text("Protocol 1 ... Discovering Devices");
+    old_discovery();
+  }
 
-  status_text("Protocol 2 ... Discovering Devices");
-  new_discovery();
+  if(enable_protocol_2) {
+    status_text("Protocol 2 ... Discovering Devices");
+    new_discovery();
+  }
 
 #ifdef SOAPYSDR
-  status_text("SoapySDR ... Discovering Devices");
-  soapy_discovery();
+  if(enable_soapy_protocol) {
+    status_text("SoapySDR ... Discovering Devices");
+    soapy_discovery();
+  }
 #endif
 
   status_text("Discovery");
@@ -532,9 +549,9 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
     g_signal_connect (discover_b, "button-press-event", G_CALLBACK(discover_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),discover_b,1,i,1,1);
 
-    GtkWidget *exit_b=gtk_button_new_with_label("Exit");
-    g_signal_connect (exit_b, "button-press-event", G_CALLBACK(exit_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),exit_b,2,i,1,1);
+    GtkWidget *protocols_b=gtk_button_new_with_label("Protocols");
+    g_signal_connect (protocols_b, "button-press-event", G_CALLBACK(protocols_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),protocols_b,2,i,1,1);
 
 #ifdef MIDI
     GtkWidget *midi_b=gtk_button_new_with_label("ImportMIDI");
@@ -558,6 +575,10 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
     gtk_entry_set_max_length(GTK_ENTRY(tcpaddr), 20);
     gtk_grid_attach(GTK_GRID(grid),tcpaddr,2,i,1,1);
     gtk_entry_set_text(GTK_ENTRY(tcpaddr), ipaddr_tcp);
+
+    GtkWidget *exit_b=gtk_button_new_with_label("Exit");
+    g_signal_connect (exit_b, "button-press-event", G_CALLBACK(exit_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),exit_b,3,i,1,1);
 
     gtk_container_add (GTK_CONTAINER (content), grid);
     gtk_widget_show_all(discovery_dialog);

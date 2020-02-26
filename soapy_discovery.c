@@ -109,11 +109,9 @@ static void get_info(char *driver) {
         if((384000.0>=rx_rates[i].minimum) && (384000<=(int)rx_rates[i].maximum)) {
           sample_rate=384000;
         }
-/*
         if((768000.0>=rx_rates[i].minimum) && (768000<=(int)rx_rates[i].maximum)) {
           sample_rate=768000;
         }
-*/
       }
     }
   }
