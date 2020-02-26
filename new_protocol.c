@@ -1377,6 +1377,17 @@ g_print("new_protocol_thread\n");
 
         buffer=malloc(NET_BUFFER_SIZE);
         bytesread=recvfrom(data_socket,buffer,NET_BUFFER_SIZE,0,(struct sockaddr*)&addr,&length);
+
+        if (!running) {
+          //
+          // When leaving piHPSDR, it may happen that the protocol has been stopped while
+	  // we were doing "rcvfrom". In this case, we do not want to "exit" but let the main
+	  // thread exit gracefully, including writing the props files.
+	  //
+	  free(buffer);
+	  break;
+	}
+
         if(bytesread<0) {
             g_print("recvfrom socket failed for new_protocol_thread");
             exit(-1);
