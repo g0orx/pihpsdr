@@ -128,7 +128,7 @@ static void phase_fine_changed_cb(GtkWidget *widget, gpointer data) {
 }
 
 void update_diversity_gain(double increment) {
-  double g=div_gain+(increment/10);
+  double g=div_gain+(0.1*increment);
   if(g<-27.0) g=-27.0;
   if(g>27.0) g=27.0;
   div_gain=g;

@@ -574,6 +574,20 @@ int ext_diversity_update(void *data) {
   return 0;
 }
 
+int ext_diversity_change_gain(void *data) {
+  double *dp = (double *) data;
+  update_diversity_gain(*dp);
+  free(dp);
+  return 0;
+}
+
+int ext_diversity_change_phase(void *data) {
+  double *dp = (double *) data;
+  update_diversity_phase(*dp);
+  free(dp);
+  return 0;
+}
+
 #ifdef PURESIGNAL
 int ext_start_ps(void *data) {
   start_ps();

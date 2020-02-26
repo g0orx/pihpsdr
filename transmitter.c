@@ -563,11 +563,12 @@ static gboolean update_display(gpointer data) {
     }
 
     double fwd=compute_power(transmitter->fwd);
+    double rev=compute_power(transmitter->rev);
 
-//g_print("transmitter: meter_update: fwd:%f->%f rev:%f ex_fwd=%d alex_fwd=%d alex_rev=%d\n",transmitter->fwd,fwd,transmitter->rev,exciter_power,alex_forward_power,alex_reverse_power);
+//g_print("transmitter: meter_update: fwd:%f->%f rev:%f->%f ex_fwd=%d alex_fwd=%d alex_rev=%d\n",transmitter->fwd,fwd,transmitter->rev,rev,exciter_power,alex_forward_power,alex_reverse_power);
 
     if(!duplex) {
-      meter_update(active_receiver,POWER,/*transmitter->*/fwd,transmitter->rev,transmitter->exciter,transmitter->alc);
+      meter_update(active_receiver,POWER,/*transmitter->*/fwd,/*transmitter->*/rev,transmitter->exciter,transmitter->alc);
     }
 
     return TRUE; // keep going
