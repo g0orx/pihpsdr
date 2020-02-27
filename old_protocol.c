@@ -1395,12 +1395,10 @@ if(last_power!=power) {
         if (have_rx_gain) {
 	  //
 	  // HERMESlite has a RXgain value in the range 0-60 that
-	  // is stored in gx_gain_slider. The firmware uses bit 6
-	  // of C4 to determine this case. However RadioBerry seems
-	  // to behave differently and stores bit5 of the gain in the
-	  // dither bit (see above) and a 5-bit attenuation value here.
+	  // is stored in rx_gain_slider. The firmware uses bit 6
+	  // of C4 to determine this case.
 	  //
-          int rxgain = - adc_attenuation[active_receiver->adc]+12; // -12..48 to 0..60
+          int rxgain = adc_attenuation[active_receiver->adc]+12; // -12..48 to 0..60
           if (rxgain <  0) rxgain=0;
           if (rxgain > 60) rxgain=60;
 	  // encode all 6 bits of RXgain in ATT value and set bit6

@@ -139,6 +139,7 @@ void meter_menu (GtkWidget *parent) {
   row++;
   col=0;
 
+  col++;
   GtkWidget *alc_gain=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(alc_peak),"ALC Gain");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (alc_gain), alc==TXA_ALC_GAIN);
   gtk_widget_show(alc_gain);

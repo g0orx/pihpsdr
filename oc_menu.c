@@ -172,7 +172,8 @@ void oc_menu(GtkWidget *parent) {
     //gtk_widget_override_font(oc_rx_title, pango_font_description_from_string("Arial 18"));
     gtk_widget_show(oc_rx_title);
     gtk_grid_attach(GTK_GRID(grid),oc_rx_title,i,2,1,1);
-    GtkWidget *oc_tx_title=gtk_label_new(oc_id);
+    GtkWidget *oc_tx_title=gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(oc_tx_title), oc_id);
     //gtk_widget_override_font(oc_tx_title, pango_font_description_from_string("Arial 18"));
     gtk_widget_show(oc_tx_title);
     gtk_grid_attach(GTK_GRID(grid),oc_tx_title,i+7,2,1,1);

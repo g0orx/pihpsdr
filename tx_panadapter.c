@@ -241,7 +241,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   }
 
   // plot frequency markers
-  long long half=6000LL; //(long long)(tx->output_rate/2);
+  long long half= duplex ? 3000LL : 12000LL; //(long long)(tx->output_rate/2);
   long long frequency;
   if(vfo[txvfo].ctun) {
     frequency=vfo[txvfo].ctun_frequency;
@@ -262,7 +262,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
 #ifdef TX_FREQ_MARKERS
   cairo_text_extents_t extents;
   long long f;
-  long long divisor=50000;
+  long long divisor=2000;
   for(i=0;i<display_width;i++) {
     f = frequency - half + (long) (hz_per_pixel * i);
     if (f > 0) {
