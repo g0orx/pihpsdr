@@ -1059,7 +1059,7 @@ void process_ep2(uint8_t *frame)
 	     // to an RX gain of -12 to +48 dB. However, we set here that
              // a value of +16 (that is, 28 on the 0-60 scale) corresponds to
              // "zero attenuation"
-	     chk_data(40 -(frame[4] & 0x3F) , rx_att[0], "RX1 HL ATT/GAIN");
+	     chk_data(37 -(frame[4] & 0x3F) , rx_att[0], "RX1 HL ATT/GAIN");
            } else {
              chk_data((frame[4] & 0x1F) >> 0, rx_att[0], "RX1 ATT");
              chk_data((frame[4] & 0x20) >> 5, rx1_attE, "RX1 ATT enable");

@@ -200,7 +200,7 @@ if(analog_meter) {
     case SMETER:
       {
       if(have_rx_gain) {
-        level=value+40.0-(adc_attenuation[rx->adc]+12.0);
+        level=value+rx_gain_calibration-adc_attenuation[rx->adc];
       } else {
         level=value+(double)adc_attenuation[rx->adc];
       }
@@ -570,7 +570,7 @@ if(analog_meter) {
       text_location=10;
       offset=5.0;
       if(have_rx_gain) {
-        level=value+40.0-(adc_attenuation[rx->adc]+12.0);
+        level=value+rx_gain_calibration-adc_attenuation[rx->adc];
       } else {
         level=value+(double)adc_attenuation[rx->adc];
       }

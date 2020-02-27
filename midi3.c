@@ -103,17 +103,31 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 		}
 		break;
 	      case MIDI_WHEEL:
-		  new=adc_attenuation[active_receiver->adc] + val;
-		  if (new > 31) new=31;
-		  if (new < 0 ) new=0;
-		  dp=malloc(sizeof(double));
-		  *dp=new;
-		  g_idle_add(ext_set_attenuation_value,(gpointer) dp);
-		  break;
-	      case MIDI_KNOB:
-		new=(31*val)/100;
+		new=adc_attenuation[active_receiver->adc] + val;
 		dp=malloc(sizeof(double));
-		*dp=new;
+		*dp=(double) new;
+                if(have_rx_gain) {
+                  if(*dp<-12.0) {
+                    *dp=-12.0;
+                  } else if(*dp>48.0) {
+                    *dp=48.0;
+                  }
+                } else {
+                  if(*dp<0.0) {
+                    *dp=0.0;
+                  } else if (*dp>31.0) {
+                    *dp=31.0;
+                  }
+                }
+		g_idle_add(ext_set_attenuation_value,(gpointer) dp);
+		break;
+	      case MIDI_KNOB:
+		dp=malloc(sizeof(double));
+                if (have_rx_gain) {
+		  *dp=-12.0 + 0.6*(double) val;
+                } else {
+                  *dp = 0.31 * (double) val;
+                }
 		g_idle_add(ext_set_attenuation_value,(gpointer) dp);
 		break;
 	      default:
