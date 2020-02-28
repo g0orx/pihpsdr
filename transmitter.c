@@ -735,7 +735,7 @@ TRANSMITTER *create_transmitter(int id, int buffer_size, int fft_size, int fps, 
   tx->display_waterfall=0;
 
   tx->panadapter_high=0;
-  tx->panadapter_low=-60;
+  tx->panadapter_low=-70;
   tx->panadapter_step=10;
 
   tx->displaying=0;
