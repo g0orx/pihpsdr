@@ -385,7 +385,7 @@ void rx_panadapter_update(RECEIVER *rx) {
   samples[0]=-200.0;
   samples[display_width-1]=-200.0;
   if(have_rx_gain) {
-    s1=(double)samples[0]+40.0-(adc_attenuation[rx->adc]+12.0);
+    s1=(double)samples[0]+rx_gain_calibration-adc_attenuation[rx->adc];
   } else {
     s1=(double)samples[0]+(double)adc_attenuation[rx->adc];
   }
@@ -406,7 +406,7 @@ void rx_panadapter_update(RECEIVER *rx) {
   cairo_move_to(cr, 0.0, s1);
   for(i=1;i<display_width;i++) {
     if(have_rx_gain) {
-      s2=(double)samples[i]+40.0-(adc_attenuation[rx->adc]+12.0);
+      s2=(double)samples[i]+rx_gain_calibration-adc_attenuation[rx->adc];
     } else {
       s2=(double)samples[i]+(double)adc_attenuation[rx->adc];
     }

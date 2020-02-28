@@ -172,7 +172,11 @@ void waterfall_update(RECEIVER *rx) {
     p=pixels;
     samples=rx->pixel_samples;
     for(i=0;i<width;i++) {
-            sample=samples[i]+adc_attenuation[rx->adc];
+            if(have_rx_gain) {
+              sample=samples[i]+(float)(rx_gain_calibration-adc_attenuation[rx->adc]);
+            } else {
+              sample=samples[i]+(float)adc_attenuation[rx->adc];
+            }
             average+=(int)sample;
             if(sample<(float)rx->waterfall_low) {
                 *p++=colorLowR;

@@ -200,7 +200,7 @@ if(analog_meter) {
     case SMETER:
       {
       if(have_rx_gain) {
-        level=value+40.0-(adc_attenuation[rx->adc]+12.0);
+        level=value+rx_gain_calibration-adc_attenuation[rx->adc];
       } else {
         level=value+(double)adc_attenuation[rx->adc];
       }
@@ -439,7 +439,7 @@ if(analog_meter) {
       max_count++;
 
       //angle=(max_level/2.0)+offset;
-      angle=(max_level*10.0*interval)+offset;
+      angle=(max_level*10.0/(double)interval)+offset;
       radians=angle*M_PI/180.0;
       cairo_arc(cr, cx, cy, radius+8, radians, radians);
       cairo_line_to(cr, cx, cy);
@@ -570,7 +570,7 @@ if(analog_meter) {
       text_location=10;
       offset=5.0;
       if(have_rx_gain) {
-        level=value+40.0-(adc_attenuation[rx->adc]+12.0);
+        level=value+rx_gain_calibration-adc_attenuation[rx->adc];
       } else {
         level=value+(double)adc_attenuation[rx->adc];
       }

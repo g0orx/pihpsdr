@@ -1056,17 +1056,10 @@ void process_ep2(uint8_t *frame)
 	     // Some firmware/emulators use bit6 to indicate a 6-bit format
 	     // for a combined attenuator/preamplifier with the AD9866 chip.
 	     // The value is between 0 and 60 and formally correspondes to
-	     // to an RX gain of -12 to +48 dB. However the front-end hardware
-	     // determines which is the correct "zero level", that is, the gain
-	     // which corresponds to full-amplitude IQ samples for a 0 dBm input.
-	     // Experimentally, we set this "zero level" to +13 dB that (that is,
-	     // a RxGain value of 25). So the "attenuation" is (25 -G) where G
-	     // is the RXgain value.
-	     // NOTE: according to the AD9866 data sheet, this "calibration value"
-	     //       should be 22 instead of 25, while a value of 31 is used
-	     //       by the HermesLite firmware  when bit6 is not set.
-	     //
-	     chk_data(25 -(frame[4] & 0x3F) , rx_att[0], "RX1 HL ATT/GAIN");
+	     // to an RX gain of -12 to +48 dB. However, we set here that
+             // a value of +16 (that is, 28 on the 0-60 scale) corresponds to
+             // "zero attenuation"
+	     chk_data(37 -(frame[4] & 0x3F) , rx_att[0], "RX1 HL ATT/GAIN");
            } else {
              chk_data((frame[4] & 0x1F) >> 0, rx_att[0], "RX1 ATT");
              chk_data((frame[4] & 0x20) >> 5, rx1_attE, "RX1 ATT enable");
