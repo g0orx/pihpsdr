@@ -407,8 +407,32 @@ static gboolean update_display(gpointer data) {
       int start = (full-width) /2;      // Copy from start ... (end-1) 
       float *tfp=tx->pixel_samples;
       float *rfp=rx_feedback->pixel_samples+start;
-      // if full == width, then we just copy all samples
-      memcpy(tfp, rfp, width*sizeof(float));
+      int i;
+      //
+      // The TX panadapter shows a RELATIVE signal strength. A CW or single-tone signal at
+      // full drive appears at 0dBm, the two peaks of a full-drive two-tone signal appear
+      // at -6 dBm each. THIS DOES NOT DEPEND ON THE POSITION OF THE DRIVE LEVEL SLIDER.
+      // The strength of the feedback signal, however, depends on the drive, on the PA and
+      // on the attenuation effective in the feedback path.
+      // We try to normalize the feeback signal such that is looks like a "normal" TX
+      // panadapter if the feedback is optimal for PURESIGNAL (that is, if the attenuation
+      // is optimal). The correction depends on the protocol (different peak levels in the TX
+      // feedback channel, old=0.407, new=0.2899, difference is 3 dB).
+      switch (protocol) {
+        case ORIGINAL_PROTOCOL:
+          for (i=0; i<width; i++) {
+            *tfp++ =*rfp++ + 12.0;
+          }
+          break;
+        case NEW_PROTOCOL:
+          for (i=0; i<width; i++) {
+            *tfp++ =*rfp++ + 15.0;
+          }
+          break;
+        default:
+          memcpy(tfp, rfp, width*sizeof(float));
+          break;
+      }
       g_mutex_unlock(&rx_feedback->mutex);
     } else {
 #endif

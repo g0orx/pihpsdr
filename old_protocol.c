@@ -1286,10 +1286,10 @@ static int last_power=0;
           }
         }
 
-if(last_power!=power) {
-  g_print("power=%d\n",power);
-  last_power=power;
-}
+//if(last_power!=power) {
+//  g_print("power=%d\n",power);
+//  last_power=power;
+//}
 
 
 
