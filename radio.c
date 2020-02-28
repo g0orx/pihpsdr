@@ -1864,6 +1864,10 @@ g_print("radioRestoreState: %s\n",property_path);
     value=getProperty("iqswap");
     if(value) iqswap=atoi(value);
 
+    value=getProperty("rx_gain_calibration");
+    if(value) rx_gain_calibration=atoi(value);
+
+
     filterRestoreState();
     bandRestoreState();
     memRestoreState();
@@ -2106,6 +2110,9 @@ g_print("radioSaveState: %s\n",property_path);
     sprintf(value,"%d",adc_attenuation[1]);
     setProperty("adc_1_attenuation",value);
 	
+    sprintf(value,"%d",rx_gain_calibration);
+    setProperty("rx_gain_calibration",value);
+
 #ifdef SOAPYSDR
     if(device==SOAPYSDR_USB_DEVICE) {
       char name[128];
