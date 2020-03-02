@@ -20,7 +20,7 @@
 char build_date[]=GIT_DATE;
 char build_version[]=GIT_VERSION;
 
-char version[]="2.0.0-rc2"
+char version[]="2.0.0-rc5"
 #if defined(GPIO) || defined(PURESIGNAL) || defined(SOAPYSDR) || defined(MIDI)
 " includes"
 #endif
