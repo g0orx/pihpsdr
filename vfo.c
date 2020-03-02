@@ -292,7 +292,7 @@ void vfo_band_changed(int b) {
   vfo[id].ctun=0;
   vfo[id].offset=0;
   // tell WDSP about the offset
-  set_offset(active_receiver, vfo[i].offset);
+  set_offset(active_receiver, vfo[id].offset);
 
   switch(id) {
     case 0:
