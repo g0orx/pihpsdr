@@ -150,6 +150,34 @@ void update_diversity_gain(double increment) {
   set_gain_phase();
 }
 
+void update_diversity_gain_coarse(double increment) {
+  double g=gain_coarse+increment;
+  if(g<-25.0) g=-25.0;
+  if(g>25.0) g=25.0;
+  gain_coarse=g;
+  div_gain=gain_coarse+gain_fine;
+  if(gain_coarse_scale!=NULL) {
+    gtk_range_set_value(GTK_RANGE(gain_coarse_scale),gain_coarse);
+  } else {
+    show_diversity_gain();
+  }
+  set_gain_phase();
+}
+
+void update_diversity_gain_fine(double increment) {
+  double g=gain_fine+(increment/100);
+  if(g<-2.0) g=-2.0;
+  if(g>2.0) g=2.0;
+  gain_fine=g;
+  div_gain=gain_coarse+gain_fine;
+  if(gain_fine_scale!=NULL) {
+    gtk_range_set_value(GTK_RANGE(gain_fine_scale),gain_fine);
+  } else {
+    show_diversity_gain();
+  }
+  set_gain_phase();
+}
+ 
 void update_diversity_phase(double increment) {
   double p=div_phase+increment;
   while (p >  180.0) p -= 360.0;
@@ -166,6 +194,34 @@ void update_diversity_phase(double increment) {
   } else {
     show_diversity_phase();
   }
+  set_gain_phase();
+}
+
+void update_diversity_phase_coarse(double increment) {
+  double p=phase_coarse+increment;
+  if (p >  180.0) p = 180.0;
+  if (p < -180.0) p = -180.0;
+  phase_coarse=p;
+  if(phase_coarse_scale!=NULL) {
+    gtk_range_set_value(GTK_RANGE(phase_coarse_scale),phase_coarse);
+  } else {
+    show_diversity_phase();
+  }
+  div_phase=phase_coarse+phase_fine;
+  set_gain_phase();
+}
+
+void update_diversity_phase_fine(double increment) {
+  double p=phase_fine+(increment/10.0);
+  while (p >  5.0) p = 5.0;
+  while (p < -5.0) p = -5.0;
+  phase_fine=p;
+  if(phase_fine_scale!=NULL) {
+    gtk_range_set_value(GTK_RANGE(phase_fine_scale),phase_fine);
+  } else {
+    show_diversity_phase();
+  }
+  div_phase=phase_coarse+phase_fine;
   set_gain_phase();
 }
 

@@ -223,8 +223,10 @@ char *encoder_string[ENCODER_ACTIONS] = {
   "SQUELCH RX1",
   "SQUELCH RX2",
   "COMP",
-  "DIVERSITY GAIN",
-  "DIVERSITY PHASE"};
+  "DIVERSITY GAIN COARSE",
+  "DIVERSITY GAIN FINE",
+  "DIVERSITY PHASE COARSE",
+  "DIVERSITY PHASE FINE"};
 
 char *sw_string[SWITCH_ACTIONS] = {
   "",
@@ -641,7 +643,6 @@ static unsigned long s6_debounce=0;
 
 static void s6Alert() {
     int t=millis();
-    g_print("s6Alert\n");
     if(millis()<s6_debounce) {
       return;
     }
@@ -760,8 +761,10 @@ static void e4EncoderInt() {
   int levelB=digitalRead(E4_ENCODER_B);
 
   if(levelA!=e4CurrentA) {
-    if(levelA==levelB) ++e4EncoderPos;
-    if(levelA!=levelB) --e4EncoderPos;
+    //if(levelA==levelB) ++e4EncoderPos;
+    //if(levelA!=levelB) --e4EncoderPos;
+    if(levelA==levelB) --e4EncoderPos;
+    if(levelA!=levelB) ++e4EncoderPos;
     e4CurrentA=levelA;
   }
 }
@@ -1034,7 +1037,6 @@ g_print("gpio_set_defaults: %d\n",ctrlr);
     default:
       break;
   }
-g_print("controller=%d e2_encoder_action: %d\n",ctrlr,e2_encoder_action);
 }
 
 void gpio_restore_actions() {
@@ -1042,7 +1044,6 @@ void gpio_restore_actions() {
   char name[80];
   int i;
 
-g_print("gpio_restore_actions: controller=%d\n",controller);
   if(sw_action!=NULL) {
     g_free(sw_action);
     sw_action=NULL;
@@ -1098,7 +1099,6 @@ g_print("gpio_restore_actions: controller=%d\n",controller);
     value=getProperty(name);		
     if(value) sw_action[i]=atoi(value);		
   }
-g_print("e2_encoder_action: %d\n",e2_encoder_action);
 }
 
 void gpio_restore_state() {
@@ -1227,7 +1227,6 @@ void gpio_save_actions() {
   char name[80];
   char value[80];
 
-g_print("gpio_save_actions: controller=%d\n",controller);
   sprintf(value,"%d",settle_time);
   setProperty("settle_time",value);
   sprintf(value,"%d",e2_sw_action);
@@ -1400,7 +1399,6 @@ void gpio_save_state() {
 
 static void setup_pin(int pin, int up_down, void(*pAlert)(void)) {
   int rc;
-g_print("setup_pin: pin=%d ip_down=%d pAlert=%p\n",pin,up_down,pAlert);
   pinMode(pin,GPIO);
   pinMode(pin,INPUT);
   pullUpDnControl(pin,up_down);
@@ -1414,6 +1412,7 @@ g_print("setup_pin: pin=%d ip_down=%d pAlert=%p\n",pin,up_down,pAlert);
 
 static void setup_encoder_pin(int pin, int up_down, void(*pAlert)(void)) {
   int rc;
+  pinMode(pin,GPIO);
   pinMode(pin,INPUT);
   pullUpDnControl(pin,up_down);
   usleep(10000);
@@ -1532,11 +1531,14 @@ int gpio_init() {
     }
   }
 
+
   if(ENABLE_E4_ENCODER) {
     setup_pin(E4_FUNCTION, PUD_UP, &e4FunctionAlert);
 	  
-    setup_encoder_pin(E4_ENCODER_A,ENABLE_E4_PULLUP?PUD_UP:PUD_OFF,&e4EncoderInt);
-    setup_encoder_pin(E4_ENCODER_B,ENABLE_E4_PULLUP?PUD_UP:PUD_OFF,NULL);
+    //setup_encoder_pin(E4_ENCODER_A,ENABLE_E4_PULLUP?PUD_UP:PUD_OFF,&e4EncoderInt);
+    //setup_encoder_pin(E4_ENCODER_B,ENABLE_E4_PULLUP?PUD_UP:PUD_OFF,NULL);
+    setup_encoder_pin(E4_ENCODER_A,ENABLE_E4_PULLUP?PUD_UP:PUD_OFF,NULL);
+    setup_encoder_pin(E4_ENCODER_B,ENABLE_E4_PULLUP?PUD_UP:PUD_OFF,&e4EncoderInt);
     e4EncoderPos=0;
 	  
     if(controller==CONTROLLER2_V2) {
@@ -1583,17 +1585,14 @@ int gpio_init() {
       setup_pin(S3_BUTTON, PUD_UP, &s3Alert);
     }
   
-    g_print("ENABLE_S4_BUTTON: %d\n",ENABLE_S4_BUTTON);
     if(ENABLE_S4_BUTTON) {
       setup_pin(S4_BUTTON, PUD_UP, &s4Alert);
     }
   
-    g_print("ENABLE_S5_BUTTON: %d\n",ENABLE_S5_BUTTON);
     if(ENABLE_S5_BUTTON) {
       setup_pin(S5_BUTTON, PUD_UP, &s5Alert);
     }
   
-    g_print("ENABLE_S6_BUTTON: %d\n",ENABLE_S6_BUTTON);
     if(ENABLE_S6_BUTTON) {
       setup_pin(S6_BUTTON, PUD_UP, &s6Alert);
     }
@@ -2054,11 +2053,17 @@ static void encoder_changed(int action,int pos) {
       transmitter->compressor_level=(int)value;
       set_compression(transmitter);
       break;
-    case ENCODER_DIVERSITY_GAIN:
-      update_diversity_gain((double)pos);
+    case ENCODER_DIVERSITY_GAIN_COARSE:
+      update_diversity_gain_coarse((double)pos);
       break;
-    case ENCODER_DIVERSITY_PHASE:
-      update_diversity_phase((double)pos);
+    case ENCODER_DIVERSITY_GAIN_FINE:
+      update_diversity_gain_fine((double)pos);
+      break;
+    case ENCODER_DIVERSITY_PHASE_COARSE:
+      update_diversity_phase_coarse((double)pos);
+      break;
+    case ENCODER_DIVERSITY_PHASE_FINE:
+      update_diversity_phase_fine((double)pos);
       break;
   }
 }

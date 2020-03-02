@@ -19,4 +19,8 @@
 
 extern void diversity_menu(GtkWidget *parent);
 extern void update_diversity_gain(double increment);
+extern void update_diversity_gain_coarse(double increment);
+extern void update_diversity_gain_fine(double increment);
 extern void update_diversity_phase(double increment);
+extern void update_diversity_phase_coarse(double increment);
+extern void update_diversity_phase_fine(double increment);
