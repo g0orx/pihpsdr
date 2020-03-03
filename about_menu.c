@@ -106,7 +106,7 @@ void about_menu(GtkWidget *parent) {
   sprintf(line,"\n\nBuild date: %s", build_date);
   strcat(text,line);
 
-  sprintf(line,"\nBuild version: %s", version);
+  sprintf(line,"\nBuild version: %s", build_version);
   strcat(text,line);
 
   sprintf(line,"\nWDSP version: %d.%02d", GetWDSPVersion()/100, GetWDSPVersion()%100);
