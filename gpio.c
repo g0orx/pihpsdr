@@ -224,7 +224,12 @@ char *encoder_string[ENCODER_ACTIONS] = {
   "SQUELCH RX2",
   "COMP",
   "DIVERSITY GAIN",
-  "DIVERSITY PHASE"};
+  "DIVERSITY GAIN (coarse)",
+  "DIVERSITY GAIN (fine)",
+  "DIVERSITY PHASE",
+  "DIVERSITY PHASE (coarse)",
+  "DIVERSITY PHASE (fine)"
+};
 
 char *sw_string[SWITCH_ACTIONS] = {
   "",
@@ -2053,10 +2058,22 @@ static void encoder_changed(int action,int pos) {
       set_compression(transmitter);
       break;
     case ENCODER_DIVERSITY_GAIN:
-      update_diversity_gain((double)pos);
+      update_diversity_gain((double)pos * 0.5);
+      break;
+    case ENCODER_DIVERSITY_GAIN_COARSE:
+      update_diversity_gain((double)pos * 2.5);
+      break;
+    case ENCODER_DIVERSITY_GAIN_FINE:
+      update_diversity_gain((double)pos * 0.1);
       break;
     case ENCODER_DIVERSITY_PHASE:
-      update_diversity_phase((double)pos);
+      update_diversity_phase((double)pos* 0.5);
+      break;
+    case ENCODER_DIVERSITY_PHASE_COARSE:
+      update_diversity_phase((double)pos*2.5);
+      break;
+    case ENCODER_DIVERSITY_PHASE_FINE:
+      update_diversity_phase((double)pos*0.1);
       break;
   }
 }
