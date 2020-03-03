@@ -242,11 +242,11 @@ void diversity_menu(GtkWidget *parent) {
   if (div_gain < -27.0)  div_gain=-27.0;
   while (div_phase >  180.0) div_phase -=360.0;
   while (div_phase < -180.0) div_phase +=360.0;
-  gain_coarse=round(div_gain);
-  if (gain_coarse >  25.0) gain_coarse= 25.0;
-  if (gain_coarse < -25.0) gain_coarse=-25.0;
+  gain_coarse=2.0*round(0.5*div_gain);
+  if (div_gain >  25.0) gain_coarse= 25.0;
+  if (div_gain < -25.0) gain_coarse=-25.0;
   gain_fine=div_gain-gain_coarse;
-  phase_coarse=2.0*round(div_phase*0.5);
+  phase_coarse=4.0*round(div_phase*0.25);
   phase_fine=div_phase-phase_coarse;
   GdkRGBA color;
   color.red = 1.0;
