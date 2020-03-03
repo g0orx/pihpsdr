@@ -761,10 +761,8 @@ static void e4EncoderInt() {
   int levelB=digitalRead(E4_ENCODER_B);
 
   if(levelA!=e4CurrentA) {
-    //if(levelA==levelB) ++e4EncoderPos;
-    //if(levelA!=levelB) --e4EncoderPos;
-    if(levelA==levelB) --e4EncoderPos;
-    if(levelA!=levelB) ++e4EncoderPos;
+    if(levelA==levelB) ++e4EncoderPos;
+    if(levelA!=levelB) --e4EncoderPos;
     e4CurrentA=levelA;
   }
 }
@@ -1191,18 +1189,18 @@ void gpio_restore_state() {
   if(value) E5_FUNCTION=atoi(value);
 
 #ifdef LOCALCW		
- value=getProperty("ENABLE_CW_BUTTONS");		
- if(value) ENABLE_CW_BUTTONS=atoi(value);		
- value=getProperty("CW_ACTIVE_LOW");		
- if(value) CW_ACTIVE_LOW=atoi(value);		
- value=getProperty("CWL_BUTTON");		
- if(value) CWL_BUTTON=atoi(value);		
- value=getProperty("CWR_BUTTON");		
- if(value) CWR_BUTTON=atoi(value);		
- value=getProperty("SIDETONE_GPIO");		
- if(value) SIDETONE_GPIO=atoi(value);		
- value=getProperty("ENABLE_GPIO_SIDETONE");		
- if(value) ENABLE_GPIO_SIDETONE=atoi(value);		
+  value=getProperty("ENABLE_CW_BUTTONS");		
+  if(value) ENABLE_CW_BUTTONS=atoi(value);		
+  value=getProperty("CW_ACTIVE_LOW");		
+  if(value) CW_ACTIVE_LOW=atoi(value);		
+  value=getProperty("CWL_BUTTON");		
+  if(value) CWL_BUTTON=atoi(value);		
+  value=getProperty("CWR_BUTTON");		
+  if(value) CWR_BUTTON=atoi(value);		
+  value=getProperty("SIDETONE_GPIO");		
+  if(value) SIDETONE_GPIO=atoi(value);		
+  value=getProperty("ENABLE_GPIO_SIDETONE");		
+  if(value) ENABLE_GPIO_SIDETONE=atoi(value);		
 #endif
 
   if(controller!=CONTROLLER1) {
@@ -1217,6 +1215,11 @@ void gpio_restore_state() {
       if(value) i2c_sw[i]=atoi(value);
     }
  
+  }
+
+  if(controller==CONTROLLER2_V2) {
+    // turn off as clash of use of pin 14 (WPi)
+    ENABLE_CW_BUTTONS=0;
   }
 
 
@@ -1535,10 +1538,8 @@ int gpio_init() {
   if(ENABLE_E4_ENCODER) {
     setup_pin(E4_FUNCTION, PUD_UP, &e4FunctionAlert);
 	  
-    //setup_encoder_pin(E4_ENCODER_A,ENABLE_E4_PULLUP?PUD_UP:PUD_OFF,&e4EncoderInt);
-    //setup_encoder_pin(E4_ENCODER_B,ENABLE_E4_PULLUP?PUD_UP:PUD_OFF,NULL);
-    setup_encoder_pin(E4_ENCODER_A,ENABLE_E4_PULLUP?PUD_UP:PUD_OFF,NULL);
-    setup_encoder_pin(E4_ENCODER_B,ENABLE_E4_PULLUP?PUD_UP:PUD_OFF,&e4EncoderInt);
+    setup_encoder_pin(E4_ENCODER_A,ENABLE_E4_PULLUP?PUD_UP:PUD_OFF,&e4EncoderInt);
+    setup_encoder_pin(E4_ENCODER_B,ENABLE_E4_PULLUP?PUD_UP:PUD_OFF,NULL);
     e4EncoderPos=0;
 	  
     if(controller==CONTROLLER2_V2) {
