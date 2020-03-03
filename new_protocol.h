@@ -93,4 +93,6 @@ extern void new_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,shor
 extern void new_protocol_iq_samples(int isample,int qsample);
 extern void new_protocol_flush_iq_samples();
 extern void new_protocol_cw_audio_samples(short l, short r);
+
+extern void new_protocol_restart();
 #endif
