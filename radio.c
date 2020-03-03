@@ -543,6 +543,12 @@ void start_radio() {
 		break;
 	}
 	break;
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
+	have_rx_gain=1;
+	rx_gain_calibration=10;
+        break;
+#endif
     default:
 	have_rx_gain=0;
 	break;
