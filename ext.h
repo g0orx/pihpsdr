@@ -23,6 +23,21 @@
 // Use these calls from within the rigclt daemon, or the GPIO or MIDI stuff
 //
 
+typedef struct _RX_FREQUENCY {
+  int rx;
+  long long frequency;
+} RX_FREQUENCY;
+
+typedef struct _RX_MODE {
+  int rx;
+  int mode;
+} RX_MODE;
+
+typedef struct _RX_FILTER {
+  int rx;
+  int filter;
+} RX_FILTER;
+
 extern int ext_discovery(void *data);
 extern int ext_vfo_update(void *data);
 extern int ext_set_frequency(void *data);
@@ -114,3 +129,7 @@ int ext_update_noise(void *data);
 #ifdef PURESIGNAL
 int ext_start_ps(void *data);
 #endif
+
+int ext_set_rx_frequency(void *data);
+int ext_set_rx_mode(void *data);
+int ext_set_rx_filter(void *data);

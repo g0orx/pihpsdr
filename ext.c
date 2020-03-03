@@ -42,6 +42,7 @@
 #include "bandstack.h"
 #include "noise_menu.h"
 #include "wdsp.h"
+#include "ext.h"
 
 // The following calls functions can be called usig g_idle_add
 
@@ -643,3 +644,29 @@ int ext_set_duplex(void *data) {
   setDuplex();
   return 0;
 }
+
+int ext_set_rx_frequency(void *data) {
+  RX_FREQUENCY *p=(RX_FREQUENCY *)data;
+  int b = get_band_from_frequency(p->frequency);
+  if (b != vfo[p->rx].band) {
+    vfo_band_changed(b);
+  }
+  setFrequency(p->frequency);
+  g_free(data);
+  return 0;
+
+  return 0;
+}
+
+int ext_set_rx_mode(void *data) {
+  RX_MODE *p=(RX_MODE *)data;
+  vfo_mode_changed(p->mode);
+  return 0;
+}
+
+int ext_set_rx_filter(void *data) {
+  RX_FILTER *p=(RX_FILTER *)data;
+  vfo_filter_changed(p->filter);
+  return 0;
+}
+
