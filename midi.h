@@ -62,8 +62,12 @@ enum MIDIaction {
   CWL,			// CWL:			Left paddle pressed (use with ONOFF)
   CWR,			// CWR:			Right paddle pressed (use with ONOFF)
   CWSPEED,		// CWSPEED:		Set speed of (iambic) CW keyer
-  DIV_GAIN,		// DIVGAIN:		change DIVERSITY gain
-  DIV_PHASE,		// DIVPHASE:		change DIVERSITY phase
+  DIV_COARSEGAIN,	// DIVCOARSEGAIN:	change DIVERSITY gain in large increments
+  DIV_COARSEPHASE,	// DIVPHASE:		change DIVERSITY phase in large increments
+  DIV_FINEGAIN,		// DIVFINEGAIN:		change DIVERSITY gain in small increments
+  DIV_FINEPHASE,	// DIVFINEPHASE:	change DIVERSITY phase in small increments
+  DIV_GAIN,		// DIVGAIN:		change DIVERSITY gain in medium increments
+  DIV_PHASE,		// DIVPHASE:		change DIVERSITY phase in medium increments
   DIV_TOGGLE,		// DIVTOGGLE:		DIVERSITY on/off
   MIDI_DUP,		// DUP:			toggle duplex on/off
   FILTER_DOWN,		// FILTERDOWN:		cycle through filters downwards

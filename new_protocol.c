@@ -570,6 +570,11 @@ g_print("new_protocol_init: data_socket %d bound to interface %s:%d\n",data_sock
         data_addr[i].sin_port=htons(RX_IQ_TO_HOST_PORT_0+i);
     }
 
+    // running is set to 1 at the top of new_protocol_thread,
+    // but this may lead to race conditions. So out of paranoia,
+    // set it to 1 here as well such that we are *absolutely* sure
+    // is is set before starting the timer thread sending the HP packet.
+    running=1;
     new_protocol_thread_id = g_thread_new( "new protocol", new_protocol_thread, NULL);
     if( ! new_protocol_thread_id )
     {
@@ -1344,6 +1349,40 @@ void new_protocol_stop() {
     close (data_socket);
 }
 
+//
+// This is the function called by the "Restart" button
+// in the new menu if P2 is running
+//
+void new_protocol_restart() {
+  //
+  // halt the protocol, wait 200 msec, and re-start it
+  // the data socket is kept open
+  //
+  running=0;
+  // wait until the thread that receives from the radio has terminated
+  g_thread_join(new_protocol_thread_id);
+  g_thread_join(new_protocol_timer_thread_id);
+  // send HP packet ==> stop radio
+  new_protocol_high_priority();
+  // let the FPGA rest a while
+  usleep(200000); // 200 ms
+  // running is set to 1 at the top of new_protocol_thread,
+  // but this may lead to race conditions. So out of paranoia,
+  // set it to 1 here as well such that we are *absolutely* sure
+  // is is set before starting the timer thread sending the HP packet.
+  running=1;
+  new_protocol_thread_id = g_thread_new( "new protocol", new_protocol_thread, NULL);
+
+  // send the general packet
+  new_protocol_general();
+
+  // set TX and RX specific, start timer thread
+  new_protocol_start();
+
+  // send HP packet, this actually starts the radio in the FPGA
+  new_protocol_high_priority();
+}
+
 void new_protocol_run() {
     new_protocol_high_priority();
 }
@@ -1381,7 +1420,7 @@ g_print("new_protocol_thread\n");
         if (!running) {
           //
           // When leaving piHPSDR, it may happen that the protocol has been stopped while
-	  // we were doing "rcvfrom". In this case, we do not want to "exit" but let the main
+	  // we were doing "recvfrom". In this case, we do not want to "exit" but let the main
 	  // thread exit gracefully, including writing the props files.
 	  //
 	  free(buffer);

@@ -246,14 +246,30 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 #endif
             g_idle_add(ext_vfo_update, NULL);
 	    break;
-	/////////////////////////////////////////////////////////// "DIVGAIN"
-	case DIV_GAIN:  // knob or wheel supported
+	/////////////////////////////////////////////////////////// "DIVCOARSEGAIN"
+	case DIV_COARSEGAIN:  // knob or wheel supported
+	case DIV_FINEGAIN:    // knob or wheel supported
+	case DIV_GAIN:        // knob or wheel supported
             switch (type) {
               case MIDI_KNOB:
-		dnew = 10.0*(-25.0 + 0.5*val - div_gain);
+                if (action == DIV_COARSEGAIN || action == DIV_GAIN) {
+		  // -25 to +25 dB in steps of 0.5 dB
+		  dnew = 10.0*(-25.0 + 0.5*val - div_gain);
+		} else {
+		  // round gain to a multiple of 0.5 dB and apply a +/- 0.5 dB update
+                  new = (int) (2*div_gain + 1.0) / 2;
+		  dnew = 10.0*((double) new + 0.01*val - 0.5 - div_gain);
+		}
                 break;
               case MIDI_WHEEL:
-                dnew= val;
+                // coarse: increaments in steps of 0.25 dB, medium: steps of 0.1 dB fine: in steps of 0.01 dB
+                if (action == DIV_GAIN) {
+		  dnew = val*0.5;
+		} else if (action == DIV_COARSEGAIN) {
+		  dnew = val*2.5;
+		} else {
+		  dnew = val * 0.1;
+	 	}
                 break;
               default:
                 // do not change
@@ -267,13 +283,30 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
             g_idle_add(ext_diversity_change_gain, dp);
             break;
         /////////////////////////////////////////////////////////// "DIVPHASE"
-        case DIV_PHASE:  // knob or wheel supported
+        case DIV_COARSEPHASE:   // knob or wheel supported
+        case DIV_FINEPHASE:     // knob or wheel supported
+	case DIV_PHASE:		// knob or wheel supported
             switch (type) {
               case MIDI_KNOB:
-                dnew = (-180.0 + 3.6*val - div_phase);
+		// coarse: change phase from -180 to 180
+                // fine: change from -5 to 5
+                if (action == DIV_COARSEPHASE || action == DIV_PHASE) {
+		  // coarse: change phase from -180 to 180 in steps of 3.6 deg
+                  dnew = (-180.0 + 3.6*val - div_phase);
+                } else {
+		  // fine: round to multiple of 5 deg and apply a +/- 5 deg update
+                  new = 5 * ((int) (div_phase+0.5) / 5);
+                  dnew =  (double) new + 0.1*val -5.0 -div_phase;
+                }
                 break;
               case MIDI_WHEEL:
-                dnew= val;
+		if (action == DIV_PHASE) {
+		  dnew = val*0.5; 
+		} else if (action == DIV_COARSEPHASE) {
+		  dnew = val*2.5;
+		} else if (action == DIV_FINEPHASE) {
+		  dnew = 0.1*val;
+		}
                 break;
               default:
                 // do not change

@@ -137,9 +137,9 @@ void update_diversity_gain(double increment) {
   // if gain is 27, we can only use coarse=25 and fine=2,
   // but normally we want to keep "fine" small
   //
-  gain_coarse=round(div_gain);
-  if (gain_coarse >  25.0) gain_coarse= 25.0;
-  if (gain_coarse < -25.0) gain_coarse=-25.0;
+  gain_coarse=2.0*round(0.5*div_gain);
+  if (div_gain >  25.0) gain_coarse= 25.0;
+  if (div_gain < -25.0) gain_coarse=-25.0;
   gain_fine=div_gain - gain_coarse;
   if(gain_coarse_scale!=NULL && gain_fine_scale != NULL) {
     gtk_range_set_value(GTK_RANGE(gain_coarse_scale),gain_coarse);
@@ -186,11 +186,11 @@ void update_diversity_phase(double increment) {
   //
   // calculate coarse and fine
   //
-  phase_coarse=2.0*round(div_phase*0.5);
+  phase_coarse=4.0*round(div_phase*0.25);
   phase_fine=div_phase-phase_coarse;
   if(phase_coarse_scale!=NULL && phase_fine_scale != NULL) {
     gtk_range_set_value(GTK_RANGE(phase_coarse_scale),phase_coarse);
-    gtk_range_set_value(GTK_RANGE(phase_fine_scale),phase_coarse);
+    gtk_range_set_value(GTK_RANGE(phase_fine_scale),phase_fine);
   } else {
     show_diversity_phase();
   }
@@ -242,11 +242,11 @@ void diversity_menu(GtkWidget *parent) {
   if (div_gain < -27.0)  div_gain=-27.0;
   while (div_phase >  180.0) div_phase -=360.0;
   while (div_phase < -180.0) div_phase +=360.0;
-  gain_coarse=round(div_gain);
-  if (gain_coarse >  25.0) gain_coarse= 25.0;
-  if (gain_coarse < -25.0) gain_coarse=-25.0;
+  gain_coarse=2.0*round(0.5*div_gain);
+  if (div_gain >  25.0) gain_coarse= 25.0;
+  if (div_gain < -25.0) gain_coarse=-25.0;
   gain_fine=div_gain-gain_coarse;
-  phase_coarse=2.0*round(div_phase*0.5);
+  phase_coarse=4.0*round(div_phase*0.25);
   phase_fine=div_phase-phase_coarse;
   GdkRGBA color;
   color.red = 1.0;
