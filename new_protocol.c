@@ -39,6 +39,7 @@
 #include <ifaddrs.h>
 #include <semaphore.h>
 #include <math.h>
+#include <sys/select.h>
 
 #include <wdsp.h>
 
@@ -133,10 +134,9 @@ static int micoutputsamples;  // 48000 in, 192000 out
 static double micinputbuffer[MAX_BUFFER_SIZE*2]; // 48000
 static double iqoutputbuffer[MAX_BUFFER_SIZE*4*2]; //192000
 
-static long tx_iq_sequence;
+static long tx_iq_sequence=0;
 static unsigned char iqbuffer[1444];
 static int iqindex;
-static int micsamples;
 
 static int spectrumWIDTH=800;
 static int SPECTRUM_UPDATES_PER_SECOND=10;
@@ -1354,6 +1354,9 @@ void new_protocol_stop() {
 // in the new menu if P2 is running
 //
 void new_protocol_restart() {
+  fd_set fds;
+  struct timeval tv;
+  char *buffer;
   //
   // halt the protocol, wait 200 msec, and re-start it
   // the data socket is kept open
@@ -1366,6 +1369,33 @@ void new_protocol_restart() {
   new_protocol_high_priority();
   // let the FPGA rest a while
   usleep(200000); // 200 ms
+  //
+  // at this point, we should drain all UDP packets that are still
+  // there in the data_socket. So we use select() and read until
+  // nothing is left
+  //
+  FD_ZERO(&fds);
+  FD_SET(data_socket, &fds);
+  tv.tv_usec = 50000;
+  tv.tv_sec = 0;
+  buffer=malloc(NET_BUFFER_SIZE);
+  while (select(data_socket+1, &fds, NULL, NULL, &tv) > 0) {
+    recvfrom(data_socket,buffer,NET_BUFFER_SIZE,0,(struct sockaddr*)&addr,&length);
+  }
+  free(buffer);
+  // reset sequence numbers
+  high_priority_sequence=0;
+  rx_specific_sequence=0;
+  tx_specific_sequence=0;
+  response_sequence=0;
+  highprio_rcvd_sequence=0;
+  micsamples_sequence=0;
+  audiosequence=0;
+  tx_iq_sequence=0;
+  memset(rxcase      , 0, MAX_DDC*sizeof(int));
+  memset(rxid        , 0, MAX_DDC*sizeof(int));
+  memset(ddc_sequence, 0, MAX_DDC*sizeof(long));
+  update_action_table();
   // running is set to 1 at the top of new_protocol_thread,
   // but this may lead to race conditions. So out of paranoia,
   // set it to 1 here as well such that we are *absolutely* sure
@@ -1404,7 +1434,6 @@ static gpointer new_protocol_thread(gpointer data) {
 
 g_print("new_protocol_thread\n");
 
-    micsamples=0;
     iqindex=4;
 
     audioindex=4; // leave space for sequence
