@@ -443,6 +443,7 @@ void *duc_specific_thread(void *data) {
     return NULL;
   }
 
+  seqnum=0;
   while(run) {
      rc = recvfrom(sock, buffer, 60, 0,(struct sockaddr *)&addr, &lenaddr);
      if (rc < 0 && errno != EAGAIN) {
@@ -451,13 +452,13 @@ void *duc_specific_thread(void *data) {
      }
      if (rc < 0) continue;
      if (rc != 60) {
-	fprintf(stderr,"TXspec: wrong length\n");
+	fprintf(stderr,"TX: wrong length\n");
         break;
      }
      seqold = seqnum;
      seqnum = (buffer[0] >> 24) + (buffer[1] << 16) + (buffer[2] << 8) + buffer[3];
      if (seqnum != 0 &&seqnum != seqold+1 ) {
-       fprintf(stderr,"GP: SEQ ERROR, old=%lu new=%lu\n", seqold, seqnum);
+       fprintf(stderr,"TX: SEQ ERROR, old=%lu new=%lu\n", seqold, seqnum);
      }
      if (dac != buffer[4]) {
 	dac=buffer[4];
