@@ -54,6 +54,7 @@ static GtkWidget *rsat_b;
 static GtkWidget *receivers_1;
 static GtkWidget *receivers_2;
 static GtkWidget *duplex_b;
+static GtkWidget *mute_rx_b;
 
 static void cleanup() {
   if(dialog!=NULL) {
@@ -229,6 +230,10 @@ static void duplex_cb(GtkWidget *widget, gpointer data) {
   }
   duplex=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
   setDuplex();
+}
+
+static void mute_rx_cb(GtkWidget *widget, gpointer data) {
+  mute_rx_while_transmitting=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 }
 
 static void sat_cb(GtkWidget *widget, gpointer data) {
@@ -730,6 +735,13 @@ void radio_menu(GtkWidget *parent) {
   gtk_combo_box_set_active(GTK_COMBO_BOX(sat_combo),sat_mode);
   gtk_grid_attach(GTK_GRID(grid),sat_combo,col,row,1,1);
   g_signal_connect(sat_combo,"changed",G_CALLBACK(sat_cb),NULL);
+
+  col++;
+
+  mute_rx_b=gtk_check_button_new_with_label("Mute RX when TX");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (mute_rx_b), mute_rx_while_transmitting);
+  gtk_grid_attach(GTK_GRID(grid),mute_rx_b,col,row,1,1);
+  g_signal_connect(mute_rx_b,"toggled",G_CALLBACK(mute_rx_cb),NULL);
 
   row++;
 

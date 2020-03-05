@@ -102,6 +102,7 @@ enum MIDIaction {
   VOXLEVEL, 		// VOXLEVEL:		adjust VOX threshold
   MIDI_XIT_CLEAR,	// XITCLEAR:		clear XIT value
   XIT_VAL,		// XITVAL:		change XIT value
+  MIDI_MUTE,		// MUTE:		toggle mute on/off
 };
 
 //

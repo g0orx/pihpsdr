@@ -800,6 +800,11 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
               g_idle_add(ext_vfo_update, NULL);
 	    }
             break;
+	/////////////////////////////////////////////////////////// "MUTE"
+        case MIDI_MUTE:
+            g_idle_add(ext_mute_update,NULL);
+            break;
+
 	case ACTION_NONE:
 	    // No error message, this is the "official" action for un-used controller buttons.
 	    break;

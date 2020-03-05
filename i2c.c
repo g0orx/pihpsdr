@@ -260,6 +260,17 @@ void i2c_interrupt() {
             case MENU_DIVERSITY:
               g_idle_add(ext_diversity_update,GINT_TO_POINTER(1));
               break;
+            case MENU_PS:
+#ifdef PURESIGNAL
+              g_idle_add(ext_start_ps,NULL);
+#endif
+              break;
+            case FUNCTION:
+              g_idle_add(ext_function_update,NULL);
+              break;
+            case MUTE:
+              g_idle_add(ext_mute_update,NULL);
+              break;
           }
         }
       }
