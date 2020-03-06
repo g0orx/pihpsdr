@@ -1359,7 +1359,7 @@ void new_protocol_restart() {
   char *buffer;
   //
   // halt the protocol, wait 200 msec, and re-start it
-  // the data socket is kept open
+  // the data socket is drained but kept open 
   //
   running=0;
   // wait until the thread that receives from the radio has terminated
@@ -1370,9 +1370,8 @@ void new_protocol_restart() {
   // let the FPGA rest a while
   usleep(200000); // 200 ms
   //
-  // at this point, we should drain all UDP packets that are still
-  // there in the data_socket. So we use select() and read until
-  // nothing is left
+  // drain all data that might still wait in the data_socket.
+  // (use select() and read until nothing is left)
   //
   FD_ZERO(&fds);
   FD_SET(data_socket, &fds);
@@ -1383,7 +1382,9 @@ void new_protocol_restart() {
     recvfrom(data_socket,buffer,NET_BUFFER_SIZE,0,(struct sockaddr*)&addr,&length);
   }
   free(buffer);
-  // reset sequence numbers
+  //
+  // reset sequence numbers, action table, etc.
+  //
   high_priority_sequence=0;
   rx_specific_sequence=0;
   tx_specific_sequence=0;
@@ -1403,26 +1404,10 @@ void new_protocol_restart() {
   running=1;
   new_protocol_thread_id = g_thread_new( "new protocol", new_protocol_thread, NULL);
 
-  // send the general packet
+  // start the protocol
   new_protocol_general();
-
-  // set TX and RX specific, start timer thread
   new_protocol_start();
-
-  // send HP packet, this actually starts the radio in the FPGA
   new_protocol_high_priority();
-}
-
-void new_protocol_run() {
-    new_protocol_high_priority();
-}
-
-double calibrate(int v) {
-    // Angelia
-    double v1;
-    v1=(double)v/4095.0*3.3;
-
-    return (v1*v1)/0.095;
 }
 
 static gpointer new_protocol_thread(gpointer data) {

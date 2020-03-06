@@ -77,6 +77,7 @@ enum MIDIaction {
   MODE_DOWN,		// MODEDOWN:		cycle through modes downwards
   MODE_UP,		// MODEUP:		cycle through modes upwards
   MIDI_MOX,		// MOX:			toggle "mox" state
+  MIDI_MUTE,		// MUTE:		toggle mute on/off
   MIDI_NB,		// NOISEBLANKER:	cycle through NoiseBlanker states (none, NB, NB2)
   MIDI_NR,		// NOISEREDUCTION:	cycle through NoiseReduction states (none, NR, NR2)
   PAN_HIGH,		// PANHIGH:		"high" value of current panadapter
@@ -102,7 +103,6 @@ enum MIDIaction {
   VOXLEVEL, 		// VOXLEVEL:		adjust VOX threshold
   MIDI_XIT_CLEAR,	// XITCLEAR:		clear XIT value
   XIT_VAL,		// XITVAL:		change XIT value
-  MIDI_MUTE,		// MUTE:		toggle mute on/off
 };
 
 //

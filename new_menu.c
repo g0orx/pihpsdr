@@ -58,10 +58,8 @@
 #include "fft_menu.h"
 #include "main.h"
 #include "gpio.h"
-#ifdef RESTART_BUTTON
 #include "old_protocol.h"
 #include "new_protocol.h"
-#endif
 
 
 static GtkWidget *menu_b=NULL;
@@ -104,8 +102,9 @@ static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
 
 #ifdef RESTART_BUTTON
 //
-// To recover from certain error conditions, this function
-// restart the protocol.
+// The "Restart" button restarts the protocol
+// This may help to recover from certain error conditions
+// Hitting this button automatically closes the menu window via cleanup()
 //
 static gboolean restart_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   cleanup();
@@ -496,8 +495,8 @@ void new_menu()
 
 #ifdef RESTART_BUTTON
     //
-    // The new "Restart" button activates a function that restarts
-    // the protocol and closes the menu window
+    // The "Restart" restarts the protocol
+    // This may help to recover from certain error conditions
     //
     GtkWidget *restart_b=gtk_button_new_with_label("Restart");
     g_signal_connect (restart_b, "button-press-event", G_CALLBACK(restart_cb), NULL);
