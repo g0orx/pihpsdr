@@ -116,6 +116,7 @@ enum {
   MENU_DIVERSITY,
   MENU_PS,
   FUNCTION,
+  MUTE,
   SWITCH_ACTIONS
 };
 

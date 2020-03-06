@@ -303,6 +303,7 @@ double display_calibration=0.0;
 int can_transmit=0;
 
 gboolean duplex=FALSE;
+gboolean mute_rx_while_transmitting=FALSE;
 gint rx_height;
 
 void radio_stop() {
@@ -1299,6 +1300,9 @@ static void rxtx(int state) {
 
 void setMox(int state) {
   if(!can_transmit) return;
+#ifdef SOAPYSDR
+  if(!transmitter->local_microphone) return;
+#endif
   vox_cancel();  // remove time-out
   if(mox!=state) {
     if (state && vox) {
@@ -1374,6 +1378,7 @@ void setTune(int state) {
   int i;
 
   if(!can_transmit) return;
+  if(!transmitter->local_microphone) return;
 
   // if state==tune, this function is a no-op
 
@@ -1898,6 +1903,8 @@ g_print("radioRestoreState: %s\n",property_path);
     if(value) duplex=atoi(value);
     value=getProperty("sat_mode");
     if(value) sat_mode=atoi(value);
+    value=getProperty("mute_rx_while_transmitting");
+    if(value) mute_rx_while_transmitting=atoi(value);
 
 #ifdef SOAPYSDR
   if(device==SOAPYSDR_USB_DEVICE) {
@@ -2197,6 +2204,8 @@ g_print("radioSaveState: %s\n",property_path);
     setProperty("split",value);
     sprintf(value,"%d",sat_mode);
     setProperty("sat_mode",value);
+    sprintf(value,"%d",mute_rx_while_transmitting);
+    setProperty("mute_rx_while_transmitting",value);
 
     filterSaveState();
     bandSaveState();

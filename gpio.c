@@ -270,6 +270,7 @@ char *sw_string[SWITCH_ACTIONS] = {
   "DIV MENU",
   "PS MENU",
   "FUNCTION",
+  "MUTE"
 };
 
 int *sw_action=NULL;
@@ -366,7 +367,7 @@ static int vfo_function_released(void *data) {
 
 static int e_function_pressed(void *data) {
   int action=(int)data;
-//g_print("e_function_pressed: %d\n",action);
+g_print("e_function_pressed: %d\n",action);
   switch(action) {
     case TUNE:
       if(can_transmit) g_idle_add(ext_tune_update,NULL);
@@ -482,6 +483,9 @@ static int e_function_pressed(void *data) {
 #endif
     case FUNCTION:
       g_idle_add(ext_function_update,NULL);
+      break;
+    case MUTE:
+      g_idle_add(ext_mute_update,NULL);
       break;
   }
   return 0;

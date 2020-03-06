@@ -670,3 +670,9 @@ int ext_set_rx_filter(void *data) {
   return 0;
 }
 
+int ext_mute_update(void *data) {
+g_print("ext_mute_update: currently %d\n",active_receiver->mute_radio);
+  active_receiver->mute_radio=!active_receiver->mute_radio;
+  return 0;
+}
+

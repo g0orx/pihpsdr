@@ -155,6 +155,7 @@ static struct {
 	{ VOXLEVEL,   		"VOXLEVEL"},
 	{ MIDI_XIT_CLEAR,  	"XITCLEAR"},
 	{ XIT_VAL,  		"XITVAL"},
+	{ MIDI_MUTE,		"MUTE"},
         { ACTION_NONE,  	"NONE"}
 };
 

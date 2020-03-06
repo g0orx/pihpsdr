@@ -133,3 +133,4 @@ int ext_start_ps(void *data);
 int ext_set_rx_frequency(void *data);
 int ext_set_rx_mode(void *data);
 int ext_set_rx_filter(void *data);
+int ext_mute_update(void *data);

@@ -1227,7 +1227,7 @@ static void process_rx_buffer(RECEIVER *rx) {
   short left_audio_sample,right_audio_sample;
   int i;
   for(i=0;i<rx->output_samples;i++) {
-    if(isTransmitting() && !duplex) {
+    if(isTransmitting() && (!duplex || mute_rx_while_transmitting)) {
       left_sample=0.0;
       right_sample=0.0;
       left_audio_sample=0;
@@ -1240,7 +1240,7 @@ static void process_rx_buffer(RECEIVER *rx) {
     }
 
     if(rx->local_audio) {
-      if(rx!=active_receiver && rx->mute_when_not_active) {
+      if((rx!=active_receiver && rx->mute_when_not_active) || rx->mute_radio) {
         audio_write(rx,0.0F,0.0F);
       } else {
         switch(rx->audio_channel) {
