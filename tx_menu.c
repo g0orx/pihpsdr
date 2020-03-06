@@ -405,8 +405,6 @@ void tx_menu(GtkWidget *parent) {
   row++;
   col=0;
 
-  int saved_row=row;
-
   GtkWidget *panadapter_high_label=gtk_label_new(NULL);
   gtk_label_set_markup(GTK_LABEL(panadapter_high_label), "<b>Panadapter High: </b>");
 #ifdef GTK316

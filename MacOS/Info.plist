@@ -14,6 +14,8 @@
 	<string>BNDL</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Allow for using Sound input devices</string>
+	<key>NSHighResolutionCapable</key>
+	<string>YES</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 </dict>

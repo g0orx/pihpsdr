@@ -1378,11 +1378,11 @@ void gpio_save_state() {
 
   if(controller!=CONTROLLER1) {
     setProperty("i2c_device",i2c_device);		
-    sprintf(value,"%d",i2c_address_1);
+    sprintf(value,"%ud",i2c_address_1);
     setProperty("i2c_address_1",value);		
     for(int i=0;i<16;i++) {
       sprintf(name,"i2c_sw[%d]",i);
-      sprintf(value,"%d",i2c_sw[i]);
+      sprintf(value,"%ud",i2c_sw[i]);
       setProperty(name,value);		
     }
 

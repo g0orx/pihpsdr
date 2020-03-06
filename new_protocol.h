@@ -78,7 +78,6 @@ extern void schedule_transmit_specific();
 
 extern void new_protocol_init(int pixels);
 extern void new_protocol_stop();
-extern void new_protocol_run();
 
 extern void filter_board_changed();
 extern void pa_changed();

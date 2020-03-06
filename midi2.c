@@ -130,6 +130,7 @@ static struct {
 	{ MODE_DOWN,		"MODEDOWN"},
 	{ MODE_UP,		"MODEUP"},
         { MIDI_MOX,     	"MOX"},
+	{ MIDI_MUTE,		"MUTE"},
 	{ MIDI_NB,    		"NOISEBLANKER"},
 	{ MIDI_NR,    		"NOISEREDUCTION"},
         { PAN_HIGH,     	"PANHIGH"},
@@ -155,7 +156,6 @@ static struct {
 	{ VOXLEVEL,   		"VOXLEVEL"},
 	{ MIDI_XIT_CLEAR,  	"XITCLEAR"},
 	{ XIT_VAL,  		"XITVAL"},
-	{ MIDI_MUTE,		"MUTE"},
         { ACTION_NONE,  	"NONE"}
 };
 

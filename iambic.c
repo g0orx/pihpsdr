@@ -337,7 +337,6 @@ void set_keyer_out(int state) {
 }
 
 static void* keyer_thread(void *arg) {
-    int pos;
     struct timespec loop_delay;
     int interval = 1000000; // 1 ms
     int i;

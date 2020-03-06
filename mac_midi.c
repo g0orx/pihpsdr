@@ -70,7 +70,7 @@ static enum {
 } command;
 
 static void ReadMIDIdevice(const MIDIPacketList *pktlist, void *refCon, void *connRefCon) {
-    int i,j,k,byte,chan,arg1,arg2;
+    int i,j,byte,chan,arg1,arg2;
     MIDIPacket *packet = (MIDIPacket *)pktlist->packet;
 	
 	

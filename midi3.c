@@ -429,6 +429,10 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 		g_idle_add(ext_mox_update, GINT_TO_POINTER(new));
 	    }
 	    break;    
+        /////////////////////////////////////////////////////////// "MUTE"
+        case MIDI_MUTE:
+            g_idle_add(ext_mute_update,NULL);
+            break;
 	/////////////////////////////////////////////////////////// "NOISEBLANKER"
 	case MIDI_NB: // only key supported
 	    // cycle through NoiseBlanker settings: OFF, NB, NB2
@@ -799,10 +803,6 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
               transmitter->xit_enabled = (transmitter->xit == 0) ? 0 : 1;
               g_idle_add(ext_vfo_update, NULL);
 	    }
-            break;
-	/////////////////////////////////////////////////////////// "MUTE"
-        case MIDI_MUTE:
-            g_idle_add(ext_mute_update,NULL);
             break;
 
 	case ACTION_NONE:

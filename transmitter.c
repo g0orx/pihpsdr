@@ -1320,26 +1320,52 @@ void tx_set_displaying(TRANSMITTER *tx,int state) {
 
 void tx_set_ps(TRANSMITTER *tx,int state) {
 #ifdef PURESIGNAL
-  if (protocol == ORIGINAL_PROTOCOL) {
-    old_protocol_stop();
+  //
+  // Switch PURESIGNAL on (state !=0) or off (state==0)
+  //
+  // The following rules must be obeyed:
+  //
+  // a.) do not call SetPSControl unless you know the feedback
+  //     data streams are flowing. Otherwise, these calls may
+  //     be have no effect (experimental observation)
+  //
+  // b.  in the old protocol, do not change the value of
+  //     tx->puresignal unless the protocol is stopped.
+  //     (to have a safe re-configuration of the number of
+  //     RX streams)
+  //
+  if (!state) {
+    // if switching off, stop PS engine first, keep feedback
+    // streams flowing for a while to be sure SetPSControl works.
+    SetPSControl(tx->id, 1, 0, 0, 0);
     usleep(100000);
+  }
+  switch (protocol) {
+    case ORIGINAL_PROTOCOL:
+      // stop protocol, change PS state, restart protocol
+      old_protocol_stop();
+      usleep(100000);
+      tx->puresignal = state ? 1 : 0;
+      old_protocol_run();
+      break;
+    case NEW_PROTOCOL:
+      // change PS state and tell radio about it
+      tx->puresignal = state ? 1 : 0;
+      schedule_high_priority();
+      schedule_receive_specific();
+#ifdef SOAPY_SDR
+    case SOAPY_PROTOCOL:
+      // are there feedback channels in SOAPY?
+      break;
+#endif
   }
   if(state) {
-    tx->puresignal=1;
-    SetPSControl(tx->id, 0, 0, 1, 0);
-  } else {
-    SetPSControl(tx->id, 1, 0, 0, 0);
-    // wait a moment for PS to shut down
+    // if switching on: wait a while to get the feedback
+    // streams flowing, then start PS engine
     usleep(100000);
-    tx->puresignal=0;
+    SetPSControl(tx->id, 0, 0, 1, 0);
   }
-  if (protocol == NEW_PROTOCOL) {
-    schedule_high_priority();
-    schedule_receive_specific();
-  }
-  if (protocol == ORIGINAL_PROTOCOL) {
-    old_protocol_run();
-  }
+  // update screen
   g_idle_add(ext_vfo_update,NULL);
 #endif
 }

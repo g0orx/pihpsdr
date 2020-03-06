@@ -58,6 +58,8 @@
 #include "fft_menu.h"
 #include "main.h"
 #include "gpio.h"
+#include "old_protocol.h"
+#include "new_protocol.h"
 
 
 static GtkWidget *menu_b=NULL;
@@ -97,6 +99,33 @@ static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
   cleanup();
   return TRUE;
 }
+
+#ifdef RESTART_BUTTON
+//
+// The "Restart" button restarts the protocol
+// This may help to recover from certain error conditions
+// Hitting this button automatically closes the menu window via cleanup()
+//
+static gboolean restart_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  cleanup();
+  switch(protocol) {
+    case ORIGINAL_PROTOCOL:
+      old_protocol_stop();
+      usleep(200000);
+      old_protocol_run();
+      break;
+    case NEW_PROTOCOL:
+      new_protocol_restart();
+      break;
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
+      // dunno how to do this for soapy
+      break;
+#endif
+  }
+  return TRUE;
+}
+#endif
 
 static gboolean about_b_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   cleanup();
@@ -463,6 +492,16 @@ void new_menu()
     GtkWidget *close_b=gtk_button_new_with_label("Close");
     g_signal_connect (close_b, "button-press-event", G_CALLBACK(close_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),close_b,0,0,2,1);
+
+#ifdef RESTART_BUTTON
+    //
+    // The "Restart" restarts the protocol
+    // This may help to recover from certain error conditions
+    //
+    GtkWidget *restart_b=gtk_button_new_with_label("Restart");
+    g_signal_connect (restart_b, "button-press-event", G_CALLBACK(restart_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),restart_b,2,0,2,1);
+#endif
 
     GtkWidget *exit_b=gtk_button_new_with_label("Exit piHPSDR");
     g_signal_connect (exit_b, "button-press-event", G_CALLBACK(exit_cb), NULL);
