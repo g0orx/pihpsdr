@@ -84,8 +84,6 @@ int connect_cnt = 0;
 
 int rigctlGetFilterLow();
 int rigctlGetFilterHigh();
-void rigctlSetFilterLow(int val);
-void rigctlSetFilterHigh(int val);
 int new_level;
 int active_transmitter = 0;
 int rigctl_busy = 0;  // Used to tell rigctl_menu that launch has already occured
@@ -3955,12 +3953,6 @@ int rigctlGetMode()  {
            default: return(0);
         }
 }
-
-// Changed these two functions to void
-void rigctlSetFilterLow(int val){
-};
-void rigctlSetFilterHigh(int val){
-};
 
 void set_freqB(long long new_freqB) {      
 

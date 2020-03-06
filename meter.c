@@ -147,7 +147,6 @@ void meter_update(RECEIVER *rx,int meter_type,double value,double reverse,double
   char sf[32];
   int text_location;
   double offset;
-  int max_power=100;
   char *units="W";
   double interval=10.0;
   cairo_t *cr = cairo_create (meter_surface);
@@ -159,33 +158,26 @@ void meter_update(RECEIVER *rx,int meter_type,double value,double reverse,double
     }
     switch(pa_power) {
       case PA_1W:
-        max_power=1000;
         units="mW";
         interval=100.0;
         level=level*1000.0;
         break;
       case PA_10W:
-        max_power=10;
         interval=1.0;
         break;
       case PA_30W:
-        max_power=30;
         interval=3.0;
         break;
       case PA_50W:
-        max_power=50;
         interval=5.0;
         break;
       case PA_100W:
-        max_power=100;
         interval=10.0;
         break;
       case PA_200W:
-        max_power=200;
         interval=20.0;
         break;
       case PA_500W:
-        max_power=500;
         interval=50.0;
         break;
     }
@@ -339,37 +331,29 @@ if(analog_meter) {
       cairo_set_line_width(cr, 1.0);
       cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
 
-      int max_power=100;
       char *units="W";
       double interval=10.0;
       switch(pa_power) {
         case PA_1W:
-          max_power=1000;
           units="mW";
           interval=100.0;
           break;
         case PA_10W:
-          max_power=10;
           interval=1.0;
           break;
         case PA_30W:
-          max_power=30;
           interval=3.0;
           break;
         case PA_50W:
-          max_power=50;
           interval=5.0;
           break;
         case PA_100W:
-          max_power=100;
           interval=10.0;
           break;
         case PA_200W:
-          max_power=200;
           interval=20.0;
           break;
         case PA_500W:
-          max_power=500;
           interval=50.0;
           break;
       }

@@ -52,8 +52,6 @@ static void save_xvtr () {
     const char *maxf;
     const char *lof;
     const char *loerr;
-    const char *txlof;   // used in temporarily de-activated code
-    const char *txloerr; // used in temporarily de-activated code
     for(i=BANDS;i<BANDS+XVTRS;i++) {
       BAND *xvtr=band_get_band(i);
       BANDSTACK *bandstack=xvtr->bandstack;
