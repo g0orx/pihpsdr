@@ -17,6 +17,7 @@
  * RF1 and RF2 signal strenght vary according to Preamp and Attenuator settings
  * RF3 signal strength varies according to TX-drive and TX-ATT settings
  * RF4 signal strength is normalized to amplitude of 0.407 (old protocol) or 0.2899 (new protocol)
+ *     note HERMESLITEV2 old protocol: 0.23
  *
  * The connection with the ADCs are:
  * ADC0: RF1 upon receive, RF3 upon transmit
@@ -1286,8 +1287,13 @@ void *handler_ep6(void *arg)
 			//
 			// TX signal with peak=0.407
 			//
-			dacisample= isample[rxptr] * 0.407 * 8388607.0;
-			dacqsample= qsample[rxptr] * 0.407 * 8388607.0;
+                        if (OLDDEVICE == DEVICE_HERMES_LITE2) {
+			  dacisample= isample[rxptr] * 0.230 * 8388607.0;
+			  dacqsample= qsample[rxptr] * 0.230 * 8388607.0;
+                        } else {
+			  dacisample= isample[rxptr] * 0.407 * 8388607.0;
+			  dacqsample= qsample[rxptr] * 0.407 * 8388607.0;
+                        }
 
 			for (k=0; k< receivers; k++) {
 			    myisample=0;

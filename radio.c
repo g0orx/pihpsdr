@@ -992,6 +992,7 @@ void start_radio() {
 
   //g_print("Create transmitter\n");
   if(can_transmit) {
+    double pk;
     if(duplex) {
       transmitter=create_transmitter(CHANNEL_TX, buffer_size, fft_size, updates_per_second, display_width/4, display_height/2);
     } else {
@@ -1009,7 +1010,21 @@ void start_radio() {
     tx_set_ps_sample_rate(transmitter,protocol==NEW_PROTOCOL?192000:active_receiver->sample_rate);
     receiver[PS_TX_FEEDBACK]=create_pure_signal_receiver(PS_TX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
     receiver[PS_RX_FEEDBACK]=create_pure_signal_receiver(PS_RX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
-    SetPSHWPeak(transmitter->id, protocol==ORIGINAL_PROTOCOL? 0.4067 : 0.2899);
+    switch (protocol) {
+      case NEW_PROTOCOL:
+	pk = 0.2899;
+	break;
+      case ORIGINAL_PROTOCOL:
+        switch (device) {
+	  case DEVICE_HERMES_LITE2:
+	    pk = 0.2300;
+            break;
+	  default:
+	    pk = 0.4067;
+            break;
+        }
+    }
+    SetPSHWPeak(transmitter->id, pk);
 #endif
 
   }
