@@ -431,7 +431,9 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    break;    
         /////////////////////////////////////////////////////////// "MUTE"
         case MIDI_MUTE:
-            g_idle_add(ext_mute_update,NULL);
+            if (type == MIDI_KEY) {
+              g_idle_add(ext_mute_update,NULL);
+	    }
             break;
 	/////////////////////////////////////////////////////////// "NOISEBLANKER"
 	case MIDI_NB: // only key supported

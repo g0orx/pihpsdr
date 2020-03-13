@@ -39,6 +39,8 @@ static GtkWidget *get_pk;
 static GtkWidget *set_pk;
 static GtkWidget *tx_att;
 
+static double pk_val;
+static char   pk_text[16];
 /*
  * PureSignal 2.0 parameters and declarations
  */
@@ -103,6 +105,20 @@ static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
 static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_data) {
   cleanup();
   return FALSE;
+}
+
+static void setpk_cb(GtkWidget *widget, gpointer data) {
+  double newpk=-1.0;
+  const gchar *text;
+  text = gtk_entry_get_text(GTK_ENTRY(widget));
+  sscanf(text,"%lf",&newpk);
+  if (newpk > 0.01 && newpk < 1.01 && fabs(newpk-pk_val) > 0.01) {
+    pk_val=newpk;
+    SetPSHWPeak(transmitter->id, pk_val);
+  }
+  // Display new value. If illegal text has been entered, display new one.
+  sprintf(pk_text,"%6.3f",pk_val);
+  gtk_entry_set_text(GTK_ENTRY(set_pk),pk_text);
 }
 
 //
@@ -546,14 +562,13 @@ void ps_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),lbl,col,row,1,1);
   col++;
 
-  double pk;
-  char pk_text[16];
-  GetPSHWPeak(transmitter->id,&pk);
-  sprintf(pk_text,"%6.3f",pk);
+  GetPSHWPeak(transmitter->id,&pk_val);
+  sprintf(pk_text,"%6.3f",pk_val);
   set_pk=gtk_entry_new();
   gtk_entry_set_text(GTK_ENTRY(set_pk),pk_text);
   gtk_grid_attach(GTK_GRID(grid),set_pk,col,row,1,1);
   gtk_entry_set_width_chars(GTK_ENTRY(set_pk), 10);
+  g_signal_connect(set_pk, "activate", G_CALLBACK(setpk_cb), NULL);
   col++;
 
   lbl=gtk_label_new("TX ATT");
