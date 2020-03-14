@@ -32,6 +32,11 @@ MIDI_INCLUDE=MIDI
 # uncomment the line below for various debug facilities
 #DEBUG_OPTION=-D DEBUG
 
+PTT_INCLUDE=PTT
+
+# very early code not included yet
+#SERVER_INCLUDE=SERVER
+
 CC=gcc
 LINK=gcc
 
@@ -100,6 +105,10 @@ LOCALCW_HEADERS= iambic.h
 LOCALCW_OBJS   = iambic.o
 endif
 
+ifeq ($(PTT_INCLUDE),PTT)
+PTT_OPTIONS=-D PTT
+endif
+
 ifeq ($(GPIO_INCLUDE),GPIO)
   GPIO_OPTIONS=-D GPIO
   GPIO_LIBS=-lwiringPi
@@ -147,6 +156,16 @@ STEMLAB_HEADERS=stemlab_discovery.h
 STEMLAB_OBJS=stemlab_discovery.o
 endif
 
+ifeq ($(SERVER_INCLUDE), SERVER)
+SERVER_OPTIONS=-D SERVER
+SERVER_SOURCES= \
+hpsdr_server.c
+SERVER_HEADERS= \
+hpsdr_server.h
+SERVER_OBJS= \
+hpsdr_server.o
+endif
+
 GTKINCLUDES=`pkg-config --cflags gtk+-3.0`
 GTKLIBS=`pkg-config --libs gtk+-3.0`
 
@@ -157,6 +176,8 @@ CFLAGS=	-g -Wno-deprecated-declarations -O3
 OPTIONS=$(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) \
 	$(GPIO_OPTIONS) $(SOAPYSDR_OPTIONS) $(LOCALCW_OPTIONS) \
 	$(STEMLAB_OPTIONS) \
+        $(PTT_OPTIONS) \
+	$(SERVER_OPTIONS) \
 	-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION)
 
 LIBS=-lrt -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(STEMLAB_LIBS) $(MIDI_LIBS)
@@ -219,6 +240,7 @@ rigctl.c \
 rigctl_menu.c \
 toolbar.c \
 transmitter.c \
+zoompan.c \
 sliders.c \
 version.c \
 vfo.c \
@@ -288,6 +310,7 @@ rigctl.h \
 rigctl_menu.h \
 toolbar.h \
 transmitter.h \
+zoompan.h \
 sliders.h \
 version.h \
 vfo.h \
@@ -355,6 +378,7 @@ rigctl.o \
 rigctl_menu.o \
 toolbar.o \
 transmitter.o \
+zoompan.o \
 sliders.o \
 vfo.o \
 waterfall.o \
@@ -372,17 +396,18 @@ protocols.o
 
 $(PROGRAM):  $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) \
 		$(LOCALCW_OBJS) $(GPIO_OBJS) $(PURESIGNAL_OBJS) \
-		$(MIDI_OBJS) $(STEMLAB_OBJS)
+		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS)
 	$(LINK) -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(GPIO_OBJS) \
 		$(SOAPYSDR_OBJS) $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
-		$(MIDI_OBJS) $(STEMLAB_OBJS) $(LIBS)
+		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS) $(LIBS)
 
 .PHONY:	all
-all:	prebuild  $(PROGRAM) $(HEADERS) $(REMOTE_HEADERS) $(USBOZY_HEADERS) $(SOAPYSDR_HEADERS) \
+all:	prebuild  $(PROGRAM) $(HEADERS) $(USBOZY_HEADERS) $(SOAPYSDR_HEADERS) \
 	$(LOCALCW_HEADERS) $(GPIO_HEADERS) \
-	$(PURESIGNAL_HEADERS) $(MIDI_HEADERS) $(STEMLAB_HEADERS) $(SOURCES) $(REMOTE_SOURCES) \
+	$(PURESIGNAL_HEADERS) $(MIDI_HEADERS) $(STEMLAB_HEADERS) SERVER_HEADERS\
+	$(SOURCES) \
 	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(LOCALCW_SOURCE) $(GPIO_SOURCES) \
-	$(PURESIGNAL_SOURCES) $(MIDI_SOURCES) $(STEMLAB_SOURCES)
+	$(PURESIGNAL_SOURCES) $(MIDI_SOURCES) $(STEMLAB_SOURCES) $(SERVER_SOURCES)
 
 .PHONY:	prebuild
 prebuild:
@@ -401,7 +426,8 @@ CPPINCLUDES:=$(shell echo $(INCLUDES) | sed -e "s/-pthread / /" )
 cppcheck:
 	cppcheck $(CPPOPTIONS) $(OPTIONS) $(CPPINCLUDES) $(SOURCES) $(REMOTE_SOURCES) \
 	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(GPIO_SOURCES) \
-	$(PURESIGNAL_SOURCES) $(MIDI_SOURCES) $(STEMLAB_SOURCES) $(LOCALCW_SOURCES)
+	$(PURESIGNAL_SOURCES) $(MIDI_SOURCES) $(STEMLAB_SOURCES) $(LOCALCW_SOURCES) \
+	$(SERVER_SOURCES)
 
 .PHONY:	clean
 clean:
