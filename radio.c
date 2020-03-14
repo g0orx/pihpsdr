@@ -60,6 +60,7 @@
 #include "rx_panadapter.h"
 #include "tx_panadapter.h"
 #include "waterfall.h"
+#include "zoompan.h"
 #include "sliders.h"
 #include "toolbar.h"
 #include "rigctl.h"
@@ -69,6 +70,9 @@
 #endif
 #ifdef MIDI
 #include "midi.h"
+#endif
+#ifdef SERVER
+#include "hpsdr_server.h"
 #endif
 
 #define min(x,y) (x<y?x:y)
@@ -81,6 +85,7 @@
 #define METER_HEIGHT (60)
 #define METER_WIDTH (200)
 #define PANADAPTER_HEIGHT (105)
+#define ZOOMPAN_HEIGHT (50)
 #define SLIDERS_HEIGHT (100)
 #define TOOLBAR_HEIGHT (30)
 #define WATERFALL_HEIGHT (105)
@@ -89,6 +94,7 @@ GtkWidget *fixed;
 static GtkWidget *vfo_panel;
 static GtkWidget *meter;
 static GtkWidget *menu;
+static GtkWidget *zoompan;
 static GtkWidget *sliders;
 static GtkWidget *toolbar;
 static GtkWidget *panadapter;
@@ -161,6 +167,7 @@ double display_average_time=120.0;
 int waterfall_high=-100;
 int waterfall_low=-150;
 
+int display_zoompan=0;
 int display_sliders=0;
 int display_toolbar=0;
 
@@ -304,6 +311,9 @@ int can_transmit=0;
 
 gboolean duplex=FALSE;
 gboolean mute_rx_while_transmitting=FALSE;
+
+int sequence_errors=0;
+
 gint rx_height;
 
 void radio_stop() {
@@ -324,6 +334,9 @@ void reconfigure_radio() {
   int y;
 //g_print("reconfigure_radio: receivers=%d\n",receivers);
   rx_height=display_height-VFO_HEIGHT;
+  if(display_zoompan) {
+    rx_height-=ZOOMPAN_HEIGHT;
+  }
   if(display_sliders) {
     rx_height-=SLIDERS_HEIGHT;
   }
@@ -338,6 +351,22 @@ void reconfigure_radio() {
     receiver[i]->x=0;
     receiver[i]->y=y;
     y+=rx_height/receivers;
+  }
+
+  if(display_zoompan) {
+    if(zoompan==NULL) {
+      zoompan = zoompan_init(display_width,ZOOMPAN_HEIGHT);
+      gtk_fixed_put(GTK_FIXED(fixed),zoompan,0,y);
+    } else {
+      gtk_fixed_put(GTK_FIXED(fixed),zoompan,0,y);
+    }
+    gtk_widget_show_all(zoompan);
+    y+=ZOOMPAN_HEIGHT;
+  } else {
+    if(zoompan!=NULL) {
+      gtk_container_remove(GTK_CONTAINER(fixed),zoompan); 
+      zoompan=NULL;
+    }
   }
 
   if(display_sliders) {
@@ -880,15 +909,18 @@ void start_radio() {
   switch(controller) {
     case CONTROLLER2_V1:
     case CONTROLLER2_V2:
+      display_zoompan=1;
       display_sliders=0;
       display_toolbar=0;
       break;
     default:
+      display_zoompan=1;
       display_sliders=1;
       display_toolbar=1;
       break;
   }
 #else
+  display_zoompan=1;
   display_sliders=1;
   display_toolbar=1;
 #endif
@@ -957,6 +989,9 @@ void start_radio() {
 
 
   rx_height=display_height-VFO_HEIGHT;
+  if(display_zoompan) {
+    rx_height-=ZOOMPAN_HEIGHT;
+  }
   if(display_sliders) {
     rx_height-=SLIDERS_HEIGHT;
   }
@@ -997,6 +1032,7 @@ void start_radio() {
       transmitter=create_transmitter(CHANNEL_TX, buffer_size, fft_size, updates_per_second, display_width/4, display_height/2);
     } else {
       int tx_height=display_height-VFO_HEIGHT;
+      if(display_zoompan) tx_height-=ZOOMPAN_HEIGHT;
       if(display_sliders) tx_height-=SLIDERS_HEIGHT;
       if(display_toolbar) tx_height-=TOOLBAR_HEIGHT;
       transmitter=create_transmitter(CHANNEL_TX, buffer_size, fft_size, updates_per_second, display_width, tx_height);
@@ -1012,15 +1048,15 @@ void start_radio() {
     receiver[PS_RX_FEEDBACK]=create_pure_signal_receiver(PS_RX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
     switch (protocol) {
       case NEW_PROTOCOL:
-	pk = 0.2899;
-	break;
+        pk = 0.2899;
+        break;
       case ORIGINAL_PROTOCOL:
         switch (device) {
-	  case DEVICE_HERMES_LITE2:
-	    pk = 0.2300;
+          case DEVICE_HERMES_LITE2:
+            pk = 0.2300;
             break;
-	  default:
-	    pk = 0.4067;
+          default:
+            pk = 0.4067;
             break;
         }
     }
@@ -1033,12 +1069,26 @@ void start_radio() {
   audio_waterfall=audio_waterfall_init(200,100);
   gtk_fixed_put(GTK_FIXED(fixed),audio_waterfall,0,VFO_HEIGHT+20);
 #endif
-  
+
+  gboolean init_gpio=FALSE;
+#ifdef LOCALCW
+  init_gpio=TRUE;
+#endif
+#ifdef PTT
+  init_gpio=TRUE;
+#endif
+#ifdef GPIO
+  init_gpio=TRUE;
+#endif
+
+  if(init_gpio) {
 #ifdef GPIO
     if(gpio_init()<0) {
       g_print("GPIO failed to initialize\n");
     }
 #endif
+  }
+
 #ifdef LOCALCW
   // init local keyer if enabled
   if (cw_keyer_internal == 0) {
@@ -1059,6 +1109,12 @@ void start_radio() {
       soapy_protocol_init(0,false);
       break;
 #endif
+  }
+
+  if(display_zoompan) {
+    zoompan = zoompan_init(display_width,ZOOMPAN_HEIGHT);
+    gtk_fixed_put(GTK_FIXED(fixed),zoompan,0,y);
+    y+=ZOOMPAN_HEIGHT;
   }
 
   if(display_sliders) {
@@ -1162,6 +1218,10 @@ void start_radio() {
   MIDIstartup();
 #endif
 
+#ifdef SERVER
+  create_hpsdr_server();
+#endif
+
 }
 
 void disable_rigctl() {
@@ -1227,7 +1287,7 @@ void radio_change_sample_rate(int rate) {
       break;
 #ifdef SOAPYSDR
     case SOAPYSDR_PROTOCOL:
-      soapy_protocol_change_sample_rate(receiver[0],rate);
+      soapy_protocol_change_sample_rate(receiver[0]);
       soapy_protocol_set_mic_sample_rate(rate);
       break;
 #endif
@@ -1755,6 +1815,8 @@ g_print("radioRestoreState: %s\n",property_path);
     if(value) panadapter_high=atoi(value);
     value=getProperty("panadapter_low");
     if(value) panadapter_low=atoi(value);
+    value=getProperty("display_zoompan");
+    if(value) display_zoompan=atoi(value);
     value=getProperty("display_sliders");
     if(value) display_sliders=atoi(value);
     value=getProperty("display_toolbar");
@@ -2005,6 +2067,8 @@ g_print("radioSaveState: %s\n",property_path);
     setProperty("panadapter_high",value);
     sprintf(value,"%d",panadapter_low);
     setProperty("panadapter_low",value);
+    sprintf(value,"%d",display_zoompan);
+    setProperty("display_zoompan",value);
     sprintf(value,"%d",display_sliders);
     setProperty("display_sliders",value);
     sprintf(value,"%d",display_toolbar);

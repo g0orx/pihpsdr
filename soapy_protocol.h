@@ -35,7 +35,7 @@ void soapy_protocol_set_lna_gain(RECEIVER *rx,int gain);
 void soapy_protocol_set_gain(RECEIVER *rx,double gain);
 void soapy_protocol_set_gain_element(RECEIVER *rx,char *name,int gain);
 int soapy_protocol_get_gain_element(RECEIVER *rx,char *name);
-void soapy_protocol_change_sample_rate(RECEIVER *rx,int rate);
+void soapy_protocol_change_sample_rate(RECEIVER *rx);
 gboolean soapy_protocol_get_automatic_gain(RECEIVER *rx);
 void soapy_protocol_set_automatic_gain(RECEIVER *rx,gboolean mode);
 void soapy_protocol_create_transmitter(TRANSMITTER *tx);

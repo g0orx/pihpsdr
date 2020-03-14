@@ -137,7 +137,14 @@ typedef struct _receiver {
   gint mute_radio;
 
   gdouble *buffer;
-  gint resample_step;
+  void *resampler;
+  gdouble *resample_buffer;
+  gint resample_buffer_size;
+
+  gint fexchange_errors;
+
+  gint zoom;
+  gint pan;
 
   gint x;
   gint y;
@@ -151,6 +158,8 @@ extern void receiver_frequency_changed(RECEIVER *rx);
 extern void receiver_mode_changed(RECEIVER *rx);
 extern void receiver_filter_changed(RECEIVER *rx);
 extern void receiver_vfo_changed(RECEIVER *rx);
+extern void receiver_change_zoom(RECEIVER *rx,double zoom);
+extern void receiver_change_pan(RECEIVER *rx,double pan);
 
 extern void set_mode(RECEIVER* rx,int m);
 extern void set_filter(RECEIVER *rx,int low,int high);

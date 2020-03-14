@@ -62,27 +62,11 @@ static int height;
 
 static GtkWidget *sliders;
 
-enum {
-  NO_FUNCTION=0,
-  AF_GAIN,
-  RF_GAIN,
-  MIC_GAIN,
-  LINEIN_GAIN,
-  AGC_GAIN,
-  DRIVE,
-  ATTENUATION,
-  SQUELCH,
-  COMP,
-  FILTER_WIDTH,
-  FILTER_SHIFT,
-  DIVERSITY_GAIN,
-  DIVERSITY_PHASE,
-};
+gint scale_timer;
+int scale_status=NO_FUNCTION;
+int scale_rx=0;
+GtkWidget *scale_dialog;
 
-static gint scale_timer;
-static int scale_status=NO_FUNCTION;
-static int scale_rx=0;
-static GtkWidget *scale_dialog;
 static GtkWidget *af_gain_label;
 static GtkWidget *af_gain_scale;
 static GtkWidget *rf_gain_label;

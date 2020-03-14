@@ -90,58 +90,6 @@ void i2c_interrupt() {
         for(i=0;i<16;i++) {
           if(i2c_sw[i]==ints) break;
         }
-/*
-        switch(ints) {
-          case SW_2:
-            i=CONTROLLER2_SW2;
-            break;
-          case SW_3:
-            i=CONTROLLER2_SW3;
-            break;
-          case SW_4:
-            i=CONTROLLER2_SW4;
-            break;
-          case SW_5:
-            i=CONTROLLER2_SW5;
-            break;
-          case SW_6:
-            i=CONTROLLER2_SW6;
-            break;
-          case SW_7:
-            i=CONTROLLER2_SW7;
-            break;
-          case SW_8:
-            i=CONTROLLER2_SW8;
-            break;
-          case SW_9:
-            i=CONTROLLER2_SW9;
-            break;
-          case SW_10:
-            i=CONTROLLER2_SW10;
-            break;
-          case SW_11:
-            i=CONTROLLER2_SW11;
-            break;
-          case SW_12:
-            i=CONTROLLER2_SW12;
-            break;
-          case SW_13:
-            i=CONTROLLER2_SW13;
-            break;
-          case SW_14:
-            i=CONTROLLER2_SW14;
-            break;
-          case SW_15:
-            i=CONTROLLER2_SW15;
-            break;
-          case SW_16:
-            i=CONTROLLER2_SW16;
-            break;
-          case SW_17:
-            i=CONTROLLER2_SW17;
-            break;
-        }
-*/
         if(i<16) {
 //g_print("i1c_interrupt: sw=%d action=%d\n",i,sw_action[i]);
           switch(sw_action[i]) {
@@ -270,6 +218,18 @@ void i2c_interrupt() {
               break;
             case MUTE:
               g_idle_add(ext_mute_update,NULL);
+              break;
+            case PAN_MINUS:
+              g_idle_add(ext_pan_update,GINT_TO_POINTER(-100));
+              break;
+            case PAN_PLUS:
+              g_idle_add(ext_pan_update,GINT_TO_POINTER(100));
+              break;
+            case ZOOM_MINUS:
+              g_idle_add(ext_zoom_update,GINT_TO_POINTER(-1));
+              break;
+            case ZOOM_PLUS:
+              g_idle_add(ext_zoom_update,GINT_TO_POINTER(1));
               break;
           }
         }

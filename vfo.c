@@ -533,6 +533,20 @@ void vfo_step(int steps) {
   if(!locked) {
 
     if(vfo[id].ctun) {
+      // don't let ctun go beyond end of passband
+      long long frequency=vfo[id].frequency;
+      long long rx_low=((vfo[id].ctun_frequency/step + steps)*step)+active_receiver->filter_low;
+      long long rx_high=((vfo[id].ctun_frequency/step + steps)*step)+active_receiver->filter_high;
+      long long half=(long long)active_receiver->sample_rate/2LL;
+      long long min_freq=frequency-half;
+      long long max_freq=frequency+half;
+
+      if(rx_low<=min_freq) {
+        return;
+      } else if(rx_high>=max_freq) {
+        return;
+      }
+
       delta=vfo[id].ctun_frequency;
       vfo[id].ctun_frequency=(vfo[id].ctun_frequency/step + steps)*step;
       delta=vfo[id].ctun_frequency - delta;
@@ -639,6 +653,20 @@ void vfo_move(long long hz,int round) {
 
   if(!locked) {
     if(vfo[id].ctun) {
+      // don't let ctun go beyond end of passband
+      long long frequency=vfo[id].frequency;
+      long long rx_low=vfo[id].ctun_frequency+hz+active_receiver->filter_low;
+      long long rx_high=vfo[id].ctun_frequency+hz+active_receiver->filter_high;
+      long long half=(long long)active_receiver->sample_rate/2LL;
+      long long min_freq=frequency-half;
+      long long max_freq=frequency+half;
+
+      if(rx_low<=min_freq) {
+        return;
+      } else if(rx_high>=max_freq) {
+        return;
+      }
+
       delta=vfo[id].ctun_frequency;
       vfo[id].ctun_frequency=vfo[id].ctun_frequency+hz;
       if(round && (vfo[id].mode!=modeCWL && vfo[id].mode!=modeCWU)) {
@@ -689,7 +717,7 @@ void vfo_move(long long hz,int round) {
 }
 
 void vfo_move_to(long long hz) {
-  // hz is the offset from the min frequency
+  // hz is the offset from the min displayed frequency
   int id=active_receiver->id;
   long long offset=hz;
   long long half=(long long)(active_receiver->sample_rate/2);
@@ -701,7 +729,7 @@ void vfo_move_to(long long hz) {
   if(vfo[id].mode!=modeCWL && vfo[id].mode!=modeCWU) {
     offset=(hz/step)*step;
   }
-  f=(vfo[id].frequency-half)+offset;
+  f=(vfo[id].frequency-half)+offset+((double)active_receiver->pan*active_receiver->hz_per_pixel);
 
   if(!locked) {
     if(vfo[id].ctun) {
@@ -894,8 +922,7 @@ void vfo_update() {
 
 #ifdef PURESIGNAL
         if(can_transmit) {
-          //cairo_move_to(cr, 180, 15);
-          cairo_move_to(cr, 55, 50);
+          cairo_move_to(cr, 130, 50);
           if(transmitter->puresignal) {
             cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
           } else {
@@ -905,7 +932,16 @@ void vfo_update() {
           cairo_show_text(cr, "PS");
         }
 #endif
-
+        
+        cairo_move_to(cr, 55, 50);
+        if(active_receiver->zoom>1) {
+          cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
+        } else {
+          cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
+        }
+        cairo_set_font_size(cr, 12);
+        sprintf(temp_text,"Zoom x%d",active_receiver->zoom);
+        cairo_show_text(cr, temp_text);
 
         if(vfo[id].rit_enabled==0) {
             cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
@@ -913,7 +949,6 @@ void vfo_update() {
             cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
         }
         sprintf(temp_text,"RIT: %lldHz",vfo[id].rit);
-        //cairo_move_to(cr, 210, 15);
         cairo_move_to(cr, 170, 15);
         cairo_set_font_size(cr, 12);
         cairo_show_text(cr, temp_text);
@@ -975,7 +1010,6 @@ void vfo_update() {
         }
         cairo_show_text(cr, "SNB");
 
-        //cairo_move_to(cr, 300, 50);  
         cairo_move_to(cr, 270, 50);  
         switch(active_receiver->agc) {
           case AGC_OFF:
@@ -1005,7 +1039,6 @@ void vfo_update() {
 	// we should display the compressor (level)
 	//
         if(can_transmit) {
-          //cairo_move_to(cr, 400, 50);  
           cairo_move_to(cr, 330, 50);  
   	  if (transmitter->compressor) {
   	      sprintf(temp_text,"CMPR %d dB",(int) transmitter->compressor_level);
@@ -1030,17 +1063,10 @@ void vfo_update() {
           s++;
         }
         sprintf(temp_text,"Step %s",step_labels[s]);
-        //cairo_move_to(cr, 300, 15);
         cairo_move_to(cr, 400, 15);
         cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         cairo_show_text(cr, temp_text);
 
-/*
-        cairo_move_to(cr, (my_width/4)*3, 50);
-        cairo_show_text(cr, getFrequencyInfo(af));
-*/
-         
-        //cairo_move_to(cr, 400, 15);  
         cairo_move_to(cr, 430, 50);  
         if(vfo[id].ctun) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
@@ -1049,7 +1075,6 @@ void vfo_update() {
         }
         cairo_show_text(cr, "CTUN");
 
-        //cairo_move_to(cr, 450, 15);  
         cairo_move_to(cr, 470, 50);  
         if(cat_control>0) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
@@ -1076,7 +1101,6 @@ void vfo_update() {
         }
         cairo_show_text(cr, "Locked");
 
-        //cairo_move_to(cr, 55, 50);
         cairo_move_to(cr, 260, 18);
         if(split) {
           cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
@@ -1085,7 +1109,6 @@ void vfo_update() {
         }
         cairo_show_text(cr, "Split");
 
-        //cairo_move_to(cr, 95, 50);
         cairo_move_to(cr, 260, 28);
         if(sat_mode!=SAT_NONE) {
           cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
@@ -1105,7 +1128,6 @@ void vfo_update() {
             cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
         }
         sprintf(temp_text,"DUP");
-        //cairo_move_to(cr, 130, 50);
         cairo_move_to(cr, 260, 38);
         cairo_set_font_size(cr, 12);
         cairo_show_text(cr, temp_text);

@@ -116,6 +116,11 @@ static void display_waterfall_cb(GtkWidget *widget, gpointer data) {
   reconfigure_radio();
 }
 
+static void display_zoompan_cb(GtkWidget *widget, gpointer data) {
+  display_zoompan=display_zoompan==1?0:1;
+  reconfigure_radio();
+}
+
 static void display_sliders_cb(GtkWidget *widget, gpointer data) {
   display_sliders=display_sliders==1?0:1;
   reconfigure_radio();
@@ -395,7 +400,7 @@ void display_menu(GtkWidget *parent) {
   row++;
   row++;
   row++;
-  col=1;
+  col=0;
 
   
   GtkWidget *b_display_waterfall=gtk_check_button_new_with_label("Display Waterfall");
@@ -404,6 +409,14 @@ void display_menu(GtkWidget *parent) {
   gtk_widget_show(b_display_waterfall);
   gtk_grid_attach(GTK_GRID(grid),b_display_waterfall,col,row,1,1);
   g_signal_connect(b_display_waterfall,"toggled",G_CALLBACK(display_waterfall_cb),(gpointer *)NULL);
+
+  col++;
+
+  GtkWidget *b_display_zoompan=gtk_check_button_new_with_label("Display Zoom/Pan");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_zoompan), display_zoompan);
+  gtk_widget_show(b_display_zoompan);
+  gtk_grid_attach(GTK_GRID(grid),b_display_zoompan,col,row,1,1);
+  g_signal_connect(b_display_zoompan,"toggled",G_CALLBACK(display_zoompan_cb),(gpointer *)NULL);
 
   col++;
 

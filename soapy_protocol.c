@@ -57,7 +57,6 @@ static double bandwidth=2500000.0;
 static SoapySDRDevice *soapy_device;
 static SoapySDRStream *rx_stream;
 static SoapySDRStream *tx_stream;
-static int soapy_rx_sample_rate;
 static int max_samples;
 
 static int samples=0;
@@ -86,27 +85,49 @@ SoapySDRDevice *get_soapy_device() {
 
 void soapy_protocol_set_mic_sample_rate(int rate) {
   mic_sample_divisor=rate/48000;
+g_print("soapy_protocol_set_mic_sample_rate: rate=%d mic_sample_divisor=%d\n",rate,mic_sample_divisor);
 }
 
-void soapy_protocol_change_sample_rate(RECEIVER *rx,int rate) {
+void soapy_protocol_change_sample_rate(RECEIVER *rx) {
+g_print("soapy_protocol_change_sample_rate: %d\n",rx->sample_rate);
+  if(rx->sample_rate==radio_sample_rate) {
+    if(rx->resample_buffer!=NULL) {
+      g_free(rx->resample_buffer);
+      rx->resample_buffer=NULL;
+      rx->resample_buffer_size=0;
+    }
+    if(rx->resampler!=NULL) {
+      destroy_resample(rx->resampler);
+      rx->resampler=NULL;
+    }
+  } else {
+    if(rx->resample_buffer!=NULL) {
+      g_free(rx->resample_buffer);
+      rx->resample_buffer=NULL;
+    }
+    if(rx->resampler!=NULL) {
+      destroy_resample(rx->resampler);
+      rx->resampler=NULL;
+    }
+    rx->resample_buffer_size=2*max_samples/(radio_sample_rate/rx->sample_rate);
+    rx->resample_buffer=g_new(double,rx->resample_buffer_size);
+    rx->resampler=create_resample (1,max_samples,rx->buffer,rx->resample_buffer,radio_sample_rate,rx->sample_rate,0.0,0,1.0);
+
+g_print("soapy_protocol_change_sample_rate: buffer=%p buffer_size=%d resampler=%p\n",rx->resample_buffer,rx->resample_buffer_size,rx->resampler);
+  }
+
 }
 
 void soapy_protocol_create_receiver(RECEIVER *rx) {
   int rc;
 
-  soapy_rx_sample_rate=rx->sample_rate;
-  if(rx->sample_rate!=radio_sample_rate) {
-    soapy_rx_sample_rate=radio_sample_rate;
-  }
-  mic_sample_divisor=soapy_rx_sample_rate/48000;
+  mic_sample_divisor=rx->sample_rate/48000;
 
-fprintf(stderr,"soapy_protocol_create_receiver: setting samplerate=%f adc=%d mic_sample_divisor=%d\n",(double)soapy_rx_sample_rate,rx->adc,mic_sample_divisor);
-  rc=SoapySDRDevice_setSampleRate(soapy_device,SOAPY_SDR_RX,rx->adc,(double)soapy_rx_sample_rate);
+fprintf(stderr,"soapy_protocol_create_receiver: setting samplerate=%f adc=%d mic_sample_divisor=%d\n",(double)radio_sample_rate,rx->adc,mic_sample_divisor);
+  rc=SoapySDRDevice_setSampleRate(soapy_device,SOAPY_SDR_RX,rx->adc,(double)radio_sample_rate);
   if(rc!=0) {
-    fprintf(stderr,"soapy_protocol_create_receiver: SoapySDRDevice_setSampleRate(%f) failed: %s\n",(double)soapy_rx_sample_rate,SoapySDR_errToStr(rc));
+    fprintf(stderr,"soapy_protocol_create_receiver: SoapySDRDevice_setSampleRate(%f) failed: %s\n",(double)radio_sample_rate,SoapySDR_errToStr(rc));
   }
-
-
 
   size_t channel=rx->adc;
 #if defined(SOAPY_SDR_API_VERSION) && (SOAPY_SDR_API_VERSION < 0x00080000)
@@ -130,7 +151,25 @@ fprintf(stderr,"soapy_protocol_create_receiver: SoapySDRDevice_setupStream(versi
   if(max_samples>(2*rx->fft_size)) {
     max_samples=2*rx->fft_size;
   }
+  if(max_samples>=4096) {
+    max_samples=4096;
+  } else if(max_samples>=2048) {
+    max_samples=2048;
+  } else {
+    max_samples=1024;
+  }
   rx->buffer=g_new(double,max_samples*2);
+
+  if(rx->sample_rate==radio_sample_rate) {
+    rx->resample_buffer=NULL;
+    rx->resampler=NULL;
+    rx->resample_buffer_size=0;
+  } else {
+    rx->resample_buffer_size=2*max_samples/(radio_sample_rate/rx->sample_rate);
+    rx->resample_buffer=g_new(double,rx->resample_buffer_size);
+    rx->resampler=create_resample (1,max_samples,rx->buffer,rx->resample_buffer,radio_sample_rate,rx->sample_rate,0.0,0,1.0);
+  }
+
 
 fprintf(stderr,"soapy_protocol_create_receiver: max_samples=%d buffer=%p\n",max_samples,rx->buffer);
 
@@ -278,10 +317,13 @@ fprintf(stderr,"soapy_protocol: receive_thread\n");
       rx->buffer[i*2]=(double)buffer[i*2];
       rx->buffer[(i*2)+1]=(double)buffer[(i*2)+1];
     }
-    if(rx->sample_rate!=radio_sample_rate) {
-      for(int i=0;i<elements;i+=rx->resample_step) {
-        isample=rx->buffer[i*2];
-        qsample=rx->buffer[(i*2)+1];
+
+
+    if(rx->resampler!=NULL) {
+      int samples=xresample(rx->resampler);
+      for(i=0;i<samples;i++) {
+        isample=rx->resample_buffer[i*2];
+        qsample=rx->resample_buffer[(i*2)+1];
         if(iqswap) {
           add_iq_samples(rx,qsample,isample);
         } else {
@@ -290,7 +332,11 @@ fprintf(stderr,"soapy_protocol: receive_thread\n");
         if(can_transmit) {
           mic_samples++;
           if(mic_samples>=mic_sample_divisor) { // reduce to 48000
-            fsample = transmitter->local_microphone ? audio_get_next_mic_sample() : (float)0.0;
+            if(transmitter!=NULL) {
+              fsample = transmitter->local_microphone ? audio_get_next_mic_sample() : 0.0F;
+            } else {
+              fsample=0.0F;
+            }
             add_mic_sample(transmitter,fsample);
             mic_samples=0;
           }
@@ -308,7 +354,11 @@ fprintf(stderr,"soapy_protocol: receive_thread\n");
         if(can_transmit) {
           mic_samples++;
           if(mic_samples>=mic_sample_divisor) { // reduce to 48000
-            fsample = transmitter->local_microphone ? audio_get_next_mic_sample() : (float)0.0;
+            if(transmitter!=NULL) {
+              fsample = transmitter->local_microphone ? audio_get_next_mic_sample() : 0.0F;
+            } else {
+              fsample=0.0F;
+            }
             add_mic_sample(transmitter,fsample);
             mic_samples=0;
           }

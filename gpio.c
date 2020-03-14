@@ -56,6 +56,7 @@
 #ifdef LOCALCW
 #include "iambic.h"
 #endif
+#include "zoompan.h"
 
 // debounce settle time in ms
 #define DEFAULT_SETTLE_TIME 50
@@ -131,6 +132,12 @@ int ENABLE_CW_BUTTONS=1;
 int CW_ACTIVE_LOW=1;
 #endif
 
+#ifdef PTT
+int ENABLE_PTT_GPIO=1;
+int PTT_GPIO=15;
+int PTT_ACTIVE_LOW=1;
+#endif
+
 int vfoEncoderPos;
 int vfoFunction;
 
@@ -190,87 +197,93 @@ static int running=0;
 char *encoder_string[ENCODER_ACTIONS] = {
   "NO ACTION",
   "AF GAIN",
-  "RF GAIN",
-  "AGC GAIN",
-  "IF WIDTH",
-  "IF SHIFT",
   "AF GAIN RX1",
-  "RF GAIN RX1",
   "AF GAIN RX2",
-  "RF GAIN RX2",
+  "AGC GAIN",
   "AGC GAIN RX1",
   "AGC GAIN RX2",
-  "IF WIDTH RX1",
-  "IF WIDTH RX2",
-  "IF SHIFT RX1",
-  "IF SHIFT RX2",
   "ATTENUATION/RX GAIN",
-  "MIC GAIN",
-  "DRIVE",
-  "TUNE DRIVE",
-  "RIT",
-  "RIT RX1",
-  "RIT RX2",
-  "XIT",
-  "CW SPEED",
-  "CW FREQUENCY",
-  "PANADAPTER HIGH",
-  "PANADAPTER LOW",
-  "PANADAPTER STEP",
-  "WATERFALL HIGH",
-  "WATERFALL LOW",
-  "SQUELCH",
-  "SQUELCH RX1",
-  "SQUELCH RX2",
   "COMP",
+  "CW FREQUENCY",
+  "CW SPEED",
   "DIVERSITY GAIN",
   "DIVERSITY GAIN (coarse)",
   "DIVERSITY GAIN (fine)",
   "DIVERSITY PHASE",
   "DIVERSITY PHASE (coarse)",
-  "DIVERSITY PHASE (fine)"
+  "DIVERSITY PHASE (fine)",
+  "DRIVE",
+  "IF SHIFT",
+  "IF SHIFT RX1",
+  "IF SHIFT RX2",
+  "IF WIDTH",
+  "IF WIDTH RX1",
+  "IF WIDTH RX2",
+  "MIC GAIN",
+  "PAN",
+  "PANADAPTER HIGH",
+  "PANADAPTER LOW",
+  "PANADAPTER STEP",
+  "RF GAIN",
+  "RF GAIN RX1",
+  "RF GAIN RX2",
+  "RIT",
+  "RIT RX1",
+  "RIT RX2",
+  "SQUELCH",
+  "SQUELCH RX1",
+  "SQUELCH RX2",
+  "TUNE DRIVE",
+  "WATERFALL HIGH",
+  "WATERFALL LOW",
+  "XIT",
+  "ZOOM",
 };
 
 char *sw_string[SWITCH_ACTIONS] = {
   "",
-  "TUNE",
+  "A TO B",
+  "A SWAP B",
+  "AGC",
+  "B TO A",
+  "BAND -",
+  "BAND +",
+  "BSTACK -",
+  "BSTACK +",
+  "CTUN",
+  "DIV",
+  "FILTER -",
+  "FILTER +",
+  "FUNCTION",
+  "LOCK",
+  "MENU BAND",
+  "MENU BSTACK",
+  "MENU DIV",
+  "MENU FILTER",
+  "MENU FREQUENCY",
+  "MENU MEMORY",
+  "MENU MODE",
+  "MENU PS",
+  "MODE -",
+  "MODE +",
   "MOX",
-  "PS",
-  "TWO TONE",
-  "NR",
+  "MUTE",
   "NB",
-  "SNB",
+  "NR",
+  "PAN -",
+  "PAN +",
+  "PS",
   "RIT",
   "RIT CL",
+  "SAT",
+  "SNB",
+  "SPLIT",
+  "TUNE",
+  "TWO TONE",
   "XIT",
   "XIT CL",
-  "BAND +",
-  "BAND -",
-  "BSTACK +",
-  "BSTACK -",
-  "MODE +",
-  "MODE -",
-  "FILTER +",
-  "FILTER -",
-  "A TO B",
-  "B TO A",
-  "A SWAP B",
-  "LOCK",
-  "CTUN",
-  "AGC",
-  "SPLIT",
-  "DIV",
-  "SAT",
-  "BAND",
-  "BSTACK",
-  "MODE",
-  "FILTER",
-  "FREQUENCY",
-  "MEMORY",
-  "DIV MENU",
-  "PS MENU",
-  "FUNCTION",
-  "MUTE"
+  "ZOOM -",
+  "ZOOM +",
 };
 
 int *sw_action=NULL;
@@ -364,6 +377,20 @@ static int vfo_function_pressed(void *data) {
 static int vfo_function_released(void *data) {
   return 0;
 }
+
+#ifdef PTT
+static int ptt_pressed(void *data) {
+g_print("ptt_pressed\n");
+  if(can_transmit) g_idle_add(ext_mox_update,GINT_TO_POINTER(1));
+  return 0;
+}
+
+static int ptt_released(void *data) {
+g_print("ptt_released\n");
+  if(can_transmit) g_idle_add(ext_mox_update,GINT_TO_POINTER(0));
+  return 0;
+}
+#endif
 
 static int e_function_pressed(void *data) {
   int action=(int)data;
@@ -486,6 +513,18 @@ g_print("e_function_pressed: %d\n",action);
       break;
     case MUTE:
       g_idle_add(ext_mute_update,NULL);
+      break;
+    case PAN_MINUS:
+      g_idle_add(ext_pan_update,GINT_TO_POINTER(-100));
+      break;
+    case PAN_PLUS:
+      g_idle_add(ext_pan_update,GINT_TO_POINTER(100));
+      break;
+    case ZOOM_MINUS:
+      g_idle_add(ext_zoom_update,GINT_TO_POINTER(-1));
+      break;
+    case ZOOM_PLUS:
+      g_idle_add(ext_zoom_update,GINT_TO_POINTER(1));
       break;
   }
   return 0;
@@ -818,6 +857,28 @@ static void pI2CInterrupt() {
       i2c_interrupt();
     }
 }
+
+#ifdef PTT
+static int ptt_level=1;
+static unsigned long ptt_debounce=0;
+
+static void pttAlert() {
+    int t=millis();
+    if(millis()<ptt_debounce) {
+      return;
+    }
+    int level=digitalRead(PTT_GPIO);
+    if(level!=ptt_level) {
+      if(level==0) {
+        if(running) g_idle_add(ptt_pressed,NULL);
+      } else {
+        if(running) g_idle_add(ptt_released,NULL);
+      }
+      ptt_level=level;
+      ptt_debounce=t+settle_time;
+    }
+}
+#endif
 
 void gpio_set_defaults(int ctrlr) {
 g_print("gpio_set_defaults: %d\n",ctrlr);
@@ -1210,6 +1271,29 @@ void gpio_restore_state() {
   if(value) ENABLE_GPIO_SIDETONE=atoi(value);		
 #endif
 
+#ifdef PTT
+  switch(controller) {
+    case NO_CONTROLLER:
+      PTT_GPIO=12;
+      break;
+    case CONTROLLER1:
+      PTT_GPIO=12;
+      break;
+    case CONTROLLER2_V1:
+      PTT_GPIO=15;
+      break;
+    case CONTROLLER2_V2:
+      PTT_GPIO=15;
+      break;
+  }
+  value=getProperty("ENABLE_PTT_GPIO");		
+  if(value) ENABLE_PTT_GPIO=atoi(value);		
+  value=getProperty("PTT_GPIO");		
+  if(value) PTT_GPIO=atoi(value);		
+  value=getProperty("PTT_ACTIVE_LOW");		
+  if(value) PTT_ACTIVE_LOW=atoi(value);		
+#endif
+
   if(controller!=CONTROLLER1) {
     value=getProperty("i2c_device");
     if(value) {
@@ -1403,12 +1487,21 @@ void gpio_save_state() {
   setProperty("ENABLE_GPIO_SIDETONE",value);		
 #endif
 
+#ifdef PTT
+  sprintf(value,"%d",ENABLE_PTT_GPIO);		
+  setProperty("ENABLE_PPT_GPIO",value);		
+  sprintf(value,"%d",PTT_GPIO);		
+  setProperty("PPT_GPIO",value);		
+  sprintf(value,"%d",PTT_ACTIVE_LOW);		
+  setProperty("PPT_ACTIVE_LOW",value);		
+#endif
   saveProperties("gpio.props");
 
 }
 
 static void setup_pin(int pin, int up_down, void(*pAlert)(void)) {
   int rc;
+g_print("setup_pin: pin=%d up_down=%d\n",pin,up_down);
   pinMode(pin,GPIO);
   pinMode(pin,INPUT);
   pullUpDnControl(pin,up_down);
@@ -1639,6 +1732,13 @@ int gpio_init() {
 //
     pinMode(SIDETONE_GPIO, OUTPUT);
     digitalWrite(SIDETONE_GPIO, 0);
+  }
+#endif
+
+#ifdef PTT
+  if(ENABLE_PTT_GPIO) {
+g_print("PTT Enabled: setup pin %d active_low=%d\n",PTT_GPIO,PTT_ACTIVE_LOW);
+    setup_pin(PTT_GPIO,PTT_ACTIVE_LOW?PUD_UP:PUD_DOWN,pttAlert);
   }
 #endif
 
@@ -2078,6 +2178,12 @@ static void encoder_changed(int action,int pos) {
       break;
     case ENCODER_DIVERSITY_PHASE_FINE:
       update_diversity_phase((double)pos*0.1);
+      break;
+    case ENCODER_ZOOM:
+      update_zoom((double)pos);
+      break;
+    case ENCODER_PAN:
+      update_pan((double)pos*100);
       break;
   }
 }

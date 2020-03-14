@@ -117,6 +117,17 @@ static void get_info(char *driver) {
   }
   fprintf(stderr,"\n");
   free(rx_rates);
+
+  if(strcmp(driver,"lime")==0) {
+    sample_rate=768000;
+  } else if(strcmp(driver,"rtlsdr")==0) {
+    sample_rate=1024000;
+  } else if(strcmp(driver,"plutosdr")==0) {
+    sample_rate=2048000;
+  } else {
+    sample_rate=1024000;
+  }
+
   fprintf(stderr,"sample_rate selected %d\n",sample_rate);
 
   SoapySDRRange *tx_rates=SoapySDRDevice_getSampleRateRange(sdr, SOAPY_SDR_TX, 1, &tx_rates_length);

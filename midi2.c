@@ -102,7 +102,7 @@ static struct {
   const char *str;
 } ActionTable[] = {
 	{ VFO_A2B,		"A2B"},
-        { AF_GAIN,      	"AFGAIN"},
+        { MIDI_AF_GAIN,      	"AFGAIN"},
 	{ AGCATTACK,   		"AGCATTACK"},
         { MIDI_AGC,     	"AGCVAL"},
         { ATT,          	"ATT"},
@@ -133,6 +133,7 @@ static struct {
 	{ MIDI_MUTE,		"MUTE"},
 	{ MIDI_NB,    		"NOISEBLANKER"},
 	{ MIDI_NR,    		"NOISEREDUCTION"},
+        { MIDI_PAN,		"PAN"},
         { PAN_HIGH,     	"PANHIGH"},
         { PAN_LOW,      	"PANLOW"},
         { PRE,          	"PREAMP"},
@@ -156,6 +157,9 @@ static struct {
 	{ VOXLEVEL,   		"VOXLEVEL"},
 	{ MIDI_XIT_CLEAR,  	"XITCLEAR"},
 	{ XIT_VAL,  		"XITVAL"},
+	{ MIDI_ZOOM,		"ZOOM"},
+	{ ZOOM_UP,		"ZOOMUP"},
+	{ ZOOM_DOWN,		"ZOOMDOWN"},
         { ACTION_NONE,  	"NONE"}
 };
 

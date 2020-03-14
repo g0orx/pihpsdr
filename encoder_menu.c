@@ -624,10 +624,10 @@ void encoder_menu(GtkWidget *parent) {
 
   GtkWidget *grid=gtk_grid_new();
 
-  gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
+  gtk_grid_set_column_homogeneous(GTK_GRID(grid),FALSE);
   gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
-  gtk_grid_set_column_spacing (GTK_GRID(grid),5);
-  gtk_grid_set_row_spacing (GTK_GRID(grid),5);
+  gtk_grid_set_column_spacing (GTK_GRID(grid),2);
+  gtk_grid_set_row_spacing (GTK_GRID(grid),2);
 
   GtkWidget *close_b=gtk_button_new_with_label("Close");
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);

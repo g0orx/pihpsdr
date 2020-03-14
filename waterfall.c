@@ -173,9 +173,9 @@ void waterfall_update(RECEIVER *rx) {
     samples=rx->pixel_samples;
     for(i=0;i<width;i++) {
             if(have_rx_gain) {
-              sample=samples[i]+(float)(rx_gain_calibration-adc_attenuation[rx->adc]);
+              sample=samples[i+rx->pan]+(float)(rx_gain_calibration-adc_attenuation[rx->adc]);
             } else {
-              sample=samples[i]+(float)adc_attenuation[rx->adc];
+              sample=samples[i+rx->pan]+(float)adc_attenuation[rx->adc];
             }
             average+=(int)sample;
             if(sample<(float)rx->waterfall_low) {

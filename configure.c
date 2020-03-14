@@ -139,6 +139,13 @@ static GtkWidget *b_enable_cwlr;
 static GtkWidget *b_cw_active_low;
 #endif
 
+#ifdef PTT
+static GtkWidget *ptt_label;
+static GtkWidget *ptt;
+static GtkWidget *b_enable_ptt;
+static GtkWidget *b_ptt_active_low;
+#endif
+
 static gboolean save_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   if(dialog!=NULL) {
     ENABLE_VFO_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_vfo_encoder))?1:0;
@@ -164,7 +171,7 @@ static gboolean save_cb (GtkWidget *widget, GdkEventButton *event, gpointer data
     ENABLE_E4_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E4_pullup))?1:0;
     E4_FUNCTION=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E4_sw));
 
-    if(controller==CONTROLLER2_V1 || controller==CONTROLLER2_V2 || controller==CUSTOM_CONTROLLER) {
+    if(controller==CONTROLLER2_V1 || controller==CONTROLLER2_V2) {
       ENABLE_E5_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E5_encoder))?1:0;
       E5_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E5_a));
       E5_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E5_b));
@@ -215,6 +222,12 @@ static gboolean save_cb (GtkWidget *widget, GdkEventButton *event, gpointer data
     SIDETONE_GPIO=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(cws));
 #endif
 
+#ifdef PTT
+    ENABLE_PTT_GPIO=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_ptt))?1:0;
+    PTT_ACTIVE_LOW=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_ptt_active_low))?1:0;
+    PTT_GPIO=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(ptt));
+#endif
+
     gpio_save_state();
     gtk_widget_destroy(dialog);
   }
@@ -258,7 +271,9 @@ void configure_gpio(GtkWidget *parent) {
     // Encoders
   
     GtkWidget *grid1=gtk_grid_new();
-    gtk_grid_set_column_spacing (GTK_GRID(grid1),10);
+    gtk_grid_set_column_homogeneous(GTK_GRID(grid1),FALSE);
+    gtk_grid_set_row_homogeneous(GTK_GRID(grid1),TRUE);
+    gtk_grid_set_column_spacing (GTK_GRID(grid1),5);
     row=0;
   
     b_enable_vfo_encoder=gtk_check_button_new_with_label("Enable VFO");
@@ -410,7 +425,7 @@ void configure_gpio(GtkWidget *parent) {
   
     row++;
   
-    if(controller==CONTROLLER2_V1 || controller==CONTROLLER2_V2 || controller==CUSTOM_CONTROLLER) {
+    if(controller==CONTROLLER2_V1 || controller==CONTROLLER2_V2) {
       b_enable_E5_encoder=gtk_check_button_new_with_label("Enable E5");
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E5_encoder), ENABLE_E5_ENCODER);
       gtk_widget_show(b_enable_E5_encoder);
@@ -699,6 +714,37 @@ void configure_gpio(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid3),b_enable_cws,2,row,1,1);
 
   gtk_notebook_append_page(GTK_NOTEBOOK(notebook),grid3,gtk_label_new("CW"));
+#endif
+
+#ifdef PTT
+  GtkWidget *grid4=gtk_grid_new();
+  gtk_grid_set_column_spacing (GTK_GRID(grid4),10);
+  row=0;
+
+  b_enable_ptt=gtk_check_button_new_with_label("PTT Enable");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_ptt), ENABLE_PTT_GPIO);
+  gtk_widget_show(b_enable_ptt);
+  gtk_grid_attach(GTK_GRID(grid4),b_enable_ptt,0,row,1,1);
+
+  row++;
+
+  ptt_label=gtk_label_new("PTT GPIO:");
+  gtk_widget_show(ptt_label);
+  gtk_grid_attach(GTK_GRID(grid4),ptt_label,0,row,1,1);
+
+  ptt=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON(ptt),CWR_BUTTON);
+  gtk_widget_show(ptt);
+  gtk_grid_attach(GTK_GRID(grid4),ptt,1,row,1,1);
+
+  row++;
+
+  b_ptt_active_low=gtk_check_button_new_with_label("PTT active-low");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_ptt_active_low), PTT_ACTIVE_LOW);
+  gtk_widget_show(b_ptt_active_low);
+  gtk_grid_attach(GTK_GRID(grid4),b_ptt_active_low,0,row,1,1);
+
+  gtk_notebook_append_page(GTK_NOTEBOOK(notebook),grid4,gtk_label_new("PTT"));
 #endif
 
   gtk_grid_attach(GTK_GRID(grid0),notebook,0,1,6,1);

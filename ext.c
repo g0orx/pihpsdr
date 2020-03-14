@@ -43,6 +43,7 @@
 #include "noise_menu.h"
 #include "wdsp.h"
 #include "ext.h"
+#include "zoompan.h"
 
 // The following calls functions can be called usig g_idle_add
 
@@ -139,7 +140,7 @@ int ext_noise_update(void *data) {
 }
 
 int ext_mox_update(void *data) {
-//g_print("ext_mox_update: %d\n",GPOINTER_TO_INT(data));
+g_print("ext_mox_update: %d\n",GPOINTER_TO_INT(data));
   mox_update(GPOINTER_TO_INT(data));
   return 0;
 }
@@ -645,34 +646,81 @@ int ext_set_duplex(void *data) {
   return 0;
 }
 
-int ext_set_rx_frequency(void *data) {
-  RX_FREQUENCY *p=(RX_FREQUENCY *)data;
-  int b = get_band_from_frequency(p->frequency);
-  if (b != vfo[p->rx].band) {
-    vfo_band_changed(b);
+int ext_remote_command(void *data) {
+  REMOTE_COMMAND *p=(REMOTE_COMMAND *)data;
+  switch(p->cmd) {
+    case RX_FREQ_CMD:
+      {
+        int b = get_band_from_frequency(p->data.frequency);
+        if (b != vfo[p->id].band) {
+          vfo_band_changed(b);
+        }
+        setFrequency(p->data.frequency);
+      }
+      break;
+    case RX_MOVE_CMD:
+      vfo_move(p->data.frequency,TRUE);
+      break;
+    case RX_MOVETO_CMD:
+      vfo_move_to(p->data.frequency);
+      break;
+    case RX_MODE_CMD:
+      vfo_mode_changed(p->data.mode);
+      break;
+    case RX_FILTER_CMD:
+      vfo_filter_changed(p->data.filter);
+      break;
+    case RX_AGC_CMD:
+      active_receiver->agc=p->data.agc;
+      set_agc(active_receiver, active_receiver->agc);
+      vfo_update();
+      break;
+    case RX_NR_CMD:
+      break;
+    case RX_NB_CMD:
+      break;
+    case RX_SNB_CMD:
+      break;
+    case RX_SPLIT_CMD:
+      break;
+    case RX_SAT_CMD:
+      break;
+    case RX_DUP_CMD:
+      break;
   }
-  setFrequency(p->frequency);
   g_free(data);
-  return 0;
-
-  return 0;
-}
-
-int ext_set_rx_mode(void *data) {
-  RX_MODE *p=(RX_MODE *)data;
-  vfo_mode_changed(p->mode);
-  return 0;
-}
-
-int ext_set_rx_filter(void *data) {
-  RX_FILTER *p=(RX_FILTER *)data;
-  vfo_filter_changed(p->filter);
   return 0;
 }
 
 int ext_mute_update(void *data) {
-g_print("ext_mute_update: currently %d\n",active_receiver->mute_radio);
   active_receiver->mute_radio=!active_receiver->mute_radio;
   return 0;
 }
 
+int ext_zoom_update(void *data) {
+  update_zoom((double)GPOINTER_TO_INT(data));
+  return 0;
+}
+
+int ext_zoom_set(void *data) {
+  int pos=GPOINTER_TO_INT(data);
+  double zoom=((double)pos/(100.0/7.0))+1.0;
+  if((int)zoom!=active_receiver->zoom) {
+    set_zoom(active_receiver->id,(double)zoom);
+  }
+  return 0;
+}
+
+int ext_pan_update(void *data) {
+  update_pan((double)GPOINTER_TO_INT(data));
+  return 0;
+}
+
+int ext_pan_set(void *data) {
+  if(active_receiver->zoom>1) {
+    int pos=GPOINTER_TO_INT(data);
+    double pan=(double)((active_receiver->zoom-1)*active_receiver->width)*((double)pos/100.0);
+    set_pan(active_receiver->id,(double)pan);
+  }
+  return 0;
+}

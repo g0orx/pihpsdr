@@ -48,6 +48,9 @@ static gfloat filter_left;
 static gfloat filter_right;
 static gfloat cw_frequency;
 
+static gint sequence_error_count=0;
+static gint fexchange_error_count=0;
+
 /* Create a new surface of the appropriate size to store our scribbles */
 static gboolean
 panadapter_configure_event_cb (GtkWidget         *widget,
@@ -146,8 +149,8 @@ void rx_panadapter_update(RECEIVER *rx) {
   }
 
   BAND *band=band_get_band(vfoband);
-  long half=(long)rx->sample_rate/2L;
-  double vfofreq=(double) display_width * 0.5;
+  long long half=(long long)rx->sample_rate/2LL;
+  double vfofreq=((double) rx->pixels * 0.5)-(double)rx->pan;
 
   //
   // There are two options here in CW mode, depending on cw_is_on_vfo_freq.
@@ -171,8 +174,8 @@ void rx_panadapter_update(RECEIVER *rx) {
       vfofreq -= (double) cw_keyer_sidetone_frequency / HzPerPixel;
     }
   }
-  long long min_display=frequency-half;
-  long long max_display=frequency+half;
+  long long min_display=frequency-half+(long long)((double)rx->pan*HzPerPixel);
+  long long max_display=min_display+(long long)((double)rx->width*HzPerPixel);
 
   if(vfoband==band60) {
     for(i=0;i<channel_entries;i++) {
@@ -183,22 +186,15 @@ void rx_panadapter_update(RECEIVER *rx) {
       cairo_set_source_rgb (cr, 0.6, 0.3, 0.3);
       cairo_rectangle(cr, x1, 0.0, x2-x1, (double)display_height);
       cairo_fill(cr);
-/*
-      cairo_set_source_rgba (cr, 0.5, 1.0, 0.0, 1.0);
-      cairo_move_to(cr,(double)x1,0.0);
-      cairo_line_to(cr,(double)x1,(double)display_height);
-      cairo_stroke(cr);
-      cairo_move_to(cr,(double)x2,0.0);
-      cairo_line_to(cr,(double)x2,(double)display_height);
-      cairo_stroke(cr);
-*/
     }
   }
 
   // filter
   cairo_set_source_rgba (cr, 0.25, 0.25, 0.25, 0.75);
-  filter_left =(double)display_width*0.5 +(((double)rx->filter_low+offset)/HzPerPixel);
-  filter_right=(double)display_width*0.5 +(((double)rx->filter_high+offset)/HzPerPixel);
+  //filter_left =(double)display_width*0.5 +(((double)rx->filter_low+offset)/HzPerPixel);
+  //filter_right=(double)display_width*0.5 +(((double)rx->filter_high+offset)/HzPerPixel);
+  filter_left =((double)rx->pixels*0.5)-(double)rx->pan +(((double)rx->filter_low+offset)/HzPerPixel);
+  filter_right=((double)rx->pixels*0.5)-(double)rx->pan +(((double)rx->filter_high+offset)/HzPerPixel);
   cairo_rectangle(cr, filter_left, 0.0, filter_right-filter_left, (double)display_height);
   cairo_fill(cr);
 
@@ -251,32 +247,120 @@ void rx_panadapter_update(RECEIVER *rx) {
   switch(rx->sample_rate) {
     case 48000:
       divisor=5000L;
+      switch(rx->zoom) {
+        case 2:
+        case 3:
+        case 4:
+          divisor=2000L;
+          break;
+        case 5:
+        case 6:
+        case 7:
+        case 8:
+          divisor=1000L;
+          break;
+      }
       break;
     case 96000:
     case 100000:
       divisor=10000L;
+      switch(rx->zoom) {
+        case 2:
+        case 3:
+        case 4:
+          divisor=5000L;
+          break;
+        case 5:
+        case 6:
+          divisor=2000L;
+          break;
+        case 7:
+        case 8:
+          divisor=1000L;
+          break;
+      }
       break;
     case 192000:
       divisor=20000L;
+      switch(rx->zoom) {
+        case 2:
+        case 3:
+          divisor=10000L;
+          break;
+        case 4:
+        case 5:
+        case 6:
+          divisor=5000L;
+          break;
+        case 7:
+        case 8:
+          divisor=2000L;
+          break;
+      }
       break;
     case 384000:
       divisor=50000L;
+      switch(rx->zoom) {
+        case 2:
+        case 3:
+          divisor=25000L;
+          break;
+        case 4:
+        case 5:
+        case 6:
+          divisor=10000L;
+          break;
+        case 7:
+        case 8:
+          divisor=5000L;
+          break;
+      }
       break;
     case 768000:
       divisor=100000L;
+      switch(rx->zoom) {
+        case 2:
+        case 3:
+          divisor=50000L;
+          break;
+        case 4:
+        case 5:
+        case 6:
+          divisor=25000L;
+          break;
+        case 7:
+        case 8:
+          divisor=20000L;
+          break;
+      }
       break;
     case 1048576:
     case 1536000:
     case 2097152:
       divisor=200000L;
+      switch(rx->zoom) {
+        case 2:
+        case 3:
+          divisor=100000L;
+          break;
+        case 4:
+        case 5:
+        case 6:
+          divisor=50000L;
+          break;
+        case 7:
+        case 8:
+          divisor=20000L;
+          break;
+      }
       break;
   }
   for(i=0;i<display_width;i++) {
-    f = frequency - half + (long) (HzPerPixel * i);
+    f = frequency - half + (long) (HzPerPixel * (i+rx->pan));
     if (f > 0) {
       if ((f % divisor) < (long) HzPerPixel) {
         cairo_set_line_width(cr, 1.0);
-        //cairo_move_to(cr,(double)i,0.0);
+        //cairo_move_to(cr,(double)x,0.0);
         cairo_move_to(cr,(double)i,10.0);
         cairo_line_to(cr,(double)i,(double)display_height);
 
@@ -382,12 +466,12 @@ void rx_panadapter_update(RECEIVER *rx) {
   // signal
   double s1,s2;
 
-  samples[0]=-200.0;
-  samples[display_width-1]=-200.0;
+  samples[rx->pan]=-200.0;
+  samples[display_width-1+rx->pan]=-200.0;
   if(have_rx_gain) {
-    s1=(double)samples[0]+rx_gain_calibration-adc_attenuation[rx->adc];
+    s1=(double)samples[rx->pan]+rx_gain_calibration-adc_attenuation[rx->adc];
   } else {
-    s1=(double)samples[0]+(double)adc_attenuation[rx->adc];
+    s1=(double)samples[rx->pan]+(double)adc_attenuation[rx->adc];
   }
   if (filter_board == ALEX && rx->adc == 0) s1 += (double)(10*rx->alex_attenuation);
   if (filter_board == CHARLY25) {
@@ -406,9 +490,9 @@ void rx_panadapter_update(RECEIVER *rx) {
   cairo_move_to(cr, 0.0, s1);
   for(i=1;i<display_width;i++) {
     if(have_rx_gain) {
-      s2=(double)samples[i]+rx_gain_calibration-adc_attenuation[rx->adc];
+      s2=(double)samples[i+rx->pan]+rx_gain_calibration-adc_attenuation[rx->adc];
     } else {
-      s2=(double)samples[i]+(double)adc_attenuation[rx->adc];
+      s2=(double)samples[i+rx->pan]+(double)adc_attenuation[rx->adc];
     }
     if (filter_board == ALEX && rx->adc == 0) s2 += (double)(10*rx->alex_attenuation);
     if (filter_board == CHARLY25) {
@@ -468,6 +552,32 @@ void rx_panadapter_update(RECEIVER *rx) {
     }
   }
 #endif
+
+  if(sequence_errors!=0) {
+    cairo_move_to(cr,100,20);
+    cairo_set_source_rgb(cr,1.0,0.0,0.0);
+    cairo_set_font_size(cr,12);
+    cairo_show_text(cr, "Sequence Error");
+    sequence_error_count++;
+    // show for 1 second
+    if(sequence_error_count==2*rx->fps) {
+      sequence_errors=0;
+      sequence_error_count=0;
+    }
+  }
+
+  if(rx->fexchange_errors!=0) {
+    cairo_move_to(cr,100,30);
+    cairo_set_source_rgb(cr,1.0,0.0,0.0);
+    cairo_set_font_size(cr,12);
+    cairo_show_text(cr, "fexchange Error");
+    fexchange_error_count++;
+    // show for 1 second
+    if(fexchange_error_count==2*rx->fps) {
+      rx->fexchange_errors=0;
+      fexchange_error_count=0;
+    }
+  }
 
   cairo_destroy (cr);
   gtk_widget_queue_draw (rx->panadapter);

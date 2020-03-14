@@ -49,7 +49,7 @@
 enum MIDIaction {
   ACTION_NONE=0,	// NONE:		No-Op (unassigned key)
   VFO_A2B,		// A2B:			VFO A -> B
-  AF_GAIN,		// AFGAIN:		AF gain
+  MIDI_AF_GAIN,		// AFGAIN:		AF gain
   AGCATTACK,		// AGCATTACK:		AGC ATTACK (cycle fast/med/slow etc.)
   MIDI_AGC,		// AGCVAL:		AGC level
   ATT,			// ATT:			Step attenuator or Programmable attenuator
@@ -80,6 +80,7 @@ enum MIDIaction {
   MIDI_MUTE,		// MUTE:		toggle mute on/off
   MIDI_NB,		// NOISEBLANKER:	cycle through NoiseBlanker states (none, NB, NB2)
   MIDI_NR,		// NOISEREDUCTION:	cycle through NoiseReduction states (none, NR, NR2)
+  MIDI_PAN,		// PAN:			change panning of panadater/waterfall when zoomed
   PAN_HIGH,		// PANHIGH:		"high" value of current panadapter
   PAN_LOW,		// PANLOW:		"low" value of current panadapter
   PRE,			// PREAMP:		preamp on/off
@@ -103,6 +104,9 @@ enum MIDIaction {
   VOXLEVEL, 		// VOXLEVEL:		adjust VOX threshold
   MIDI_XIT_CLEAR,	// XITCLEAR:		clear XIT value
   XIT_VAL,		// XITVAL:		change XIT value
+  MIDI_ZOOM,		// ZOOM:		change zoom factor
+  ZOOM_UP,		// ZOOMUP:		change zoom factor
+  ZOOM_DOWN,		// ZOOMDOWN:		change zoom factor
 };
 
 //

@@ -23,20 +23,37 @@
 // Use these calls from within the rigclt daemon, or the GPIO or MIDI stuff
 //
 
-typedef struct _RX_FREQUENCY {
-  int rx;
-  long long frequency;
-} RX_FREQUENCY;
-
-typedef struct _RX_MODE {
-  int rx;
-  int mode;
-} RX_MODE;
-
-typedef struct _RX_FILTER {
-  int rx;
-  int filter;
-} RX_FILTER;
+enum {
+  RX_FREQ_CMD,
+  RX_MOVE_CMD,
+  RX_MOVETO_CMD,
+  RX_MODE_CMD,
+  RX_FILTER_CMD,
+  RX_AGC_CMD,
+  RX_NR_CMD,
+  RX_NB_CMD,
+  RX_SNB_CMD,
+  RX_SPLIT_CMD,
+  RX_SAT_CMD,
+  RX_DUP_CMD
+};
+  
+typedef struct _REMOTE_COMMAND {
+  int id;
+  int cmd;
+  union {
+    long long frequency;
+    int mode;
+    int filter;
+    int agc;
+    int nr;
+    int nb;
+    int snb;
+    int split;
+    int sat;
+    int dup;
+  } data;
+} REMOTE_COMMAND;
 
 extern int ext_discovery(void *data);
 extern int ext_vfo_update(void *data);
@@ -130,7 +147,11 @@ int ext_update_noise(void *data);
 int ext_start_ps(void *data);
 #endif
 
-int ext_set_rx_frequency(void *data);
-int ext_set_rx_mode(void *data);
-int ext_set_rx_filter(void *data);
 int ext_mute_update(void *data);
+
+int ext_zoom_update(void *data);
+int ext_zoom_set(void *data);
+int ext_pan_update(void *data);
+int ext_pan_set(void *data);
+
+int ext_remote_command(void *data);

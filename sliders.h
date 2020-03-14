@@ -22,6 +22,31 @@
 #include "receiver.h"
 #include "transmitter.h"
 
+enum {
+  NO_FUNCTION=0,
+  AF_GAIN,
+  RF_GAIN,
+  MIC_GAIN,
+  LINEIN_GAIN,
+  AGC_GAIN,
+  DRIVE,
+  ATTENUATION,
+  SQUELCH,
+  COMP,
+  FILTER_WIDTH,
+  FILTER_SHIFT,
+  DIVERSITY_GAIN,
+  DIVERSITY_PHASE,
+  ZOOM,
+  PAN
+};
+
+extern gint scale_timer;
+extern gint scale_status;
+extern gint scale_rx;
+extern GtkWidget *scale_dialog;
+int scale_timeout_cb(gpointer data);
+
 extern void att_type_changed(void);
 extern void update_att_preamp(void);
 

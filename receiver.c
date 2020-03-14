@@ -41,6 +41,7 @@
 #include "vfo.h"
 #include "meter.h"
 #include "rx_panadapter.h"
+#include "zoompan.h"
 #include "sliders.h"
 #include "waterfall.h"
 #include "new_protocol.h"
@@ -91,15 +92,14 @@ gboolean receiver_button_release_event(GtkWidget *widget, GdkEventButton *event,
     making_active=FALSE;
     g_idle_add(menu_active_receiver_changed,NULL);
     g_idle_add(ext_vfo_update,NULL);
+    g_idle_add(zoompan_active_receiver_changed,NULL);
     g_idle_add(sliders_active_receiver_changed,NULL);
     if(event->button==3) {
       g_idle_add(ext_start_rx,NULL);
     }
 
-    g_print("receiver: %d adc=%d attenuation=%d rx_gain_calibration=%d\n",rx->id,rx->adc,adc_attenuation[rx->adc],rx_gain_calibration);
+    ///g_print("receiver: %d adc=%d attenuation=%d rx_gain_calibration=%d\n",rx->id,rx->adc,adc_attenuation[rx->adc],rx_gain_calibration);
   } else {
-    //int display_width=gtk_widget_get_allocated_width (rx->panadapter);
-    //int display_height=gtk_widget_get_allocated_height (rx->panadapter);
     if(pressed) {
       int x=(int)event->x;
       if (event->button == 1) {
@@ -308,6 +308,12 @@ void receiver_save_state(RECEIVER *rx) {
   sprintf(value,"%f",rx->squelch);
   setProperty(name,value);
 
+  sprintf(name,"receiver.%d.zoom",rx->id);
+  sprintf(value,"%d",rx->zoom);
+  setProperty(name,value);
+  sprintf(name,"receiver.%d.pan",rx->id);
+  sprintf(value,"%d",rx->pan);
+  setProperty(name,value);
 }
 
 void receiver_restore_state(RECEIVER *rx) {
@@ -488,6 +494,12 @@ fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
   value=getProperty(name);
   if(value) rx->squelch=atof(value);
 
+  sprintf(name,"receiver.%d.zoom",rx->id);
+  value=getProperty(name);
+  if(value) rx->zoom=atoi(value);
+  sprintf(name,"receiver.%d.pan",rx->id);
+  value=getProperty(name);
+  if(value) rx->pan=atoi(value);
 }
 
 void reconfigure_receiver(RECEIVER *rx,int height) {
@@ -552,21 +564,23 @@ static gint update_display(gpointer data) {
 //fprintf(stderr,"update_display: %d displaying=%d\n",rx->id,rx->displaying);
 
   if(rx->displaying) {
-    GetPixels(rx->id,0,rx->pixel_samples,&rc);
-    if(rc) {
-      if(rx->display_panadapter) {
-        rx_panadapter_update(rx);
-      }
-      if(rx->display_waterfall) {
-        waterfall_update(rx);
-      }
+    if(rx->pixels>0) {
+      GetPixels(rx->id,0,rx->pixel_samples,&rc);
+      if(rc) {
+        if(rx->display_panadapter) {
+          rx_panadapter_update(rx);
+        }
+        if(rx->display_waterfall) {
+          waterfall_update(rx);
+        }
     }
-
-    if(active_receiver==rx) {
-      double m=GetRXAMeter(rx->id,smeter)+meter_calibration;
-      meter_update(rx,SMETER,m,0.0,0.0,0.0);
+  
+      if(active_receiver==rx) {
+        double m=GetRXAMeter(rx->id,smeter)+meter_calibration;
+        meter_update(rx,SMETER,m,0.0,0.0,0.0);
+      }
+      return TRUE;
     }
-    return TRUE;
   }
   return FALSE;
 }
@@ -677,7 +691,7 @@ static void init_analyzer(RECEIVER *rx) {
 
     overlap = (int)max(0.0, ceil(fft_size - (double)rx->sample_rate / (double)rx->fps));
 
-    fprintf(stderr,"SetAnalyzer id=%d buffer_size=%d overlap=%d\n",rx->id,rx->buffer_size,overlap);
+    //g_print("SetAnalyzer id=%d buffer_size=%d overlap=%d\n",rx->id,rx->buffer_size,overlap);
 
 
     SetAnalyzer(rx->id,
@@ -893,17 +907,9 @@ fprintf(stderr,"create_receiver: id=%d buffer_size=%d fft_size=%d pixels=%d fps=
 fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
 #ifdef SOAPYSDR
   if(radio->device==SOAPYSDR_USB_DEVICE) {
-/*
-    if(strcmp(radio->name,"lime")==0) {
-      rx->sample_rate=384000;
-    } else if(strcmp(radio->name,"rtlsdr")==0) {
-      rx->sample_rate=384000;
-    } else {
-      rx->sample_rate=384000;
-    }
-*/
     rx->sample_rate=radio->info.soapy.sample_rate;
-    rx->resample_step=1;
+    rx->resampler=NULL;
+    rx->resample_buffer=NULL;
   } else {
 #endif
     rx->sample_rate=48000;
@@ -912,22 +918,11 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
 #endif
   rx->buffer_size=buffer_size;
   rx->fft_size=fft_size;
-  rx->pixels=pixels;
   rx->fps=fps;
   rx->update_timer_id=-1;
 
-
-//  rx->dds_offset=0;
-//  rx->rit=0;
-
   rx->width=width;
   rx->height=height;
-
-  // allocate buffers
-  rx->iq_input_buffer=g_new(double,2*rx->buffer_size);
-  rx->audio_buffer_size=480;
-  rx->audio_sequence=0L;
-  rx->pixel_samples=g_new(float,pixels);
 
   rx->samples=0;
   rx->displaying=0;
@@ -992,13 +987,20 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
 
   rx->mute_radio=0;
 
+  rx->fexchange_errors=0;
+
+  rx->zoom=1;
+  rx->pan=0;
+
   receiver_restore_state(rx);
 
-#ifdef SOAPYSDR
-  rx->resample_step=radio->info.soapy.sample_rate/rx->sample_rate;
-#else
-  rx->resample_step=1;
-#endif
+  // allocate buffers
+  rx->iq_input_buffer=g_new(double,2*rx->buffer_size);
+  rx->audio_buffer_size=480;
+  rx->audio_sequence=0L;
+  rx->pixels=pixels*rx->zoom;
+  rx->pixel_samples=g_new(float,rx->pixels);
+
 
 fprintf(stderr,"create_receiver (after restore): rx=%p id=%d audio_buffer_size=%d local_audio=%d\n",rx,rx->id,rx->audio_buffer_size,rx->local_audio);
   //rx->audio_buffer=g_new(guchar,rx->audio_buffer_size);
@@ -1008,7 +1010,7 @@ fprintf(stderr,"create_receiver (after restore): rx=%p id=%d audio_buffer_size=%
 
 fprintf(stderr,"create_receiver: id=%d output_samples=%d\n",rx->id,rx->output_samples);
 
-  rx->hz_per_pixel=(double)rx->sample_rate/(double)rx->width;
+  rx->hz_per_pixel=(double)rx->sample_rate/(double)rx->pixels;
 
   // setup wdsp for this receiver
 
@@ -1069,7 +1071,6 @@ fprintf(stderr,"RXASetMP %d\n",rx->low_latency);
   }
 
   receiver_mode_changed(rx);
-  //receiver_frequency_changed(rx);
 
   int result;
   XCreateAnalyzer(rx->id, &result, 262144, 1, 1, "");
@@ -1143,13 +1144,10 @@ g_print("receiver_change_sample_rate: id=%d rate=%d scale=%d buffer_size=%d outp
   SetInputSamplerate(rx->id, sample_rate);
   SetEXTANBSamplerate (rx->id, sample_rate);
   SetEXTNOBSamplerate (rx->id, sample_rate);
-#ifdef SOAPYSDR
   if(protocol==SOAPYSDR_PROTOCOL) {
-    rx->resample_step=radio_sample_rate/rx->sample_rate;
-g_print("receiver_change_sample_rate: resample_step=%d\n",rx->resample_step);
+    soapy_protocol_change_sample_rate(rx);
     soapy_protocol_set_mic_sample_rate(rx->sample_rate);
   }
-#endif
 
   SetChannelState(rx->id,1,0);
 
@@ -1162,9 +1160,29 @@ void receiver_frequency_changed(RECEIVER *rx) {
   int id=rx->id;
 
   if(vfo[id].ctun) {
+
+    long long frequency=vfo[id].frequency;
+    long long half=(long long)rx->sample_rate/2LL;
+    long long rx_low=vfo[id].ctun_frequency+rx->filter_low;
+    long long rx_high=vfo[id].ctun_frequency+rx->filter_high;
+
+    if(rx->zoom>1) {
+      long long min_display=frequency-half+(long long)((double)rx->pan*rx->hz_per_pixel);
+      long long max_display=min_display+(long long)((double)rx->width*rx->hz_per_pixel);
+      if(rx_low<=min_display) {
+        rx->pan=rx->pan-(rx->width/2);
+        if(rx->pan<0) rx->pan=0;
+        set_pan(id,rx->pan);
+      } else if(rx_high>=max_display) {
+        rx->pan=rx->pan+(rx->width/2);
+        if(rx->pan>(rx->pixels-rx->width)) rx->pan=rx->pixels-rx->width;
+        set_pan(id,rx->pan);
+      }
+    }
+
     vfo[id].offset=vfo[id].ctun_frequency-vfo[id].frequency;
     if(vfo[id].rit_enabled) {
-       vfo[id].offset+=vfo[id].rit;
+      vfo[id].offset+=vfo[id].rit;
     }
     set_offset(rx,vfo[id].offset);
   } else {
@@ -1318,7 +1336,8 @@ void full_rx_buffer(RECEIVER *rx) {
 
   fexchange0(rx->id, rx->iq_input_buffer, rx->audio_output_buffer, &error);
   if(error!=0) {
-    fprintf(stderr,"full_rx_buffer: id=%d fexchange0: error=%d\n",rx->id,error);
+    //fprintf(stderr,"full_rx_buffer: id=%d fexchange0: error=%d\n",rx->id,error);
+    rx->fexchange_errors++;
   }
 
   if(rx->displaying) {
@@ -1355,3 +1374,35 @@ void add_div_iq_samples(RECEIVER *rx, double i0, double q0, double i1, double q1
     rx->samples=0;
   }
 }
+
+void receiver_change_zoom(RECEIVER *rx,double zoom) {
+  g_mutex_lock(&rx->mutex);
+  if(rx->pixel_samples!=NULL) {
+    g_free(rx->pixel_samples);
+  }
+  rx->pixels=rx->width*(int)zoom;
+  rx->pixel_samples=g_new(float,rx->pixels);
+  rx->hz_per_pixel=(double)rx->sample_rate/(double)rx->pixels;
+  if(zoom==0) {
+    rx->pan=0;
+  } else {
+    if(vfo[rx->id].ctun) {
+      long long min_frequency=vfo[rx->id].frequency-(long long)(rx->sample_rate/2);
+      rx->pan=((vfo[rx->id].ctun_frequency-min_frequency)/rx->hz_per_pixel)-(rx->width/2);
+      if(rx->pan<0) rx->pan=0;
+      if(rx->pan>(rx->pixels-rx->width)) rx->pan=rx->pixels-rx->width;
+    } else {
+      rx->pan=(rx->pixels/2)-(rx->width/2);
+    }
+  }
+  rx->zoom=(int)zoom;
+  init_analyzer(rx);
+  g_mutex_unlock(&rx->mutex);
+}
+
+void receiver_change_pan(RECEIVER *rx,double pan) {
+  g_mutex_lock(&rx->mutex);
+  rx->pan=(int)pan;
+  g_mutex_unlock(&rx->mutex);
+}
+

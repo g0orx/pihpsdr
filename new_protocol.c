@@ -1600,6 +1600,7 @@ static gpointer iq_thread(gpointer data) {
     if(ddc_sequence[ddc] !=sequence) {
       g_print("DDC %d sequence error: expected %ld got %ld\n",ddc,ddc_sequence[ddc],sequence);
       ddc_sequence[ddc]=sequence;
+      sequence_errors++;
     }
     ddc_sequence[ddc]++;
 //

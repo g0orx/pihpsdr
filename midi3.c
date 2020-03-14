@@ -44,7 +44,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    }
 	    break;
 	/////////////////////////////////////////////////////////// "AFGAIN"
-	case AF_GAIN: // knob or wheel supported
+	case MIDI_AF_GAIN: // knob or wheel supported
             switch (type) {
 	      case MIDI_KNOB:
 		active_receiver->volume = 0.01*val;
@@ -470,6 +470,17 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	      g_idle_add(ext_vfo_update, NULL);
 	    }
 	    break;
+	/////////////////////////////////////////////////////////// "PAN"
+        case MIDI_PAN:  // wheel and knob
+	    switch (type) {
+              case MIDI_WHEEL:
+                g_idle_add(ext_pan_update,GINT_TO_POINTER(val));
+                break;
+	      case MIDI_KNOB:
+                g_idle_add(ext_pan_set,GINT_TO_POINTER(val));
+                break;
+            }
+            break;
 	/////////////////////////////////////////////////////////// "PANHIGH"
 	case PAN_HIGH:  // wheel or knob
 	    switch (type) {
@@ -804,6 +815,38 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
               // enable/disable XIT according to XIT value
               transmitter->xit_enabled = (transmitter->xit == 0) ? 0 : 1;
               g_idle_add(ext_vfo_update, NULL);
+	    }
+            break;
+	/////////////////////////////////////////////////////////// "ZOOM"
+        case MIDI_ZOOM:  // wheel and knob
+            switch (type) {
+              case MIDI_WHEEL:
+g_print("MIDI_ZOOM: MIDI_WHEEL: val=%d\n",val);
+                g_idle_add(ext_zoom_update,GINT_TO_POINTER(val));
+                break;
+              case MIDI_KNOB:
+g_print("MIDI_ZOOM: MIDI_KNOB: val=%d\n",val);
+                g_idle_add(ext_zoom_set,GINT_TO_POINTER(val));
+                break;
+            }
+            break;
+	/////////////////////////////////////////////////////////// "ZOOMDOWN"
+	/////////////////////////////////////////////////////////// "ZOOMUP"
+        case ZOOM_UP:  // key
+        case ZOOM_DOWN:  // key
+	    switch (type) {
+	      case MIDI_KEY:
+		new =  (action == ZOOM_UP) ? 1 : -1;
+                g_idle_add(ext_zoom_update,GINT_TO_POINTER(new));
+		break;
+	      case MIDI_WHEEL:
+		new = (val > 0) ? 1 : -1;
+                g_idle_add(ext_zoom_update,GINT_TO_POINTER(new));
+		break;
+	      default:
+		// do nothing
+		// we should not come here anyway
+		break;
 	    }
             break;
 

@@ -67,6 +67,12 @@ GtkWidget *tcpaddr;
 static char ipaddr_tcp_buf[IPADDR_LEN] = "10.10.10.10";
 char *ipaddr_tcp = &ipaddr_tcp_buf[0];
 
+#ifdef SERVER
+GtkWidget *connect_addr_entry;
+static char connect_addr_buffer[30]="0.0.0.0:50000";
+char *connect_addr = &connect_addr_buffer[0];
+#endif
+
 static gboolean delete_event_cb(GtkWidget *widget, GdkEvent *event, gpointer data) {
   _exit(0);
 }
@@ -256,6 +262,15 @@ static gboolean tcp_cb (GtkWidget *widget, GdkEventButton *event, gpointer data)
 	    return TRUE;
 	}
 
+#ifdef SERVER
+static gboolean connect_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  // connect to remote host running piHPSDR
+  strncpy(connect_addr, gtk_entry_get_text(GTK_ENTRY(connect_addr_entry)), 30);
+g_print("connect_cb: %s\n",connect_addr);
+  return TRUE;
+}
+#endif
+
 void discovery() {
 //fprintf(stderr,"discovery\n");
 
@@ -401,11 +416,11 @@ void discovery() {
     //gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
     gtk_grid_set_row_spacing (GTK_GRID(grid),10);
 
-    int i;
+    int row;
     char version[16];
     char text[256];
-    for(i=0;i<devices;i++) {
-      d=&discovered[i];
+    for(row=0;row<devices;row++) {
+      d=&discovered[row];
 fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
       sprintf(version,"v%d.%d",
                         d->software_version/10,
@@ -460,12 +475,12 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
       gtk_widget_override_font(label, pango_font_description_from_string("Sans 11"));
       gtk_widget_set_halign (label, GTK_ALIGN_START);
       gtk_widget_show(label);
-      gtk_grid_attach(GTK_GRID(grid),label,0,i,3,1);
+      gtk_grid_attach(GTK_GRID(grid),label,0,row,3,1);
 
       GtkWidget *start_button=gtk_button_new_with_label("Start");
       gtk_widget_override_font(start_button, pango_font_description_from_string("Sans 16"));
       gtk_widget_show(start_button);
-      gtk_grid_attach(GTK_GRID(grid),start_button,3,i,1,1);
+      gtk_grid_attach(GTK_GRID(grid),start_button,3,row,1,1);
       g_signal_connect(start_button,"button_press_event",G_CALLBACK(start_cb),(gpointer)d);
 
       // if not available then cannot start it
@@ -492,37 +507,37 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
           gtk_button_set_label(GTK_BUTTON(start_button), "Not installed");
           gtk_widget_set_sensitive(start_button, FALSE);
         } else {
-          apps_combobox[i] = gtk_combo_box_text_new();
-          gtk_widget_override_font(apps_combobox[i], pango_font_description_from_string("Sans 11"));
+          apps_combobox[row] = gtk_combo_box_text_new();
+          gtk_widget_override_font(apps_combobox[row], pango_font_description_from_string("Sans 11"));
           // We want the default selection priority for the STEMlab app to be
           // RP-Trx > HAMlab-Trx > Pavel-Trx > Pavel-Rx, so we add in decreasing order and
           // always set the newly added entry to be active.
           if ((d->software_version & STEMLAB_PAVEL_RX) != 0) {
-            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox[i]),
+            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox[row]),
                 "sdr_receiver_hpsdr", "Pavel-Rx");
-            gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox[i]),
+            gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox[row]),
                 "sdr_receiver_hpsdr");
           }
           if ((d->software_version & STEMLAB_PAVEL_TRX) != 0) {
-            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox[i]),
+            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox[row]),
                 "sdr_transceiver_hpsdr", "Pavel-Trx");
-            gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox[i]),
+            gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox[row]),
                 "sdr_transceiver_hpsdr");
           }
           if ((d->software_version & HAMLAB_RP_TRX) != 0) {
-            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox[i]),
+            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox[row]),
                 "hamlab_sdr_transceiver_hpsdr", "HAMlab-Trx");
-            gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox[i]),
+            gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox[row]),
                 "hamlab_sdr_transceiver_hpsdr");
           }
           if ((d->software_version & STEMLAB_RP_TRX) != 0) {
-            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox[i]),
+            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox[row]),
                 "stemlab_sdr_transceiver_hpsdr", "STEMlab-Trx");
-            gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox[i]),
+            gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox[row]),
                 "stemlab_sdr_transceiver_hpsdr");
           }
-          gtk_widget_show(apps_combobox[i]);
-          gtk_grid_attach(GTK_GRID(grid), apps_combobox[i], 4, i, 1, 1);
+          gtk_widget_show(apps_combobox[row]);
+          gtk_grid_attach(GTK_GRID(grid), apps_combobox[row], 4, i, 1, 1);
         }
       }
 #endif
@@ -538,8 +553,7 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
     gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(gpio),NULL,"Controller1");
     gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(gpio),NULL,"Controller2 V1");
     gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(gpio),NULL,"Controller2 V2");
-    gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(gpio),NULL,"Custom");
-    gtk_grid_attach(GTK_GRID(grid),gpio,0,i,1,1);
+    gtk_grid_attach(GTK_GRID(grid),gpio,0,row,1,1);
 
     gtk_combo_box_set_active(GTK_COMBO_BOX(gpio),controller);
     g_signal_connect(gpio,"changed",G_CALLBACK(gpio_changed_cb),NULL);
@@ -547,38 +561,53 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
 
     GtkWidget *discover_b=gtk_button_new_with_label("Discover");
     g_signal_connect (discover_b, "button-press-event", G_CALLBACK(discover_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),discover_b,1,i,1,1);
+    gtk_grid_attach(GTK_GRID(grid),discover_b,1,row,1,1);
 
     GtkWidget *protocols_b=gtk_button_new_with_label("Protocols");
     g_signal_connect (protocols_b, "button-press-event", G_CALLBACK(protocols_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),protocols_b,2,i,1,1);
+    gtk_grid_attach(GTK_GRID(grid),protocols_b,2,row,1,1);
 
 #ifdef MIDI
     GtkWidget *midi_b=gtk_button_new_with_label("ImportMIDI");
     g_signal_connect (midi_b, "button-press-event", G_CALLBACK(midi_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),midi_b,3,i,1,1);
+    gtk_grid_attach(GTK_GRID(grid),midi_b,3,row,1,1);
 #endif
 
-    i++;
+    row++;
 
 #ifdef GPIO
     GtkWidget *gpio_b=gtk_button_new_with_label("Configure GPIO");
     g_signal_connect (gpio_b, "button-press-event", G_CALLBACK(gpio_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),gpio_b,0,i,1,1);
+    gtk_grid_attach(GTK_GRID(grid),gpio_b,0,row,1,1);
 #endif
 
     GtkWidget *tcp_b=gtk_button_new_with_label("Use new TCP Addr:");
     g_signal_connect (tcp_b, "button-press-event", G_CALLBACK(tcp_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),tcp_b,1,i,1,1);
+    gtk_grid_attach(GTK_GRID(grid),tcp_b,1,row,1,1);
 
     tcpaddr=gtk_entry_new();
     gtk_entry_set_max_length(GTK_ENTRY(tcpaddr), 20);
-    gtk_grid_attach(GTK_GRID(grid),tcpaddr,2,i,1,1);
+    gtk_grid_attach(GTK_GRID(grid),tcpaddr,2,row,1,1);
     gtk_entry_set_text(GTK_ENTRY(tcpaddr), ipaddr_tcp);
 
     GtkWidget *exit_b=gtk_button_new_with_label("Exit");
     g_signal_connect (exit_b, "button-press-event", G_CALLBACK(exit_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),exit_b,3,i,1,1);
+    gtk_grid_attach(GTK_GRID(grid),exit_b,3,row,1,1);
+
+#ifdef SERVER
+    row++;
+
+    GtkWidget *connect_b=gtk_button_new_with_label("Connect (Addr:Port)");
+    g_signal_connect (connect_b, "button-press-event", G_CALLBACK(connect_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),connect_b,0,row,1,1);
+
+    connect_addr_entry=gtk_entry_new();
+    gtk_entry_set_max_length(GTK_ENTRY(connect_addr_entry), 30);
+    gtk_grid_attach(GTK_GRID(grid),connect_addr_entry,1,row,1,1);
+    gtk_entry_set_text(GTK_ENTRY(connect_addr_entry), connect_addr);
+
+#endif
+    
 
     gtk_container_add (GTK_CONTAINER (content), grid);
     gtk_widget_show_all(discovery_dialog);

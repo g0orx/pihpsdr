@@ -532,6 +532,7 @@ static gpointer receive_thread(gpointer arg) {
 	      // and is no error condition
               if (sequence != 0 && sequence != last_seq_num+1) {
 		g_print("SEQ ERROR: last %ld, recvd %ld\n", (long) last_seq_num, (long) sequence);
+                sequence_errors++;
 	      }
 	      last_seq_num=sequence;
               switch(ep) {
