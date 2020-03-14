@@ -479,6 +479,9 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	      case MIDI_KNOB:
                 g_idle_add(ext_pan_set,GINT_TO_POINTER(val));
                 break;
+	      default:
+		// no action for keys (we should not come here anyway)
+		break;
             }
             break;
 	/////////////////////////////////////////////////////////// "PANHIGH"
@@ -828,6 +831,9 @@ g_print("MIDI_ZOOM: MIDI_WHEEL: val=%d\n",val);
 g_print("MIDI_ZOOM: MIDI_KNOB: val=%d\n",val);
                 g_idle_add(ext_zoom_set,GINT_TO_POINTER(val));
                 break;
+	      default:
+		// no action for keys (should not come here anyway)
+		break;
             }
             break;
 	/////////////////////////////////////////////////////////// "ZOOMDOWN"

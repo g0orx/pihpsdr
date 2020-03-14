@@ -69,7 +69,10 @@
 #include "iambic.h"
 #endif
 #ifdef MIDI
-#include "midi.h"
+// rather than including MIDI.h with all its internal stuff
+// (e.g. enum components) we just declare the single bit thereof
+// we need here to make a strict compiler happy.
+void MIDIstartup();
 #endif
 #ifdef SERVER
 #include "hpsdr_server.h"
