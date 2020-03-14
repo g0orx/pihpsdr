@@ -537,7 +537,7 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
                 "stemlab_sdr_transceiver_hpsdr");
           }
           gtk_widget_show(apps_combobox[row]);
-          gtk_grid_attach(GTK_GRID(grid), apps_combobox[row], 4, i, 1, 1);
+          gtk_grid_attach(GTK_GRID(grid), apps_combobox[row], 4, row, 1, 1);
         }
       }
 #endif

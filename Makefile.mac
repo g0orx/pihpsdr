@@ -26,6 +26,9 @@ STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_NOAVAHI
 # uncomment the line below to include MIDI support
 MIDI_INCLUDE=MIDI
 
+# very early code not included yet
+#SERVER_INCLUDE=SERVER
+
 # uncomment the line below for various debug facilities
 #DEBUG_OPTION=-D DEBUG
 
@@ -126,6 +129,16 @@ STEMLAB_HEADERS=stemlab_discovery.h
 STEMLAB_OBJS=stemlab_discovery.o
 endif
 
+ifeq ($(SERVER_INCLUDE), SERVER)
+SERVER_OPTIONS=-D SERVER
+SERVER_SOURCES= \
+hpsdr_server.c
+SERVER_HEADERS= \
+hpsdr_server.h
+SERVER_OBJS= \
+hpsdr_server.o
+endif
+
 GTKINCLUDES=`pkg-config --cflags gtk+-3.0`
 GTKLIBS=`pkg-config --libs gtk+-3.0`
 
@@ -201,6 +214,7 @@ rigctl.c \
 rigctl_menu.c \
 toolbar.c \
 transmitter.c \
+zoompan.c \
 sliders.c \
 version.c \
 vfo.c \
@@ -271,6 +285,7 @@ rigctl.h \
 rigctl_menu.h \
 toolbar.h \
 transmitter.h \
+zoompan.h \
 sliders.h \
 version.h \
 vfo.h \
@@ -340,6 +355,7 @@ rigctl.o \
 rigctl_menu.o \
 toolbar.o \
 transmitter.o \
+zoompan.o \
 sliders.o \
 vfo.o \
 waterfall.o \

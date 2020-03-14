@@ -1144,10 +1144,12 @@ g_print("receiver_change_sample_rate: id=%d rate=%d scale=%d buffer_size=%d outp
   SetInputSamplerate(rx->id, sample_rate);
   SetEXTANBSamplerate (rx->id, sample_rate);
   SetEXTNOBSamplerate (rx->id, sample_rate);
+#ifdef SOAPYSDR
   if(protocol==SOAPYSDR_PROTOCOL) {
     soapy_protocol_change_sample_rate(rx);
     soapy_protocol_set_mic_sample_rate(rx->sample_rate);
   }
+#endif
 
   SetChannelState(rx->id,1,0);
 
