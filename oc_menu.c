@@ -209,7 +209,9 @@ void oc_menu(GtkWidget *parent) {
 
   //
   // fused loop. i runs over the following values:
-  // band_gen, 0 ... bands-1, BANDS ... BANDS+XVTRS-1
+  // bandGen, 0 ... bands-1, BANDS ... BANDS+XVTRS-1
+  // XVTR bands not-yet-assigned have an empty title
+  // and are filtered out
   //
   i=bandGen;
   for(;;) {
@@ -243,6 +245,7 @@ void oc_menu(GtkWidget *parent) {
       }
       row++;
     }
+    // update "loop index"
     if (i == bandGen) {
       i=0;
     } else if (i == bands-1) {
