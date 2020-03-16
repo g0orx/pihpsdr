@@ -361,7 +361,7 @@ void reconfigure_radio() {
       zoompan = zoompan_init(display_width,ZOOMPAN_HEIGHT);
       gtk_fixed_put(GTK_FIXED(fixed),zoompan,0,y);
     } else {
-      gtk_fixed_put(GTK_FIXED(fixed),zoompan,0,y);
+      gtk_fixed_move(GTK_FIXED(fixed),zoompan,0,y);
     }
     gtk_widget_show_all(zoompan);
     y+=ZOOMPAN_HEIGHT;

@@ -207,7 +207,14 @@ void oc_menu(GtkWidget *parent) {
 
   int row=3;
 
-  for(i=0;i<bands;i++) {
+  //
+  // fused loop. i runs over the following values:
+  // bandGen, 0 ... bands-1, BANDS ... BANDS+XVTRS-1
+  // XVTR bands not-yet-assigned have an empty title
+  // and are filtered out
+  //
+  i=bandGen;
+  for(;;) {
     BAND *band=band_get_band(i);
     if(strlen(band->title)>0) {
       GtkWidget *band_label=gtk_label_new(NULL);
@@ -238,36 +245,15 @@ void oc_menu(GtkWidget *parent) {
       }
       row++;
     }
-  }
-
-  for(i=BANDS;i<BANDS+XVTRS;i++) {
-    BAND *band=band_get_band(i);
-    if(strlen(band->title)>0) {
-      GtkWidget *band_label=gtk_label_new(band->title);
-      //gtk_widget_override_font(band_label, pango_font_description_from_string("Arial 18"));
-      gtk_widget_show(band_label);
-      gtk_grid_attach(GTK_GRID(grid),band_label,0,row,1,1);
-
-      int mask;
-      for(j=1;j<8;j++) {
-        mask=0x01<<(j-1);
-        GtkWidget *oc_rx_b=gtk_check_button_new();
-        //gtk_widget_override_font(oc_rx_b, pango_font_description_from_string("Arial 18"));
-        gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (oc_rx_b), (band->OCrx&mask)==mask);
-        gtk_widget_show(oc_rx_b);
-        gtk_grid_attach(GTK_GRID(grid),oc_rx_b,j,row,1,1);
-        g_signal_connect(oc_rx_b,"toggled",G_CALLBACK(oc_rx_cb),(gpointer)(long)(j+(i<<4)));
-  
-        GtkWidget *oc_tx_b=gtk_check_button_new();
-        //gtk_widget_override_font(oc_tx_b, pango_font_description_from_string("Arial 18"));
-        gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (oc_tx_b), (band->OCtx&mask)==mask);
-        gtk_widget_show(oc_tx_b);
-        gtk_grid_attach(GTK_GRID(grid),oc_tx_b,j+7,row,1,1);
-        g_signal_connect(oc_tx_b,"toggled",G_CALLBACK(oc_tx_cb),(gpointer)(long)(j+(i<<4)));
-
-      }
-      row++;
+    // update "loop index"
+    if (i == bandGen) {
+      i=0;
+    } else if (i == bands-1) {
+      i=BANDS;
+    } else {
+      i++;
     }
+    if (i >= BANDS+XVTRS) break;
   }
 
   int mask;
