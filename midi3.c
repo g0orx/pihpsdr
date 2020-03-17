@@ -91,6 +91,12 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    *dp=dnew;
 	    g_idle_add(ext_set_agc_gain, (gpointer) dp);
 	    break;
+	/////////////////////////////////////////////////////////// "ANF"
+	case ANF:	// only key supported
+	    if (type == MIDI_KEY) {
+	      g_idle_add(ext_anf_update, NULL);
+	    }
+	    break;
 	/////////////////////////////////////////////////////////// "ATT"
 	case ATT:	// Key for ALEX attenuator, wheel or knob for slider
 	    switch(type) {
@@ -590,7 +596,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
             } else  if (type == MIDI_WHEEL) {
                 new=(int)active_receiver->rf_gain+val;
             }
-            g_idle_add(ext_set_rf_gain, GINT_TO_POINTER((int)val));
+            g_idle_add(ext_set_rf_gain, GINT_TO_POINTER((int)new));
 	    break;
 	/////////////////////////////////////////////////////////// "RFPOWER"
 	case TX_DRIVE: // knob or wheel supported
@@ -693,6 +699,12 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    }
 	    g_idle_add(ext_vfo_update, NULL);
             break;
+	/////////////////////////////////////////////////////////// "SNB"
+	case SNB:	// only key supported
+	    if (type == MIDI_KEY) {
+	      g_idle_add(ext_snb_update, NULL);
+	    }
+	    break;
 	/////////////////////////////////////////////////////////// "SPLIT"
 	case MIDI_SPLIT: // only key supported
 	    // toggle split mode

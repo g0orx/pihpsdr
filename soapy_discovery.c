@@ -120,10 +120,10 @@ static void get_info(char *driver) {
 
   if(strcmp(driver,"lime")==0) {
     sample_rate=768000;
+  } else if(strcmp(driver,"plutosdr")==0) {
+    sample_rate=768000;
   } else if(strcmp(driver,"rtlsdr")==0) {
     sample_rate=1024000;
-  } else if(strcmp(driver,"plutosdr")==0) {
-    sample_rate=2048000;
   } else {
     sample_rate=1024000;
   }
@@ -263,7 +263,7 @@ void soapy_discovery() {
 fprintf(stderr,"soapy_discovery\n");
   rtlsdr_count=0;
   SoapySDRKwargs *results = SoapySDRDevice_enumerate(NULL, &length);
-fprintf(stderr,"soapy_discovery: length=%d\n",(int)length);
+fprintf(stderr,"soapy_discovery: length=%d\n",length);
   for (i = 0; i < length; i++) {
     for (size_t j = 0; j < results[i].size; j++) {
       if(strcmp(results[i].keys[j],"driver")==0 && strcmp(results[i].vals[j],"audio")!=0) {

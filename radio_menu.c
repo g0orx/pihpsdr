@@ -785,6 +785,7 @@ void radio_menu(GtkWidget *parent) {
     row++;
     temp_row=row;
 
+    col=0;
     if(radio->info.soapy.rx_has_automatic_gain) {
       GtkWidget *agc=gtk_check_button_new_with_label("Hardware AGC: ");
       gtk_grid_attach(GTK_GRID(grid),agc,col,row,1,1);

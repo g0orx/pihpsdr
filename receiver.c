@@ -565,6 +565,7 @@ static gint update_display(gpointer data) {
 
   if(rx->displaying) {
     if(rx->pixels>0) {
+      g_mutex_lock(&rx->display_mutex);
       GetPixels(rx->id,0,rx->pixel_samples,&rc);
       if(rc) {
         if(rx->display_panadapter) {
@@ -573,8 +574,8 @@ static gint update_display(gpointer data) {
         if(rx->display_waterfall) {
           waterfall_update(rx);
         }
-    }
-  
+      }
+      g_mutex_unlock(&rx->display_mutex);
       if(active_receiver==rx) {
         double m=GetRXAMeter(rx->id,smeter)+meter_calibration;
         meter_update(rx,SMETER,m,0.0,0.0,0.0);
@@ -787,6 +788,10 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
       rx->pixels = 8*width;
     }
   }
+
+  // need mutex for zoom/pan
+  g_mutex_init(&rx->display_mutex);
+
   // allocate buffers
   rx->iq_input_buffer=g_new(double,2*rx->buffer_size);
   //rx->audio_buffer=NULL;
@@ -872,6 +877,8 @@ fprintf(stderr,"create_receiver: id=%d buffer_size=%d fft_size=%d pixels=%d fps=
   RECEIVER *rx=malloc(sizeof(RECEIVER));
   rx->id=id;
   g_mutex_init(&rx->mutex);
+  g_mutex_init(&rx->display_mutex);
+fprintf(stderr,"create_receiver: g_mutex_init: %p\n",&rx->mutex);
   switch(id) {
     case 0:
       rx->adc=0;
@@ -1109,6 +1116,7 @@ void receiver_change_sample_rate(RECEIVER *rx,int sample_rate) {
 //
 
   g_mutex_lock(&rx->mutex);
+fprintf(stderr,"receiver_change_sample_rate: g_mutex_lock: %p\n",&rx->mutex);
 
   rx->sample_rate=sample_rate;
   int scale=rx->sample_rate/48000;
@@ -1130,6 +1138,7 @@ g_print("receiver_change_sample_rate: id=%d rate=%d scale=%d buffer_size=%d outp
     init_analyzer(rx);
     fprintf(stderr,"PS FEEDBACK change sample rate:id=%d rate=%d buffer_size=%d output_samples=%d\n",
                    rx->id, rx->sample_rate, rx->buffer_size, rx->output_samples);
+fprintf(stderr,"receiver_change_sample_rate: g_mutex_unlock: %p\n",&rx->mutex);
     g_mutex_unlock(&rx->mutex);
     return;
   }
@@ -1153,6 +1162,7 @@ g_print("receiver_change_sample_rate: id=%d rate=%d scale=%d buffer_size=%d outp
 
   SetChannelState(rx->id,1,0);
 
+fprintf(stderr,"receiver_change_sample_rate: g_mutex_unlock: %p\n",&rx->mutex);
   g_mutex_unlock(&rx->mutex);
 
 fprintf(stderr,"receiver_change_sample_rate: id=%d rate=%d buffer_size=%d output_samples=%d\n",rx->id, rx->sample_rate, rx->buffer_size, rx->output_samples);
@@ -1326,8 +1336,6 @@ static void process_rx_buffer(RECEIVER *rx) {
 void full_rx_buffer(RECEIVER *rx) {
   int error;
 
-  g_mutex_lock(&rx->mutex);
-
   // noise blanker works on original IQ samples
   if(rx->nb) {
      xanbEXT (rx->id, rx->iq_input_buffer, rx->iq_input_buffer);
@@ -1348,7 +1356,6 @@ void full_rx_buffer(RECEIVER *rx) {
 
 //g_print("full_rx_buffer: rx=%d buffer_size=%d samples=%d\n",rx->id,rx->buffer_size,rx->samples);
   process_rx_buffer(rx);
-  g_mutex_unlock(&rx->mutex);
 }
 
 static int rx_buffer_seen=0;
@@ -1378,7 +1385,7 @@ void add_div_iq_samples(RECEIVER *rx, double i0, double q0, double i1, double q1
 }
 
 void receiver_change_zoom(RECEIVER *rx,double zoom) {
-  g_mutex_lock(&rx->mutex);
+  g_mutex_lock(&rx->display_mutex);
   if(rx->pixel_samples!=NULL) {
     g_free(rx->pixel_samples);
   }
@@ -1399,12 +1406,12 @@ void receiver_change_zoom(RECEIVER *rx,double zoom) {
   }
   rx->zoom=(int)zoom;
   init_analyzer(rx);
-  g_mutex_unlock(&rx->mutex);
+  g_mutex_unlock(&rx->display_mutex);
 }
 
 void receiver_change_pan(RECEIVER *rx,double pan) {
-  g_mutex_lock(&rx->mutex);
+  g_mutex_lock(&rx->display_mutex);
   rx->pan=(int)pan;
-  g_mutex_unlock(&rx->mutex);
+  g_mutex_unlock(&rx->display_mutex);
 }
 

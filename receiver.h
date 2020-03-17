@@ -37,6 +37,7 @@ typedef enum _audio_t audio_t;
 typedef struct _receiver {
   gint id;
   GMutex mutex;
+  GMutex display_mutex;
 
   gint ddc;
   gint adc;

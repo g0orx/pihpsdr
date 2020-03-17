@@ -89,6 +89,7 @@ g_print("soapy_protocol_set_mic_sample_rate: rate=%d mic_sample_divisor=%d\n",ra
 }
 
 void soapy_protocol_change_sample_rate(RECEIVER *rx) {
+// rx->mutex already locked
 g_print("soapy_protocol_change_sample_rate: %d\n",rx->sample_rate);
   if(rx->sample_rate==radio_sample_rate) {
     if(rx->resample_buffer!=NULL) {
@@ -311,7 +312,8 @@ fprintf(stderr,"soapy_protocol: receive_thread\n");
   while(running) {
     elements=SoapySDRDevice_readStream(soapy_device,rx_stream,buffs,max_samples,&flags,&timeNs,timeoutUs);
     if(elements<0) {
-      fprintf(stderr,"soapy_protocol_receive_thread: SoapySDRDevice_readStream failed: %s max_samples=%d\n",SoapySDR_errToStr(elements),max_samples);
+      fprintf(stderr,"soapy_protocol_receive_thread: SoapySDRDevice_readStream failed: %s max_samples=%d read=%d\n",SoapySDR_errToStr(elements),max_samples,elements);
+      continue;
     }
     for(i=0;i<elements;i++) {
       rx->buffer[i*2]=(double)buffer[i*2];
@@ -446,7 +448,7 @@ void soapy_protocol_set_tx_frequency(TRANSMITTER *tx) {
 void soapy_protocol_set_rx_antenna(RECEIVER *rx,int ant) {
   int rc;
   if(soapy_device!=NULL) {
-//    fprintf(stderr,"soapy_protocol: set_rx_antenna: %s\n",radio->info.soapy.rx_antenna[ant]);
+    g_print("soapy_protocol: set_rx_antenna: %s\n",radio->info.soapy.rx_antenna[ant]);
     rc=SoapySDRDevice_setAntenna(soapy_device,SOAPY_SDR_RX,rx->adc,radio->info.soapy.rx_antenna[ant]);
     if(rc!=0) {
       fprintf(stderr,"soapy_protocol: SoapySDRDevice_setAntenna RX failed: %s\n",SoapySDR_errToStr(rc));
@@ -457,7 +459,7 @@ void soapy_protocol_set_rx_antenna(RECEIVER *rx,int ant) {
 void soapy_protocol_set_tx_antenna(TRANSMITTER *tx,int ant) {
   int rc;
   if(soapy_device!=NULL) {
-//    fprintf(stderr,"soapy_protocol: set_tx_antenna: %s\n",radio->info.soapy.tx_antenna[ant]);
+    g_print("soapy_protocol: set_tx_antenna: %s\n",radio->info.soapy.tx_antenna[ant]);
     rc=SoapySDRDevice_setAntenna(soapy_device,SOAPY_SDR_TX,tx->dac,radio->info.soapy.tx_antenna[ant]);
     if(rc!=0) {
       fprintf(stderr,"soapy_protocol: SoapySDRDevice_setAntenna TX failed: %s\n",SoapySDR_errToStr(rc));
