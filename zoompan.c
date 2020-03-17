@@ -57,7 +57,7 @@ static GdkRGBA gray;
 int zoompan_active_receiver_changed(void *data) {
   if(display_zoompan) {
     gtk_range_set_value(GTK_RANGE(zoom_scale),active_receiver->zoom);
-    gtk_range_set_range(GTK_RANGE(pan_scale),0.0,(double)(active_receiver->pixels-active_receiver->width));
+    gtk_range_set_range(GTK_RANGE(pan_scale),0.0,(double)(active_receiver->zoom==1?active_receiver->pixels:active_receiver->pixels-active_receiver->width));
     gtk_range_set_value (GTK_RANGE(pan_scale),active_receiver->pan);
     if(active_receiver->zoom == 1) {
       gtk_widget_set_sensitive(pan_scale, FALSE);
@@ -68,7 +68,7 @@ int zoompan_active_receiver_changed(void *data) {
 
 static void zoom_value_changed_cb(GtkWidget *widget, gpointer data) {
   receiver_change_zoom(active_receiver,gtk_range_get_value(GTK_RANGE(zoom_scale)));
-  gtk_range_set_range(GTK_RANGE(pan_scale),0.0,(double)(active_receiver->pixels-active_receiver->width));
+  gtk_range_set_range(GTK_RANGE(pan_scale),0.0,(double)(active_receiver->zoom==1?active_receiver->pixels:active_receiver->pixels-active_receiver->width));
   gtk_range_set_value (GTK_RANGE(pan_scale),active_receiver->pan);
   if(active_receiver->zoom == 1) {
     gtk_widget_set_sensitive(pan_scale, FALSE);
@@ -125,6 +125,7 @@ static void pan_value_changed_cb(GtkWidget *widget, gpointer data) {
 }
 
 void set_pan(int rx,double value) {
+g_print("set_pan: %f\n",value);
   receiver[rx]->pan=(int)value;
   if(display_zoompan) {
     gtk_range_set_value (GTK_RANGE(pan_scale),receiver[rx]->pan);
@@ -143,7 +144,7 @@ void set_pan(int rx,double value) {
       sprintf(title,"Pan RX %d",rx);
       scale_dialog=gtk_dialog_new_with_buttons(title,GTK_WINDOW(top_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
       GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
-      pan_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, active_receiver->zoom==1?active_receiver->pixels:active_receiver->pixels-active_receiver->width, 1.00);
+      pan_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, receiver[rx]->zoom==1?receiver[rx]->pixels:receiver[rx]->pixels-receiver[rx]->width, 1.00);
       gtk_widget_set_size_request (pan_scale, 400, 30);
       gtk_range_set_value (GTK_RANGE(pan_scale),receiver[rx]->pan);
       gtk_widget_show(pan_scale);
@@ -159,10 +160,12 @@ void set_pan(int rx,double value) {
 }
 
 void update_pan(double pan) {
-  int p=active_receiver->pan+(int)pan;
-  if(p<0) p=0;
-  if(p>(active_receiver->pixels-active_receiver->width)) p=active_receiver->pixels-active_receiver->width;
-  set_pan(active_receiver->id,p);
+  if(active_receiver->zoom>1) {
+    int p=active_receiver->pan+(int)pan;
+    if(p<0) p=0;
+    if(p>(active_receiver->pixels-active_receiver->width)) p=active_receiver->pixels-active_receiver->width;
+    set_pan(active_receiver->id,(double)p);
+  }
 }
 
 GtkWidget *zoompan_init(int my_width, int my_height) {

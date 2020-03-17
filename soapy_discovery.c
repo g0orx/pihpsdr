@@ -120,10 +120,10 @@ static void get_info(char *driver) {
 
   if(strcmp(driver,"lime")==0) {
     sample_rate=768000;
+  } else if(strcmp(driver,"plutosdr")==0) {
+    sample_rate=768000;
   } else if(strcmp(driver,"rtlsdr")==0) {
     sample_rate=1024000;
-  } else if(strcmp(driver,"plutosdr")==0) {
-    sample_rate=2048000;
   } else {
     sample_rate=1024000;
   }

@@ -83,6 +83,7 @@ enum {
   A_TO_B,
   A_SWAP_B,
   AGC,
+  ANF,
   B_TO_A,
   BAND_MINUS,
   BAND_PLUS,

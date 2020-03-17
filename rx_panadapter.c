@@ -334,7 +334,7 @@ void rx_panadapter_update(RECEIVER *rx) {
           break;
       }
       break;
-    case 1048576:
+    case 1024000:
     case 1536000:
     case 2097152:
       divisor=200000L;

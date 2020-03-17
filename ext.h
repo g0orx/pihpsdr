@@ -77,6 +77,7 @@ extern int ext_two_tone(void *data);
 extern int ext_nr_update(void *data);
 extern int ext_nb_update(void *data);
 extern int ext_snb_update(void *data);
+extern int ext_anf_update(void *data);
 extern int ext_band_plus(void *data);
 extern int ext_band_minus(void *data);
 extern int ext_bandstack_plus(void *data);

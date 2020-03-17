@@ -245,6 +245,7 @@ char *sw_string[SWITCH_ACTIONS] = {
   "A TO B",
   "A SWAP B",
   "AGC",
+  "ANF",
   "B TO A",
   "BAND -",
   "BAND +",
@@ -1489,11 +1490,11 @@ void gpio_save_state() {
 
 #ifdef PTT
   sprintf(value,"%d",ENABLE_PTT_GPIO);		
-  setProperty("ENABLE_PPT_GPIO",value);		
+  setProperty("ENABLE_PTT_GPIO",value);		
   sprintf(value,"%d",PTT_GPIO);		
-  setProperty("PPT_GPIO",value);		
+  setProperty("PTT_GPIO",value);		
   sprintf(value,"%d",PTT_ACTIVE_LOW);		
-  setProperty("PPT_ACTIVE_LOW",value);		
+  setProperty("PTT_ACTIVE_LOW",value);		
 #endif
   saveProperties("gpio.props");
 

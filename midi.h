@@ -52,6 +52,7 @@ enum MIDIaction {
   MIDI_AF_GAIN,		// AFGAIN:		AF gain
   AGCATTACK,		// AGCATTACK:		AGC ATTACK (cycle fast/med/slow etc.)
   MIDI_AGC,		// AGCVAL:		AGC level
+  ANF,			// ANF:			toggel ANF on/off
   ATT,			// ATT:			Step attenuator or Programmable attenuator
   VFO_B2A,		// B2A:			VFO B -> A
   BAND_DOWN,		// BANDDOWN:		cycle through bands downwards
@@ -92,6 +93,7 @@ enum MIDIaction {
   RIT_TOGGLE,  		// RITTOGGLE:		toggle RIT on/off
   RIT_VAL,		// RITVAL:		change RIT value
   MIDI_SAT,		// SAT:			cycle through SAT modes off/SAT/RSAT
+  SNB,			// SNB:			toggle SNB on/off
   MIDI_SPLIT,		// SPLIT:		Split on/off
   SWAP_RX, 		// SWAPRX:		swap active receiver (if there are two receivers)
   SWAP_VFO,		// SWAPVFO:		swap VFO A/B frequency

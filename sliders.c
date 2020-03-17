@@ -386,7 +386,7 @@ void set_rf_gain(int rx,double value) {
   }
 #endif
   if(display_sliders) {
-    gtk_range_set_value (GTK_RANGE(rf_gain_scale),receiver[rx]->rf_gain);
+    gtk_range_set_value (GTK_RANGE(attenuation_scale),receiver[rx]->rf_gain);
   } else {
     if(scale_status!=RF_GAIN || scale_rx!=rx) {
       if(scale_status!=NO_FUNCTION) {

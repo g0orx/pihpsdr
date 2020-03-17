@@ -140,7 +140,6 @@ int ext_noise_update(void *data) {
 }
 
 int ext_mox_update(void *data) {
-g_print("ext_mox_update: %d\n",GPOINTER_TO_INT(data));
   mox_update(GPOINTER_TO_INT(data));
   return 0;
 }
@@ -627,10 +626,10 @@ int ext_set_rf_gain(void *data) {
   int pos=GPOINTER_TO_INT(data);
   double value;
   value=(double)pos;
-  if(value<0.0) {
-    value=0.0;
-  } else if(value>100.0) {
-    value=100.0;
+  if(value<-12.0) {
+    value=-12.0;
+  } else if(value>48.0) {
+    value=48.0;
   }
   set_rf_gain(active_receiver->id,value);
   return 0;
@@ -689,6 +688,19 @@ int ext_remote_command(void *data) {
       break;
   }
   g_free(data);
+  return 0;
+}
+
+int ext_anf_update(void *data) {
+  if(active_receiver->anf==0) {
+    active_receiver->anf=1;
+    mode_settings[vfo[active_receiver->id].mode].anf=1;
+  } else {
+    active_receiver->snb=0;
+    mode_settings[vfo[active_receiver->id].mode].anf=0;
+  }
+  SetRXAANFRun(active_receiver->id, active_receiver->anf);
+  g_idle_add(ext_vfo_update, NULL);
   return 0;
 }
 
