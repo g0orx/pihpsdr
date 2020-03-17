@@ -311,15 +311,15 @@ static void *receive_thread(void *arg) {
 fprintf(stderr,"soapy_protocol: receive_thread\n");
   while(running) {
     elements=SoapySDRDevice_readStream(soapy_device,rx_stream,buffs,max_samples,&flags,&timeNs,timeoutUs);
+    //fprintf(stderr,"soapy_protocol_receive_thread: SoapySDRDevice_readStream failed: max_samples=%d read=%d\n",max_samples,elements);
     if(elements<0) {
-      fprintf(stderr,"soapy_protocol_receive_thread: SoapySDRDevice_readStream failed: %s max_samples=%d read=%d\n",SoapySDR_errToStr(elements),max_samples,elements);
       continue;
     }
+    
     for(i=0;i<elements;i++) {
       rx->buffer[i*2]=(double)buffer[i*2];
       rx->buffer[(i*2)+1]=(double)buffer[(i*2)+1];
     }
-
 
     if(rx->resampler!=NULL) {
       int samples=xresample(rx->resampler);

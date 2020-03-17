@@ -123,9 +123,9 @@ static void get_info(char *driver) {
   } else if(strcmp(driver,"plutosdr")==0) {
     sample_rate=768000;
   } else if(strcmp(driver,"rtlsdr")==0) {
-    sample_rate=1024000;
+    sample_rate=1048576;
   } else {
-    sample_rate=1024000;
+    sample_rate=1048576;
   }
 
   fprintf(stderr,"sample_rate selected %d\n",sample_rate);
