@@ -47,7 +47,7 @@ AUDIO_DEVICE output_devices[MAX_AUDIO_DEVICES];
 int n_input_devices=0;
 int n_output_devices=0;
 
-#define BUFFER_SIZE 256
+#define MY_AUDIO_BUFFER_SIZE 256
 
 //
 // Ring buffer for "local microphone" samples
@@ -165,7 +165,7 @@ int audio_open_input()
     return -1;
   }
 
-  framesPerBuffer = BUFFER_SIZE;  // is this for either protocol
+  framesPerBuffer = MY_AUDIO_BUFFER_SIZE;  // is this for either protocol
 
   bzero( &inputParameters, sizeof( inputParameters ) ); //not necessary if you are filling in all the fields
   inputParameters.channelCount = 1;   // MONO
@@ -280,7 +280,7 @@ int audio_open_output(RECEIVER *rx)
 {
   PaError err;
   PaStreamParameters outputParameters;
-  long framesPerBuffer=BUFFER_SIZE;
+  long framesPerBuffer=MY_AUDIO_BUFFER_SIZE;
   int padev;
   int i;
 
@@ -317,7 +317,7 @@ int audio_open_output(RECEIVER *rx)
 
   // Do not use call-back function, just stream it
 
-  rx->local_audio_buffer=g_new(float,BUFFER_SIZE);
+  rx->local_audio_buffer=g_new(float,MY_AUDIO_BUFFER_SIZE);
   rx->local_audio_buffer_offset=0;
   err = Pa_OpenStream(&(rx->playback_handle), NULL, &outputParameters, 48000.0, framesPerBuffer, paNoFlag, NULL, NULL);
   if (err != paNoError || rx->local_audio_buffer == NULL) {
@@ -340,8 +340,8 @@ int audio_open_output(RECEIVER *rx)
   }
   // Write one buffer to avoid under-flow errors
   // (this gives us 5 msec to pass before we have to call audio_write the first time)
-  bzero(rx->local_audio_buffer, (size_t) BUFFER_SIZE*sizeof(float));
-  Pa_WriteStream(rx->playback_handle, rx->local_audio_buffer, (unsigned long) BUFFER_SIZE);
+  bzero(rx->local_audio_buffer, (size_t) MY_AUDIO_BUFFER_SIZE*sizeof(float));
+  Pa_WriteStream(rx->playback_handle, rx->local_audio_buffer, (unsigned long) MY_AUDIO_BUFFER_SIZE);
   g_mutex_unlock(&rx->local_audio_mutex);
   return 0;
 }
@@ -444,8 +444,8 @@ int audio_write (RECEIVER *rx, float left, float right)
   g_mutex_lock(&rx->local_audio_mutex);
   if (rx->playback_handle != NULL && buffer != NULL) {
     buffer[rx->local_audio_buffer_offset++] = (left+right)*0.5;  //   mix to MONO   
-    if (rx->local_audio_buffer_offset == BUFFER_SIZE) {
-      Pa_WriteStream(rx->playback_handle, buffer, (unsigned long) BUFFER_SIZE);
+    if (rx->local_audio_buffer_offset == MY_AUDIO_BUFFER_SIZE) {
+      Pa_WriteStream(rx->playback_handle, buffer, (unsigned long) MY_AUDIO_BUFFER_SIZE);
       rx->local_audio_buffer_offset=0;
       // do not check on errors, there will be underflows every now and then
     }
@@ -460,8 +460,8 @@ int cw_audio_write(float sample) {
 
   if (rx->playback_handle != NULL && rx->local_audio_buffer != NULL) {
     buffer[rx->local_audio_buffer_offset++] = sample;
-    if (rx->local_audio_buffer_offset == BUFFER_SIZE) {
-      Pa_WriteStream(rx->playback_handle, rx->local_audio_buffer, (unsigned long) BUFFER_SIZE);
+    if (rx->local_audio_buffer_offset == MY_AUDIO_BUFFER_SIZE) {
+      Pa_WriteStream(rx->playback_handle, rx->local_audio_buffer, (unsigned long) MY_AUDIO_BUFFER_SIZE);
       // do not check on errors, there will be underflows every now and then
       rx->local_audio_buffer_offset=0;
     }

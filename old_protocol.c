@@ -840,16 +840,23 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
     switch((control_in[0]>>3)&0x1F) {
       case 0:
         adc_overload=control_in[1]&0x01;
-        IO1=(control_in[1]&0x02)?0:1;
-        IO2=(control_in[1]&0x04)?0:1;
-        IO3=(control_in[1]&0x08)?0:1;
-        if(mercury_software_version!=control_in[2]) {
-          mercury_software_version=control_in[2];
-          g_print("  Mercury Software version: %d (0x%0X)\n",mercury_software_version,mercury_software_version);
-        }
-        if(penelope_software_version!=control_in[3]) {
-          penelope_software_version=control_in[3];
-          g_print("  Penelope Software version: %d (0x%0X)\n",penelope_software_version,penelope_software_version);
+        if (device != DEVICE_HERMES_LITE2) {
+	  //
+	  // HL2 uses these bits of the protocol for a different purpose:
+	  // C1 unused except the ADC overload bit
+          // C2/C3 contains underflow/overflow and TX FIFO count
+	  //
+          IO1=(control_in[1]&0x02)?0:1;
+          IO2=(control_in[1]&0x04)?0:1;
+          IO3=(control_in[1]&0x08)?0:1;
+          if(mercury_software_version!=control_in[2]) {
+            mercury_software_version=control_in[2];
+            g_print("  Mercury Software version: %d (0x%0X)\n",mercury_software_version,mercury_software_version);
+          }
+          if(penelope_software_version!=control_in[3]) {
+            penelope_software_version=control_in[3];
+            g_print("  Penelope Software version: %d (0x%0X)\n",penelope_software_version,penelope_software_version);
+          }
         }
         if(ozy_software_version!=control_in[4]) {
           ozy_software_version=control_in[4];
@@ -857,7 +864,14 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
         }
         break;
       case 1:
-        exciter_power=((control_in[1]&0xFF)<<8)|(control_in[2]&0xFF); // from Penelope or Hermes
+        if (device != DEVICE_HERMES_LITE_2) {
+	  //
+	  // HL2 uses C1/C2 for measuring the temperature
+	  //
+          exciter_power=((control_in[1]&0xFF)<<8)|(control_in[2]&0xFF); // from Penelope or Hermes
+        } else {
+          exciter_power=0;
+	} 
         alex_forward_power=((control_in[3]&0xFF)<<8)|(control_in[4]&0xFF); // from Alex or Apollo
         break;
       case 2:
