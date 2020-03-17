@@ -1143,10 +1143,11 @@ void *handler_ep6(void *arg)
 	uint8_t id[4] = { 0xef, 0xfe, 1, 6 };
 	uint8_t header[40] =
 	{
-		127, 127, 127, 0, 0, 33, 17, 21,
-		127, 127, 127, 8, 0, 0, 0, 0,
-		127, 127, 127, 16, 0, 0, 0, 0,
-		127, 127, 127, 24, 0, 0, 0, 0,
+//                             C0  C1  C2  C3  C4
+		127, 127, 127,  0,  0, 33, 17, 21,
+		127, 127, 127,  8,  0,  0,  0,  0,
+		127, 127, 127, 16,  0,  0,  0,  0,
+		127, 127, 127, 24,  0,  0,  0,  0,
 		127, 127, 127, 32, 66, 66, 66, 66
 	};
         int32_t adc1isample,adc1qsample;
@@ -1165,6 +1166,7 @@ void *handler_ep6(void *arg)
         double i1,q1,fac1,fac2,fac3,fac4;
         int decimation;  // for converting 1536 kHz samples to 48, 192, 384, ....
         unsigned int seed;
+        unsigned int tx_fifo_count;
 
 	seed=((uintptr_t) &seed) & 0xffffff;
 
@@ -1215,13 +1217,27 @@ void *handler_ep6(void *arg)
 
 		    switch (header_offset) {
 			case 0:
-			    // no CW bits
+			    // do not set PTT and CW in C0
+			    // do not set ADC overflow in C1
+                            if (OLDDEVICE == DEVICE_HERMES_LITE2) {
+			      // C2/C3 is TX FIFO count
+			      tx_fifo_count=txptr - rxptr;
+			      if (tx_fifo_count < 0) tx_fifo_count += OLDRTXLEN;
+			      *(pointer+5) = (tx_fifo_count >> 8) & 0x7F;
+			      *(pointer+6) = tx_fifo_count & 0xFF;
+                            }
 			    header_offset=8;
 			    break;
 			case 8:
-			    // AIN5: Exciter power
-			    *(pointer+4)=0;		// about 500 mW
-			    *(pointer+5)=txdrive;
+                            if (OLDDEVICE == DEVICE_HERMES_LITE2) {
+			      // HL2: temperature
+			      *(pointer+4)=0;
+			      *(pointer+5) = tx_fifo_count & 0x7F;  // pseudo random number
+                            } else {
+			      // AIN5: Exciter power
+			      *(pointer+4)=0;		// about 500 mW
+			      *(pointer+5)=txdrive;
+                            }
 			    // AIN1: Forward Power
 			    j=(int) ((4095.0/c1)*sqrt(100.0*txlevel*c2));
 			    *(pointer+6)=(j >> 8) & 0xFF;
