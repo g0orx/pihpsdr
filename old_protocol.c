@@ -864,7 +864,7 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
         }
         break;
       case 1:
-        if (device != DEVICE_HERMES_LITE_2) {
+        if (device != DEVICE_HERMES_LITE2) {
 	  //
 	  // HL2 uses C1/C2 for measuring the temperature
 	  //
