@@ -1351,7 +1351,9 @@ void full_rx_buffer(RECEIVER *rx) {
   }
 
   if(rx->displaying) {
+    g_mutex_lock(&rx->display_mutex);
     Spectrum0(1, rx->id, 0, 0, rx->iq_input_buffer);
+    g_mutex_unlock(&rx->display_mutex);
   }
 
 //g_print("full_rx_buffer: rx=%d buffer_size=%d samples=%d\n",rx->id,rx->buffer_size,rx->samples);
@@ -1385,14 +1387,14 @@ void add_div_iq_samples(RECEIVER *rx, double i0, double q0, double i1, double q1
 }
 
 void receiver_change_zoom(RECEIVER *rx,double zoom) {
-  g_mutex_lock(&rx->display_mutex);
   if(rx->pixel_samples!=NULL) {
     g_free(rx->pixel_samples);
   }
   rx->pixels=rx->width*(int)zoom;
   rx->pixel_samples=g_new(float,rx->pixels);
   rx->hz_per_pixel=(double)rx->sample_rate/(double)rx->pixels;
-  if(zoom==0) {
+  rx->zoom=(int)zoom;
+  if(rx->zoom==1) {
     rx->pan=0;
   } else {
     if(vfo[rx->id].ctun) {
@@ -1404,14 +1406,12 @@ void receiver_change_zoom(RECEIVER *rx,double zoom) {
       rx->pan=(rx->pixels/2)-(rx->width/2);
     }
   }
-  rx->zoom=(int)zoom;
   init_analyzer(rx);
-  g_mutex_unlock(&rx->display_mutex);
 }
 
 void receiver_change_pan(RECEIVER *rx,double pan) {
-  g_mutex_lock(&rx->display_mutex);
-  rx->pan=(int)pan;
-  g_mutex_unlock(&rx->display_mutex);
+  if(rx->zoom>1) {
+    rx->pan=(int)pan;
+  }
 }
 
