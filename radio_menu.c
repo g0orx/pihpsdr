@@ -440,11 +440,14 @@ void radio_menu(GtkWidget *parent) {
 
   row++;
 
-  receivers_2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(receivers_1),"2");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (receivers_2), receivers==2);
-  gtk_grid_attach(GTK_GRID(grid),receivers_2,col,row,1,1);
-  g_signal_connect(receivers_2,"toggled",G_CALLBACK(receivers_cb),(gpointer *)2);
-  row++;
+  if(receivers>1) {
+    receivers_2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(receivers_1),"2");
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (receivers_2), receivers==2);
+    gtk_grid_attach(GTK_GRID(grid),receivers_2,col,row,1,1);
+    g_signal_connect(receivers_2,"toggled",G_CALLBACK(receivers_cb),(gpointer *)2);
+    row++;
+  }
+
   col++;
   if(row>temp_row) temp_row=row;
 

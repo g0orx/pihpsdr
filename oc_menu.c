@@ -113,6 +113,7 @@ static void oc_memory_tune_time_cb(GtkWidget *widget, gpointer data) {
 void oc_menu(GtkWidget *parent) {
   int i,j;
 
+g_print("oc_menu: parent=%p\n",parent);
   parent_window=parent;
 
   dialog=gtk_dialog_new();

@@ -1330,6 +1330,9 @@ static void rxtx(int state) {
 
     if(duplex) {
       gtk_widget_show_all(transmitter->dialog);
+      if(transmitter->dialog_x!=-1 && transmitter->dialog_y!=-1) {
+       gtk_window_move(GTK_WINDOW(transmitter->dialog),transmitter->dialog_x,transmitter->dialog_y);
+      }
     } else {
       gtk_fixed_put(GTK_FIXED(fixed),transmitter->panel,transmitter->x,transmitter->y);
     }
@@ -1356,6 +1359,7 @@ static void rxtx(int state) {
     SetChannelState(transmitter->id,0,1);
     tx_set_displaying(transmitter,0);
     if(duplex) {
+      gtk_window_get_position(GTK_WINDOW(transmitter->dialog),&transmitter->dialog_x,&transmitter->dialog_y);
       gtk_widget_hide(transmitter->dialog);
     } else {
       gtk_container_remove(GTK_CONTAINER(fixed), transmitter->panel);

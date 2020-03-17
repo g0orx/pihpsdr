@@ -244,6 +244,13 @@ void transmitter_save_state(TRANSMITTER *tx) {
   sprintf(name,"transmitter.%d.xit",tx->id);
   sprintf(value,"%lld",tx->xit);
   setProperty(name,value);
+
+  sprintf(name,"transmitter.%d.dialog_x",tx->id);
+  sprintf(value,"%d",tx->dialog_x);
+  setProperty(name,value);
+  sprintf(name,"transmitter.%d.dialog_y",tx->id);
+  sprintf(value,"%d",tx->dialog_y);
+  setProperty(name,value);
 }
 
 void transmitter_restore_state(TRANSMITTER *tx) {
@@ -338,6 +345,12 @@ void transmitter_restore_state(TRANSMITTER *tx) {
   sprintf(name,"transmitter.%d.xit",tx->id);
   value=getProperty(name);
   if(value) tx->xit=atoll(value);
+  sprintf(name,"transmitter.%d.dialog_x",tx->id);
+  value=getProperty(name);
+  if(value) tx->dialog_x=atoi(value);
+  sprintf(name,"transmitter.%d.dialog_y",tx->id);
+  value=getProperty(name);
+  if(value) tx->dialog_y=atoi(value);
 }
 
 static double compute_power(double p) {
@@ -777,6 +790,9 @@ fprintf(stderr,"create_transmitter: id=%d buffer_size=%d mic_sample_rate=%d mic_
 
   tx->xit_enabled=FALSE;
   tx->xit=0LL;
+
+  tx->dialog_x=-1;
+  tx->dialog_y=-1;
 
   transmitter_restore_state(tx);
 

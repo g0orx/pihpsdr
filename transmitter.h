@@ -106,6 +106,9 @@ typedef struct _transmitter {
   int x;
   int y;
 
+  int dialog_x;
+  int dialog_y;
+
 } TRANSMITTER;
 
 extern TRANSMITTER *create_transmitter(int id, int buffer_size, int fft_size, int fps, int width, int height);

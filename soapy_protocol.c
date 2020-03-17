@@ -375,6 +375,7 @@ fprintf(stderr,"soapy_protocol: receive_thread: SoapySDRDevice_closeStream\n");
   SoapySDRDevice_closeStream(soapy_device,rx_stream);
 fprintf(stderr,"soapy_protocol: receive_thread: SoapySDRDevice_unmake\n");
   SoapySDRDevice_unmake(soapy_device);
+  return NULL;
 }
 
 void soapy_protocol_process_local_mic(float sample) {

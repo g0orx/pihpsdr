@@ -203,6 +203,7 @@ static gboolean cw_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) 
 }
 
 static gboolean oc_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  g_print("oc_cb\n");
   cleanup();
   oc_menu(top_window);
   return TRUE;
@@ -553,10 +554,12 @@ void new_menu()
     gtk_grid_attach(GTK_GRID(grid),dsp_b,(i%5),i/5,1,1);
     i++;
 
-    GtkWidget *oc_b=gtk_button_new_with_label("OC");
-    g_signal_connect (oc_b, "button-press-event", G_CALLBACK(oc_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),oc_b,(i%5),i/5,1,1);
-    i++;
+    if(protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL) {
+      GtkWidget *oc_b=gtk_button_new_with_label("OC");
+      g_signal_connect (oc_b, "button-press-event", G_CALLBACK(oc_cb), NULL);
+      gtk_grid_attach(GTK_GRID(grid),oc_b,(i%5),i/5,1,1);
+      i++;
+    }
 
     GtkWidget *display_b=gtk_button_new_with_label("Display");
     g_signal_connect (display_b, "button-press-event", G_CALLBACK(display_cb), NULL);
