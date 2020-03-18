@@ -70,6 +70,7 @@ static void zoom_value_changed_cb(GtkWidget *widget, gpointer data) {
 
 void set_zoom(int rx,double value) {
   receiver[rx]->zoom=value;
+  receiver_change_zoom(active_receiver,value);
   if(display_zoompan) {
     gtk_range_set_value (GTK_RANGE(zoom_scale),receiver[rx]->zoom);
   } else {
