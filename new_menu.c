@@ -527,10 +527,12 @@ void new_menu()
       i++;
 
 #ifdef PURESIGNAL
-      GtkWidget *ps_b=gtk_button_new_with_label("PS");
-      g_signal_connect (ps_b, "button-press-event", G_CALLBACK(ps_cb), NULL);
-      gtk_grid_attach(GTK_GRID(grid),ps_b,(i%5),i/5,1,1);
-      i++;
+      if(protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL) {
+        GtkWidget *ps_b=gtk_button_new_with_label("PS");
+        g_signal_connect (ps_b, "button-press-event", G_CALLBACK(ps_cb), NULL);
+        gtk_grid_attach(GTK_GRID(grid),ps_b,(i%5),i/5,1,1);
+        i++;
+      }
 #endif
 
       GtkWidget *pa_b=gtk_button_new_with_label("PA");

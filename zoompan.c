@@ -1,5 +1,5 @@
 /* Copyright (C)
-* 2015 - John Melton, G0ORX/N6LYT
+* 2020 - John Melton, G0ORX/N6LYT
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License
@@ -16,18 +16,6 @@
 * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 *
 */
-
-//
-// DL1YCF:
-// uncomment the #define line following, then you will get
-// a "TX compression" slider with an enabling checkbox
-// in the bottom right of the sliders area, instead of the
-// sequelch slider and checkbox.
-// This option can also be passed to the compiler with "-D"
-// and thus be activated through the Makefile.
-//
-//#define COMPRESSION_SLIDER_INSTEAD_OF_SQUELCH 1
-//
 
 #include <gtk/gtk.h>
 #include <semaphore.h>
@@ -67,14 +55,16 @@ int zoompan_active_receiver_changed(void *data) {
 }
 
 static void zoom_value_changed_cb(GtkWidget *widget, gpointer data) {
+  g_mutex_lock(&active_receiver->display_mutex);
   receiver_change_zoom(active_receiver,gtk_range_get_value(GTK_RANGE(zoom_scale)));
   gtk_range_set_range(GTK_RANGE(pan_scale),0.0,(double)(active_receiver->zoom==1?active_receiver->pixels:active_receiver->pixels-active_receiver->width));
   gtk_range_set_value (GTK_RANGE(pan_scale),active_receiver->pan);
-  if(active_receiver->zoom == 1) {
+  if(active_receiver->zoom==1) {
     gtk_widget_set_sensitive(pan_scale, FALSE);
   } else {
     gtk_widget_set_sensitive(pan_scale, TRUE);
   }
+  g_mutex_unlock(&active_receiver->display_mutex);
   vfo_update();
 }
 
@@ -125,7 +115,6 @@ static void pan_value_changed_cb(GtkWidget *widget, gpointer data) {
 }
 
 void set_pan(int rx,double value) {
-g_print("set_pan: %f\n",value);
   receiver[rx]->pan=(int)value;
   if(display_zoompan) {
     gtk_range_set_value (GTK_RANGE(pan_scale),receiver[rx]->pan);
