@@ -589,7 +589,8 @@ static gint update_display(gpointer data) {
 void set_displaying(RECEIVER *rx,int state) {
   rx->displaying=state;
   if(state) {
-    rx->update_timer_id=gdk_threads_add_timeout_full(G_PRIORITY_HIGH_IDLE,1000/rx->fps, update_display, rx, NULL);
+    if(rx->update_timer_id>=0) g_source_remove(rx->update_timer_id);
+    rx->update_timer_id=g_timeout_add_full(G_PRIORITY_HIGH_IDLE,1000/rx->fps, update_display, rx, NULL);
   } else {
     rx->update_timer_id=-1;
   }
@@ -690,7 +691,7 @@ static void init_analyzer(RECEIVER *rx) {
 
     int max_w = fft_size + (int) min(keep_time * (double) rx->fps, keep_time * (double) fft_size * (double) rx->fps);
 
-    overlap = (int)max(0.0, ceil(fft_size - (double)rx->sample_rate / (double)rx->fps));
+    overlap = (int)fmax(0.0, ceil(fft_size - (double)rx->sample_rate / (double)rx->fps));
 
     //g_print("SetAnalyzer id=%d buffer_size=%d overlap=%d\n",rx->id,rx->buffer_size,overlap);
 
