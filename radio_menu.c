@@ -25,6 +25,7 @@
 #include <string.h>
 
 #include "main.h"
+#include "discovered.h"
 #include "new_menu.h"
 #include "radio_menu.h"
 #include "adc.h"
@@ -440,7 +441,7 @@ void radio_menu(GtkWidget *parent) {
 
   row++;
 
-  if(receivers>1) {
+  if(radio->supported_receivers>1) {
     receivers_2=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(receivers_1),"2");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (receivers_2), receivers==2);
     gtk_grid_attach(GTK_GRID(grid),receivers_2,col,row,1,1);

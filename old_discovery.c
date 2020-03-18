@@ -484,6 +484,7 @@ g_print("old_discovery: name=%s min=%f max=%f\n",discovered[devices].name, disco
                     discovered[devices].info.network.interface_length=sizeof(interface_addr);
                     strcpy(discovered[devices].info.network.interface_name,interface_name);
 		    discovered[devices].use_tcp=0;
+                    discovered[devices].supported_receivers=2;
 		    fprintf(stderr,"old_discovery: found device=%d software_version=%d status=%d address=%s (%02X:%02X:%02X:%02X:%02X:%02X) on %s min=%f max=%f\n",
                             discovered[devices].device,
                             discovered[devices].software_version,
