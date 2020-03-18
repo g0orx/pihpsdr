@@ -2325,7 +2325,7 @@ void calculate_display_average(RECEIVER *rx) {
 
   double t=0.001*display_average_time;
   display_avb = exp(-1.0 / ((double)rx->fps * t));
-  display_average = max(2, (int)min(60, (double)rx->fps * t));
+  display_average = max(2, (int)fmin(60, (double)rx->fps * t));
   SetDisplayAvBackmult(rx->id, 0, display_avb);
   SetDisplayNumAverage(rx->id, 0, display_average);
 }

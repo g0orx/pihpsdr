@@ -79,7 +79,9 @@ static void filled_cb(GtkWidget *widget, gpointer data) {
 
 static void frames_per_second_value_changed_cb(GtkWidget *widget, gpointer data) {
   updates_per_second=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+  active_receiver->fps=updates_per_second;
   calculate_display_average(active_receiver);
+  set_displaying(active_receiver, 1);
 }
 
 static void panadapter_high_value_changed_cb(GtkWidget *widget, gpointer data) {
