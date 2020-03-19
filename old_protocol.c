@@ -836,7 +836,6 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
       g_idle_add(ext_mox_update,(gpointer)(long)(local_ptt));
     }
 
-
     switch((control_in[0]>>3)&0x1F) {
       case 0:
         adc_overload=control_in[1]&0x01;
@@ -869,18 +868,38 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
 	  // HL2 uses C1/C2 for measuring the temperature
 	  //
           exciter_power=((control_in[1]&0xFF)<<8)|(control_in[2]&0xFF); // from Penelope or Hermes
+          temperature=0;
         } else {
           exciter_power=0;
+          temperature+=((control_in[1]&0xFF)<<8)|(control_in[2]&0xFF); // HL2
+          n_temperature++;
+          if(n_temperature==10) {
+            average_temperature=temperature/10;
+            temperature=0;
+            n_temperature=0;
+          }
 	} 
         alex_forward_power=((control_in[3]&0xFF)<<8)|(control_in[4]&0xFF); // from Alex or Apollo
         break;
       case 2:
         alex_reverse_power=((control_in[1]&0xFF)<<8)|(control_in[2]&0xFF); // from Alex or Apollo
-        AIN3=(control_in[3]<<8)+control_in[4]; // from Pennelope or Hermes
+        if (device != DEVICE_HERMES_LITE2) {
+          AIN3=((control_in[3]&0xFF)<<8)|(control_in[4]&0xFF); // For Penelope or Hermes
+          current=0;
+        } else {
+          AIN3=0;
+          current+=((control_in[3]&0xFF)<<8)|(control_in[4]&0xFF); // HL2
+          n_current++;
+          if(n_current==10) {
+            average_current=current/10;
+            current=0;
+            n_current=0;
+          }
+        }
         break;
       case 3:
-        AIN4=(control_in[1]<<8)+control_in[2]; // from Pennelope or Hermes
-        AIN6=(control_in[3]<<8)+control_in[4]; // from Pennelope or Hermes
+        AIN4=((control_in[1]&0xFF)<<8)|(control_in[2]&0xFF); // For Penelope or Hermes
+        AIN6=((control_in[3]&0xFF)<<8)|(control_in[4]&0xFF); // For Penelope or Hermes
         break;
     }
 

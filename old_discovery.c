@@ -445,6 +445,7 @@ fprintf(stderr,"discover_receive_thread\n");
 			    } else {
                               strcpy(discovered[devices].name,"HermesLite V2");		
 			      discovered[devices].device = DEVICE_HERMES_LITE2;
+g_print("discovered HL2: Gateware Major Version=%d Minor Version=%d\n",buffer[9],buffer[15]);
 			    }
                             discovered[devices].frequency_min=0.0;
                             discovered[devices].frequency_max=30720000.0;

@@ -62,9 +62,11 @@ extern long response_sequence;
 // DL1YCF: "response" is global (used in new_protocol_programmer.c)
 extern int response;
 
+/*
 extern unsigned int exciter_power;
 extern unsigned int alex_forward_power;
 extern unsigned int alex_reverse_power;
+*/
 
 /*
 extern int send_high_priority;
