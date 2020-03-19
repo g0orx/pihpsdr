@@ -590,7 +590,7 @@ void set_displaying(RECEIVER *rx,int state) {
   rx->displaying=state;
   if(state) {
     if(rx->update_timer_id>=0) g_source_remove(rx->update_timer_id);
-    rx->update_timer_id=g_timeout_add_full(G_PRIORITY_HIGH_IDLE,1000/rx->fps, update_display, rx, NULL);
+    rx->update_timer_id=gdk_threads_add_timeout_full(G_PRIORITY_HIGH_IDLE,1000/rx->fps, update_display, rx, NULL);
   } else {
     rx->update_timer_id=-1;
   }
@@ -879,7 +879,6 @@ fprintf(stderr,"create_receiver: id=%d buffer_size=%d fft_size=%d pixels=%d fps=
   rx->id=id;
   g_mutex_init(&rx->mutex);
   g_mutex_init(&rx->display_mutex);
-fprintf(stderr,"create_receiver: g_mutex_init: %p\n",&rx->mutex);
   switch(id) {
     case 0:
       rx->adc=0;
@@ -1117,7 +1116,6 @@ void receiver_change_sample_rate(RECEIVER *rx,int sample_rate) {
 //
 
   g_mutex_lock(&rx->mutex);
-fprintf(stderr,"receiver_change_sample_rate: g_mutex_lock: %p\n",&rx->mutex);
 
   rx->sample_rate=sample_rate;
   int scale=rx->sample_rate/48000;
@@ -1139,7 +1137,6 @@ g_print("receiver_change_sample_rate: id=%d rate=%d scale=%d buffer_size=%d outp
     init_analyzer(rx);
     fprintf(stderr,"PS FEEDBACK change sample rate:id=%d rate=%d buffer_size=%d output_samples=%d\n",
                    rx->id, rx->sample_rate, rx->buffer_size, rx->output_samples);
-fprintf(stderr,"receiver_change_sample_rate: g_mutex_unlock: %p\n",&rx->mutex);
     g_mutex_unlock(&rx->mutex);
     return;
   }
@@ -1163,7 +1160,6 @@ fprintf(stderr,"receiver_change_sample_rate: g_mutex_unlock: %p\n",&rx->mutex);
 
   SetChannelState(rx->id,1,0);
 
-fprintf(stderr,"receiver_change_sample_rate: g_mutex_unlock: %p\n",&rx->mutex);
   g_mutex_unlock(&rx->mutex);
 
 fprintf(stderr,"receiver_change_sample_rate: id=%d rate=%d buffer_size=%d output_samples=%d\n",rx->id, rx->sample_rate, rx->buffer_size, rx->output_samples);
@@ -1337,6 +1333,8 @@ static void process_rx_buffer(RECEIVER *rx) {
 void full_rx_buffer(RECEIVER *rx) {
   int error;
 
+  g_mutex_lock(&rx->mutex);
+
   // noise blanker works on original IQ samples
   if(rx->nb) {
      xanbEXT (rx->id, rx->iq_input_buffer, rx->iq_input_buffer);
@@ -1359,6 +1357,7 @@ void full_rx_buffer(RECEIVER *rx) {
 
 //g_print("full_rx_buffer: rx=%d buffer_size=%d samples=%d\n",rx->id,rx->buffer_size,rx->samples);
   process_rx_buffer(rx);
+  g_mutex_unlock(&rx->mutex);
 }
 
 static int rx_buffer_seen=0;
@@ -1395,7 +1394,7 @@ void receiver_change_zoom(RECEIVER *rx,double zoom) {
   rx->pixel_samples=g_new(float,rx->pixels);
   rx->hz_per_pixel=(double)rx->sample_rate/(double)rx->pixels;
   rx->zoom=(int)zoom;
-  if(rx->zoom==1) {
+  if(zoom==1) {
     rx->pan=0;
   } else {
     if(vfo[rx->id].ctun) {
@@ -1407,6 +1406,7 @@ void receiver_change_zoom(RECEIVER *rx,double zoom) {
       rx->pan=(rx->pixels/2)-(rx->width/2);
     }
   }
+  rx->zoom=(int)zoom;
   init_analyzer(rx);
 }
 

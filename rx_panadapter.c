@@ -116,6 +116,7 @@ void rx_panadapter_update(RECEIVER *rx) {
   int i;
   int x1,x2;
   float *samples;
+  char text[64];
   cairo_text_extents_t extents;
 
   gboolean active=active_receiver==rx;
@@ -528,25 +529,24 @@ void rx_panadapter_update(RECEIVER *rx) {
   cairo_stroke(cr);
 
 #ifdef GPIO
-  if(active && controller==CONTROLLER1) {
-    char text[64];
+  if(rx->id==0 && controller==CONTROLLER1) {
 
     cairo_set_source_rgb(cr,1.0,1.0,0.0);
     cairo_set_font_size(cr,16);
     if(ENABLE_E2_ENCODER) {
-      cairo_move_to(cr, display_width-200,30);
+      cairo_move_to(cr, display_width-200,70);
       sprintf(text,"%s (%s)",encoder_string[e2_encoder_action],sw_string[e2_sw_action]);
       cairo_show_text(cr, text);
     }
 
     if(ENABLE_E3_ENCODER) {
-      cairo_move_to(cr, display_width-200,50);
+      cairo_move_to(cr, display_width-200,90);
       sprintf(text,"%s (%s)",encoder_string[e3_encoder_action],sw_string[e3_sw_action]);
       cairo_show_text(cr, text);
     }
 
     if(ENABLE_E4_ENCODER) {
-      cairo_move_to(cr, display_width-200,70);
+      cairo_move_to(cr, display_width-200,110);
       sprintf(text,"%s (%s)",encoder_string[e4_encoder_action],sw_string[e4_sw_action]);
       cairo_show_text(cr, text);
     }
@@ -554,29 +554,31 @@ void rx_panadapter_update(RECEIVER *rx) {
 #endif
 
   if(sequence_errors!=0) {
-    cairo_move_to(cr,100,20);
+    cairo_move_to(cr,100.0,50.0);
     cairo_set_source_rgb(cr,1.0,0.0,0.0);
     cairo_set_font_size(cr,12);
     cairo_show_text(cr, "Sequence Error");
     sequence_error_count++;
-    // show for 1 second
+    // show for 2 second
     if(sequence_error_count==2*rx->fps) {
       sequence_errors=0;
       sequence_error_count=0;
     }
   }
 
-  if(rx->fexchange_errors!=0) {
-    cairo_move_to(cr,100,30);
-    cairo_set_source_rgb(cr,1.0,0.0,0.0);
-    cairo_set_font_size(cr,12);
-    cairo_show_text(cr, "fexchange Error");
-    fexchange_error_count++;
-    // show for 1 second
-    if(fexchange_error_count==2*rx->fps) {
-      rx->fexchange_errors=0;
-      fexchange_error_count=0;
-    }
+  if(rx->id==0 && protocol==ORIGINAL_PROTOCOL && device==DEVICE_HERMES_LITE2) {
+    cairo_set_source_rgb(cr,1.0,1.0,0.0);
+    cairo_set_font_size(cr,16);
+
+    double t = (3.26 * ((double)average_temperature / 4096.0) - 0.5) / 0.01;
+    sprintf(text,"%0.1fC",t);
+    cairo_move_to(cr, 100.0, 30.0);  
+    cairo_show_text(cr, text);
+
+    double c = (((3.26 * ((double)average_current / 4096.0)) / 50.0) / 0.04 * 1000 * 1270 / 1000);
+    sprintf(text,"%0.0fmA",c);
+    cairo_move_to(cr, 160.0, 30.0);  
+    cairo_show_text(cr, text);
   }
 
   cairo_destroy (cr);
