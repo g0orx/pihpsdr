@@ -1337,6 +1337,7 @@ static void process_rx_buffer(RECEIVER *rx) {
 void full_rx_buffer(RECEIVER *rx) {
   int error;
 
+  g_mutex_lock(&rx->mutex);
   // noise blanker works on original IQ samples
   if(rx->nb) {
      xanbEXT (rx->id, rx->iq_input_buffer, rx->iq_input_buffer);
@@ -1359,6 +1360,7 @@ void full_rx_buffer(RECEIVER *rx) {
 
 //g_print("full_rx_buffer: rx=%d buffer_size=%d samples=%d\n",rx->id,rx->buffer_size,rx->samples);
   process_rx_buffer(rx);
+  g_mutex_unlock(&rx->mutex);
 }
 
 static int rx_buffer_seen=0;
