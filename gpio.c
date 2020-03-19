@@ -124,9 +124,14 @@ int ENABLE_FUNCTION_BUTTON;
 int FUNCTION_BUTTON;
 
 #ifdef LOCALCW
-int CWL_BUTTON=14;
-int CWR_BUTTON=15;
-int SIDETONE_GPIO=8;
+//
+// WiringPi pins #12, 13, 14 are not used
+// by Controller1 and Controller2_V1
+// (and keep #8,9 reserved for I2C extensions)
+//
+int CWL_BUTTON=13;
+int CWR_BUTTON=14;
+int SIDETONE_GPIO=12;
 int ENABLE_GPIO_SIDETONE=0;
 int ENABLE_CW_BUTTONS=1;
 int CW_ACTIVE_LOW=1;
@@ -1310,8 +1315,13 @@ void gpio_restore_state() {
   }
 
   if(controller==CONTROLLER2_V2) {
-    // turn off as clash of use of pin 14 (WPi)
+    //
+    // In Controller2 V2, no 'free' GPIO pins
+    // are available, so one cannot use any of
+    // of these for CW in the standard setup
+    //
     ENABLE_CW_BUTTONS=0;
+    ENABLE_GPIO_SIDETONE=0;
   }
 
 
