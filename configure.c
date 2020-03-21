@@ -159,11 +159,21 @@ static gboolean save_cb (GtkWidget *widget, GdkEventButton *event, gpointer data
     ENABLE_E2_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E2_pullup))?1:0;
     E2_FUNCTION=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E2_sw));
 
+    if(controller==CONTROLLER2_V2) {
+      E2_TOP_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E2_top_a));
+      E2_TOP_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E2_top_b));
+    }
+
     ENABLE_E3_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E3_encoder))?1:0;
     E3_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E3_a));
     E3_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E3_b));
     ENABLE_E3_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E3_pullup))?1:0;
     E3_FUNCTION=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E3_sw));
+
+    if(controller==CONTROLLER2_V2) {
+      E3_TOP_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E3_top_a));
+      E3_TOP_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E3_top_b));
+    }
 
     ENABLE_E4_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E4_encoder))?1:0;
     E4_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E4_a));
@@ -171,12 +181,22 @@ static gboolean save_cb (GtkWidget *widget, GdkEventButton *event, gpointer data
     ENABLE_E4_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E4_pullup))?1:0;
     E4_FUNCTION=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E4_sw));
 
+    if(controller==CONTROLLER2_V2) {
+      E4_TOP_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E4_top_a));
+      E4_TOP_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E4_top_b));
+    }
+
     if(controller==CONTROLLER2_V1 || controller==CONTROLLER2_V2) {
       ENABLE_E5_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E5_encoder))?1:0;
       E5_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E5_a));
       E5_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E5_b));
       ENABLE_E5_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E5_pullup))?1:0;
       E5_FUNCTION=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E5_sw));
+
+      if(controller==CONTROLLER2_V2) {
+        E5_TOP_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E5_top_a));
+        E5_TOP_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E5_top_b));
+      }
 
       const char *temp=gtk_entry_get_text(GTK_ENTRY(i2c_device_text));
       i2c_device=g_new(char,strlen(temp)+1);
@@ -346,7 +366,29 @@ void configure_gpio(GtkWidget *parent) {
   
   
     row++;
-  
+
+    if(controller==CONTROLLER2_V2) {
+      E2_top_a_label=gtk_label_new("GPIO A:");
+      gtk_widget_show(E2_top_a_label);
+      gtk_grid_attach(GTK_GRID(grid1),E2_top_a_label,1,row,1,1);
+
+      E2_top_a=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+      gtk_spin_button_set_value (GTK_SPIN_BUTTON(E2_top_a),E2_TOP_ENCODER_A);
+      gtk_widget_show(E2_top_a);
+      gtk_grid_attach(GTK_GRID(grid1),E2_top_a,2,row,1,1);
+
+      E2_top_b_label=gtk_label_new("GPIO B:");
+      gtk_widget_show(E2_top_b_label);
+      gtk_grid_attach(GTK_GRID(grid1),E2_top_b_label,3,row,1,1);
+
+      E2_top_b=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+      gtk_spin_button_set_value (GTK_SPIN_BUTTON(E2_top_b),E2_TOP_ENCODER_B);
+      gtk_widget_show(E2_top_b);
+      gtk_grid_attach(GTK_GRID(grid1),E2_top_b,4,row,1,1);
+
+      row++;
+    }
+
     b_enable_E3_encoder=gtk_check_button_new_with_label("Enable E3");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E3_encoder), ENABLE_E3_ENCODER);
     gtk_widget_show(b_enable_E3_encoder);
@@ -385,7 +427,29 @@ void configure_gpio(GtkWidget *parent) {
     gtk_grid_attach(GTK_GRID(grid1),b_enable_E3_pullup,7,row,1,1);
   
     row++;
-  
+
+    if(controller==CONTROLLER2_V2) {
+      E3_top_a_label=gtk_label_new("GPIO A:");
+      gtk_widget_show(E3_top_a_label);
+      gtk_grid_attach(GTK_GRID(grid1),E3_top_a_label,1,row,1,1);
+
+      E3_top_a=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+      gtk_spin_button_set_value (GTK_SPIN_BUTTON(E3_top_a),E3_TOP_ENCODER_A);
+      gtk_widget_show(E3_top_a);
+      gtk_grid_attach(GTK_GRID(grid1),E3_top_a,2,row,1,1);
+
+      E3_top_b_label=gtk_label_new("GPIO B:");
+      gtk_widget_show(E3_top_b_label);
+      gtk_grid_attach(GTK_GRID(grid1),E3_top_b_label,3,row,1,1);
+
+      E3_top_b=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+      gtk_spin_button_set_value (GTK_SPIN_BUTTON(E3_top_b),E3_TOP_ENCODER_B);
+      gtk_widget_show(E3_top_b);
+      gtk_grid_attach(GTK_GRID(grid1),E3_top_b,4,row,1,1);
+
+      row++;
+    }
+
     b_enable_E4_encoder=gtk_check_button_new_with_label("Enable E4");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E4_encoder), ENABLE_E4_ENCODER);
     gtk_widget_show(b_enable_E4_encoder);
@@ -424,26 +488,49 @@ void configure_gpio(GtkWidget *parent) {
     gtk_grid_attach(GTK_GRID(grid1),b_enable_E4_pullup,7,row,1,1);
   
     row++;
-  
+
+    if(controller==CONTROLLER2_V2)
+    {
+      E4_top_a_label=gtk_label_new("GPIO A:");
+      gtk_widget_show(E4_top_a_label);
+      gtk_grid_attach(GTK_GRID(grid1),E4_top_a_label,1,row,1,1);
+
+      E4_top_a=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+      gtk_spin_button_set_value (GTK_SPIN_BUTTON(E4_top_a),E4_TOP_ENCODER_A);
+      gtk_widget_show(E4_top_a);
+      gtk_grid_attach(GTK_GRID(grid1),E4_top_a,2,row,1,1);
+
+      E4_top_b_label=gtk_label_new("GPIO B:");
+      gtk_widget_show(E4_top_b_label);
+      gtk_grid_attach(GTK_GRID(grid1),E4_top_b_label,3,row,1,1);
+
+      E4_top_b=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+      gtk_spin_button_set_value (GTK_SPIN_BUTTON(E4_top_b),E4_TOP_ENCODER_B);
+      gtk_widget_show(E4_top_b);
+      gtk_grid_attach(GTK_GRID(grid1),E4_top_b,4,row,1,1);
+
+      row++;
+    }
+
     if(controller==CONTROLLER2_V1 || controller==CONTROLLER2_V2) {
       b_enable_E5_encoder=gtk_check_button_new_with_label("Enable E5");
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E5_encoder), ENABLE_E5_ENCODER);
       gtk_widget_show(b_enable_E5_encoder);
       gtk_grid_attach(GTK_GRID(grid1),b_enable_E5_encoder,0,row,1,1);
-  
+
       E5_a_label=gtk_label_new("GPIO A:");
       gtk_widget_show(E5_a_label);
       gtk_grid_attach(GTK_GRID(grid1),E5_a_label,1,row,1,1);
-  
+
       E5_a=gtk_spin_button_new_with_range (0.0,100.0,1.0);
       gtk_spin_button_set_value (GTK_SPIN_BUTTON(E5_a),E5_ENCODER_A);
       gtk_widget_show(E5_a);
       gtk_grid_attach(GTK_GRID(grid1),E5_a,2,row,1,1);
-  
+
       E5_b_label=gtk_label_new("GPIO B:");
       gtk_widget_show(E5_b_label);
       gtk_grid_attach(GTK_GRID(grid1),E5_b_label,3,row,1,1);
-  
+
       E5_b=gtk_spin_button_new_with_range (0.0,100.0,1.0);
       gtk_spin_button_set_value (GTK_SPIN_BUTTON(E5_b),E5_ENCODER_B);
       gtk_widget_show(E5_b);
@@ -452,16 +539,38 @@ void configure_gpio(GtkWidget *parent) {
       E5_sw_label=gtk_label_new("SW:");
       gtk_widget_show(E5_sw_label);
       gtk_grid_attach(GTK_GRID(grid1),E5_sw_label,5,row,1,1);
-    
+
       E5_sw=gtk_spin_button_new_with_range (0.0,100.0,1.0);
       gtk_spin_button_set_value (GTK_SPIN_BUTTON(E5_sw),E5_FUNCTION);
       gtk_widget_show(E5_sw);
       gtk_grid_attach(GTK_GRID(grid1),E5_sw,6,row,1,1);
-  
+
       b_enable_E5_pullup=gtk_check_button_new_with_label("Enable Pull-up");
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E5_pullup), ENABLE_E5_PULLUP);
       gtk_widget_show(b_enable_E5_pullup);
       gtk_grid_attach(GTK_GRID(grid1),b_enable_E5_pullup,7,row,1,1);
+
+      if(controller==CONTROLLER2_V2) {
+        row++;
+
+        E5_top_a_label=gtk_label_new("GPIO A:");
+        gtk_widget_show(E5_top_a_label);
+        gtk_grid_attach(GTK_GRID(grid1),E5_top_a_label,1,row,1,1);
+
+        E5_top_a=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+        gtk_spin_button_set_value (GTK_SPIN_BUTTON(E5_top_a),E5_TOP_ENCODER_A);
+        gtk_widget_show(E5_top_a);
+        gtk_grid_attach(GTK_GRID(grid1),E5_top_a,2,row,1,1);
+
+        E5_top_b_label=gtk_label_new("GPIO B:");
+        gtk_widget_show(E5_top_b_label);
+        gtk_grid_attach(GTK_GRID(grid1),E5_top_b_label,3,row,1,1);
+
+        E5_top_b=gtk_spin_button_new_with_range (0.0,100.0,1.0);
+        gtk_spin_button_set_value (GTK_SPIN_BUTTON(E5_top_b),E5_TOP_ENCODER_B);
+        gtk_widget_show(E5_top_b);
+        gtk_grid_attach(GTK_GRID(grid1),E5_top_b,4,row,1,1);
+      }
     }
   
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook),grid1,gtk_label_new("Encoders"));

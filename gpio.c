@@ -1196,6 +1196,10 @@ void gpio_restore_state() {
   if(value) E2_ENCODER_A=atoi(value);
   value=getProperty("E2_ENCODER_B");
   if(value) E2_ENCODER_B=atoi(value);
+  value=getProperty("E2_TOP_ENCODER_A");
+  if(value) E2_TOP_ENCODER_A=atoi(value);
+  value=getProperty("E2_TOP_ENCODER_B");
+  if(value) E2_TOP_ENCODER_B=atoi(value);
   value=getProperty("ENABLE_E3_ENCODER");
   if(value) ENABLE_E3_ENCODER=atoi(value);
   value=getProperty("ENABLE_E3_PULLUP");
@@ -1204,6 +1208,10 @@ void gpio_restore_state() {
   if(value) E3_ENCODER_A=atoi(value);
   value=getProperty("E3_ENCODER_B");
   if(value) E3_ENCODER_B=atoi(value);
+  value=getProperty("E3_TOP_ENCODER_A");
+  if(value) E3_TOP_ENCODER_A=atoi(value);
+  value=getProperty("E3_TOP_ENCODER_B");
+  if(value) E3_TOP_ENCODER_B=atoi(value);
   value=getProperty("ENABLE_E4_ENCODER");
   if(value) ENABLE_E4_ENCODER=atoi(value);
   value=getProperty("ENABLE_E4_PULLUP");
@@ -1212,6 +1220,10 @@ void gpio_restore_state() {
   if(value) E4_ENCODER_A=atoi(value);
   value=getProperty("E4_ENCODER_B");
   if(value) E4_ENCODER_B=atoi(value);
+  value=getProperty("E4_TOP_ENCODER_A");
+  if(value) E4_TOP_ENCODER_A=atoi(value);
+  value=getProperty("E4_TOP_ENCODER_B");
+  if(value) E4_TOP_ENCODER_B=atoi(value);
   value=getProperty("ENABLE_E5_ENCODER");
   if(value) ENABLE_E5_ENCODER=atoi(value);
   value=getProperty("ENABLE_E5_PULLUP");
@@ -1220,6 +1232,10 @@ void gpio_restore_state() {
   if(value) E5_ENCODER_A=atoi(value);
   value=getProperty("E5_ENCODER_B");
   if(value) E5_ENCODER_B=atoi(value);
+  value=getProperty("E5_TOP_ENCODER_A");
+  if(value) E5_TOP_ENCODER_A=atoi(value);
+  value=getProperty("E5_TOP_ENCODER_B");
+  if(value) E5_TOP_ENCODER_B=atoi(value);
   value=getProperty("ENABLE_S1_BUTTON");
   if(value) ENABLE_S1_BUTTON=atoi(value);
   value=getProperty("S1_BUTTON");
@@ -1405,6 +1421,10 @@ void gpio_save_state() {
   setProperty("E2_ENCODER_A",value);
   sprintf(value,"%d",E2_ENCODER_B);
   setProperty("E2_ENCODER_B",value);
+  sprintf(value,"%d",E2_TOP_ENCODER_A);
+  setProperty("E2_TOP_ENCODER_A",value);
+  sprintf(value,"%d",E2_TOP_ENCODER_B);
+  setProperty("E2_TOP_ENCODER_B",value);
   sprintf(value,"%d",ENABLE_E3_ENCODER);
   setProperty("ENABLE_E3_ENCODER",value);
   sprintf(value,"%d",ENABLE_E3_PULLUP);
@@ -1413,6 +1433,10 @@ void gpio_save_state() {
   setProperty("E3_ENCODER_A",value);
   sprintf(value,"%d",E3_ENCODER_B);
   setProperty("E3_ENCODER_B",value);
+  sprintf(value,"%d",E3_TOP_ENCODER_A);
+  setProperty("E3_TOP_ENCODER_A",value);
+  sprintf(value,"%d",E3_TOP_ENCODER_B);
+  setProperty("E3_TOP_ENCODER_B",value);
   sprintf(value,"%d",ENABLE_E4_ENCODER);
   setProperty("ENABLE_E4_ENCODER",value);
   sprintf(value,"%d",ENABLE_E4_PULLUP);
@@ -1421,6 +1445,10 @@ void gpio_save_state() {
   setProperty("E4_ENCODER_A",value);
   sprintf(value,"%d",E4_ENCODER_B);
   setProperty("E4_ENCODER_B",value);
+  sprintf(value,"%d",E4_TOP_ENCODER_A);
+  setProperty("E4_TOP_ENCODER_A",value);
+  sprintf(value,"%d",E4_TOP_ENCODER_B);
+  setProperty("E4_TOP_ENCODER_B",value);
   sprintf(value,"%d",ENABLE_E5_ENCODER);
   setProperty("ENABLE_E5_ENCODER",value);
   sprintf(value,"%d",ENABLE_E5_PULLUP);
@@ -1429,6 +1457,10 @@ void gpio_save_state() {
   setProperty("E5_ENCODER_A",value);
   sprintf(value,"%d",E5_ENCODER_B);
   setProperty("E5_ENCODER_B",value);
+  sprintf(value,"%d",E5_TOP_ENCODER_A);
+  setProperty("E5_TOP_ENCODER_A",value);
+  sprintf(value,"%d",E5_TOP_ENCODER_B);
+  setProperty("E5_TOP_ENCODER_B",value);
   sprintf(value,"%d",ENABLE_S1_BUTTON);
   setProperty("ENABLE_S1_BUTTON",value);
   sprintf(value,"%d",S1_BUTTON);
