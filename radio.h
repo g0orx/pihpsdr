@@ -299,7 +299,8 @@ extern int have_rx_gain;   // TRUE on HermesLite/RadioBerry
 extern int rx_gain_calibration;  // position of the RX gain slider that
 				 // corresponds to zero amplification/attenuation
 
-extern int sequence_errors;
+extern gboolean display_sequence_errors;
+extern gint sequence_errors;
 
 extern void radio_stop();
 extern void reconfigure_radio();

@@ -321,7 +321,8 @@ int can_transmit=0;
 gboolean duplex=FALSE;
 gboolean mute_rx_while_transmitting=FALSE;
 
-int sequence_errors=0;
+gboolean display_sequence_errors=TRUE;
+gint sequence_errors=0;
 
 gint rx_height;
 
@@ -940,6 +941,8 @@ void start_radio() {
   current=0;
   average_current=0;
   n_current=0;
+
+  display_sequence_errors=TRUE;
 
   radioRestoreState();
 
@@ -2028,6 +2031,8 @@ g_print("radioRestoreState: %s\n",property_path);
   }
 #endif
 
+  value=getProperty("radio.display_sequence_errors");
+  if(value!=NULL) display_sequence_errors=atoi(value);
 	
 //g_print("sem_post\n");
 #ifdef __APPLE__
@@ -2322,6 +2327,9 @@ g_print("radioSaveState: %s\n",property_path);
     setProperty("rigctl_enable",value);
     sprintf(value,"%d",rigctl_port_base);
     setProperty("rigctl_port_base",value);
+
+    sprintf(value,"%d",display_sequence_errors);
+    setProperty("radio.display_sequence_errors",value);
 
     saveProperties(property_path);
 g_print("sem_post\n");

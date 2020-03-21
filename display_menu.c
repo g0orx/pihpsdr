@@ -134,6 +134,10 @@ static void display_toolbar_cb(GtkWidget *widget, gpointer data) {
   reconfigure_radio();
 }
 
+static void display_sequence_errors_cb(GtkWidget *widget, gpointer data) {
+  display_sequence_errors=display_sequence_errors==1?0:1;
+}
+
 void display_menu(GtkWidget *parent) {
   parent_window=parent;
 
@@ -437,6 +441,14 @@ void display_menu(GtkWidget *parent) {
   gtk_widget_show(b_display_toolbar);
   gtk_grid_attach(GTK_GRID(grid),b_display_toolbar,col,row,1,1);
   g_signal_connect(b_display_toolbar,"toggled",G_CALLBACK(display_toolbar_cb),(gpointer *)NULL);
+
+  col++;
+
+  GtkWidget *b_display_sequence_errors=gtk_check_button_new_with_label("Display Seq Errs");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_sequence_errors), display_sequence_errors);
+  gtk_widget_show(b_display_sequence_errors);
+  gtk_grid_attach(GTK_GRID(grid),b_display_sequence_errors,col,row,1,1);
+  g_signal_connect(b_display_sequence_errors,"toggled",G_CALLBACK(display_sequence_errors_cb),(gpointer *)NULL);
 
   gtk_container_add(GTK_CONTAINER(content),grid);
 

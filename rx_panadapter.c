@@ -553,16 +553,18 @@ void rx_panadapter_update(RECEIVER *rx) {
   }
 #endif
 
-  if(sequence_errors!=0) {
-    cairo_move_to(cr,100.0,50.0);
-    cairo_set_source_rgb(cr,1.0,0.0,0.0);
-    cairo_set_font_size(cr,12);
-    cairo_show_text(cr, "Sequence Error");
-    sequence_error_count++;
-    // show for 2 second
-    if(sequence_error_count==2*rx->fps) {
-      sequence_errors=0;
-      sequence_error_count=0;
+  if(display_sequence_errors) {
+    if(sequence_errors!=0) {
+      cairo_move_to(cr,100.0,50.0);
+      cairo_set_source_rgb(cr,1.0,0.0,0.0);
+      cairo_set_font_size(cr,12);
+      cairo_show_text(cr, "Sequence Error");
+      sequence_error_count++;
+      // show for 2 second
+      if(sequence_error_count==2*rx->fps) {
+        sequence_errors=0;
+        sequence_error_count=0;
+      }
     }
   }
 
