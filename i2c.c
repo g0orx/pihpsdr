@@ -242,9 +242,9 @@ void i2c_init() {
 
   int flags, ints;
 
-fprintf(stderr,"i2c_init\n");
+fprintf(stderr,"i2c_init: %s\n",i2c_device);
 
-  fd=wiringPiI2CSetup(i2c_address_1);
+  fd=wiringPiI2CSetupInterface(i2c_device, i2c_address_1);
   if(fd<0) {
     g_print("i2c_init failed: fd=%d\n",fd);
     return;
