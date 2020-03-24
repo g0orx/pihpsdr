@@ -405,6 +405,7 @@ void radio_menu(GtkWidget *parent) {
 
   GtkWidget *grid=gtk_grid_new();
   gtk_grid_set_column_spacing (GTK_GRID(grid),10);
+  gtk_grid_set_row_spacing (GTK_GRID(grid),5);
 
   int col=0;
   int row=0;
@@ -760,7 +761,7 @@ void radio_menu(GtkWidget *parent) {
 
   if(have_rx_gain) {
     col=0;
-    GtkWidget *rx_gain_label=gtk_label_new("RX Gain Calibration:");
+    GtkWidget *rx_gain_label=gtk_label_new(NULL);
     gtk_label_set_markup(GTK_LABEL(rx_gain_label), "<b>RX Gain Calibration:</b>");
     gtk_grid_attach(GTK_GRID(grid),rx_gain_label,col,row,1,1);
     col++;
@@ -800,15 +801,6 @@ void radio_menu(GtkWidget *parent) {
     temp_row=row;
 */
     col=0;
-    if(radio->info.soapy.rx_has_automatic_gain) {
-      GtkWidget *agc=gtk_check_button_new_with_label("Hardware AGC: ");
-      gtk_grid_attach(GTK_GRID(grid),agc,col,row,1,1);
-      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(agc),adc[0].agc);
-      g_signal_connect(agc,"toggled",G_CALLBACK(agc_changed_cb),&adc[0]);
-      row++;
-    }
-
-
 /*
     //rx_gains=g_new(GtkWidget*,radio->info.soapy.rx_gains);
     for(i=0;i<radio->info.soapy.rx_gains;i++) {
@@ -835,7 +827,8 @@ void radio_menu(GtkWidget *parent) {
 */
     // used single gain control - LimeSDR works out best setting for the 3 rx gains
     col=0;
-    GtkWidget *rf_gain_label=gtk_label_new("RF Gain");
+    GtkWidget *rf_gain_label=gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(rf_gain_label), "<b>RF Gain</b>");
     gtk_grid_attach(GTK_GRID(grid),rf_gain_label,col,row,1,1);
     col++;
     double max=100;
@@ -848,8 +841,16 @@ void radio_menu(GtkWidget *parent) {
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(rf_gain_b),active_receiver->rf_gain);
     gtk_grid_attach(GTK_GRID(grid),rf_gain_b,col,row,1,1);
     g_signal_connect(rf_gain_b,"value_changed",G_CALLBACK(rf_gain_value_changed_cb),&adc[0]);
-    col++;
+
     row++;
+
+    if(radio->info.soapy.rx_has_automatic_gain) {
+      GtkWidget *agc=gtk_check_button_new_with_label("Hardware AGC: ");
+      gtk_grid_attach(GTK_GRID(grid),agc,col,row,1,1);
+      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(agc),adc[0].agc);
+      g_signal_connect(agc,"toggled",G_CALLBACK(agc_changed_cb),&adc[0]);
+      row++;
+    }
 
     row=temp_row;
 
@@ -880,7 +881,8 @@ void radio_menu(GtkWidget *parent) {
 */
       // used single gain control - LimeSDR works out best setting for the 3 rx gains
       col=2;
-      GtkWidget *tx_gain_label=gtk_label_new("TX Gain");
+      GtkWidget *tx_gain_label=gtk_label_new(NULL);
+      gtk_label_set_markup(GTK_LABEL(tx_gain_label), "<b>TX Gain</b>");
       gtk_grid_attach(GTK_GRID(grid),tx_gain_label,col,row,1,1);
       col++;
       double max=100;
