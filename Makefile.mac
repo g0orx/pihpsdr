@@ -481,7 +481,7 @@ app:	$(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) \
 		$(PURESIGNAL_OBJS) $(MIDI_OBJS) $(STEMLAB_OBJS)
 	$(LINK) -headerpad_max_install_names -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) \
 		$(USBOZY_OBJS)  \
-		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
+		$(SOAPYSDR_OBJS) $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(LIBS)
 	@rm -rf pihpsdr.app
 	@mkdir -p pihpsdr.app/Contents/MacOS
