@@ -629,7 +629,6 @@ int get_band_from_frequency(long long f) {
     }
   }
   if (found < 0) found=bandGen;
-g_print("get_band_from_frequency: %lld id %d\n",f,found);
   return found;
 }
 

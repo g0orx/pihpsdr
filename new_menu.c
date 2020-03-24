@@ -177,21 +177,18 @@ static gboolean pa_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) 
 
 static gboolean rigctl_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   cleanup();
-  fprintf(stderr, "new_menu: calling rigctl_menu\n");
   rigctl_menu(top_window);
   return TRUE;
 }
 
 static gboolean encoder_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   cleanup();
-  fprintf(stderr, "new_menu: calling encoder_menu\n");
   encoder_menu(top_window);
   return TRUE;
 }
 
 static gboolean switch_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   cleanup();
-  fprintf(stderr, "new_menu: calling switch_menu\n");
   switch_menu(top_window);
   return TRUE;
 }
@@ -203,7 +200,6 @@ static gboolean cw_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) 
 }
 
 static gboolean oc_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  g_print("oc_cb\n");
   cleanup();
   oc_menu(top_window);
   return TRUE;
@@ -411,7 +407,6 @@ static gboolean ps_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) 
 void start_encoder(int encoder) {
   int old_menu=active_menu;
   cleanup();
-fprintf(stderr,"start_encoder: %d old_menu=%d active_menu=%d\n",encoder,old_menu,active_menu);
   switch(encoder) {
     case 2:
       if(old_menu!=E2_MENU) {

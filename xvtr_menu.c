@@ -74,7 +74,6 @@ static void save_xvtr () {
           entry->mode=modeUSB;
           entry->filter=filterF6;
         }
-fprintf(stderr,"min=%s:%lld max=%s:%lld lo=%s:%lld\n",minf,xvtr->frequencyMin,maxf,xvtr->frequencyMax,lof,xvtr->frequencyLO);
       } else {
         xvtr->frequencyMin=0;
         xvtr->frequencyMax=0;
@@ -139,7 +138,6 @@ void lo_frequency_cb(GtkEditable *editable,gpointer user_data) {
 }
 
 void lo_error_cb(GtkEditable *editable,gpointer user_data) {
-g_print("lo_error_cb\n");
   int band=GPOINTER_TO_INT(user_data);
   BAND *xvtr=band_get_band(band);
   const char* errorf=gtk_entry_get_text(GTK_ENTRY(lo_error[band]));
@@ -148,7 +146,6 @@ g_print("lo_error_cb\n");
 }
 
 void lo_error_update(RECEIVER *rx,long long offset) {
-g_print("lo_error_update: band=%d\n",vfo[0].band);
   BAND *xvtr=band_get_band(vfo[0].band);
   if(dialog!=NULL) {
     char temp[32];
@@ -182,7 +179,6 @@ void xvtr_menu(GtkWidget *parent) {
   int i;
   char f[16];
 
-fprintf(stderr,"xvtr_menu\n");
   parent_window=parent;
 
   dialog=gtk_dialog_new();
