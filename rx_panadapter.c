@@ -118,6 +118,9 @@ void rx_panadapter_update(RECEIVER *rx) {
   float *samples;
   char text[64];
   cairo_text_extents_t extents;
+  long long f;
+  long long divisor=20000;
+  double x=0.0;
 
   gboolean active=active_receiver==rx;
 
@@ -243,140 +246,133 @@ void rx_panadapter_update(RECEIVER *rx) {
   cairo_stroke(cr);
 
   // plot frequency markers
-  long long f;
-  long divisor=20000;
   switch(rx->sample_rate) {
     case 48000:
-      divisor=5000L;
+      divisor=5000LL;
       switch(rx->zoom) {
         case 2:
         case 3:
         case 4:
-          divisor=2000L;
+          divisor=2000LL;
           break;
         case 5:
         case 6:
         case 7:
         case 8:
-          divisor=1000L;
+          divisor=1000LL;
           break;
       }
       break;
     case 96000:
     case 100000:
-      divisor=10000L;
+      divisor=10000LL;
       switch(rx->zoom) {
         case 2:
         case 3:
         case 4:
-          divisor=5000L;
+          divisor=5000LL;
           break;
         case 5:
         case 6:
-          divisor=2000L;
+          divisor=2000LL;
           break;
         case 7:
         case 8:
-          divisor=1000L;
+          divisor=1000LL;
           break;
       }
       break;
     case 192000:
-      divisor=20000L;
+      divisor=20000LL;
       switch(rx->zoom) {
         case 2:
         case 3:
-          divisor=10000L;
+          divisor=10000LL;
           break;
         case 4:
         case 5:
         case 6:
-          divisor=5000L;
+          divisor=5000LL;
           break;
         case 7:
         case 8:
-          divisor=2000L;
+          divisor=2000LL;
           break;
       }
       break;
     case 384000:
-      divisor=50000L;
+      divisor=50000LL;
       switch(rx->zoom) {
         case 2:
         case 3:
-          divisor=25000L;
+          divisor=25000LL;
           break;
         case 4:
         case 5:
         case 6:
-          divisor=10000L;
+          divisor=10000LL;
           break;
         case 7:
         case 8:
-          divisor=5000L;
+          divisor=5000LL;
           break;
       }
       break;
     case 768000:
-      divisor=100000L;
+      divisor=100000LL;
       switch(rx->zoom) {
         case 2:
         case 3:
-          divisor=50000L;
+          divisor=50000LL;
           break;
         case 4:
         case 5:
         case 6:
-          divisor=25000L;
+          divisor=25000LL;
           break;
         case 7:
         case 8:
-          divisor=20000L;
+          divisor=20000LL;
           break;
       }
       break;
     case 1024000:
     case 1536000:
     case 2097152:
-      divisor=200000L;
+      divisor=200000LL;
       switch(rx->zoom) {
         case 2:
         case 3:
-          divisor=100000L;
+          divisor=100000LL;
           break;
         case 4:
         case 5:
         case 6:
-          divisor=50000L;
+          divisor=50000LL;
           break;
         case 7:
         case 8:
-          divisor=20000L;
+          divisor=20000LL;
           break;
       }
       break;
   }
-  for(i=0;i<display_width;i++) {
-    f = frequency - half + (long) (HzPerPixel * (i+rx->pan));
-    if (f > 0) {
-      if ((f % divisor) < (long) HzPerPixel) {
-        cairo_set_line_width(cr, 1.0);
-        //cairo_move_to(cr,(double)x,0.0);
-        cairo_move_to(cr,(double)i,10.0);
-        cairo_line_to(cr,(double)i,(double)display_height);
 
-        cairo_select_font_face(cr, "FreeMono",
+  f = ((min_display/divisor)*divisor)+divisor;
+  cairo_select_font_face(cr, "FreeMono",
                             CAIRO_FONT_SLANT_NORMAL,
                             CAIRO_FONT_WEIGHT_BOLD);
-        cairo_set_font_size(cr, 12);
-        char v[32];
-        sprintf(v,"%0lld.%03lld",f/1000000,(f%1000000)/1000);
-        //cairo_move_to(cr, (double)i, (double)(display_height-10));  
-        cairo_text_extents(cr, v, &extents);
-        cairo_move_to(cr, (double)i-(extents.width/2.0), 10.0);  
-        cairo_show_text(cr, v);
-      }
-    }
+  cairo_set_font_size(cr, 12);
+  while(f<max_display) {
+    x=(double)(f-min_display)/HzPerPixel;
+    cairo_move_to(cr,(double)x,0.0);
+    cairo_line_to(cr,(double)x,(double)display_height);
+
+    sprintf(v,"%0lld.%03lld",f/1000000,(f%1000000)/1000);
+    cairo_text_extents(cr, v, &extents);
+    cairo_move_to(cr, x-(extents.width/2.0), 10.0);  
+    cairo_show_text(cr, v);
+    f+=divisor;
   }
   cairo_stroke(cr);
 

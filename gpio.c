@@ -2058,8 +2058,8 @@ static void encoder_changed(int action,int pos) {
       value+=(double)pos;
       if(value<0.0) {
         value=0.0;
-      } else if(value>100.0) {
-        value=100.0;
+      } else if(value>drive_max) {
+        value=drive_max;
       }
       set_drive(value);
       break;

@@ -13,7 +13,7 @@ extern void start_mode();
 extern void start_filter();
 extern void start_noise();
 extern void start_encoder();
-extern void start_vfo();
+extern void start_vfo(int vfo);
 extern void start_agc();
 extern void start_store();
 extern void start_rx();

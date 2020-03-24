@@ -321,6 +321,8 @@ int can_transmit=0;
 gboolean duplex=FALSE;
 gboolean mute_rx_while_transmitting=FALSE;
 
+double drive_max=100;
+
 gboolean display_sequence_errors=TRUE;
 gint sequence_errors=0;
 
@@ -444,7 +446,8 @@ void start_radio() {
   protocol=radio->protocol;
   device=radio->device;
 
-  // set the default power output
+  // set the default power output and max drive value
+  drive_max=100.0;
   switch(protocol) {
     case ORIGINAL_PROTOCOL:
       switch(device) {
@@ -508,6 +511,11 @@ void start_radio() {
       break;
 #ifdef SOAPYSDR
     case SOAPYSDR_PROTOCOL:
+      if(strcmp(radio->name,"lime")==0) {
+        drive_max=64.0;
+      } else if(strcmp(radio->name,"plutosdr")==0) {
+        drive_max=89.0;
+      }
       pa_power=PA_1W;
       break;
 #endif
@@ -872,7 +880,7 @@ void start_radio() {
   adc[0].preamp=FALSE;
   adc[0].attenuation=0;
 #ifdef SOAPYSDR
-  adc[0].antenna=2; // LNAL
+  adc[0].antenna=0;
   if(device==SOAPYSDR_USB_DEVICE) {
     adc[0].rx_gain=malloc(radio->info.soapy.rx_gains*sizeof(gint));
     for (size_t i = 0; i < radio->info.soapy.rx_gains; i++) {
@@ -896,7 +904,7 @@ void start_radio() {
   adc[1].preamp=FALSE;
   adc[1].attenuation=0;
 #ifdef SOAPYSDR
-  adc[1].antenna=3; // LNAW
+  adc[1].antenna=0;
   if(device==SOAPYSDR_USB_DEVICE) {
     adc[1].rx_gain=malloc(radio->info.soapy.rx_gains*sizeof(gint));
     for (size_t i = 0; i < radio->info.soapy.rx_gains; i++) {
@@ -1476,9 +1484,6 @@ void setTune(int state) {
   int i;
 
   if(!can_transmit) return;
-#ifdef SOAPYSDR
-  if(protocol==SOAPYSDR_PROTOCOL && !transmitter->local_microphone) return;
-#endif
 
   // if state==tune, this function is a no-op
 
@@ -1692,10 +1697,10 @@ static int calcLevel(double d) {
 }
 
 void calcDriveLevel() {
-    transmitter->drive_level=calcLevel(transmitter->drive);
-    if(isTransmitting()  && protocol==NEW_PROTOCOL) {
-      schedule_high_priority();
-    }
+  transmitter->drive_level=calcLevel(transmitter->drive);
+  if(isTransmitting()  && protocol==NEW_PROTOCOL) {
+    schedule_high_priority();
+  }
 //g_print("calcDriveLevel: drive=%d drive_level=%d\n",transmitter->drive,transmitter->drive_level);
 }
 
@@ -1709,7 +1714,6 @@ void setDrive(double value) {
 #ifdef SOAPYSDR
       case SOAPYSDR_PROTOCOL:
         soapy_protocol_set_tx_gain(transmitter,transmitter->drive);
-        
         break;
 #endif
     }

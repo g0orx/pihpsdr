@@ -449,6 +449,7 @@ void soapy_protocol_set_tx_frequency(TRANSMITTER *tx) {
 void soapy_protocol_set_rx_antenna(RECEIVER *rx,int ant) {
   int rc;
   if(soapy_device!=NULL) {
+    if (ant >= radio->info.soapy.rx_antennas) ant=radio->info.soapy.rx_antennas -1;
     g_print("soapy_protocol: set_rx_antenna: %s\n",radio->info.soapy.rx_antenna[ant]);
     rc=SoapySDRDevice_setAntenna(soapy_device,SOAPY_SDR_RX,rx->adc,radio->info.soapy.rx_antenna[ant]);
     if(rc!=0) {
@@ -460,6 +461,7 @@ void soapy_protocol_set_rx_antenna(RECEIVER *rx,int ant) {
 void soapy_protocol_set_tx_antenna(TRANSMITTER *tx,int ant) {
   int rc;
   if(soapy_device!=NULL) {
+    if (ant >= radio->info.soapy.tx_antennas) ant=radio->info.soapy.tx_antennas -1;
     g_print("soapy_protocol: set_tx_antenna: %s\n",radio->info.soapy.tx_antenna[ant]);
     rc=SoapySDRDevice_setAntenna(soapy_device,SOAPY_SDR_TX,tx->dac,radio->info.soapy.tx_antenna[ant]);
     if(rc!=0) {

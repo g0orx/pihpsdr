@@ -65,13 +65,22 @@ int ext_set_frequency(void *data) {
   // behave as if the user had chosen the new band
   // via the menu prior to changing the frequency
   //
-  long long freq = *(long long *)data;
-  int id=active_receiver->id;
-  int b = get_band_from_frequency(freq);
-  if (b != vfo[id].band) {
-    vfo_band_changed(b);
+  SET_FREQUENCY *set_frequency=(SET_FREQUENCY *)data;
+g_print("ext_set_frequency: vfo=%d freq=%lld\n",set_frequency->vfo,set_frequency->frequency);
+  int b=get_band_from_frequency(set_frequency->frequency);
+  if(active_receiver->id==set_frequency->vfo) {
+    if (b != vfo[set_frequency->vfo].band) {
+      vfo_band_changed(b);
+    }
+    setFrequency(set_frequency->frequency);
+  } else if(set_frequency->vfo==VFO_B) {
+    // just  changing VFO-B frequency
+    vfo[set_frequency->vfo].frequency=set_frequency->frequency;
+    vfo[set_frequency->vfo].band=b;
+    if(receivers==2) {
+      // need to change the receiver frequency
+    }
   }
-  setFrequency(freq);
   free(data);
   return 0;
 }
@@ -125,7 +134,7 @@ int ext_filter_update(void *data) {
 }
 
 int ext_frequency_update(void *data) {
-  start_vfo();
+  start_vfo(active_receiver->id);
   return 0;
 }
 

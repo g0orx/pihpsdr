@@ -17,4 +17,4 @@
 *
 */
 
-extern void vfo_menu(GtkWidget *parent);
+extern void vfo_menu(GtkWidget *parent,int vfo);

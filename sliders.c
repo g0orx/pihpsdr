@@ -576,17 +576,7 @@ void set_drive(double value) {
       scale_status=DRIVE;
       scale_dialog=gtk_dialog_new_with_buttons("Drive",GTK_WINDOW(top_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
       GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
-      switch(protocol) {
-#ifdef SOAPYSDR
-        case SOAPYSDR_PROTOCOL:
-          drive_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 64.0, 1.00);
-          break;
-#endif
-        default:
-          drive_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.00);
-          break;
-      }
-  
+      drive_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, drive_max, 1.00);
       gtk_widget_override_font(drive_scale, pango_font_description_from_string("Sans 10"));
       gtk_widget_set_size_request (drive_scale, 400, 30);
       gtk_range_set_value (GTK_RANGE(drive_scale),value);
@@ -869,8 +859,7 @@ fprintf(stderr,"sliders_init: width=%d height=%d\n", width,height);
     drive_label=gtk_label_new("Drive:");
     gtk_widget_override_font(drive_label, pango_font_description_from_string("Sans 10"));
     gtk_grid_attach(GTK_GRID(sliders),drive_label,3,1,1,1);
-  
-    drive_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.0);
+    drive_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, drive_max, 1.00);
     gtk_widget_override_font(drive_scale, pango_font_description_from_string("Sans 10"));
     gtk_range_set_increments (GTK_RANGE(drive_scale),1.0,1.0);
     gtk_range_set_value (GTK_RANGE(drive_scale),getDrive());

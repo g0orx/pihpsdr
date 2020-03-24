@@ -360,17 +360,17 @@ static gboolean diversity_cb (GtkWidget *widget, GdkEventButton *event, gpointer
   return TRUE;
 }
 
-void start_vfo() {
+void start_vfo(int vfo) {
   int old_menu=active_menu;
   cleanup();
   if(old_menu!=VFO_MENU) {
-    vfo_menu(top_window);
+    vfo_menu(top_window,vfo);
     active_menu=VFO_MENU;
   }
 }
 
 static gboolean vfo_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  start_vfo();
+  start_vfo(active_receiver->id);
   return TRUE;
 }
 

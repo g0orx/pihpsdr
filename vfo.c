@@ -1154,7 +1154,7 @@ vfo_press_event_cb (GtkWidget *widget,
                GdkEventButton *event,
                gpointer        data)
 {
-  start_vfo();
+  start_vfo(event->x<300?VFO_A:VFO_B);
   return TRUE;
 }
 

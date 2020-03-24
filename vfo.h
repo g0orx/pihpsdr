@@ -60,6 +60,11 @@ struct _mode_settings {
 } mode_settings[MODES];
 
 
+typedef struct _set_frequency {
+  int vfo;
+  long long frequency;
+} SET_FREQUENCY;
+
 extern int steps[];
 extern char *step_labels[];
 

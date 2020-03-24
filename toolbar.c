@@ -372,7 +372,7 @@ static void xit_clear_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void freq_cb(GtkWidget *widget, gpointer data) {
-  start_vfo();
+  start_vfo(active_receiver->id);
 }
 
 static void mem_cb(GtkWidget *widget, gpointer data) {

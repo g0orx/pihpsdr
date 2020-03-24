@@ -827,7 +827,13 @@ void radio_menu(GtkWidget *parent) {
     GtkWidget *rf_gain_label=gtk_label_new("RF Gain");
     gtk_grid_attach(GTK_GRID(grid),rf_gain_label,col,row,1,1);
     col++;
-    GtkWidget *rf_gain_b=gtk_spin_button_new_with_range(0.0,60.0,1.0);
+    double max=100;
+    if(strcmp(radio->name,"lime")==0) {
+      max=60.0;
+    } else if(strcmp(radio->name,"plutosdr")==0) {
+      max=73.0;
+    }
+    GtkWidget *rf_gain_b=gtk_spin_button_new_with_range(0.0,max,1.0);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(rf_gain_b),active_receiver->rf_gain);
     gtk_grid_attach(GTK_GRID(grid),rf_gain_b,col,row,1,1);
     g_signal_connect(rf_gain_b,"value_changed",G_CALLBACK(rf_gain_value_changed_cb),&adc[0]);
@@ -865,7 +871,13 @@ void radio_menu(GtkWidget *parent) {
       GtkWidget *tx_gain_label=gtk_label_new("TX Gain");
       gtk_grid_attach(GTK_GRID(grid),tx_gain_label,col,row,1,1);
       col++;
-      tx_gain=gtk_spin_button_new_with_range(0.0,64.0,1.0);
+      double max=100;
+      if(strcmp(radio->name,"lime")==0) {
+        max=64.0;
+      } else if(strcmp(radio->name,"plutosdr")==0) {
+        max=89.0;
+      }
+      tx_gain=gtk_spin_button_new_with_range(0.0,max,1.0);
       gtk_spin_button_set_value(GTK_SPIN_BUTTON(tx_gain),transmitter->drive);
       gtk_grid_attach(GTK_GRID(grid),tx_gain,col,row,1,1);
       g_signal_connect(tx_gain,"value_changed",G_CALLBACK(drive_gain_value_changed_cb),&adc[0]);

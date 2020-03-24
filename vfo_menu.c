@@ -37,6 +37,7 @@
 #include "ext.h"
 
 static GtkWidget *parent_window=NULL;
+static gint v;
 static GtkWidget *dialog=NULL;
 static GtkWidget *label;
 
@@ -83,7 +84,7 @@ static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
   double  mult;
   long long f;
   static int set = 0;
-  long long *fp;
+  SET_FREQUENCY *fp;
 
   // Instead of messing with LOCALE settings,
   // we print a "0.0" and look what the decimal
@@ -149,10 +150,10 @@ static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
       f = ((long long)(atof(buffer)*mult)+5)/10;
       sprintf(output, "<big>%lld</big>", f);
       gtk_label_set_markup (GTK_LABEL (label), output);
-      fp = malloc(sizeof(long long));
-      *fp = f;
+      fp=g_new(SET_FREQUENCY,1);
+      fp->vfo=v;
+      fp->frequency = f;
       g_idle_add(ext_set_frequency, fp);
-      g_idle_add(ext_vfo_update,NULL);
       set = 1;
     }
   }
@@ -202,16 +203,17 @@ static void lock_cb(GtkWidget *widget, gpointer data) {
 
 static GtkWidget *last_mode;
 
-void vfo_menu(GtkWidget *parent) {
+void vfo_menu(GtkWidget *parent,int vfo) {
   int i;
 
   parent_window=parent;
+  v=vfo;
 
   dialog=gtk_dialog_new();
   gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent_window));
   //gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
   char title[64];
-  sprintf(title,"piHPSDR - VFO (RX %d VFO %s)",active_receiver->id,active_receiver->id==0?"A":"B");
+  sprintf(title,"piHPSDR - VFO %s",vfo==0?"A":"B");
   gtk_window_set_title(GTK_WINDOW(dialog),title);
   g_signal_connect (dialog, "delete_event", G_CALLBACK (delete_event), NULL);
 
@@ -226,18 +228,18 @@ void vfo_menu(GtkWidget *parent) {
 
   GtkWidget *grid=gtk_grid_new();
 
-  gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
+  gtk_grid_set_column_homogeneous(GTK_GRID(grid),FALSE);
   gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
   gtk_grid_set_column_spacing (GTK_GRID(grid),4);
   gtk_grid_set_row_spacing (GTK_GRID(grid),4);
 
   GtkWidget *close_b=gtk_button_new_with_label("Close");
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
-  gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
+  gtk_grid_attach(GTK_GRID(grid),close_b,0,0,2,1);
 
   GtkWidget *lock_b=gtk_check_button_new_with_label("Lock VFO");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (lock_b), locked);
-  gtk_grid_attach(GTK_GRID(grid),lock_b,1,0,1,1);
+  gtk_grid_attach(GTK_GRID(grid),lock_b,2,0,2,1);
   g_signal_connect(lock_b,"toggled",G_CALLBACK(lock_cb),NULL);
 
   label = gtk_label_new (NULL);
@@ -298,7 +300,7 @@ void vfo_menu(GtkWidget *parent) {
   g_signal_connect(enable_squelch,"toggled",G_CALLBACK(squelch_enable_cb),NULL);
 
 #ifdef PURESIGNAL
-  if(can_transmit) {
+  if(can_transmit && (protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL)) {
     GtkWidget *enable_ps=gtk_check_button_new_with_label("Enable Pure Signal");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (enable_ps), transmitter->puresignal);
     gtk_grid_attach(GTK_GRID(grid),enable_ps,3,7,1,1);
