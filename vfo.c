@@ -38,10 +38,14 @@
 #include "filter.h"
 #include "bandstack.h"
 #include "band.h"
-#include "new_protocol.h"
 #include "property.h"
 #include "radio.h"
 #include "receiver.h"
+#include "transmitter.h"
+#include "new_protocol.h"
+#ifdef SOAPYSDR
+#include "soapy_protocol.h"
+#endif
 #include "vfo.h"
 #include "channel.h"
 #include "toolbar.h"
@@ -290,6 +294,7 @@ void vfo_band_changed(int b) {
 
   // turn off ctun
   vfo[id].ctun=0;
+  vfo[id].ctun_frequency=0LL;
   vfo[id].offset=0;
   // tell WDSP about the offset
   set_offset(active_receiver, vfo[id].offset);
@@ -322,8 +327,16 @@ void vfo_band_changed(int b) {
     //
     calcDriveLevel();  // sends HighPrio packet if in new protocol
   }
-  if (protocol == NEW_PROTOCOL) {
-    schedule_general();
+
+  switch(protocol) {
+    case NEW_PROTOCOL:
+      schedule_general();
+      break;
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
+      soapy_protocol_set_rx_frequency(active_receiver,id);
+      break;
+#endif
   }
   g_idle_add(ext_vfo_update,NULL);
 }

@@ -85,12 +85,10 @@ SoapySDRDevice *get_soapy_device() {
 
 void soapy_protocol_set_mic_sample_rate(int rate) {
   mic_sample_divisor=rate/48000;
-g_print("soapy_protocol_set_mic_sample_rate: rate=%d mic_sample_divisor=%d\n",rate,mic_sample_divisor);
 }
 
 void soapy_protocol_change_sample_rate(RECEIVER *rx) {
 // rx->mutex already locked
-g_print("soapy_protocol_change_sample_rate: %d\n",rx->sample_rate);
   if(rx->sample_rate==radio_sample_rate) {
     if(rx->resample_buffer!=NULL) {
       g_free(rx->resample_buffer);
@@ -114,7 +112,6 @@ g_print("soapy_protocol_change_sample_rate: %d\n",rx->sample_rate);
     rx->resample_buffer=g_new(double,rx->resample_buffer_size);
     rx->resampler=create_resample (1,max_samples,rx->buffer,rx->resample_buffer,radio_sample_rate,rx->sample_rate,0.0,0,1.0);
 
-g_print("soapy_protocol_change_sample_rate: buffer=%p buffer_size=%d resampler=%p\n",rx->resample_buffer,rx->resample_buffer_size,rx->resampler);
   }
 
 }
@@ -413,7 +410,6 @@ void soapy_protocol_set_rx_frequency(RECEIVER *rx,int v) {
 
   if(soapy_device!=NULL) {
     double f=(double)(vfo[v].frequency-vfo[v].lo);
-//g_print("soapy_protocol_set_rx_frequency: %f (%f %f)\n",f,(double)vfo[v].frequency,(double)vfo[v].lo);
     rc=SoapySDRDevice_setFrequency(soapy_device,SOAPY_SDR_RX,rx->adc,f,NULL);
     if(rc!=0) {
       fprintf(stderr,"soapy_protocol: SoapySDRDevice_setFrequency(RX) failed: %s\n",SoapySDR_errToStr(rc));
