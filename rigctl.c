@@ -1735,9 +1735,9 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                             // LEN=7 - set frequency
                                             // Next data will be rest of freq
                                             if(len == 13) { //We are receiving freq info
-                                               new_freqA = atoll(&cmd_input[2]);
-                                               long long *p=malloc(sizeof(long long));
-                                               *p= new_freqA;
+                                               SET_FREQUENCY *p = malloc(sizeof(SET_FREQUENCY));
+		                               p->frequency = atoll(&cmd_input[2]);
+                                               p->vfo=VFO_A;
                                                g_idle_add(ext_set_frequency,(gpointer)p);
                                                g_idle_add(ext_vfo_update,NULL);
                                                return;
@@ -1765,15 +1765,12 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                             // TS-2000 - FB - VFO B frequency
                                             // PiHPSDR - ZZFB - VFO B frequency 
                                             if(len==13) { //We are receiving freq info
-                                               new_freqB = atoll(&cmd_input[2]);
-                                               long long *p=malloc(sizeof(long long));
-                                               *p=new_freqB;
+                                               SET_FREQUENCY *p = malloc(sizeof(SET_FREQUENCY));
+		                               p->frequency = atoll(&cmd_input[2]);
+                                               p->vfo=VFO_B;
                                                g_idle_add(ext_set_frequency,(gpointer)p);
                                                g_idle_add(ext_vfo_update,NULL);
-                                               //new_freqB = atoll(&cmd_input[2]); 
-                                               //set_freqB(new_freqB);
-                                               //setFrequency(new_freqA);
-                                               //g_idle_add(ext_vfo_update,NULL);
+                                               return;
                                             } else if(len == 2) {
                                                if(zzid_flag == 0) {
                                                   if(vfo[VFO_B].ctun == 1) {
