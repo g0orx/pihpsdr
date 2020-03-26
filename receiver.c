@@ -98,7 +98,10 @@ gboolean receiver_button_release_event(GtkWidget *widget, GdkEventButton *event,
       g_idle_add(ext_start_rx,NULL);
     }
 
-    ///g_print("receiver: %d adc=%d attenuation=%d rx_gain_calibration=%d\n",rx->id,rx->adc,adc_attenuation[rx->adc],rx_gain_calibration);
+    // setup the transmitter mode and filter
+    tx_set_mode(transmitter,get_tx_mode());
+
+    //g_print("receiver: %d adc=%d attenuation=%d rx_gain_calibration=%d\n",rx->id,rx->adc,adc_attenuation[rx->adc],rx_gain_calibration);
   } else {
     if(pressed) {
       int x=(int)event->x;
