@@ -347,7 +347,9 @@ void vfo_bandstack_changed(int b) {
       receiver_vfo_changed(receiver[id]);
       BAND *band=band_get_band(vfo[id].band);
       set_alex_rx_antenna(band->alexRxAntenna);
-      set_alex_tx_antenna(band->alexTxAntenna);
+      if(can_transmit) {
+        set_alex_tx_antenna(band->alexTxAntenna);
+      }
       set_alex_attenuation(band->alexAttenuation);
       receiver_vfo_changed(receiver[0]);
       break;
@@ -360,14 +362,14 @@ void vfo_bandstack_changed(int b) {
 
   if(can_transmit) {
     tx_set_mode(transmitter,get_tx_mode());
-  }
-  //
-  // I do not think the band can change within this function.
-  // But out of paranoia, I consider this possiblity here
-  //
-  calcDriveLevel();  // sends HighPrio packet if in new protocol
-  if (protocol == NEW_PROTOCOL) {
-    schedule_general();		// for PA disable
+    //
+    // I do not think the band can change within this function.
+    // But out of paranoia, I consider this possiblity here
+    //
+    calcDriveLevel();  // sends HighPrio packet if in new protocol
+    if (protocol == NEW_PROTOCOL) {
+      schedule_general();		// for PA disable
+    }
   }
   g_idle_add(ext_vfo_update,NULL);
 
