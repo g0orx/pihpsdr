@@ -916,7 +916,7 @@ fprintf(stderr,"create_receiver: id=%d buffer_size=%d fft_size=%d pixels=%d fps=
   }
 fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
 #ifdef SOAPYSDR
-  if(radio->device==SOAPYSDR_USB_DEVICE) {
+  if(radio->protocol == SOAPYSDR_PROTOCOL && radio->device==SOAPYSDR_USB_DEVICE) {
     rx->sample_rate=radio->info.soapy.sample_rate;
     rx->resampler=NULL;
     rx->resample_buffer=NULL;

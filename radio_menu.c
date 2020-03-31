@@ -80,7 +80,7 @@ static void rf_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
   ADC *adc=(ADC *)data;
   active_receiver->rf_gain=gtk_spin_button_get_value(GTK_SPIN_BUTTON(widget));
   
-  if(radio->device==SOAPYSDR_USB_DEVICE) {
+  if(radio->protocol == SOAPYSDR_PROTOCOL && radio->device==SOAPYSDR_USB_DEVICE) {
     soapy_protocol_set_gain(receiver[0],active_receiver->rf_gain);
   }
 
@@ -96,7 +96,7 @@ static void rf_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
 static void rx_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
   ADC *adc=(ADC *)data;
   int gain;
-  if(radio->device==SOAPYSDR_USB_DEVICE) {
+  if(radio->protocol == SOAPYSDR_PROTOCOL && radio->device==SOAPYSDR_USB_DEVICE) {
     gain=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
     soapy_protocol_set_gain_element(receiver[0],(char *)gtk_widget_get_name(widget),gain);
 
@@ -114,7 +114,7 @@ static void rx_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
 
 static void drive_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
   DAC *dac=(DAC *)data;
-  if(radio->device==SOAPYSDR_USB_DEVICE) {
+  if(radio->protocol == SOAPYSDR_PROTOCOL && radio->device==SOAPYSDR_USB_DEVICE) {
     transmitter->drive=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
     soapy_protocol_set_tx_gain(transmitter,(double)transmitter->drive);
 /*
@@ -129,7 +129,7 @@ static void drive_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
 static void tx_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
   DAC *dac=(DAC *)data;
   int gain;
-  if(radio->device==SOAPYSDR_USB_DEVICE) {
+  if(radio->protocol == SOAPYSDR_PROTOCOL && radio->device==SOAPYSDR_USB_DEVICE) {
     gain=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
     soapy_protocol_set_tx_gain_element(transmitter,(char *)gtk_widget_get_name(widget),gain);
 /*
@@ -154,7 +154,7 @@ static void agc_changed_cb(GtkWidget *widget, gpointer data) {
 static void dac0_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
   DAC *dac=(DAC *)data;
   int gain;
-  if(radio->device==SOAPYSDR_USB_DEVICE) {
+  if(radio->protocol == SOAPYSDR_PROTOCOL && radio->device==SOAPYSDR_USB_DEVICE) {
     gain=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
     soapy_protocol_set_tx_gain_element(radio->transmitter,(char *)gtk_widget_get_name(widget),gain);
     for(int i=0;i<radio->discovered->info.soapy.tx_gains;i++) {
@@ -778,7 +778,7 @@ void radio_menu(GtkWidget *parent) {
 
 #ifdef SOAPYSDR
   col=0;
-  if(radio->device==SOAPYSDR_USB_DEVICE) {
+  if(radio->protocol == SOAPYSDR_PROTOCOL && radio->device==SOAPYSDR_USB_DEVICE) {
     int i;
 /*
     if(radio->info.soapy.rx_gains>0) {

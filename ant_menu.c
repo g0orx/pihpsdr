@@ -77,7 +77,7 @@ static void adc0_antenna_cb(GtkComboBox *widget,gpointer data) {
   if(radio->protocol==NEW_PROTOCOL) {
     schedule_high_priority();
 #ifdef SOAPYSDR
-  } else if(radio->device==SOAPYSDR_USB_DEVICE) {
+  } else if(radio->protocol == SOAPYSDR_PROTOCOL && radio->device==SOAPYSDR_USB_DEVICE) {
     soapy_protocol_set_rx_antenna(receiver[0],adc[0].antenna);
 #endif
   }
@@ -89,7 +89,7 @@ static void dac0_antenna_cb(GtkComboBox *widget,gpointer data) {
   if(radio->protocol==NEW_PROTOCOL) {
     schedule_high_priority();
 #ifdef SOAPYSDR
-  } else if(radio->device==SOAPYSDR_USB_DEVICE) {
+  } else if(radio->protocol == SOAPYSDR_PROTOCOL && radio->device==SOAPYSDR_USB_DEVICE) {
     soapy_protocol_set_tx_antenna(transmitter,dac->antenna);
 #endif
   }
@@ -331,7 +331,7 @@ void ant_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
 #ifdef SOAPYSDR
-  if(radio->device!=SOAPYSDR_USB_DEVICE) {
+  if(radio->protocol != SOAPYSDR_PROTOCOL || radio->device!=SOAPYSDR_USB_DEVICE) {
 #endif
     GtkWidget *hf_rb=gtk_radio_button_new_with_label(NULL,"HF");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hf_rb),TRUE);
@@ -432,7 +432,7 @@ void ant_menu(GtkWidget *parent) {
   }
 
 #ifdef SOAPYSDR
-  if(radio->device==SOAPYSDR_USB_DEVICE) {
+  if(radio->protocol == SOAPYSDR_PROTOCOL && radio->device==SOAPYSDR_USB_DEVICE) {
     int i;
 
 g_print("rx_antennas=%ld\n",radio->info.soapy.rx_antennas);

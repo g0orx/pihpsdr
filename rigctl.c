@@ -1165,10 +1165,9 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                              fprintf(stderr,"RIGCTL: BD - current band=%d\n",cur_band);
                                              #endif
                                              if(cur_band == 0) {
+                                                cur_band = band6;
                                                 #ifdef SOAPYSDR
-                                                    cur_band = band472;
-                                                #else
-                                                    cur_band = band6;
+                                                    if (radio->protocol == SOAPYSDR_PROTOCOL) cur_band = band472;
                                                 #endif
                                              } else {
                                                 --cur_band;

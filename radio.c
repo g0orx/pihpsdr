@@ -857,7 +857,7 @@ void start_radio() {
   iqswap=0;
 
 #ifdef SOAPYSDR
-  if(device==SOAPYSDR_USB_DEVICE) {
+  if(protocol == SOAPYSDR_PROTOCOL && device==SOAPYSDR_USB_DEVICE) {
     iqswap=1;
     receivers=1;
   }
@@ -880,17 +880,19 @@ void start_radio() {
   adc[0].preamp=FALSE;
   adc[0].attenuation=0;
 #ifdef SOAPYSDR
-  adc[0].antenna=0;
-  if(device==SOAPYSDR_USB_DEVICE) {
-    adc[0].rx_gain=malloc(radio->info.soapy.rx_gains*sizeof(gint));
-    for (size_t i = 0; i < radio->info.soapy.rx_gains; i++) {
-      adc[0].rx_gain[i]=0;
-    }
-    adc[0].agc=FALSE;
-    dac[0].antenna=1;
-    dac[0].tx_gain=malloc(radio->info.soapy.tx_gains*sizeof(gint));
-    for (size_t i = 0; i < radio->info.soapy.tx_gains; i++) {
-      dac[0].tx_gain[i]=0;
+  if (protocol == SOAPYSDR_PROTOCOL) {
+    adc[0].antenna=0;
+    if(device==SOAPYSDR_USB_DEVICE) {
+      adc[0].rx_gain=malloc(radio->info.soapy.rx_gains*sizeof(gint));
+      for (size_t i = 0; i < radio->info.soapy.rx_gains; i++) {
+        adc[0].rx_gain[i]=0;
+      }
+      adc[0].agc=FALSE;
+      dac[0].antenna=1;
+      dac[0].tx_gain=malloc(radio->info.soapy.tx_gains*sizeof(gint));
+      for (size_t i = 0; i < radio->info.soapy.tx_gains; i++) {
+        dac[0].tx_gain[i]=0;
+      }
     }
   }
 #endif
@@ -904,21 +906,23 @@ void start_radio() {
   adc[1].preamp=FALSE;
   adc[1].attenuation=0;
 #ifdef SOAPYSDR
-  adc[1].antenna=0;
-  if(device==SOAPYSDR_USB_DEVICE) {
-    adc[1].rx_gain=malloc(radio->info.soapy.rx_gains*sizeof(gint));
-    for (size_t i = 0; i < radio->info.soapy.rx_gains; i++) {
-      adc[1].rx_gain[i]=0;
-    }
-    adc[1].agc=FALSE;
+  if (protocol == SOAPYSDR_PROTOCOL) {
+    adc[1].antenna=0;
+    if(device==SOAPYSDR_USB_DEVICE) {
+      adc[1].rx_gain=malloc(radio->info.soapy.rx_gains*sizeof(gint));
+      for (size_t i = 0; i < radio->info.soapy.rx_gains; i++) {
+        adc[1].rx_gain[i]=0;
+      }
+      adc[1].agc=FALSE;
 
-    dac[1].tx_gain=malloc(radio->info.soapy.tx_gains*sizeof(gint));
-    for (size_t i = 0; i < radio->info.soapy.tx_gains; i++) {
-      dac[1].tx_gain[i]=0;
+      dac[1].tx_gain=malloc(radio->info.soapy.tx_gains*sizeof(gint));
+      for (size_t i = 0; i < radio->info.soapy.tx_gains; i++) {
+        dac[1].tx_gain[i]=0;
+      }
     }
+
+    radio_sample_rate=radio->info.soapy.sample_rate;
   }
-
-  radio_sample_rate=radio->info.soapy.sample_rate;
 #endif
 
 //g_print("meter_calibration=%f display_calibration=%f\n", meter_calibration, display_calibration);
@@ -2013,7 +2017,7 @@ g_print("radioRestoreState: %s\n",property_path);
     if(value) mute_rx_while_transmitting=atoi(value);
 
 #ifdef SOAPYSDR
-  if(device==SOAPYSDR_USB_DEVICE) {
+  if(protocol == SOAPYSDR_PROTOCOL && device==SOAPYSDR_USB_DEVICE) {
     char name[128];
     for(int i=0;i<radio->info.soapy.rx_gains;i++) {
       sprintf(name,"radio.adc[0].rx_gain.%s",radio->info.soapy.rx_gain[i]) ;
@@ -2237,7 +2241,7 @@ g_print("radioSaveState: %s\n",property_path);
     setProperty("rx_gain_calibration",value);
 
 #ifdef SOAPYSDR
-    if(device==SOAPYSDR_USB_DEVICE) {
+    if(protocol == SOAPYSDR_PROTOCOL && device==SOAPYSDR_USB_DEVICE) {
       char name[128];
       for(int i=0;i<radio->info.soapy.rx_gains;i++) {
         sprintf(name,"radio.adc[0].rx_gain.%s",radio->info.soapy.rx_gain[i]);
