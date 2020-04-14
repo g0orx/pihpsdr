@@ -140,7 +140,7 @@ void update_toolbar_labels() {
       break;
     case 2:
       if(can_transmit) {
-        gtk_button_set_label(GTK_BUTTON(sim_mox),"Mox");
+        gtk_button_set_label(GTK_BUTTON(sim_mox),"Tune");
       } else {
         gtk_button_set_label(GTK_BUTTON(sim_mox),"");
       }
@@ -802,11 +802,11 @@ void sim_mox_cb(GtkWidget *widget, gpointer data) {
   switch(function) {
     case 0:
     case 1:
-    case 2:
     case 3:
     case 4:
       mox_cb((GtkWidget *)NULL, (gpointer)NULL);
       break;
+    case 2:
     case 5:
       tune_cb((GtkWidget *)NULL, (gpointer)NULL);
       break;
