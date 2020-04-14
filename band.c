@@ -503,6 +503,7 @@ void bandSaveState() {
 
 void bandRestoreState() {
     char* value;
+    int v;
     int b;
     int stack;
     char name[128];
@@ -513,13 +514,25 @@ void bandRestoreState() {
         value=getProperty(name);
         if(value) strcpy(bands[b].title,value);
 
-        sprintf(name,"band.%d.entries",b);
-        value=getProperty(name);
-        if(value) bands[b].bandstack->entries=atoi(value);
+	// The number of entries is a compile-time constant,
+        // which changes when compiling piHPSDR with different
+	// options (e.g. with and without SOAPYSDR)
+
+        //sprintf(name,"band.%d.entries",b);
+        //lue=getProperty(name);
+        //if(value) bands[b].bandstack->entries=atoi(value);
 
         sprintf(name,"band.%d.current",b);
         value=getProperty(name);
-        if(value) bands[b].bandstack->current_entry=atoi(value);
+        if(value) {
+	  //
+	  // Since the number of bandstack entries is a compile-time constant,
+	  // we cannot allow "current" to exceed the number of available slots
+	  //
+	  v=atoi(value);
+	  if (v >= bands[b].bandstack->entries) v=0;
+	  bands[b].bandstack->current_entry=v;
+	}
 
         sprintf(name,"band.%d.preamp",b);
         value=getProperty(name);
