@@ -342,6 +342,10 @@ void discovery() {
   status_text("Discovery");
   
   if(devices==0) {
+    //
+    // Added "Protocols" button since this is vital when a device is connected whose
+    // protocol is disabled in the props file
+    //
     gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_ARROW));
     discovery_dialog = gtk_dialog_new();
     gtk_window_set_transient_for(GTK_WINDOW(discovery_dialog),GTK_WINDOW(top_window));
@@ -367,16 +371,21 @@ void discovery() {
     gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
     gtk_grid_set_row_spacing (GTK_GRID(grid),10);
 
-    GtkWidget *label=gtk_label_new("No devices found!");
-    gtk_grid_attach(GTK_GRID(grid),label,0,0,2,1);
+    GtkWidget *label=gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(label), "<b>No devices found!</b>");
+    gtk_grid_attach(GTK_GRID(grid),label,1,0,1,1);
 
     GtkWidget *exit_b=gtk_button_new_with_label("Exit");
     g_signal_connect (exit_b, "button-press-event", G_CALLBACK(exit_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),exit_b,0,1,1,1);
+    gtk_grid_attach(GTK_GRID(grid),exit_b,0,0,1,1);
 
     GtkWidget *discover_b=gtk_button_new_with_label("Retry Discovery");
     g_signal_connect (discover_b, "button-press-event", G_CALLBACK(discover_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),discover_b,1,1,1,1);
+    gtk_grid_attach(GTK_GRID(grid),discover_b,0,1,1,1);
+
+    GtkWidget *protocols_b=gtk_button_new_with_label("Protocols");
+    g_signal_connect (protocols_b, "button-press-event", G_CALLBACK(protocols_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),protocols_b,1,1,1,1);
 
     GtkWidget *tcp_b=gtk_button_new_with_label("Use new TCP Addr:");
     g_signal_connect (tcp_b, "button-press-event", G_CALLBACK(tcp_cb), NULL);
