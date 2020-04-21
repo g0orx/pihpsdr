@@ -458,6 +458,7 @@ int cw_audio_write(float sample) {
   RECEIVER *rx = active_receiver;
   float *buffer = rx->local_audio_buffer;
 
+  g_mutex_lock(&rx->local_audio_mutex);
   if (rx->playback_handle != NULL && rx->local_audio_buffer != NULL) {
     buffer[rx->local_audio_buffer_offset++] = sample;
     if (rx->local_audio_buffer_offset == MY_AUDIO_BUFFER_SIZE) {
@@ -466,6 +467,7 @@ int cw_audio_write(float sample) {
       rx->local_audio_buffer_offset=0;
     }
   }
+  g_mutex_unlock(&rx->local_audio_mutex);
   return 0;
 }
 
