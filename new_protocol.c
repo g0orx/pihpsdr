@@ -269,6 +269,7 @@ static pthread_mutex_t rx_spec_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t tx_spec_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t hi_prio_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t general_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t audio_mutex   = PTHREAD_MUTEX_INITIALIZER;
 
 static int local_ptt=0;
 
@@ -1957,33 +1958,43 @@ static void process_mic_data(int bytes) {
 void new_protocol_cw_audio_samples(short left_audio_sample,short right_audio_sample) {
   int rc;
   int txmode=get_tx_mode();
+
   //
-  // Only process samples if transmitting in CW
+  // The audio mutex has been introduced since it cannot be
+  // guaranteed that there is no race condition here: while
+  // new_protocol_audio_samples is called by the RX thread,
+  // the TX thread calls its sibling new_protocol_cw_audio_samples,
+  // and at the moment of a RX/TX transition, both threads may
+  // actually write into the audio buffer at the same time.
+  //
+
   if (isTransmitting() && (txmode==modeCWU || txmode==modeCWL)) {
+    //
+    // Only process samples if transmitting in CW
+    //
+    pthread_mutex_lock(&audio_mutex);
+    // insert the samples
+    audiobuffer[audioindex++]=left_audio_sample>>8;
+    audiobuffer[audioindex++]=left_audio_sample;
+    audiobuffer[audioindex++]=right_audio_sample>>8;
+    audiobuffer[audioindex++]=right_audio_sample;
 
-  // insert the samples
-  audiobuffer[audioindex++]=left_audio_sample>>8;
-  audiobuffer[audioindex++]=left_audio_sample;
-  audiobuffer[audioindex++]=right_audio_sample>>8;
-  audiobuffer[audioindex++]=right_audio_sample;
+    if(audioindex>=sizeof(audiobuffer)) {
+      // insert the sequence
+      audiobuffer[0]=audiosequence>>24;
+      audiobuffer[1]=audiosequence>>16;
+      audiobuffer[2]=audiosequence>>8;
+      audiobuffer[3]=audiosequence;
 
-  if(audioindex>=sizeof(audiobuffer)) {
-
-    // insert the sequence
-    audiobuffer[0]=audiosequence>>24;
-    audiobuffer[1]=audiosequence>>16;
-    audiobuffer[2]=audiosequence>>8;
-    audiobuffer[3]=audiosequence;
-
-    // send the buffer
-
-    rc=sendto(data_socket,audiobuffer,sizeof(audiobuffer),0,(struct sockaddr*)&audio_addr,audio_addr_length);
-    if(rc!=sizeof(audiobuffer)) {
-      g_print("sendto socket failed for %ld bytes of audio: %d\n",(long)sizeof(audiobuffer),rc);
+      // send the buffer
+      rc=sendto(data_socket,audiobuffer,sizeof(audiobuffer),0,(struct sockaddr*)&audio_addr,audio_addr_length);
+      if(rc!=sizeof(audiobuffer)) {
+        g_print("sendto socket failed for %ld bytes of audio: %d\n",(long)sizeof(audiobuffer),rc);
+      }
+      audioindex=4;
+      audiosequence++;
     }
-    audioindex=4;
-    audiosequence++;
-  }
+    pthread_mutex_unlock(&audio_mutex);
   }
 }
 
@@ -1993,8 +2004,18 @@ void new_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right
   int txmode=get_tx_mode();
   //
   // Only process samples if NOT transmitting in CW
+  //
   if (isTransmitting() && (txmode==modeCWU || txmode==modeCWL)) return;
 
+  //
+  // The audio mutex has been introduced since it cannot be
+  // guaranteed that there is no race condition here: while
+  // new_protocol_audio_samples is called by the RX thread,
+  // the TX thread calls its sibling new_protocol_cw_audio_samples,
+  // and at the moment of a RX/TX transition, both threads may
+  // actually write into the audio buffer at the same time.
+  //
+  pthread_mutex_lock(&audio_mutex);
   // insert the samples
   audiobuffer[audioindex++]=left_audio_sample>>8;
   audiobuffer[audioindex++]=left_audio_sample;
@@ -2018,6 +2039,7 @@ void new_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right
     audioindex=4;
     audiosequence++;
   }
+  pthread_mutex_unlock(&audio_mutex);
 }
 
 void new_protocol_flush_iq_samples() {
