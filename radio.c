@@ -594,7 +594,7 @@ void start_radio() {
 #ifdef SOAPYSDR
     case SOAPYSDR_PROTOCOL:
 	have_rx_gain=1;
-	rx_gain_calibration=10;
+	rx_gain_calibration=14;
         break;
 #endif
     default:
@@ -741,13 +741,20 @@ void start_radio() {
 
   status_text(text);
 
-  sprintf(text,"piHPSDR: %s (%s %s) %s (%s) on %s",
-                          radio->name,
-                          p,
-                          version,
-                          ip,
-                          mac,
-                          iface);
+   if(strcmp(radio->name,"radioberry")==0) {
+	  sprintf(text,"piHPSDR: %s (%s %s",
+							  radio->name,
+							  p,
+							  version);
+  } else {
+	  sprintf(text,"piHPSDR: %s (%s %s) %s (%s) on %s",
+							  radio->name,
+							  p,
+							  version,
+							  ip,
+							  mac,
+							  iface);
+  }
 
   gtk_window_set_title (GTK_WINDOW (top_window), text);
 
@@ -1738,6 +1745,11 @@ void set_attenuation(int value) {
       case NEW_PROTOCOL:
         schedule_high_priority();
         break;
+#ifdef SOAPYSDR
+      case SOAPYSDR_PROTOCOL:
+        soapy_protocol_set_gain(active_receiver,value * 1.0);
+        break;
+#endif
     }
 }
 

@@ -451,7 +451,10 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
           break;
 #ifdef SOAPYSDR
         case SOAPYSDR_PROTOCOL:
-          sprintf(text,"%s (Protocol SOAPY_SDR %s) on USB",d->name,d->info.soapy.version);
+			if(strcmp(d->name,"radioberry")==0)
+				sprintf(text,"%s (Protocol SOAPY_SDR %s) on RPI",d->name,d->info.soapy.version);
+			else
+				sprintf(text,"%s (Protocol SOAPY_SDR %s) on USB",d->name,d->info.soapy.version);
           break;
 #endif
 #ifdef STEMLAB_DISCOVERY
