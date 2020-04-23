@@ -421,6 +421,15 @@ void audio_close_output(RECEIVER *rx) {
 // we have to store the data such that the PA callback function
 // can access it.
 //
+//
+// Note that the check on isTransmitting() takes care that "blocking"
+// by the mutex can only occur in the moment of a RX/TX transition if
+// both audio_write() and cw_audio_write() get a "go".
+//
+// So mutex locking/unlocking should only cost few CPU cycles in
+// normal operation. This may be different on systems with several
+// CPU sockets if "locking" the mutex causes cache in-coherency.
+//
 int audio_write (RECEIVER *rx, float left, float right)
 {
   int mode=modeUSB;

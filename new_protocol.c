@@ -1955,6 +1955,32 @@ static void process_mic_data(int bytes) {
   }
 }
 
+//
+// Pure DL1YCF paranoia:
+//
+// Note that new_protocol_cw_audio_samples() is called by the TX thread, while
+// new_protocol_audio_samples() is called by the RX thread.
+//
+// To make this bullet-proof, we need a mutex to ensure that only one of these
+// two functions is active at a given time.
+//
+// The problem is that upon a RX/TX transition, both functions may be called at
+// the same time, and the status if isTransmitting() may be changed at a moment
+// such that *both* functions proceed.
+//
+// So in 99% if the cases, the check on isTransmitting() controls that only one
+// of the two functions becomes active, but at the moment of a RX/TX transition
+// this may fail.
+//
+// The same problem occured in the audio modules (audio_write vs. cw_audio_write)
+// and has been resolved with a mutex, and this we now also do here using
+// audio_mutex.
+//
+// Note that in almost all cases, no "blocking" occures, such that the lock/unlock
+// should cost only few CPU cycles. This may be different on systems with several
+// CPU sockets if "locking" the mutex causes cache in-coherency.
+//
+
 void new_protocol_cw_audio_samples(short left_audio_sample,short right_audio_sample) {
   int rc;
   int txmode=get_tx_mode();

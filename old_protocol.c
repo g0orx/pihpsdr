@@ -995,8 +995,40 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
   }
 }
 
+//
+// Pure DL1YCF paranoia:
+//
+// To make this bullet-proof, we need a mutex covering the next three functions
+// that are called both by the RX and TX thread, and are filling and sending the
+// output buffer.
+//
+// Note that old_protocol_iq_samples() and old_protocol_iq_samples_with_sidetone()
+// are mutually exclusive by design (the TX thread calls the latter one if doing
+// CW, the first one otherwise).
+//
+// The problem is that upon a RX/TX transition, old_protocol_audio_samples() and
+// old_protocol_iq_samples() may be called by the RX and TX thread at the same
+// time, and the status if isTransmitting() may be changed at a moment such that
+// *both* functions proceed.
+//
+// So in 99% if the cases, the check on isTransmitting() controls that only one
+// of the two functions becomes active, but at the moment of a RX/TX transition
+// this may fail.
+//
+// The same problem occured in the audio modules (audio_write vs. cw_audio_write)
+// and has been resolved with a mutex, and this we now also do here using
+// send_buffer_mutex.
+//
+// Note that in almost all cases, no "blocking" occures, such that the lock/unlock
+// should cost only few CPU cycles. This may be different on systems with several
+// CPU sockets if "locking" the mutex causes cache in-coherency.
+//
+
+static pthread_mutex_t send_buffer_mutex   = PTHREAD_MUTEX_INITIALIZER;
+
 void old_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right_audio_sample) {
   if(!isTransmitting()) {
+    pthread_mutex_lock(&send_buffer_mutex);
     output_buffer[output_buffer_index++]=left_audio_sample>>8;
     output_buffer[output_buffer_index++]=left_audio_sample;
     output_buffer[output_buffer_index++]=right_audio_sample>>8;
@@ -1009,6 +1041,7 @@ void old_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right
       ozy_send_buffer();
       output_buffer_index=8;
     }
+    pthread_mutex_unlock(&send_buffer_mutex);
   }
 }
 
@@ -1021,6 +1054,7 @@ void old_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right
 //
 void old_protocol_iq_samples_with_sidetone(int isample, int qsample, int side) {
   if(isTransmitting()) {
+    pthread_mutex_lock(&send_buffer_mutex);
     output_buffer[output_buffer_index++]=side >> 8;
     output_buffer[output_buffer_index++]=side;
     output_buffer[output_buffer_index++]=side >> 8;
@@ -1033,11 +1067,13 @@ void old_protocol_iq_samples_with_sidetone(int isample, int qsample, int side) {
       ozy_send_buffer();
       output_buffer_index=8;
     }
+    pthread_mutex_unlock(&send_buffer_mutex);
   }
 }
 
 void old_protocol_iq_samples(int isample,int qsample) {
   if(isTransmitting()) {
+    pthread_mutex_lock(&send_buffer_mutex);
     output_buffer[output_buffer_index++]=0;
     output_buffer[output_buffer_index++]=0;
     output_buffer[output_buffer_index++]=0;
@@ -1050,6 +1086,7 @@ void old_protocol_iq_samples(int isample,int qsample) {
       ozy_send_buffer();
       output_buffer_index=8;
     }
+    pthread_mutex_unlock(&send_buffer_mutex);
   }
 }
 
