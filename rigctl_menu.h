@@ -28,4 +28,4 @@ extern void disable_rigctl();
 extern void disable_serial();
 
 extern int serial_baud_rate;
-extern int serial_parity;
+extern int serial_enable;

@@ -91,8 +91,6 @@ int rigctl_busy = 0;  // Used to tell rigctl_menu that launch has already occure
 int cat_control;
 
 extern int enable_tx_equalizer;
-//extern int serial_baud_rate;
-//extern int serial_parity;
 
 typedef struct {GMutex m; } GT_MUTEX;
 GT_MUTEX * mutex_a;
@@ -3749,123 +3747,97 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
 // 
 
 
-// Serial Port Launch
-int set_interface_attribs (int fd, int speed, int parity)
-{
-        struct termios tty;
-        memset (&tty, 0, sizeof tty);
-        if (tcgetattr (fd, &tty) != 0)
-        {
-                fprintf (stderr,"RIGCTL: Error %d from tcgetattr", errno);
-                return -1;
-        }
-
-        cfsetospeed (&tty, speed);
-        cfsetispeed (&tty, speed);
-
-        tty.c_cflag = (tty.c_cflag & ~CSIZE) | CS8;     // 8-bit chars
-        // disable IGNBRK for mismatched speed tests; otherwise receive break
-        // as \000 chars
-        tty.c_iflag &= ~IGNBRK;         // disable break processing
-        tty.c_lflag = 0;                // no signaling chars, no echo,
-                                        // no canonical processing
-        tty.c_oflag = 0;                // no remapping, no delays
-        tty.c_cc[VMIN]  = 0;            // read doesn't block
-        tty.c_cc[VTIME] = 5;            // 0.5 seconds read timeout
-
-        //tty.c_iflag &= ~(IXON | IXOFF | IXANY); // shut off xon/xoff ctrl
-        tty.c_iflag |= (IXON | IXOFF | IXANY); // shut off xon/xoff ctrl
-
-        tty.c_cflag |= (CLOCAL | CREAD);// ignore modem controls,
-                                        // enable reading
-        tty.c_cflag &= ~(PARENB | PARODD);      // shut off parity
-        tty.c_cflag |= parity;
-        tty.c_cflag &= ~CSTOPB;
-        tty.c_cflag &= ~CRTSCTS;
-
-        if (tcsetattr (fd, TCSANOW, &tty) != 0)
-        {
-                fprintf(stderr, "RIGCTL: Error %d from tcsetattr", errno);
-                return -1;
-        }
-        return 0;
-}
-
-void set_blocking (int fd, int should_block)
-{
-        struct termios tty;
-        memset (&tty, 0, sizeof tty);
-        if (tcgetattr (fd, &tty) != 0)
-        {
-                fprintf (stderr,"RIGCTL: Error %d from tggetattr\n", errno);
-                return;
-        }
-        tty.c_cc[VMIN]  = should_block ? 1 : 0;
-        tty.c_cc[VTIME] = 5;            // 0.5 seconds read timeout
-
-        if (tcsetattr (fd, TCSANOW, &tty) != 0)
-                fprintf (stderr,"RIGCTL: error %d setting term attributes\n", errno);
-}
 static gpointer serial_server(gpointer data) {
-     // We're going to Read the Serial port and
-     // when we get data we'll send it to parse_cmd
-     char ser_buf[MAXDATASIZE];
-     char work_buf[MAXDATASIZE];
-     char *p;
-     char *d;
-     char save_buf[MAXDATASIZE] = "";
-     int str_len;
-     cat_control++;
-     while(1) {
-        int num_chars = read (fd, ser_buf, sizeof ser_buf);
-        if( num_chars != 0) {
-           //fprintf(stderr,"RIGCTL: RECEVIED=%s<<\n",ser_buf);
-           strcat(work_buf,ser_buf);
-           strcpy(ser_buf,"");  // Clear away serial buffer
-           p = &work_buf[0]; 
-           while((d=strstr(p,";")) != NULL) {
-                 *d = '\0';
-                 g_mutex_lock(&mutex_b->m);
-                 
-                 g_mutex_unlock(&mutex_b->m);
-                 p = ++d;
-                 //fprintf(stderr,"RIGCTL: STRLEFT=%s\n",p);
+   //
+   // Do essentially the same as in rigctl_client, except that the data
+   // comes from a serial line
+   //
+
+   g_mutex_lock(&mutex_a->m);
+   cat_control++;
+//#ifdef RIGCTL_DEBUG
+   fprintf(stderr,"RIGCTL: CTLA INC cat_contro=%d\n",cat_control);
+//#endif
+   g_mutex_unlock(&mutex_a->m);
+   g_idle_add(ext_vfo_update,NULL);
+
+   int save_flag = 0; // Used to concatenate two cmd lines together
+   int semi_number = 0;
+   int i;
+   char * work_ptr;
+   char work_buf[MAXDATASIZE];
+   int numbytes;
+   char  cmd_input[MAXDATASIZE] ;
+   char cmd_save[80];
+   int  errcnt=0;
+
+   //
+   // Setting fd to -1 lets this thread exit
+   //
+   while(fd >= 0) {
+        numbytes = read (fd, cmd_input, MAXDATASIZE);
+        if (numbytes == 0) {
+            usleep(50000);
+            continue;
+        }
+        if (numbytes < 0) {
+            errcnt++;
+            fprintf(stderr,"RIGCTL: serial read error (seq=%d)  (%s)\n", errcnt, strerror(errno));
+            usleep(250000);
+            errcnt++;
+            if (errcnt == 10) break;
+            continue;
+        }
+        errcnt=0;
+        for(i=0;i<numbytes;i++)  { work_buf[i] = cmd_input[i]; }
+        work_buf[i+1] = '\0';
+#ifdef RIGCTL_DEBUG
+        fprintf(stderr,"RIGCTL: RCVD=%s<-\n",work_buf);
+#endif
+        // Need to handle two cases
+        // 1. Command is short, i.e. no semicolon - that will set save_flag=1 and
+        //    read another line..
+        // 2. 1 to N commands per line. Turns out N1MM sends multiple commands per line
+
+        if(save_flag == 0) { // Count the number of semicolons if we aren't already in mode 1.
+          semi_number = 0;
+          for(i=0;i<numbytes;i++) {
+             if(cmd_input[i] == ';') { semi_number++;};
+          }
+        }
+        if((save_flag == 0) && (semi_number == 0)) {
+           cmd_input[numbytes] = '\0';      // Turn it into a C string
+           strcpy(cmd_save,cmd_input);      // And save a copy of it till next time through
+           save_flag = 1;
+        } else if(save_flag == 1) {
+           save_flag = 0;
+           cmd_input[numbytes] = '\0';      // Turn it into a C string
+           strcat(cmd_save,cmd_input);
+           strcpy(cmd_input,cmd_save);      // Cat them together and replace cmd_input
+           numbytes = strlen(cmd_input);
+        }
+        if(save_flag != 1) {
+           work_ptr = strtok(cmd_input,";");
+           while(work_ptr != NULL) {
+               // Lock so only one user goes into this at a time
+               g_mutex_lock(&mutex_b->m);
+               parse_cmd(work_ptr,strlen(work_ptr),client->socket);
+               g_mutex_unlock(&mutex_b->m);
+               work_ptr = strtok(NULL,";");
            }
-           strcpy(save_buf,p);
-           for(str_len=0; str_len<=1999; str_len++) {
-             ser_buf[str_len] = '\0';
-             work_buf[str_len] = '\0';
+           for(i=0;i<MAXDATASIZE;i++){
+                cmd_input[i] = '\0';
+                work_buf[i]  = '\0';  // Clear the input buffer
            }
-           strcpy(work_buf,save_buf);
-           for(str_len=0; str_len<=1999; str_len++) {
-             save_buf[str_len] = '\0';
-           }
-/*
-           if(strstr(ser_buf,";") != NULL) {
-              p = strtok(ser_buf,s);
-              fprintf(stderr,"RIGCTL: Tok=%s\n",p);
-              while(p != NULL) {
-                 strcpy(work_buf,p);
-                 g_mutex_lock(&mutex_b->m);
-                 parse_cmd(work_buf,strlen(work_buf),-1);
-                 g_mutex_unlock(&mutex_b->m);
-                 p = strtok(NULL,s);
-                 fprintf(stderr,"RIGCTL: Tok=%s\n",p);
-              }
-           } else {
-               strcat(work_buf,ser_buf);
-               fprintf(stderr,"RIGCTL: Work_buf=%s\n",work_buf);
-           }
-*/
-        } /*else {
-           usleep(100L);
-        }*/
-     }
+        }
+   }
+   fprintf(stderr,"RIGCTL: terminating serial thread\n");
+   return NULL;
 }
 
 int launch_serial () {
-     fprintf(stderr,"RIGCTL: Launch Serial port %s\n",ser_port);
-
+     struct termios TTY;
+     fprintf(stderr,"RIGCTL: Launch RigCtl server on serial port %s\n",ser_port);
 
      if(mutex_b_exists == 0) {
         mutex_b = g_new(GT_MUTEX,1);
@@ -3873,37 +3845,65 @@ int launch_serial () {
         mutex_b_exists = 1;
      }
      
-     fd = open (ser_port, O_RDWR | O_NOCTTY | O_SYNC);   
+     fd = open (ser_port, O_RDWR | O_NOCTTY | O_NONBLOCK);
      if (fd < 0)
      {
         fprintf (stderr,"RIGCTL: Error %d opening %s: %s\n", errno, ser_port, strerror (errno));
         return 0 ;
      }
-     //set_interface_attribs (fd, B38400, 0);  // set speed to 115,200 bps, 8n1 (no parity)
-     set_interface_attribs (fd, serial_baud_rate, 0); 
-     /*
-     if(serial_parity == 1) {
-         set_interface_attribs (fd, PARENB, 0); 
-     }
-     if(serial_parity == 2) {
-         set_interface_attribs (fd, PARODD, 0); 
-     }
-     */
-     set_blocking (fd, 1);                   // set no blocking
 
-     
+     tcflush(fd, TCIFLUSH);
+     if (tcgetattr(fd, &TTY)) {
+        fprintf (stderr,"RIGCTL: Error %d getting attributes: %s: %s\n", errno, ser_port, strerror (errno));
+        close (fd);
+        return 0;
+     }
+
+     TTY.c_cflag &= ~CSIZE;
+     TTY.c_cflag |= CS8;
+     // enable receiver, set local mode
+     TTY.c_cflag |= (CLOCAL | CREAD);
+     // no parity
+     TTY.c_cflag &= ~PARENB;
+     // 1 stop bit
+     TTY.c_cflag &= ~CSTOPB;
+
+     cfsetispeed(&TTY, serial_baud_rate);
+     cfsetospeed(&TTY, serial_baud_rate);
+
+     // raw input
+     TTY.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
+     // raw output
+     TTY.c_oflag &= ~OPOST;
+
+     // timeouts
+     TTY.c_cc[VMIN] = 0;
+     TTY.c_cc[VTIME] =5;
+
+     if (tcsetattr(fd, TCSANOW, &TTY)) {
+        fprintf (stderr,"RIGCTL: Error %d setting attributes: %s: %s\n", errno, ser_port, strerror (errno));
+        close(fd);
+        return 0;
+     }
+
      serial_server_thread_id = g_thread_new( "Serial server", serial_server, NULL);
      if( ! serial_server_thread_id )
      {
        fprintf(stderr,"g_thread_new failed on serial_server\n");
+       close(fd);
        return 0;
      }
      return 1;
 }
+
 // Serial Port close
 void disable_serial () {
      fprintf(stderr,"RIGCTL: Disable Serial port %s\n",ser_port);
+     g_mutex_lock(&mutex_a->m);
      cat_control--;
+     g_mutex_unlock(&mutex_a->m);
+     close(fd);
+     fd=-1;
 }
 
 //

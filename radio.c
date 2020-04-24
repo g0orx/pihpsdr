@@ -64,6 +64,7 @@
 #include "sliders.h"
 #include "toolbar.h"
 #include "rigctl.h"
+#include "rigctl_menu.h"
 #include "ext.h"
 #ifdef LOCALCW
 #include "iambic.h"
@@ -1182,6 +1183,9 @@ void start_radio() {
 
   if(rigctl_enable) {
     launch_rigctl();
+    if (serial_enable) {
+      launch_serial();
+    }
   }
 
   if(can_transmit) {
@@ -2001,6 +2005,12 @@ g_print("radioRestoreState: %s\n",property_path);
     if(value) rigctl_enable=atoi(value);
     value=getProperty("rigctl_port_base");
     if(value) rigctl_port_base=atoi(value);
+    value=getProperty("rigctl_serial_enable");
+    if (value) serial_enable=atoi(value);
+    value=getProperty("rigctl_serial_baud_rate");
+    if (value) serial_baud_rate=atoi(value);
+    value=getProperty("rigctl_serial_port");
+    if (value) strcpy(ser_port,value);
 
     value=getProperty("adc_0_attenuation");
     if(value) adc_attenuation[0]=atoi(value);
@@ -2335,6 +2345,11 @@ g_print("radioSaveState: %s\n",property_path);
     setProperty("rigctl_enable",value);
     sprintf(value,"%d",rigctl_port_base);
     setProperty("rigctl_port_base",value);
+    sprintf(value,"%d",serial_enable);
+    setProperty("rigctl_serial_enable",value);
+    sprintf(value,"%d",serial_baud_rate);
+    setProperty("rigctl_serial_baud_rate",value);
+    setProperty("rigctl_serial_port",ser_port);
 
     sprintf(value,"%d",display_sequence_errors);
     setProperty("radio.display_sequence_errors",value);

@@ -35,7 +35,6 @@
 int  serial_enable;
 char ser_port[64]="/dev/ttyUSB0";
 int serial_baud_rate = B4800;
-int serial_parity = 0; // 0=none, 1=even, 2=odd
 
 static GtkWidget *parent_window=NULL;
 
@@ -65,9 +64,12 @@ static void rigctl_value_changed_cb(GtkWidget *widget, gpointer data) {
    rigctl_port_base = gtk_spin_button_get_value(GTK_SPIN_BUTTON(widget)); 
 }
 
-static void serial_value_changed_cb(GtkWidget *widget, gpointer data) {
-     sprintf(ser_port,"/dev/ttyUSB%0d",(int) gtk_spin_button_get_value(GTK_SPIN_BUTTON(widget))); 
-     fprintf(stderr,"RIGCTL_MENU: New Serial port=%s\n",ser_port);
+static void ser_port_cb(GtkWidget *widget, gpointer data) {
+  const gchar *text;
+  text=gtk_entry_get_text(GTK_ENTRY(widget));
+  strncpy(ser_port, text,63);
+  ser_port[63]=0;
+  fprintf(stderr,"Serial port changed to -->%s<--\n",ser_port);
 }
 
 static void rigctl_enable_cb(GtkWidget *widget, gpointer data) {
@@ -94,12 +96,6 @@ static void serial_enable_cb(GtkWidget *widget, gpointer data) {
 static void baud_rate_cb(GtkWidget *widget, gpointer data) {
    serial_baud_rate = GPOINTER_TO_INT(data);
    fprintf(stderr,"RIGCTL_MENU: Baud rate changed\n");
-}
-
-// Set Parity 0=None, 1=Even, 2=0dd
-static void parity_cb(GtkWidget *widget, gpointer data) {
-   serial_parity = GPOINTER_TO_INT(data);
-   fprintf(stderr,"RITCTL_MENU: Serial Parity changed=%d\n", serial_parity);
 }
 
 void rigctl_menu(GtkWidget *parent) {
@@ -159,14 +155,18 @@ void rigctl_menu(GtkWidget *parent) {
   g_signal_connect(serial_enable_b,"toggled",G_CALLBACK(serial_enable_cb),NULL);
 
   GtkWidget *serial_text_label=gtk_label_new(NULL);
-  gtk_label_set_markup(GTK_LABEL(serial_text_label), "<b>Serial Port: /dev/ttyUSB</b>");
+  gtk_label_set_markup(GTK_LABEL(serial_text_label), "<b>Serial Port:</b>");
   gtk_grid_attach(GTK_GRID(grid),serial_text_label,0,4,1,1);
 
-  GtkWidget *serial_port_spinner =gtk_spin_button_new_with_range(0,7,1);
-  gtk_spin_button_set_value(GTK_SPIN_BUTTON(serial_port_spinner),(double)0);
-  gtk_widget_show(serial_port_spinner);
-  gtk_grid_attach(GTK_GRID(grid),serial_port_spinner,1,4,1,1);
-  g_signal_connect(serial_port_spinner,"value_changed",G_CALLBACK(serial_value_changed_cb),NULL);
+//
+// Serial ports may have other names than /dev/ttyUSBn,
+// e.g. if you wish to use device-specific names from /dev/serial/by-id
+//
+  GtkWidget *ser_port_chooser=gtk_entry_new();
+  gtk_entry_set_text(GTK_ENTRY(ser_port_chooser),ser_port);
+  gtk_grid_attach(GTK_GRID(grid),ser_port_chooser,1,4,4,1);
+  gtk_entry_set_width_chars(GTK_ENTRY(ser_port_chooser), 64);
+  g_signal_connect(ser_port_chooser, "activate", G_CALLBACK(ser_port_cb), NULL);
 
   // Serial baud rate here
   GtkWidget *baud_rate_label =gtk_label_new(NULL);
@@ -197,31 +197,6 @@ void rigctl_menu(GtkWidget *parent) {
   gtk_widget_show(baud_rate_b38400);
   gtk_grid_attach(GTK_GRID(grid),baud_rate_b38400,4,5,1,1);
   g_signal_connect(baud_rate_b38400,"toggled",G_CALLBACK(baud_rate_cb),(gpointer *) B38400);
-
-  // Serial parity
-/*
-  GtkWidget *parity_label =gtk_label_new("Parity:");
-  gtk_widget_show(parity_label);
-  gtk_grid_attach(GTK_GRID(grid),parity_label,0,6,1,1);
-  
-  GtkWidget *parity_none_b=gtk_radio_button_new_with_label(NULL,"None");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (parity_none_b), serial_parity == 0);
-  gtk_widget_show(parity_none_b);
-  gtk_grid_attach(GTK_GRID(grid),parity_none_b,1,6,1,1);
-  g_signal_connect(parity_none_b,"toggled",G_CALLBACK(parity_cb),(gpointer *) 0);
-
-  GtkWidget *parity_even_b=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(parity_none_b),"Even");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (parity_even_b), serial_parity == 1);
-  gtk_widget_show(parity_even_b);
-  gtk_grid_attach(GTK_GRID(grid),parity_even_b,2,6,1,1);
-  g_signal_connect(parity_even_b,"toggled",G_CALLBACK(parity_cb),(gpointer *) 1);
-
-  GtkWidget *parity_odd_b=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(parity_even_b),"Odd");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (parity_odd_b), serial_parity == 2);
-  gtk_widget_show(parity_odd_b);
-  gtk_grid_attach(GTK_GRID(grid),parity_odd_b,3,6,1,1);
-  g_signal_connect(parity_odd_b,"toggled",G_CALLBACK(parity_cb),(gpointer *) 1);
-*/
 
   // Below stays put
   gtk_container_add(GTK_CONTAINER(content),grid);
