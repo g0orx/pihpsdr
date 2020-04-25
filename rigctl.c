@@ -620,15 +620,15 @@ long long rigctl_getFrequency() {
 // Looks up entry INDEX_NUM in the command structure and
 // returns the command string
 //
-void send_resp (int client_sock,char * msg) {
+void send_resp (int sock,char * msg) {
+//
+//  TCP: sock is the socket
+//  serial: sock is the file descriptor
+//
     #ifdef  RIGCTL_DEBUG
         fprintf(stderr,"RIGCTL: RESP=%s\n",msg);
     #endif
-    if(client_sock == -1) { // Serial port 
-       write(fd,msg,strlen(msg));   
-    } else {  // TCP/IP port
-       write(client_sock, msg, strlen(msg));
-    }
+    write(sock, msg, strlen(msg));
 }
 
 //
@@ -3769,26 +3769,21 @@ static gpointer serial_server(gpointer data) {
    int numbytes;
    char  cmd_input[MAXDATASIZE] ;
    char cmd_save[80];
-   int  errcnt=0;
 
    //
    // Setting fd to -1 lets this thread exit
    //
-   while(fd >= 0) {
+   while(serial_enable) {
         numbytes = read (fd, cmd_input, MAXDATASIZE);
-        if (numbytes == 0) {
+//
+//      I observed that "Resource temporarily not available" errors occured
+//      while reading and no data was present, therefore just wait for
+//      data and silently ignore all errors
+//
+        if (numbytes <= 0) {
             usleep(50000);
             continue;
         }
-        if (numbytes < 0) {
-            errcnt++;
-            fprintf(stderr,"RIGCTL: serial read error (seq=%d)  (%s)\n", errcnt, strerror(errno));
-            usleep(250000);
-            errcnt++;
-            if (errcnt == 10) break;
-            continue;
-        }
-        errcnt=0;
         for(i=0;i<numbytes;i++)  { work_buf[i] = cmd_input[i]; }
         work_buf[i+1] = '\0';
 #ifdef RIGCTL_DEBUG
@@ -3821,7 +3816,7 @@ static gpointer serial_server(gpointer data) {
            while(work_ptr != NULL) {
                // Lock so only one user goes into this at a time
                g_mutex_lock(&mutex_b->m);
-               parse_cmd(work_ptr,strlen(work_ptr),client->socket);
+               parse_cmd(work_ptr,strlen(work_ptr), fd);
                g_mutex_unlock(&mutex_b->m);
                work_ptr = strtok(NULL,";");
            }
@@ -3831,6 +3826,9 @@ static gpointer serial_server(gpointer data) {
            }
         }
    }
+//
+// Here we arrive if (and only if) SerialEnable is unchecked in the rigctl menu
+//
    fprintf(stderr,"RIGCTL: terminating serial thread\n");
    return NULL;
 }
@@ -3902,8 +3900,13 @@ void disable_serial () {
      g_mutex_lock(&mutex_a->m);
      cat_control--;
      g_mutex_unlock(&mutex_a->m);
+//
+//   serial_enable is zero if this one is called, but let us ensure this
+//   and then wait for the serial server to complete.
+//
+     serial_enable=0;
+     g_thread_join(serial_server_thread_id);
      close(fd);
-     fd=-1;
 }
 
 //
