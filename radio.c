@@ -742,13 +742,24 @@ void start_radio() {
 
   status_text(text);
 
-  sprintf(text,"piHPSDR: %s (%s %s) %s (%s) on %s",
-                          radio->name,
-                          p,
-                          version,
-                          ip,
-                          mac,
-                          iface);
+  switch (protocol) {
+    case ORIGINAL_PROTOCOL:
+    case NEW_PROTOCOL:
+      sprintf(text,"piHPSDR: %s (%s %s) %s (%s) on %s",
+                   radio->name,
+                   p,
+                   version,
+                   ip,
+                   mac,
+                   iface);
+      break;
+    case SOAPSDR_PROTOCOL:
+      sprintf(text,"piHPSDR: %s (%s %s",
+                   radio->name,
+                   p,
+                   version);
+      break;
+  }
 
   gtk_window_set_title (GTK_WINDOW (top_window), text);
 
@@ -1745,6 +1756,9 @@ void set_attenuation(int value) {
     switch(protocol) {
       case NEW_PROTOCOL:
         schedule_high_priority();
+        break;
+      case SOAPYSDR_PROTOCOL:
+        soapy_protocol_set_gain(active_receiver,value * 1.0);
         break;
     }
 }

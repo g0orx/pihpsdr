@@ -3843,6 +3843,10 @@ int launch_serial () {
         mutex_b_exists = 1;
      }
      
+     //
+     // We *must* open the port non-blocking, otherwise launch_serial may block
+     // for a long time if e.g. the serial cable is un-plugged
+     //
      fd = open (ser_port, O_RDWR | O_NOCTTY | O_NONBLOCK);
      if (fd < 0)
      {
@@ -3857,15 +3861,19 @@ int launch_serial () {
         return 0;
      }
 
+     //
+     // Note that we use hard-wired settings here: 8 data bits, no parity, 1 stop bit
+     //
      TTY.c_cflag &= ~CSIZE;
      TTY.c_cflag |= CS8;
      // enable receiver, set local mode
      TTY.c_cflag |= (CLOCAL | CREAD);
-     // no parity
      TTY.c_cflag &= ~PARENB;
-     // 1 stop bit
      TTY.c_cflag &= ~CSTOPB;
 
+     //
+     // Set baud rate for input and output
+     //
      cfsetispeed(&TTY, serial_baud_rate);
      cfsetospeed(&TTY, serial_baud_rate);
 
@@ -3875,8 +3883,8 @@ int launch_serial () {
      TTY.c_oflag &= ~OPOST;
 
      // timeouts
-     TTY.c_cc[VMIN] = 0;
-     TTY.c_cc[VTIME] =5;
+     TTY.c_cc[VMIN] = 0; // Do not block if nothing is in the input queue
+     TTY.c_cc[VTIME] =5; // A "pause" of 0.5 bytes after successfully receiving one byte indicates nothing more is to come
 
      if (tcsetattr(fd, TCSANOW, &TTY)) {
         fprintf (stderr,"RIGCTL: Error %d setting attributes: %s: %s\n", errno, ser_port, strerror (errno));
