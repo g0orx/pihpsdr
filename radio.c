@@ -753,12 +753,14 @@ void start_radio() {
                    mac,
                    iface);
       break;
-    case SOAPSDR_PROTOCOL:
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
       sprintf(text,"piHPSDR: %s (%s %s",
                    radio->name,
                    p,
                    version);
       break;
+#endif
   }
 
   gtk_window_set_title (GTK_WINDOW (top_window), text);
@@ -1757,9 +1759,11 @@ void set_attenuation(int value) {
       case NEW_PROTOCOL:
         schedule_high_priority();
         break;
+#ifdef SOAPYSDR
       case SOAPYSDR_PROTOCOL:
         soapy_protocol_set_gain(active_receiver,value * 1.0);
         break;
+#endif
     }
 }
 
