@@ -1873,7 +1873,7 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                              }  else if (receivers != 1)  {
                                                  lcl_cmd = atoi(&cmd_input[2]);                
                                                  if(active_transmitter != lcl_cmd) {
-                                                     split = 1;
+                                                     if (split == 0) g_idle_add(ext_split_toggle, NULL);
                                                  } 
                                                  if(active_receiver->id != lcl_cmd) {
                                                     //active_receiver->id = lcl_cmd; 
@@ -1913,9 +1913,9 @@ void parse_cmd ( char * cmd_input,int len,int client_sock) {
                                                  lcl_cmd = atoi(&cmd_input[2]);                
                                                  if((lcl_cmd ==0) ||(lcl_cmd == 1)) {
                                                     if(lcl_cmd != active_receiver->id) {
-                                                        split = 1;
+                                                        if (split==0) g_idle_add(ext_split_toggle, NULL);
                                                     } else {
-                                                        split = 0;
+                                                        if (split!=0) g_idle_add(ext_split_toggle, NULL);
                                                     }
                                                     active_transmitter = lcl_cmd;
                                                     #ifdef  RIGCTL_DEBUG
