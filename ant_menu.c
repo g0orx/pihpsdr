@@ -28,6 +28,7 @@
 #include "ant_menu.h"
 #include "band.h"
 #include "radio.h"
+#include "vfo.h"
 #include "new_protocol.h"
 #ifdef SOAPYSDR
 #include "soapy_protocol.h"
@@ -65,7 +66,10 @@ static void rx_ant_cb(GtkToggleButton *widget, gpointer data) {
     int ant=(GPOINTER_TO_UINT(data))&0xF;
     BAND *band=band_get_band(b);
     band->alexRxAntenna=ant;
-    if(active_receiver->id==0) {
+    //
+    // Immediate switching if the VFO controlling the active receiver is on band b
+    //
+    if(vfo[active_receiver->id].band == b) {
       set_alex_rx_antenna(ant);
     }
   }
@@ -101,7 +105,10 @@ static void tx_ant_cb(GtkToggleButton *widget, gpointer data) {
     int ant=(GPOINTER_TO_UINT(data))&0xF;
     BAND *band=band_get_band(b);
     band->alexTxAntenna=ant;
-    if(active_receiver->id==0) {
+    //
+    // Switch immediately if the VFO controlling the TX is on that band
+    //
+    if (vfo[get_tx_vfo()].band == b) {
       set_alex_tx_antenna(ant);
     }
   }
