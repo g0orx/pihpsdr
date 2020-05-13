@@ -87,6 +87,8 @@ gboolean receiver_button_press_event(GtkWidget *widget, GdkEventButton *event, g
 
 gboolean receiver_button_release_event(GtkWidget *widget, GdkEventButton *event, gpointer data) {
   RECEIVER *rx=(RECEIVER *)data;
+  BAND *band;
+  int  id;
   if(making_active) {
     active_receiver=rx;
     making_active=FALSE;
@@ -100,6 +102,17 @@ gboolean receiver_button_release_event(GtkWidget *widget, GdkEventButton *event,
 
     // setup the transmitter mode and filter
     tx_set_mode(transmitter,get_tx_mode());
+
+    // set RX antenna
+    id=active_receiver->id;
+    band=band_get_band(vfo[id].band);
+    set_alex_rx_antenna(band->alexRxAntenna);
+    g_print("receiver: %d RxAnt=%d\n", id, band->alexRxAntenna);
+
+    // set TX antenna
+    band=band_get_band(vfo[get_tx_vfo()].band);
+    set_alex_tx_antenna(band->alexTxAntenna);
+    g_print("transmitter TxAnt=%d\n", band->alexTxAntenna);
 
     //g_print("receiver: %d adc=%d attenuation=%d rx_gain_calibration=%d\n",rx->id,rx->adc,adc_attenuation[rx->adc],rx_gain_calibration);
   } else {

@@ -551,9 +551,18 @@ int ext_agc_update(void *data) {
 }
 
 int ext_split_toggle(void *data) {
+  BAND *band;
   if(can_transmit) {
     split=split==1?0:1;
     tx_set_mode(transmitter,get_tx_mode());
+    //
+    // Since the TX band possibly changed, we have to 
+    // adjust the TX antenna
+    //
+    band=band_get_band(vfo[get_tx_vfo()].band);
+    set_alex_tx_antenna(band->alexTxAntenna);
+    g_print("transmitter TxAnt=%d\n", band->alexTxAntenna);
+
     g_idle_add(ext_vfo_update, NULL);
   }
   return 0;
