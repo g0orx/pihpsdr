@@ -66,7 +66,7 @@ int ext_set_frequency(void *data) {
   // via the menu prior to changing the frequency
   //
   SET_FREQUENCY *set_frequency=(SET_FREQUENCY *)data;
-g_print("ext_set_frequency: vfo=%d freq=%lld\n",set_frequency->vfo,set_frequency->frequency);
+//g_print("ext_set_frequency: vfo=%d freq=%lld\n",set_frequency->vfo,set_frequency->frequency);
   int b=get_band_from_frequency(set_frequency->frequency);
   if(active_receiver->id==set_frequency->vfo) {
     if (b != vfo[set_frequency->vfo].band) {
@@ -561,7 +561,6 @@ int ext_split_toggle(void *data) {
     //
     band=band_get_band(vfo[get_tx_vfo()].band);
     set_alex_tx_antenna(band->alexTxAntenna);
-    g_print("transmitter TxAnt=%d\n", band->alexTxAntenna);
 
     g_idle_add(ext_vfo_update, NULL);
   }
