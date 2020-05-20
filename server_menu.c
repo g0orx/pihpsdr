@@ -1,5 +1,6 @@
+
 /* Copyright (C)
-* 2016 - John Melton, G0ORX/N6LYT
+* 2020 - John Melton, G0ORX/N6LYT
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License
@@ -18,27 +19,23 @@
 */
 
 #include <gtk/gtk.h>
+#include <semaphore.h>
 #include <stdio.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <string.h>
+#include <termios.h>
+#include <unistd.h>
 
 #include "new_menu.h"
-#include "band_menu.h"
-#include "band.h"
-#include "bandstack.h"
-#include "filter.h"
+#include "server_menu.h"
 #include "radio.h"
-#include "receiver.h"
-#include "vfo.h"
-#include "button_text.h"
 #include "client_server.h"
 
 static GtkWidget *parent_window=NULL;
 
-static GtkWidget *dialog=NULL;
+static GtkWidget *menu_b=NULL;
 
-static GtkWidget *last_band;
+static GtkWidget *dialog=NULL;
 
 static void cleanup() {
   if(dialog!=NULL) {
@@ -58,35 +55,26 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
   return FALSE;
 }
 
-gboolean band_select_cb (GtkWidget *widget, gpointer        data) {
-  int b=GPOINTER_TO_UINT(data);
-  set_button_text_color(last_band,"black");
-  last_band=widget;
-  set_button_text_color(last_band,"orange");
-#ifdef CLIENT_SERVER
-  if(radio_is_remote) {
-    send_band(client_socket,active_receiver->id,b);
+static void server_enable_cb(GtkWidget *widget, gpointer data) {
+  hpsdr_server=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+  if(hpsdr_server) {
+     create_hpsdr_server();
   } else {
-#endif
-    vfo_band_changed(active_receiver->id,b);
-#ifdef CLIENT_SERVER
+     destroy_hpsdr_server();
   }
-#endif
-  return FALSE;
 }
 
-void band_menu(GtkWidget *parent) {
-  int i,j;
-  BAND *band;
+static void port_value_changed_cb(GtkWidget *widget, gpointer data) {
+   listen_port = gtk_spin_button_get_value(GTK_SPIN_BUTTON(widget));
+}
 
+void server_menu(GtkWidget *parent) {
   parent_window=parent;
 
   dialog=gtk_dialog_new();
   gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent_window));
   //gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
-  char title[64];
-  sprintf(title,"piHPSDR - Band (RX %d VFO %s)",active_receiver->id,active_receiver->id==0?"A":"B");
-  gtk_window_set_title(GTK_WINDOW(dialog),title);
+  gtk_window_set_title(GTK_WINDOW(dialog),"piHPSDR - Server");
   g_signal_connect (dialog, "delete_event", G_CALLBACK (delete_event), NULL);
 
   GdkRGBA color;
@@ -99,43 +87,29 @@ void band_menu(GtkWidget *parent) {
   GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
 
   GtkWidget *grid=gtk_grid_new();
-
-  gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
-  gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
-  gtk_grid_set_column_spacing (GTK_GRID(grid),5);
-  gtk_grid_set_row_spacing (GTK_GRID(grid),5);
+  gtk_grid_set_column_spacing (GTK_GRID(grid),10);
 
   GtkWidget *close_b=gtk_button_new_with_label("Close");
   g_signal_connect (close_b, "pressed", G_CALLBACK(close_cb), NULL);
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
-  long long frequency_min=radio->frequency_min;
-  long long frequency_max=radio->frequency_max;
 
-g_print("band_menu: min=%lld max=%lld\n",frequency_min,frequency_max);
-  j=0;
-  for(i=0;i<BANDS+XVTRS;i++) {
-    band=(BAND*)band_get_band(i);
-    if(strlen(band->title)>0) {
-      if(i<BANDS) {
-        if(!(band->frequencyMin==0.0 && band->frequencyMax==0.0)) {
-          if(band->frequencyMin<frequency_min || band->frequencyMax>frequency_max) {
-            continue;
-          }
-        }
-      }
-      GtkWidget *b=gtk_button_new_with_label(band->title);
-      set_button_text_color(b,"black");
-      if(i==vfo[active_receiver->id].band) {
-        set_button_text_color(b,"orange");
-        last_band=b;
-      }
-      gtk_widget_show(b);
-      gtk_grid_attach(GTK_GRID(grid),b,j%5,1+(j/5),1,1);
-      g_signal_connect(b,"clicked",G_CALLBACK(band_select_cb),(gpointer)(long)i);
-      j++;
-    }
-  }
+  GtkWidget *server_enable_b=gtk_check_button_new_with_label("Server Enable");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (server_enable_b), hpsdr_server);
+  gtk_widget_show(server_enable_b);
+  gtk_grid_attach(GTK_GRID(grid),server_enable_b,0,1,1,1);
+  g_signal_connect(server_enable_b,"toggled",G_CALLBACK(server_enable_cb),NULL);
+ 
+  GtkWidget *server_port_label =gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(server_port_label), "<b>Server Port</b>");
+  gtk_widget_show(server_port_label);
+  gtk_grid_attach(GTK_GRID(grid),server_port_label,0,2,1,1);
+
+  GtkWidget *server_port_spinner =gtk_spin_button_new_with_range(45000,55000,1);
+  gtk_spin_button_set_value(GTK_SPIN_BUTTON(server_port_spinner),(double)listen_port);
+  gtk_widget_show(server_port_spinner);
+  gtk_grid_attach(GTK_GRID(grid),server_port_spinner,1,2,1,1);
+  g_signal_connect(server_port_spinner,"value_changed",G_CALLBACK(port_value_changed_cb),NULL);
 
   gtk_container_add(GTK_CONTAINER(content),grid);
 
@@ -144,3 +118,4 @@ g_print("band_menu: min=%lld max=%lld\n",frequency_min,frequency_max);
   gtk_widget_show_all(dialog);
 
 }
+

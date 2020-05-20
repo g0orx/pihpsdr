@@ -24,8 +24,11 @@
 #include <semaphore.h>
 #include <math.h>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 
 #include <wdsp.h>
 
@@ -74,8 +77,8 @@
 // we need here to make a strict compiler happy.
 void MIDIstartup();
 #endif
-#ifdef SERVER
-#include "hpsdr_server.h"
+#ifdef CLIENT_SERVER
+#include "client_server.h"
 #endif
 
 #define min(x,y) (x<y?x:y)
@@ -120,13 +123,12 @@ static cairo_surface_t *encoders_surface = NULL;
 	static gint save_timer_id;
 
 	DISCOVERED *radio=NULL;
+#ifdef CLIENT_SERVER
+	gboolean radio_is_remote=FALSE;
+#endif
 
 	char property_path[128];
-#ifdef __APPLE__
-        sem_t *property_sem;
-#else
-        sem_t property_sem;
-#endif
+        GMutex property_mutex;
 
 RECEIVER *receiver[MAX_RECEIVERS];
 RECEIVER *active_receiver;
@@ -192,6 +194,10 @@ int mic_ptt_tip_bias_ring=0;
 //int tune_drive_level=0;
 
 int receivers=RECEIVERS;
+
+ADC adc[2];
+DAC dac[2];
+int adc_attenuation[2];
 
 int locked=0;
 
@@ -344,7 +350,7 @@ g_print("radio_stop: RX1: CloseChannel: %d\n",receiver[1]->id);
 void reconfigure_radio() {
   int i;
   int y;
-//g_print("reconfigure_radio: receivers=%d\n",receivers);
+g_print("reconfigure_radio: receivers=%d\n",receivers);
   rx_height=display_height-VFO_HEIGHT;
   if(display_zoompan) {
     rx_height-=ZOOMPAN_HEIGHT;
@@ -435,6 +441,227 @@ static gboolean menu_cb (GtkWidget *widget, GdkEventButton *event, gpointer data
   return TRUE;
 }
 
+static void create_visual() {
+  int y=0;
+
+  fixed=gtk_fixed_new();
+  g_object_ref(grid);  // so it does not get deleted
+  gtk_container_remove(GTK_CONTAINER(top_window),grid);
+  gtk_container_add(GTK_CONTAINER(top_window), fixed);
+
+//g_print("radio: vfo_init\n");
+  vfo_panel = vfo_init(VFO_WIDTH,VFO_HEIGHT,top_window);
+  gtk_fixed_put(GTK_FIXED(fixed),vfo_panel,0,y);
+
+//g_print("radio: meter_init\n");
+  meter = meter_init(METER_WIDTH,METER_HEIGHT,top_window);
+  gtk_fixed_put(GTK_FIXED(fixed),meter,VFO_WIDTH,y);
+
+
+  GtkWidget *minimize_b=gtk_button_new_with_label("Hide");
+  gtk_widget_override_font(minimize_b, pango_font_description_from_string("FreeMono Bold 10"));
+  gtk_widget_set_size_request (minimize_b, MENU_WIDTH, MENU_HEIGHT);
+  g_signal_connect (minimize_b, "button-press-event", G_CALLBACK(minimize_cb), NULL) ;
+  gtk_fixed_put(GTK_FIXED(fixed),minimize_b,VFO_WIDTH+METER_WIDTH,y);
+  y+=MENU_HEIGHT;
+
+  GtkWidget *menu_b=gtk_button_new_with_label("Menu");
+  gtk_widget_override_font(menu_b, pango_font_description_from_string("FreeMono Bold 10"));
+  gtk_widget_set_size_request (menu_b, MENU_WIDTH, MENU_HEIGHT);
+  g_signal_connect (menu_b, "button-press-event", G_CALLBACK(menu_cb), NULL) ;
+  gtk_fixed_put(GTK_FIXED(fixed),menu_b,VFO_WIDTH+METER_WIDTH,y);
+  y+=MENU_HEIGHT;
+
+
+  rx_height=display_height-VFO_HEIGHT;
+  if(display_zoompan) {
+    rx_height-=ZOOMPAN_HEIGHT;
+  }
+  if(display_sliders) {
+    rx_height-=SLIDERS_HEIGHT;
+  }
+  if(display_toolbar) {
+    rx_height-=TOOLBAR_HEIGHT;
+  }
+
+  //
+  // To be on the safe side, we create ALL receiver panels here
+  // If upon startup, we only should display one panel, we do the switch below
+  //
+  for(int i=0;i<RECEIVERS;i++) {
+#ifdef CLIENT_SERVER
+    if(radio_is_remote) {
+      receiver_create_remote(receiver[i]);
+    } else {
+#endif
+      receiver[i]=create_receiver(i, buffer_size, fft_size, display_width, updates_per_second, display_width, rx_height/RECEIVERS);
+      setSquelch(receiver[i]);
+#ifdef CLIENT_SERVER
+    }
+#endif
+    receiver[i]->x=0;
+    receiver[i]->y=y;
+    // Upon startup, if RIT or CTUN is active, tell WDSP.
+#ifdef CLIENT_SERVER
+    if(!radio_is_remote) {
+#endif
+      set_displaying(receiver[i],1);
+      set_offset(receiver[i],vfo[i].offset);
+#ifdef CLIENT_SERVER
+    }
+#endif
+    gtk_fixed_put(GTK_FIXED(fixed),receiver[i]->panel,0,y);
+    g_object_ref((gpointer)receiver[i]->panel);
+    y+=rx_height/RECEIVERS;
+  }
+  
+  //
+  // Sanity check: in old protocol, all receivers must have the same sample rate
+  //
+  if((protocol==ORIGINAL_PROTOCOL) && (RECEIVERS==2) && (receiver[0]->sample_rate!=receiver[1]->sample_rate)) {
+    receiver[1]->sample_rate=receiver[0]->sample_rate;
+  }
+
+  active_receiver=receiver[0];
+
+// TEMP
+#ifdef CLIENT_SERVER
+if(!radio_is_remote) {
+#endif
+  //g_print("Create transmitter\n");
+  if(can_transmit) {
+    double pk;
+    if(duplex) {
+      transmitter=create_transmitter(CHANNEL_TX, buffer_size, fft_size, updates_per_second, display_width/4, display_height/2);
+    } else {
+      int tx_height=display_height-VFO_HEIGHT;
+      if(display_zoompan) tx_height-=ZOOMPAN_HEIGHT;
+      if(display_sliders) tx_height-=SLIDERS_HEIGHT;
+      if(display_toolbar) tx_height-=TOOLBAR_HEIGHT;
+      transmitter=create_transmitter(CHANNEL_TX, buffer_size, fft_size, updates_per_second, display_width, tx_height);
+    }
+    transmitter->x=0;
+    transmitter->y=VFO_HEIGHT;
+
+    calcDriveLevel();
+
+#ifdef PURESIGNAL
+    tx_set_ps_sample_rate(transmitter,protocol==NEW_PROTOCOL?192000:active_receiver->sample_rate);
+    receiver[PS_TX_FEEDBACK]=create_pure_signal_receiver(PS_TX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
+    receiver[PS_RX_FEEDBACK]=create_pure_signal_receiver(PS_RX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
+    switch (protocol) {
+      case NEW_PROTOCOL:
+        pk = 0.2899;
+        break;
+      case ORIGINAL_PROTOCOL:
+        switch (device) {
+          case DEVICE_HERMES_LITE2:
+            pk = 0.2300;
+            break;
+          default:
+            pk = 0.4067;
+            break;
+        }
+    }
+    SetPSHWPeak(transmitter->id, pk);
+#endif
+
+  }
+#ifdef CLIENT_SERVER
+}
+#endif
+
+#ifdef AUDIO_WATERFALL
+  audio_waterfall=audio_waterfall_init(200,100);
+  gtk_fixed_put(GTK_FIXED(fixed),audio_waterfall,0,VFO_HEIGHT+20);
+#endif
+
+  gboolean init_gpio=FALSE;
+#ifdef LOCALCW
+  init_gpio=TRUE;
+#endif
+#ifdef PTT
+  init_gpio=TRUE;
+#endif
+#ifdef GPIO
+  init_gpio=TRUE;
+#endif
+
+  if(init_gpio) {
+#ifdef GPIO
+    if(gpio_init()<0) {
+      g_print("GPIO failed to initialize\n");
+    }
+#endif
+  }
+
+#ifdef LOCALCW
+  // init local keyer if enabled
+  if (cw_keyer_internal == 0) {
+	g_print("Initialize keyer.....\n");
+    keyer_update();
+  }
+#endif
+  
+#ifdef CLIENT_SERVER
+  if(!radio_is_remote) {
+#endif
+  switch(protocol) {
+    case ORIGINAL_PROTOCOL:
+      old_protocol_init(0,display_width,receiver[0]->sample_rate);
+      break;
+    case NEW_PROTOCOL:
+      new_protocol_init(display_width);
+      break;
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
+      soapy_protocol_init(0,false);
+      break;
+#endif
+  }
+#ifdef CLIENT_SERVER
+  }
+#endif
+
+  if(display_zoompan) {
+    zoompan = zoompan_init(display_width,ZOOMPAN_HEIGHT);
+    gtk_fixed_put(GTK_FIXED(fixed),zoompan,0,y);
+    y+=ZOOMPAN_HEIGHT;
+  }
+
+  if(display_sliders) {
+//g_print("create sliders\n");
+    sliders = sliders_init(display_width,SLIDERS_HEIGHT);
+    gtk_fixed_put(GTK_FIXED(fixed),sliders,0,y);
+    y+=SLIDERS_HEIGHT;
+  }
+
+
+  if(display_toolbar) {
+    toolbar = toolbar_init(display_width,TOOLBAR_HEIGHT,top_window);
+    gtk_fixed_put(GTK_FIXED(fixed),toolbar,0,y);
+    y+=TOOLBAR_HEIGHT;
+  }
+
+//
+// Now, if there should only one receiver be displayed
+// at startup, do the change. We must momentarily fake
+// the number of receivers otherwise radio_change_receivers
+// will do nothing.
+//
+g_print("create_visual: receivers=%d RECEIVERS=%d\n",receivers,RECEIVERS);
+  if (receivers != RECEIVERS) {
+    int r=receivers;
+    receivers=RECEIVERS;
+g_print("create_visual: calling radio_change_receivers: receivers=%d r=%d\n",receivers,r);
+    radio_change_receivers(r);
+  }
+
+  //gtk_widget_show_all (fixed);
+  gtk_widget_show_all (top_window);
+
+}
+  
 void start_radio() {
   int i;
   int y;
@@ -621,27 +848,12 @@ void start_radio() {
 //
 // A semaphore for safely writing to the props file
 //
-#ifdef __APPLE__
-  sem_unlink("PROPERTY");
-  property_sem=sem_open("PROPERTY", O_CREAT | O_EXCL, 0700, 0);
-  rc=(property_sem == SEM_FAILED);
-#else
-  rc=sem_init(&property_sem, 0, 0);
-#endif
-  if(rc!=0) {
-    g_print("start_radio: sem_init failed for property_sem: %d\n", rc);
-    exit(-1);
-  }
-#ifdef __APPLE__
-  sem_post(property_sem);
-#else
-  sem_post(&property_sem);
-#endif
+  g_mutex_init(&property_mutex);
 
 //
 //  Create text for the top line of the piHPSDR window
 //
-    char text[256];
+    char text[1024];
     switch(protocol) {
       case ORIGINAL_PROTOCOL:
       case NEW_PROTOCOL:
@@ -666,7 +878,7 @@ void start_radio() {
   char version[32];
   char mac[32];
   char ip[32];
-  char iface[32];
+  char iface[64];
 
   switch(protocol) {
     case ORIGINAL_PROTOCOL:
@@ -860,6 +1072,7 @@ void start_radio() {
   if(device==SOAPYSDR_USB_DEVICE) {
     iqswap=1;
     receivers=1;
+    filter_board=NONE;
   }
 #endif
 
@@ -984,194 +1197,7 @@ void start_radio() {
 
   radio_change_region(region);
 
-  y=0;
-
-  fixed=gtk_fixed_new();
-  g_object_ref(grid);  // so it does not get deleted
-  gtk_container_remove(GTK_CONTAINER(top_window),grid);
-  gtk_container_add(GTK_CONTAINER(top_window), fixed);
-
-//g_print("radio: vfo_init\n");
-  vfo_panel = vfo_init(VFO_WIDTH,VFO_HEIGHT,top_window);
-  gtk_fixed_put(GTK_FIXED(fixed),vfo_panel,0,y);
-
-//g_print("radio: meter_init\n");
-  meter = meter_init(METER_WIDTH,METER_HEIGHT,top_window);
-  gtk_fixed_put(GTK_FIXED(fixed),meter,VFO_WIDTH,y);
-
-
-  GtkWidget *minimize_b=gtk_button_new_with_label("Hide");
-  gtk_widget_override_font(minimize_b, pango_font_description_from_string("FreeMono Bold 10"));
-  gtk_widget_set_size_request (minimize_b, MENU_WIDTH, MENU_HEIGHT);
-  g_signal_connect (minimize_b, "button-press-event", G_CALLBACK(minimize_cb), NULL) ;
-  gtk_fixed_put(GTK_FIXED(fixed),minimize_b,VFO_WIDTH+METER_WIDTH,y);
-  y+=MENU_HEIGHT;
-
-  GtkWidget *menu_b=gtk_button_new_with_label("Menu");
-  gtk_widget_override_font(menu_b, pango_font_description_from_string("FreeMono Bold 10"));
-  gtk_widget_set_size_request (menu_b, MENU_WIDTH, MENU_HEIGHT);
-  g_signal_connect (menu_b, "button-press-event", G_CALLBACK(menu_cb), NULL) ;
-  gtk_fixed_put(GTK_FIXED(fixed),menu_b,VFO_WIDTH+METER_WIDTH,y);
-  y+=MENU_HEIGHT;
-
-
-  rx_height=display_height-VFO_HEIGHT;
-  if(display_zoompan) {
-    rx_height-=ZOOMPAN_HEIGHT;
-  }
-  if(display_sliders) {
-    rx_height-=SLIDERS_HEIGHT;
-  }
-  if(display_toolbar) {
-    rx_height-=TOOLBAR_HEIGHT;
-  }
-
-  //
-  // To be on the safe side, we create ALL receiver panels here
-  // If upon startup, we only should display one panel, we do the switch below
-  //
-  for(i=0;i<RECEIVERS;i++) {
-    receiver[i]=create_receiver(i, buffer_size, fft_size, display_width, updates_per_second, display_width, rx_height/RECEIVERS);
-    setSquelch(receiver[i]);
-    receiver[i]->x=0;
-    receiver[i]->y=y;
-    gtk_fixed_put(GTK_FIXED(fixed),receiver[i]->panel,0,y);
-    g_object_ref((gpointer)receiver[i]->panel);
-    set_displaying(receiver[i],1);
-    y+=rx_height/RECEIVERS;
-    // Upon startup, if RIT or CTUN is active, tell WDSP.
-    set_offset(receiver[i],vfo[i].offset);
-  }
-
-  //
-  // Sanity check: in old protocol, all receivers must have the same sample rate
-  //
-  if((protocol==ORIGINAL_PROTOCOL) && (RECEIVERS==2) && (receiver[0]->sample_rate!=receiver[1]->sample_rate)) {
-    receiver[1]->sample_rate=receiver[0]->sample_rate;
-  }
-
-  active_receiver=receiver[0];
-
-  //g_print("Create transmitter\n");
-  if(can_transmit) {
-    double pk;
-    if(duplex) {
-      transmitter=create_transmitter(CHANNEL_TX, buffer_size, fft_size, updates_per_second, display_width/4, display_height/2);
-    } else {
-      int tx_height=display_height-VFO_HEIGHT;
-      if(display_zoompan) tx_height-=ZOOMPAN_HEIGHT;
-      if(display_sliders) tx_height-=SLIDERS_HEIGHT;
-      if(display_toolbar) tx_height-=TOOLBAR_HEIGHT;
-      transmitter=create_transmitter(CHANNEL_TX, buffer_size, fft_size, updates_per_second, display_width, tx_height);
-    }
-    transmitter->x=0;
-    transmitter->y=VFO_HEIGHT;
-
-    calcDriveLevel();
-
-#ifdef PURESIGNAL
-    tx_set_ps_sample_rate(transmitter,protocol==NEW_PROTOCOL?192000:active_receiver->sample_rate);
-    receiver[PS_TX_FEEDBACK]=create_pure_signal_receiver(PS_TX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
-    receiver[PS_RX_FEEDBACK]=create_pure_signal_receiver(PS_RX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
-    switch (protocol) {
-      case NEW_PROTOCOL:
-        pk = 0.2899;
-        break;
-      case ORIGINAL_PROTOCOL:
-        switch (device) {
-          case DEVICE_HERMES_LITE2:
-            pk = 0.2300;
-            break;
-          default:
-            pk = 0.4067;
-            break;
-        }
-    }
-    SetPSHWPeak(transmitter->id, pk);
-#endif
-
-  }
-
-#ifdef AUDIO_WATERFALL
-  audio_waterfall=audio_waterfall_init(200,100);
-  gtk_fixed_put(GTK_FIXED(fixed),audio_waterfall,0,VFO_HEIGHT+20);
-#endif
-
-  gboolean init_gpio=FALSE;
-#ifdef LOCALCW
-  init_gpio=TRUE;
-#endif
-#ifdef PTT
-  init_gpio=TRUE;
-#endif
-#ifdef GPIO
-  init_gpio=TRUE;
-#endif
-
-  if(init_gpio) {
-#ifdef GPIO
-    if(gpio_init()<0) {
-      g_print("GPIO failed to initialize\n");
-    }
-#endif
-  }
-
-#ifdef LOCALCW
-  // init local keyer if enabled
-  if (cw_keyer_internal == 0) {
-	g_print("Initialize keyer.....\n");
-    keyer_update();
-  }
-#endif
-  
-  switch(protocol) {
-    case ORIGINAL_PROTOCOL:
-      old_protocol_init(0,display_width,receiver[0]->sample_rate);
-      break;
-    case NEW_PROTOCOL:
-      new_protocol_init(display_width);
-      break;
-#ifdef SOAPYSDR
-    case SOAPYSDR_PROTOCOL:
-      soapy_protocol_init(0,false);
-      break;
-#endif
-  }
-
-  if(display_zoompan) {
-    zoompan = zoompan_init(display_width,ZOOMPAN_HEIGHT);
-    gtk_fixed_put(GTK_FIXED(fixed),zoompan,0,y);
-    y+=ZOOMPAN_HEIGHT;
-  }
-
-  if(display_sliders) {
-//g_print("create sliders\n");
-    sliders = sliders_init(display_width,SLIDERS_HEIGHT);
-    gtk_fixed_put(GTK_FIXED(fixed),sliders,0,y);
-    y+=SLIDERS_HEIGHT;
-  }
-
-
-  if(display_toolbar) {
-    toolbar = toolbar_init(display_width,TOOLBAR_HEIGHT,top_window);
-    gtk_fixed_put(GTK_FIXED(fixed),toolbar,0,y);
-    y+=TOOLBAR_HEIGHT;
-  }
-
-//
-// Now, if there should only one receiver be displayed
-// at startup, do the change. We must momentarily fake
-// the number of receivers otherwise radio_change_receivers
-// will do nothing.
-//
-  if (receivers != RECEIVERS) {
-    i=receivers,
-    receivers=RECEIVERS;
-    radio_change_receivers(i);
-  }
-
-  gtk_widget_show_all (fixed);
-  
+  create_visual();
 
   // save every 30 seconds
   //save_timer_id=gdk_threads_add_timeout(30000, save_cb, NULL);
@@ -1245,10 +1271,11 @@ void start_radio() {
   MIDIstartup();
 #endif
 
-#ifdef SERVER
-  create_hpsdr_server();
+#ifdef CLIENT_SERVER
+  if(hpsdr_server) {
+    create_hpsdr_server();
+  }
 #endif
-
 }
 
 void disable_rigctl() {
@@ -1258,17 +1285,23 @@ void disable_rigctl() {
  
 
 void radio_change_receivers(int r) {
+g_print("radio_change_receivers: from %d to %d\n",receivers,r);
   // The button in the radio menu will call this function even if the
   // number of receivers has not changed.
   if (receivers == r) return;
-  g_print("radio_change_receivers: from %d to %d\n",receivers,r);
   //
   // When changing the number of receivers, restart the
   // old protocol
   //
-  if (protocol == ORIGINAL_PROTOCOL) {
-    old_protocol_stop();
+#ifdef CLIENT_SERVER
+  if(!radio_is_remote) {
+#endif
+    if (protocol == ORIGINAL_PROTOCOL) {
+      old_protocol_stop();
+    }
+#ifdef CLIENT_SERVER
   }
+#endif
   switch(r) {
     case 1:
 	set_displaying(receiver[1],0);
@@ -1283,12 +1316,18 @@ void radio_change_receivers(int r) {
   }
   reconfigure_radio();
   active_receiver=receiver[0];
-  if(protocol==NEW_PROTOCOL) {
-    schedule_high_priority();
+#ifdef CLIENT_SERVER
+  if(!radio_is_remote) {
+#endif
+    if(protocol==NEW_PROTOCOL) {
+      schedule_high_priority();
+    }
+    if (protocol == ORIGINAL_PROTOCOL) {
+      old_protocol_run();
+    }
+#ifdef CLIENT_SERVER
   }
-  if (protocol == ORIGINAL_PROTOCOL) {
-    old_protocol_run();
-  }
+#endif
 }
 
 void radio_change_sample_rate(int rate) {
@@ -1781,20 +1820,29 @@ void set_alex_attenuation(int v) {
 }
 
 void radioRestoreState() {
-    char name[32];
-    char *value;
-    int i;
+  char name[32];
+  char *value;
+  int i;
 
 g_print("radioRestoreState: %s\n",property_path);
-//g_print("sem_wait\n");
-#ifdef __APPLE__
-    sem_wait(property_sem);
-#else
-    sem_wait(&property_sem);
-#endif
-//g_print("sem_wait: returner\n");
-    loadProperties(property_path);
+  g_mutex_lock(&property_mutex);
+  loadProperties(property_path);
 
+  value=getProperty("display_filled");
+  if(value) display_filled=atoi(value);
+  value=getProperty("display_zoompan");
+  if(value) display_zoompan=atoi(value);
+  value=getProperty("display_sliders");
+  if(value) display_sliders=atoi(value);
+  value=getProperty("display_toolbar");
+  if(value) display_toolbar=atoi(value);
+
+#ifdef CLIENT_SERVER
+  if(radio_is_remote) {
+#ifdef CLIENT_SERVER
+#endif
+  } else {
+#endif
     value=getProperty("diversity_enabled");
     if (value) diversity_enabled=atoi(value);
     value=getProperty("diversity_gain");
@@ -1830,8 +1878,6 @@ g_print("radioRestoreState: %s\n",property_path);
     }
     value=getProperty("updates_per_second");
     if(value) updates_per_second=atoi(value);
-    value=getProperty("display_filled");
-    if(value) display_filled=atoi(value);
     value=getProperty("display_detector_mode");
     if(value) display_detector_mode=atoi(value);
     value=getProperty("display_average_mode");
@@ -1842,12 +1888,6 @@ g_print("radioRestoreState: %s\n",property_path);
     if(value) panadapter_high=atoi(value);
     value=getProperty("panadapter_low");
     if(value) panadapter_low=atoi(value);
-    value=getProperty("display_zoompan");
-    if(value) display_zoompan=atoi(value);
-    value=getProperty("display_sliders");
-    if(value) display_sliders=atoi(value);
-    value=getProperty("display_toolbar");
-    if(value) display_toolbar=atoi(value);
     value=getProperty("waterfall_high");
     if(value) waterfall_high=atoi(value);
     value=getProperty("waterfall_low");
@@ -2013,51 +2053,89 @@ g_print("radioRestoreState: %s\n",property_path);
     if(value) mute_rx_while_transmitting=atoi(value);
 
 #ifdef SOAPYSDR
-  if(device==SOAPYSDR_USB_DEVICE) {
-    char name[128];
-    for(int i=0;i<radio->info.soapy.rx_gains;i++) {
-      sprintf(name,"radio.adc[0].rx_gain.%s",radio->info.soapy.rx_gain[i]) ;
-      value=getProperty(name);
-      if(value!=NULL) adc[0].rx_gain[i]=atoi(value);
+    if(device==SOAPYSDR_USB_DEVICE) {
+      char name[128];
+      for(int i=0;i<radio->info.soapy.rx_gains;i++) {
+        sprintf(name,"radio.adc[0].rx_gain.%s",radio->info.soapy.rx_gain[i]) ;
+        value=getProperty(name);
+        if(value!=NULL) adc[0].rx_gain[i]=atoi(value);
+      }
+      value=getProperty("radio.adc[0].agc");
+      if(value!=NULL) adc[0].agc=atoi(value);
+      value=getProperty("radio.adc[0].antenna");
+      if(value!=NULL) adc[0].antenna=atoi(value);
+  
+      value=getProperty("radio.dac[0].antenna");
+      if(value!=NULL) dac[0].antenna=atoi(value);
+      for(int i=0;i<radio->info.soapy.tx_gains;i++) {
+        sprintf(name,"radio.dac[0].tx_gain.%s",radio->info.soapy.tx_gain[i]);
+        value=getProperty(name);
+        if(value!=NULL) dac[0].tx_gain[i]=atoi(value);
+      }
     }
-    value=getProperty("radio.adc[0].agc");
-    if(value!=NULL) adc[0].agc=atoi(value);
-    value=getProperty("radio.adc[0].antenna");
-    if(value!=NULL) adc[0].antenna=atoi(value);
+#endif
 
-    value=getProperty("radio.dac[0].antenna");
-    if(value!=NULL) dac[0].antenna=atoi(value);
-    for(int i=0;i<radio->info.soapy.tx_gains;i++) {
-      sprintf(name,"radio.dac[0].tx_gain.%s",radio->info.soapy.tx_gain[i]);
-      value=getProperty(name);
-      if(value!=NULL) dac[0].tx_gain[i]=atoi(value);
-    }
+    value=getProperty("radio.display_sequence_errors");
+    if(value!=NULL) display_sequence_errors=atoi(value);
+
+
+	
+#ifdef CLIENT_SERVER
   }
 #endif
 
-  value=getProperty("radio.display_sequence_errors");
-  if(value!=NULL) display_sequence_errors=atoi(value);
-	
-//g_print("sem_post\n");
-#ifdef __APPLE__
-    sem_post(property_sem);
-#else
-    sem_post(&property_sem);
+#ifdef CLIENT_SERVER
+  value=getProperty("radio.hpsdr_server");
+  if(value!=NULL) hpsdr_server=atoi(value);
+  value=getProperty("radio.hpsdr_server.listen_port");
+  if(value!=NULL) listen_port=atoi(value);
 #endif
+
+  g_mutex_unlock(&property_mutex);
 }
 
 void radioSaveState() {
-    int i;
-    char value[80];
-    char name[32];
+  int i;
+  char value[80];
+  char name[32];
+
 
 g_print("radioSaveState: %s\n",property_path);
-#ifdef __APPLE__
-    sem_wait(property_sem);
-#else
-    sem_wait(&property_sem);
+  
+  g_mutex_lock(&property_mutex);
+  clearProperties();
+#ifdef GPIO
+  if(controller!=NO_CONTROLLER) {
+    gpio_save_actions();
+  }
 #endif
-    clearProperties();
+  sprintf(value,"%d",receivers);
+  setProperty("receivers",value);
+  for(i=0;i<receivers;i++) {
+    receiver_save_state(receiver[i]);
+  }
+
+  sprintf(value,"%d",display_filled);
+  setProperty("display_filled",value);
+  sprintf(value,"%d",display_zoompan);
+  setProperty("display_zoompan",value);
+  sprintf(value,"%d",display_sliders);
+  setProperty("display_sliders",value);
+  sprintf(value,"%d",display_toolbar);
+  setProperty("display_toolbar",value);
+
+  if(can_transmit) {
+#ifdef PURESIGNAL
+    // The only variables of interest in this receiver are
+    // the alex_antenna an the adc
+    receiver_save_state(receiver[PS_RX_FEEDBACK]);
+#endif
+    transmitter_save_state(transmitter);
+  }
+
+#ifdef CLIENT_SERVER
+  if(!radio_is_remote) {
+#endif
     sprintf(value,"%d",diversity_enabled);
     setProperty("diversity_enabled",value);
     sprintf(value,"%f",div_gain);
@@ -2084,8 +2162,6 @@ g_print("radioSaveState: %s\n",property_path);
     setProperty("tx_out_of_band",value);
     sprintf(value,"%d",updates_per_second);
     setProperty("updates_per_second",value);
-    sprintf(value,"%d",display_filled);
-    setProperty("display_filled",value);
     sprintf(value,"%d",display_detector_mode);
     setProperty("display_detector_mode",value);
     sprintf(value,"%d",display_average_mode);
@@ -2096,12 +2172,6 @@ g_print("radioSaveState: %s\n",property_path);
     setProperty("panadapter_high",value);
     sprintf(value,"%d",panadapter_low);
     setProperty("panadapter_low",value);
-    sprintf(value,"%d",display_zoompan);
-    setProperty("display_zoompan",value);
-    sprintf(value,"%d",display_sliders);
-    setProperty("display_sliders",value);
-    sprintf(value,"%d",display_toolbar);
-    setProperty("display_toolbar",value);
     sprintf(value,"%d",waterfall_high);
     setProperty("waterfall_high",value);
     sprintf(value,"%d",waterfall_low);
@@ -2292,21 +2362,15 @@ g_print("radioSaveState: %s\n",property_path);
     sprintf(value,"%d",iqswap);
     setProperty("iqswap",value);
 	
+#ifdef CLIENT_SERVER
+    sprintf(value,"%d",hpsdr_server);
+    setProperty("radio.hpsdr_server",value);
+    sprintf(value,"%d",listen_port);
+    setProperty("radio.hpsdr_server.listen_port",value);
+#endif
+
     vfo_save_state();
     modesettings_save_state();
-    sprintf(value,"%d",receivers);
-    setProperty("receivers",value);
-    for(i=0;i<receivers;i++) {
-      receiver_save_state(receiver[i]);
-    }
-    if(can_transmit) {
-#ifdef PURESIGNAL
-      // The only variables of interest in this receiver are
-      // the alex_antenna an the adc
-      receiver_save_state(receiver[PS_RX_FEEDBACK]);
-#endif
-      transmitter_save_state(transmitter);
-    }
 
     sprintf(value,"%d",duplex);
     setProperty("duplex",value);
@@ -2321,12 +2385,6 @@ g_print("radioSaveState: %s\n",property_path);
     bandSaveState();
     memSaveState();
 
-#ifdef GPIO
-    if(controller!=NO_CONTROLLER) {
-      gpio_save_actions();
-    }
-#endif
-
     sprintf(value,"%d",rigctl_enable);
     setProperty("rigctl_enable",value);
     sprintf(value,"%d",rigctl_port_base);
@@ -2334,14 +2392,12 @@ g_print("radioSaveState: %s\n",property_path);
 
     sprintf(value,"%d",display_sequence_errors);
     setProperty("radio.display_sequence_errors",value);
-
-    saveProperties(property_path);
-g_print("sem_post\n");
-#ifdef __APPLE__
-    sem_post(property_sem);
-#else
-    sem_post(&property_sem);
+#ifdef CLIENT_SERVER
+  }
 #endif
+
+  saveProperties(property_path);
+  g_mutex_unlock(&property_mutex);
 }
 
 void calculate_display_average(RECEIVER *rx) {
@@ -2406,3 +2462,49 @@ void radio_change_region(int r) {
   }
 }
 
+#ifdef CLIENT_SERVER
+int remote_start(void *data) {
+  char *server=(char *)data;
+  sprintf(property_path,"%s@%s.props",radio->name,server);
+  radio_is_remote=TRUE;
+#ifdef GPIO
+  switch(controller) {
+    case CONTROLLER2_V1:
+    case CONTROLLER2_V2:
+      display_zoompan=1;
+      display_sliders=0;
+      display_toolbar=0;
+      break;
+    default:
+      display_zoompan=1;
+      display_sliders=1;
+      display_toolbar=1;
+      break;
+  }
+#else
+  display_zoompan=1;
+  display_sliders=1;
+  display_toolbar=1;
+#endif
+  radioRestoreState();
+  create_visual();
+  for(int i=0;i<receivers;i++) {
+    receiver_restore_state(receiver[i]);
+    if(receiver[i]->local_audio) {
+      audio_open_output(receiver[i]);
+    }
+  }
+  reconfigure_radio();
+  g_idle_add(ext_vfo_update,(gpointer)NULL);
+  gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_ARROW));
+#ifdef MIDI
+  MIDIstartup();
+#endif
+  for(int i=0;i<receivers;i++) {
+    gint timer_id=gdk_threads_add_timeout_full(G_PRIORITY_DEFAULT_IDLE,100, start_spectrum, receiver[i], NULL);
+  }
+  start_vfo_timer();
+  remote_started=TRUE;
+  return 0;
+}
+#endif

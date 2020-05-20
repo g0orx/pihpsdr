@@ -56,6 +56,9 @@
 #include "property.h"
 #include "main.h"
 #include "ext.h"
+#ifdef CLIENT_SERVER
+#include "client_server.h"
+#endif
 
 static int width;
 static int height;
@@ -141,19 +144,16 @@ int scale_timeout_cb(gpointer data) {
 }
 
 static void attenuation_value_changed_cb(GtkWidget *widget, gpointer data) {
-  if (have_rx_gain) {
-    //redfined the att slider to a rx-gain slider.
-    //AD9866 contains a pga amplifier from -12 - 48 dB
-    //from -12 to 0; the rx-gain slider functions as an att slider
-    //from 0 - 48 db; the rx-gain slider functions as a gain slider with att = 0;
-    //att set to 20 for good power measurement.
-    int rx_gain_slider_value = (int)gtk_range_get_value(GTK_RANGE(attenuation_scale));
-    adc_attenuation[active_receiver->adc]= rx_gain_slider_value;
-    set_attenuation(adc_attenuation[active_receiver->adc]);
+  adc_attenuation[active_receiver->adc]=(int)gtk_range_get_value(GTK_RANGE(attenuation_scale));
+#ifdef CLIENT_SERVER
+  if(radio_is_remote) {
+    send_attenuation(client_socket,active_receiver->id,(int)adc_attenuation[active_receiver->adc]);
   } else {
-    adc_attenuation[active_receiver->adc]=(int)gtk_range_get_value(GTK_RANGE(attenuation_scale));
+#endif
     set_attenuation(adc_attenuation[active_receiver->adc]);
+#ifdef CLIENT_SERVER
   }
+#endif
 }
 
 void set_attenuation_value(double value) {
@@ -277,12 +277,24 @@ static void c25_preamp_combobox_changed(GtkWidget *widget, gpointer data) {
 
 static void agcgain_value_changed_cb(GtkWidget *widget, gpointer data) {
   active_receiver->agc_gain=gtk_range_get_value(GTK_RANGE(agc_scale));
-  SetRXAAGCTop(active_receiver->id, active_receiver->agc_gain);
+#ifdef CLIENT_SERVER
+  if(radio_is_remote) {
+    send_agc_gain(client_socket,active_receiver->id,(int)active_receiver->agc_gain,(int)active_receiver->agc_hang,(int)active_receiver->agc_thresh);
+  } else {
+#endif
+    SetRXAAGCTop(active_receiver->id, active_receiver->agc_gain);
+    GetRXAAGCHangLevel(active_receiver->id, &active_receiver->agc_hang);
+    GetRXAAGCThresh(active_receiver->id, &active_receiver->agc_thresh, 4096.0, (double)active_receiver->sample_rate);
+#ifdef CLIENT_SERVER
+  }
+#endif
 }
 
 void set_agc_gain(int rx,double value) {
   receiver[rx]->agc_gain=value;
   SetRXAAGCTop(receiver[rx]->id, receiver[rx]->agc_gain);
+  GetRXAAGCHangLevel(receiver[rx]->id, &receiver[rx]->agc_hang);
+  GetRXAAGCThresh(receiver[rx]->id, &receiver[rx]->agc_thresh, 4096.0, (double)receiver[rx]->sample_rate);
   if(display_sliders) {
     gtk_range_set_value (GTK_RANGE(agc_scale),receiver[rx]->agc_gain);
   } else {
@@ -322,7 +334,17 @@ void update_agc_gain(double gain) {
 
 static void afgain_value_changed_cb(GtkWidget *widget, gpointer data) {
     active_receiver->volume=gtk_range_get_value(GTK_RANGE(af_gain_scale))/100.0;
-    SetRXAPanelGain1 (active_receiver->id, active_receiver->volume);
+
+#ifdef CLIENT_SERVER
+    if(radio_is_remote) {
+      int v=(int)(active_receiver->volume*100.0);
+      send_volume(client_socket,active_receiver->id,v);
+    } else {
+#endif
+      SetRXAPanelGain1 (active_receiver->id, active_receiver->volume);
+#ifdef CLIENT_SERVER
+    }
+#endif
 }
 
 void update_af_gain() {
@@ -605,12 +627,28 @@ int update_drive(void *data) {
 
 static void squelch_value_changed_cb(GtkWidget *widget, gpointer data) {
   active_receiver->squelch=gtk_range_get_value(GTK_RANGE(widget));
-  setSquelch(active_receiver);
+#ifdef CLIENT_SERVER
+  if(radio_is_remote) {
+    send_squelch(client_socket,active_receiver->id,active_receiver->squelch_enable,active_receiver->squelch);
+  } else {
+#endif
+    setSquelch(active_receiver);
+#ifdef CLIENT_SERVER
+  }
+#endif
 }
 
 static void squelch_enable_cb(GtkWidget *widget, gpointer data) {
   active_receiver->squelch_enable=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
-  setSquelch(active_receiver);
+#ifdef CLIENT_SERVER
+  if(radio_is_remote) {
+    send_squelch(client_socket,active_receiver->id,active_receiver->squelch_enable,active_receiver->squelch);
+  } else {
+#endif
+    setSquelch(active_receiver);
+#ifdef CLIENT_SERVER
+  }
+#endif
 }
 
 static void compressor_value_changed_cb(GtkWidget *widget, gpointer data) {
@@ -624,7 +662,6 @@ static void compressor_enable_cb(GtkWidget *widget, gpointer data) {
   transmitter_set_compressor(transmitter,gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)));
   // This value is now also reflected in the VFO panel
   g_idle_add(ext_vfo_update, NULL);
-
 }
 
 void set_squelch() {

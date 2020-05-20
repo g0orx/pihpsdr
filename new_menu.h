@@ -22,6 +22,9 @@ extern void start_diversity();
 #ifdef PURESIGNAL
 extern void start_ps();
 #endif
+#ifdef CLIENT_SERVER
+extern void start_server();
+#endif
 
 extern void encoder_step(int encoder,int step);
 

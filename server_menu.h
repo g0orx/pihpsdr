@@ -1,5 +1,5 @@
 /* Copyright (C)
-* 2015 - John Melton, G0ORX/N6LYT
+* 2020 - John Melton, G0ORX/N6LYT
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License
@@ -17,8 +17,4 @@
 *
 */
 
-#include <gtk/gtk.h>
-#include <stdio.h>
-#include <string.h>
-
-extern void pa_menu(GtkWidget *parent);
+extern void server_menu(GtkWidget *parent);

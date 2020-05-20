@@ -52,7 +52,7 @@
 #include "ext.h"
 #include "error_handler.h"
 
-static double bandwidth=2500000.0;
+static double bandwidth=2000000.0;
 
 static SoapySDRDevice *soapy_device;
 static SoapySDRStream *rx_stream;

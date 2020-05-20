@@ -146,19 +146,25 @@ gboolean main_delete (GtkWidget *widget) {
 #ifdef GPIO
     gpio_close();
 #endif
-    switch(protocol) {
-      case ORIGINAL_PROTOCOL:
-        old_protocol_stop();
-        break;
-      case NEW_PROTOCOL:
-        new_protocol_stop();
-        break;
-#ifdef SOAPYSDR
-      case SOAPYSDR_PROTOCOL:
-        soapy_protocol_stop();
-        break;
+#ifdef CLIENT_SERVER
+    if(!radio_is_remote) {
 #endif
+      switch(protocol) {
+        case ORIGINAL_PROTOCOL:
+          old_protocol_stop();
+          break;
+        case NEW_PROTOCOL:
+          new_protocol_stop();
+          break;
+#ifdef SOAPYSDR
+        case SOAPYSDR_PROTOCOL:
+          soapy_protocol_stop();
+          break;
+#endif
+      }
+#ifdef CLIENT_SERVER
     }
+#endif
     radioSaveState();
   }
   _exit(0);
@@ -182,7 +188,7 @@ static int init(void *data) {
   // Depending on the WDSP version, the file is wdspWisdom or wdspWisdom00.
   // sem_trywait() is not elegant, replaced this with wisdom_running variable.
   //
-  getcwd(wisdom_directory, sizeof(wisdom_directory));
+  char *c=getcwd(wisdom_directory, sizeof(wisdom_directory));
   strcpy(&wisdom_directory[strlen(wisdom_directory)],"/");
   fprintf(stderr,"Securing wisdom file in directory: %s\n", wisdom_directory);
   status_text("Creating FFTW Wisdom file ...");

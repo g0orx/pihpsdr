@@ -60,6 +60,9 @@
 #include "gpio.h"
 #include "old_protocol.h"
 #include "new_protocol.h"
+#ifdef CLIENT_SERVER
+#include "server_menu.h"
+#endif
 
 
 static GtkWidget *menu_b=NULL;
@@ -453,6 +456,18 @@ static gboolean test_cb (GtkWidget *widget, GdkEventButton *event, gpointer data
   return TRUE;
 }
 
+#ifdef CLIENT_SERVER
+void start_server() {
+  cleanup();
+  server_menu(top_window);
+}
+
+static gboolean server_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  start_server();
+  return TRUE;
+}
+#endif
+
 void new_menu()
 {
   int i;
@@ -623,6 +638,13 @@ void new_menu()
       gtk_grid_attach(GTK_GRID(grid),diversity_b,(i%5),i/5,1,1);
       i++;
     }
+
+#ifdef CLIENT_SERVER
+    GtkWidget *server_b=gtk_button_new_with_label("Server");
+    g_signal_connect (server_b, "button-press-event", G_CALLBACK(server_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),server_b,(i%5),i/5,1,1);
+    i++;
+#endif
 
     GtkWidget *about_b=gtk_button_new_with_label("About");
     g_signal_connect (about_b, "button-press-event", G_CALLBACK(about_b_cb), NULL);

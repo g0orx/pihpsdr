@@ -42,9 +42,6 @@
 #ifdef USBOZY
 #include "ozyio.h"
 #endif
-#ifdef REMOTE
-#include "remote_radio.h"
-#endif
 #ifdef STEMLAB_DISCOVERY
 #include "stemlab_discovery.h"
 #endif
@@ -54,6 +51,10 @@
 #include "configure.h"
 #endif
 #include "protocols.h"
+#ifdef CLIENT_SERVER
+#include "client_server.h"
+#endif
+#include "property.h"
 
 static GtkWidget *discovery_dialog;
 static DISCOVERED *d;
@@ -67,10 +68,12 @@ GtkWidget *tcpaddr;
 static char ipaddr_tcp_buf[IPADDR_LEN] = "10.10.10.10";
 char *ipaddr_tcp = &ipaddr_tcp_buf[0];
 
-#ifdef SERVER
-GtkWidget *connect_addr_entry;
-static char connect_addr_buffer[30]="0.0.0.0:50000";
-char *connect_addr = &connect_addr_buffer[0];
+#ifdef CLIENT_SERVER
+GtkWidget *host_addr_entry;
+static char host_addr_buffer[128]="g0orx.ddns.net";
+char *host_addr = &host_addr_buffer[0];
+GtkWidget *host_port_spinner;
+gint host_port=45000;
 #endif
 
 static gboolean delete_event_cb(GtkWidget *widget, GdkEvent *event, gpointer data) {
@@ -262,11 +265,30 @@ static gboolean tcp_cb (GtkWidget *widget, GdkEventButton *event, gpointer data)
 	    return TRUE;
 	}
 
-#ifdef SERVER
+#ifdef CLIENT_SERVER
 static gboolean connect_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   // connect to remote host running piHPSDR
-  strncpy(connect_addr, gtk_entry_get_text(GTK_ENTRY(connect_addr_entry)), 30);
-g_print("connect_cb: %s\n",connect_addr);
+  strncpy(host_addr, gtk_entry_get_text(GTK_ENTRY(host_addr_entry)), 30);
+  host_port=gtk_spin_button_get_value(GTK_SPIN_BUTTON(host_port_spinner));
+g_print("connect_cb: %s:%d\n",host_addr,host_port);
+  setProperty("host",host_addr);
+  char temp[16];
+  sprintf(temp,"%d",host_port);
+  setProperty("port",temp);
+  saveProperties("remote.props");
+  if(radio_connect_remote(host_addr,host_port)==0) {
+    gtk_widget_destroy(discovery_dialog);
+  } else {
+    // dialog box to display connection error
+    GtkWidget *dialog=gtk_dialog_new_with_buttons("Remote Connect",GTK_WINDOW(discovery_dialog),GTK_DIALOG_DESTROY_WITH_PARENT,"OK",GTK_RESPONSE_NONE,NULL);
+    GtkWidget *content_area=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    char message[128];
+    sprintf(message,"Connection failed to %s:%d",host_addr,host_port);
+    GtkWidget *label=gtk_label_new(message);
+    g_signal_connect_swapped(dialog,"response",G_CALLBACK(gtk_widget_destroy),dialog);
+    gtk_container_add(GTK_CONTAINER(content_area),label);
+    gtk_widget_show_all(dialog);
+  }
   return TRUE;
 }
 #endif
@@ -282,7 +304,7 @@ void discovery() {
   // Try to locate IP addr
   FILE *fp=fopen("ip.addr","r");
   if (fp) {
-    fgets(ipaddr_tcp, IPADDR_LEN,fp);
+    char *c=fgets(ipaddr_tcp, IPADDR_LEN,fp);
     fclose(fp);
     ipaddr_tcp[IPADDR_LEN-1]=0;
     // remove possible trailing newline char in ipaddr_tcp
@@ -341,55 +363,6 @@ void discovery() {
 
   status_text("Discovery");
   
-  if(devices==0) {
-    gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_ARROW));
-    discovery_dialog = gtk_dialog_new();
-    gtk_window_set_transient_for(GTK_WINDOW(discovery_dialog),GTK_WINDOW(top_window));
-    gtk_window_set_title(GTK_WINDOW(discovery_dialog),"piHPSDR - Discovery");
-    //gtk_window_set_decorated(GTK_WINDOW(discovery_dialog),FALSE);
-
-    //gtk_widget_override_font(discovery_dialog, pango_font_description_from_string("FreeMono 16"));
-    g_signal_connect(discovery_dialog, "delete_event", G_CALLBACK(delete_event_cb), NULL);
-
-    GdkRGBA color;
-    color.red = 1.0;
-    color.green = 1.0;
-    color.blue = 1.0;
-    color.alpha = 1.0;
-    gtk_widget_override_background_color(discovery_dialog,GTK_STATE_FLAG_NORMAL,&color);
-
-    GtkWidget *content;
-
-    content=gtk_dialog_get_content_area(GTK_DIALOG(discovery_dialog));
-
-    GtkWidget *grid=gtk_grid_new();
-    gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
-    gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
-    gtk_grid_set_row_spacing (GTK_GRID(grid),10);
-
-    GtkWidget *label=gtk_label_new("No devices found!");
-    gtk_grid_attach(GTK_GRID(grid),label,0,0,2,1);
-
-    GtkWidget *exit_b=gtk_button_new_with_label("Exit");
-    g_signal_connect (exit_b, "button-press-event", G_CALLBACK(exit_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),exit_b,0,1,1,1);
-
-    GtkWidget *discover_b=gtk_button_new_with_label("Retry Discovery");
-    g_signal_connect (discover_b, "button-press-event", G_CALLBACK(discover_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),discover_b,1,1,1,1);
-
-    GtkWidget *tcp_b=gtk_button_new_with_label("Use new TCP Addr:");
-    g_signal_connect (tcp_b, "button-press-event", G_CALLBACK(tcp_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),tcp_b,0,2,1,1);
-
-    tcpaddr=gtk_entry_new();
-    gtk_entry_set_max_length(GTK_ENTRY(tcpaddr), 20);
-    gtk_grid_attach(GTK_GRID(grid),tcpaddr,1,2,1,1);
-    gtk_entry_set_text(GTK_ENTRY(tcpaddr), ipaddr_tcp);
-
-    gtk_container_add (GTK_CONTAINER (content), grid);
-    gtk_widget_show_all(discovery_dialog);
-  } else {
     fprintf(stderr,"discovery: found %d devices\n", devices);
     gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_ARROW));
     discovery_dialog = gtk_dialog_new();
@@ -416,133 +389,171 @@ void discovery() {
     //gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
     gtk_grid_set_row_spacing (GTK_GRID(grid),10);
 
-    int row;
-    char version[16];
-    char text[256];
-    for(row=0;row<devices;row++) {
-      d=&discovered[row];
-fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
-      sprintf(version,"v%d.%d",
-                        d->software_version/10,
-                        d->software_version%10);
-      switch(d->protocol) {
-        case ORIGINAL_PROTOCOL:
-        case NEW_PROTOCOL:
-#ifdef USBOZY
-          if(d->device==DEVICE_OZY) {
-            sprintf(text,"%s (%s) on USB /dev/ozy", d->name, d->protocol==ORIGINAL_PROTOCOL?"Protocol 1":"Protocol 2");
-          } else {
-#endif
-            sprintf(text,"%s (%s %s) %s (%02X:%02X:%02X:%02X:%02X:%02X) on %s: ",
-                          d->name,
-                          d->protocol==ORIGINAL_PROTOCOL?"Protocol 1":"Protocol 2",
-                          version,
-                          inet_ntoa(d->info.network.address.sin_addr),
-                          d->info.network.mac_address[0],
-                          d->info.network.mac_address[1],
-                          d->info.network.mac_address[2],
-                          d->info.network.mac_address[3],
-                          d->info.network.mac_address[4],
-                          d->info.network.mac_address[5],
-                          d->info.network.interface_name);
-#ifdef USBOZY
-          }
-#endif
-          break;
-#ifdef SOAPYSDR
-        case SOAPYSDR_PROTOCOL:
-          sprintf(text,"%s (Protocol SOAPY_SDR %s) on USB",d->name,d->info.soapy.version);
-          break;
-#endif
-#ifdef STEMLAB_DISCOVERY
-        case STEMLAB_PROTOCOL:
-#ifdef NO_AVAHI
-	  sprintf(text,"Choose RedPitaya App from %s and start radio: ",inet_ntoa(d->info.network.address.sin_addr));
-#else
-          sprintf(text, "STEMlab (%02X:%02X:%02X:%02X:%02X:%02X) on %s",
-                         d->info.network.mac_address[0],
-                         d->info.network.mac_address[1],
-                         d->info.network.mac_address[2],
-                         d->info.network.mac_address[3],
-                         d->info.network.mac_address[4],
-                         d->info.network.mac_address[5],
-                         d->info.network.interface_name);
-#endif
-#endif
-      }
-
-      GtkWidget *label=gtk_label_new(text);
-      gtk_widget_override_font(label, pango_font_description_from_string("Sans 11"));
-      gtk_widget_set_halign (label, GTK_ALIGN_START);
-      gtk_widget_show(label);
+    int row=0;
+    if(devices==0) {
+      GtkWidget *label=gtk_label_new("No local devices found!");
       gtk_grid_attach(GTK_GRID(grid),label,0,row,3,1);
-
-      GtkWidget *start_button=gtk_button_new_with_label("Start");
-      gtk_widget_override_font(start_button, pango_font_description_from_string("Sans 16"));
-      gtk_widget_show(start_button);
-      gtk_grid_attach(GTK_GRID(grid),start_button,3,row,1,1);
-      g_signal_connect(start_button,"button_press_event",G_CALLBACK(start_cb),(gpointer)d);
-
-      // if not available then cannot start it
-      if(d->status!=STATE_AVAILABLE) {
-        gtk_button_set_label(GTK_BUTTON(start_button),"In Use");
-        gtk_widget_set_sensitive(start_button, FALSE);
-      }
-
-#ifdef SOAPYSDR
-      if(d->device!=SOAPYSDR_USB_DEVICE) {
+      row++;
+    } else {
+      char version[16];
+      char text[256];
+      for(row=0;row<devices;row++) {
+        d=&discovered[row];
+fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
+        sprintf(version,"v%d.%d",
+                          d->software_version/10,
+                          d->software_version%10);
+        switch(d->protocol) {
+          case ORIGINAL_PROTOCOL:
+          case NEW_PROTOCOL:
+#ifdef USBOZY
+            if(d->device==DEVICE_OZY) {
+              sprintf(text,"%s (%s) on USB /dev/ozy", d->name, d->protocol==ORIGINAL_PROTOCOL?"Protocol 1":"Protocol 2");
+            } else {
 #endif
-        // if not on the same subnet then cannot start it
-        if((d->info.network.interface_address.sin_addr.s_addr&d->info.network.interface_netmask.sin_addr.s_addr) != (d->info.network.address.sin_addr.s_addr&d->info.network.interface_netmask.sin_addr.s_addr)) {
-          gtk_button_set_label(GTK_BUTTON(start_button),"Subnet!");
+              sprintf(text,"%s (%s %s) %s (%02X:%02X:%02X:%02X:%02X:%02X) on %s: ",
+                            d->name,
+                            d->protocol==ORIGINAL_PROTOCOL?"Protocol 1":"Protocol 2",
+                            version,
+                            inet_ntoa(d->info.network.address.sin_addr),
+                            d->info.network.mac_address[0],
+                            d->info.network.mac_address[1],
+                            d->info.network.mac_address[2],
+                            d->info.network.mac_address[3],
+                            d->info.network.mac_address[4],
+                            d->info.network.mac_address[5],
+                            d->info.network.interface_name);
+#ifdef USBOZY
+            }
+#endif
+            break;
+#ifdef SOAPYSDR
+          case SOAPYSDR_PROTOCOL:
+            sprintf(text,"%s (Protocol SOAPY_SDR %s) on USB",d->name,d->info.soapy.version);
+            break;
+#endif
+#ifdef STEMLAB_DISCOVERY
+          case STEMLAB_PROTOCOL:
+#ifdef NO_AVAHI
+            sprintf(text,"Choose RedPitaya App from %s and start radio: ",inet_ntoa(d->info.network.address.sin_addr));
+#else
+            sprintf(text, "STEMlab (%02X:%02X:%02X:%02X:%02X:%02X) on %s",
+                           d->info.network.mac_address[0],
+                           d->info.network.mac_address[1],
+                           d->info.network.mac_address[2],
+                           d->info.network.mac_address[3],
+                           d->info.network.mac_address[4],
+                           d->info.network.mac_address[5],
+                           d->info.network.interface_name);
+#endif
+#endif
+        }
+
+        GtkWidget *label=gtk_label_new(text);
+        gtk_widget_override_font(label, pango_font_description_from_string("Sans 11"));
+        gtk_widget_set_halign (label, GTK_ALIGN_START);
+        gtk_widget_show(label);
+        gtk_grid_attach(GTK_GRID(grid),label,0,row,3,1);
+
+        GtkWidget *start_button=gtk_button_new_with_label("Start");
+        gtk_widget_override_font(start_button, pango_font_description_from_string("Sans 16"));
+        gtk_widget_show(start_button);
+        gtk_grid_attach(GTK_GRID(grid),start_button,3,row,1,1);
+        g_signal_connect(start_button,"button_press_event",G_CALLBACK(start_cb),(gpointer)d);
+
+        // if not available then cannot start it
+        if(d->status!=STATE_AVAILABLE) {
+          gtk_button_set_label(GTK_BUTTON(start_button),"In Use");
           gtk_widget_set_sensitive(start_button, FALSE);
         }
+
 #ifdef SOAPYSDR
-      }
+        if(d->device!=SOAPYSDR_USB_DEVICE) {
+#endif
+          // if not on the same subnet then cannot start it
+          if((d->info.network.interface_address.sin_addr.s_addr&d->info.network.interface_netmask.sin_addr.s_addr) != (d->info.network.address.sin_addr.s_addr&d->info.network.interface_netmask.sin_addr.s_addr)) {
+            gtk_button_set_label(GTK_BUTTON(start_button),"Subnet!");
+            gtk_widget_set_sensitive(start_button, FALSE);
+          }
+#ifdef SOAPYSDR
+        }
 #endif
 
 #ifdef STEMLAB_DISCOVERY
-      if (d->protocol == STEMLAB_PROTOCOL) {
-        if (d->software_version == 0) {
-          gtk_button_set_label(GTK_BUTTON(start_button), "Not installed");
-          gtk_widget_set_sensitive(start_button, FALSE);
-        } else {
-          apps_combobox[row] = gtk_combo_box_text_new();
-          gtk_widget_override_font(apps_combobox[row], pango_font_description_from_string("Sans 11"));
-          // We want the default selection priority for the STEMlab app to be
-          // RP-Trx > HAMlab-Trx > Pavel-Trx > Pavel-Rx, so we add in decreasing order and
-          // always set the newly added entry to be active.
-          if ((d->software_version & STEMLAB_PAVEL_RX) != 0) {
-            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox[row]),
-                "sdr_receiver_hpsdr", "Pavel-Rx");
-            gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox[row]),
-                "sdr_receiver_hpsdr");
-          }
-          if ((d->software_version & STEMLAB_PAVEL_TRX) != 0) {
-            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox[row]),
-                "sdr_transceiver_hpsdr", "Pavel-Trx");
-            gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox[row]),
-                "sdr_transceiver_hpsdr");
-          }
-          if ((d->software_version & HAMLAB_RP_TRX) != 0) {
-            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox[row]),
-                "hamlab_sdr_transceiver_hpsdr", "HAMlab-Trx");
-            gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox[row]),
-                "hamlab_sdr_transceiver_hpsdr");
-          }
-          if ((d->software_version & STEMLAB_RP_TRX) != 0) {
-            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox[row]),
+        if (d->protocol == STEMLAB_PROTOCOL) {
+          if (d->software_version == 0) {
+            gtk_button_set_label(GTK_BUTTON(start_button), "Not installed");
+            gtk_widget_set_sensitive(start_button, FALSE);
+          } else {
+            apps_combobox[row] = gtk_combo_box_text_new();
+            gtk_widget_override_font(apps_combobox[row], pango_font_description_from_string("Sans 11"));
+            // We want the default selection priority for the STEMlab app to be
+            // RP-Trx > HAMlab-Trx > Pavel-Trx > Pavel-Rx, so we add in decreasing order and
+            // always set the newly added entry to be active.
+            if ((d->software_version & STEMLAB_PAVEL_RX) != 0) {
+              gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox[row]),
+                  "sdr_receiver_hpsdr", "Pavel-Rx");
+              gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox[row]),
+                  "sdr_receiver_hpsdr");
+            }
+            if ((d->software_version & STEMLAB_PAVEL_TRX) != 0) {
+              gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox[row]),
+                  "sdr_transceiver_hpsdr", "Pavel-Trx");
+              gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox[row]),
+                  "sdr_transceiver_hpsdr");
+            }
+            if ((d->software_version & HAMLAB_RP_TRX) != 0) {
+              gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox[row]),
+                  "hamlab_sdr_transceiver_hpsdr", "HAMlab-Trx");
+              gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox[row]),
+                  "hamlab_sdr_transceiver_hpsdr");
+            }
+            if ((d->software_version & STEMLAB_RP_TRX) != 0) {
+              gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(apps_combobox[row]),
                 "stemlab_sdr_transceiver_hpsdr", "STEMlab-Trx");
-            gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox[row]),
-                "stemlab_sdr_transceiver_hpsdr");
+              gtk_combo_box_set_active_id(GTK_COMBO_BOX(apps_combobox[row]),
+                  "stemlab_sdr_transceiver_hpsdr");
+            }
+            gtk_widget_show(apps_combobox[row]);
+            gtk_grid_attach(GTK_GRID(grid), apps_combobox[row], 4, row, 1, 1);
           }
-          gtk_widget_show(apps_combobox[row]);
-          gtk_grid_attach(GTK_GRID(grid), apps_combobox[row], 4, row, 1, 1);
         }
-      }
 #endif
 
+      }
     }
+
+#ifdef CLIENT_SERVER
+
+    loadProperties("remote.props");
+    char *value;
+    value=getProperty("host");
+    if(value!=NULL) strcpy(host_addr_buffer,value);
+    value=getProperty("port");
+    if(value!=NULL) host_port=atoi(value);
+
+    GtkWidget *connect_b=gtk_button_new_with_label("Connect to Server");
+    g_signal_connect (connect_b, "button-press-event", G_CALLBACK(connect_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),connect_b,0,row,1,1);
+
+    host_addr_entry=gtk_entry_new();
+    gtk_entry_set_max_length(GTK_ENTRY(host_addr_entry), 30);
+    gtk_grid_attach(GTK_GRID(grid),host_addr_entry,1,row,1,1);
+    gtk_entry_set_text(GTK_ENTRY(host_addr_entry), host_addr);
+
+    GtkWidget *host_port_label =gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(host_port_label), "<b>Server Port</b>");
+    gtk_widget_show(host_port_label);
+    gtk_grid_attach(GTK_GRID(grid),host_port_label,2,row,1,1);
+
+    host_port_spinner =gtk_spin_button_new_with_range(45000,55000,1);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(host_port_spinner),(double)host_port);
+    gtk_widget_show(host_port_spinner);
+    gtk_grid_attach(GTK_GRID(grid),host_port_spinner,3,row,1,1);
+
+    row++;
+#endif
+
 #ifdef GPIO
     controller=CONTROLLER2_V2;
     gpio_set_defaults(controller);
@@ -594,25 +605,9 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
     g_signal_connect (exit_b, "button-press-event", G_CALLBACK(exit_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),exit_b,3,row,1,1);
 
-#ifdef SERVER
-    row++;
-
-    GtkWidget *connect_b=gtk_button_new_with_label("Connect (Addr:Port)");
-    g_signal_connect (connect_b, "button-press-event", G_CALLBACK(connect_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),connect_b,0,row,1,1);
-
-    connect_addr_entry=gtk_entry_new();
-    gtk_entry_set_max_length(GTK_ENTRY(connect_addr_entry), 30);
-    gtk_grid_attach(GTK_GRID(grid),connect_addr_entry,1,row,1,1);
-    gtk_entry_set_text(GTK_ENTRY(connect_addr_entry), connect_addr);
-
-#endif
-    
-
     gtk_container_add (GTK_CONTAINER (content), grid);
     gtk_widget_show_all(discovery_dialog);
 fprintf(stderr,"showing device dialog\n");
-  }
 
 }
 

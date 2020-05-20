@@ -42,6 +42,9 @@
 #include "gpio.h"
 #include "vfo.h"
 #include "ext.h"
+#ifdef CLIENT_SERVER
+#include "client_server.h"
+#endif
 
 static GtkWidget *parent_window=NULL;
 static GtkWidget *menu_b=NULL;
@@ -251,7 +254,7 @@ static void sat_cb(GtkWidget *widget, gpointer data) {
   g_idle_add(ext_vfo_update, NULL);
 }
 
-static void load_filters(void) {
+void load_filters(void) {
   if(filter_board==N2ADR) {
     // set OC filters
     BAND *band;
@@ -342,8 +345,16 @@ static void n2adr_cb(GtkWidget *widget, gpointer data) {
 
 static void sample_rate_cb(GtkToggleButton *widget, gpointer data) {
   if(gtk_toggle_button_get_active(widget)) {
-    radio_change_sample_rate(GPOINTER_TO_INT(data));
+#ifdef CLIENT_SERVER
+    if(radio_is_remote) {
+      send_sample_rate(client_socket,-1,GPOINTER_TO_INT(data));
+    } else {
+#endif
+      radio_change_sample_rate(GPOINTER_TO_INT(data));
+    }
+#ifdef CLIENT_SERVER
   }
+#endif
 }
 
 static void receivers_cb(GtkToggleButton *widget, gpointer data) {
@@ -357,7 +368,15 @@ static void receivers_cb(GtkToggleButton *widget, gpointer data) {
     return;
   }
   if(gtk_toggle_button_get_active(widget)) {
-    radio_change_receivers(GPOINTER_TO_INT(data));
+#ifdef CLIENT_SERVER
+    if(radio_is_remote) {
+      send_receivers(client_socket,GPOINTER_TO_INT(data));
+    } else {
+#endif
+      radio_change_receivers(GPOINTER_TO_INT(data));
+#ifdef CLIENT_SERVER
+    }
+#endif
   }
 }
 
@@ -652,6 +671,7 @@ void radio_menu(GtkWidget *parent) {
   col++;
   row=1;
 
+#ifdef GPIO
   GtkWidget *vfo_divisor_label=gtk_label_new(NULL);
   gtk_label_set_markup(GTK_LABEL(vfo_divisor_label), "<b>VFO Encoder Divisor:</b>");
   gtk_grid_attach(GTK_GRID(grid),vfo_divisor_label,col,row,1,1);
@@ -662,6 +682,7 @@ void radio_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),vfo_divisor,col,row,1,1);
   g_signal_connect(vfo_divisor,"value_changed",G_CALLBACK(vfo_divisor_value_changed_cb),NULL);
   row++;
+#endif
    
   GtkWidget *iqswap_b=gtk_check_button_new_with_label("Swap IQ");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (iqswap_b), iqswap);

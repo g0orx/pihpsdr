@@ -59,8 +59,16 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 static void agc_select_cb (GtkToggleButton *widget, gpointer        data) {
   if(gtk_toggle_button_get_active(widget)) {
     active_receiver->agc=GPOINTER_TO_INT(data);
-    set_agc(active_receiver, active_receiver->agc);
-    g_idle_add(ext_vfo_update, NULL);
+#ifdef CLIENT_SERVER
+    if(radio_is_remote) {
+      send_agc(client_socket,active_receiver->id,active_receiver->agc);
+    } else {
+#endif
+      set_agc(active_receiver, active_receiver->agc);
+      g_idle_add(ext_vfo_update, NULL);
+#ifdef CLIENT_SERVER
+    }
+#endif
   }
 }
 

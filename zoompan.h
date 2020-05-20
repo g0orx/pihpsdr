@@ -28,4 +28,7 @@ extern void update_zoom(double zoom);
 
 extern void set_pan(int rx,double value);
 extern void set_zoom(int rx,double value);
+
+extern void remote_set_pan(int rx,double value);
+extern void remote_set_zoom(int rx,double value);
 #endif

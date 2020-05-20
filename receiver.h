@@ -49,6 +49,8 @@ typedef struct _receiver {
   gdouble agc_gain;
   gdouble agc_slope;
   gdouble agc_hang_threshold;
+  gdouble agc_hang;
+  gdouble agc_thresh;
   gint fps;
   gint displaying;
   audio_t audio_channel;
@@ -68,6 +70,7 @@ typedef struct _receiver {
   gint display_panadapter;
   gint display_waterfall;
   gint update_timer_id;
+  gdouble meter;
 
   gdouble hz_per_pixel;
 
@@ -181,5 +184,14 @@ extern gboolean receiver_motion_notify_event(GtkWidget *widget, GdkEventMotion *
 extern gboolean receiver_scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data);
 
 extern void set_displaying(RECEIVER *rx,int state);
+
+extern void receiver_restore_state(RECEIVER *rx);
+
+extern void receiver_set_active(RECEIVER *rx);
+
+#ifdef CLIENT_SERVER
+extern void receiver_create_remote(RECEIVER *rx);
+extern void receiver_remote_update_display(RECEIVER *rx);
+#endif
 
 #endif

@@ -120,22 +120,25 @@ static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
             f = ((long long)(atof(buffer)*mult)+5)/10;
             sprintf(output, "<big>%lld</big>", f);
             gtk_label_set_markup (GTK_LABEL (label), output);
-            int b=get_band_from_frequency(f);
-            if(b!=band_get_current()) {
-              BAND *band=band_set_current(b);
-              set_mode(active_receiver,entry->mode);
-              FILTER* band_filters=filters[entry->mode];
-              FILTER* band_filter=&band_filters[entry->filter];
-              set_filter(active_receiver,band_filter->low,band_filter->high);
-              if(active_receiver->id==0) {
-                set_alex_rx_antenna(band->alexRxAntenna);
-                set_alex_tx_antenna(band->alexTxAntenna);
-                set_alex_attenuation(band->alexAttenuation);
+            if(radio_is_remote) {
+                send_vfo_frequency(client_socket,active_receiver->id,f);
+            } else {
+              int b=get_band_from_frequency(f);
+              if(b!=band_get_current()) {
+                BAND *band=band_set_current(b);
+                set_mode(active_receiver,entry->mode);
+                FILTER* band_filters=filters[entry->mode];
+                FILTER* band_filter=&band_filters[entry->filter];
+                set_filter(active_receiver,band_filter->low,band_filter->high);
+                if(active_receiver->id==0) {
+                  set_alex_rx_antenna(band->alexRxAntenna);
+                  set_alex_tx_antenna(band->alexTxAntenna);
+                  set_alex_attenuation(band->alexAttenuation);
+                }
               }
+              setFrequency(f);
+              g_idle_add(ext_vfo_update,NULL);
             }
-            setFrequency(f);
-            g_idle_add(ext_vfo_update,NULL);
-      
             set = 1;
         }
     }

@@ -27,6 +27,9 @@
 #include "radio.h"
 #include "vfo.h"
 #include "waterfall.h"
+#ifdef CLIENT_SERVER
+#include "client_server.h"
+#endif
 
 
 static int colorLowR=0; // black
@@ -171,11 +174,18 @@ void waterfall_update(RECEIVER *rx) {
     unsigned char *p;
     p=pixels;
     samples=rx->pixel_samples;
+    int pan=rx->pan;
+#ifdef CLIENT_SERVER
+    if(radio_is_remote) {
+      pan=0;
+    }
+#endif
+
     for(i=0;i<width;i++) {
             if(have_rx_gain) {
-              sample=samples[i+rx->pan]+(float)(rx_gain_calibration-adc_attenuation[rx->adc]);
+              sample=samples[i+pan]+(float)(rx_gain_calibration-adc_attenuation[rx->adc]);
             } else {
-              sample=samples[i+rx->pan]+(float)adc_attenuation[rx->adc];
+              sample=samples[i+pan]+(float)adc_attenuation[rx->adc];
             }
             average+=(int)sample;
             if(sample<(float)rx->waterfall_low) {

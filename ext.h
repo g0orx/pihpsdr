@@ -17,44 +17,21 @@
 *
 */
 
+#ifdef CLIENT_SERVER
+#include "client_server.h"
+#endif
 
 //
 // The following calls functions can be called usig g_idle_add
 // Use these calls from within the rigclt daemon, or the GPIO or MIDI stuff
 //
 
-enum {
-  RX_FREQ_CMD,
-  RX_MOVE_CMD,
-  RX_MOVETO_CMD,
-  RX_MODE_CMD,
-  RX_FILTER_CMD,
-  RX_AGC_CMD,
-  RX_NR_CMD,
-  RX_NB_CMD,
-  RX_SNB_CMD,
-  RX_SPLIT_CMD,
-  RX_SAT_CMD,
-  RX_DUP_CMD
-};
-  
-typedef struct _REMOTE_COMMAND {
-  int id;
-  int cmd;
-  union {
-    long long frequency;
-    int mode;
-    int filter;
-    int agc;
-    int nr;
-    int nb;
-    int snb;
-    int split;
-    int sat;
-    int dup;
-  } data;
-} REMOTE_COMMAND;
+#ifdef CLIENT_SERVER
+extern int ext_remote_command(void *data);
+extern int ext_receiver_remote_update_display(void *data);
+#endif
 
+extern void local_set_frequency(int v,long long f);
 extern int ext_discovery(void *data);
 extern int ext_vfo_update(void *data);
 extern int ext_set_frequency(void *data);
@@ -78,7 +55,9 @@ extern int ext_nr_update(void *data);
 extern int ext_nb_update(void *data);
 extern int ext_snb_update(void *data);
 extern int ext_anf_update(void *data);
+extern void band_plus(int id);
 extern int ext_band_plus(void *data);
+extern void band_minus(int id);
 extern int ext_band_minus(void *data);
 extern int ext_bandstack_plus(void *data);
 extern int ext_bandstack_minus(void *data);
@@ -94,6 +73,7 @@ extern int ext_mode_plus(void *data);
 extern int ext_mode_minus(void *data);
 extern int ext_b_to_a(void *data);
 extern int ext_a_swap_b(void *data);
+extern void ctun_update(int id,int state);
 extern int ext_ctun_update(void *data);
 extern int ext_agc_update(void *data);
 extern int ext_split_toggle(void *data);
@@ -118,41 +98,45 @@ extern int ext_function_update(void *data);
 extern int ext_tx_set_ps(void *data);
 #endif
 
-int ext_update_vfo_step(void *data);
-int ext_vfo_step(void *data);
-int ext_vfo_id_step(void *data);
-int ext_vfo_mode_changed(void *data);
-int ext_set_af_gain(void *data);
-int ext_set_mic_gain(void *data);
-int ext_set_agc_gain(void *data);
-int ext_set_drive(void *data);
-int ext_vfo_a_swap_b(void *data);
-int ext_vfo_a_to_b(void *data);
-int ext_vfo_b_to_a(void *data);
-int ext_update_att_preamp(void *data);
-int ext_set_alex_attenuation(void *data);
-int ext_set_attenuation_value(void *data);
-int ext_set_compression(void *data);
+extern int ext_update_vfo_step(void *data);
+extern int ext_vfo_step(void *data);
+extern int ext_vfo_id_step(void *data);
+extern int ext_vfo_mode_changed(void *data);
+extern int ext_set_af_gain(void *data);
+extern int ext_set_mic_gain(void *data);
+extern int ext_set_agc_gain(void *data);
+extern int ext_set_drive(void *data);
+extern int ext_vfo_a_swap_b(void *data);
+extern int ext_vfo_a_to_b(void *data);
+extern int ext_vfo_b_to_a(void *data);
+extern int ext_update_att_preamp(void *data);
+extern int ext_set_alex_attenuation(void *data);
+extern int ext_set_attenuation_value(void *data);
+extern int ext_set_compression(void *data);
 
-int ext_start_rx(void *data);
-int ext_start_tx(void *data);
-int ext_diversity_update(void *data);
-int ext_diversity_change_gain(void *data);
-int ext_diversity_change_phase(void *data);
-int ext_sat_update(void *data);
-int ext_set_rf_gain(void *data);
-int ext_set_duplex(void *data);
+extern int ext_start_rx(void *data);
+extern int ext_start_tx(void *data);
+extern int ext_diversity_update(void *data);
+extern int ext_diversity_change_gain(void *data);
+extern int ext_diversity_change_phase(void *data);
+extern int ext_sat_update(void *data);
+extern int ext_set_rf_gain(void *data);
+extern int ext_set_duplex(void *data);
 
-int ext_update_noise(void *data);
+extern int ext_update_noise(void *data);
 #ifdef PURESIGNAL
-int ext_start_ps(void *data);
+extern int ext_start_ps(void *data);
 #endif
 
-int ext_mute_update(void *data);
+extern int ext_mute_update(void *data);
 
-int ext_zoom_update(void *data);
-int ext_zoom_set(void *data);
-int ext_pan_update(void *data);
-int ext_pan_set(void *data);
+extern int ext_zoom_update(void *data);
+extern int ext_zoom_set(void *data);
+extern int ext_pan_update(void *data);
+extern int ext_pan_set(void *data);
 
-int ext_remote_command(void *data);
+extern int ext_remote_set_zoom(void *data);
+extern int ext_remote_set_pan(void *data);
+extern int ext_set_title(void *data);
+
+

@@ -258,11 +258,13 @@ fprintf(stderr,"Tx gains: \n");
 void soapy_discovery() {
   size_t length;
   int i,j;
+  SoapySDRKwargs input_args={};
   SoapySDRKwargs args={};
 
 fprintf(stderr,"soapy_discovery\n");
   rtlsdr_count=0;
-  SoapySDRKwargs *results = SoapySDRDevice_enumerate(NULL, &length);
+  SoapySDRKwargs_set(&input_args, "hostname", "pluto.local");
+  SoapySDRKwargs *results = SoapySDRDevice_enumerate(&input_args, &length);
 fprintf(stderr,"soapy_discovery: length=%d\n",(int)length);
   for (i = 0; i < length; i++) {
     for (size_t j = 0; j < results[i].size; j++) {

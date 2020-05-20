@@ -150,11 +150,6 @@ static long micsamples_sequence=0;
 // This is shared with new_protocol_programmer.c
 int response;
 
-//static sem_t send_high_priority_sem;
-//static int send_high_priority=0;
-//static sem_t send_general_sem;
-//static int send_general=0;
-
 #ifdef __APPLE__
 static sem_t *command_response_sem_ready;
 static sem_t *command_response_sem_buffer;

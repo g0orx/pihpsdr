@@ -51,6 +51,9 @@
 #endif
 #include "ext.h"
 #include "new_menu.h"
+#ifdef CLIENT_SERVER
+#include "client_server.h"
+#endif
 
 
 #define min(x,y) (x<y?x:y)
@@ -85,23 +88,34 @@ gboolean receiver_button_press_event(GtkWidget *widget, GdkEventButton *event, g
   return TRUE;
 }
 
+void receiver_set_active(RECEIVER *rx) {
+  active_receiver=rx;
+  g_idle_add(menu_active_receiver_changed,NULL);
+  g_idle_add(ext_vfo_update,NULL);
+  g_idle_add(zoompan_active_receiver_changed,NULL);
+  g_idle_add(sliders_active_receiver_changed,NULL);
+  // setup the transmitter mode and filter
+  if(can_transmit) {
+    tx_set_mode(transmitter,get_tx_mode());
+  }
+}
+
 gboolean receiver_button_release_event(GtkWidget *widget, GdkEventButton *event, gpointer data) {
   RECEIVER *rx=(RECEIVER *)data;
   if(making_active) {
-    active_receiver=rx;
     making_active=FALSE;
-    g_idle_add(menu_active_receiver_changed,NULL);
-    g_idle_add(ext_vfo_update,NULL);
-    g_idle_add(zoompan_active_receiver_changed,NULL);
-    g_idle_add(sliders_active_receiver_changed,NULL);
-    if(event->button==3) {
-      g_idle_add(ext_start_rx,NULL);
-    }
-
-    // setup the transmitter mode and filter
-    tx_set_mode(transmitter,get_tx_mode());
-
-    //g_print("receiver: %d adc=%d attenuation=%d rx_gain_calibration=%d\n",rx->id,rx->adc,adc_attenuation[rx->adc],rx_gain_calibration);
+#ifdef CLIENT_SERVER
+    if(radio_is_remote) {
+      send_rx_select(client_socket,rx->id);
+    } else {
+#endif
+      receiver_set_active(rx);
+      if(event->button==3) {
+        g_idle_add(ext_start_rx,NULL);
+      }
+#ifdef CLIENT_SERVER
+   }
+#endif
   } else {
     if(pressed) {
       int x=(int)event->x;
@@ -161,117 +175,7 @@ void receiver_save_state(RECEIVER *rx) {
   char name[128];
   char value[128];
 
-  sprintf(name,"receiver.%d.alex_antenna",rx->id);
-  sprintf(value,"%d",rx->alex_antenna);
-  setProperty(name,value);
-
-#ifdef PURESIGNAL
-  //
-  // for PS_RX_RECEIVER, *only* save the ALEX antenna setting
-  // and then return quickly.
-  //
-  if (rx->id == PS_RX_FEEDBACK) return;
-#endif
-
-  sprintf(name,"receiver.%d.sample_rate",rx->id);
-  sprintf(value,"%d",rx->sample_rate);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.adc",rx->id);
-  sprintf(value,"%d",rx->adc);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.filter_low",rx->id);
-  sprintf(value,"%d",rx->filter_low);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.filter_high",rx->id);
-  sprintf(value,"%d",rx->filter_high);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.fps",rx->id);
-  sprintf(value,"%d",rx->fps);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.panadapter_low",rx->id);
-  sprintf(value,"%d",rx->panadapter_low);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.panadapter_high",rx->id);
-  sprintf(value,"%d",rx->panadapter_high);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.panadapter_step",rx->id);
-  sprintf(value,"%d",rx->panadapter_step);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.display_waterfall",rx->id);
-  sprintf(value,"%d",rx->display_waterfall);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.waterfall_low",rx->id);
-  sprintf(value,"%d",rx->waterfall_low);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.waterfall_high",rx->id);
-  sprintf(value,"%d",rx->waterfall_high);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.waterfall_automatic",rx->id);
-  sprintf(value,"%d",rx->waterfall_automatic);
-  setProperty(name,value);
-  
-  sprintf(name,"receiver.%d.alex_attenuation",rx->id);
-  sprintf(value,"%d",rx->alex_attenuation);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.volume",rx->id);
-  sprintf(value,"%f",rx->volume);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.rf_gain",rx->id);
-  sprintf(value,"%f",rx->rf_gain);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.agc",rx->id);
-  sprintf(value,"%d",rx->agc);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.agc_gain",rx->id);
-  sprintf(value,"%f",rx->agc_gain);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.agc_slope",rx->id);
-  sprintf(value,"%f",rx->agc_slope);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.agc_hang_threshold",rx->id);
-  sprintf(value,"%f",rx->agc_hang_threshold);
-  setProperty(name,value);
-
-  sprintf(name,"receiver.%d.dither",rx->id);
-  sprintf(value,"%d",rx->dither);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.random",rx->id);
-  sprintf(value,"%d",rx->random);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.preamp",rx->id);
-  sprintf(value,"%d",rx->preamp);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.nb",rx->id);
-  sprintf(value,"%d",rx->nb);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.nb2",rx->id);
-  sprintf(value,"%d",rx->nb2);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.nr",rx->id);
-  sprintf(value,"%d",rx->nr);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.nr2",rx->id);
-  sprintf(value,"%d",rx->nr2);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.anf",rx->id);
-  sprintf(value,"%d",rx->anf);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.snb",rx->id);
-  sprintf(value,"%d",rx->snb);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.nr_agc",rx->id);
-  sprintf(value,"%d",rx->nr_agc);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.nr2_gain_method",rx->id);
-  sprintf(value,"%d",rx->nr2_gain_method);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.nr2_npe_method",rx->id);
-  sprintf(value,"%d",rx->nr2_npe_method);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.nr2_ae",rx->id);
-  sprintf(value,"%d",rx->nr2_ae);
-  setProperty(name,value);
-
+  g_print("receiver_save_state: %d\n",rx->id);
   sprintf(name,"receiver.%d.audio_channel",rx->id);
   sprintf(value,"%d",rx->audio_channel);
   setProperty(name,value);
@@ -296,27 +200,144 @@ void receiver_save_state(RECEIVER *rx) {
   sprintf(value,"%d",rx->mute_radio);
   setProperty(name,value);
 
-  sprintf(name,"receiver.%d.low_latency",rx->id);
-  sprintf(value,"%d",rx->low_latency);
-  setProperty(name,value);
+#ifdef CLIENT_SERVER
+  if(!radio_is_remote) {
+#endif
+    sprintf(name,"receiver.%d.alex_antenna",rx->id);
+    sprintf(value,"%d",rx->alex_antenna);
+    setProperty(name,value);
 
-  sprintf(name,"receiver.%d.deviation",rx->id);
-  sprintf(value,"%d",rx->deviation);
-  setProperty(name,value);
+#ifdef PURESIGNAL
+    //
+    // for PS_RX_RECEIVER, *only* save the ALEX antenna setting
+    // and then return quickly.
+    //
+    if (rx->id == PS_RX_FEEDBACK) return;
+#endif
 
-  sprintf(name,"receiver.%d.squelch_enable",rx->id);
-  sprintf(value,"%d",rx->squelch_enable);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.squelch",rx->id);
-  sprintf(value,"%f",rx->squelch);
-  setProperty(name,value);
+    sprintf(name,"receiver.%d.sample_rate",rx->id);
+    sprintf(value,"%d",rx->sample_rate);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.adc",rx->id);
+    sprintf(value,"%d",rx->adc);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.filter_low",rx->id);
+    sprintf(value,"%d",rx->filter_low);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.filter_high",rx->id);
+    sprintf(value,"%d",rx->filter_high);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.fps",rx->id);
+    sprintf(value,"%d",rx->fps);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.panadapter_low",rx->id);
+    sprintf(value,"%d",rx->panadapter_low);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.panadapter_high",rx->id);
+    sprintf(value,"%d",rx->panadapter_high);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.panadapter_step",rx->id);
+    sprintf(value,"%d",rx->panadapter_step);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.display_waterfall",rx->id);
+    sprintf(value,"%d",rx->display_waterfall);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.waterfall_low",rx->id);
+    sprintf(value,"%d",rx->waterfall_low);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.waterfall_high",rx->id);
+    sprintf(value,"%d",rx->waterfall_high);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.waterfall_automatic",rx->id);
+    sprintf(value,"%d",rx->waterfall_automatic);
+    setProperty(name,value);
+  
+    sprintf(name,"receiver.%d.alex_attenuation",rx->id);
+    sprintf(value,"%d",rx->alex_attenuation);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.volume",rx->id);
+    sprintf(value,"%f",rx->volume);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.rf_gain",rx->id);
+    sprintf(value,"%f",rx->rf_gain);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.agc",rx->id);
+    sprintf(value,"%d",rx->agc);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.agc_gain",rx->id);
+    sprintf(value,"%f",rx->agc_gain);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.agc_slope",rx->id);
+    sprintf(value,"%f",rx->agc_slope);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.agc_hang_threshold",rx->id);
+    sprintf(value,"%f",rx->agc_hang_threshold);
+    setProperty(name,value);
 
-  sprintf(name,"receiver.%d.zoom",rx->id);
-  sprintf(value,"%d",rx->zoom);
-  setProperty(name,value);
-  sprintf(name,"receiver.%d.pan",rx->id);
-  sprintf(value,"%d",rx->pan);
-  setProperty(name,value);
+    sprintf(name,"receiver.%d.dither",rx->id);
+    sprintf(value,"%d",rx->dither);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.random",rx->id);
+    sprintf(value,"%d",rx->random);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.preamp",rx->id);
+    sprintf(value,"%d",rx->preamp);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.nb",rx->id);
+    sprintf(value,"%d",rx->nb);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.nb2",rx->id);
+    sprintf(value,"%d",rx->nb2);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.nr",rx->id);
+    sprintf(value,"%d",rx->nr);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.nr2",rx->id);
+    sprintf(value,"%d",rx->nr2);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.anf",rx->id);
+    sprintf(value,"%d",rx->anf);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.snb",rx->id);
+    sprintf(value,"%d",rx->snb);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.nr_agc",rx->id);
+    sprintf(value,"%d",rx->nr_agc);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.nr2_gain_method",rx->id);
+    sprintf(value,"%d",rx->nr2_gain_method);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.nr2_npe_method",rx->id);
+    sprintf(value,"%d",rx->nr2_npe_method);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.nr2_ae",rx->id);
+    sprintf(value,"%d",rx->nr2_ae);
+    setProperty(name,value);
+
+    sprintf(name,"receiver.%d.low_latency",rx->id);
+    sprintf(value,"%d",rx->low_latency);
+    setProperty(name,value);
+  
+    sprintf(name,"receiver.%d.deviation",rx->id);
+    sprintf(value,"%d",rx->deviation);
+    setProperty(name,value);
+  
+    sprintf(name,"receiver.%d.squelch_enable",rx->id);
+    sprintf(value,"%d",rx->squelch_enable);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.squelch",rx->id);
+    sprintf(value,"%f",rx->squelch);
+    setProperty(name,value);
+  
+    sprintf(name,"receiver.%d.zoom",rx->id);
+    sprintf(value,"%d",rx->zoom);
+    setProperty(name,value);
+    sprintf(name,"receiver.%d.pan",rx->id);
+    sprintf(value,"%d",rx->pan);
+    setProperty(name,value);
+#ifdef CLIENT_SERVER
+  }
+#endif
 }
 
 void receiver_restore_state(RECEIVER *rx) {
@@ -324,137 +345,6 @@ void receiver_restore_state(RECEIVER *rx) {
   char *value;
 
 fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
-  sprintf(name,"receiver.%d.alex_antenna",rx->id);
-  value=getProperty(name);
-  if(value) rx->alex_antenna=atoi(value);
-
-#ifdef PURESIGNAL
-  //
-  // for PS_RX_RECEIVER, *only* restore the ALEX antenna and setting
-  // and then return quickly
-  //
-  if (rx->id == PS_RX_FEEDBACK) return;
-#endif
-
-  sprintf(name,"receiver.%d.sample_rate",rx->id);
-  value=getProperty(name);
-  if(value) rx->sample_rate=atoi(value);
-  sprintf(name,"receiver.%d.adc",rx->id);
-  value=getProperty(name);
-  if(value) rx->adc=atoi(value);
-  //
-  // Do not specify a second ADC if there is only one
-  //
-  if (n_adc == 1) rx->adc=0;
-  sprintf(name,"receiver.%d.filter_low",rx->id);
-  value=getProperty(name);
-  if(value) rx->filter_low=atoi(value);
-  sprintf(name,"receiver.%d.filter_high",rx->id);
-  value=getProperty(name);
-  if(value) rx->filter_high=atoi(value);
-  sprintf(name,"receiver.%d.fps",rx->id);
-  value=getProperty(name);
-  if(value) rx->fps=atoi(value);
-/*
-  sprintf(name,"receiver.%d.frequency",rx->id);
-  value=getProperty(name);
-  if(value) rx->frequency=atoll(value);
-  sprintf(name,"receiver.%d.display_frequency",rx->id);
-  value=getProperty(name);
-  if(value) rx->display_frequency=atoll(value);
-  sprintf(name,"receiver.%d.dds_frequency",rx->id);
-  value=getProperty(name);
-  if(value) rx->dds_frequency=atoll(value);
-  sprintf(name,"receiver.%d.dds_offset",rx->id);
-  value=getProperty(name);
-  if(value) rx->dds_offset=atoll(value);
-  sprintf(name,"receiver.%d.rit",rx->id);
-  value=getProperty(name);
-  if(value) rx->rit=atoi(value);
-*/
-  sprintf(name,"receiver.%d.panadapter_low",rx->id);
-  value=getProperty(name);
-  if(value) rx->panadapter_low=atoi(value);
-  sprintf(name,"receiver.%d.panadapter_high",rx->id);
-  value=getProperty(name);
-  if(value) rx->panadapter_high=atoi(value);
-  sprintf(name,"receiver.%d.panadapter_step",rx->id);
-  value=getProperty(name);
-  if(value) rx->panadapter_step=atoi(value);
-  sprintf(name,"receiver.%d.display_waterfall",rx->id);
-  value=getProperty(name);
-  if(value) rx->display_waterfall=atoi(value);
-  sprintf(name,"receiver.%d.waterfall_low",rx->id);
-  value=getProperty(name);
-  if(value) rx->waterfall_low=atoi(value);
-  sprintf(name,"receiver.%d.waterfall_high",rx->id);
-  value=getProperty(name);
-  if(value) rx->waterfall_high=atoi(value);
-  sprintf(name,"receiver.%d.waterfall_automatic",rx->id);
-  value=getProperty(name);
-  if(value) rx->waterfall_automatic=atoi(value);
-
-  sprintf(name,"receiver.%d.alex_attenuation",rx->id);
-  value=getProperty(name);
-  if(value) rx->alex_attenuation=atoi(value);
-  sprintf(name,"receiver.%d.volume",rx->id);
-  value=getProperty(name);
-  if(value) rx->volume=atof(value);
-  sprintf(name,"receiver.%d.rf_gain",rx->id);
-  value=getProperty(name);
-  if(value) rx->rf_gain=atof(value);
-  sprintf(name,"receiver.%d.agc",rx->id);
-  value=getProperty(name);
-  if(value) rx->agc=atoi(value);
-  sprintf(name,"receiver.%d.agc_gain",rx->id);
-  value=getProperty(name);
-  if(value) rx->agc_gain=atof(value);
-  sprintf(name,"receiver.%d.agc_slope",rx->id);
-  value=getProperty(name);
-  if(value) rx->agc_slope=atof(value);
-  sprintf(name,"receiver.%d.agc_hang_threshold",rx->id);
-  value=getProperty(name);
-  if(value) rx->agc_hang_threshold=atof(value);
-
-  sprintf(name,"receiver.%d.dither",rx->id);
-  value=getProperty(name);
-  if(value) rx->dither=atoi(value);
-  sprintf(name,"receiver.%d.random",rx->id);
-  value=getProperty(name);
-  if(value) rx->random=atoi(value);
-  sprintf(name,"receiver.%d.preamp",rx->id);
-  value=getProperty(name);
-  if(value) rx->preamp=atoi(value);
-  sprintf(name,"receiver.%d.nb",rx->id);
-  value=getProperty(name);
-  if(value) rx->nb=atoi(value);
-  sprintf(name,"receiver.%d.nb2",rx->id);
-  value=getProperty(name);
-  if(value) rx->nb2=atoi(value);
-  sprintf(name,"receiver.%d.nr",rx->id);
-  value=getProperty(name);
-  if(value) rx->nr=atoi(value);
-  sprintf(name,"receiver.%d.nr2",rx->id);
-  value=getProperty(name);
-  if(value) rx->nr2=atoi(value);
-  sprintf(name,"receiver.%d.anf",rx->id);
-  value=getProperty(name);
-  if(value) rx->anf=atoi(value);
-  sprintf(name,"receiver.%d.snb",rx->id);
-  value=getProperty(name);
-  if(value) rx->snb=atoi(value);
-  sprintf(name,"receiver.%d.nr_agc",rx->id);
-  value=getProperty(name);
-  if(value) rx->nr_agc=atoi(value);
-  sprintf(name,"receiver.%d.nr2_gain_method",rx->id);
-  value=getProperty(name);
-  if(value) rx->nr2_gain_method=atoi(value);
-  sprintf(name,"receiver.%d.nr2_npe_method",rx->id);
-  value=getProperty(name);
-  if(value) rx->nr2_npe_method=atoi(value);
-  sprintf(name,"receiver.%d.ae",rx->id);
-  value=getProperty(name);
-  if(value) rx->nr2_ae=atoi(value);
 
   sprintf(name,"receiver.%d.audio_channel",rx->id);
   value=getProperty(name);
@@ -482,27 +372,166 @@ fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
   sprintf(name,"receiver.%d.mute_radio",rx->id);
   value=getProperty(name);
   if(value) rx->mute_radio=atoi(value);
-  sprintf(name,"receiver.%d.low_latency",rx->id);
-  value=getProperty(name);
-  if(value) rx->low_latency=atoi(value);
 
-  sprintf(name,"receiver.%d.deviation",rx->id);
-  value=getProperty(name);
-  if(value) rx->deviation=atoi(value);
+#ifdef CLIENT_SERVER
+  if(!radio_is_remote) {
+#endif
+    sprintf(name,"receiver.%d.alex_antenna",rx->id);
+    value=getProperty(name);
+    if(value) rx->alex_antenna=atoi(value);
 
-  sprintf(name,"receiver.%d.squelch_enable",rx->id);
-  value=getProperty(name);
-  if(value) rx->squelch_enable=atoi(value);
-  sprintf(name,"receiver.%d.squelch",rx->id);
-  value=getProperty(name);
-  if(value) rx->squelch=atof(value);
+#ifdef PURESIGNAL
+    //
+    // for PS_RX_RECEIVER, *only* restore the ALEX antenna and setting
+    // and then return quickly
+    //
+    if (rx->id == PS_RX_FEEDBACK) return;
+#endif
 
-  sprintf(name,"receiver.%d.zoom",rx->id);
+    sprintf(name,"receiver.%d.sample_rate",rx->id);
+    value=getProperty(name);
+    if(value) rx->sample_rate=atoi(value);
+    sprintf(name,"receiver.%d.adc",rx->id);
+    value=getProperty(name);
+    if(value) rx->adc=atoi(value);
+    //
+    // Do not specify a second ADC if there is only one
+    //
+    if (n_adc == 1) rx->adc=0;
+    sprintf(name,"receiver.%d.filter_low",rx->id);
+    value=getProperty(name);
+    if(value) rx->filter_low=atoi(value);
+    sprintf(name,"receiver.%d.filter_high",rx->id);
+    value=getProperty(name);
+    if(value) rx->filter_high=atoi(value);
+    sprintf(name,"receiver.%d.fps",rx->id);
+    value=getProperty(name);
+    if(value) rx->fps=atoi(value);
+/*
+  sprintf(name,"receiver.%d.frequency",rx->id);
   value=getProperty(name);
-  if(value) rx->zoom=atoi(value);
-  sprintf(name,"receiver.%d.pan",rx->id);
+  if(value) rx->frequency=atoll(value);
+  sprintf(name,"receiver.%d.display_frequency",rx->id);
   value=getProperty(name);
-  if(value) rx->pan=atoi(value);
+  if(value) rx->display_frequency=atoll(value);
+  sprintf(name,"receiver.%d.dds_frequency",rx->id);
+  value=getProperty(name);
+  if(value) rx->dds_frequency=atoll(value);
+  sprintf(name,"receiver.%d.dds_offset",rx->id);
+  value=getProperty(name);
+  if(value) rx->dds_offset=atoll(value);
+  sprintf(name,"receiver.%d.rit",rx->id);
+  value=getProperty(name);
+  if(value) rx->rit=atoi(value);
+*/
+    sprintf(name,"receiver.%d.panadapter_low",rx->id);
+    value=getProperty(name);
+    if(value) rx->panadapter_low=atoi(value);
+    sprintf(name,"receiver.%d.panadapter_high",rx->id);
+    value=getProperty(name);
+    if(value) rx->panadapter_high=atoi(value);
+    sprintf(name,"receiver.%d.panadapter_step",rx->id);
+    value=getProperty(name);
+    if(value) rx->panadapter_step=atoi(value);
+    sprintf(name,"receiver.%d.display_waterfall",rx->id);
+    value=getProperty(name);
+    if(value) rx->display_waterfall=atoi(value);
+    sprintf(name,"receiver.%d.waterfall_low",rx->id);
+    value=getProperty(name);
+    if(value) rx->waterfall_low=atoi(value);
+    sprintf(name,"receiver.%d.waterfall_high",rx->id);
+    value=getProperty(name);
+    if(value) rx->waterfall_high=atoi(value);
+    sprintf(name,"receiver.%d.waterfall_automatic",rx->id);
+    value=getProperty(name);
+    if(value) rx->waterfall_automatic=atoi(value);
+
+    sprintf(name,"receiver.%d.alex_attenuation",rx->id);
+    value=getProperty(name);
+    if(value) rx->alex_attenuation=atoi(value);
+    sprintf(name,"receiver.%d.volume",rx->id);
+    value=getProperty(name);
+    if(value) rx->volume=atof(value);
+    sprintf(name,"receiver.%d.rf_gain",rx->id);
+    value=getProperty(name);
+    if(value) rx->rf_gain=atof(value);
+    sprintf(name,"receiver.%d.agc",rx->id);
+    value=getProperty(name);
+    if(value) rx->agc=atoi(value);
+    sprintf(name,"receiver.%d.agc_gain",rx->id);
+    value=getProperty(name);
+    if(value) rx->agc_gain=atof(value);
+    sprintf(name,"receiver.%d.agc_slope",rx->id);
+    value=getProperty(name);
+    if(value) rx->agc_slope=atof(value);
+    sprintf(name,"receiver.%d.agc_hang_threshold",rx->id);
+    value=getProperty(name);
+    if(value) rx->agc_hang_threshold=atof(value);
+
+    sprintf(name,"receiver.%d.dither",rx->id);
+    value=getProperty(name);
+    if(value) rx->dither=atoi(value);
+    sprintf(name,"receiver.%d.random",rx->id);
+    value=getProperty(name);
+    if(value) rx->random=atoi(value);
+    sprintf(name,"receiver.%d.preamp",rx->id);
+    value=getProperty(name);
+    if(value) rx->preamp=atoi(value);
+    sprintf(name,"receiver.%d.nb",rx->id);
+    value=getProperty(name);
+    if(value) rx->nb=atoi(value);
+    sprintf(name,"receiver.%d.nb2",rx->id);
+    value=getProperty(name);
+    if(value) rx->nb2=atoi(value);
+    sprintf(name,"receiver.%d.nr",rx->id);
+    value=getProperty(name);
+    if(value) rx->nr=atoi(value);
+    sprintf(name,"receiver.%d.nr2",rx->id);
+    value=getProperty(name);
+    if(value) rx->nr2=atoi(value);
+    sprintf(name,"receiver.%d.anf",rx->id);
+    value=getProperty(name);
+    if(value) rx->anf=atoi(value);
+    sprintf(name,"receiver.%d.snb",rx->id);
+    value=getProperty(name);
+    if(value) rx->snb=atoi(value);
+    sprintf(name,"receiver.%d.nr_agc",rx->id);
+    value=getProperty(name);
+    if(value) rx->nr_agc=atoi(value);
+    sprintf(name,"receiver.%d.nr2_gain_method",rx->id);
+    value=getProperty(name);
+    if(value) rx->nr2_gain_method=atoi(value);
+    sprintf(name,"receiver.%d.nr2_npe_method",rx->id);
+    value=getProperty(name);
+    if(value) rx->nr2_npe_method=atoi(value);
+    sprintf(name,"receiver.%d.ae",rx->id);
+    value=getProperty(name);
+    if(value) rx->nr2_ae=atoi(value);
+  
+    sprintf(name,"receiver.%d.low_latency",rx->id);
+    value=getProperty(name);
+    if(value) rx->low_latency=atoi(value);
+
+    sprintf(name,"receiver.%d.deviation",rx->id);
+    value=getProperty(name);
+    if(value) rx->deviation=atoi(value);
+  
+    sprintf(name,"receiver.%d.squelch_enable",rx->id);
+    value=getProperty(name);
+    if(value) rx->squelch_enable=atoi(value);
+    sprintf(name,"receiver.%d.squelch",rx->id);
+    value=getProperty(name);
+    if(value) rx->squelch=atof(value);
+
+    sprintf(name,"receiver.%d.zoom",rx->id);
+    value=getProperty(name);
+    if(value) rx->zoom=atoi(value);
+    sprintf(name,"receiver.%d.pan",rx->id);
+    value=getProperty(name);
+    if(value) rx->pan=atoi(value);
+#ifdef CLIENT_SERVER
+  }
+#endif
 }
 
 void reconfigure_receiver(RECEIVER *rx,int height) {
@@ -512,6 +541,8 @@ void reconfigure_receiver(RECEIVER *rx,int height) {
   // which is the full or half of the height depending on whether BOTH
   // are displayed
   //
+
+  g_mutex_lock(&rx->display_mutex);
   int myheight=(rx->display_panadapter && rx->display_waterfall) ? height/2 : height;
 
   rx->height=height;  // total height
@@ -558,13 +589,14 @@ fprintf(stderr,"reconfigure_receiver: waterfall set_size_request: width:%d heigh
   }
 
   gtk_widget_show_all(rx->panel);
+  g_mutex_unlock(&rx->display_mutex);
 }
 
 static gint update_display(gpointer data) {
   RECEIVER *rx=(RECEIVER *)data;
   int rc;
 
-//fprintf(stderr,"update_display: %d displaying=%d\n",rx->id,rx->displaying);
+//g_print("update_display: rx=%d displaying=%d\n",rx->id,rx->displaying);
 
   if(rx->displaying) {
     if(rx->pixels>0) {
@@ -580,8 +612,8 @@ static gint update_display(gpointer data) {
       }
       g_mutex_unlock(&rx->display_mutex);
       if(active_receiver==rx) {
-        double m=GetRXAMeter(rx->id,smeter)+meter_calibration;
-        meter_update(rx,SMETER,m,0.0,0.0,0.0);
+        rx->meter=GetRXAMeter(rx->id,smeter)+meter_calibration;
+        meter_update(rx,SMETER,rx->meter,0.0,0.0,0.0);
       }
       return TRUE;
     }
@@ -589,14 +621,38 @@ static gint update_display(gpointer data) {
   return FALSE;
 }
 
+void receiver_remote_update_display(RECEIVER *rx) {
+  if(rx->displaying) {
+    if(rx->pixels>0) {
+      g_mutex_lock(&rx->display_mutex);
+      if(rx->display_panadapter) {
+        rx_panadapter_update(rx);
+      }
+      if(rx->display_waterfall) {
+        waterfall_update(rx);
+      }
+      if(active_receiver==rx) {
+        meter_update(rx,SMETER,rx->meter,0.0,0.0,0.0);
+      }
+      g_mutex_unlock(&rx->display_mutex);
+    }
+  }
+}
+
 void set_displaying(RECEIVER *rx,int state) {
   rx->displaying=state;
-  if(state) {
-    if(rx->update_timer_id>=0) g_source_remove(rx->update_timer_id);
-    rx->update_timer_id=gdk_threads_add_timeout_full(G_PRIORITY_HIGH_IDLE,1000/rx->fps, update_display, rx, NULL);
-  } else {
-    rx->update_timer_id=-1;
+#ifdef CLIENT_SERVER
+  if(!radio_is_remote) {
+#endif
+    if(state) {
+      if(rx->update_timer_id>=0) g_source_remove(rx->update_timer_id);
+      rx->update_timer_id=gdk_threads_add_timeout_full(G_PRIORITY_HIGH_IDLE,1000/rx->fps, update_display, rx, NULL);
+    } else {
+      rx->update_timer_id=-1;
+    }
+#ifdef CLIENT_SERVER
   }
+#endif
 }
 
 void set_mode(RECEIVER *rx,int m) {
@@ -1271,21 +1327,28 @@ static void process_rx_buffer(RECEIVER *rx) {
 
     if(rx->local_audio) {
       if((rx!=active_receiver && rx->mute_when_not_active) || rx->mute_radio) {
-        audio_write(rx,0.0F,0.0F);
+        left_sample=0.0;
+        right_sample=0.0;
       } else {
         switch(rx->audio_channel) {
           case STEREO:
-            audio_write(rx,(float)left_sample,(float)right_sample);
             break;
           case LEFT:
-            audio_write(rx,(float)left_sample,0.0F);
+            right_sample=0.0;
             break;
           case RIGHT:
-            audio_write(rx,0.0F,(float)right_sample);
+            left_sample=0.0;
             break;
         }
       }
+      audio_write(rx,(float)left_sample,(float)right_sample);
     }
+
+#ifdef CLIENT_SERVER
+    if(clients!=NULL) {
+      remote_audio(rx,left_audio_sample,right_audio_sample);
+    }
+#endif
 
     if(rx==active_receiver) {
       switch(protocol) {
@@ -1390,13 +1453,10 @@ void add_div_iq_samples(RECEIVER *rx, double i0, double q0, double i1, double q1
 }
 
 void receiver_change_zoom(RECEIVER *rx,double zoom) {
-  if(rx->pixel_samples!=NULL) {
-    g_free(rx->pixel_samples);
-  }
-  rx->pixels=rx->width*(int)zoom;
-  rx->pixel_samples=g_new(float,rx->pixels);
-  rx->hz_per_pixel=(double)rx->sample_rate/(double)rx->pixels;
+g_print("receiver_change_zoom: %d %f\n",rx->id,zoom);
   rx->zoom=(int)zoom;
+  rx->pixels=rx->width*rx->zoom;
+  rx->hz_per_pixel=(double)rx->sample_rate/(double)rx->pixels;
   if(zoom==1) {
     rx->pan=0;
   } else {
@@ -1409,8 +1469,18 @@ void receiver_change_zoom(RECEIVER *rx,double zoom) {
       rx->pan=(rx->pixels/2)-(rx->width/2);
     }
   }
-  rx->zoom=(int)zoom;
-  init_analyzer(rx);
+#ifdef CLIENT_SERVER
+  if(!radio_is_remote) {
+#endif
+    if(rx->pixel_samples!=NULL) {
+      g_free(rx->pixel_samples);
+    }
+    rx->pixel_samples=g_new(float,rx->pixels);
+    init_analyzer(rx);
+#ifdef CLIENT_SERVER
+  }
+#endif
+g_print("receiver_change_zoom: pixels=%d zoom=%d pan=%d\n",rx->pixels,rx->zoom,rx->pan);
 }
 
 void receiver_change_pan(RECEIVER *rx,double pan) {
@@ -1419,3 +1489,9 @@ void receiver_change_pan(RECEIVER *rx,double pan) {
   }
 }
 
+#ifdef CLIENT_SERVER
+void receiver_create_remote(RECEIVER *rx) {
+  // receiver structure allready setup
+  create_visual(rx);
+}
+#endif

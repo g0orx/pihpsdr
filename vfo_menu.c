@@ -150,10 +150,18 @@ static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
       f = ((long long)(atof(buffer)*mult)+5)/10;
       sprintf(output, "<big>%lld</big>", f);
       gtk_label_set_markup (GTK_LABEL (label), output);
-      fp=g_new(SET_FREQUENCY,1);
-      fp->vfo=v;
-      fp->frequency = f;
-      g_idle_add(ext_set_frequency, fp);
+#ifdef CLIENT_SERVER
+      if(radio_is_remote) {
+        send_vfo_frequency(client_socket,active_receiver->id,f);
+      } else {
+#endif
+        fp=g_new(SET_FREQUENCY,1);
+        fp->vfo=v;
+        fp->frequency = f;
+        g_idle_add(ext_set_frequency, fp);
+#ifdef CLIENT_SERVER
+      }
+#endif
       set = 1;
     }
   }

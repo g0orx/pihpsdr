@@ -46,6 +46,9 @@
 #include "new_menu.h"
 #include "button_text.h"
 #include "ext.h"	
+#ifdef CLIENT_SERVER
+#include "client_server.h"
+#endif
 
 int function=0;
 
@@ -82,13 +85,7 @@ static gint xit_minus_timer=-1;
 
 static gboolean rit_timer_cb(gpointer data) {
   int i=GPOINTER_TO_INT(data);
-  vfo[active_receiver->id].rit+=(i*rit_increment);
-  if(vfo[active_receiver->id].rit>10000) vfo[active_receiver->id].rit=10000;
-  if(vfo[active_receiver->id].rit<-10000) vfo[active_receiver->id].rit=-10000;
-  if(protocol==NEW_PROTOCOL) {
-    schedule_high_priority();
-  }
-  g_idle_add(ext_vfo_update,NULL);
+  vfo_rit(active_receiver->id,i);
   return TRUE;
 }
 
@@ -253,87 +250,168 @@ void noise_cb(GtkWidget *widget, gpointer data) {
 
 void ctun_cb (GtkWidget *widget, gpointer data) {
   int id=active_receiver->id;
-  vfo[id].ctun=vfo[id].ctun==1?0:1;
-  if(!vfo[id].ctun) {
-    vfo[id].offset=0;
+#ifdef CLIENT_SERVER
+  if(radio_is_remote) {
+    send_ctun(client_socket,id,vfo[id].ctun==1?0:1);
+  } else {
+#endif
+    vfo[id].ctun=vfo[id].ctun==1?0:1;
+    if(!vfo[id].ctun) {
+      vfo[id].offset=0;
+    }
+    vfo[id].ctun_frequency=vfo[id].frequency;
+    set_offset(active_receiver,vfo[id].offset);
+    g_idle_add(ext_vfo_update,NULL);
+#ifdef CLIENT_SERVER
   }
-  vfo[id].ctun_frequency=vfo[id].frequency;
-  set_offset(active_receiver,vfo[id].offset);
-  g_idle_add(ext_vfo_update,NULL);
+#endif
 }
 
 static void atob_cb (GtkWidget *widget, gpointer data) {
-  vfo_a_to_b();
+#ifdef CLIENT_SERVER
+  if(radio_is_remote) {
+    send_vfo(client_socket,VFO_A_TO_B);
+  } else {
+#endif
+    vfo_a_to_b();
+#ifdef CLIENT_SERVER
+  }
+#endif
 }
 
 static void btoa_cb (GtkWidget *widget, gpointer data) {
-  vfo_b_to_a();
+#ifdef CLIENT_SERVER
+  if(radio_is_remote) {
+    send_vfo(client_socket,VFO_B_TO_A);
+  } else {
+#endif
+    vfo_b_to_a();
+#ifdef CLIENT_SERVER
+  }
+#endif
 }
 
 static void aswapb_cb (GtkWidget *widget, gpointer data) {
-  vfo_a_swap_b();
+#ifdef CLIENT_SERVER
+  if(radio_is_remote) {
+    send_vfo(client_socket,VFO_A_SWAP_B);
+  } else {
+#endif
+    vfo_a_swap_b();
+#ifdef CLIENT_SERVER
+  }
+#endif
 }
 
 static void split_cb (GtkWidget *widget, gpointer data) {
-  g_idle_add(ext_split_toggle,NULL);
+#ifdef CLIENT_SERVER
+  if(radio_is_remote) {
+    send_split(client_socket,split==1?0:1);
+  } else {
+#endif
+    g_idle_add(ext_split_toggle,NULL);
+#ifdef CLIENT_SERVER
+  }
+#endif
 }
 
 static void duplex_cb (GtkWidget *widget, gpointer data) {
   if(can_transmit && !isTransmitting()) {
-    duplex=(duplex==1)?0:1;
-    g_idle_add(ext_set_duplex,NULL);
+#ifdef CLIENT_SERVER
+    if(radio_is_remote) {
+      send_dup(client_socket,duplex==1?0:1);
+    } else {
+#endif
+      duplex=(duplex==1)?0:1;
+      g_idle_add(ext_set_duplex,NULL);
+#ifdef CLIENT_SERVER
+    }
+#endif
   }
 }
 
 static void sat_cb (GtkWidget *widget, gpointer data) {
+  int temp;
   if(can_transmit) {
     if(sat_mode==SAT_MODE) {
-      sat_mode=SAT_NONE;
+      temp=SAT_NONE;
     } else {
-      sat_mode=SAT_MODE;
+      temp=SAT_MODE;
     }
-    g_idle_add(ext_vfo_update,NULL);
+#ifdef CLIENT_SERVER
+    if(radio_is_remote) {
+      send_sat(client_socket,temp);
+    } else {
+#endif
+      sat_mode=temp;
+      g_idle_add(ext_vfo_update,NULL);
+#ifdef CLIENT_SERVER
+    }
+#endif
   }
 }
 
 static void rsat_cb (GtkWidget *widget, gpointer data) {
+  int temp;
   if(can_transmit) {
     if(sat_mode==RSAT_MODE) {
-      sat_mode=SAT_NONE;
+      temp=SAT_NONE;
     } else {
-      sat_mode=RSAT_MODE;
+      temp=RSAT_MODE;
     }
-    g_idle_add(ext_vfo_update,NULL);
+#ifdef CLIENT_SERVER
+    if(radio_is_remote) {
+      send_sat(client_socket,temp);
+    } else {
+#endif
+      sat_mode=temp;
+      g_idle_add(ext_vfo_update,NULL);
+#ifdef CLIENT_SERVER
+    }
+#endif
   }
 }
 
 static void rit_enable_cb(GtkWidget *widget, gpointer data) {
-  vfo[active_receiver->id].rit_enabled=vfo[active_receiver->id].rit_enabled==1?0:1;
-  if(protocol==NEW_PROTOCOL) {
-    schedule_high_priority();
+#ifdef CLIENT_SERVER
+  if(radio_is_remote) {
+    send_rit_update(client_socket,active_receiver->id);
+  } else {
+#endif
+    vfo_rit_update(active_receiver->id);
+#ifdef CLIENT_SERVER
   }
-  g_idle_add(ext_vfo_update,NULL);
+#endif
 }
 
 static void rit_cb(GtkWidget *widget, gpointer data) {
   int i=GPOINTER_TO_INT(data);
-  vfo[active_receiver->id].rit+=i*rit_increment;
-  if(vfo[active_receiver->id].rit>10000) vfo[active_receiver->id].rit=10000;
-  if(vfo[active_receiver->id].rit<-10000) vfo[active_receiver->id].rit=-10000;
-  if(protocol==NEW_PROTOCOL) {
-    schedule_high_priority();
-  }
-  g_idle_add(ext_vfo_update,NULL);
-  if(i<0) {
-    rit_minus_timer=g_timeout_add(200,rit_timer_cb,GINT_TO_POINTER(i));
+#ifdef CLIENT_SERVER
+  if(radio_is_remote) {
+    send_rit(client_socket,active_receiver->id,i);
   } else {
-    rit_plus_timer=g_timeout_add(200,rit_timer_cb,GINT_TO_POINTER(i));
+#endif
+    vfo_rit(active_receiver->id,i);
+    if(i<0) {
+      rit_minus_timer=g_timeout_add(200,rit_timer_cb,GINT_TO_POINTER(i));
+    } else {
+      rit_plus_timer=g_timeout_add(200,rit_timer_cb,GINT_TO_POINTER(i));
+    }
+#ifdef CLIENT_SERVER
   }
+#endif
 }
 
 static void rit_clear_cb(GtkWidget *widget, gpointer data) {
-  vfo[active_receiver->id].rit=0;
-  g_idle_add(ext_vfo_update,NULL);
+#ifdef CLIENT_SERVER
+  if(radio_is_remote) {
+    send_rit_clear(client_socket,active_receiver->id);
+  } else {
+#endif
+    vfo_rit_clear(active_receiver->id);
+#ifdef CLIENT_SERVER
+  }
+#endif
 }
 
 static void xit_enable_cb(GtkWidget *widget, gpointer data) {
@@ -405,7 +483,7 @@ static void yes_cb(GtkWidget *widget, gpointer data) {
 
 static void halt_cb(GtkWidget *widget, gpointer data) {
   stop();
-  system("shutdown -h -P now");
+  int rc=system("shutdown -h -P now");
   _exit(0);
 }
 
@@ -453,8 +531,16 @@ static void exit_cb(GtkWidget *widget, gpointer data) {
 }
 
 void lock_cb(GtkWidget *widget, gpointer data) {
-  locked=locked==1?0:1;
-  g_idle_add(ext_vfo_update,NULL);
+#ifdef CLIENT_SERVER
+  if(radio_is_remote) {
+    send_lock(client_socket,locked==1?0:1);
+  } else {
+#endif
+    locked=locked==1?0:1;
+    g_idle_add(ext_vfo_update,NULL);
+#ifdef CLIENT_SERVER
+  }
+#endif
 }
 
 void mox_cb(GtkWidget *widget, gpointer data) {

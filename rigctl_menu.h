@@ -18,7 +18,6 @@
 */
 
 #include <gtk/gtk.h>
-#include <semaphore.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -29,3 +28,5 @@ extern void disable_serial();
 
 extern int serial_baud_rate;
 extern int serial_parity;
+
+extern gboolean rigctl_debug;
