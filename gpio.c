@@ -1330,6 +1330,7 @@ void gpio_restore_state() {
  
   }
 
+#ifdef LOCALCW
   if(controller==CONTROLLER2_V2) {
     //
     // In Controller2 V2, no 'free' GPIO pins
@@ -1339,6 +1340,7 @@ void gpio_restore_state() {
     ENABLE_CW_BUTTONS=0;
     ENABLE_GPIO_SIDETONE=0;
   }
+#endif
 
 
 }
