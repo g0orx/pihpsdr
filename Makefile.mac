@@ -478,10 +478,10 @@ hpsdrsim:       hpsdrsim.o newhpsdrsim.o
 #############################################################################
 app:	$(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) \
 		$(LOCALCW_OBJS) \
-		$(PURESIGNAL_OBJS) $(MIDI_OBJS) $(SOAPYSDR_OBJS) $(STEMLAB_OBJS)
+		$(PURESIGNAL_OBJS) $(MIDI_OBJS) $(STEMLAB_OBJS)
 	$(LINK) -headerpad_max_install_names -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) \
 		$(USBOZY_OBJS)  \
-		$(SOAPYSDR_OBJS) $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
+		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(LIBS)
 	@rm -rf pihpsdr.app
 	@mkdir -p pihpsdr.app/Contents/MacOS
@@ -493,25 +493,22 @@ app:	$(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) \
 	@cp MacOS/hpsdr.icns pihpsdr.app/Contents/Resources/hpsdr.icns
 	@cp MacOS/pihpsdr.sh pihpsdr.app/Contents/MacOS/pihpsdr
 	@cp MacOS/hpsdr.png pihpsdr.app/Contents/Resources
-#
-#       DO NOT copy libs, this app file will only run on a Mac which has these libs in the correct place
-#
-#	@for lib in `otool -L pihpsdr.app/Contents/MacOS/pihpsdr-bin | grep dylib | sed -e "s/ (.*//" | grep -Ev "/(usr/lib|System)" | grep -Ev /libg  | grep -Ev pango | grep -Ev cairo`; do \
-#	  libfn="`basename $$lib`"; \
-#	  cp "$$lib" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
-#	  chmod u+w "pihpsdr.app/Contents/Frameworks/$$libfn"; \
-#	  install_name_tool -id "@executable_path/../Frameworks/$$libfn" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
-#	  install_name_tool -change "$$lib" "@executable_path/../Frameworks/$$libfn" pihpsdr.app/Contents/MacOS/pihpsdr-bin; \
-#	done
-#	@# once more to install libraries on which libs just copied depend (such as wdsp -> fftw)
-#	@for file in pihpsdr.app/Contents/Frameworks/*.dylib; do \
-#	  for lib in `otool -L pihpsdr.app/Contents/Frameworks/*.dylib | grep -v pihpsdr.app | grep -v "executable_path" | grep dylib | sed -e "s/ (.*//" | grep -Ev "/(usr/lib|System)" | grep -Ev /libg  | grep -Ev pango | grep -Ev cairo`; do \
-#	    libfn="`basename $$lib`"; \
-#	    cp "$$lib" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
-#	    chmod u+w "pihpsdr.app/Contents/Frameworks/$$libfn"; \
-#	    install_name_tool -id "@executable_path/../Frameworks/$$libfn" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
-#	    install_name_tool -change "$$lib" "@executable_path/../Frameworks/$$libfn" $$file; \
-#	  done; \
-#	done
+	@for lib in `otool -L pihpsdr.app/Contents/MacOS/pihpsdr-bin | grep dylib | sed -e "s/ (.*//" | grep -Ev "/(usr/lib|System)" | grep -Ev /libg  | grep -Ev pango | grep -Ev cairo`; do \
+	  libfn="`basename $$lib`"; \
+	  cp "$$lib" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
+	  chmod u+w "pihpsdr.app/Contents/Frameworks/$$libfn"; \
+	  install_name_tool -id "@executable_path/../Frameworks/$$libfn" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
+	  install_name_tool -change "$$lib" "@executable_path/../Frameworks/$$libfn" pihpsdr.app/Contents/MacOS/pihpsdr-bin; \
+	done
+	@# once more to install libraries on which libs just copied depend (such as wdsp -> fftw)
+	@for file in pihpsdr.app/Contents/Frameworks/*.dylib; do \
+	  for lib in `otool -L pihpsdr.app/Contents/Frameworks/*.dylib | grep -v pihpsdr.app | grep -v "executable_path" | grep dylib | sed -e "s/ (.*//" | grep -Ev "/(usr/lib|System)" | grep -Ev /libg  | grep -Ev pango | grep -Ev cairo`; do \
+	    libfn="`basename $$lib`"; \
+	    cp "$$lib" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
+	    chmod u+w "pihpsdr.app/Contents/Frameworks/$$libfn"; \
+	    install_name_tool -id "@executable_path/../Frameworks/$$libfn" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
+	    install_name_tool -change "$$lib" "@executable_path/../Frameworks/$$libfn" $$file; \
+	  done; \
+	done
 #############################################################################
 
