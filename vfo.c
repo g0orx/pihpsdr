@@ -52,6 +52,9 @@
 #include "wdsp.h"
 #include "new_menu.h"
 #include "rigctl.h"
+#ifdef CLIENT_SERVER
+#include "client_server.h"
+#endif
 #include "ext.h"
 
 static GtkWidget *parent_window;
@@ -61,8 +64,8 @@ static int my_height;
 static GtkWidget *vfo_panel;
 static cairo_surface_t *vfo_surface = NULL;
 
-int steps[]={1,10,25,50,100,250,500,1000,2500,5000,6250,9000,10000,12500,15000,20000,25000,30000,50000,100000,0};
-char *step_labels[]={"1Hz","10Hz","25Hz","50Hz","100Hz","250Hz","500Hz","1kHz","2.5kHz","5kHz","6.25kHz","9kHz","10kHz","12.5kHz","15kHz","20kHz","25kHz","30kHz","50kHz","100kHz",0};
+int steps[]={1,10,25,50,100,250,500,1000,5000,9000,10000,100000,250000,500000,1000000,0};
+char *step_labels[]={"1Hz","10Hz","25Hz","50Hz","100Hz","250Hz","500Hz","1kHz","5kHz","9kHz","10kHz","100kHz","250KHz","500KHz","1MHz",0};
 
 static GtkWidget* menu=NULL;
 static GtkWidget* band_menu=NULL;
@@ -263,10 +266,15 @@ void vfo_xvtr_changed() {
   }
 }
 
-void vfo_band_changed(int b) {
+void vfo_band_changed(int id,int b) {
   BANDSTACK *bandstack;
 
-  int id=active_receiver->id;
+#ifdef CLIENT_SERVER
+  if(radio_is_remote) {
+    send_band(client_socket,id,b);
+    return;
+  }
+#endif
 
   if(id==0) {
     vfo_save_bandstack();
@@ -390,6 +398,13 @@ void vfo_bandstack_changed(int b) {
 
 void vfo_mode_changed(int m) {
   int id=active_receiver->id;
+#ifdef CLIENT_SERVER
+  if(radio_is_remote) {
+    send_mode(client_socket,id,m);
+    return;
+  }
+#endif
+
   vfo[id].mode=m;
 //
 // Change to the filter/NR combination stored for this mode
@@ -432,6 +447,12 @@ void vfo_mode_changed(int m) {
 
 void vfo_filter_changed(int f) {
   int id=active_receiver->id;
+#ifdef CLIENT_SERVER
+  if(radio_is_remote) {
+    send_filter(client_socket,id,f);
+    return;
+  }
+#endif
 
   // store changed filter in the mode settings
   mode_settings[vfo[id].mode].filter = f;
@@ -544,6 +565,14 @@ void vfo_step(int steps) {
   long long delta;
   int sid;
   RECEIVER *other_receiver;
+
+#ifdef CLIENT_SERVER
+  if(radio_is_remote) {
+    //send_vfo_step(client_socket,id,steps);
+    update_vfo_step(id,steps);
+    return;
+  }
+#endif
 
   if(!locked) {
 
@@ -660,11 +689,18 @@ void vfo_id_step(int id, int steps) {
   }
 }
 
-void vfo_move(long long hz,int round) {
-  int id=active_receiver->id;
+void vfo_id_move(int id,long long hz,int round) {
   long long delta;
   int sid;
   RECEIVER *other_receiver;
+
+#ifdef CLIENT_SERVER
+  if(radio_is_remote) {
+    //send_vfo_move(client_socket,id,hz,round);
+    update_vfo_move(id,hz,round);
+    return;
+  }
+#endif
 
   if(!locked) {
     if(vfo[id].ctun) {
@@ -726,9 +762,13 @@ void vfo_move(long long hz,int round) {
         }
         break;
     }
-    receiver_frequency_changed(active_receiver);
+    receiver_frequency_changed(receiver[id]);
     g_idle_add(ext_vfo_update,NULL);
   }
+}
+
+void vfo_move(long long hz,int round) {
+  vfo_id_move(active_receiver->id,hz,round);
 }
 
 void vfo_move_to(long long hz) {
@@ -740,6 +780,13 @@ void vfo_move_to(long long hz) {
   long long delta;
   int sid;
   RECEIVER *other_receiver;
+
+#ifdef CLIENT_SERVER
+  if(radio_is_remote) {
+    send_vfo_move_to(client_socket,id,hz);
+    return;
+  }
+#endif
 
   if(vfo[id].mode!=modeCWL && vfo[id].mode!=modeCWU) {
     offset=(hz/step)*step;
@@ -1232,3 +1279,28 @@ long long get_tx_freq() {
     return vfo[txvfo].frequency;
   }
 }
+void vfo_rit_update(int rx) {
+  vfo[receiver[rx]->id].rit_enabled=vfo[receiver[rx]->id].rit_enabled==1?0:1;
+  receiver_frequency_changed(receiver[rx]);
+  g_idle_add(ext_vfo_update, NULL);
+}
+
+void vfo_rit_clear(int rx) {
+  vfo[receiver[rx]->id].rit=0;
+  receiver_frequency_changed(receiver[rx]);
+  g_idle_add(ext_vfo_update, NULL);
+}
+
+void vfo_rit(int rx,int i) {
+  double value=(double)vfo[receiver[rx]->id].rit;
+  value+=(double)(i*rit_increment);
+  if(value<-10000.0) {
+    value=-10000.0;
+  } else if(value>10000.0) {
+    value=10000.0;
+  }
+  vfo[receiver[rx]->id].rit=(int)value;
+  receiver_frequency_changed(receiver[rx]);
+  g_idle_add(ext_vfo_update,NULL);
+}
+

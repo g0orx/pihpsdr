@@ -57,6 +57,9 @@ enum {
 };
 
 extern DISCOVERED *radio;
+#ifdef CLIENT_SERVER
+extern gboolean radio_is_remote;
+#endif
 
 extern GtkWidget *fixed;
 
@@ -171,13 +174,13 @@ extern int mic_ptt_tip_bias_ring;
 //extern int tune_drive_level;
 //extern int drive_level;
 
-int receivers;
+extern int receivers;
 
-ADC adc[2];
-DAC dac[2];
-int adc_attenuation[2];
+extern ADC adc[2];
+extern DAC dac[2];
+extern int adc_attenuation[2];
 
-int locked;
+extern int locked;
 
 extern long long step;
 extern int rit_increment;
@@ -303,6 +306,11 @@ extern double drive_max;
 
 extern gboolean display_sequence_errors;
 extern gint sequence_errors;
+extern GMutex property_mutex;
+
+#ifdef CLIENT_SERVER
+extern gboolean server;
+#endif
 
 extern void radio_stop();
 extern void reconfigure_radio();
@@ -345,5 +353,9 @@ extern void set_filter_size(int filter_size);
 extern void radio_change_region(int region);
 
 extern void disable_rigctl();
+
+#ifdef CLIENT_SERVER
+extern int remote_start(void *data);
+#endif
 
 #endif

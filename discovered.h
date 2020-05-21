@@ -55,7 +55,7 @@
 #define NEW_DEVICE_HERMES_LITE2 1006
 
 #ifdef SOAPYSDR
-#define SOAPYSDR_USB_DEVICE 0
+#define SOAPYSDR_USB_DEVICE 2000
 #endif
 
 #define STATE_AVAILABLE 2
@@ -67,9 +67,6 @@
 #define SOAPYSDR_PROTOCOL 2
 #endif
 
-#ifdef REMOTE
-#define REMOTE_PROTOCOL 4
-#endif
 #ifdef STEMLAB_DISCOVERY
 // A STEMlab discovered via Avahi will have this protocol until the SDR
 // application itself is started, at which point it will be changed to the old

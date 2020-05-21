@@ -1330,6 +1330,7 @@ void gpio_restore_state() {
  
   }
 
+#ifdef LOCALCW
   if(controller==CONTROLLER2_V2) {
     //
     // In Controller2 V2, no 'free' GPIO pins
@@ -1339,6 +1340,7 @@ void gpio_restore_state() {
     ENABLE_CW_BUTTONS=0;
     ENABLE_GPIO_SIDETONE=0;
   }
+#endif
 
 
 }
@@ -2064,40 +2066,13 @@ static void encoder_changed(int action,int pos) {
       set_drive(value);
       break;
     case ENCODER_RIT:
-      value=(double)vfo[active_receiver->id].rit;
-      value+=(double)(pos*rit_increment);
-      if(value<-10000.0) {
-        value=-10000.0;
-      } else if(value>10000.0) {
-        value=10000.0;
-      }
-      vfo[active_receiver->id].rit=(int)value;
-      receiver_frequency_changed(active_receiver);
-      g_idle_add(ext_vfo_update,NULL);
+      vfo_rit(active_receiver->id,pos);
       break;
     case ENCODER_RIT_RX1:
-      value=(double)vfo[receiver[0]->id].rit;
-      value+=(double)(pos*rit_increment);
-      if(value<-10000.0) {
-        value=-10000.0;
-      } else if(value>10000.0) {
-        value=10000.0;
-      }
-      vfo[receiver[0]->id].rit=(int)value;
-      receiver_frequency_changed(receiver[0]);
-      g_idle_add(ext_vfo_update,NULL);
+      vfo_rit(receiver[0]->id,pos);
       break;
     case ENCODER_RIT_RX2:
-      value=(double)vfo[receiver[1]->id].rit;
-      value+=(double)(pos*rit_increment);
-      if(value<-10000.0) {
-        value=-10000.0;
-      } else if(value>10000.0) {
-        value=10000.0;
-      }
-      vfo[receiver[1]->id].rit=(int)value;
-      receiver_frequency_changed(receiver[1]);
-      g_idle_add(ext_vfo_update,NULL);
+      vfo_rit(receiver[1]->id,pos);
       break;
     case ENCODER_XIT:
       value=(double)transmitter->xit;
@@ -2223,6 +2198,7 @@ static void encoder_changed(int action,int pos) {
       update_diversity_phase((double)pos*0.1);
       break;
     case ENCODER_ZOOM:
+g_print("GPIO: ENCODER_ZOOM: update_zoom: pos=%d\n",pos);
       update_zoom((double)pos);
       break;
     case ENCODER_PAN:

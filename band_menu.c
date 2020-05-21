@@ -32,6 +32,7 @@
 #include "receiver.h"
 #include "vfo.h"
 #include "button_text.h"
+#include "client_server.h"
 
 static GtkWidget *parent_window=NULL;
 
@@ -62,7 +63,15 @@ gboolean band_select_cb (GtkWidget *widget, gpointer        data) {
   set_button_text_color(last_band,"black");
   last_band=widget;
   set_button_text_color(last_band,"orange");
-  vfo_band_changed(b);
+#ifdef CLIENT_SERVER
+  if(radio_is_remote) {
+    send_band(client_socket,active_receiver->id,b);
+  } else {
+#endif
+    vfo_band_changed(active_receiver->id,b);
+#ifdef CLIENT_SERVER
+  }
+#endif
   return FALSE;
 }
 
@@ -103,6 +112,7 @@ void band_menu(GtkWidget *parent) {
   long long frequency_min=radio->frequency_min;
   long long frequency_max=radio->frequency_max;
 
+g_print("band_menu: min=%lld max=%lld\n",frequency_min,frequency_max);
   j=0;
   for(i=0;i<BANDS+XVTRS;i++) {
     band=(BAND*)band_get_band(i);

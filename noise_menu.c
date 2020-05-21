@@ -60,7 +60,7 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
   return FALSE;
 }
 
-void update_noise() {
+void set_noise() {
   SetEXTANBRun(active_receiver->id, active_receiver->nb);
   SetEXTNOBRun(active_receiver->id, active_receiver->nb2);
   SetRXAANRRun(active_receiver->id, active_receiver->nr);
@@ -68,6 +68,18 @@ void update_noise() {
   SetRXAANFRun(active_receiver->id, active_receiver->anf);
   SetRXASNBARun(active_receiver->id, active_receiver->snb);
   g_idle_add(ext_vfo_update,NULL);
+}
+
+void update_noise() {
+#ifdef CLIENT_SERVER
+  if(radio_is_remote) {
+    send_noise(client_socket,active_receiver->id,active_receiver->nb,active_receiver->nb2,active_receiver->nr,active_receiver->nr2,active_receiver->anf,active_receiver->snb);
+  } else {
+#endif
+    set_noise();
+#ifdef CLIENT_SERVER
+  }
+#endif
 }
 
 static void nb_none_cb(GtkToggleButton *widget, gpointer data) {

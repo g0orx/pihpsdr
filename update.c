@@ -23,7 +23,7 @@ int check_update() {
 
   FILE* f=fopen("latest","r");
   if(f) {
-    fgets(new_version,sizeof(new_version),f);
+    char *c=fgets(new_version,sizeof(new_version),f);
     fclose(f);
   } else {
     fprintf(stderr,"check_update: could not read latest version\n");

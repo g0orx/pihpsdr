@@ -1,4 +1,3 @@
-
 /* TS-2000 emulation via TCP
  * Copyright (C) 2016 Steve Wilson <wevets@gmail.com>
  * This program is free software; you can redistribute it and/or
@@ -52,17 +51,18 @@
 #include "store.h"
 #include "ext.h"
 #include "rigctl_menu.h"
+#include "noise_menu.h"
 #include "new_protocol.h"
 #ifdef LOCALCW
 #include "iambic.h"              // declare keyer_update()
 #endif
 #include <math.h>
 
+#define NEW_PARSER
+
 // IP stuff below
 #include <sys/socket.h>
 #include <arpa/inet.h> //inet_addr
-
-//#define RIGCTL_DEBUG
 
 int rigctl_port_base=19090;
 int rigctl_enable=0;
@@ -79,7 +79,7 @@ static const int TelnetPortC = 19092;
 // max number of bytes we can get at once
 #define MAXDATASIZE 2000
 
-void parse_cmd ();
+int parse_cmd (void *data);
 int connect_cnt = 0;
 
 int rigctlGetFilterLow();
@@ -111,6 +111,7 @@ static GThread *rigctl_cw_thread_id = NULL;
 static int server_running;
 
 static GThread *serial_server_thread_id = NULL;
+static gboolean serial_running=FALSE;
 
 static int server_socket=-1;
 static int server_address_length;
@@ -119,12 +120,16 @@ static struct sockaddr_in server_address;
 static int rigctl_timer = 0;
 
 typedef struct _client {
-  int socket;
-  // Dl1YCF change from int to socklen_t
+  int fd;
   socklen_t address_length;
   struct sockaddr_in address;
   GThread *thread_id;
 } CLIENT;
+
+typedef struct _command {
+  CLIENT *client;
+  char *command;
+} COMMAND;
 
 int fd;  // Serial port file descriptor
 
@@ -164,26 +169,26 @@ void close_rigctl_ports() {
   linger.l_onoff = 1;
   linger.l_linger = 0;
 
-  fprintf(stderr,"close_rigctl_ports: server_socket=%d\n",server_socket);
+  g_print("close_rigctl_ports: server_socket=%d\n",server_socket);
   server_running=0;
   for(i=0;i<MAX_CLIENTS;i++) {
-      if(client[i].socket!=-1) {
-        fprintf(stderr,"setting SO_LINGER to 0 for client_socket: %d\n",client[i].socket);
-        if(setsockopt(client[i].socket,SOL_SOCKET,SO_LINGER,(const char *)&linger,sizeof(linger))==-1) {
+      if(client[i].fd!=-1) {
+        g_print("setting SO_LINGER to 0 for client_socket: %d\n",client[i].fd);
+        if(setsockopt(client[i].fd,SOL_SOCKET,SO_LINGER,(const char *)&linger,sizeof(linger))==-1) {
           perror("setsockopt(...,SO_LINGER,...) failed for client");
         }
-        fprintf(stderr,"closing client socket: %d\n",client[i].socket);
-        close(client[i].socket);
-        client[i].socket=-1;
+        g_print("closing client socket: %d\n",client[i].fd);
+        close(client[i].fd);
+        client[i].fd=-1;
       }
   }
 
   if(server_socket>=0) {
-     fprintf(stderr,"setting SO_LINGER to 0 for server_socket: %d\n",server_socket);
+     g_print("setting SO_LINGER to 0 for server_socket: %d\n",server_socket);
     if(setsockopt(server_socket,SOL_SOCKET,SO_LINGER,(const char *)&linger,sizeof(linger))==-1) {
       perror("setsockopt(...,SO_LINGER,...) failed for server");
     }
-    fprintf(stderr,"closing server_socket: %d\n",server_socket);
+    g_print("closing server_socket: %d\n",server_socket);
     close(server_socket);
     server_socket=-1;
   }
@@ -611,24 +616,24 @@ static gpointer rigctl_cw_thread(gpointer data)
 // This looks up the frequency of the Active receiver with 
 // protection for 1 versus 2 receivers
 long long rigctl_getFrequency() {
-   if(receivers == 1) {
-      return vfo[VFO_A].frequency;
-   } else {
-      return vfo[active_receiver->id].frequency;
-   } 
+  if(receivers == 1) {
+    return vfo[VFO_A].frequency;
+  } else {
+    return vfo[active_receiver->id].frequency;
+  } 
 }
 // Looks up entry INDEX_NUM in the command structure and
 // returns the command string
 //
-void send_resp (int sock,char * msg) {
-//
-//  TCP: sock is the socket
-//  serial: sock is the file descriptor
-//
-    #ifdef  RIGCTL_DEBUG
-        fprintf(stderr,"RIGCTL: RESP=%s\n",msg);
-    #endif
-    write(sock, msg, strlen(msg));
+void send_resp (int fd,char * msg) {
+  if(rigctl_debug) g_print("RIGCTL: RESP=%s\n",msg);
+  int length=strlen(msg);
+  int written=0;
+  
+  while(written<length) {
+    written+=write(fd,&msg[written],length-written);   
+  }
+  
 }
 
 //
@@ -640,7 +645,7 @@ static gpointer rigctl_server(gpointer data) {
   int on=1;
   int i;
 
-  fprintf(stderr,"rigctl_server: starting server on port %d\n",port);
+  g_print("rigctl_server: starting server on port %d\n",port);
 
   server_socket=socket(AF_INET,SOCK_STREAM,0);
   if(server_socket<0) {
@@ -663,7 +668,7 @@ static gpointer rigctl_server(gpointer data) {
   }
 
   for(i=0;i<MAX_CLIENTS;i++) {
-    client[i].socket=-1;
+    client[i].fd=-1;
   }
   server_running=1;
 
@@ -680,27 +685,27 @@ static gpointer rigctl_server(gpointer data) {
 
     // find a spare thread
     for(i=0;i<MAX_CLIENTS;i++) {
-      if(client[i].socket==-1) {
+      if(client[i].fd==-1) {
 
-        fprintf(stderr,"Using client: %d\n",i);
+        g_print("Using client: %d\n",i);
 
-        client[i].socket=accept(server_socket,(struct sockaddr*)&client[i].address,&client[i].address_length);
-        if(client[i].socket<0) {
+        client[i].fd=accept(server_socket,(struct sockaddr*)&client[i].address,&client[i].address_length);
+        if(client[i].fd<0) {
           perror("rigctl_server: client accept failed");
           continue;
         }
 
         client[i].thread_id = g_thread_new("rigctl client", rigctl_client, (gpointer)&client[i]);
         if(client[i].thread_id==NULL) {
-          fprintf(stderr,"g_thread_new failed (n rigctl_client\n");
-          fprintf(stderr,"setting SO_LINGER to 0 for client_socket: %d\n",client[i].socket);
+          g_print("g_thread_new failed (n rigctl_client\n");
+          g_print("setting SO_LINGER to 0 for client_socket: %d\n",client[i].fd);
           struct linger linger = { 0 };
           linger.l_onoff = 1;
           linger.l_linger = 0;
-          if(setsockopt(client[i].socket,SOL_SOCKET,SO_LINGER,(const char *)&linger,sizeof(linger))==-1) {
+          if(setsockopt(client[i].fd,SOL_SOCKET,SO_LINGER,(const char *)&linger,sizeof(linger))==-1) {
             perror("setsockopt(...,SO_LINGER,...) failed for client");
           }
-          close(client[i].socket);
+          close(client[i].fd);
         }
       }
     }
@@ -712,90 +717,59 @@ static gpointer rigctl_server(gpointer data) {
 
 static gpointer rigctl_client (gpointer data) {
    
-   CLIENT *client=(CLIENT *)data;
+  CLIENT *client=(CLIENT *)data;
 
-   fprintf(stderr,"rigctl_client: starting rigctl_client: socket=%d\n",client->socket);
+  g_print("rigctl_client: starting rigctl_client: socket=%d\n",client->fd);
 
-   g_mutex_lock(&mutex_a->m);
-   cat_control++;
-//#ifdef RIGCTL_DEBUG
-   fprintf(stderr,"RIGCTL: CTLA INC cat_contro=%d\n",cat_control);
-//#endif
-   g_mutex_unlock(&mutex_a->m);
-   g_idle_add(ext_vfo_update,NULL);
+  g_mutex_lock(&mutex_a->m);
+  cat_control++;
+  if(rigctl_debug) g_print("RIGCTL: CTLA INC cat_contro=%d\n",cat_control);
+  g_mutex_unlock(&mutex_a->m);
+  g_idle_add(ext_vfo_update,NULL);
 
-   int save_flag = 0; // Used to concatenate two cmd lines together
-   int semi_number = 0;
-   int i;
-   char * work_ptr;
-   char work_buf[MAXDATASIZE];
-   int numbytes;
-   char  cmd_input[MAXDATASIZE] ;
-   char cmd_save[80];
+  int save_flag = 0; // Used to concatenate two cmd lines together
+  int semi_number = 0;
+  int i;
+  char * work_ptr;
+  char work_buf[MAXDATASIZE];
+  int numbytes;
+  char  cmd_input[MAXDATASIZE] ;
+  char cmd_save[80];
 
-    while(server_running && (numbytes=recv(client->socket , cmd_input , MAXDATASIZE-2 , 0)) > 0 ) {
-         for(i=0;i<numbytes;i++)  { work_buf[i] = cmd_input[i]; }
-         work_buf[i+1] = '\0';
-         #ifdef RIGCTL_DEBUG
-         fprintf(stderr,"RIGCTL: RCVD=%s<-\n",work_buf);
-         #endif
+  char *command=g_new(char,MAXDATASIZE);
+  int command_index=0;
 
-        // Need to handle two cases
-        // 1. Command is short, i.e. no semicolon - that will set save_flag=1 and
-        //    read another line..
-        // 2. 1 to N commands per line. Turns out N1MM sends multiple commands per line
-         
-        if(save_flag == 0) { // Count the number of semicolons if we aren't already in mode 1.
-          semi_number = 0;
-          for(i=0;i<numbytes;i++) {
-             if(cmd_input[i] == ';') { semi_number++;};
-          } 
-        }
-        if((save_flag == 0) && (semi_number == 0)) {
-           cmd_input[numbytes] = '\0';      // Turn it into a C string
-           strcpy(cmd_save,cmd_input);      // And save a copy of it till next time through
-           save_flag = 1;
-        } else if(save_flag == 1) {
-           save_flag = 0;
-           cmd_input[numbytes] = '\0';      // Turn it into a C string
-           strcat(cmd_save,cmd_input);
-           strcpy(cmd_input,cmd_save);      // Cat them together and replace cmd_input
-           numbytes = strlen(cmd_input);
-        } 
-
-        if(save_flag != 1) {
-           work_ptr = strtok(cmd_input,";");
-           while(work_ptr != NULL) {
-               // Lock so only one user goes into this at a time
-               g_mutex_lock(&mutex_b->m);
-               parse_cmd(work_ptr,strlen(work_ptr),client->socket);
-               g_mutex_unlock(&mutex_b->m);
-               work_ptr = strtok(NULL,";");
-           }
-           for(i=0;i<MAXDATASIZE;i++){
-                cmd_input[i] = '\0'; 
-                work_buf[i]  = '\0';  // Clear the input buffer
-           }
-        }
-       // Got here because socket closed 
-    }
-fprintf(stderr,"RIGCTL: Leaving rigctl_client thread");
-  if(client->socket!=-1) {
-    fprintf(stderr,"setting SO_LINGER to 0 for client_socket: %d\n",client->socket);
+   while(server_running && (numbytes=recv(client->fd , cmd_input , MAXDATASIZE-2 , 0)) > 0 ) {
+       for(i=0;i<numbytes;i++) {
+         command[command_index]=cmd_input[i];
+         command_index++;
+         if(cmd_input[i]==';') {
+           command[command_index]='\0';
+           if(rigctl_debug) g_print("RIGCTL: command=%s\n",command);
+           COMMAND *info=g_new(COMMAND,1);
+           info->client=client;
+           info->command=command;
+           g_idle_add(parse_cmd,info);
+           command=g_new(char,MAXDATASIZE);
+           command_index=0;
+         }
+       }
+     }
+g_print("RIGCTL: Leaving rigctl_client thread");
+  if(client->fd!=-1) {
+    g_print("setting SO_LINGER to 0 for client_socket: %d\n",client->fd);
     struct linger linger = { 0 };
     linger.l_onoff = 1;
     linger.l_linger = 0;
-    if(setsockopt(client->socket,SOL_SOCKET,SO_LINGER,(const char *)&linger,sizeof(linger))==-1) {
+    if(setsockopt(client->fd,SOL_SOCKET,SO_LINGER,(const char *)&linger,sizeof(linger))==-1) {
       perror("setsockopt(...,SO_LINGER,...) failed for client");
     }
-    close(client->socket);
-    client->socket=-1;
+    close(client->fd);
+    client->fd=-1;
     // Decrement CAT_CONTROL
     g_mutex_lock(&mutex_a->m);
     cat_control--;
-#ifdef RIGCTL_DEBUG
-    fprintf(stderr,"RIGCTL: CTLA DEC - cat_control=%d\n",cat_control);
-#endif
+    if(rigctl_debug) g_print("RIGCTL: CTLA DEC - cat_control=%d\n",cat_control);
     g_mutex_unlock(&mutex_a->m);
     g_idle_add(ext_vfo_update,NULL);
   }
@@ -826,3077 +800,2407 @@ int rit_on () {
       }
   }
 }
-//
-// TS-2000 parser
-//   -- Now extended with zzid_flag to indicate PSDR extended command set
-// 
-void parse_cmd ( char * cmd_input,int len,int client_sock) {
-        int work_int;     
-        int zzid_flag;
-        double forward;
-        double reverse;
-        double vswr;
-        char msg[200];
-        char buf[200];
-        BANDSTACK_ENTRY *entry;
-        // Parse the cmd_input
-        //int space = command.indexOf(' ');
-        //char cmd_char = com_head->cmd_string[0]; // Assume the command is first thing!
-        char cmd_str[3];
-        struct timespec nap;
-        static struct timespec throttle={0,0};
 
-	
-        // Put in a throttle here - we have an issue with issuing to many 
-        // GUI commands.
-
-	if ((throttle.tv_sec !=0) || (throttle.tv_nsec != 0)) {
-          clock_gettime(CLOCK_MONOTONIC, &nap);
-	  // calculate amount of time we should go for a nap.
-          nap.tv_sec =throttle.tv_sec  - nap.tv_sec;
-          nap.tv_nsec=throttle.tv_nsec - nap.tv_nsec + RIGCTL_THROTTLE_NSEC;
-          while (nap.tv_nsec < 0) {
-            nap.tv_nsec += NSEC_PER_SEC;
-            nap.tv_sec--;
+gboolean parse_extended_cmd (char *command,CLIENT *client) {
+  gboolean implemented=TRUE;
+  char reply[256];
+  reply[0]='\0';
+  switch(command[2]) {
+    case 'A': //ZZAx
+      switch(command[3]) {
+        case 'A': //ZZAA
+          implemented=FALSE;
+          break;
+        case 'B': //ZZAB
+          implemented=FALSE;
+          break;
+        case 'C': //ZZAC
+          // sets or reads the Step Size
+          if(command[4]==';') {
+            // read the step size
+            int i=0;
+            for(i=0;i<=14;i++) {
+              if(steps[i]==step) break;
+            }
+            if(i<=14) {
+              // send reply back
+              sprintf(reply,"ZZAC%02d;",i);
+              send_resp(client->fd,reply) ;
+            }
+          } else if(command[6]==';') {
+            // set the step size
+            int i=atoi(&command[4]) ;
+            if(i>=0 && i<=14) {
+              step=steps[i];
+              vfo_update();
+            }
+          } else {
           }
-          nanosleep(&nap, NULL);
-	}
-	// set new time stamp
-	clock_gettime(CLOCK_MONOTONIC, &throttle);
+          break;
+        case 'D': //ZZAD
+          // move VFO A down by selected step
+          if(command[6]==';') {
+            int step_index=atoi(&command[4]);
+            long long hz=0;
+            if(step_index>=0 && step_index<=14) {
+              hz=(long long)steps[step_index];
+            }
+            if(hz!=0LL) {
+              vfo_id_move(VFO_A,-hz,FALSE);
+            }
+          } else {
+          }
+          break;
+        case 'E': //ZZAE
+          // move VFO A down nn tune steps
+          if(command[6]==';') {
+            int steps=atoi(&command[4]);
+            vfo_id_step(VFO_A,-steps);
+          }
+          break;
+        case 'F': //ZZAF
+          // move VFO A up nn tune steps
+          if(command[6]==';') {
+            int steps=atoi(&command[4]);
+            vfo_id_step(VFO_A,steps);
+          }
+          break;
+        case 'G': //ZZAG
+          // read/set audio gain
+          if(command[4]==';') {
+            // send reply back
+            sprintf(reply,"ZZAG%03d;",(int)(active_receiver->volume*100.0));
+            send_resp(client->fd,reply) ;
+          } else {
+            int gain=atoi(&command[4]);
+            active_receiver->volume=(double)gain/100.0;
+            update_af_gain();
+          }
+          break;
+        case 'I': //ZZAI
+          implemented=FALSE;
+          break;
+        case 'P': //ZZAP
+          implemented=FALSE;
+          break;
+        case 'R': //ZZAR
+          // read/set RX0 AGC Threshold
+          if(command[4]==';') {
+            // send reply back
+            sprintf(reply,"ZZAR%+04d;",(int)(receiver[0]->agc_gain));
+            send_resp(client->fd,reply) ;
+          } else {
+            int threshold=atoi(&command[4]);
+            set_agc_gain(VFO_A,(double)threshold);
+          }
+          break;
+        case 'S': //ZZAS
+          // read/set RX1 AGC Threshold
+          if(receivers==2) {
+            if(command[4]==';') {
+              // send reply back
+              sprintf(reply,"ZZAS%+04d;",(int)(receiver[1]->agc_gain));
+              send_resp(client->fd,reply) ;
+            } else {
+              int threshold=atoi(&command[4]);
+              set_agc_gain(VFO_B,(double)threshold);
+            }
+          }
+          break;
+        case 'T': //ZZAT
+          implemented=FALSE;
+          break;
+        case 'U': //ZZAU
+          // move VFO A up by selected step
+          if(command[6]==';') {
+            int step_index=atoi(&command[4]);
+            long long hz=0;
+            if(step_index>=0 && step_index<=14) {
+              hz=(long long)steps[step_index];
+            }
+            if(hz!=0LL) {
+              vfo_id_move(VFO_A,hz,FALSE);
+            }
+          } else {
+          }
+          break;
+        default:
+           implemented=FALSE;
+           break;
+      }
+      break;
+    case 'B': //ZZBx
+      switch(command[3]) {
+        case 'A': //ZZBA
+          // move RX2 down one band
+          if(command[4]==';') {
+            if(receivers==2) {
+              band_minus(receiver[1]->id);
+            }
+          }
+          break;
+        case 'B': //ZZBB
+          // move RX2 up one band
+          if(command[4]==';') {
+            if(receivers==2) {
+              band_plus(receiver[1]->id);
+            }
+          }
+          break;
+        case 'D': //ZZBD
+          // move RX1 down one band
+          if(command[4]==';') {
+            band_minus(receiver[0]->id);
+          }
+          break;
+        case 'E': //ZZBE
+          // move VFO B down nn tune steps
+          if(command[6]==';') {
+            int steps=atoi(&command[4]);
+            vfo_id_step(VFO_B,-steps);
+          }
 
-        // On with the rest of the show..
-        cmd_str[0] = cmd_input[0];
-        cmd_str[1] = cmd_input[1];
-        cmd_str[2] = '\0';
+          break;
+        case 'F': //ZZBF
+          // move VFO B up nn tune steps
+          if(command[6]==';') {
+            int steps=atoi(&command[4]);
+            vfo_id_step(VFO_B,+steps);
+          }
+          break;
+        case 'G': //ZZBG
+          implemented=FALSE;
+          break;
+        case 'I': //ZZBI
+          implemented=FALSE;
+          break;
+        case 'M': //ZZBM
+          // move VFO B down by selected step
+          if(command[6]==';') {
+            int step_index=atoi(&command[4]);
+            long long hz=0;
+            if(step_index>=0 && step_index<=14) {
+              hz=(long long)steps[step_index];
+            }
+            if(hz!=0LL) {
+              vfo_id_move(VFO_B,-hz,FALSE);
+            }
+          } else {
+          }
 
-        // Added support for PSDR extended command set - they all start
-        // with ZZ so:
-        //
-        // Check to see if first part of string is ZZ - if so
-        //    strip the ZZ out and set the zzid_flag = 1;
- 
-       #ifdef  RIGCTL_DEBUG
-        fprintf(stderr,"RIGCTL: CMD=%s\n",cmd_input);
-       #endif
-        zzid_flag = 0;  // Set to indicate we haven't seen ZZ
-        char * zzid_ptr;
-        char temp[80];
-        int cnt;
-        if(strcmp(cmd_str,"ZZ")==0) {
-           
-           #ifdef  RIGCTL_DEBUG
-           fprintf(stderr,"RIGCTL: Init=%s\n",cmd_str);
-           #endif
+          break;
+        case 'P': //ZZBP
+          // move VFO B up by selected step
+          if(command[6]==';') {
+            int step_index=atoi(&command[4]);
+            long long hz=0;
+            if(step_index>=0 && step_index<=14) {
+              hz=(long long)steps[step_index];
+            }
+            if(hz!=0LL) {
+              vfo_id_move(VFO_B,hz,FALSE);
+            }
+          } else {
+          }
+          break;
+        case 'R': //ZZBR
+          implemented=FALSE;
+          break;
+        case 'S': //ZZBS
+          // set/read RX1 band switch
+          if(command[4]==';') {
+            int b;
+            switch(vfo[VFO_A].band) {
+              case band136:
+                b=136;
+                break;
+              case band472:
+                b=472;
+                break;
+              case band160:
+                b=160;
+                break;
+              case band80:
+                b=80;
+                break;
+              case band60:
+                b=60;
+                break;
+              case band40:
+                b=40;
+                break;
+              case band30:
+                b=30;
+                break;
+              case band20:
+                b=20;
+                break;
+              case band17:
+                b=17;
+                break;
+              case band15:
+                b=15;
+                break;
+              case band12:
+                b=12;
+                break;
+              case band10:
+                b=10;
+                break;
+              case band6:
+                b=6;
+                break;
+              case bandGen:
+                b=888;
+                break;
+              case bandWWV:
+                b=999;
+                break;
+              default:
+                b=20;
+                break;
+            }
+            sprintf(reply,"ZZBS%03d;",b);
+            send_resp(client->fd,reply) ;
+          } else if(command[7]==';') {
+            int band=band20;
+            int b=atoi(&command[4]);
+            switch(b) {
+              case 136:
+                band=band136;
+                break;
+              case 472:
+                band=band472;
+                break;
+              case 160:
+                band=band160;
+                break;
+              case 80:
+                band=band80;
+                break;
+              case 60:
+                band=band60;
+                break;
+              case 40:
+                band=band40;
+                break;
+              case 30:
+                band=band30;
+                break;
+              case 20:
+                band=band20;
+                break;
+              case 17:
+                band=band17;
+                break;
+              case 15:
+                band=band15;
+                break;
+              case 12:
+                band=band12;
+                break;
+              case 10:
+                band=band10;
+                break;
+              case 6:
+                band=band6;
+                break;
+              case 888:
+                band=bandGen;
+                break;
+              case 999:
+                band=bandWWV;
+                break;
+            }
+            vfo_band_changed(VFO_A,band);
+          }
+          break;
+        case 'T': //ZZBT
+          // set/read RX2 band switch
+          break;
+        case 'U': //ZZBU
+          // move RX1 up one band
+          if(command[4]==';') {
+            band_plus(receiver[0]->id);
+          }
+          break;
+        case 'Y': //ZZBY
+          // closes console (ignored)
+          break;
+        default:
+           implemented=FALSE;
+           break;
+      }
+      break;
+    case 'C': //ZZCx
+      switch(command[3]) {
+        case 'B': //ZZCB
+          implemented=FALSE;
+          break;
+        case 'D': //ZZCD
+          implemented=FALSE;
+          break;
+        case 'F': //ZZCF
+          implemented=FALSE;
+          break;
+        case 'I': //ZZCI
+          implemented=FALSE;
+          break;
+        case 'L': //ZZCL
+          implemented=FALSE;
+          break;
+        case 'M': //ZZCM
+          implemented=FALSE;
+          break;
+        case 'N': //ZZCN
+          // set/read VFO A CTUN
+          if(command[4]==';') {
+            // return the CTUN status
+            sprintf(reply,"ZZCN%d;",vfo[VFO_A].ctun);
+            send_resp(client->fd,reply) ;
+          } else if(command[5]==';') {
+            int state=atoi(&command[4]);
+            ctun_update(VFO_A,state);
+            vfo_update();
+          }
+          break;
+        case 'O': //ZZCO
+          // set/read VFO B CTUN
+          if(command[4]==';') {
+            // return the CTUN status
+            sprintf(reply,"ZZCO%d;",vfo[VFO_B].ctun);
+            send_resp(client->fd,reply) ;
+          } else if(command[5]==';') {
+            int state=atoi(&command[4]);
+            ctun_update(VFO_B,state);
+            vfo_update();
+          }
+          break;
+        case 'P': //ZZCP
+          // set/read compander
+          if(command[4]==';') {
+            sprintf(reply,"ZZCP%d;",0);
+            send_resp(client->fd,reply) ;
+          } else if(command[5]==';') {
+            // ignore
+          }
+          break;
+        case 'S': //ZZCS
+          implemented=FALSE;
+          break;
+        case 'T': //ZZCT
+          implemented=FALSE;
+          break;
+        case 'U': //ZZCU
+          implemented=FALSE;
+          break;
+        default:
+           implemented=FALSE;
+           break;
+      }
+      break;
+    case 'D': //ZZDx
+      switch(command[3]) {
+        case 'A': //ZZDA
+          break;
+        case 'B': //ZZDB
+          // set/read RX Reference
+          if(command[4]==';') {
+            sprintf(reply,"ZZDB%d;",0); // currently always 0
+            send_resp(client->fd,reply) ;
+          } else if(command[5]==';') {
+            // ignore
+          }
+          break;
+        case 'C': //ZZDC
+          // set/get diversity gain
+          if(command[4]==';') {
+            sprintf(reply,"ZZDC%04d;",(int)div_gain);
+            send_resp(client->fd,reply) ;
+          } else if(command[8]==';') {
+            // ignore
+          }
+          break;
+        case 'D': //ZZDD
+          // set/get diversity phase
+          if(command[4]==';') {
+            sprintf(reply,"ZZDD%04d;",(int)div_phase);
+            send_resp(client->fd,reply) ;
+          } else if(command[8]==';') {
+            // ignore
+          }
+        case 'E': //ZZDE
+          implemented=FALSE;
+          break;
+        case 'F': //ZZDF
+          implemented=FALSE;
+          break;
+        case 'M': //ZZDM
+          // set/read Display Mode
+          if(command[4]==';') {
+            int v=0;
+            if(active_receiver->display_waterfall) {
+              v=8;
+            } else {
+              v=2;
+            }
+            sprintf(reply,"ZZDM%d;",v);
+            send_resp(client->fd,reply) ;
+          } else {
+          }
+          break;
+        case 'N': //ZZDN
+          // set/read waterfall low
+          if(command[4]==';') {
+            sprintf(reply,"ZZDN%+4d;",active_receiver->waterfall_low);
+            send_resp(client->fd,reply) ;
+          } else {
+          }
+          break;
+        case 'O': //ZZDO
+          // set/read waterfall high
+          if(command[4]==';') {
+            sprintf(reply,"ZZDO%+4d;",active_receiver->waterfall_high);
+            send_resp(client->fd,reply) ;
+          } else {
+          }
+          break;
+        case 'P': //ZZDP
+          // set/read panadapter high
+          if(command[4]==';') {
+            sprintf(reply,"ZZDP%+4d;",active_receiver->panadapter_high);
+            send_resp(client->fd,reply) ;
+          } else {
+          }
+          break;
+        case 'Q': //ZZDQ
+          // set/read panadapter low
+          if(command[4]==';') {
+            sprintf(reply,"ZZDQ%+4d;",active_receiver->panadapter_low);
+            send_resp(client->fd,reply) ;
+          } else {
+          }
+          break;
+        case 'R': //ZZDR
+          // set/read panadapter step
+          if(command[4]==';') {
+            sprintf(reply,"ZZDR%2d;",active_receiver->panadapter_step);
+            send_resp(client->fd,reply) ;
+          } else {
+          }
+          break;
+        case 'U': //ZZDU
+          implemented=FALSE;
+          break;
+        case 'X': //ZZDX
+          implemented=FALSE;
+          break;
+        case 'Y': //ZZDY
+          implemented=FALSE;
+          break;
+        default:
+           implemented=FALSE;
+           break;
+      }
+      break;
+    case 'E': //ZZEx
+      switch(command[3]) {
+        case 'A': //ZZEA
+          // set/read rx equalizer values
+          if(command[4]==';') {
+            sprintf(reply,"ZZEA%03d%03d%03d%03d%03d00000000000000000000;",3,rx_equalizer[0],rx_equalizer[1],rx_equalizer[2],rx_equalizer[3]);
+            send_resp(client->fd,reply) ;
+          } else if(command[37]==';') {
+            char temp[4];
+            temp[3]='\0';
+            strncpy(temp,&command[4],3);
+            int bands=atoi(temp);
+            if(bands==3) {
+              strncpy(temp,&command[7],3);
+              rx_equalizer[0]=atoi(temp);
+              strncpy(temp,&command[10],3);
+              rx_equalizer[1]=atoi(temp);
+              strncpy(temp,&command[13],3);
+              rx_equalizer[2]=atoi(temp);
+            } else {
+            }
+          } else {
+          }
+          break;
+        case 'B': //ZZEB
+          // set/read tx equalizer values
+          if(command[4]==';') {
+            sprintf(reply,"ZZEB%03d%03d%03d%03d%03d00000000000000000000;",3,tx_equalizer[0],tx_equalizer[1],tx_equalizer[2],tx_equalizer[3]);
+            send_resp(client->fd,reply) ;
+          } else if(command[37]==';') {
+            char temp[4];
+            temp[3]='\0';
+            strncpy(temp,&command[4],3);
+            int bands=atoi(temp);
+            if(bands==3) {
+              strncpy(temp,&command[7],3);
+              tx_equalizer[0]=atoi(temp);
+              strncpy(temp,&command[10],3);
+              tx_equalizer[1]=atoi(temp);
+              strncpy(temp,&command[13],3);
+              tx_equalizer[2]=atoi(temp);
+            } else {
+            }
+          } else {
+          }
+          break;
+        case 'M': //ZZEM
+          implemented=FALSE;
+          break;
+        case 'R': //ZZER
+          // set/read rx equalizer
+          if(command[4]==';') {
+            sprintf(reply,"ZZER%d;",enable_rx_equalizer);
+            send_resp(client->fd,reply) ;
+          } else if(command[5]==';') {
+            enable_rx_equalizer=atoi(&command[4]);
+          } else {
+          }
+          break;
+        case 'T': //ZZET
+          // set/read tx equalizer
+          if(command[4]==';') {
+            sprintf(reply,"ZZET%d;",enable_tx_equalizer);
+            send_resp(client->fd,reply) ;
+          } else if(command[5]==';') {
+            enable_tx_equalizer=atoi(&command[4]);
+          } else {
+          }
+          break;
+        default:
+           implemented=FALSE;
+           break;
+      }
+      break;
+    case 'F': //ZZFx
+      switch(command[3]) {
+        case 'A': //ZZFA
+          // set/read VFO-A frequency
+          if(command[4]==';') {
+            if(vfo[VFO_A].ctun) {
+              sprintf(reply,"ZZFA%011lld;",vfo[VFO_A].ctun_frequency);
+            } else {
+              sprintf(reply,"ZZFA%011lld;",vfo[VFO_A].frequency);
+            }
+            send_resp(client->fd,reply) ;
+          } else if(command[15]==';') {
+            long long f=atoll(&command[4]);
+            local_set_frequency(VFO_A,f);
+            vfo_update();
+          }
+          break;
+        case 'B': //ZZFB
+          // set/read VFO-B frequency
+          if(command[4]==';') {
+            if(vfo[VFO_B].ctun) {
+              sprintf(reply,"ZZFB%011lld;",vfo[VFO_B].ctun_frequency);
+            } else {
+              sprintf(reply,"ZZFB%011lld;",vfo[VFO_B].frequency);
+            }
+            send_resp(client->fd,reply) ;
+          } else if(command[15]==';') {
+            long long f=atoll(&command[4]);
+            local_set_frequency(VFO_B,f);
+            vfo_update();
+          }
+          break;
+        case 'D': //ZZFD
+          // set/read deviation
+          if(command[4]==';') {
+            sprintf(reply,"ZZFD%d;",active_receiver->deviation==2500?0:1);
+            send_resp(client->fd,reply) ;
+          } else if(command[5]==';') {
+            int d=atoi(&command[4]);
+            if(d==0) {
+              active_receiver->deviation=2500;
+            } else if(d==1) {
+              active_receiver->deviation=5000;
+            } else {
+            }
+            vfo_update();
+          }
+          break;
+        case 'H': //ZZFH
+          // set/read RX1 filter high
+          if(command[4]==';') {
+            sprintf(reply,"ZZFH%05d;",receiver[0]->filter_high);
+            send_resp(client->fd,reply) ;
+          } else if(command[9]==';') {
+            int fh=atoi(&command[4]);
+            fh=fmin(9999,fh);
+            fh=fmax(-9999,fh);
+            // make sure filter is filterVar1
+            if(vfo[VFO_A].filter!=filterVar1) {
+              vfo_filter_changed(filterVar1);
+            }
+            FILTER *mode_filters=filters[vfo[VFO_A].mode];
+            FILTER *filter=&mode_filters[filterVar1];
+            filter->high=fh;
+            vfo_filter_changed(filterVar1);
+          }
+          break;
+        case 'I': //ZZFI
+          // set/read RX1 DSP receive filter
+          if(command[4]==';') {
+            sprintf(reply,"ZZFI%02d;",vfo[VFO_A].filter);
+            send_resp(client->fd,reply) ;
+          } else if(command[6]==';') {
+            int filter=atoi(&command[4]);
+            // update RX1 filter
+          }
+          break;
+        case 'J': //ZZFJ
+          // set/read RX2 DSP receive filter
+          if(command[4]==';') {
+            sprintf(reply,"ZZFJ%02d;",vfo[VFO_B].filter);
+            send_resp(client->fd,reply) ;
+          } else if(command[6]==';') {
+            int filter=atoi(&command[4]);
+            // update RX2 filter
+          }
+          break;
+        case 'L': //ZZFL
+          // set/read RX1 filter low
+          if(command[4]==';') {
+            sprintf(reply,"ZZFL%05d;",receiver[0]->filter_low);
+            send_resp(client->fd,reply) ;
+          } else if(command[9]==';') {
+            int fl=atoi(&command[4]);
+            fl=fmin(9999,fl);
+            fl=fmax(-9999,fl);
+            // make sure filter is filterVar1
+            if(vfo[VFO_A].filter!=filterVar1) {
+              vfo_filter_changed(filterVar1);
+            }
+            FILTER *mode_filters=filters[vfo[VFO_A].mode];
+            FILTER *filter=&mode_filters[filterVar1];
+            filter->low=fl;
+            vfo_filter_changed(filterVar1);
+          }
+          break;
+        case 'M': //ZZFM
+          implemented=FALSE;
+          break;
+        case 'R': //ZZFR
+          implemented=FALSE;
+          break;
+        case 'S': //ZZFS
+          implemented=FALSE;
+          break;
+        case 'V': //ZZFV
+          implemented=FALSE;
+          break;
+        case 'W': //ZZFW
+          implemented=FALSE;
+          break;
+        case 'X': //ZZFX
+          implemented=FALSE;
+          break;
+        case 'Y': //ZZFY
+          implemented=FALSE;
+          break;
+        default:
+           implemented=FALSE;
+           break;
+      }
+      break;
+    case 'G': //ZZGx
+      switch(command[3]) {
+        case 'E': //ZZGE
+          implemented=FALSE;
+          break;
+        case 'L': //ZZGL
+          implemented=FALSE;
+          break;
+        case 'T': //ZZGT
+          // set/read RX1 AGC
+          if(command[4]==';') {
+            sprintf(reply,"ZZGT%d;",receiver[0]->agc);
+            send_resp(client->fd,reply) ;
+          } else if(command[5]==';') {
+            int agc=atoi(&command[4]);
+            // update RX1 AGC
+            receiver[0]->agc=agc;
+            vfo_update();
+          }
+          break;
+        case 'U': //ZZGU
+          // set/read RX2 AGC
+          if(command[4]==';') {
+            sprintf(reply,"ZZGU%d;",receiver[1]->agc);
+            send_resp(client->fd,reply) ;
+          } else if(command[5]==';') {
+            int agc=atoi(&command[4]);
+            // update RX2 AGC
+            receiver[1]->agc=agc;
+            vfo_update();
+          }
+          break;
+        default:
+           implemented=FALSE;
+           break;
+      }
+      break;
+    case 'H': //ZZHx
+      switch(command[3]) {
+        case 'A': //ZZHA
+          implemented=FALSE;
+          break;
+        case 'R': //ZZHR
+          implemented=FALSE;
+          break;
+        case 'T': //ZZHT
+          implemented=FALSE;
+          break;
+        case 'U': //ZZHU
+          implemented=FALSE;
+          break;
+        case 'V': //ZZHV
+          implemented=FALSE;
+          break;
+        case 'W': //ZZHW
+          implemented=FALSE;
+          break;
+        case 'X': //ZZHX
+          implemented=FALSE;
+          break;
+        default:
+           implemented=FALSE;
+           break;
+      }
+      break;
+    case 'I': //ZZIx
+      switch(command[3]) {
+        case 'D': //ZZID
+          strcpy(reply,"ZZID240;");
+          send_resp(client->fd,reply) ;
+          break;
+        case 'F': //ZZIF
+          implemented=FALSE;
+          break;
+        case 'O': //ZZIO
+          implemented=FALSE;
+          break;
+        case 'S': //ZZIS
+          implemented=FALSE;
+          break;
+        case 'T': //ZZIT
+          implemented=FALSE;
+          break;
+        case 'U': //ZZIU
+          implemented=FALSE;
+          break;
+        default:
+           implemented=FALSE;
+           break;
+      }
+      break;
+    case 'K': //ZZKx
+      switch(command[3]) {
+        case 'M': //ZZIM
+          implemented=FALSE;
+          break;
+        case 'O': //ZZIO
+          implemented=FALSE;
+          break;
+        case 'S': //ZZIS
+          implemented=FALSE;
+          break;
+        case 'Y': //ZZIY
+          implemented=FALSE;
+          break;
+        default:
+           implemented=FALSE;
+           break;
+      }
+      break;
+    case 'L': //ZZLx
+      switch(command[3]) {
+        case 'A': //ZZLA
+          // read/set RX0 gain
+          if(command[4]==';') {
+            // send reply back
+            sprintf(reply,"ZZLA%03d;",(int)(receiver[0]->volume*100.0));
+            send_resp(client->fd,reply) ;
+          } else {
+            int gain=atoi(&command[4]);
+            receiver[0]->volume=(double)gain/100.0;
+            update_af_gain();
+          }
+          break;
+        case 'B': //ZZLB
+          implemented=FALSE;
+          break;
+        case 'C': //ZZLC
+          // read/set RX1 gain
+          if(receivers==2) {
+            if(command[4]==';') {
+              // send reply back
+              sprintf(reply,"ZZLC%03d;",(int)(receiver[1]->volume*100.0));
+              send_resp(client->fd,reply) ;
+            } else {
+              int gain=atoi(&command[4]);
+              receiver[1]->volume=(double)gain/100.0;
+              update_af_gain();
+            }
+          }
+          break;
+        case 'D': //ZZLD
+          implemented=FALSE;
+          break;
+        case 'E': //ZZLE
+          implemented=FALSE;
+          break;
+        case 'F': //ZZLF
+          implemented=FALSE;
+          break;
+        case 'G': //ZZLG
+          implemented=FALSE;
+          break;
+        case 'H': //ZZLH
+          implemented=FALSE;
+          break;
+        case 'I': //ZZLI
+          if(transmitter!=NULL) {
+            if(command[4]==';') {
+              // send reply back
+              sprintf(reply,"ZZLI%d;",transmitter->puresignal);
+              send_resp(client->fd,reply) ;
+            } else {
+              int ps=atoi(&command[4]);
+              transmitter->puresignal=ps;
+            }
+            vfo_update();
+          }
+          break;
+        default:
+           implemented=FALSE;
+           break;
+      }
+      break;
+    case 'M': //ZZMx
+      switch(command[3]) {
+        case 'A': //ZZMA
+          implemented=FALSE;
+          break;
+        case 'B': //ZZMB
+          implemented=FALSE;
+          break;
+        case 'D': //ZZMD
+          // set/read RX1 operating mode
+          if(command[4]==';') {
+            sprintf(reply,"ZZMD%02d;",vfo[VFO_A].mode);
+            send_resp(client->fd,reply);
+          } else if(command[6]==';') {
+            vfo_mode_changed(atoi(&command[4]));
+          }
+          break;
+        case 'E': //ZZME
+          // set/read RX2 operating mode
+          if(command[4]==';') {
+            sprintf(reply,"ZZMD%02d;",vfo[VFO_B].mode);
+            send_resp(client->fd,reply);
+          } else if(command[6]==';') {
+            vfo_mode_changed(atoi(&command[4]));
+          }
+          break;
+        case 'G': //ZZMG
+          // set/read mic gain
+          if(command[4]==';') {
+            sprintf(reply,"ZZMG%03d;",(int)mic_gain);
+            send_resp(client->fd,reply);
+          } else if(command[7]==';') {
+            mic_gain=(double)atoi(&command[4]);
+          }
+          break;
+        case 'L': //ZZML
+          // read DSP modes and indexes
+          if(command[4]==';') {
+            sprintf(reply,"ZZML LSB00: USB01: DSB02: CWL03: CWU04: FMN05:  AM06:DIGU07:SPEC08:DIGL09: SAM10: DRM11;");
+            send_resp(client->fd,reply);
+          }
+          break;
+        case 'N': //ZZMN
+          // read Filter Names and indexes
+          if(command[6]==';') {
+            int mode=atoi(&command[4])-1;
+            FILTER *f=filters[mode];
+            sprintf(reply,"ZZMN");
+            char temp[32];
+            for(int i=0;i<FILTERS;i++) {
+              sprintf(temp,"%5s%5d%5d",f[i].title,f[i].high,f[i].low);
+              strcat(reply,temp);
+            }
+            strcat(reply,";");
+            send_resp(client->fd,reply);
+          }
+          break;
+        case 'O': //ZZMO
+          // set/read MON status
+          if(command[4]==';') {
+            sprintf(reply,"ZZMO%d;",0);
+            send_resp(client->fd,reply);
+          }
+          break;
+        case 'R': //ZZMR
+          // set/read RX Meter mode
+          if(command[4]==';') {
+            sprintf(reply,"ZZMR%d;",smeter+1);
+            send_resp(client->fd,reply);
+          } else if(command[5]==';') {
+            smeter=atoi(&command[4])-1;
+          }
+          break;
+        case 'S': //ZZMS
+          implemented=FALSE;
+          break;
+        case 'T': //ZZMT
+          if(command[4]==';') {
+            sprintf(reply,"ZZMT%02d;",1); // forward power
+            send_resp(client->fd,reply);
+          } else {
+          }
+          break;
+        case 'U': //ZZMU
+          implemented=FALSE;
+          break;
+        case 'V': //ZZMV
+          implemented=FALSE;
+          break;
+        case 'W': //ZZMW
+          implemented=FALSE;
+          break;
+        case 'X': //ZZMX
+          implemented=FALSE;
+          break;
+        case 'Y': //ZZMY
+          implemented=FALSE;
+          break;
+        case 'Z': //ZZMZ
+          implemented=FALSE;
+          break;
+        default:
+           implemented=FALSE;
+           break;
 
-           // Adjust the Parse input like there hadn't been a ZZ in front - but 
-           // set the ZZ flag to indicate we saw it.
-           zzid_ptr = &temp[0];
-
-           // It is 4AM and this was the only safe way for me to get a strcpy to work
-           // so - there ya go...
-           for(cnt=2; cnt<=len;cnt++) { 
-               //fprintf(stderr,"[%d]=%c:",cnt,cmd_input[cnt]);
-               *zzid_ptr++= cmd_input[cnt]; 
-           }
-           temp[len+1] = '\0';
-
-           strcpy(cmd_input,temp);
-           #ifdef  RIGCTL_DEBUG
-           fprintf(stderr,"RIGCTL: Cmd_input=%s\n",cmd_input);
-           #endif
-           // 
-           cmd_str[0] = cmd_input[0];
-           cmd_str[1] = cmd_input[1];
-           cmd_str[2] = '\0';
-           zzid_flag = 1;
-           len = strlen (temp);
-        }
-        
-        if(strcmp(cmd_str,"AC")==0)       {  
-                                            // TS-2000 - AC - STEP Command 
-                                            // PiHPSDR - ZZAC - Step Command 
-                                             if(zzid_flag ==1) { // Set or Read the Step Size (replaces ZZST)
-                                                   if(len <= 2) {
-                                                       switch(step) {
-                                                          case  1: work_int = 0; break;  
-                                                          case  10: work_int = 1; break;  
-                                                          case  25: work_int = 2; break;  
-                                                          case  50: work_int = 3; break;  
-                                                          case  100: work_int = 4; break;  
-                                                          case  250: work_int = 5; break;  
-                                                          case  500: work_int = 6; break;  
-                                                          case  1000: work_int = 7; break;  
-                                                          case  2500: work_int = 8; break;  
-                                                          case  5000: work_int = 9; break;  
-                                                          case  6250: work_int = 10; break;  
-                                                          case  9000: work_int = 11; break;  
-                                                          case  10000: work_int = 12; break;  
-                                                          case  12500: work_int = 13; break;  
-                                                          case  15000: work_int = 14; break;  
-                                                          case  20000: work_int = 15; break;  
-                                                          case  25000: work_int = 16; break;  
-                                                          case  30000: work_int = 17; break;  
-                                                          case  50000: work_int = 18; break;  
-                                                          case  100000: work_int = 19; break;  
-                                                          default: 
-                                                              work_int = 0;
-                                                              fprintf(stderr,"RIGCTL: ERROR  step out of range\n");
-                                                              send_resp(client_sock,"?;");
-                                                              break;
-                                                          }
-                                                          #ifdef  RIGCTL_DEBUG
-                                                          fprintf(stderr,"RESP: ZZAC%02d;",work_int);
-                                                          #endif
-                                                          sprintf(msg,"ZZAC%02d;",work_int);
-                                                          send_resp(client_sock,msg);
-                                              
-                                                    } else { // Legal vals between 00 and 22.
-                                                       switch(atoi(&cmd_input[2])) {
-                                                          case  0: step = 1; break;  
-                                                          case  1: step = 10; break;  
-                                                          case  2: step = 25; break;  
-                                                          case  3: step = 50; break;  
-                                                          case  4: step = 100; break;  
-                                                          case  5: step = 250; break;  
-                                                          case  6: step = 500; break;  
-                                                          case  7: step = 1000; break;  
-                                                          case  8: step = 2500; break;  
-                                                          case  9: step = 5000; break;  
-                                                          case  10: step = 6250; break;  
-                                                          case  11: step = 9000; break;  
-                                                          case  12: step = 10000; break;  
-                                                          case  13: step = 12500; break;  
-                                                          case  14: step = 15000; break;  
-                                                          case  15: step = 20000; break;  
-                                                          case  16: step = 25000; break;  
-                                                          case  17: step = 30000; break;  
-                                                          case  18: step = 50000; break;  
-                                                          case  19: step = 100000; break;  
-                                                          default: 
-                                                              fprintf(stderr,"RIGCTL: ERROR - ZZAC out of range\n");
-                                                              send_resp(client_sock,"?;");
-                                                          }
-                                                          g_idle_add(ext_vfo_update,NULL);
-                                                       }
-                                                 } else { // Sets or reads the internal antenna tuner status
-                                                      // P1 0:RX-AT Thru, 1: RX-AT IN
-                                                      // P2 0: TX-AT Thru 1: TX-AT In
-                                                      // 
-                                                        if(len <= 2) {
-                                                          send_resp(client_sock,"AC000;");
-                                                        }
-                                              }
-                                          }
-        else if((strcmp(cmd_str,"AD")==0) && (zzid_flag==1)) { 
-                                            // PiHPSDR - ZZAD - Move VFO A Down by step
-                                              //vfo_step(-1);
-                                              int lcl_step = -1;
-                                              g_idle_add(ext_vfo_step,(gpointer)(long)lcl_step);
-                                              g_idle_add(ext_vfo_update,NULL);
-                                         }
-        else if(strcmp(cmd_str,"AG")==0) {  
-                                            if(zzid_flag == 1) { 
-                                            // PiHPSDR - ZZAG - Set/read Audio Gain
-                                            // Values are 000-100 
-                                                if(len<=2) { // Send ZZAGxxx; - active_receiver->volume 0.00-1.00
-                                                     sprintf(msg,"ZZAG%03d;",(int) (roundf(active_receiver->volume *100.0)));
-                                                     send_resp(client_sock,msg);
-                                                } else { // Set Audio Gain
-                                                    work_int = atoi(&cmd_input[2]);
-                                                    active_receiver->volume = ((double) work_int)/100.0;
-                                                    g_idle_add(ext_update_af_gain,NULL);               
-                                                }
-                                             } else { 
-                                            // TS-2000 - AG - Set Audio Gain 
-                                            // AG123; Value of 0-
-                                            // AG1 = Sub receiver - what is the value set
-                                            // Response - AG<0/1>123; Where 123 is 0-260
-                                                int lcl_receiver;
-                                                if(receivers == 1) {
-                                                    lcl_receiver = 0;
-                                                } else {
-                                                    lcl_receiver = active_receiver->id;
-                                                }
-                                                if(len>4) { // Set Audio Gain
-                                                   if((atoi(&cmd_input[3]) >=0) && (atoi(&cmd_input[3])<=260)) {
-                                                      active_receiver->volume = ((double) atoi(&cmd_input[3]))/260; 
-                                                      g_idle_add(ext_update_af_gain,NULL);               
-                                                   } else {
-                                                     send_resp(client_sock,"?;");
-                                                   }
-                                                } else { // Read Audio Gain
-                                                  sprintf(msg,"AG%1d%03d;",lcl_receiver,(int) (260 * active_receiver->volume));
-                                                  send_resp(client_sock,msg);
-                                                }
-                                             }
-                                          }
-        else if((strcmp(cmd_str,"AI")==0) && (zzid_flag == 0))  {  
-                                            // TS-2000 - AI- Allow rebroadcast of set frequency after set - not supported
-                                             if(len <=2) {
-                                                //send_resp(client_sock,"AI0;");
-                                                send_resp(client_sock,"?;");
-                                             } 
-                                          }
-        else if((strcmp(cmd_str,"AL")==0) && (zzid_flag == 0))  {  
-                                            // TS-2000 - AL - Set/Reads the auto Notch level - not supported
-                                             if(len <=2) {
-                                                //send_resp(client_sock,"AL000;");
-                                                send_resp(client_sock,"?;");
-                                             } 
-                                          }
-        else if((strcmp(cmd_str,"AM")==0) && (zzid_flag == 0))  {  
-                                            // TS-2000 - AM - Sets or reads the Auto Mode - not supported
-                                             if(len <=2) {
-                                                //send_resp(client_sock,"AM0;");
-                                                send_resp(client_sock,"?;");
-                                             } 
-                                          }
-        else if((strcmp(cmd_str,"AN")==0) && (zzid_flag == 0)) {  
-                                            // TS-2000 - AN - Selects the antenna connector (ANT1/2) - not supported
-                                             if(len <=2) {
-                                                //send_resp(client_sock,"AN0;");
-                                                send_resp(client_sock,"?;");
-                                             } 
-                                          }
-        else if((strcmp(cmd_str,"AP")==0) && (zzid_flag == 1)) { 
-                                            // PiHPSDR - ZZAP - Set/Read Power Amp Settings.
-                                            //                  format - P1P1P1 P2P2.P2 
-                                            //                  P1 - Band P2 - 3.1 float WITH decimal point required!
-                                               #ifdef  RIGCTL_DEBUG
-                                               fprintf(stderr,"RIGCTL: ZZAP len=%d\n",len);
-                                               #endif
-                                               if(len<=5) { // Read Command
-                                                 work_int = lookup_band(atoi(&cmd_input[2]));
-                                                 #ifdef  RIGCTL_DEBUG
-                                                 fprintf(stderr,"RIGCTL ZZAP work_int=%d\n",work_int);
-                                                 #endif
-                                                 BAND *band = band_get_band(work_int);
-                                                 sprintf(msg,"ZZAP%03d%3.1f;",atoi(&cmd_input[2]),band->pa_calibration);
-                                                 send_resp(client_sock,msg);
-                                              } else {
-                                                 /* isolate the command band from the value */ 
-                                                 char lcl_char = cmd_input[5];;
-                                                 cmd_input[5]='\0'; // Make a temp string
-                                                 work_int = atoi(&cmd_input[2]);
-                                                 cmd_input[5] = lcl_char; // Restore the orig string..
-                                                 double lcl_float = atof(&cmd_input[5]);
-                                                 #ifdef  RIGCTL_DEBUG
-                                                 fprintf(stderr,"RIGCTL ZZAP - band=%d setting=%3.1f\n",work_int, lcl_float); 
-                                                 #endif 
-                                                 work_int = lookup_band(work_int);
-
-                                                 // Sequence below lifted from pa_menu
-                                                 BAND *band = band_get_band(work_int);
-                                                 band->pa_calibration = lcl_float;
-                                                 work_int = VFO_A;
-                                                 if(split) work_int = VFO_B;
-                                                 int b = vfo[work_int].band;
-                                                 BAND *current = band_get_band(b);
-                                                 if(band == current) {
-                                                     g_idle_add( ext_calc_drive_level,(gpointer) NULL);
-                                                     //g_idle_add( ext_calc_tune_drive_level,(gpointer) NULL);
-                                                 } 
-                                              } 
-                                          }
-        else if(strcmp(cmd_str,"AR")==0)  { 
-                                            if(zzid_flag ==1) { 
-                                            // PiHPSDR - ZZAR - Set or reads the RX1 AGC Threshold Control
-                                                 if(len <=2) { // Read Response
-                                                    // X is +/- sign
-                                                    if(active_receiver->agc_gain >=0) {
-                                                       sprintf(msg,"ZZAR+%03d;",(int)active_receiver->agc_gain);
-                                                    } else {
-                                                       sprintf(msg,"ZZAR-%03d;",abs((int)active_receiver->agc_gain));
-                                                    }
-                                                    send_resp(client_sock,msg);
-                                                 } else {
-                                                    double new_gain = (double) atoi(&cmd_input[2]);
-                                                    double *p_gain=malloc(sizeof(double));
-                                                    *p_gain=new_gain;
-                                                    g_idle_add(ext_update_agc_gain,(gpointer)p_gain);
-                                                 } 
-                                            } else {     
-                                            // TS-2000 - AR - Sets or reads the ASC function on/off - not supported
-                                                 if(len <=2) {
-                                                    //send_resp(client_sock,"AR0;");
-                                                    send_resp(client_sock,"?;");
-                                                 } 
-                                            }
-                                          }
-        else if((strcmp(cmd_str,"AS")==0) && (zzid_flag == 0))  {  
-                                            // TS-2000 - AS - Sets/reads automode function parameters
-                                            // AS<P1><2xP2><11P3><P4>;
-                                            // AS<P1><2xP2><11P3><P4>;
-                                             if(len < 6) {  
-                                            /*   sprintf(msg,"AS%1d%02d%011lld%01d;",
-                                                             0, // P1
-                                                             0, // Automode 
-                                                             getFrequency(),
-                                                             rigctlGetMode());
-                                                send_resp(client_sock,msg);*/
-                                                send_resp(client_sock,"?;");
-                               
-                                             } 
-                                          }
-        else if((strcmp(cmd_str,"AT")==0) && (zzid_flag==1)) { 
-                                            // PiHPSDR - ZZAT - Move VFO A Up by step
-                                              //vfo_step(1);
-                                              int lcl_step = 1;
-                                              g_idle_add(ext_vfo_step,(gpointer)(long) lcl_step);
-                                              g_idle_add(ext_vfo_update,NULL);
-                                         }
-                                           // PiHPSDR - ZZAU - Reserved for Audio UDP stream start/stop
-        else if((strcmp(cmd_str,"BC")==0) && (zzid_flag == 0))  {  
-                                            // TS-2000 - BC - Beat Cancellor OFF - not supported
-                                             if(len <=2) {
-                                                //send_resp(client_sock,"BC0;");
-                                                send_resp(client_sock,"?;");
-                                             } 
-                                          }
-        else if(strcmp(cmd_str,"BD")==0)  {  
-                                            // PiHPSDR - ZZBD - Moves down the frequency band selector
-                                            // TS-2000 - BD - Moves down the frequency band selector
-                                            // No response 
-                                             // This reacts to both BD and ZZBD - only works for active receiver
-                                             int cur_band = vfo[active_receiver->id].band;
-                                             #ifdef  RIGCTL_DEBUG
-                                             fprintf(stderr,"RIGCTL: BD - current band=%d\n",cur_band);
-                                             #endif
-                                             if(cur_band == 0) {
-                                                cur_band = band6;
-                                                #ifdef SOAPYSDR
-                                                    if (radio->protocol == SOAPYSDR_PROTOCOL) cur_band = band472;
-                                                #endif
-                                             } else {
-                                                --cur_band;
-                                             } 
-                                             #ifdef  RIGCTL_DEBUG
-                                             fprintf(stderr,"RIGCTL: BD - new band=%d\n",cur_band);
-                                             #endif 
-                                             g_idle_add(ext_vfo_band_changed,(gpointer)(long)cur_band);
-                                          }
-        else if((strcmp(cmd_str,"BP")==0) && (zzid_flag == 0))  {  
-                                            // TS-2000 - BP - Reads the manual beat canceller freq - not supported 
-                                             if(len <=2) {
-                                                //send_resp(client_sock,"BP000;");
-                                                send_resp(client_sock,"?;");
-                                             } 
-                                          }
-        else if(strcmp(cmd_str,"BS")==0)  {  
-                                            if(zzid_flag == 1) {
-                                            // PiHPSDR - ZZBS - Read the RX1 Band switch
-                                                 int cur_band = vfo[active_receiver->id].band;
-                                                 #ifdef  RIGCTL_DEBUG
-                                                 fprintf(stderr,"RIGCTL: BS - band=%d\n",cur_band);
-                                                 #endif 
-                         
-                                                 switch(cur_band) {
-                                                    case 0:  work_int = 160;  break;
-                                                    case 1:  work_int = 80;  break;
-                                                    case 2:  work_int = 60;  break;
-                                                    case 3:  work_int = 40;  break;
-                                                    case 4:  work_int = 30;  break;
-                                                    case 5:  work_int = 20;  break;
-                                                    case 6:  work_int = 17;  break;
-                                                    case 7:  work_int = 15;  break;
-                                                    case 8:  work_int = 12;  break;
-                                                    case 9:  work_int = 10;  break;
-                                                    case 10:  work_int = 6;  break;
-                                                    case 11: work_int = 888; break;
-                                                    case 12: work_int = 999; break;
-                                                    case 13: work_int = 136; break;
-                                                    case 14: work_int = 472; break;
-                                                    }
-                                                 sprintf(msg,"ZZBS%03d;",work_int);
-                                                 send_resp(client_sock,msg);
-
-                                             } else {
-                                                 // Sets or reads Beat Canceller status
-                                                if(len <=2) {
-                                                   //send_resp(client_sock,"BS0;");
-                                                   send_resp(client_sock,"?;");
-                                                } 
-                                             }
-                                          }
-        else if(strcmp(cmd_str,"BU")==0)  {  
-                                            // PiHPSDR - ZZBU - Moves Up the frequency band
-                                            // TS-2000 - BU - Moves Up the frequency band
-                                             // No response 
-                                             int cur_band = vfo[active_receiver->id].band;
-                                             #ifdef  RIGCTL_DEBUG
-                                             fprintf(stderr,"RIGCTL: BU - Max Band = %d current band=%d\n",BANDS,cur_band);
-                                             #endif
-                                             if(cur_band >= 10) {
-                                                    cur_band = band160;
-                                             } else {
-                                                ++cur_band;
-                                             } 
-                                             #ifdef  RIGCTL_DEBUG
-                                             fprintf(stderr,"RIGCTL: BU - new band=%d\n",cur_band);
-                                             #endif
-                                             g_idle_add(ext_vfo_band_changed,(gpointer)(long)cur_band);
-                                          }
-        else if((strcmp(cmd_str,"BY")==0) && (zzid_flag == 0))  {
-                                            // TS-2000 - BY - Read the busy signal status
-                                             if(len <=2) {
-                                                //send_resp(client_sock,"BY00;");
-                                                send_resp(client_sock,"?;");
-                                             } 
-                                          }
-        else if((strcmp(cmd_str,"CA")==0) && (zzid_flag == 0))  {
-                                            // TS-2000 - CA - Sets/reads cw auto tune f(x) status - not supported
-                                             if(len <=2) {
-                                                //send_resp(client_sock,"CA0;");
-                                                send_resp(client_sock,"?;");
-                                             } 
-                                          }
-        else if((strcmp(cmd_str,"CB")==0) && (zzid_flag==1)) {
-                                            // PIHPSDR - ZZCB - Sets/reads CW Break In checkbox status
-                                            // P1 = 0 for disabled, 1 for enabled
-                                            if(len <= 2) {
-                                                 sprintf(msg,"ZZCB%01d;",cw_breakin);
-                                                 send_resp(client_sock,msg);
-                                            } else {
-                                                cw_breakin = atoi(&cmd_input[2]);
-                                            }
-                                          }
-        else if((strcmp(cmd_str,"CG")==0) && (zzid_flag == 0))  { 
-                                            // TS-2000 - CD - Sets/Reads the carrier gain status - not supported
-                                            // 0-100 legal values
-                                            if(len <=2) {
-                                                //send_resp(client_sock,"CG000;");
-                                                send_resp(client_sock,"?;");
-                                            } 
-                                          }
-        else if((strcmp(cmd_str,"CH")==0) && (zzid_flag == 0)) { 
-                                            // TS-2000 - CH - Sets the current frequency to call Channel -no response 
-                                          }
-        else if((strcmp(cmd_str,"CI")==0) && (zzid_flag == 0)) { 
-                                            // TS-2000 - CI - In VFO md or Mem recall md, sets freq 2 call channel - no response
-                                          }
-        else if((strcmp(cmd_str,"CL")==0) && (zzid_flag == 1)) {  
-                                            // PiHPSDR - ZZCL - CW Pitch set
-                                            // 0200 - 1200
-                                             if(len <=2) {
-                                                 sprintf(msg,"ZZCL%04d;",cw_keyer_sidetone_frequency);
-                                                 send_resp(client_sock,msg);
-                                             } else {
-                                                int local_freq = atoi(&cmd_input[2]);
-                                                if((local_freq >= 200) && (local_freq <=1200)) {
-                                                   cw_keyer_sidetone_frequency = atoi(&cmd_input[2]);
-                                                   g_idle_add(ext_vfo_update,NULL);
-                                                } else {
-                                                   fprintf(stderr,"RIGCTL: ZZCL illegal freq=%d\n",local_freq);
-                                                }
-                                             }
-                                          }
-        else if((strcmp(cmd_str,"CM")==0) && (zzid_flag == 0)) {  
-                                            // TS-2000 - CM - Sets or reads the packet cluster tune f(x) on/off -not supported
-                                            // 0-100 legal values
-                                             if(len <=2) {
-                                                //send_resp(client_sock,"CM0;");
-                                                send_resp(client_sock,"?;");
-                                             } 
-                                          }
-        else if((strcmp(cmd_str,"CN")==0) && (zzid_flag == 0))  {  
-                                            // TS-2000 - CN - Sets and reads CTSS function - 01-38 legal values
-                                            // Stored locally in rigctl - not used.
-                                            if(len >2) {
-                                                ctcss_tone = atoi(&cmd_input[2]);
-                                                if((ctcss_tone > 0) && (ctcss_tone <= 39)) {
-                                                    switch(ctcss_tone) {
-                                                      case  1: transmitter->ctcss_frequency = (double) 67.0;break;
-                                                      case  2: transmitter->ctcss_frequency = (double) 71.9;break;
-                                                      case  3: transmitter->ctcss_frequency = (double) 74.4;break;
-                                                      case  4: transmitter->ctcss_frequency = (double) 77.0;break;
-                                                      case  5: transmitter->ctcss_frequency = (double) 79.7;break;
-                                                      case  6: transmitter->ctcss_frequency = (double) 82.5;break;
-                                                      case  7: transmitter->ctcss_frequency = (double) 85.4;break;
-                                                      case  8: transmitter->ctcss_frequency = (double) 88.5;break;
-                                                      case  9: transmitter->ctcss_frequency = (double) 91.5;break;
-                                                      case 10: transmitter->ctcss_frequency = (double) 94.8;break;
-                                                      case 11: transmitter->ctcss_frequency = (double) 97.4;break;
-                                                      case 12: transmitter->ctcss_frequency = (double) 100.0;break;
-                                                      case 13: transmitter->ctcss_frequency = (double) 103.5;break;
-                                                      case 14: transmitter->ctcss_frequency = (double) 107.2;break;
-                                                      case 15: transmitter->ctcss_frequency = (double) 110.9;break;
-                                                      case 16: transmitter->ctcss_frequency = (double) 114.8;break;
-                                                      case 17: transmitter->ctcss_frequency = (double) 118.8;break;
-                                                      case 18: transmitter->ctcss_frequency = (double) 123.0;break;
-                                                      case 19: transmitter->ctcss_frequency = (double) 127.3;break;
-                                                      case 20: transmitter->ctcss_frequency = (double) 131.8;break;
-                                                      case 21: transmitter->ctcss_frequency = (double) 136.5;break;
-                                                      case 22: transmitter->ctcss_frequency = (double) 141.3;break;
-                                                      case 23: transmitter->ctcss_frequency = (double) 146.2;break;
-                                                      case 24: transmitter->ctcss_frequency = (double) 151.4;break;
-                                                      case 25: transmitter->ctcss_frequency = (double) 156.7;break;
-                                                      case 26: transmitter->ctcss_frequency = (double) 162.2;break;
-                                                      case 27: transmitter->ctcss_frequency = (double) 167.9;break;
-                                                      case 28: transmitter->ctcss_frequency = (double) 173.8;break;
-                                                      case 29: transmitter->ctcss_frequency = (double) 179.9;break;
-                                                      case 30: transmitter->ctcss_frequency = (double) 186.2;break;
-                                                      case 31: transmitter->ctcss_frequency = (double) 192.8;break;
-                                                      case 32: transmitter->ctcss_frequency = (double) 203.5;break;
-                                                      case 33: transmitter->ctcss_frequency = (double) 210.7;break;
-                                                      case 34: transmitter->ctcss_frequency = (double) 218.1;break;
-                                                      case 35: transmitter->ctcss_frequency = (double) 225.7;break;
-                                                      case 36: transmitter->ctcss_frequency = (double) 233.6;break;
-                                                      case 37: transmitter->ctcss_frequency = (double) 241.8;break;
-                                                      case 38: transmitter->ctcss_frequency = (double) 250.3;break;
-                                                      case 39: transmitter->ctcss_frequency = (double) 1750.0;break;
-                                                    }
-                                                    transmitter_set_ctcss(transmitter,transmitter->ctcss,transmitter->ctcss_frequency);
-                                                  }
-                                               } else {
-                                                    ctcss_tone = -1; 
-                                                    if(transmitter->ctcss_frequency == (double) 67.0) {
-                                                       ctcss_tone = 1; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 71.9) {
-                                                       ctcss_tone = 2; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 74.4) {
-                                                       ctcss_tone = 3; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 77.0) {
-                                                       ctcss_tone = 4; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 79.7) {
-                                                       ctcss_tone = 5; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 82.5) {
-                                                       ctcss_tone = 6; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 85.4) {
-                                                       ctcss_tone = 7; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 88.5) {
-                                                       ctcss_tone = 8; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 91.5) {
-                                                       ctcss_tone = 9; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 94.8) {
-                                                       ctcss_tone = 10; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 97.4) {
-                                                       ctcss_tone = 11; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 100.0) {
-                                                       ctcss_tone = 12; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 103.5) {
-                                                       ctcss_tone = 13; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 107.2) {
-                                                       ctcss_tone = 14; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 110.9) {
-                                                       ctcss_tone = 15; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 114.8) {
-                                                       ctcss_tone = 16; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 118.8) {
-                                                       ctcss_tone = 17; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 123.0) {
-                                                       ctcss_tone = 18; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 127.3) {
-                                                       ctcss_tone = 19; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 131.8) {
-                                                       ctcss_tone = 20; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 136.5) {
-                                                       ctcss_tone = 21; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 141.3) {
-                                                       ctcss_tone = 22; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 146.2) {
-                                                       ctcss_tone = 23; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 151.4) {
-                                                       ctcss_tone = 24; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 156.7) {
-                                                       ctcss_tone = 25; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 162.2) {
-                                                       ctcss_tone = 26; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 167.9) {
-                                                       ctcss_tone = 27; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 173.8) {
-                                                       ctcss_tone = 28; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 179.9) {
-                                                       ctcss_tone = 29; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 186.2) {
-                                                       ctcss_tone = 30; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 192.8) {
-                                                       ctcss_tone = 31; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 203.5) {
-                                                       ctcss_tone = 32; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 210.7) {
-                                                       ctcss_tone = 33; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 218.1) {
-                                                       ctcss_tone = 34; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 225.7) {
-                                                       ctcss_tone = 35; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 233.6) {
-                                                       ctcss_tone = 36; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 241.8) {
-                                                       ctcss_tone = 37; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 250.3) {
-                                                       ctcss_tone = 38; 
-                                                    } else if (transmitter->ctcss_frequency == (double) 1750.0) {
-                                                       ctcss_tone = 39; 
-                                                    } else {
-                                                       send_resp(client_sock,"?;");
-                                                    }
-                                                    if(ctcss_tone != -1) {
-                                                       sprintf(msg,"CN%02d;",ctcss_tone);
-                                                       send_resp(client_sock,msg);
-                                                    }
-                                                }
-                                          }
-        // ZZCS - Keyer Speed implemented within "KS" command
-        else if((strcmp(cmd_str,"CT")==0) && (zzid_flag == 0))  {  
-                                            // TS-2000 - CS - Sets and reads CTSS function status 
-                                            // Stored locally in rigctl - not used.
-                                            if(len <=2) {
-                                                sprintf(msg,"CT%01d;",transmitter->ctcss);
-                                                send_resp(client_sock,msg);
-                                            } else {
-                                                if((atoi(&cmd_input[2]) == 0) ||(atoi(&cmd_input[2]) == 1)) {
-                                                   transmitter->ctcss = atoi(&cmd_input[2]);
-                                                   transmitter_set_ctcss(transmitter,transmitter->ctcss,transmitter->ctcss_frequency);
-                                                } else {
-                                                   send_resp(client_sock,"?;");
-                                                }
-                                            }
-                                          }
-        else if((strcmp(cmd_str,"DA")==0) && (zzid_flag == 1))  { 
-                                            // PiHPSDR - DA - Set/Clear Waterfall Automatic on Display Menu
-                                            if(len <=2) {
-                                                sprintf(msg,"ZZDA%0d;",active_receiver->waterfall_automatic);
-                                                send_resp(client_sock,msg);
-                                            } else {
-                                               if((cmd_input[2] == '0') || (cmd_input[2] == '1')) {
-                                                  active_receiver->waterfall_automatic = atoi(&cmd_input[2]);
-                                               }  else {
-                                                  send_resp(client_sock,"?;");
-                                               }
-                                            } 
-                                          }
-        else if((strcmp(cmd_str,"DC")==0) && (zzid_flag == 0))  { 
-                                            // TS-2000 - DC - Sets/Reads TX band status
-                                            if(len <=2) {
-                                                //send_resp(client_sock,"DC00;");
-                                                send_resp(client_sock,"?;");
-                                            } 
-                                          }
-        else if(strcmp(cmd_str,"DN")==0)  {  
-                                            // TS-2000 - DN - Emulate Mic down key  - Not supported
-                                            // PiHPSDR - ZZDN - Set/Read Waterfall Lo Limit 
-                                             int lcl_waterfall_low;
-                                             #ifdef  RIGCTL_DEBUG
-                                             fprintf(stderr,"RIGCTL: DN - init val=%d\n",active_receiver->waterfall_low);
-                                             #endif
-                                             if(zzid_flag == 1) { // ZZDN
-                                               if(len<=2) {
-                                                  if(active_receiver->waterfall_low <0) {
-                                                     sprintf(msg,"ZZDN-%03d;",abs(active_receiver->waterfall_low));
-                                                  } else {
-                                                     sprintf(msg,"ZZDN+%03d;",active_receiver->waterfall_low);
-                                                  }
-                                                  send_resp(client_sock,msg);
-                                               } else {
-                                                  lcl_waterfall_low = atoi(&cmd_input[3]);
-                                                  if((lcl_waterfall_low >= -200) && (lcl_waterfall_low <=200)) {
-                                                     if(cmd_input[2]=='-') {
-                                                         //waterfall_low = lcl_waterfall_low;
-                                                         active_receiver->waterfall_low = -lcl_waterfall_low;
-                                                     } else {
-                                                         active_receiver->waterfall_low =  lcl_waterfall_low;
-                                                     }
-                                                     #ifdef  RIGCTL_DEBUG
-                                                     fprintf(stderr,"RIGCTL: DN - fin val=%d\n",active_receiver->waterfall_low);
-                                                     #endif
-                                                  } else {
-                                                    fprintf(stderr,"RIGCTL: ZZDN illegal val=%d\n",lcl_waterfall_low);
-                                                    send_resp(client_sock,"?;");
-                                                  }
-                                               }
-                                             }
-                                          }
-        else if((strcmp(cmd_str,"DO")==0) && zzid_flag == 1)  {  
-                                            // PiHPSDR - ZZDO - Set/Read Waterfall Hi Limit 
-                                               if(len<=2) {
-                                                  if(active_receiver->waterfall_high <0) {
-                                                     sprintf(msg,"ZZDO-%03d;",abs(active_receiver->waterfall_high));
-                                                  } else {
-                                                     sprintf(msg,"ZZDO+%03d;",active_receiver->waterfall_high);
-                                                  }
-                                                  send_resp(client_sock,msg);
-                                               } else {
-                                                  int lcl_waterfall_high = atoi(&cmd_input[3]);
-                                                  if((lcl_waterfall_high >= -200) && (lcl_waterfall_high <=200)) {
-                                                     if(cmd_input[2]=='-') {
-                                                         active_receiver->waterfall_high = -lcl_waterfall_high;
-                                                     } else {
-                                                         active_receiver->waterfall_high =  lcl_waterfall_high;
-                                                     }
-                                                  } else {
-                                                    fprintf(stderr,"RIGCTL: ZZDO illegal val=%d\n",lcl_waterfall_high);
-                                                    send_resp(client_sock,"?;");
-                                                  }
-                                               }
-                                          }
-        else if((strcmp(cmd_str,"DQ")==0) && (zzid_flag == 0)) {  
-                                            // TS-2000 - DQ - ETs/and reads the DCS function status - not supported
-                                             if(len <=2) {
-                                                //send_resp(client_sock,"DQ0;");
-                                                send_resp(client_sock,"?;");
-                                             } 
-                                          }
-        else if((strcmp(cmd_str,"DU")==0) && zzid_flag ==1)   {  
-                                            // PiHPSDR - ZZDU - Read Status Word - NOT compatible with PSDR!!
-                                             int smeter = (int) GetRXAMeter(active_receiver->id, smeter) ;
-                                             sprintf(msg,"ZZDU%1d%1d%1d%1d%1d%1d%1d%1d%1d%06d%1d%03d%1c%1d%1d%1d%1c%06lld%1d%011lld%011lld%c%03d%1d%1d%1d%1d;",
-                                                              split,  //P1
-                                                              tune,   // P2,
-                                                              mox,    // P3 
-                                                              receivers, // P4
-                                                              active_receiver->id, // P5
-                                                              active_receiver->alex_antenna, // P6
-                                                              rit_on(),  // P7 
-                                                              active_receiver->agc, // P8
-                                                              vfo[active_receiver->id].mode, //P9
-                                                              (int) step,  // P10
-                                                              vfo[active_receiver->id].band, // P11 6d
-                                                              ((int) transmitter->drive)*100, // P12
-                                                              (int)active_receiver->agc_gain >=0 ? '+' : '-', // P13 sign
-                                                              (int)active_receiver->agc_gain, // P13 3d
-                                                              (int)active_receiver->volume, // P14 3d
-                                                              vfo[active_receiver->id].rit_enabled,
-                                                              vfo[active_receiver->id].rit >=0 ? '+' : '-', // P15 sign
-                                                              vfo[active_receiver->id].rit, // P15 6d
-                                                              vfo[active_receiver->id].ctun, // P16 1d
-                                                              vfo[active_receiver->id].frequency, // P17 11d
-                                                              vfo[active_receiver->id].ctun_frequency, // P18 11d
-                                                              smeter>=0 ? '+': '-',
-                                                              abs(smeter),
-                                                              active_receiver->nr  , active_receiver->nr2  ,
-                                                              active_receiver->anf , active_receiver->snb);
-                                                  send_resp(client_sock,msg);
-                                          }
-
-        else if((strcmp(cmd_str,"EA")==0) && zzid_flag ==1)   {  
-                                            // PiHPSDR - ZZEA - sets/reads RX EQ values
-                                            if(len<=2) {
-                                                    sprintf(msg,"ZZEA%1d%1c%03d%1c%03d%1c%03d%1c%03d;",
-                                                             enable_rx_equalizer,
-                                                             rx_equalizer[0]>=0? '+' : '-',
-                                                             abs((int) rx_equalizer[0]),
-                                                             rx_equalizer[1]>=0? '+' : '-',
-                                                             abs((int) rx_equalizer[1]),
-                                                             rx_equalizer[2]>=0? '+' : '-',
-                                                             abs((int) rx_equalizer[2]),
-                                                             rx_equalizer[3]>=0? '+' : '-',
-                                                             abs((int) rx_equalizer[3]));
-                                                     send_resp(client_sock,msg);
-                                           
-                                            } else {
-                                                 //if(len !=19) {
-                                                 //    fprintf(stderr,"RIGCTL: ZZEA - incorrect number of arguments\n"); 
-                                                 //    send_resp(client_sock,"?;");
-                                                 //    return;
-                                                // }
-                                                 double work_do;
-                                                 enable_rx_equalizer = atoi(&cmd_input[2]); 
-                                                 work_do = (double) atoi(&cmd_input[3]); 
-                                                 if((work_do < -12) || (work_do > 15)) {
-                                                     fprintf(stderr,"RIGCTL: ZZEA - Preamp arg out of range=%d \n",(int) work_do); 
-                                                     send_resp(client_sock,"?;");
-                                                     return;
-                                                 }
-                                                 rx_equalizer[0]  = work_do;
-
-                                                 work_do = (double) atoi(&cmd_input[7]); 
-                                                 if((work_do < -12) || (work_do > 15)) {
-                                                     fprintf(stderr,"RIGCTL: ZZEA - Low arg out of range=%d \n",(int) work_do); 
-                                                     send_resp(client_sock,"?;");
-                                                     return;
-                                                 }
-                                                 rx_equalizer[1]  = work_do;
-
-                                                 work_do  = (double) atoi(&cmd_input[11]); 
-                                                 if((work_do < -12) || (work_do > 15)) {
-                                                     fprintf(stderr,"RIGCTL: ZZEA - Mid arg out of range=%d \n",(int) work_do); 
-                                                     send_resp(client_sock,"?;");
-                                                     return;
-                                                 }
-                                                 rx_equalizer[2]  = work_do;
-
-                                                 work_do  = (double) atoi(&cmd_input[15]); 
-                                                 if((work_do < -12) || (work_do > 15)) {
-                                                     fprintf(stderr,"RIGCTL: ZZEA - Hi arg out of range=%d \n",(int) work_do); 
-                                                     send_resp(client_sock,"?;");
-                                                     return;
-                                                 }
-                                                 rx_equalizer[3]  = work_do;
-
-                                                 SetRXAGrphEQ(active_receiver->id, rx_equalizer);
-                                            }
-                                          }
-        else if((strcmp(cmd_str,"EB")==0) && zzid_flag ==1)   {  
-                                            // PiHPSDR - ZZEB - sets/reads TX EQ values
-                                             if(len<=2) {
-                                                    sprintf(msg,"ZZEB%1d%1c%03d%1c%03d%1c%03d%1c%03d;",
-                                                             enable_tx_equalizer,
-                                                             tx_equalizer[0]>=0? '+' : '-',
-                                                             abs((int) tx_equalizer[0]),
-                                                             tx_equalizer[1]>=0? '+' : '-',
-                                                             abs((int) tx_equalizer[1]),
-                                                             tx_equalizer[2]>=0? '+' : '-',
-                                                             abs((int) tx_equalizer[2]),
-                                                             tx_equalizer[3]>=0? '+' : '-',
-                                                             abs((int) tx_equalizer[3]));
-                                                     send_resp(client_sock,msg);
-                                           
-                                             } else {
-                                                 if(len !=19) {
-                                                     fprintf(stderr,"RIGCTL: ZZEB - incorrect number of arguments\n"); 
-                                                     send_resp(client_sock,"?;");
-                                                     return;
-                                                 }
-                                                 double work_do;
-                                                 enable_tx_equalizer = atoi(&cmd_input[2]); 
-
-                                                 work_do = (double) atoi(&cmd_input[3]); 
-                                                 if((work_do < -12) || (work_do > 15)) {
-                                                     fprintf(stderr,"RIGCTL: ZZEB - Preamp arg out of range=%d \n",(int) work_do); 
-                                                     send_resp(client_sock,"?;");
-                                                     return;
-                                                 }
-                                                 tx_equalizer[0]  = work_do;
-
-                                                 work_do = (double) atoi(&cmd_input[7]); 
-                                                 if((work_do < -12) || (work_do > 15)) {
-                                                     fprintf(stderr,"RIGCTL: ZZEB - Low arg out of range=%d \n",(int) work_do); 
-                                                     send_resp(client_sock,"?;");
-                                                     return;
-                                                 }
-                                                 tx_equalizer[1]  = work_do;
-
-                                                 work_do  = (double) atoi(&cmd_input[11]); 
-                                                 if((work_do < -12) || (work_do > 15)) {
-                                                     fprintf(stderr,"RIGCTL: ZZEB - Mid arg out of range=%d \n",(int) work_do); 
-                                                     send_resp(client_sock,"?;");
-                                                     return;
-                                                 }
-                                                 tx_equalizer[2]  = work_do;
-
-                                                 work_do  = (double) atoi(&cmd_input[15]); 
-                                                 if((work_do < -12) || (work_do > 15)) {
-                                                     fprintf(stderr,"RIGCTL: ZZEB - Hi arg out of range=%d \n",(int) work_do); 
-                                                     send_resp(client_sock,"?;");
-                                                     return;
-                                                 }
-                                                 tx_equalizer[3]  = work_do;
-
-                                                 SetTXAGrphEQ(transmitter->id, tx_equalizer);
-                                             }
-                                          }
-        else if(strcmp(cmd_str,"EX")==0)  {  // Set/reads the extension menu
-                                             // This routine only can look up specific information;
-                                             // And only performs reads at this point..
-                                             // EX P1 P1 P1 P2 P2 P3 P4 ; - Read command                                      
-                                             int p5=0;
-                                             strncpy(buf,cmd_input,9); // Get the front of the response
-                                             if(len == 10) {  // Read command                                                
-                                                 // CW Sidetone frequendcy
-                                                 if(strncmp(&cmd_input[2],"031",3) == 0) {
-                                                   if(cw_keyer_sidetone_frequency <=400) {
-                                                     p5 = 0; 
-                                                   } else if (cw_keyer_sidetone_frequency <=450) {
-                                                     p5 = 1; 
-                                                   } else if (cw_keyer_sidetone_frequency <=500) {
-                                                     p5 = 2; 
-                                                   } else if (cw_keyer_sidetone_frequency <=550) {
-                                                     p5 = 3; 
-                                                   } else if (cw_keyer_sidetone_frequency <=600) {
-                                                     p5 = 4; 
-                                                   } else if (cw_keyer_sidetone_frequency <=650) {
-                                                     p5 = 5; 
-                                                   } else if (cw_keyer_sidetone_frequency <=700) {
-                                                     p5 = 6; 
-                                                   } else if (cw_keyer_sidetone_frequency <=750) {
-                                                     p5 = 7; 
-                                                   } else if (cw_keyer_sidetone_frequency <=800) {
-                                                     p5 = 8; 
-                                                   } else if (cw_keyer_sidetone_frequency <=850) {
-                                                     p5 = 9; 
-                                                   }     
-                                                   sprintf(msg,"%s%01d;",buf,p5); 
-                                                   send_resp(client_sock,msg);
-                                                  // SPLIT
-                                                 } else if(strncmp(&cmd_input[2],"06A",3) == 0) {
-                                                   sprintf(msg,"%s%01d;",buf,split); 
-                                                   send_resp(client_sock,msg);
-                                                } else  { 
-                                                   send_resp(client_sock,"?;");
-                                                }
-                                            }
-                                          }
-        else if(strcmp(cmd_str,"FA")==0) { 
-                                            // PiHPSDR - ZZFA - VFO A frequency 
-                                            // TS2000 - FA - VFO A frequency
-                                            // LEN=7 - set frequency
-                                            // Next data will be rest of freq
-                                            if(len == 13) { //We are receiving freq info
-                                               SET_FREQUENCY *p = malloc(sizeof(SET_FREQUENCY));
-		                               p->frequency = atoll(&cmd_input[2]);
-                                               p->vfo=VFO_A;
-                                               g_idle_add(ext_set_frequency,(gpointer)p);
-                                               g_idle_add(ext_vfo_update,NULL);
-                                               return;
-                                            } else {
-                                               if(len==2) {
-                                                  if(zzid_flag == 0) {
-                                                     if(vfo[VFO_A].ctun == 1) {
-                                                        sprintf(msg,"FA%011lld;",vfo[VFO_A].frequency+vfo[VFO_A].offset);
-                                                     } else {
-                                                        sprintf(msg,"FA%011lld;",vfo[VFO_A].frequency);
-                                                     }
-                                                  } else {
-                                                     if(vfo[VFO_A].ctun == 1) {
-                                                        sprintf(msg,"ZZFA%011lld;",vfo[VFO_A].frequency+vfo[VFO_A].offset);
-                                                     } else {
-                                                        sprintf(msg,"ZZFA%011lld;",vfo[VFO_A].frequency);
-                                                     }
-                                                  }
-                                                  //fprintf(stderr,"RIGCTL: FA=%s\n",msg);
-                                                  send_resp(client_sock,msg);
-                                               }
-                                            }
-                                         }
-        else if(strcmp(cmd_str,"FB")==0) {  
-                                            // TS-2000 - FB - VFO B frequency
-                                            // PiHPSDR - ZZFB - VFO B frequency 
-                                            if(len==13) { //We are receiving freq info
-                                               SET_FREQUENCY *p = malloc(sizeof(SET_FREQUENCY));
-		                               p->frequency = atoll(&cmd_input[2]);
-                                               p->vfo=VFO_B;
-                                               g_idle_add(ext_set_frequency,(gpointer)p);
-                                               g_idle_add(ext_vfo_update,NULL);
-                                               return;
-                                            } else if(len == 2) {
-                                               if(zzid_flag == 0) {
-                                                  if(vfo[VFO_B].ctun == 1) {
-                                                     sprintf(msg,"FB%011lld;",vfo[VFO_B].frequency + vfo[VFO_B].offset);
-                                                  } else {
-                                                     sprintf(msg,"FB%011lld;",vfo[VFO_B].frequency);
-                                                  }
-                                               } else {
-                                                  if(vfo[VFO_B].ctun == 1) {
-                                                     sprintf(msg,"ZZFB%011lld;",vfo[VFO_B].frequency + vfo[VFO_B].offset);
-                                                  } else {
-                                                     sprintf(msg,"ZZFB%011lld;",vfo[VFO_B].frequency);
-                                                  }
-                                               }
-                                               send_resp(client_sock,msg);
-                                            }
-                                         }
-        /* Not supported */
-        else if(strcmp(cmd_str,"FC")==0) {  // Set Sub receiver freq
-                                            // LEN=7 - set frequency
-                                            // Next data will be rest of freq
-                                            // Len<7 - frequency?
-                                            if(len>4) { //We are receiving freq info
-                                               //long long new_freqA = atoll(&cmd_input[2]);              
-                                               //setFrequency(new_freqA);
-                                            } else {
-                                               sprintf(msg,"FC%011lld;",rigctl_getFrequency());
-                                               send_resp(client_sock,"?;");
-                                            }
-                                         }
-        else if((strcmp(cmd_str,"FD")==0) & (zzid_flag==0))  {  
-                                            // TS-2000 - FD - Read the filter display dot pattern
-                                            send_resp(client_sock,"FD00000000;");
-                                          }
-        else if((strcmp(cmd_str,"FH")==0) & (zzid_flag==1))  {
-                                            // PiHPSDR - ZZFH - Set/Read Selected current DSP Filter Low High
-                                            // P1 = (0)XXXX 5 chars --9999-09999
-                                            if(len<=2) {
-                                               sprintf(msg,"ZZFH%05d;",active_receiver->filter_high);
-                                               send_resp(client_sock,msg);
-                                            } else {
-                                               // Insure that we have a variable filter selected!
-                                               if(vfo[active_receiver->id].filter > 9) {
-                                                  work_int = atoi(&cmd_input[2]); 
-                                                  if((work_int >= -9999) && (work_int <=9999)) {
-                                                      active_receiver->filter_high = work_int;
-                                                  } else {
-                                                     fprintf(stderr,"RIGCTL Warning ZZFH Value=%d out of range\n",work_int);
-                                                     send_resp(client_sock,"?;");
-                                                  }
-                                               } else {
-                                                  fprintf(stderr,"RIGCTL Warning ZZFH not applied - VAR1/2 not selected\n");
-                                                  send_resp(client_sock,"?;");
-                                               }
-                                            } 
-                                          }
-        else if((strcmp(cmd_str,"FI")==0) & (zzid_flag==1))  {
-                                            // PiHPSDR - ZZFI - Set/Read current DSP filter selected filter
-                                            if(len<=2) {
-                                               sprintf(msg,"ZZFI%02d;",vfo[active_receiver->id].filter);
-                                               send_resp(client_sock,msg);
-                                            } else {
-                                               work_int = atoi(&cmd_input[2]);
-                                               if((work_int >=0) && (work_int<=11)) {
-                                                  g_idle_add(filter_select,(gpointer)(long)work_int);
-                                               } else { 
-                                                  fprintf(stderr,"RIGCTL: ERROR ZZFI incorrect filter value=%d",work_int);
-                                                  send_resp(client_sock,"?;");
-                                               }
-                                            } 
-                                          }
-        else if((strcmp(cmd_str,"FL")==0) & (zzid_flag==1))  {
-                                            // PiHPSDR - ZZFL - Set/Read Selected current DSP Filter Low 
-                                            // P1 = (0)XXXX 5 chars --9999-09999
-                                            if(len<=2) {
-                                               sprintf(msg,"ZZFL%05d;",active_receiver->filter_low);
-                                               send_resp(client_sock,msg);
-                                            } else {
-                                               // Insure that we have a variable filter selected!
-                                               if(vfo[active_receiver->id].filter > 9) {
-                                                  work_int = atoi(&cmd_input[2]); 
-                                                  if((work_int >= -9999) && (work_int <=9999)) {
-                                                      active_receiver->filter_low = work_int;
-                                                  } else {
-                                                     fprintf(stderr,"RIGCTL Warning ZZFH Value=%d out of range\n",work_int);
-                                                     send_resp(client_sock,"?;");
-                                                  }
-                                               } else {
-                                                  fprintf(stderr,"RIGCTL Warning ZZFH not applied - VAR1/2 not selected\n");
-                                                  send_resp(client_sock,"?;");
-                                               }
-                                            } 
-                                          }
-        else if((strcmp(cmd_str,"FR")==0) && (zzid_flag == 0))  { 
-                                            // TS-2000 - FR - Set/reads the extension menu
-                                             if(len <=2) {
-                                                if(receivers == 1) {
-                                                   sprintf(msg,"FR0;");
-                                                } else {
-                                                   sprintf(msg,"FR%1d;",active_receiver->id);
-                                                }
-                                                send_resp(client_sock,msg); 
-                                             }  else if (receivers != 1)  {
-                                                 lcl_cmd = atoi(&cmd_input[2]);                
-                                                 if(active_transmitter != lcl_cmd) {
-                                                     if (split == 0) g_idle_add(ext_split_toggle, NULL);
-                                                 } 
-                                                 if(active_receiver->id != lcl_cmd) {
-                                                    //active_receiver->id = lcl_cmd; 
-                                                    active_receiver = receiver[lcl_cmd];
-                                                    g_idle_add(ext_vfo_update,NULL);
-                                                    // SDW
-                                                    //g_idle_add(active_receiver_changed,NULL);
-                                                 } 
-                                             }
-                                          }
-        else if((strcmp(cmd_str,"FS")==0) && (zzid_flag == 0)) {  
-                                            // TS-2000 - FS - Set/reads fine funct status -
-                                             if(len <=2) {
-                                                sprintf(msg,"FS%1d;",fine);
-                                                send_resp(client_sock,msg);
-                                             } else {
-                                                int lcl_fine;
-                                                lcl_fine = atoi(&cmd_input[2]); 
-                                                if((lcl_fine >=0) && (lcl_fine <=1)) {
-                                                    fine = lcl_fine;
-                                                } else {
-                                                   send_resp(client_sock,"?;");
-                                                }
-                                             }
-                                          }
-        else if(strcmp(cmd_str,"FT")==0)  { 
-                                            // TS-2000 - FT - Set/Read Active Transmitter
-                                            // PiHPSDR - ZZFT - Set/Read Active Transmitter
-                                             if(len <=2) {
-                                                 if(zzid_flag == 0) {
-                                                   sprintf(msg,"FT%1d;",active_transmitter);
-                                                 } else {
-                                                   sprintf(msg,"ZZFT%1d;",active_transmitter);
-                                                 }
-                                                 send_resp(client_sock,msg); 
-                                             } else {
-                                                 lcl_cmd = atoi(&cmd_input[2]);                
-                                                 if((lcl_cmd ==0) ||(lcl_cmd == 1)) {
-                                                    if(lcl_cmd != active_receiver->id) {
-                                                        if (split==0) g_idle_add(ext_split_toggle, NULL);
-                                                    } else {
-                                                        if (split!=0) g_idle_add(ext_split_toggle, NULL);
-                                                    }
-                                                    active_transmitter = lcl_cmd;
-                                                    #ifdef  RIGCTL_DEBUG
-                                                    fprintf(stderr,"RIGCTL: FT New=%d\n",active_transmitter); 
-                                                    #endif
-                                                    g_idle_add(ext_vfo_update,NULL);
-                                                 } else {
-                                                    send_resp(client_sock,"?;");
-                                                 }
-                                             } 
-                                          }  
-        else if((strcmp(cmd_str,"FW")==0) & (zzid_flag==0)) {  
-                                            // TS-2000 - FW - Sets/Read DSP receive filter width in hz 0-9999hz 
-                                            // CW - legal values  50  80  100 150 200 300 400 500 600 1000 2000
-                                            //      Pi HPSDR map  50  100 100 100 250 250 400 500 600 1000
-                                            //                    25                                   750
-                                             BAND *band=band_get_band(vfo[active_receiver->id].band);
-                                             BANDSTACK *bandstack=band->bandstack;
-                                             BANDSTACK_ENTRY *entry=&bandstack->entry[vfo[active_receiver->id].bandstack];
-                                             FILTER* band_filters=filters[vfo[active_receiver->id].mode];
-                                             FILTER* band_filter=&band_filters[vfo[active_receiver->id].filter];
-                                             int cur_rad_mode= vfo[active_receiver->id].mode;
-                                             // SDW1
-                                             #ifdef  RIGCTL_DEBUG
-                                             fprintf(stderr,"RIGCTL: FW - active recv mode =%d\n",cur_rad_mode);
-                                             #endif
-                                             if((cur_rad_mode == modeCWL) || (cur_rad_mode == modeCWU)) {
-                                               if(len <=2) {
-                                                // CW filter high and low are always the same and the filter value is 2*filter val
-                                                int filter_val = abs(band_filter->high * 2);
-                                                #ifdef  RIGCTL_DEBUG
-                                                fprintf(stderr,"RIGCTL: Filter Value=%d\n",filter_val);
-                                                #endif
-                                                switch(filter_val) {
-                                                 case 25:  
-                                                 case 50:
-                                                        work_int = 50;
-                                                        break;
-                                                 case 100:
-                                                        work_int = 100; 
-                                                        break;
-                                                 case 250:
-                                                        work_int = 300; 
-                                                        break;
-                                                 case 400:
-                                                        work_int = 400; 
-                                                        break;
-                                                 case 500:
-                                                        work_int = 500; 
-                                                        break;
-                                                 case 600:
-                                                        work_int = 600; 
-                                                        break;
-                                                 case 750:
-                                                        work_int = 1000; 
-                                                        break;
-                                                 case 800:
-                                                        work_int = 1000; 
-                                                        break;
-                                                 case 1000:
-                                                        work_int = 1000; 
-                                                        break;
-                                                 default: work_int = 500; 
-                                                        break;
-                                                } 
-                                                sprintf(msg,"FW%04d;",work_int);
-                                                #ifdef  RIGCTL_DEBUG
-                                                    fprintf(stderr,"RIGCTL: FW Filter Act=%d work_int=%d\n",band_filter->high,work_int);
-                                                #endif
-                                                send_resp(client_sock,msg);
-                                               } else {
-                                                 int f;
-                                                 // Try to set filters here!
-                                                 // CW - legal values  50  80  100 150 200 300 400 500 600 1000 2000
-                                                 //      Pi HPSDR map  50  100 100 100 250 250 400 500 600 1000
-                                                 //                    25                                   750
-                                                 work_int = atoi(&cmd_input[2]);
-                                                 switch (work_int) {
-                                                    case 50:   f= 8; break;
-                                                    case 80:   f= 7; break;
-                                                    case 100:  f= 7; break;
-                                                    case 150:  f= 7; break;
-                                                    case 200:  f= 6; break;
-                                                    case 300:  f= 6; break;
-                                                    case 400:  f= 5; break;
-                                                    case 500:  f= 4; break;
-                                                    case 600:  f= 3; break;
-                                                    case 1000: f= 0; break;
-                                                    case 2000: f= 0; break;
-                                                    default:   f=10; break;
-                                                 }
-                                               #ifdef  RIGCTL_DEBUG
-                                                 fprintf(stderr,"RIGCTL: FW CW Filter width=%d piHPSDR type=%d\n", work_int, f);
-                                               #endif
-                                               g_idle_add(ext_vfo_filter_changed,(gpointer)(long)f);
-                                              }
-                                            } else {
-                                                /* Not in CW mode */
-                                                send_resp(client_sock,"?;");
-                                            }
-                                          }  
-        else if(strcmp(cmd_str,"GT")==0)  { 
-                                            // TS-2000 - GT - Sets/Reads AGC Constant
-                                            // PiHPSDR - ZZGT - AGC Constant 0-4 are legal values
-                                           if(zzid_flag == 0) {
-                                            // Sets/Read AGC constant status 000-020
-                                            // Map 000 - Off, 001-4 - Fast, 4-9 - Medium 10-14 Slow 15-20 Long
-                                             //fprintf(stderr,"GT command seen\n");
-                                             int agc_resp = 0;
-                                             if(len <=2) {
-                                                
-                                                switch(active_receiver->agc) {
-                                                   case AGC_OFF :   agc_resp = 0; break;
-                                                   case AGC_FAST:   agc_resp = 5; break;
-                                                   case AGC_MEDIUM: agc_resp = 10; break;
-                                                   case AGC_SLOW:   agc_resp = 15; break;
-                                                   case AGC_LONG:   agc_resp = 20; break;
-                                                   default: agc_resp = 0;
-                                                }
-                                                if(zzid_flag == 0) { 
-                                                   sprintf(msg,"GT%03d;",agc_resp);
-                                                } else {
-                                                   sprintf(msg,"ZZGT%03d;",agc_resp);
-                                                }
-                                                send_resp(client_sock,msg);
-                                             } else {
-                                                //fprintf(stderr,"GT command Set\n");
-                                                agc_resp = atoi(&cmd_input[2]);
-                                                
-                                                // AGC powers of 84 is broken Hamlib... 
-                                                // Hamlib TS 2000 is broken here
-                    
-                                                if(agc_resp == 0) {
-                                                   active_receiver->agc = AGC_OFF;
-                                                } else if((agc_resp >0 && agc_resp <= 5) || (agc_resp == 84)) {
-                                                   active_receiver->agc = AGC_FAST;
-                                                  //  fprintf(stderr,"GT command FAST\n");
-                                                } else if((agc_resp >6 && agc_resp <= 10) || (agc_resp == 2*84)) {
-                                                   active_receiver->agc = AGC_MEDIUM;
-                                                  // fprintf(stderr,"GT command MED\n");
-                                                } else if((agc_resp >11 && agc_resp <= 15) || (agc_resp == 3*84)) {
-                                                   active_receiver->agc = AGC_SLOW;
-                                                   //fprintf(stderr,"GT command SLOW\n");
-                                                } else if((agc_resp >16 && agc_resp <= 20) || (agc_resp == 4*84)) {
-                                                   active_receiver->agc = AGC_LONG;
-                                                   // fprintf(stderr,"GT command LONG\n");
-                                                }
-                                                g_idle_add(ext_vfo_update,NULL);
-
-                                             }
-                                            } else {
-                                                if(len<=2) {
-                                                   sprintf(msg,"ZZGT%01d;",active_receiver->agc);
-                                                   send_resp(client_sock,msg);
-                                                } else {
-                                                   int lcl_agc = atoi(&cmd_input[2]);
-                                                   if(lcl_agc >= AGC_OFF && lcl_agc<=AGC_FAST) {
-                                                      active_receiver->agc = lcl_agc;
-                                                      g_idle_add(ext_vfo_update,NULL);
-                                                   }
-                                                }
-                                           }
-                                          }  
-        else if(strcmp(cmd_str,"ID")==0)  { 
-                                            // TS-2000 - ID - Read ID - Default to TS-2000 which is type 019.
-                                            // PiHPSDR - ZZID - Read ID - 240, i.e. hamlib number
-                                              if(zzid_flag == 0) {
-                                                   sprintf(msg,"ID019;");
-                                              } else {
-                                                   sprintf(msg,"ZZID240;");
-                                              } 
-                                              send_resp(client_sock,msg);
-                                          }
-        else if((strcmp(cmd_str,"IF")==0) && (zzid_flag == 0)) {  
-                                            // TS-2000 - IF - Reads Transceiver status
-                                            // IF
-                                            //  P1: FFFFFFFFFFF -11 chars : Frequency in Hz (blanks are "0")
-                                            //  P2: OFFS        - 4 chars : Offset in powers of 10
-                                            //  P3: RITXIT      - 6 chars : RIT/XIT Frequency, Not supported = "000000"
-                                            //  P4: R           - 1 char  : RIT Status "1"= On, "0"= off
-                                            //  P5: X           - 1 char  : XIT Status "1"= On, "0"= off
-                                            //  P6: 0           - 1 char  : Channel Bank number - not used (see MC command)
-                                            //  P7: 00          - 2 chars : Channel Bank number - not used
-                                            //  P8: C           - 1 char  : Mox Status "1"= TX, "0"= RX
-                                            //  P9: M           - 1 char  : Operating mode (see MD command)
-                                            // P10: V           - 1 char  : VFO Split status - not supported
-                                            // P11: 0           - 1 char  : Scan status - not supported
-                                            // P12: A           - 1 char  : same as FT command
-                                            // P13: 0           - 1 char  : CTCSS tone - not used
-                                            // P14: 00          - 2 chars : More tone control
-                                            // P15: 0           - 1 char  : Shift status
-
-                                            // convert first half of the msg
-                                                      // IF     P1    P2  P3  P4  P5  P6
-                                            sprintf(msg,"IF%011lld%04lld%06lld%01d%01d%01d",
-                                                         //getFrequency(),
-                                                         rigctl_getFrequency(), // P1
-                                                         step,  // P2
-                                                         vfo[active_receiver->id].rit,  // P3
-                                                         rit_on(), // P4
-                                                         rit_on(), // P5
-                                                         0  // P6
-                                                         );
-
-                                            // convert second half of the msg
-                                                         //   P7  P8  P9 P10 P11 P12 P13 P14 P15;
-                                            sprintf(msg+26,"%02d%01d%01d%01d%01d%01d%01d%02d%01d;",
-                                                         0,  // P7
-                                                         mox,  // P8
-                                                         rigctlGetMode(),  // P9
-                                                         0,  // P10
-                                                         0,  // P11
-                                                         ft_read(), // P12
-                                                         transmitter->ctcss,  // P14
-                                                         convert_ctcss(),  // P13
-                                                         0); // P15
-                                            send_resp(client_sock,msg);
-                                         }
-        else if(strcmp(cmd_str,"IS")==0)  { // Sets/Reas IF shift funct status
-                                             if(len <=2) {
-                                                send_resp(client_sock,"IS00000;");
-                                             } 
-                                          }  
-        else if(((strcmp(cmd_str,"KS")==0) && (zzid_flag == 0)) ||                               // Dl1YCF added () to improve readablity
-                ((strcmp(cmd_str,"CS")==0) && (zzid_flag==1)))  {                                // Dl1YCF added () to improve readablity
-                                            // TS-2000 - KS - Set/Reads keying speed 0-060 max
-                                            // PiHPSDR - ZZCS - Sets/Reads Keying speed
-                                             if(len <=2) {
-                                                if(zzid_flag ==0) {
-                                                    sprintf(msg,"KS%03d;",cw_keyer_speed);
-                                                } else {
-                                                    sprintf(msg,"ZZCS%02d;",cw_keyer_speed);
-                                                }
-                                                send_resp(client_sock,msg);
-                                             } else {
-                                                int key_speed;
-                                                key_speed = atoi(&cmd_input[2]);
-                                                #ifdef  RIGCTL_DEBUG
-                                                fprintf(stderr,"RIGCTL: Set CW speed=%d",key_speed);
-                                                #endif
-                                                if(key_speed >= 1 && key_speed <= 60) {
-                                                   cw_keyer_speed=key_speed;
-#ifdef LOCALCW
-						   // tell keyer
-						   keyer_update();
-#endif
-                                                   g_idle_add(ext_vfo_update,NULL);
-                                                } else {
-                                                   send_resp(client_sock,"?;");
-                                                } 
-                                            }
-                                          }  
-        else if((strcmp(cmd_str,"KY")==0) && (zzid_flag == 0))
-				    { 
-					if (cw_busy < 0) cat_cw_seen=1;
-					//
-					// Hamlib produces timeout errors if we are busy here for
-					// seconds. Therefore we just move the data into a buffer
-					// that is processed by a separate thread.
-					// Note that here we only makes a 0 --> 1 transition for cw_busy,
-					// and the CW thread only makes a 1 --> 0 transition, so we do not
-					// need a mutex and/or atomic updates here.
-					//
-					// Note: The "KY;" command is used to query if we are busy. We return:
-					//  - if we can accept new data (buffer space available) : "KY0;"
-					//  - if buffer is full: "KY1;"
-					//
-					// Note: cw_busy == -1 indicates a "purge KY" situation, where
-					//       all KY commands are accepted and data is discared silently
-					//       In this case cw_busy is left untouched here.
-					//
-                                        if (len <= 2) {
-					    if (cw_busy == 1) {
-						send_resp(client_sock,"KY1;");
-					    } else {
-						send_resp(client_sock,"KY0;");
-						}
-					} else {
-					    // - We silently ignore buffer overruns. This does not happen  if
-					    //   "busy" is correctly queried.
-					    // - Note further that the space immediately following "KY" is *not*
-					    //   part of the message.
-					    if ((cw_busy==0)  && (len > 3)) {
-						// A CW text will be sent. Copy incoming data to buffer
-						strncpy(cw_buf, cmd_input+3, 29);
-						// Kenwood protocol allows for at most 24 characters, so
-						// this seems pure paranoia -- but who knows?
-						cw_buf[29]=0;
-						cw_busy=1;
-					    }
-					    // cwbusy == -1 or empty text: do nothing
-					}  
-				    }
-        else if(strcmp(cmd_str,"LK")==0)  { 
-                                            // TS-2000 - LK - Set/read key lock function status
-                                            // PiHPSDR - ZZLK - Set/read key lock function status
-                                             if(len <=2) {
-                                                if(zzid_flag == 0) {
-                                                   sprintf(msg,"LK%01d%01d;",locked,locked);
-                                                } else {
-                                                   sprintf(msg,"ZZLK%01d%01d;",locked,locked);
-                                                }
-                                                send_resp(client_sock,msg);
-                                             }  else {
-                                                  if((cmd_input[2] == '1') || (cmd_input[3]=='1'))  {
-                                                      locked = 1;
-                                                  } else {
-                                                      locked = 0;
-                                                  }
-                                                  g_idle_add(ext_vfo_update,NULL);
-                                             }
-                                          }  
-        else if(strcmp(cmd_str,"LM")==0)  { 
-                                            // TS-2000 - LM - Set/Read DRU 3A keyer recording status - not supported
-                                             if(len <=2) {
-                                                send_resp(client_sock,"?;");
-                                             } 
-                                          }  
-        else if(strcmp(cmd_str,"LT")==0)  { 
-                                            // TS-2000 - LT - Set/read Alt function - not supported
-                                             if(len <=2) {
-                                                send_resp(client_sock,"?;");
-                                             } 
-                                          }  
-        else if(strcmp(cmd_str,"MC")==0) {  
-                                            // TS-2000 - MC - Recalls or reads memory channel - not supported
-                                             if(len <=2) {
-                                               send_resp(client_sock,"?;"); // Link this to band stack at some point
-                                             }
-                                         }
-        else if((strcmp(cmd_str,"MD")==0) && (zzid_flag == 0)) {  
-                                            // TS-2000 - MD - Set/Read Mode
-                                            // Mode - digit selects mode
-                                            // 1 = LSB
-                                            // 2 = USB
-                                            // 3 = CWU
-                                            // 4 = FM
-                                            // 5 = AM
-                                            // 6 = DIGL
-                                            // 7 = CWL
-                                            // 9 = DIGU 
-                                            int new_mode;
-                                            if(len > 2) { // Set Mode
-                                               switch(atoi(&cmd_input[2])) {   
-                                                 case 1:  
-                                                     new_mode = modeLSB;
-                                                     break;
-                                                 case 2:  
-                                                     new_mode = modeUSB;
-                                                     break;
-                                                 case 3:  
-                                                     new_mode = modeCWU;
-                                                     break;
-                                                 case 4:  
-                                                     new_mode = modeFMN;
-                                                     break;
-                                                 case 5:  
-                                                     new_mode = modeAM;
-                                                     break;
-                                                 case 6:  
-                                                     new_mode = modeDIGL;
-                                                     break;
-                                                 case 7:  
-                                                     new_mode = modeCWL;
-                                                     break;
-                                                 case 9:  
-                                                     new_mode = modeDIGU;
-                                                     break;
-                                                 default:
-                                                     break;
-                                                     #ifdef RIGCTL_DEBUG
-                                                     fprintf(stderr,"MD command Unknown\n");
-                                                     #endif
-                                               }
-					    g_idle_add(ext_vfo_mode_changed, (void *) (long) new_mode);
-                                            }  else {     // Read Mode
-                                               int curr_mode;
-                                               switch (vfo[active_receiver->id].mode) {
-                                                  case modeLSB: curr_mode = 1; 
-                                                          break;   
-                                                  case modeUSB: curr_mode = 2;
-                                                          break;
-                                                  case modeCWL: curr_mode = 7; // CWL
-                                                          break;
-                                                  case modeCWU: curr_mode = 3; // CWU
-                                                          break;
-                                                  case modeFMN: curr_mode = 4; // FMN
-                                                          break;
-							  case modeAM: curr_mode = 5; // AM
-								  break;
-							  case modeDIGU: curr_mode = 9; // DIGU
-								  break;
-							  case modeDIGL: curr_mode = 6; // DIGL
-								  break;
-							  default: 
-								  #ifdef RIGCTL_DEBUG
-								    fprintf(stderr,
-								    "RIGCTL: MD command doesn't support %d\n",
-								    vfo[active_receiver->id].mode);
-								  #endif
-								  break;
-						       }
-						       sprintf(msg,"MD%1d;",curr_mode);
-						       send_resp(client_sock,msg);
-						    }
-						 }
-		else if((strcmp(cmd_str,"MD")==0) && (zzid_flag == 1)) {  
-						    // PiHPSDR - ZZMD - Set/Read Modulation Mode
-						    if(len <= 2) { // Set Mode
-						       sprintf(msg,"ZZMD%02d;",vfo[active_receiver->id].mode);
-						       send_resp(client_sock,msg);
-						    } else {
-						       work_int = atoi(&cmd_input[2]);
-						       if((work_int >=0) && (work_int <=11)) {
-							  // Other stuff to switch modes goes here..
-							  // since new_mode has the interpreted command in 
-							  // in it now.
-							  entry= (BANDSTACK_ENTRY *) 
-							     bandstack_entry_get_current();
-							  entry->mode=work_int;
-							  set_mode(active_receiver,entry->mode);
-							  FILTER* band_filters=filters[entry->mode];
-							  FILTER* band_filter=&band_filters[entry->filter];
-							  //setFilter(band_filter->low,band_filter->high);
-							  set_filter(active_receiver,band_filter->low,band_filter->high);
-							  /* Need a way to update VFO info here..*/
-							  g_idle_add(ext_vfo_update,NULL);
-						       } else {
-							  fprintf(stderr,"RIGCTL: Error - ZZMD - Illegal cmd received=%d",work_int);
-						       }
-						    } 
-						 }
-		else if((strcmp(cmd_str,"MF")==0) && (zzid_flag == 0)) {  
-						    // TS-2000 - MF - Set/read menu A/B - not supported
-						     if(len <=2) {
-						       send_resp(client_sock,"?;"); 
-						     }
-						 }
-		else if(strcmp(cmd_str,"MG")==0) {  
-						    // PiHPSDR - ZZMG - Mic Gain P1=+/-P2=2digits (-10-50)
-						    // TS-2000 - MG - Mike Gain - 3 digits
-						    if(zzid_flag == 0) {
-						       if(len <=2) {
-							  work_int = (int) ((mic_gain +10.0)* 100.0/60.0);
-							  sprintf(msg,"MG%03d;",work_int);
-							  send_resp(client_sock,msg);
-						       } else {
-							  int tval = atoi(&cmd_input[2]);                
-							  new_vol = (double) (tval * 60/100) - 10; 
-							  double *p_mic_gain=malloc(sizeof(double));
-							  *p_mic_gain=new_vol;
-							  g_idle_add(ext_set_mic_gain,(void *)p_mic_gain);
-						       }
-						    } else {
-						       if(len <=2) {
-							  sprintf(msg,"ZZMG%c%02d;",mic_gain>=0 ? '+' : '-',abs((int)mic_gain));
-							  send_resp(client_sock,msg);
-						       } else {
-							  int new_vol = atoi(&cmd_input[2]);                
-                                                          if((new_vol >= -10) && (new_vol <= 50)) {
-							     double *p_mic_gain=malloc(sizeof(double));
-							     *p_mic_gain=new_vol;
-							     g_idle_add(ext_set_mic_gain,(void *)p_mic_gain);
-                                                          } else {
-                                                             send_resp(client_sock,"?;");
-                                                          }
-						       }
-						    }
-						 }
-		else if((strcmp(cmd_str,"ML")==0) && (zzid_flag == 0)) {  
-						    // TS-2000 - ML - Set/read the monitor function level - not supported
-						     if(len <=2) {
-						       send_resp(client_sock,"?;"); 
-						     }
-						 }
-		else if(strcmp(cmd_str,"MO")==0) {  
-						    // TS-2000 - MO - Set Monitor on/off - not supported
-						     if(len <=2) {
-						       send_resp(client_sock,"?;"); 
-						     }
-						 }
-		else if((strcmp(cmd_str,"MR")==0) && (zzid_flag == 0)) {  
-						     #ifdef RIGCTL_DEBUG
-						     fprintf(stderr,"RIGCTL: Command seen\n"); 
-                                                     #endif
-	 
-						     // TS-2000 - MR - Read Memory Channel data
-						     sprintf(msg,"MR%1d%1d%02d%011lld%1d%1d%1d%02d%02d%03d%1d%1d%09d%02d%1d%08d;",
-							      0, // P1 - Rx Freq - 1 Tx Freq
-							      0, // P2 Bankd and channel number -- see MC comment
-							      0, // P3 - see MC comment 
-							      rigctl_getFrequency(), // P4 - frequency
-							      rigctlGetMode(), // P5 - Mode
-							      locked, // P6 - Locked status
-							      transmitter->ctcss, // P7 - O-off, 1-tone, 2-CTCSS, 3 =DCS
-							      convert_ctcss(),    // P8 - Tone Number - see page 35
-							      convert_ctcss(),    // P9 - CTCSS tone number - see CN command
-							      0, // P10 - DCS code - see QC command 
-							      0, // P11 - Reverse status
-							      0, // P12 - Shift status - see OS command
-							      0, // P13 - Offset freq - see OS command
-							      0, // P14 - Step Size - see ST command
-							      0, // P15 - Memory Group Number (0-9)
-							      0);  // P16 - Memory Name - 8 char max
-						       send_resp(client_sock,msg);
-						       //send_resp(client_sock,"?;");
-						 }
-		else if((strcmp(cmd_str,"MT")==0) && (zzid_flag == 1)) {  
-						    #ifdef RIGCTL_DEBUG
-						    fprintf(stderr,"RIGCTL: MT Command seen\n");
-                                                    #endif
-						    // PiHPSDR - ZZMT - Read TX Meter Mode
-						    // Mapped from PSDR
-						    // 0= ALC Peak
-						    // 1= ALC Average
-						    // 2= ALG Gain
-                                                      int * p_alc; 
-						      if(len<=2) { 
-							  switch((int)alc) {
-							     case TXA_ALC_PK:  work_int = 0; break;
-							     case TXA_ALC_AV:  work_int = 1; break;
-							     case TXA_ALC_GAIN: work_int = 2; break;
-							     default: work_int = 0;
-							  }
-							  sprintf(msg,"ZZMT%01d;",(int)work_int);
-							  send_resp(client_sock,msg);
-						      } else {
-							  work_int = atoi(&cmd_input[2]);
-							  switch (work_int)  {
-							      case 0: work_int = TXA_ALC_PK; break;
-							      case 1: work_int = TXA_ALC_AV; break;
-							      case 2: work_int = TXA_ALC_GAIN; break;
-							      default: work_int = TXA_ALC_PK;
-                                                           }
-							   p_alc=(int *) malloc(sizeof(double));
-							   *p_alc=work_int;
-							   g_idle_add(set_alc,(gpointer )p_alc);
-						      }
-						 }
-		else if(strcmp(cmd_str,"MU")==0) {   if(zzid_flag == 1) {  
-						    #ifdef RIGCTL_DEBUG
-						    fprintf(stderr,"RIGCTL: MU Command seen\n");
-                                                    #endif
-						    // PiHPSDR - ZZMU - Sets or Read the MultiRX status
-							 if(len<=2) {
-						            #ifdef RIGCTL_DEBUG
-							    fprintf(stderr,"ZZMU =%d\n",receivers);
-                                                            #endif
-							    sprintf(msg,"ZZMU%1d;",receivers);
-							    send_resp(client_sock,msg);
-							 } else {
-							   int lcl_rcvr = atoi(&cmd_input[2]);
-						           #ifdef RIGCTL_DEBUG
-							   fprintf(stderr,"ZZMU Set=%d\n",lcl_rcvr);
-                                                           #endif
-							   /*if (lcl_rcvr <1 || lcl_rcvr >2) {
-							      fprintf(stderr,"RIGCTL: ZZMU - illegal recevier number\n");
-							      return;
-							   }*/
-							   g_idle_add(ext_radio_change_sample_rate,(gpointer)(long)lcl_rcvr);
-							   g_idle_add(ext_vfo_update,NULL);
-							 }
-	 
-						     } else { 
-						    // TS-2000 - MU - Set/Read Memory Group Data - not supported
-							 if(len <=2) {
-							   send_resp(client_sock,"MU0000000000;"); 
-							 }
-						     }
-						 }
-		else if((strcmp(cmd_str,"MW")==0) && (zzid_flag == 0)) {  
-						    #ifdef RIGCTL_DEBUG
-						    fprintf(stderr,"RIGCTL: MW Command seen\n");
-                                                    #endif
-						    // TS-2000 - MW - Store Data to Memory Channel -not supported
-						 }
-		else if(strcmp(cmd_str,"NB")==0) {  
-						    // PiHPSDR - ZZNB - Set/Read Noise Blanker func status (on/off)
-						    // TS-2000 - NB - Set/Read Noise Blanker func status (on/off)
-						     if(len <=2) {
-                                                       if (zzid_flag == 0) {
-						          sprintf(msg,"NB%1d;",active_receiver->snb);
-                                                       } else {
-						          sprintf(msg,"ZZNB%1d;",active_receiver->snb);
-                                                       }
-						       send_resp(client_sock,msg);
-						     } else {
-						       if(cmd_input[2]=='0') { // Turn off ANF
-							  active_receiver->snb=0;
-						       } else { // Turn on ANF
-							  active_receiver->snb=1;
-						       }
-						       // Update filters
-						       SetRXASNBARun(active_receiver->id, active_receiver->snb);
-						       g_idle_add(ext_vfo_update,NULL);
-						     }
-						 }
-		else if((strcmp(cmd_str,"NE")==0) && (zzid_flag == 1)) {  
-						    // PiHPSDR - ZZNE - NPS AE FIlter - DSP Menu
-						    //   P1 - 0=Off
-						    //   P1 - 1=On
-						       if(len<=2) {
-							 sprintf(msg,"ZZNE%1d;",(int) active_receiver->nr2_ae); 
-							 send_resp(client_sock,msg);
-						       } else {
-							 work_int = atoi(&cmd_input[2]);
-							 if(work_int >=0 && work_int <=1) {
-							   active_receiver->nr2_ae = work_int; 
-							   SetRXAEMNRaeRun(active_receiver->id, active_receiver->nr2_ae);
-							 } else {
-							   fprintf(stderr,"RIGCTL: ZZNE - ERROR illegal value=%d s/b 0 to 2\n",work_int);
-							   send_resp(client_sock,"?;");
-							 }
-						       }
-						   }
-		else if((strcmp(cmd_str,"NG")==0) && (zzid_flag == 1)) {  
-						    // PiHPSDR - ZZNG - NR Pre AGC/Post AGC- DSP Menu
-						       if(len<=2) {
-							 sprintf(msg,"ZZNG%1d;",(int) active_receiver->nr_agc); 
-							 send_resp(client_sock,msg);
-						       } else {
-							 work_int = atoi(&cmd_input[2]);
-							 if(work_int >=0 && work_int <=1) {
-							     active_receiver->nr_agc = atoi(&cmd_input[2]);
-							     SetRXAEMNRPosition(active_receiver->id, active_receiver->nr_agc);
-							 } else { 
-							   fprintf(stderr,"RIGCTL: ZZNG - illegal value=%d s/b 0 or 1\n",work_int);
-							   send_resp(client_sock,"?;");
-							 }
-						       }
-						   }
-
-		else if((strcmp(cmd_str,"NM")==0) && (zzid_flag == 1)) {  
-						    // PiHPSDR - ZZNM - NR2 Gain Method - DSP Menu
-						    //   P1 - 0=Linear
-						    //   P1 - 1=Log
-									//   P1 - 2=Gamma
-						       if(len<=2) {
-							 sprintf(msg,"ZZNM%1d;",(int) active_receiver->nr2_gain_method); 
-							 send_resp(client_sock,msg);
-						       } else {
-							 work_int = atoi(&cmd_input[2]);
-							 if(work_int >=0 && work_int <=2) {
-							   active_receiver->nr2_gain_method = work_int; 
-							   SetRXAEMNRgainMethod(active_receiver->id, active_receiver->nr2_gain_method);
-							 } else {
-							   fprintf(stderr,"RIGCTL: ZZNM - illegal value=%d s/b 0 to 2\n",work_int);
-							   send_resp(client_sock,"?;");
-							 }
-						       }
-						 }
-		else if(strcmp(cmd_str,"AB")==0) { 
-						    #ifdef RIGCTL_DEBUG
-                                                     fprintf(stderr,"RIGCTL: Command seen\n"); 
-                                                    #endif
-                                                 }
-		else if((strcmp(cmd_str,"NP")==0) && (zzid_flag == 1)) {  
-						    // PiHPSDR - ZZNP - NPS Method - DSP Menu
-						    //   P1 - 0=OSMS
-						    //   P1 - 1=MMSE
-						       if(len<=2) {
-							 sprintf(msg,"ZZNP%1d;",(int) active_receiver->nr2_npe_method); 
-							 send_resp(client_sock,msg);
-						       } else {
-							 work_int = atoi(&cmd_input[2]);
-							 if(work_int >=0 && work_int <=1) {
-							   active_receiver->nr2_npe_method = work_int; 
-							   SetRXAEMNRnpeMethod(active_receiver->id, active_receiver->nr2_npe_method);
-							 } else {
-							   fprintf(stderr, "RIGCTL: ZZNP - ERROR illegal value=%d s/b 0 to 2\n",work_int);
-							   send_resp(client_sock,"?;");
-							 }
-						       }
-						 }
-		else if(strcmp(cmd_str,"NL")==0) {if(zzid_flag == 0) { 
-						    // TS-2000 - NL - Set/Read Noise Reduction  Level - Not Supported
-						     if(len <=2) {
-						       send_resp(client_sock,"?;"); 
-						     }
-						  } else {
-						    // PiHPSDR - ZZNL - AGC Hang Threshold - DSP Menu slider
-						     //         P1P1P1 - 0 - 100
-						     if(len <=2) {
-							sprintf(msg,"ZZNL%03d;",(int) active_receiver->agc_hang_threshold);
-							send_resp(client_sock,msg);
-						     } else {
-							work_int = atoi(&cmd_input[2]);
-							if((work_int >= 0) && (work_int<=100)) {
-							   active_receiver->agc_hang_threshold = work_int;
-							   if(active_receiver->agc==AGC_LONG || active_receiver->agc==AGC_SLOW) {
-							       SetRXAAGCHangThreshold(active_receiver->id, (int)active_receiver->agc_hang_threshold);
-							   }
-							}
-						     }
-						  }
-						 }
-		else if(strcmp(cmd_str,"NR")==0) {  
-						    // TS-2000 - NR - Set/Read Noise Reduction function status
-						    // PiHPSDR - ZZNR - Set/Read Noise Reduction function status
-						    if(len <=2) {
-                                                      if(zzid_flag == 0) {
-                                                         if (active_receiver->nr==1 && active_receiver->nr2==0) { 
-                                                            send_resp(client_sock,"NR1;"); 
-                                                         } else if (active_receiver->nr==1 && active_receiver->nr2==1) { 
-                                                           send_resp(client_sock,"NR2;"); 
-                                                         } else {
-                                                           send_resp(client_sock,"NR0;"); 
-                                                         }
-                                                      } else {
-                                                         if (active_receiver->nr==1 && active_receiver->nr2==0) { 
-                                                            send_resp(client_sock,"ZZNR1;"); 
-                                                         } else if (active_receiver->nr==1 && active_receiver->nr2==1) { 
-                                                           send_resp(client_sock,"ZZNR2;"); 
-                                                         } else {
-                                                           send_resp(client_sock,"ZZNR0;"); 
-                                                         }
-                                                      }
-                                                    } else {
-                                                      if((atoi(&cmd_input[2]) >=0) && (atoi(&cmd_input[2]) <=2)) {
-                                                         if(cmd_input[2] == '0') {
-                                                            active_receiver->nr = 0;
-                                                            active_receiver->nr2 = 0;
-                                                         } else if(cmd_input[2] == '1') {
-                                                            active_receiver->nr = 1;
-                                                         } else if(cmd_input[2] == '2') {
-                                                           active_receiver->nr2 = 1;
-                                                         }
-                                                         SetRXAANRRun(active_receiver->id, active_receiver->nr);
-                                                         SetRXAEMNRRun(active_receiver->id, active_receiver->nr2);
-                                                         g_idle_add(ext_vfo_update,NULL);
-                                                      } else {
-                                                        send_resp(client_sock,"?;"); 
-                                                      }
-                                                   } 
-                                         }
-        else if(strcmp(cmd_str,"NT")==0) {  
-                                            // TS-2000 - NT - Set/Read autonotch function - 
-                                            // PiHPSDR - ZZNT - Sets/reads ANF status
-                                             if(len <=2) {
-                                               if(zzid_flag == 0) {
-                                                  sprintf(msg,"NT%1d;",active_receiver->anf);
-                                               } else {
-                                                  sprintf(msg,"ZZNT%1d;",active_receiver->anf);
-                                               }
-                                               send_resp(client_sock,msg);
-                                             } else {
-                                               if((atoi(&cmd_input[2]) >=0) && (atoi(&cmd_input[2]) <=1)) {
-                                                  if(cmd_input[2] == '0') { // Clear ANF
-                                                    active_receiver->anf = 0;
-                                                  } else { // Set ANF
-                                                    active_receiver->anf = 1;
-                                                  }
-                                               } else {
-                                                  send_resp(client_sock,"?;"); 
-                                               }
-                                             }
-                                             SetRXAANFRun(active_receiver->id, active_receiver->anf);
-                                             g_idle_add(ext_vfo_update,NULL);
-                                         }
-        else if((strcmp(cmd_str,"OA")==0) && (zzid_flag ==1)) {  
-                                            // PiHPSDR - ZZOA - Set/Read RX Antenna by band
-                                            //           P1P1P1 - Band
-                                            //           P2 - 1,2,3,EXT1,EXT2, XVTR
-                                             int int_band;
-                                             int b;
-                                             if(len<=5) {
-                                                int_band = atoi(&cmd_input[2]);
-						#ifdef RIGCTL_DEBUG
-                                                fprintf(stderr,"RIGCTL OA band =%d\n",int_band);
-                                                #endif
-                                                //b = lookup_band(int_band);
-                                                BAND *band=band_get_band(int_band);
-                                                work_int = band->alexRxAntenna;
-                                                sprintf(msg,"ZZOA%03d%1d;",int_band,work_int);
-                                                send_resp(client_sock,msg);
-                                             } else {
-                                                char lcl_char = cmd_input[5];
-                                                cmd_input[5] = '\0';
-                                                b = atoi(&cmd_input[2]);
-                                                //b = lookup_band(int_band);
-                                                cmd_input[5] = lcl_char;
-                                                work_int = atoi(&cmd_input[5]);
-                                                if(work_int >=0 && work_int <=5) {
-						   #ifdef RIGCTL_DEBUG
-                                                   fprintf(stderr,"RIGCTL ZZOA Band=%d Val=%d\n",b,work_int);
-                                                   #endif
-                                                   BAND *band=band_get_band(b);
-                                                   band->alexRxAntenna = work_int;
-                                                } else {
-                                                   fprintf(stderr,"RIGCTL ZZOA illegal val Band=%d Val=%d\n",b,work_int);
-                                                }
-                                             }
-                                         }
-        else if((strcmp(cmd_str,"OB")==0) && (zzid_flag ==1)) {  
-                                            // PiHPSDR - ZZOB - Set/Read TX Antenna by band
-                                            //           P1P1P1 - Band
-                                            //           P2 - 1,2,3
-                                             int int_band;
-                                             int b ;
-                                             if(len<=5) {
-                                                int_band = atoi(&cmd_input[2]);
-                                                //b = lookup_band(int_band);
-                                                b = int_band;
-                                                BAND *band=band_get_band(b);
-                                                work_int = band->alexTxAntenna;
-                                                sprintf(msg,"ZZOB%03d%1d;",int_band,work_int);
-                                                send_resp(client_sock,msg);
-
-                                             } else {
-                                                char lcl_char = cmd_input[5];
-                                                cmd_input[5] = '\0';
-                                                int_band = atoi(&cmd_input[2]);
-                                                //b = lookup_band(int_band);
-                                                b = int_band;
-                                                cmd_input[5] = lcl_char;
-                                                work_int = atoi(&cmd_input[5]);
-                                                if(work_int >=0 && work_int <=2) {
-						   #ifdef RIGCTL_DEBUG
-                                                   fprintf(stderr,"RIGCTL ZZOB Band=%d Val=%d\n",int_band,work_int);
-                                                   #endif
-                                                   BAND *band=band_get_band(b);
-                                                   band->alexTxAntenna = work_int;
-                                                } else {
-                                                   fprintf(stderr,"RIGCTL ZZOB illegal val Band=%d Val=%d\n",int_band,work_int);
-                                                }
-                                             }
-                                         }
-        else if((strcmp(cmd_str,"OF")==0) && (zzid_flag == 0)) {  
-                                            // TS-2000 - OF - Set/Read Offset freq (9 digits - hz) -not supported
-                                             if(len <=2) {
-                                               //send_resp(client_sock,"OF000000000;"); 
-                                               send_resp(client_sock,"?;"); 
-                                             }
-                                         }
-        /* Not Supported */
-        else if((strcmp(cmd_str,"OI")==0) && (zzid_flag == 0)) {  
-                                            // TS-2000 - OI - Read Memory Channel Data - not supported
-                                             /*if(len <=2) {
-                                               sprintf(msg,"OI%011lld%04d%06d%1d%1d%1d%02d%1d%1d%1d%1d%1d%1d%02d%1d;",
-                                                  rigctl_getFrequency(),
-                                                  0, // P2 - Freq Step size
-                                                  0, // P3 - Rit/Xit Freq 
-                                                  0, // P4 - RIT off/Rit On
-                                                  0, // P5 - XIT off/on
-                                                  0, // P6 - Channel
-                                                  0, // P7 - Bank
-                                                  0, // P8 - 0RX, 1TX
-                                                  rigctlGetMode(),  // P10 - MD
-                                                  0, // P11 - SC command
-                                                  0, // P12 Split op - SP command
-                                                  0, // P13 Off, 1, 2, 
-                                                  0,// P14 Tone freq - See TN command
-                                                  0,0);
-                                              */
-                                               send_resp(client_sock,"?;");
-                                         }
-        else if(strcmp(cmd_str,"OS")==0) {  
-                                            // TS-2000 - OS - Set/Read Offset freq (9 digits - hz) -not supported
-                                             if(len <=2) {
-                                               //send_resp(client_sock,"OS0;"); 
-                                               send_resp(client_sock,"?;"); 
-                                             }
-                                         }
-        else if(strcmp(cmd_str,"PA")==0) { 
-                                            // TS-2000 - PA - Set/Read Preamp function status
-                                            // PiHPSDR - ZZPA - Set/Read Preamp function status
-					    // Note that currently, preamp switching is only done for CHARLY25
-                                             if(len <=2) {
-                                                if(zzid_flag == 0) {
-                                                   sprintf(msg,"PA%1d%1d;",active_receiver->preamp,active_receiver->preamp);
-                                                } else {
-                                                   sprintf(msg,"ZZPA%1d;",active_receiver->preamp);
-                                                }
-                                               send_resp(client_sock,msg);
-                                             } else {
-                                                work_int = atoi(&cmd_input[2]);
-                                                if((work_int >= 0) && (work_int <= 1)) {
-                                                    active_receiver->preamp = work_int;  
-                                                } else {
-                                                    send_resp(client_sock,"?;");
-                                                }
-                                             }
-                                         }
-        else if(strcmp(cmd_str,"PB")==0) { 
-                                            // TS-2000 - PB - DRU-3A Playback status - not supported
-                                             if(len <=2) {
-                                               send_resp(client_sock,"?;"); 
-                                             }
-                                         }
-        else if(strcmp(cmd_str,"PC")==0) {  
-                                            // TS-2000 - PC - Set/Read Drive Power output
-                                            // PiHPSDR - ZZPC - Set/Read Drive Power output
-                                            if(len<=2) {
-                                                if(zzid_flag == 0) {
-                                                  sprintf(msg,"PC%03d;",(int) transmitter->drive);
-                                                } else {
-                                                  sprintf(msg,"ZZPC%03d;",(int) transmitter->drive);
-                                                }
-                                              send_resp(client_sock,msg); 
-                                            } else {
-                                              int lcl_pc = atoi(&cmd_input[2]); 
-				              #ifdef RIGCTL_DEBUG
-                                              fprintf(stderr,"RIGCTL: PC received=%d\n",lcl_pc);
-                                              #endif
-                                              if((lcl_pc >=0) && (lcl_pc<=100)) {
-                                                  // Power Control - 3 digit number- 0 to 100
-                                                  //Scales to 0.00-1.00
-                                                
-                                                  double drive_val = 
-                                                      (double)(atoi(&cmd_input[2])); 
-                                                  // setDrive(drive_val);
-                                                  double *p_drive=malloc(sizeof(double));
-                                                  *p_drive=drive_val;
-                                                  g_idle_add(update_drive,(gpointer)p_drive);
-                                                  //set_drive(drive_val);
-                                              } else {
-                                                  fprintf(stderr,"RIGCTL: PC received=%d - Illegal value\n",lcl_pc);
-                                                  send_resp(client_sock,"?;");
-                                              }
-                                            }
-                                         }
-        else if((strcmp(cmd_str,"PI")==0) && (zzid_flag == 0)) 
-                                         {  
-                                            // TS-2000 - PI - Store the programmable memory channel - not supported
-                                         }
-        else if(strcmp(cmd_str,"PK")==0) {  
-                                            // TS-2000 - PK - Reads the packet cluster data - not supported
-                                            //  send_resp(client_sock,"PK000000000000000000000000000000000000000000000000;"); 
-                                             send_resp(client_sock,"?;"); 
-                                            
-                                         }
-        else if((strcmp(cmd_str,"PL")==0) && (zzid_flag == 0)) {  
-                                            // TS-2000 - PL - Set/Read Speech processor level 
-                                            // PL 000 000 ;
-                                            // P1 000 - min-100 max
-                                            // P2 000 - min - 100 max
-                                             double lcl_comp_level;
-                                             if(len <=2) {
-                                             //  send_resp(client_sock,"PL000000;"); 
-                                                lcl_comp_level = 100 *(transmitter->compressor_level)/20;
-                                                sprintf(msg,"PL%03d000;",(int)lcl_comp_level);
-                                                send_resp(client_sock,msg); 
-                                             } else {
-                                                // Isolate 1st command
-                                                cmd_input[5] = '\0';
-                                                lcl_comp_level = 20.0 *(((double)atoi(&cmd_input[2]))/100.0);
-				                #ifdef RIGCTL_DEBUG
-                                                fprintf(stderr,"RIGCTL - PR new level=%f4.1",lcl_comp_level);
-                                                #endif
-                                                transmitter_set_compressor_level(transmitter,lcl_comp_level);
-                                                g_idle_add(ext_vfo_update,NULL);
-                                                //transmitter->compressor_level = lcl_comp_level;
-                                             }
-                                         }
-        else if((strcmp(cmd_str,"PM")==0) && ( zzid_flag == 0)) {  
-                                            // TS-2000 - PM - Recalls the Programmable memory - not supported
-                                             if(len <=2) {
-                                               //send_resp(client_sock,"PM0;"); 
-                                               send_resp(client_sock,"?;"); 
-                                             }
-                                         }
-        else if((strcmp(cmd_str,"PR")==0) && (zzid_flag == 0)) {  
-                                            // TS-2000 - PR - Sets/reads the speech processor function on/off 
-                                            // 0 - off, 1=on
-                                             if(len <=2) {
-                                               sprintf(msg,"PR%01d;",transmitter->compressor);
-                                               send_resp(client_sock,msg);
-                                             } else {
-                                               transmitter_set_compressor(transmitter,atoi(&cmd_input[2]));
- 
-                                               g_idle_add(ext_vfo_update,NULL);
-                                               //transmitter->compressor = atoi(&cmd_input[2]);
-                                             }
-                                         }
-        else if(strcmp(cmd_str,"PS")==0) {  
-                                            // PiHPSDR - ZZPS - Sets/reads Power on/off state- always on
-                                            // TS-2000 - PS - Sets/reads Power on/off state
-                                            // 0 - off, 1=on
-                                             if(len <=2) {
-                                               send_resp(client_sock,"PS1;"); // Lets pretend we're powered up ;-) 
-                                             }
-                                         }
-        else if(strcmp(cmd_str,"PZ")==0) {   if(zzid_flag == 1) {  
-                                            // PiHPSDR - ZZPZ - Sets/Reads  Radio Sample Rate
-                                            // Valid values are 048000, 096000, 192000, 384000
-				                #ifdef RIGCTL_DEBUG
-                                                 fprintf(stderr,"ZZPZ command\n");
-                                                #endif 
-                                                 if(len<=2) {
-                                                 sprintf(msg,"ZZPZ%06d;",active_receiver->sample_rate);
-                                                 send_resp(client_sock,msg);
-                                                 } else {
-                                                   long lcl_rate = atoi(&cmd_input[2]);
-				                   #ifdef RIGCTL_DEBUG
-                                                   fprintf(stderr,"ZZPZ Set=%ld\n",lcl_rate);
-                                                   #endif
-                                                   if (lcl_rate !=48000L && lcl_rate !=96000L  &&
-                                                       lcl_rate !=192000L && lcl_rate != 384000L) {
-                                                      fprintf(stderr,"RIGCTL: ZZPZ - illegal frequency=%ld\n",lcl_rate);
-                                                      send_resp(client_sock,"?;");
-                                                      return;
-                                                   }
-                                                   
-                                                   g_idle_add(ext_radio_change_sample_rate,(gpointer)(long)lcl_rate);
-                                                   g_idle_add(ext_vfo_update,NULL);
-                                                 }
-                                              } 
-                                         }
-        else if(strcmp(cmd_str,"QC")==0) {  
-                                            // TS-2000 - QC - Sets/reads DCS code - not supported
-                                            // Codes numbered from 000 to 103.
-                                             if(len <=2) {
-                                               //send_resp(client_sock,"QC000;"); 
-                                               send_resp(client_sock,"?;"); 
-                                             }
-                                         }
-        else if(strcmp(cmd_str,"QI")==0) {  
-                                            // TS-2000 - QI - Store the settings in quick memory - not supported
-                                         }
-        else if(strcmp(cmd_str,"QR")==0) {  
-                                            // TS-2000 - QR - Send the Quick memory channel data - not supported
-                                            // P1 - Quick mem off, 1 quick mem on
-                                            // P2 - Quick mem channel number
-                                             if(len <=2) {
-                                               //send_resp(client_sock,"QR00;"); 
-                                               send_resp(client_sock,"?;"); 
-                                             }
-                                         }
-
-        else if((strcmp(cmd_str,"RA")==0) && (zzid_flag == 0)) {  
-#ifdef NOTSUPPORTED
-                                            // TS-2000 - RA - Sets/reads Attenuator function status
-                                            // 00-off, 1-99 -on - Main and sub receivers reported
-                                            int lcl_attenuation;
-                                            float calc_atten;
-                                             if(len <=2) {
-                                               //send_resp(client_sock,"RA0000;"); 
-                                               calc_atten = round((float)adc_attenuation[active_receiver->adc]*99.0/30.0);
-                                               if(calc_atten > 99.0) {
-                                                  calc_atten = 99.0;
-                                               } 
-                                               sprintf(msg,"RA%02d%02d;",(int)calc_atten,(int)calc_atten); 
-                                               send_resp(client_sock,msg);
-                                             } else {
-                                                lcl_attenuation = atoi(&cmd_input[2]); 
-                                                if((lcl_attenuation >=0) && (lcl_attenuation <= 99)) {
-                                                  lcl_attenuation = (int)((float)lcl_attenuation * 30.0/99.0);
-				                  #ifdef RIGCTL_DEBUG
-                                                  fprintf(stderr,"RIGCTL: lcl_att=%d\n",lcl_attenuation);
-                                                  #endif
-                                                  //set_attenuation(lcl_attenuation);
-                                                  set_attenuation_value((double) lcl_attenuation);
-                                                  g_idle_add(ext_vfo_update,NULL);
-                                                } else {
-#endif
-                                                  send_resp(client_sock,"?;"); 
-                                                //}
-                                             //}
-                                         }
-        else if(strcmp(cmd_str,"RC")==0) {  
-                                            // TS-2000 - RC - Clears the RIT offset freq
-                                            // PiHPSDR - ZZRC - Clears the RIT offset freq
-                                            vfo[active_receiver->id].rit = 0;
-                                            g_idle_add(ext_vfo_update,NULL);
-                                         }
-        else if(strcmp(cmd_str,"RD")==0) {  // 
-                                            // TS-2000 - RD - Move the RIT offset freq down - P1=rit_increment! 
-                                            //                P1=No Argument - decrement frequency
-                                            //                P1=NonZero - load rit offset
-                                            //                FS controls fine variable 1 or 0. rit increment 1 hz or 10hz
-                                            // PiHPSDR - ZZRD - Move the RIT offset freq down by rit_increment
-                                             int lcl_rit;
-                                             int lcl_rit_increment = fine ? 1 : 10;
-                                             if(len <=2) {
-                                               vfo[active_receiver->id].rit = vfo[active_receiver->id].rit-lcl_rit_increment;
-                                             } else {
-                                                if(len > 3) {
-                                                   lcl_rit = atoi(&cmd_input[2]);   
-                                                   if((lcl_rit >=0) &&(lcl_rit <=99999)) {
-                                                       vfo[active_receiver->id].rit = -lcl_rit;
-                                                   } else {
-                                                       send_resp(client_sock,"?;");
-                                                   }
-                                                } 
-                                             }
-                                             g_idle_add(ext_vfo_update,NULL);
-                                         }
-        else if((strcmp(cmd_str,"RF")==0) && (zzid_flag == 1)) {  
-                                            // PiHPSDR - ZZRR - Read Forward Power
-                                            forward = transmitter->fwd;
-                                            sprintf(msg,"RF%09.7f;",forward);
-                                            send_resp(client_sock,msg);
-                                         }
-        else if(strcmp(cmd_str,"RG")==0) {  
-                                            // TS-2000 - RG - RF Gain Control
-                                            // PiHPSDR - ZZRG - AGC Gain Control -20 to 120 legal range
-                                            // TS 2000 settings 0-255 value scaled to -20 to 120 range
-                                            if(zzid_flag == 0) {
-                                              if(len>4) { // Set Audio Gain
-                                                 int base_value = atoi(&cmd_input[2]);
-                                                 double new_gain = roundf(((((double) base_value+1)/256.0) * 141.0))- 21.0; 
-                                                 //set_agc_gain(new_gain);               
-                                                 double *p_gain=malloc(sizeof(double));
-                                                 *p_gain=new_gain;
-                                                 g_idle_add(ext_update_agc_gain,(gpointer)p_gain);
-                                              } else { // Read Audio Gain
-                                                 double lcl_gain = (active_receiver->agc_gain+21.0)/141.0;
-                                                 sprintf(msg,"RG%03d;",(int)((256.0 * lcl_gain) -1));
-                                                 send_resp(client_sock,msg);
-                                              }
-                                            } else {
-                                              // Pi HPSDR  version
-                                              if(len <= 2) {
-                                                 if(active_receiver->agc_gain<0) {
-                                                    sprintf(msg,"ZZRG-%03d;",(int) abs((int)active_receiver->agc_gain));
-                                                 } else {
-                                                     sprintf(msg,"ZZRG+%03d;",(int)active_receiver->agc_gain);
-                                                 }
-                                                 send_resp(client_sock,msg);
-                                                 
-                                              } else {
-                                                 work_int = atoi(&cmd_input[3]);
-                                                 if(cmd_input[2] == '-') {  // Negative number found
-                                                    work_int = -work_int;
-                                                 }
-                                                 if((work_int >= -20) && (work_int <=120)) {
-                                                    double *p_gain=malloc(sizeof(double));
-                                                    *p_gain=(double) work_int;
-                                                    g_idle_add(ext_update_agc_gain,(gpointer)p_gain);
-                                                 } else {
-                                                    fprintf(stderr,"RIGCTL: ZZRG ERROR - Illegal AGC Value=%d\n", work_int);
-                                                    send_resp(client_sock,"?;");
-                                                 }
-                                              }
-                                            }
-                                            g_idle_add(ext_vfo_update,NULL);
-                                         }
-        else if((strcmp(cmd_str,"RL")==0) && (zzid_flag == 0)) {  
-                                            // TS-2000 - RL - Set/read Noise reduction level - not supported
-                                             if(len <=2) {
-                                               //send_resp(client_sock,"RL00;"); 
-                                               send_resp(client_sock,"?;"); 
-                                             }
-                                         }
-        else if((strcmp(cmd_str,"RM")==0) && (zzid_flag == 0)) {  
-                                            // TS-2000 - RM - Set/read Meter function - not supported
-                                            // P1- 0, unsel, 1 SWR, 2 Comp, 3 ALC
-                                            // P2 - 4 dig - Meter value in dots - 000-0030
-                                             if(len <=2) {
-                                               //send_resp(client_sock,"RM00000;"); 
-                                               send_resp(client_sock,"?;"); 
-                                             }
-                                         }
-        else if((strcmp(cmd_str,"RR")==0) && (zzid_flag == 1)) {  
-                                            // PiHPSDR - ZZRR - Read Reverse Power
-                                            reverse = transmitter->rev;
-                                            sprintf(msg,"RR%09.7f;",reverse);
-                                            send_resp(client_sock,msg);
-                                         }
-        else if((strcmp(cmd_str,"RS")==0) && (zzid_flag == 1)) {  
-                                            // PiHPSDR - ZZRS - Read SWR
-                                            forward = transmitter->fwd;
-                                            reverse = transmitter->rev;
-                                            vswr = (forward+reverse)/(forward-reverse);
-                                            sprintf(msg,"RS%04.2f;",vswr);
-                                            send_resp(client_sock,msg);
-                                         }   
-        else if(strcmp(cmd_str,"RT")==0) {  
-                                            // TS-2000 - RT - Set/read the RIT function status
-                                            // PiHPSDR - ZZRT - Set/read the RIT function status
-                                             int lcl_rit_val;
-                                             if(len <=2) {
-                                                if(zzid_flag == 0) {
-                                                    sprintf(msg,"RT%01d;",rit_on());
-                                                } else {
-                                                    sprintf(msg,"ZZRT%01d;",rit_on());
-                                                }
-                                                send_resp(client_sock,msg); 
-                                             } else {
-                                                lcl_rit_val = atoi(&cmd_input[2]);
-                                                if((lcl_rit_val >=0) && (lcl_rit_val <=1)) {
-                                                   vfo[active_receiver->id].rit = lcl_rit_val;
-                                                } else {
-                                                   send_resp(client_sock,"?;"); 
-                                                }
-                                             }
-                                         }
-        else if(strcmp(cmd_str,"RU")==0) {  
-                                            // TS-2000 - RU - Set/move RIT frequency up
-                                            // PiHPSDR - ZZRU - Set/move RIT frequency up
-                                             int lcl_incr;
-                                             if(len <=2) {
-                                               lcl_incr = fine ? 1 : 10;
-                                               vfo[active_receiver->id].rit = vfo[active_receiver->id].rit+lcl_incr;
-                                             } else {
-                                                if(len > 3) {
-                                                   lcl_incr = atoi(&cmd_input[2]);    
-                                                   if((lcl_incr >=0) && (lcl_incr <= 99999)) {
-                                                      vfo[active_receiver->id].rit = lcl_incr;
-                                                   } else {
-                                                      send_resp(client_sock,"?;"); 
-                                                   }
-                                                } 
-                                             }
-                                             g_idle_add(ext_vfo_update,NULL);
-                                         }
-        else if(strcmp(cmd_str,"RX")==0) {  
-                                            // TS-2000 - RX - Unkey Xmitter
-                                            // PiHPSDR - ZZRX - Unkey Xmitter
-                                            //setMox(0);
-                                            if(!((vfo[active_receiver->id].mode == modeCWL) ||
-                                                 (vfo[active_receiver->id].mode == modeCWU))) {
-				               #ifdef RIGCTL_DEBUG
-                                               fprintf(stderr, "RIGCTL: Inside RX command\n");
-                                               #endif
-                                               mox_state=0;
-                                               g_idle_add(ext_mox_update,(gpointer)(long)mox_state); 
-                                               g_idle_add(ext_vfo_update,NULL);
-                                            } else {
-                                               // Clear External MOX in CW mode
-                                               g_idle_add(ext_mox_update,(gpointer)(long)0); // Turn on xmitter (set Mox)
-                                            }
-                                         }
-        else if(strcmp(cmd_str,"SA")==0) {  
-                                            // TS-2000 - SA - Set/reads satellite mode status - not supported
-                                            // 0-main, 1=sub
-                                             if(len <=2) {
-                                               //send_resp(client_sock,"SA000000000000000;"); 
-                                               send_resp(client_sock,"?;"); 
-                                             }
-                                         }
-        else if(strcmp(cmd_str,"SB")==0) {  
-                                            // TS-2000 - SB - Set/read the SUB TF-W status - not supported
-                                             if(len <=2) {
-                                               //send_resp(client_sock,"SB0;"); 
-                                               send_resp(client_sock,"?;"); 
-                                             }
-                                         }
-        else if(strcmp(cmd_str,"SC")==0) {  
-                                            // TS-2000 - SC - Set/read the Scan function status - not supported
-                                             if(len <=2) {
-                                               //send_resp(client_sock,"SC0;"); 
-                                               send_resp(client_sock,"?;"); 
-                                             }
-                                         }
-        else if(((strcmp(cmd_str,"SD")==0) && (zzid_flag == 0)) ||   // Dl1YCF added () to improve readablity
-                ((strcmp(cmd_str,"CD")==0) && (zzid_flag ==1))) {    // Dl1YCF added () to improve readablity
-                                            // PiHPSDR - ZZCD - Set/Read CW Keyer Hang Time
-                                            // TS-2000 - SD - Set/Read Break In Delay
-                                            // 
-                                            // 0000-1000 ms (in steps of 50 ms) 0000 is full break in
-                                                int local_cw_breakin=cw_keyer_hang_time;
-                                                // Limit report value to 1000 for TS 2000
-                                                if(local_cw_breakin > 1000) { local_cw_breakin = 1000; }
-                                                if(len <=2) {
-                                                  if(zzid_flag == 0) { // TS 2000
-                                                       sprintf(msg,"SD%04d;",local_cw_breakin);
-                                                  } else {   // ZZ command response
-                                                       sprintf(msg,"ZZCD%04d;",local_cw_breakin);
-                                                  }
-                                                  send_resp(client_sock,msg);
-                                                } else {
-                                                  local_cw_breakin = atoi(&cmd_input[2]); 
-                                                  if(cw_keyer_hang_time <= 1000) {
-                                                     if(local_cw_breakin==0) {
-                                                         cw_breakin = 1;
-                                                     }  else {
-                                                         cw_breakin = 0;
-                                                     } 
-                                                     cw_keyer_hang_time = local_cw_breakin; 
-                                                 }
-                                                }
-                                             
-                                         }
-        else if(strcmp(cmd_str,"SH")==0) {  
-                                            // TS-2000 - SH - Set/read the DSP filter settings - not supported
-                                             if(len <=2) {
-                                              // send_resp(client_sock,"SH00;"); 
-                                               send_resp(client_sock,"?;"); 
-                                             }
-                                         }
-        else if(strcmp(cmd_str,"SI")==0) {  
-                                            // TS-2000 - SI - Enters the satellite memory name - not supported
-                                         }
-        else if(strcmp(cmd_str,"SL")==0) {  
-                                            // TS-2000 - SL - Set/read the DSP filter settings - not supported
-                                             if(len <=2) {
-                                               //send_resp(client_sock,"SL00;");
-                                               send_resp(client_sock,"?;"); 
-                                             } 
-                                         }
-        else if(strcmp(cmd_str,"SM")==0) {  
-                                            // PiHPSDR - ZZSM - Read SMeter - same range as TS 2000
-                                            // TI-2000 - SM - Read SMETER
-                                            // SM0:  main receiver, SM1: sub receiver
-                                            // Resp= SM0xxxx or SM1yyyy; xxxx between 0000 and 0030, yyyy between 0000 and 0015.
-                                            double level=0.0;
-
-                                            int r=0;
-                                            if(cmd_input[2] == '0') { 
-                                              r=0;
-                                            } else if(cmd_input[2] == '1') { 
-                                              if(receivers==2) {
-                                                r=1;
-                                              }
-                                            }
-                                            level = GetRXAMeter(receiver[r]->id, smeter); 
-
-                                            if(r == 0) { 
-						// DL1YCF: In the "main" bar graph, each bar counts 4 dB.
-						// S9+60 has 30 bars, S9 has 15 bars, S7 has 12 bars, and so on
-						// since S9 is about -73 dBm, the correct formula for converting
-						// dBm to bars is 15 + (level+73)/4 or 0.25*level + 33.25.
-						// The problem is now that S1 has 3 bars, such that 0 bars would
-						// correspond to S0 - 6dB. If one assumes that S0 corresponds
-						// to 0 bars, then it follows that the slope is 2 dB per bar
-						// below S1. This assumption is used in hamlib, and thus followed here.
-						if (level <= -121.0) {
-						    new_level = (int) round(0.50*level+63.50);   // valid up to S1 = -48 dBm
-						} else {
-						    new_level = (int) round(0.25*level+33.25);   // valid if at least S1
-						}
-						// Clip
-						if(new_level < 0) { new_level = 0; }
-						if(new_level > 30) { new_level = 30;}
-                                            } else {
-						// DL1YCF: studying the pictures in the TS2000 manual,
-						// for the "sub" display we have 0-9 small bars for S0 -S9, and in addition 1-6
-						// large bars for S9+10, ..., S9+60. So the slope is 6 dB per par
-						// up to S9, and 10 dB per bar beyond.
-						if (level <= -73.0) {
-						    new_level = (int) round(0.16667*level+21.16667);   // valid up to S9
-						} else {
-						    new_level = (int) round(0.1*level+16.3);           // valid if at least S9
-						}
-						// Clip
-						if(new_level < 0) { new_level = 0; }
-						if(new_level > 15) { new_level = 15;}
-					    }
-
-                                            if(zzid_flag == 0) {
-                                               sprintf(msg,"SM%1c%04d;",
-                                                           cmd_input[2],new_level);
-                                            } else {
-                                               sprintf(msg,"ZZSM%1c%04d;",
-                                                           cmd_input[2],new_level);
-                                            }
-                                            send_resp(client_sock,msg);
-                                         }   
-
-        else if(strcmp(cmd_str,"SQ")==0) {  
-                                            // TS-2000 - SQ - Set/read the squelch level - not supported
-                                            // P1 - 0- main, 1=sub
-                                            // P2 - 0-255
-                                            float float_sq;
-                                             
-                                             if(len <=3) {
-                                                 float_sq = (float) active_receiver->squelch;
-                                                 float_sq = roundf((float_sq/100.0)*256.0);
-				                 #ifdef RIGCTL_DEBUG
-                                                     fprintf(stderr,"RIGCTL: float_sq=%6.2f\n",
-                                                                  float_sq); 
-				                 #endif
-                                                 sprintf(msg,"SQ0%03d;",(int) float_sq);
-                                                 send_resp(client_sock,msg);
-                                             } else {  // Set the value
-                                               int lcl_sq = atoi(&cmd_input[3]); // Note we skip the first char!
-                                               if((lcl_sq >= 0) && (lcl_sq <=255)) {
-                                                   float_sq = roundf(((float)lcl_sq/256.0)*100);
-                                                   active_receiver->squelch = (int)float_sq; 
-				                   #ifdef RIGCTL_DEBUG
-                                                     fprintf(stderr,"RIGCTL: SetSq float_sq=%6.2f\n",
-                                                                  float_sq); 
-				                   #endif
-                                                
-                                                 //setSquelch(active_receiver);
-                                                 g_idle_add(ext_update_squelch,NULL);
-                                                 g_idle_add(ext_vfo_update,NULL);
-                                               } else {
-                                                 send_resp(client_sock,"?;");
-                                               }
-                                             }
-                                           }
-
-        else if(strcmp(cmd_str,"SR")==0) {  
-                                            // TS-2000 - SR - Resets the transceiver - not supported
-                                         }
-        else if(strcmp(cmd_str,"SS")==0) {  
-                                            // TS-2000 - SS - Set/read Scan pause freq - not supported
-                                             if(len <=2) {
-                                               //send_resp(client_sock,"SS0;"); 
-                                               send_resp(client_sock,"?;"); 
-                                             }
-                                         }
-        else if(strcmp(cmd_str,"ST")==0) {  
-                                            // TS-2000 - ST - Set/read the multi/ch control freq steps
-                                            // PiHPSDR - ZZST - Set/read the multi/ch control freq steps
-                                            // SSB/CW/FSK - values 00-03
-                                            // 00: 1KHz, 01: 2.5Khz 02:5KHz 03: 10Khz
-                                            // AM/FM mode 00-09
-                                            // 00: 5KHz, 
-                                            // 01: 6.25KHz, 
-                                            // 02: 10Khz, 
-                                            // 03: 12.5Khz,
-                                            // 04: 15Khz, 
-                                            // 05: 20Khz, 
-                                            // 06: 25KHz
-                                            // 07: 30Khz
-                                            // 08: 50Khz
-                                            // 09: 100Khz 
-                                            if(zzid_flag == 0) {
-                                             int coded_step_val;
-                                             entry= (BANDSTACK_ENTRY *) 
-                                                bandstack_entry_get_current();
-                                             if(len <=2) {
-                                                 switch(entry->mode) {
-                                                     case modeLSB: 
-                                                     case modeUSB: 
-                                                     case modeCWL: 
-                                                     case modeCWU: 
-                                                     case modeDIGU: 
-                                                     case modeDIGL: 
-                                                        if(step >0 && step <= 1000)  {
-                                                          coded_step_val = 0; 
-                                                        } else if (step >1000 && step <=2500) {
-                                                          coded_step_val = 1; 
-                                                        } else if (step >2500 && step <=5000) {
-                                                          coded_step_val = 2; 
-                                                        } else {
-                                                          coded_step_val = 3; 
-                                                        }
-                                                        break;
-                                                     case modeFMN: 
-                                                     case modeAM:  
-                                                        if(step >0 && step <= 5000)  {
-                                                          coded_step_val = 0; 
-                                                        } else if (step >5000 && step <=6250) {
-                                                          coded_step_val = 1; 
-                                                        } else if (step >6250 && step <=10000) {
-                                                          coded_step_val = 2; 
-                                                        } else if (step >10000 && step <=12500) {
-                                                          coded_step_val = 3; 
-                                                        } else if (step >12500 && step <=15000) {
-                                                          coded_step_val = 4; 
-                                                        } else if (step >15000 && step <=20000) {
-                                                          coded_step_val = 5; 
-                                                        } else if (step >20000 && step <=25000) {
-                                                          coded_step_val = 6; 
-                                                        } else if (step >25000 && step <=30000) {
-                                                          coded_step_val = 7; 
-                                                        } else if (step >30000 && step <=50000) {
-                                                          coded_step_val = 8; 
-                                                        } else if (step >50000 && step <=100000) {
-                                                          coded_step_val = 9; 
-                                                        } else {
-                                                          coded_step_val = 0; 
-                                                        }
-                                                        break;
-                                                 } 
-                                                 sprintf(msg,"ST%02d;",coded_step_val);
-                                                 send_resp(client_sock,msg); 
-                                             } else {
-                                                 coded_step_val = atoi(&cmd_input[2]);   
-                                                 switch(entry->mode) {
-                                                     case modeLSB: 
-                                                     case modeUSB: 
-                                                     case modeCWL: 
-                                                     case modeCWU: 
-                                                     case modeDIGU: 
-                                                     case modeDIGL: 
-                                                        if(coded_step_val==0) { step = 1000;}
-                                                        if(coded_step_val==1) { step = 2500;}
-                                                        if(coded_step_val==2) { step = 5000;}
-                                                        if(coded_step_val==3) { step = 10000;}
-                                                        break; 
-                                                     case modeFMN: 
-                                                     case modeAM:  
-                                                         switch(coded_step_val) {
-                                                            case 0: step = 5000; break;
-                                                            case 1: step = 6250; break;
-                                                            case 2: step = 10000; break;
-                                                            case 3: step = 12500; break;
-                                                            case 4: step = 15000; break;
-                                                            case 5: step = 20000; break;
-                                                            case 6: step = 25000; break;
-                                                            case 7: step = 30000; break;
-                                                            case 8: step = 50000; break;
-                                                            case 9: step = 100000; break;
-                                                            default: break; // No change if not a valid number
-                                                         } 
-                                                     default: break; // No change if not a valid number
-                                                 } 
-                                             }
-                                            } else {
-                                                // Pi HPSDR handling
-				                if(len <= 2) {
-                                                   sprintf(msg,"ZZST%06lld;", step);
-                                                   send_resp(client_sock,msg);
-                                                }  else {
-                                                   int okay= 0;
-                                                   work_int = atoi(&cmd_input[2]);
-                                                   switch(work_int) {
-                                                         case 100000: okay = 1; break;
-                                                         case  50000: okay = 1; break;
-                                                         case  30000: okay = 1; break;
-                                                         case  25000: okay = 1; break;
-                                                         case  20000: okay = 1; break;
-                                                         case  15000: okay = 1; break;
-                                                         case  12500: okay = 1; break;
-                                                         case  10000: okay = 1; break;
-                                                         case   9000: okay = 1; break;
-                                                         case   6250: okay = 1; break;
-                                                         case   5000: okay = 1; break;
-                                                         case   2500: okay = 1; break;
-                                                         case   1000: okay = 1; break;
-                                                         case    500: okay = 1; break;
-                                                         case    250: okay = 1; break;
-                                                         case    100: okay = 1; break;
-                                                         case     50: okay = 1; break;
-                                                         case     10: okay = 1; break;
-                                                         case      1: okay = 1; break;
-                                                         default:     okay = 0; break;
-                                                   }
-                                                   if(okay == 0) {
-                                                         fprintf(stderr,"RIGCTL: ZZST ERROR - illegal  step val=%d\n",work_int);
-                                                         send_resp(client_sock,"?;");
-                                                   } else {
-                                                      step = work_int; 
-                                                   }
-                                                }
-                                            }
-                                            g_idle_add(ext_vfo_update,NULL);
-                                         }
-        else if((strcmp(cmd_str,"SU")==0) && (zzid_flag == 0)) {
-                                            // TS-2000 - SU - Set/read the scan pause freq - not supported
-                                             if(len <=2) {
-                                               //send_resp(client_sock,"SU00000000000;"); 
-                                               send_resp(client_sock,"?;"); 
-                                             }
-                                         }
-        else if((strcmp(cmd_str,"SV")==0) && (zzid_flag == 0)) {  
-                                            // TS-2000 - SV - Execute the memory transfer function - not supported
-                                         }
-        else if((strcmp(cmd_str,"TC")==0) && (zzid_flag == 0)) {  
-                                            // TS-2000 - TC - Set/read the internal TNC mode - not supported
-                                             if(len <=2) {
-                                               //send_resp(client_sock,"TC00;"); 
-                                               send_resp(client_sock,"?;"); 
-                                             }
-                                         }
-        else if((strcmp(cmd_str,"TD")==0) && (zzid_flag == 0)) {  
-                                            // TS-2000 - TD - Sends the DTMF memory channel - not supported
-                                         }
-        else if((strcmp(cmd_str,"TI")==0) && (zzid_flag == 0)) {  
-                                            // TS-2000 - TI - Reads the TNC LED status - not supported
-                                             if(len <=2) {
-                                               //send_resp(client_sock,"TI00;"); 
-                                               send_resp(client_sock,"?;"); 
-                                             }
-                                         }
-        else if((strcmp(cmd_str,"TN")==0) && (zzid_flag == 0))  {  
-                                            // TS-2000 - TN - Set/Read sub tone freq - not supported
-                                             if(len <=2) {
-                                               //send_resp(client_sock,"TN00;"); 
-                                               send_resp(client_sock,"?;"); 
-                                             }
-                                         }
-        else if((strcmp(cmd_str,"TO")==0) && (zzid_flag == 0)) {  
-                                            // TI-2000 - TO - Set/Read tone function - not supported
-                                             if(len <=2) {
-                                               //send_resp(client_sock,"TO0;"); 
-                                               send_resp(client_sock,"?;"); 
-                                             }
-                                         }
-        else if((strcmp(cmd_str,"TS")==0) && (zzid_flag == 0)) {  
-                                            // TI-2000 - TS - Set/Read TF Set function status
-                                             if(len <=2) {
-                                               //send_resp(client_sock,"TS0;"); 
-                                               send_resp(client_sock,"?;"); 
-                                             }
-                                         }
-        else if(strcmp(cmd_str,"TX")==0)  { 
-                                            // TS-2000 - TX - Key Xmitter - P1 - transmit on main/sub freq
-                                            // PiHPSDR - ZZTX - Key Xmitter - P1 - transmit on main/sub freq
-                                            if(!((vfo[active_receiver->id].mode == modeCWL) ||
-                                                 (vfo[active_receiver->id].mode == modeCWU))) {
-                                                 //*if(len >=3) { 
-                                                 // K5JAE: The TS 2000 real hardware does not respond 
-                                                 // to this command, thus hamlib is not expecting response.
-                                                 //send_resp(client_sock,"TX0;");  */
-                                               mox_state = 1;
-                                               g_idle_add(ext_mox_update,(gpointer)(long)mox_state); 
-                                               g_idle_add(ext_vfo_update,NULL);
-                                            } else {
-                                              g_idle_add(ext_mox_update,(gpointer)(long)1); // Turn on External MOX
-                                            }
-                                         }
-        else if(strcmp(cmd_str,"TY")==0) {  
-                                            // TI-2000 - TY -- Set/Read uP firmware type
-                                             if(len <=2) {
-                                               send_resp(client_sock,"TY000;"); 
-                                             }
-                                         }
-        else if((strcmp(cmd_str,"UA")==0) && (zzid_flag == 1)) {  
-                                            // PiHPSDR - ZZUA - Xvrt Set/Read 
-                                            //        RW P1 - 1 Char - Entry number 0-7
-                                            //         W P1 - Disable PA - 1 char
-                                            //         W P2 - 15 Char -  Title - 16th char with last being '\0'
-                                            //         W P3 - 11 Chars - Min Freq HZ
-                                            //         W P4 - 11 Chars - Max Freq HZ
-                                            //         W P5 - 11 Chars - Low Freq HZ
-                                            char lcl_buf[] = "                "; 
-                                            char tempc;
-                                            if(len<=3) {
-                                               work_int = atoi(&cmd_input[2]);
-                                               if((work_int >=0) && (work_int <=7)) {
-                                                  BAND *xvtr=band_get_band(BANDS+work_int);
-                                                  strcpy(lcl_buf,xvtr->title);
-                                                  lcl_buf[strlen(lcl_buf)] = ' '; // Replace the last entry with ' ';
-                                                  lcl_buf[15] = '\0';
-                                                  sprintf(msg,"ZZUA%1d%1d%s%011lld%011lld%011lld;",work_int,xvtr->disablePA,lcl_buf,
-                                                                              xvtr->frequencyMin,xvtr->frequencyMax,xvtr->frequencyLO);
-                                                  send_resp(client_sock,msg);
-                                               }
-                                            } else if(len==52) {
-                                              
-                                               tempc = cmd_input[3];
-                                               cmd_input[3] = '\0';
-                                               work_int = atoi(&cmd_input[2]);
-                                               cmd_input[3] = tempc;
-                                               if((work_int >=0) && (work_int <=7)) {
-
-                                                  BAND *xvtr=band_get_band(BANDS+work_int);
-                                                  tempc = cmd_input[4]; 
-                                                  cmd_input[4]='\0';
-                                                  xvtr->disablePA = atoi(&cmd_input[3]); 
-                                                  cmd_input[4]=tempc;
-                                                  
-                                                  /* Get the title of the XVTR */
-                                                  tempc = cmd_input[19];
-                                                  cmd_input[19] = '\0';
-                                                  strncpy(xvtr->title,&cmd_input[4],16); 
-                                                  cmd_input[19] = tempc;
-
-                                                  /* Pull out the Min freq */
-                                                  tempc = cmd_input[30];
-                                                  cmd_input[30]='\0';
-                                                  xvtr->frequencyMin = (long long) atoi(&cmd_input[19]); 
-                                                  cmd_input[30] = tempc;
-
-                                                  /* Pull out the Max freq */
-                                                  tempc = cmd_input[41];
-                                                  cmd_input[41]='\0';
-                                                  xvtr->frequencyMax = (long long) atoi(&cmd_input[30]); 
-                                                  cmd_input[41] = tempc;
-                                                  
-
-                                                  /* Pull out the LO freq */
-                                                  xvtr->frequencyLO = (long long) atoi(&cmd_input[41]); 
-                                                } else {
-                                                  fprintf(stderr,"RIGCTL: ERROR ZZUA - incorrect length command received=%d",len);
-                                                  send_resp(client_sock,"?;");
-                                                }
-                                            } 
-                                         }
-        else if((strcmp(cmd_str,"UL")==0) && (zzid_flag == 0)) {  
-                                            // TS-2000 - UL - Detects the PLL unlock status - not supported
-                                             if(len <=2) {
-                                               //send_resp(client_sock,"UL0;"); 
-                                               send_resp(client_sock,"?;"); 
-                                             }
-                                         }
-        else if((strcmp(cmd_str,"UP")==0) && (zzid_flag == 0))  {
-                                            // TS-2000 - UP - Emulates the mic up key
-                                         }
-        else if(strcmp(cmd_str,"VD")==0) {  
-                                            // TS-2000 - VD - Sets/Reads VOX delay time - 0000-3000ms in steps of 150
-                                            // PiHPSDR - ZZVD - Sets/Reads VOX Hang time
-                                            // We want vox_hang variable in Pi HPSDR
-                                            // Max value in variable in ms... so 250 = 250ms
-                                             if(len <=2) {
-                                               work_int = (int) vox_hang;
-                                               if(zzid_flag == 0) {
-                                                  sprintf(msg,"VD%04d;",work_int); 
-                                               } else {
-                                                  sprintf(msg,"ZZVD%04d;",work_int); 
-                                               }
-                                               send_resp(client_sock,msg);
-                                             } else {
-                                                  work_int = atoi(&cmd_input[2]);
-                                                  // Bounds check for legal values for Pi HPSDR
-                                                  if(work_int > 1000) { work_int = 1000; }
-                                                  if(work_int < 0) { work_int = 0; }
-                                                  vox_hang = (double) work_int;
-                                                  #ifdef RIGCTL_DEBUG
-                                                  fprintf(stderr,"RIGCTL: Vox hang=%0.20f\n",vox_hang);
-                                                  #endif
-                                             }
-                                         }
-        else if(strcmp(cmd_str,"VG")==0) {  
-                                            // TI-2000 - VG - Sets/Reads VOX gain 000-009
-                                            // PiHPSDR - ZZVG - Set/Read VOX Threshold - 0-1000
-                                            // We want vox_threshold variable in Pi HPSDR
-                                            // Max value in variable 0.1 
-                                            // 3 char 000-009 valid ranges
-                                            if(len <=2) {
-                                               if(zzid_flag == 0) {
-                                                    work_int = (int) ((vox_threshold) * 100.0);
-                                                    sprintf(msg,"VG00%1d;",work_int);
-                                               } else {
-                                                    work_int = (int) ((vox_threshold) * 1000.0);
-                                                    sprintf(msg,"ZZVG%04d;",work_int);
-                                               }
-                                               send_resp(client_sock,msg);
-                                             } else {
-                                               work_int = atoi(&cmd_input[2]);
-                                               if((work_int >=0) && (work_int<=9)) {
-                                                  if(zzid_flag == 0) {
-                                                     // Set the threshold here
-                                                     vox_threshold = ((double) work_int)/10.0;
-                                                     #ifdef RIGCTL_DEBUG
-                                                     fprintf(stderr,"RIGCTL: Vox thresh=%0.20f\n",vox_threshold);
-                                                     #endif
-                                                  } else {
-                                                     vox_threshold = ((double) work_int)/1000.0;
-                                                     #ifdef RIGCTL_DEBUG
-                                                     fprintf(stderr,"RIGCTL: Vox thresh=%0.20f\n",vox_threshold);
-                                                     #endif
-                                                  }
-                                                } else {
-                                                     send_resp(client_sock,"?;");
-                                                }
-                                             }
-                                         }
-        else if((strcmp(cmd_str,"VR")==0) && (zzid_flag == 0)) {  
-                                            // TS-2000 - VR - Emulates the voice 1/2 key - not supported
-                                         }
-        else if(strcmp(cmd_str,"VX")==0) {  
-                                            // TS-2000 - VX - Sets/reads vox f(x) state
-                                            // PiHPSDR - ZZVX - Set/Read VOX enabled
-                                             if(len <=2) {
-                                               if(zzid_flag == 0 ) {
-                                                   sprintf(msg,"VX%1d;",vox_enabled); 
-                                               } else {
-                                                   sprintf(msg,"ZZVX%1d;",vox_enabled); 
-                                               } 
-                                               send_resp(client_sock,msg);
-                                             } else {
-                                               work_int = atoi(&cmd_input[2]);
-                                               if(work_int==1) { vox_enabled = 1; vox= 1;}
-                                               if(work_int!=1) { vox_enabled = 0; vox=0; }
-                                             }
-                                         }
-        else if((strcmp(cmd_str,"XC")==0) && (zzid_flag == 1)) {  
-                                            // PiHPSDR - ZZXC  - Terminate "CW" via ZZXO/ZZXT (Key up and MOX off)
-					    cw_hold_key(0);
-                                            g_idle_add(ext_mox_update,(gpointer)(long)0);
-					    CAT_cw_is_active=0;
-                                         }
-        else if((strcmp(cmd_str,"XI")==0) && (zzid_flag == 1)) {  
-                                            // PiHPSDR - ZZXI - Prepeare for "CW" via ZZXO/ZZXT (MOX on)
-					    CAT_cw_is_active=1;
-                                            g_idle_add(ext_mox_update,(gpointer)(long)1);
-                                         }
-       else if((strcmp(cmd_str,"XO")==0) && (zzid_flag == 1)) {  
-                                            // PiHPSDR - ZZXO - Turn CW Note off when in CW mode
-					    cw_hold_key(0);
-                                         }
-        else if(strcmp(cmd_str,"XT")==0) {  
-                                           if(zzid_flag == 0 ) {
-                                            // TS-2000 - XT - Sets/reads the XIT f(x) state - not supported
-                                             if(len <=2) {
-                                               //send_resp(client_sock,"XT0;"); 
-                                               send_resp(client_sock,"?;"); 
-                                             }
-                                           } else {
-                                            // PiHPSDR - ZZXT - Turn CW Note on when in CW mode
-					    cw_hold_key(1);
-                                           }
-                                         }
-        else if((strcmp(cmd_str,"XX")==0) && (zzid_flag == 0)) {  // 
-                                            // Format RL01234: First dig 0=neg, 1=pos number
-                                            //                 1-4- digital offset in hertz.
-                                            if(len > 4) { // It is set instead of a read
-                                               digl_pol = (cmd_input[2]=='0') ? -1 : 1;
-                                               digl_offset = atoi(&cmd_input[3]); 
-                                               #ifdef RIGCTL_DEBUG
-                                               fprintf(stderr,"RIGCTL:RL set %d %d\n",digl_pol,digl_offset); 
-                                               #endif
-                                            } else {
-                                               if(digl_pol==1) { // Nah - its a read
-                                                 sprintf(msg,"RL1%04d;",0);
-                                               } else {
-                                                 sprintf(msg,"RL0%04d;",0);
-                                               }         
-                                               send_resp(client_sock,msg);
-                                               #ifdef RIGCTL_DEBUG
-                                               fprintf(stderr,":%s\n",msg);
-                                               #endif
-                                            }
-                                         }
-        else if(strcmp(cmd_str,"XY")==0) {  // set/read RTTY DIGL offset frequency - Not available - just store values
-                                            // Format RL01234: First dig 0=neg, 1=pos number
-                                            //                 1-4- digital offset in hertz.
-                                            if(len > 4) { // It is set instead of a read
-                                               digl_pol = (cmd_input[2]=='0') ? -1 : 1;
-                                               digl_offset = atoi(&cmd_input[3]); 
-                                               #ifdef RIGCTL_DEBUG
-                                               fprintf(stderr,"RIGCTL:RL set %d %d\n",digl_pol,digl_offset); 
-                                               #endif
-                                            } else {
-                                               if(digl_pol==1) { // Nah - its a read
-                                                 sprintf(msg,"RL1%04d;",0);
-                                               } else {
-                                                 sprintf(msg,"RL0%04d;",0);
-                                               }         
-                                               send_resp(client_sock,msg);
-                                               #ifdef RIGCTL_DEBUG
-                                               fprintf(stderr,":%s\n",msg);
-                                               #endif
-                                            }
-                                         }
-        else                             {
-                                            fprintf(stderr,"RIGCTL: UNKNOWN=%s\n",cmd_str);
-                                         }
+      }
+      break;
+    case 'N': //ZZNx
+      switch(command[3]) {
+        case 'A': //ZZNA
+          // set/read RX1 NB1
+          if(command[4]==';') {
+            sprintf(reply,"ZZNA%d;",receiver[0]->nb);
+            send_resp(client->fd,reply);
+          } else if(command[5]==';') {
+            receiver[0]->nb=atoi(&command[4]);
+            if(receiver[0]->nb) {
+              receiver[0]->nb2=0;
+            }
+            update_noise();
+          }
+          break;
+        case 'B': //ZZNB
+          // set/read RX1 NB2
+          if(command[4]==';') {
+            sprintf(reply,"ZZNB%d;",receiver[0]->nb2);
+            send_resp(client->fd,reply);
+          } else if(command[5]==';') {
+            receiver[0]->nb2=atoi(&command[4]);
+            if(receiver[0]->nb2) {
+              receiver[0]->nb=0;
+            }
+            update_noise();
+          }
+          break;
+        case 'C': //ZZNC
+          // set/read RX2 NB1
+          if(command[4]==';') {
+            sprintf(reply,"ZZNC%d;",receiver[1]->nb);
+            send_resp(client->fd,reply);
+          } else if(command[5]==';') {
+            receiver[1]->nb=atoi(&command[4]);
+            if(receiver[1]->nb) {
+              receiver[1]->nb2=0;
+            }
+            update_noise();
+          }
+          break;
+        case 'D': //ZZND
+          // set/read RX2 NB2
+          if(command[4]==';') {
+            sprintf(reply,"ZZND%d;",receiver[1]->nb2);
+            send_resp(client->fd,reply);
+          } else if(command[5]==';') {
+            receiver[1]->nb2=atoi(&command[4]);
+            if(receiver[1]->nb2) {
+              receiver[1]->nb=0;
+            }
+            update_noise();
+          }
+          break;
+        case 'L': //ZZNL
+          // set/read NB1 threshold
+          implemented=FALSE;
+          break;
+        case 'M': //ZZNM
+          // set/read NB2 threshold
+          implemented=FALSE;
+          break;
+        case 'N': //ZZNN
+          // set/read RX1 SNB status
+          if(command[4]==';') {
+            sprintf(reply,"ZZNN%d;",receiver[0]->snb);
+            send_resp(client->fd,reply);
+          } else if(command[5]==';') {
+            receiver[0]->snb=atoi(&command[4]);
+            update_noise();
+          }
+          break;
+        case 'O': //ZZNO
+          // set/read RX2 SNB status
+          if(command[4]==';') {
+            sprintf(reply,"ZZNO%d;",receiver[1]->snb);
+            send_resp(client->fd,reply);
+          } else if(command[5]==';') {
+            receiver[1]->snb=atoi(&command[4]);
+            update_noise();
+          }
+          break;
+        case 'R': //ZZNR
+          // set/read RX1 NR
+          if(command[4]==';') {
+            sprintf(reply,"ZZNR%d;",receiver[0]->nr);
+            send_resp(client->fd,reply);
+          } else if(command[5]==';') {
+            receiver[0]->nr=atoi(&command[4]);
+            if(receiver[0]->nr) {
+              receiver[0]->nr2=0;
+            }
+            update_noise();
+          }
+          break;
+        case 'S': //ZZNS
+          // set/read RX1 NR2
+          if(command[4]==';') {
+            sprintf(reply,"ZZNS%d;",receiver[0]->nr2);
+            send_resp(client->fd,reply);
+          } else if(command[5]==';') {
+            receiver[0]->nr2=atoi(&command[4]);
+            if(receiver[0]->nr2) {
+              receiver[0]->nr=0;
+            }
+            update_noise();
+          }
+          break;
+        case 'T': //ZZNT
+          // set/read RX1 ANF
+          if(command[4]==';') {
+            sprintf(reply,"ZZNT%d;",receiver[0]->anf);
+            send_resp(client->fd,reply);
+          } else if(command[5]==';') {
+            receiver[0]->anf=atoi(&command[4]);
+            update_noise();
+          }
+          break;
+        case 'U': //ZZNU
+          // set/read RX2 ANF
+          if(command[4]==';') {
+            sprintf(reply,"ZZNU%d;",receiver[1]->anf);
+            send_resp(client->fd,reply);
+          } else if(command[5]==';') {
+            receiver[1]->anf=atoi(&command[4]);
+            update_noise();
+          }
+          break;
+        case 'V': //ZZNV
+          // set/read RX2 NR
+          if(command[4]==';') {
+            sprintf(reply,"ZZNV%d;",receiver[1]->nr);
+            send_resp(client->fd,reply);
+          } else if(command[5]==';') {
+            receiver[1]->nr=atoi(&command[4]);
+            if(receiver[1]->nr) {
+              receiver[1]->nr2=0;
+            }
+            update_noise();
+          }
+          break;
+        case 'W': //ZZNW
+          // set/read RX2 NR2
+          if(command[4]==';') {
+            sprintf(reply,"ZZNW%d;",receiver[1]->nr2);
+            send_resp(client->fd,reply);
+          } else if(command[5]==';') {
+            receiver[1]->nr2=atoi(&command[4]);
+            if(receiver[1]->nr2) {
+              receiver[1]->nr=0;
+            }
+            update_noise();
+          }
+          break;
+        default:
+           implemented=FALSE;
+           break;
+      }
+    case 'O': //ZZOx
+      switch(command[3]) {
+        default:
+           implemented=FALSE;
+           break;
+      }
+      break;
+    case 'P': //ZZPx
+      switch(command[3]) {
+        case 'A': //ZZPA
+          // set/read preamp setting
+          if(command[4]==';') {
+            int a=adc[receiver[0]->adc].attenuation;
+            if(a==0) {
+              a=1;
+            } else if(a<=-30) {
+              a=4;
+            } else if(a<=-20) {
+              a=0;
+            } else if(a<=-10) {
+              a=2;
+            } else {
+              a=3;
+            }
+            sprintf(reply,"ZZPA%d;",a);
+            send_resp(client->fd,reply);
+          } else if(command[5]==';') {
+            int a=atoi(&command[4]);
+            switch(a) {
+              case 0:
+                adc[receiver[0]->adc].attenuation=-20;
+                break;
+              case 1:
+                adc[receiver[0]->adc].attenuation=0;
+                break;
+              case 2:
+                adc[receiver[0]->adc].attenuation=-10;
+                break;
+              case 3:
+                adc[receiver[0]->adc].attenuation=-20;
+                break;
+              case 4:
+                adc[receiver[0]->adc].attenuation=-30;
+                break;
+              default:
+                adc[receiver[0]->adc].attenuation=0;
+                break;
+            }
+          }
+          break;
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'Q': //ZZQx
+      switch(command[3]) {
+        default:
+           implemented=FALSE;
+           break;
+      }
+      break;
+    case 'R': //ZZRx
+      switch(command[3]) {
+        case 'C': //ZZRC
+          // clear RIT frequency
+          if(command[4]==';') {
+            vfo[VFO_A].rit=0;
+            vfo_update();
+          }
+          break;
+        case 'D': //ZZRD
+          // decrement RIT frequency
+          if(command[4]==';') {
+            if(vfo[VFO_A].mode==modeCWL || vfo[VFO_A].mode==modeCWU) {
+              vfo[VFO_A].rit-=10;
+            } else {
+              vfo[VFO_A].rit-=50;
+            }
+            vfo_update();
+          } else if(command[9]==';') {
+            vfo[VFO_A].rit=atoi(&command[4]);
+            vfo_update();
+          }
+          break;
+        case 'F': //ZZRF
+          // set/read RIT frequency
+          if(command[4]==';') {
+            sprintf(reply,"ZZRF%+5lld;",vfo[VFO_A].rit);
+            send_resp(client->fd,reply);
+          } else if(command[9]==';') {
+            vfo[VFO_A].rit=atoi(&command[4]);
+            vfo_update();
+          }
+          break;
+        case 'M': //ZZRM
+          // read meter value
+          if(command[5]==';') {
+            int m=atoi(&command[4]);
+            sprintf(reply,"ZZRM%d%20d;",smeter,(int)receiver[0]->meter);
+            send_resp(client->fd,reply);
+          }
+          break;
+        case 'S': //ZZRS
+          // set/read RX2 enable
+          if(command[4]==';') {
+            sprintf(reply,"ZZRS%d;",receivers==2);
+            send_resp(client->fd,reply);
+          } else if(command[5]==';') {
+            int state=atoi(&command[4]);
+            if(state) {
+              radio_change_receivers(2);
+            } else {
+              radio_change_receivers(1);
+            }
+          }
+          break;
+        case 'T': //ZZRT
+          // set/read RIT enable
+          if(command[4]==';') {
+            sprintf(reply,"ZZRT%d;",vfo[VFO_A].rit_enabled);
+            send_resp(client->fd,reply);
+          } else if(command[5]==';') {
+            vfo[VFO_A].rit_enabled=atoi(&command[4]);
+            vfo_update();
+          }
+          break;
+        case 'U': //ZZRU
+          // increments RIT Frequency
+          if(command[4]==';') {
+            if(vfo[VFO_A].mode==modeCWL || vfo[VFO_A].mode==modeCWU) {
+              vfo[VFO_A].rit+=10;
+            } else {
+              vfo[VFO_A].rit+=50;
+            }
+            vfo_update();
+          } else if(command[9]==';') {
+            vfo[VFO_A].rit=atoi(&command[4]);
+            vfo_update();
+          }
+          break;
+        default:
+          implemented=FALSE;
+          break;
+      }
+    case 'S': //ZZSx
+      switch(command[3]) {
+        case 'A': //ZZSA
+          // move VFO A down one step 
+          if(command[4]==';') {
+            vfo_step(-1);
+          }
+          break;
+        case 'B': //ZZSB
+          // move VFO A up one step 
+          if(command[4]==';') {
+            vfo_step(1);
+          }
+          break;
+        case 'D': //ZZSD
+          implemented=FALSE;
+          break;
+        case 'F': //ZZSF
+          implemented=FALSE;
+          break;
+        case 'G': //ZZSG
+          // move VFO B down 1 step
+          if(command[4]==';') {
+            vfo_id_step(VFO_B,-1);
+          }
+          break;
+        case 'H': //ZZSH
+          // move VFO B up 1 step
+          if(command[4]==';') {
+            vfo_id_step(VFO_B,1);
+          }
+          break;
+        case 'M': //ZZSM
+          // reads the S Meter (in dB)
+          if(command[5]==';') {
+            int v=atoi(&command[4]);
+            if(v==VFO_A || v==VFO_B) {
+              double m=receiver[v]->meter;
+              m=fmax(-140.0,m);
+              m=fmin(-10.0,m);
+              sprintf(reply,"ZZSM%d%03d;",v,(int)((m+140.0)*2));
+              send_resp(client->fd,reply);
+            }
+          }
+          break;
+        case 'N': //ZZSN
+          implemented=FALSE;
+          break;
+        case 'P': //ZZSP
+          // set/read split
+          if(command[4]==';') {
+            sprintf(reply,"ZZSP%d;",split);
+            send_resp(client->fd,reply) ;
+          } else if(command[5]==';') {
+            split=atoi(&command[4]);
+            tx_set_mode(transmitter,get_tx_mode());
+            vfo_update();
+          }
+          break;
+        case 'R': //ZZSR
+          implemented=FALSE;
+          break;
+        case 'S': //ZZSS
+          implemented=FALSE;
+          break;
+        case 'T': //ZZST
+          implemented=FALSE;
+          break;
+        case 'U': //ZZSU
+          implemented=FALSE;
+          break;
+        case 'V': //ZZSV
+          implemented=FALSE;
+          break;
+        case 'W': //ZZSW
+          // set/read split
+          if(command[4]==';') {
+            sprintf(reply,"ZZSW%d;",split);
+            send_resp(client->fd,reply) ;
+          } else if(command[5]==';') {
+            split=atoi(&command[4]);
+            tx_set_mode(transmitter,get_tx_mode());
+            vfo_update();
+          }
+          break;
+        case 'Y': //ZZSY
+          implemented=FALSE;
+          break;
+        case 'Z': //ZZSZ
+          implemented=FALSE;
+          break;
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'T': //ZZTx
+      switch(command[3]) {
+        case 'A': //ZZTA
+          implemented=FALSE;
+          break;
+        case 'B': //ZZTB
+          implemented=FALSE;
+          break;
+        case 'F': //ZZTF
+          implemented=FALSE;
+          break;
+        case 'H': //ZZTH
+          implemented=FALSE;
+          break;
+        case 'I': //ZZTI
+          implemented=FALSE;
+          break;
+        case 'L': //ZZTL
+          implemented=FALSE;
+          break;
+        case 'M': //ZZTM
+          implemented=FALSE;
+          break;
+        case 'O': //ZZTO
+          implemented=FALSE;
+          break;
+        case 'P': //ZZTP
+          implemented=FALSE;
+          break;
+        case 'S': //ZZTS
+          implemented=FALSE;
+          break;
+        case 'U': //ZZTU
+          // sets or reads TUN status
+          if(command[4]==';') {
+            sprintf(reply,"ZZTU%d;",tune);
+            send_resp(client->fd,reply) ;
+          } else if(command[5]==';') {
+            tune_update(atoi(&command[4]));
+          }
+          break;
+        case 'V': //ZZTV
+          implemented=FALSE;
+          break;
+        case 'X': //ZZTX
+          // sets or reads MOX status
+          if(command[4]==';') {
+            sprintf(reply,"ZZTX%d;",mox);
+            send_resp(client->fd,reply) ;
+          } else if(command[5]==';') {
+            mox_update(atoi(&command[4]));
+          }
+          break;
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'U': //ZZUx
+      switch(command[3]) {
+        case 'A': //ZZUA
+          implemented=FALSE;
+          break;
+        case 'S': //ZZUS
+          implemented=FALSE;
+          break;
+        case 'T': //ZZUT
+          implemented=FALSE;
+          break;
+        case 'X': //ZZUX
+          implemented=FALSE;
+          break;
+        case 'Y': //ZZUY
+          implemented=FALSE;
+          break;
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'V': //ZZVx
+      switch(command[3]) {
+        case 'A': //ZZVA
+          implemented=FALSE;
+          break;
+        case 'B': //ZZVB
+          implemented=FALSE;
+          break;
+        case 'C': //ZZVC
+          implemented=FALSE;
+          break;
+        case 'D': //ZZVD
+          implemented=FALSE;
+          break;
+        case 'E': //ZZVE
+          implemented=FALSE;
+          break;
+        case 'F': //ZZVF
+          implemented=FALSE;
+          break;
+        case 'H': //ZZVH
+          implemented=FALSE;
+          break;
+        case 'I': //ZZVI
+          implemented=FALSE;
+          break;
+        case 'J': //ZZVJ
+          implemented=FALSE;
+          break;
+        case 'K': //ZZVK
+          implemented=FALSE;
+          break;
+        case 'L': //ZZVL
+          // set/get VFO Lock
+          implemented=FALSE;
+          break;
+        case 'M': //ZZVM
+          implemented=FALSE;
+          break;
+        case 'N': //ZZVN
+          implemented=FALSE;
+          break;
+        case 'O': //ZZVO
+          implemented=FALSE;
+          break;
+        case 'P': //ZZVP
+          implemented=FALSE;
+          break;
+        case 'Q': //ZZVQ
+          implemented=FALSE;
+          break;
+        case 'R': //ZZVR
+          implemented=FALSE;
+          break;
+        case 'S': //ZZVS
+          implemented=FALSE;
+          break;
+        case 'T': //ZZVT
+          implemented=FALSE;
+          break;
+        case 'U': //ZZVU
+          implemented=FALSE;
+          break;
+        case 'V': //ZZVV
+          implemented=FALSE;
+          break;
+        case 'W': //ZZVW
+          implemented=FALSE;
+          break;
+        case 'X': //ZZVX
+          implemented=FALSE;
+          break;
+        case 'Y': //ZZVY
+          implemented=FALSE;
+          break;
+        case 'Z': //ZZVZ
+          implemented=FALSE;
+          break;
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'W': //ZZWx
+      switch(command[3]) {
+        case 'A': //ZZWA
+          implemented=FALSE;
+          break;
+        case 'B': //ZZWB
+          implemented=FALSE;
+          break;
+        case 'C': //ZZWC
+          implemented=FALSE;
+          break;
+        case 'D': //ZZWD
+          implemented=FALSE;
+          break;
+        case 'E': //ZZWE
+          implemented=FALSE;
+          break;
+        case 'F': //ZZWF
+          implemented=FALSE;
+          break;
+        case 'G': //ZZWG
+          implemented=FALSE;
+          break;
+        case 'H': //ZZWH
+          implemented=FALSE;
+          break;
+        case 'J': //ZZWJ
+          implemented=FALSE;
+          break;
+        case 'K': //ZZWK
+          implemented=FALSE;
+          break;
+        case 'L': //ZZWL
+          implemented=FALSE;
+          break;
+        case 'M': //ZZWM
+          implemented=FALSE;
+          break;
+        case 'N': //ZZWN
+          implemented=FALSE;
+          break;
+        case 'O': //ZZWO
+          implemented=FALSE;
+          break;
+        case 'P': //ZZWP
+          implemented=FALSE;
+          break;
+        case 'Q': //ZZWQ
+          implemented=FALSE;
+          break;
+        case 'R': //ZZWR
+          implemented=FALSE;
+          break;
+        case 'S': //ZZWS
+          implemented=FALSE;
+          break;
+        case 'T': //ZZWT
+          implemented=FALSE;
+          break;
+        case 'U': //ZZWU
+          implemented=FALSE;
+          break;
+        case 'V': //ZZWV
+          implemented=FALSE;
+          break;
+        case 'W': //ZZWW
+          implemented=FALSE;
+          break;
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'X': //ZZXx
+      switch(command[3]) {
+        case 'C': //ZZXC
+          // clear transmitter XIT
+          if(command[4]==';') {
+            transmitter->xit=0;
+            vfo_update();
+          }
+          break;
+        case 'F': //ZZXF
+          // set/read XIT
+          if(command[4]==';') {
+            sprintf(reply,"ZZXT%+05lld;",transmitter->xit);
+            send_resp(client->fd,reply) ;
+          } else if(command[9]==';') {
+            transmitter->xit=(long long)atoi(&command[4]);
+            vfo_update();
+          }
+          break;
+        case 'H': //ZZXH
+          implemented=FALSE;
+          break;
+        case 'N': //ZZXN
+          // read combined RX1 status
+          if(command[4]==';') {
+            int status=0;
+            status=status|((receiver[0]->agc)&0x03);
+            int a=adc[receiver[0]->adc].attenuation;
+            if(a==0) {
+              a=1;
+            } else if(a<=-30) {
+              a=4;
+            } else if(a<=-20) {
+              a=0;
+            } else if(a<=-10) {
+              a=2;
+            } else {
+              a=3;
+            }
+            status=status|((a&0x03)<<3);
+            status=status|((receiver[0]->squelch_enable&0x01)<<6);
+            status=status|((receiver[0]->nb&0x01)<<7);
+            status=status|((receiver[0]->nb2&0x01)<<8);
+            status=status|((receiver[0]->nr&0x01)<<9);
+            status=status|((receiver[0]->nr2&0x01)<<10);
+            status=status|((receiver[0]->snb&0x01)<<11);
+            status=status|((receiver[0]->anf&0x01)<<12);
+            sprintf(reply,"ZZXN%04d;",status);
+            send_resp(client->fd,reply);
+          }
+          break;
+        case 'O': //ZZXO
+          // read combined RX2 status
+          if(receivers==2) {
+            if(command[4]==';') {
+              int status=0;
+              status=status|((receiver[1]->agc)&0x03);
+              int a=adc[receiver[1]->adc].attenuation;
+              if(a==0) {
+                a=1;
+              } else if(a<=-30) {
+                a=4;
+              } else if(a<=-20) {
+                a=0;
+              } else if(a<=-10) {
+                a=2;
+              } else {
+                a=3;
+              }
+              status=status|((a&0x03)<<3);
+              status=status|((receiver[1]->squelch_enable&0x01)<<6);
+              status=status|((receiver[1]->nb&0x01)<<7);
+              status=status|((receiver[1]->nb2&0x01)<<8);
+              status=status|((receiver[1]->nr&0x01)<<9);
+              status=status|((receiver[1]->nr2&0x01)<<10);
+              status=status|((receiver[1]->snb&0x01)<<11);
+              status=status|((receiver[1]->anf&0x01)<<12);
+              sprintf(reply,"ZZXO%04d;",status);
+              send_resp(client->fd,reply);
+            }
+          }
+          break;
+        case 'S': //ZZXS
+          /// set/read XIT enable
+          if(command[4]==';') {
+            sprintf(reply,"ZZXS%d;",transmitter->xit_enabled);
+            send_resp(client->fd,reply);
+          } else if(command[5]==';') {
+            transmitter->xit_enabled=atoi(&command[4]);
+            vfo_update();
+          }
+          break;
+        case 'T': //ZZXT
+          implemented=FALSE;
+          break;
+        case 'V': //ZZXV
+          // read combined VFO status
+          if(command[4]==';') {
+            int status=0;
+            if(vfo[VFO_A].rit_enabled) {
+              status=status|0x01;
+            }
+            if(locked) {
+              status=status|0x02;
+              status=status|0x04;
+            }
+            if(split) {
+              status=status|0x08;
+            }
+            if(vfo[VFO_A].ctun) {
+              status=status|0x10;
+            }
+            if(vfo[VFO_B].ctun) {
+              status=status|0x20;
+            }
+            if(mox) {
+              status=status|0x40;
+            }
+            if(tune) {
+              status=status|0x80;
+            }
+            sprintf(reply,"ZZXV%03d;",status);
+            send_resp(client->fd,reply);
+          }
+          break;
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'Y': //ZZYx
+      switch(command[3]) {
+	case 'A': //ZZYA
+          implemented=FALSE;
+          break;
+	case 'B': //ZZYB
+          implemented=FALSE;
+          break;
+	case 'C': //ZZYC
+          implemented=FALSE;
+          break;
+	case 'R': //ZZYR
+          // switch receivers
+          if(command[5]==';') {
+            int v=atoi(&command[4]);
+            if(v==0) {
+              active_receiver=receiver[0];
+            } else if(v==1) {
+              if(receivers==2) {
+                active_receiver=receiver[1];
+              }
+            }
+            vfo_update();
+          }
+          break;
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'Z': //ZZZx
+      switch(command[3]) {
+        case 'A': //ZZZA
+          implemented=FALSE;
+          break;
+	case 'B': //ZZZB
+          implemented=FALSE;
+          break;
+	case 'Z': //ZZZZ
+          implemented=FALSE;
+          break;
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    default:
+       implemented=FALSE;
+       break;
+  }
+  return implemented;
 }
-//
-// End of Parser
-// 
 
+// called with g_idle_add so that the processing is running on the main thread
+int parse_cmd(void *data) {
+  COMMAND *info=(COMMAND *)data;
+  CLIENT *client=info->client;
+  char *command=info->command;
+  char reply[80];
+  reply[0]='\0';
+  gboolean implemented=TRUE;
+
+  switch(command[0]) {
+    case 'A':
+      switch(command[1]) {
+        case 'G': //AG
+          // set/read AF Gain
+          if(command[3]==';') {
+            // send reply back
+            sprintf(reply,"AG0%03d;",(int)(receiver[0]->volume*100.0));
+            send_resp(client->fd,reply) ;
+          } else if(command[6]==';') {
+            int gain=atoi(&command[3]);
+            receiver[0]->volume=(double)gain/100.0;
+            update_af_gain();
+          }
+          break;
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'B':
+      switch(command[1]) {
+        case 'D': //BD
+          //band down 1 band
+          band_minus(receiver[0]->id);
+          break;
+        case 'U': //BU
+          //band up 1 band
+          band_plus(receiver[0]->id);
+          break;
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'C':
+      switch(command[1]) {
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'D':
+      switch(command[1]) {
+        case 'N': //DN
+          // move VFO A down 1 step size
+          vfo_id_step(VFO_A,-1);
+          break;
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'E':
+      switch(command[1]) {
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'F':
+      switch(command[1]) {
+        case 'A': //FA
+          // set/read VFO-A frequency
+          if(command[2]==';') {
+            if(vfo[VFO_A].ctun) {
+              sprintf(reply,"FA%011lld;",vfo[VFO_A].ctun_frequency);
+            } else {
+              sprintf(reply,"FA%011lld;",vfo[VFO_A].frequency);
+            }
+            send_resp(client->fd,reply) ;
+          } else if(command[13]==';') {
+            long long f=atoll(&command[2]);
+            local_set_frequency(VFO_A,f);
+            vfo_update();
+          }
+          break;
+        case 'B': //FB
+          // set/read VFO-B frequency
+          if(command[2]==';') {
+            if(vfo[VFO_B].ctun) {
+              sprintf(reply,"FB%011lld;",vfo[VFO_B].ctun_frequency);
+            } else {
+              sprintf(reply,"FB%011lld;",vfo[VFO_B].frequency);
+            }
+            send_resp(client->fd,reply) ;
+          } else if(command[13]==';') {
+            long long f=atoll(&command[2]);
+            local_set_frequency(VFO_B,f);
+            vfo_update();
+          }
+          break;
+        case 'R': //FR
+          // set/read transceiver receive VFO
+          if(command[2]==';') {
+            sprintf(reply,"FR0;");
+            send_resp(client->fd,reply) ;
+          } else if(command[3]==';') {
+            // ignore set command
+          }
+          break;
+        case 'T': //FT
+          // set/read transceiver transmit VFO
+          if(command[2]==';') {
+            sprintf(reply,"FT%d;",split);
+            send_resp(client->fd,reply) ;
+          } else if(command[3]==';') {
+            split=atoi(&command[2]);
+            tx_set_mode(transmitter,get_tx_mode());
+            vfo_update();
+          }
+          break;
+        case 'W': //FW
+          // set/read filter width
+          implemented=FALSE;
+          break;
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'G':
+      switch(command[1]) {
+        case 'T': //GT
+          // set/read RX1 AGC
+          if(command[2]==';') {
+            sprintf(reply,"GT%03d;",receiver[0]->agc);
+            send_resp(client->fd,reply) ;
+          } else if(command[5]==';') {
+            // update RX1 AGC
+            receiver[0]->agc=atoi(&command[2]);
+            vfo_update();
+          }
+          break;
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'H':
+      switch(command[1]) {
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'I':
+      switch(command[1]) {
+        case 'D': //ID
+          // get ID
+          strcpy(reply,"ID019;");
+          send_resp(client->fd,reply);
+          break;
+        case 'F': //IF
+          sprintf(reply,"IF%011lld%04lld%+06lld%d%d000%d%d%d0%d0000;",
+                  vfo[VFO_A].ctun?vfo[VFO_A].ctun_frequency:vfo[VFO_A].frequency,
+                  step,vfo[VFO_A].rit,vfo[VFO_A].rit_enabled,transmitter==NULL?0:transmitter->xit_enabled,
+                  mox,split,0,split?1:0);
+          send_resp(client->fd,reply);
+          break;
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'J':
+      switch(command[1]) {
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'K':
+      switch(command[1]) {
+        case 'S':  // KS set CW speed
+	  if (command[2] == ';') {
+	    sprintf(reply,"KS%03d;", cw_keyer_speed);
+            send_resp(client->fd,reply);
+          } else {
+            int val=atoi(&command[2]);
+            if (val >= 1 && val <= 60)  {
+	      cw_keyer_speed=val;
+#ifdef LOCALCW
+	      keyer_update();
+#endif
+	      vfo_update();
+            } else {
+	      send_resp(fd,"?;");
+	    }
+          }
+	  break;
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'L':
+      switch(command[1]) {
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'M':
+      switch(command[1]) {
+        case 'D': //MD
+          // set/read operating mode
+          if(command[2]==';') {
+            sprintf(reply,"MD%d;",vfo[VFO_A].mode+1);
+            send_resp(client->fd,reply);
+          } else if(command[3]==';') {
+            vfo_mode_changed(atoi(&command[2])-1);
+          }
+          break;
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'N':
+      switch(command[1]) {
+        case 'B': //NB
+          // set/read NB1
+          if(command[2]==';') {
+            sprintf(reply,"NB%d;",active_receiver->nb);
+            send_resp(client->fd,reply);
+          } else if(command[3]==';') {
+            active_receiver->nb=atoi(&command[2]);
+            if(active_receiver->nb) {
+              active_receiver->nb2=0;
+            }
+            update_noise();
+          }
+          break;
+        case 'T': //NT
+          // set/read ANF
+          if(command[2]==';') {
+            sprintf(reply,"NT%d;",active_receiver->anf);
+            send_resp(client->fd,reply);
+          } else if(command[3]==';') {
+            active_receiver->anf=atoi(&command[2]);
+            SetRXAANFRun(active_receiver->id, active_receiver->anf);
+            vfo_update();
+          }
+          break;
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'O':
+      switch(command[1]) {
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'P':
+      switch(command[1]) {
+        case 'C': //PC
+          // set/read PA Power
+          if(command[2]==';') {
+            sprintf(reply,"PC%03d;",(int)transmitter->drive);
+            send_resp(client->fd,reply);
+          } else if(command[5]==';') {
+            setDrive((double)atoi(&command[2]));
+          }
+          break;
+        case 'S': //PS
+          // set/read Power (always ON)
+          if(command[2]==';') {
+            sprintf(reply,"PS1;");
+            send_resp(client->fd,reply);
+          } else if(command[3]==';') {
+            // ignore set
+          }
+          break;
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'Q':
+      switch(command[1]) {
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'R':
+      switch(command[1]) {
+        case 'C': //RC
+          // clears RIT
+          if(command[2]==';') {
+            vfo[VFO_A].rit=0;
+            vfo_update();
+          }
+          break;
+        case 'D': //RD
+          // decrements RIT Frequency
+          if(command[2]==';') {
+            if(vfo[VFO_A].mode==modeCWL || vfo[VFO_A].mode==modeCWU) {
+              vfo[VFO_A].rit-=10;
+            } else {
+              vfo[VFO_A].rit-=50;
+            }
+            vfo_update();
+          } else if(command[7]==';') {
+            vfo[VFO_A].rit=atoi(&command[2]);
+            vfo_update();
+          }
+          break;
+        case 'T': //RT
+          // set/read RIT enable
+          if(command[2]==';') {
+            sprintf(reply,"RT%d;",vfo[VFO_A].rit_enabled);
+            send_resp(client->fd,reply);
+          } else if(command[3]==';') {
+            vfo[VFO_A].rit_enabled=atoi(&command[2]);
+            vfo_update();
+          }
+          break;
+        case 'U': //RU
+          // increments RIT Frequency
+          if(command[2]==';') {
+            if(vfo[VFO_A].mode==modeCWL || vfo[VFO_A].mode==modeCWU) {
+              vfo[VFO_A].rit+=10;
+            } else {
+              vfo[VFO_A].rit+=50;
+            }
+            vfo_update();
+          } else if(command[7]==';') {
+            vfo[VFO_A].rit=atoi(&command[2]);
+            vfo_update();
+          }
+          break;
+        case 'X': //RX
+          // set transceiver to RX mode
+          if(command[2]==';') {
+            mox_update(0);
+          }
+          break;
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'S':
+      switch(command[1]) {
+        case 'M': //SM
+          // read the S meter
+          if(command[3]==';') {
+            int id=atoi(&command[2]);
+            if(id==0 || id==1) {
+              sprintf(reply,"SM%04d;",(int)receiver[id]->meter);
+              send_resp(client->fd,reply);
+            }
+          }
+          break;
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'T':
+      switch(command[1]) {
+        case 'X': //TX
+          // set transceiver to TX mode
+          if(command[2]==';') {
+            mox_update(1);
+          }
+          break;
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'U':
+      switch(command[1]) {
+        case 'P': //UP
+          // move VFO A up by step
+          if(command[2]==';') {
+            vfo_step(1);
+          }
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'V':
+      switch(command[1]) {
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'W':
+      switch(command[1]) {
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'X':
+      switch(command[1]) {
+        case 'T': //XT
+          // set/read XIT enable
+          if(command[2]==';') {
+            sprintf(reply,"XT%d;",transmitter->xit_enabled);
+            send_resp(client->fd,reply);
+          } else if(command[3]==';') {
+            transmitter->xit_enabled=atoi(&command[2]);
+            vfo_update();
+          }
+          break;
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'Y':
+      switch(command[1]) {
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    case 'Z':
+      switch(command[1]) {
+        case 'Z':
+          implemented=parse_extended_cmd (command,client);
+          break;
+        default:
+          implemented=FALSE;
+          break;
+      }
+      break;
+    default:
+      implemented=FALSE;
+      break;
+  }
+
+  if(!implemented) {
+    g_print("RIGCTL: UNIMPLEMENTED COMMAND: %s\n",info->command);
+  }
+
+  g_free(info->command);
+  g_free(info);
+  return 0;
+}
+
+// Serial Port Launch
+int set_interface_attribs (int fd, int speed, int parity)
+{
+        struct termios tty;
+        memset (&tty, 0, sizeof tty);
+        if (tcgetattr (fd, &tty) != 0)
+        {
+                g_print ("RIGCTL: Error %d from tcgetattr", errno);
+                return -1;
+        }
+
+        cfsetospeed (&tty, speed);
+        cfsetispeed (&tty, speed);
+
+        tty.c_cflag = (tty.c_cflag & ~CSIZE) | CS8;     // 8-bit chars
+        // disable IGNBRK for mismatched speed tests; otherwise receive break
+        // as \000 chars
+        tty.c_iflag &= ~IGNBRK;         // disable break processing
+        tty.c_lflag = 0;                // no signaling chars, no echo,
+                                        // no canonical processing
+        tty.c_oflag = 0;                // no remapping, no delays
+        tty.c_cc[VMIN]  = 0;            // read doesn't block
+        tty.c_cc[VTIME] = 5;            // 0.5 seconds read timeout
+
+        //tty.c_iflag &= ~(IXON | IXOFF | IXANY); // shut off xon/xoff ctrl
+        tty.c_iflag |= (IXON | IXOFF | IXANY); // shut off xon/xoff ctrl
+
+        tty.c_cflag |= (CLOCAL | CREAD);// ignore modem controls,
+                                        // enable reading
+        tty.c_cflag &= ~(PARENB | PARODD);      // shut off parity
+        tty.c_cflag |= parity;
+        tty.c_cflag &= ~CSTOPB;
+        tty.c_cflag &= ~CRTSCTS;
+
+        if (tcsetattr (fd, TCSANOW, &tty) != 0)
+        {
+                g_print( "RIGCTL: Error %d from tcsetattr", errno);
+                return -1;
+        }
+        return 0;
+}
+
+void set_blocking (int fd, int should_block)
+{
+        struct termios tty;
+        memset (&tty, 0, sizeof tty);
+        if (tcgetattr (fd, &tty) != 0)
+        {
+                g_print ("RIGCTL: Error %d from tggetattr\n", errno);
+                return;
+        }
+        tty.c_cc[VMIN]  = should_block ? 1 : 0;
+        tty.c_cc[VTIME] = 5;            // 0.5 seconds read timeout
+
+        if (tcsetattr (fd, TCSANOW, &tty) != 0)
+                g_print("RIGCTL: error %d setting term attributes\n", errno);
+}
 
 static gpointer serial_server(gpointer data) {
-   //
-   // Do essentially the same as in rigctl_client, except that the data
-   // comes from a serial line
-   //
+     // We're going to Read the Serial port and
+     // when we get data we'll send it to parse_cmd
+     CLIENT *client=(CLIENT *)data;
+     char cmd_input[MAXDATASIZE];
+     char *command=g_new(char,MAXDATASIZE);
+     int command_index=0;
+     int numbytes;
+     int i;
+     cat_control++;
+     serial_running=TRUE;
+     while(serial_running) {
+       numbytes = read (fd, cmd_input, sizeof cmd_input);
+       if(numbytes>0) {
+         for(i=0;i<numbytes;i++) {
+           command[command_index]=cmd_input[i];
+           command_index++;
+           if(cmd_input[i]==';') { 
+             command[command_index]='\0';
+             if(rigctl_debug) g_print("RIGCTL: command=%s\n",command);
+             COMMAND *info=g_new(COMMAND,1);
+             info->client=client;
+             info->command=command;
+             g_mutex_lock(&mutex_busy->m);
+             g_idle_add(parse_cmd,info);
+             g_mutex_unlock(&mutex_busy->m);
 
-   g_mutex_lock(&mutex_a->m);
-   cat_control++;
-//#ifdef RIGCTL_DEBUG
-   fprintf(stderr,"RIGCTL: CTLA INC cat_contro=%d\n",cat_control);
-//#endif
-   g_mutex_unlock(&mutex_a->m);
-   g_idle_add(ext_vfo_update,NULL);
-
-   int save_flag = 0; // Used to concatenate two cmd lines together
-   int semi_number = 0;
-   int i;
-   char * work_ptr;
-   char work_buf[MAXDATASIZE];
-   int numbytes;
-   char  cmd_input[MAXDATASIZE] ;
-   char cmd_save[80];
-
-   //
-   // Setting fd to -1 lets this thread exit
-   //
-   while(serial_enable) {
-        numbytes = read (fd, cmd_input, MAXDATASIZE);
-//
-//      I observed that "Resource temporarily not available" errors occured
-//      while reading and no data was present, therefore just wait for
-//      data and silently ignore all errors
-//
-        if (numbytes <= 0) {
-            usleep(50000);
-            continue;
-        }
-        for(i=0;i<numbytes;i++)  { work_buf[i] = cmd_input[i]; }
-        work_buf[i+1] = '\0';
-#ifdef RIGCTL_DEBUG
-        fprintf(stderr,"RIGCTL: RCVD=%s<-\n",work_buf);
-#endif
-        // Need to handle two cases
-        // 1. Command is short, i.e. no semicolon - that will set save_flag=1 and
-        //    read another line..
-        // 2. 1 to N commands per line. Turns out N1MM sends multiple commands per line
-
-        if(save_flag == 0) { // Count the number of semicolons if we aren't already in mode 1.
-          semi_number = 0;
-          for(i=0;i<numbytes;i++) {
-             if(cmd_input[i] == ';') { semi_number++;};
-          }
-        }
-        if((save_flag == 0) && (semi_number == 0)) {
-           cmd_input[numbytes] = '\0';      // Turn it into a C string
-           strcpy(cmd_save,cmd_input);      // And save a copy of it till next time through
-           save_flag = 1;
-        } else if(save_flag == 1) {
-           save_flag = 0;
-           cmd_input[numbytes] = '\0';      // Turn it into a C string
-           strcat(cmd_save,cmd_input);
-           strcpy(cmd_input,cmd_save);      // Cat them together and replace cmd_input
-           numbytes = strlen(cmd_input);
-        }
-        if(save_flag != 1) {
-           work_ptr = strtok(cmd_input,";");
-           while(work_ptr != NULL) {
-               // Lock so only one user goes into this at a time
-               g_mutex_lock(&mutex_b->m);
-               parse_cmd(work_ptr,strlen(work_ptr), fd);
-               g_mutex_unlock(&mutex_b->m);
-               work_ptr = strtok(NULL,";");
+             command=g_new(char,MAXDATASIZE);
+             command_index=0;
            }
-           for(i=0;i<MAXDATASIZE;i++){
-                cmd_input[i] = '\0';
-                work_buf[i]  = '\0';  // Clear the input buffer
-           }
-        }
-   }
-//
-// Here we arrive if (and only if) SerialEnable is unchecked in the rigctl menu
-//
-   fprintf(stderr,"RIGCTL: terminating serial thread\n");
-   return NULL;
+         }
+       } else if(numbytes<0) {
+         break;
+       }
+       //usleep(100L);
+     }
+     close(client->fd);
+     cat_control--;
+     return NULL;
 }
 
 int launch_serial () {
-     struct termios TTY;
-     fprintf(stderr,"RIGCTL: Launch RigCtl server on serial port %s\n",ser_port);
-
+     g_print("RIGCTL: Launch Serial port %s\n",ser_port);
      if(mutex_b_exists == 0) {
         mutex_b = g_new(GT_MUTEX,1);
         g_mutex_init(&mutex_b->m);
         mutex_b_exists = 1;
      }
+
+     if(mutex_busy==NULL) {
+       mutex_busy = g_new(GT_MUTEX,1);
+       g_print("launch_serial: mutex_busy=%p\n",mutex_busy);
+       g_mutex_init(&mutex_busy->m);
+     }
      
-     //
-     // We *must* open the port non-blocking, otherwise launch_serial may block
-     // for a long time if e.g. the serial cable is un-plugged
-     //
-     fd = open (ser_port, O_RDWR | O_NOCTTY | O_NONBLOCK);
+     fd = open (ser_port, O_RDWR | O_NOCTTY | O_SYNC);   
      if (fd < 0)
      {
-        fprintf (stderr,"RIGCTL: Error %d opening %s: %s\n", errno, ser_port, strerror (errno));
+        g_print("RIGCTL: Error %d opening %s: %s\n", errno, ser_port, strerror (errno));
         return 0 ;
      }
 
-     tcflush(fd, TCIFLUSH);
-     if (tcgetattr(fd, &TTY)) {
-        fprintf (stderr,"RIGCTL: Error %d getting attributes: %s: %s\n", errno, ser_port, strerror (errno));
-        close (fd);
-        return 0;
-     }
+     g_print("serial port fd=%d\n",fd);
 
-     //
-     // Note that we use hard-wired settings here: 8 data bits, no parity, 1 stop bit
-     //
-     TTY.c_cflag &= ~CSIZE;
-     TTY.c_cflag |= CS8;
-     // enable receiver, set local mode
-     TTY.c_cflag |= (CLOCAL | CREAD);
-     TTY.c_cflag &= ~PARENB;
-     TTY.c_cflag &= ~CSTOPB;
+     set_interface_attribs (fd, serial_baud_rate, serial_parity); 
+     set_blocking (fd, 1);                   // set no blocking
 
-     //
-     // Set baud rate for input and output
-     //
-     cfsetispeed(&TTY, serial_baud_rate);
-     cfsetospeed(&TTY, serial_baud_rate);
+     CLIENT *serial_client=g_new(CLIENT,1);
+     serial_client->fd=fd;
 
-     // raw input
-     TTY.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
-     // raw output
-     TTY.c_oflag &= ~OPOST;
-
-     // timeouts
-     TTY.c_cc[VMIN] = 0; // Do not block if nothing is in the input queue
-     TTY.c_cc[VTIME] =5; // A "pause" of 0.5 bytes after successfully receiving one byte indicates nothing more is to come
-
-     if (tcsetattr(fd, TCSANOW, &TTY)) {
-        fprintf (stderr,"RIGCTL: Error %d setting attributes: %s: %s\n", errno, ser_port, strerror (errno));
-        close(fd);
-        return 0;
-     }
-
-     serial_server_thread_id = g_thread_new( "Serial server", serial_server, NULL);
-     if( ! serial_server_thread_id )
+     serial_server_thread_id = g_thread_new( "Serial server", serial_server, serial_client);
+     if(!serial_server_thread_id )
      {
-       fprintf(stderr,"g_thread_new failed on serial_server\n");
-       close(fd);
+       g_free(serial_client);
+       g_print("g_thread_new failed on serial_server\n");
        return 0;
      }
      return 1;
@@ -3904,17 +3208,8 @@ int launch_serial () {
 
 // Serial Port close
 void disable_serial () {
-     fprintf(stderr,"RIGCTL: Disable Serial port %s\n",ser_port);
-     g_mutex_lock(&mutex_a->m);
-     cat_control--;
-     g_mutex_unlock(&mutex_a->m);
-//
-//   serial_enable is zero if this one is called, but let us ensure this
-//   and then wait for the serial server to complete.
-//
-     serial_enable=0;
-     g_thread_join(serial_server_thread_id);
-     close(fd);
+     g_print("RIGCTL: Disable Serial port %s\n",ser_port);
+     serial_running=FALSE;
 }
 
 //
@@ -3923,7 +3218,7 @@ void disable_serial () {
 //
 void launch_rigctl () {
    
-   fprintf(stderr, "LAUNCHING RIGCTL!!\n");
+   g_print( "LAUNCHING RIGCTL!!\n");
 
    rigctl_busy = 1;
    mutex_a = g_new(GT_MUTEX,1);
@@ -3938,11 +3233,15 @@ void launch_rigctl () {
    mutex_c = g_new(GT_MUTEX,1);
    g_mutex_init(&mutex_c->m);
 
+   mutex_busy = g_new(GT_MUTEX,1);
+g_print("launch_rigctl: mutex_busy=%p\n",mutex_busy);
+   g_mutex_init(&mutex_busy->m);
+
    // This routine encapsulates the thread call
    rigctl_server_thread_id = g_thread_new( "rigctl server", rigctl_server, (gpointer)(long)rigctl_port_base);
    if( ! rigctl_server_thread_id )
    {
-     fprintf(stderr,"g_thread_new failed on rigctl_server\n");
+     g_print("g_thread_new failed on rigctl_server\n");
    }
 }
 
@@ -3971,7 +3270,7 @@ void set_freqB(long long new_freqB) {
 int set_alc(gpointer data) {
     int * lcl_ptr = (int *) data;
     alc = *lcl_ptr;
-    fprintf(stderr,"RIGCTL: set_alc=%d\n",alc);
+    g_print("RIGCTL: set_alc=%d\n",alc);
     return 0;
 }
 
@@ -3997,3 +3296,5 @@ int lookup_band(int val) {
      }
      return work_int;
 }
+
+
