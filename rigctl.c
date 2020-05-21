@@ -2147,6 +2147,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
             sprintf(reply,"ZZSP%d;",split);
             send_resp(client->fd,reply) ;
           } else if(command[5]==';') {
+	    // use ext_set_split to take care of antenna switching
             split=atoi(&command[4]);
             tx_set_mode(transmitter,get_tx_mode());
             vfo_update();
@@ -2173,6 +2174,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
             sprintf(reply,"ZZSW%d;",split);
             send_resp(client->fd,reply) ;
           } else if(command[5]==';') {
+	    // use ext_set_split to take care of antenna switching
             split=atoi(&command[4]);
             tx_set_mode(transmitter,get_tx_mode());
             vfo_update();
@@ -2724,6 +2726,7 @@ int parse_cmd(void *data) {
             sprintf(reply,"FT%d;",split);
             send_resp(client->fd,reply) ;
           } else if(command[3]==';') {
+	    // use ext_set_split to take care of antenna switching
             split=atoi(&command[2]);
             tx_set_mode(transmitter,get_tx_mode());
             vfo_update();
@@ -3135,7 +3138,10 @@ static gpointer serial_server(gpointer data) {
      int command_index=0;
      int numbytes;
      int i;
+     g_mutex_lock(&mutex_a->m);
      cat_control++;
+     if(rigctl_debug) g_print("RIGCTL: SER INC cat_contro=%d\n",cat_control);
+     g_mutex_unlock(&mutex_a->m);
      serial_running=TRUE;
      while(serial_running) {
        numbytes = read (fd, cmd_input, sizeof cmd_input);
@@ -3163,7 +3169,10 @@ static gpointer serial_server(gpointer data) {
        //usleep(100L);
      }
      close(client->fd);
+     g_mutex_lock(&mutex_a->m);
      cat_control--;
+     if(rigctl_debug) g_print("RIGCTL: SER DEC - cat_control=%d\n",cat_control);
+     g_mutex_unlock(&mutex_a->m);
      return NULL;
 }
 

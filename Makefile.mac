@@ -478,7 +478,7 @@ hpsdrsim:       hpsdrsim.o newhpsdrsim.o
 #############################################################################
 app:	$(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) \
 		$(LOCALCW_OBJS) \
-		$(PURESIGNAL_OBJS) $(MIDI_OBJS) $(STEMLAB_OBJS)
+		$(PURESIGNAL_OBJS) $(MIDI_OBJS) $(SOAPYSDR_OBJS) $(STEMLAB_OBJS)
 	$(LINK) -headerpad_max_install_names -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) \
 		$(USBOZY_OBJS)  \
 		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
@@ -493,22 +493,9 @@ app:	$(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) \
 	@cp MacOS/hpsdr.icns pihpsdr.app/Contents/Resources/hpsdr.icns
 	@cp MacOS/pihpsdr.sh pihpsdr.app/Contents/MacOS/pihpsdr
 	@cp MacOS/hpsdr.png pihpsdr.app/Contents/Resources
-	@for lib in `otool -L pihpsdr.app/Contents/MacOS/pihpsdr-bin | grep dylib | sed -e "s/ (.*//" | grep -Ev "/(usr/lib|System)" | grep -Ev /libg  | grep -Ev pango | grep -Ev cairo`; do \
-	  libfn="`basename $$lib`"; \
-	  cp "$$lib" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
-	  chmod u+w "pihpsdr.app/Contents/Frameworks/$$libfn"; \
-	  install_name_tool -id "@executable_path/../Frameworks/$$libfn" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
-	  install_name_tool -change "$$lib" "@executable_path/../Frameworks/$$libfn" pihpsdr.app/Contents/MacOS/pihpsdr-bin; \
-	done
-	@# once more to install libraries on which libs just copied depend (such as wdsp -> fftw)
-	@for file in pihpsdr.app/Contents/Frameworks/*.dylib; do \
-	  for lib in `otool -L pihpsdr.app/Contents/Frameworks/*.dylib | grep -v pihpsdr.app | grep -v "executable_path" | grep dylib | sed -e "s/ (.*//" | grep -Ev "/(usr/lib|System)" | grep -Ev /libg  | grep -Ev pango | grep -Ev cairo`; do \
-	    libfn="`basename $$lib`"; \
-	    cp "$$lib" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
-	    chmod u+w "pihpsdr.app/Contents/Frameworks/$$libfn"; \
-	    install_name_tool -id "@executable_path/../Frameworks/$$libfn" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
-	    install_name_tool -change "$$lib" "@executable_path/../Frameworks/$$libfn" $$file; \
-	  done; \
-	done
+#
+#       Copying the libraries is too error-prone at the end
+#       So *do not do* that, instead the app will only work if the libraries are installed in the correct place
+#
 #############################################################################
 

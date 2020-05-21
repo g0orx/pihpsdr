@@ -517,6 +517,7 @@ void bandRestoreState() {
 	// The number of entries is a compile-time constant,
         // which changes when compiling piHPSDR with different
 	// options (e.g. with and without SOAPYSDR)
+	// Therefore this number cannot be "restored" from a props file
 
         //sprintf(name,"band.%d.entries",b);
         //lue=getProperty(name);
