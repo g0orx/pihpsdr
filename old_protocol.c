@@ -288,7 +288,7 @@ void old_protocol_init(int rx,int pixels,int rate) {
     if( ! receive_thread_id )
     {
       g_print("g_thread_new failed on receive_thread\n");
-      exit( -1 );
+      abort();
     }
     g_print( "receive_thread: id=%p\n",receive_thread_id);
   }
@@ -317,7 +317,7 @@ static void start_usb_receive_threads()
   if( ! ozy_EP6_rx_thread_id )
   {
     g_print("g_thread_new failed for ozy_ep6_rx_thread\n");
-    exit( -1 );
+    abort();
   }
 }
 
@@ -353,7 +353,6 @@ static gpointer ozy_ep6_rx_thread(gpointer arg) {
     {
       g_print("old_protocol_ep6_read: OzyBulkRead failed %d bytes\n",bytes);
       perror("ozy_read(EP6 read failed");
-      //exit(1);
     }
     else
 // process the received data normally
@@ -381,7 +380,7 @@ static void open_udp_socket() {
     tmp=socket(PF_INET,SOCK_DGRAM,IPPROTO_UDP);
     if(tmp<0) {
       perror("old_protocol: create socket failed for data_socket\n");
-      exit(-1);
+      abort();
     }
 
     int optval = 1;
@@ -416,7 +415,7 @@ static void open_udp_socket() {
 g_print("binding UDP socket to %s:%d\n",inet_ntoa(radio->info.network.interface_address.sin_addr),ntohs(radio->info.network.interface_address.sin_port));
     if(bind(tmp,(struct sockaddr*)&radio->info.network.interface_address,radio->info.network.interface_length)<0) {
       perror("old_protocol: bind socket failed for data_socket\n");
-      exit(-1);
+      abort();
     }
 
     memcpy(&data_addr,&radio->info.network.address,radio->info.network.address_length);
@@ -442,7 +441,7 @@ static void open_tcp_socket() {
     tmp=socket(AF_INET, SOCK_STREAM, 0);
     if (tmp < 0) {
       perror("tcp_socket: create socket failed for TCP socket");
-      exit(-1);
+      abort();
     }
     int optval = 1;
     if(setsockopt(tmp, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval))<0) {
@@ -1220,7 +1219,7 @@ void ozy_send_buffer() {
       case 5:		// XVTR with old pa board
         output_buffer[C3] |= 0xE0;
         break;
-      case 104:		// EXT2 with ANAN-7000: does not exit, use EXT1
+      case 104:		// EXT2 with ANAN-7000: does not exist, use EXT1
       case 103:		// EXT1 with ANAN-7000
         output_buffer[C3]|= 0x40;
         break;
@@ -1812,7 +1811,7 @@ static void metis_send_buffer(unsigned char* buffer,int length) {
   if (tcp_socket >= 0) {
     if (length != 1032) {
        g_print("PROGRAMMING ERROR: TCP LENGTH != 1032\n");
-       exit(-1);
+       abort();
     }
     if(sendto(tcp_socket,buffer,length,0,NULL, 0) != length) {
       perror("sendto socket failed for TCP metis_send_data\n");
@@ -1824,7 +1823,7 @@ static void metis_send_buffer(unsigned char* buffer,int length) {
   } else {
     // This should not happen
     g_print("METIS send: neither UDP nor TCP socket available!\n");
-    exit(-1);
+    abort();
   }
 }
 
