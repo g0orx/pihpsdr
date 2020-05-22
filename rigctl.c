@@ -288,7 +288,7 @@ int vfo_sm=0;   // VFO State Machine - this keeps track of
 //  CW sending stuff
 //
 
-static char cw_buf[30];
+static char cw_buf[25];
 static int  cw_busy=0;
 static int  cat_cw_seen=0;
 
@@ -502,6 +502,7 @@ static gpointer rigctl_cw_thread(gpointer data)
   char *read_buf =ring_buf;
   char *p;
   int  num_buf=0;
+  int  txmode;
   
   while (server_running) {
     // wait for CW data (periodically look every 100 msec)
@@ -511,6 +512,17 @@ static gpointer rigctl_cw_thread(gpointer data)
       continue;
     }
 
+    if (rigctl_debug && cw_busy) {
+      g_print("SendCW: -->%s<--\n", cw_buf);
+    }
+    //
+    // if a message arrives and the TX mode is not CW, silently ignore
+    //
+    txmode=get_tx_mode();
+    if (cw_busy && txmode != modeCWU && txmode != modeCWL) {
+      cw_busy=0;
+      continue;
+    }
     // if new data is available and fits into the buffer, copy-in.
     // If there are several adjacent spaces, take only the first one.
     // This also swallows the "tails" of the KY commands which
@@ -2634,6 +2646,14 @@ int parse_cmd(void *data) {
             update_af_gain();
           }
           break;
+        case 'I': //AI
+	  // We do not support AI commands and silently ignore them.
+	  // If the AI mode is queried, we reply "no AI"
+          if(command[2]==';') {
+	    sprintf(reply,"AI0;");
+            send_resp(client->fd,reply) ;
+	  }
+	  break;
         default:
           implemented=FALSE;
           break;
@@ -2811,6 +2831,22 @@ int parse_cmd(void *data) {
 	    }
           }
 	  break;
+	case 'Y': // KY commands
+	  if (command[2] == ';') {
+	    // This is a query for available buffer space
+            if (cw_busy) {
+	      sprintf(reply,"KY1;");
+	    } else {
+	      sprintf(reply,"KY0;");
+	    }
+            send_resp(client->fd,reply);
+	  } else if (cw_busy == 0) {
+	    // send morse
+	    strncpy(cw_buf, command+3, 24);
+	    cw_buf[24]=0;
+	    cw_busy=1;
+	  }
+	  break;
         default:
           implemented=FALSE;
           break;
@@ -2827,11 +2863,72 @@ int parse_cmd(void *data) {
       switch(command[1]) {
         case 'D': //MD
           // set/read operating mode
+	  // Note that the code numbers for the TS-2000 are
+	  // LSB(1), USB(2), CW(3), FM(4), AM(5), FSK(6), CWR(7), FSK-R(9)
+	  // We map FSK->DIGL, FSK-R->DIGU, CWU->CW and CWL->CW-R
+	  // We therefore need to "translate" piHPSDR internal
+	  // mode numbers to the Kenwood ones
           if(command[2]==';') {
-            sprintf(reply,"MD%d;",vfo[VFO_A].mode+1);
+            switch (vfo[VFO_A].mode) {
+	      case modeLSB:
+		sprintf(reply,"MD1;");
+		break;
+	      case modeUSB:
+		sprintf(reply,"MD2;");
+		break;
+	      case modeCWU:
+		sprintf(reply,"MD3;");
+		break;
+	      case modeFMN:
+		sprintf(reply,"MD4;");
+		break;
+	      case modeAM:
+		sprintf(reply,"MD5;");
+		break;
+	      case modeDIGL:
+		sprintf(reply,"MD6;");
+		break;
+	      case modeCWL:
+		sprintf(reply,"MD7;");
+		break;
+	      case modeDIGU:
+		sprintf(reply,"MD9;");
+		break;
+	      default:
+		sprintf(reply,"?;");
+		break;
+	    }
             send_resp(client->fd,reply);
           } else if(command[3]==';') {
-            vfo_mode_changed(atoi(&command[2])-1);
+	    switch(atoi(&command[2])) {
+	      case 1:
+		vfo_mode_changed(modeLSB);
+		break;
+	      case 2:
+		vfo_mode_changed(modeUSB);
+		break;
+	      case 3:
+		vfo_mode_changed(modeCWU);
+		break;
+	      case 4:
+		vfo_mode_changed(modeFMN);
+		break;
+	      case 5:
+		vfo_mode_changed(modeAM);
+		break;
+	      case 6:
+		vfo_mode_changed(modeDIGL);
+		break;
+	      case 7:
+		vfo_mode_changed(modeCWL);
+		break;
+	      case 9:
+		vfo_mode_changed(modeDIGU);
+		break;
+	      default:
+		// just do nothing
+		break;
+	    }
           }
           break;
         default:
@@ -2885,7 +2982,7 @@ int parse_cmd(void *data) {
             sprintf(reply,"PC%03d;",(int)transmitter->drive);
             send_resp(client->fd,reply);
           } else if(command[5]==';') {
-            setDrive((double)atoi(&command[2]));
+            set_drive((double)atoi(&command[2]));
           }
           break;
         case 'S': //PS
@@ -3142,6 +3239,7 @@ static gpointer serial_server(gpointer data) {
      cat_control++;
      if(rigctl_debug) g_print("RIGCTL: SER INC cat_contro=%d\n",cat_control);
      g_mutex_unlock(&mutex_a->m);
+     g_idle_add(ext_vfo_update,NULL);
      serial_running=TRUE;
      while(serial_running) {
        numbytes = read (fd, cmd_input, sizeof cmd_input);
@@ -3173,6 +3271,7 @@ static gpointer serial_server(gpointer data) {
      cat_control--;
      if(rigctl_debug) g_print("RIGCTL: SER DEC - cat_control=%d\n",cat_control);
      g_mutex_unlock(&mutex_a->m);
+     g_idle_add(ext_vfo_update,NULL);
      return NULL;
 }
 
@@ -3200,7 +3299,7 @@ int launch_serial () {
      g_print("serial port fd=%d\n",fd);
 
      set_interface_attribs (fd, serial_baud_rate, serial_parity); 
-     set_blocking (fd, 1);                   // set no blocking
+     set_blocking (fd, 0);                   // set no blocking
 
      CLIENT *serial_client=g_new(CLIENT,1);
      serial_client->fd=fd;
@@ -3219,6 +3318,8 @@ int launch_serial () {
 void disable_serial () {
      g_print("RIGCTL: Disable Serial port %s\n",ser_port);
      serial_running=FALSE;
+     g_thread_join(serial_server_thread_id);
+     close(fd);
 }
 
 //
