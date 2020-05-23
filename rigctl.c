@@ -554,7 +554,7 @@ static gpointer rigctl_cw_thread(gpointer data)
     CAT_cw_is_active=1;
     if (!mox) {
 	// activate PTT
-        g_idle_add(ext_mox_update ,(gpointer)1);
+        g_idle_add(ext_mox_update ,GINT_TO_POINTER(1));
 	// have to wait until it is really there
 	// Note that if out-of-band, we would wait
 	// forever here, so allow at most 200 msec
@@ -577,7 +577,7 @@ static gpointer rigctl_cw_thread(gpointer data)
        // If a CW key has been hit, we continue in TX mode.
        // Otherwise, switch PTT off.
        if (!cw_key_hit && mox) {
-         g_idle_add(ext_mox_update ,(gpointer)0);
+         g_idle_add(ext_mox_update ,GINT_TO_POINTER(0));
        }
        // Let the CAT system swallow incoming CW commands by setting cw_busy to -1.
        // Do so until no CAT CW message has arrived for 1 second
@@ -602,7 +602,7 @@ static gpointer rigctl_cw_thread(gpointer data)
       if (cw_busy || num_buf > 0) continue;
       CAT_cw_is_active=0;
       if (!cw_key_hit) {
-        g_idle_add(ext_mox_update ,(gpointer)0);
+        g_idle_add(ext_mox_update ,GINT_TO_POINTER(0));
         // wait up to 500 msec for MOX having gone
         // otherwise there might be a race condition when sending
         // the next character really soon
@@ -620,7 +620,7 @@ static gpointer rigctl_cw_thread(gpointer data)
   cw_busy=0;
   if (CAT_cw_is_active) {
     CAT_cw_is_active=0;
-    g_idle_add(ext_mox_update ,(gpointer)0);
+    g_idle_add(ext_mox_update ,GINT_TO_POINTER(0));
   }
   return NULL;
 }
@@ -2160,7 +2160,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
             send_resp(client->fd,reply) ;
           } else if(command[5]==';') {
 	    int val=atoi(&command[4]);
-	    ext_set_split((gpointer) val);
+	    ext_set_split(GINT_TO_POINTER(val));
           }
           break;
         case 'R': //ZZSR
@@ -2185,7 +2185,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
             send_resp(client->fd,reply) ;
           } else if(command[5]==';') {
             int val=atoi(&command[4]);
-            ext_set_split((gpointer) val);
+            ext_set_split(GINT_TO_POINTER(val));
           }
           break;
         case 'Y': //ZZSY
@@ -2743,7 +2743,7 @@ int parse_cmd(void *data) {
             send_resp(client->fd,reply) ;
           } else if(command[3]==';') {
             int val=atoi(&command[2]);
-            ext_set_split((gpointer) val);
+            ext_set_split(GINT_TO_POINTER(val));
           }
           break;
         case 'W': //FW
@@ -3342,7 +3342,7 @@ g_print("launch_rigctl: mutex_busy=%p\n",mutex_busy);
    g_mutex_init(&mutex_busy->m);
 
    // This routine encapsulates the thread call
-   rigctl_server_thread_id = g_thread_new( "rigctl server", rigctl_server, (gpointer)(long)rigctl_port_base);
+   rigctl_server_thread_id = g_thread_new( "rigctl server", rigctl_server, GINT_TO_POINTER(rigctl_port_base));
    if( ! rigctl_server_thread_id )
    {
      g_print("g_thread_new failed on rigctl_server\n");
