@@ -1083,7 +1083,7 @@ void start_radio() {
   iqswap=0;
 
 #ifdef SOAPYSDR
-  if(protocol == SOAPYSDR_PROTOCOL && device==SOAPYSDR_USB_DEVICE) {
+  if(device==SOAPYSDR_USB_DEVICE) {
     iqswap=1;
     receivers=1;
     filter_board=NONE;
@@ -1107,7 +1107,6 @@ void start_radio() {
   adc[0].preamp=FALSE;
   adc[0].attenuation=0;
 #ifdef SOAPYSDR
-  if (protocol == SOAPYSDR_PROTOCOL) {
   adc[0].antenna=0;
   if(device==SOAPYSDR_USB_DEVICE) {
     adc[0].rx_gain=malloc(radio->info.soapy.rx_gains*sizeof(gint));
@@ -1121,7 +1120,6 @@ void start_radio() {
       dac[0].tx_gain[i]=0;
     }
   }
-  }
 #endif
 
   adc[1].antenna=ANTENNA_1;
@@ -1133,7 +1131,6 @@ void start_radio() {
   adc[1].preamp=FALSE;
   adc[1].attenuation=0;
 #ifdef SOAPYSDR
-  if (protocol == SOAPYSDR_PROTOCOL) {
   adc[1].antenna=0;
   if(device==SOAPYSDR_USB_DEVICE) {
     adc[1].rx_gain=malloc(radio->info.soapy.rx_gains*sizeof(gint));
@@ -1149,7 +1146,6 @@ void start_radio() {
   }
 
   radio_sample_rate=radio->info.soapy.sample_rate;
-  }
 #endif
 
 //g_print("meter_calibration=%f display_calibration=%f\n", meter_calibration, display_calibration);
@@ -1806,43 +1802,68 @@ void set_attenuation(int value) {
     }
 }
 
-void set_alex_rx_antenna(int v) {
-    if(active_receiver->id==0) {
-      active_receiver->alex_antenna=v;
-      if(protocol==NEW_PROTOCOL) {
-          schedule_high_priority();
-      }
-    }
-#ifdef SOAPYSDR
-    if(protocol==SOAPYSDR_PROTOCOL) {
-        soapy_protocol_set_rx_antenna(active_receiver,v);
-    }
-#endif
-}
-
-void set_alex_tx_antenna(int v) {
-    transmitter->alex_antenna=v;
-    if(protocol==NEW_PROTOCOL) {
+//
+// For HPSDR, only receiver[0]->rx_antenna has an effect
+// The antenna is set according to what is stored in the "band" info
+// We have to call this routine in the HPSDR case each time a band is switched.
+//
+void set_alex_rx_antenna() {
+    BAND *band;
+    switch (protocol) {
+      case ORIGINAL_PROTOCOL:
+        band=band_get_band(vfo[VFO_A].band);
+        receiver[0]->alex_antenna=band->alexRxAntenna;
+        break;
+      case NEW_PROTOCOL:
+        band=band_get_band(vfo[VFO_A].band);
+        receiver[0]->alex_antenna=band->alexRxAntenna;
         schedule_high_priority();
+        break;
+      }
+}
+
+//
+// For HPSDR, determine which band control the TX and
+// set TX antenna accordingly
+// We have to call this routine
+// in the HPSDR case each time the TX band is switched,
+// which is for each band switch, each time "split" is
+// changed, and in case of "split", each time the active
+// RX changes!
+//
+void set_alex_tx_antenna() {
+    BAND *band;
+    if (!can_transmit) return;
+    switch (protocol) {
+      case ORIGINAL_PROTOCOL:
+        band=band_get_band(vfo[get_tx_vfo()].band);
+        transmitter->alex_antenna=band->alexTxAntenna;
+	break;
+      case NEW_PROTOCOL:
+        band=band_get_band(vfo[get_tx_vfo()].band);
+        transmitter->alex_antenna=band->alexTxAntenna;
+        schedule_high_priority();
+	break;
     }
 }
 
 //
-// There is an error here.
-// The alex att should not be associated with a receiver,
-// but with an ADC. *all* receivers bound to that ADC
-// will experience the same attenuation.
+// For HPSDR, only receiver[0]->alex_attenuation has an effect
+// Set this from the attenuation stored "per band"
 //
-// This means, alex_attenuation should not be stored in thre
-// receiver, but separately (as is the case with adc_attenuation).
-//
-void set_alex_attenuation(int v) {
-    if(active_receiver->id==0) {
-      active_receiver->alex_attenuation=v;
-      if(protocol==NEW_PROTOCOL) {
-          schedule_high_priority();
+void set_alex_attenuation() {
+    BAND *band;
+    switch (protocol) {
+      case ORIGINAL_PROTOCOL:
+        band=band_get_band(vfo[VFO_A].band);
+        receiver[0]->alex_attenuation=band->alexAttenuation;
+        break;
+      case NEW_PROTOCOL:
+        band=band_get_band(vfo[VFO_A].band);
+        receiver[0]->alex_attenuation=band->alexAttenuation;
+        schedule_high_priority();
+        break;
       }
-    }
 }
 
 void radioRestoreState() {
@@ -2085,7 +2106,7 @@ g_print("radioRestoreState: %s\n",property_path);
     if(value) mute_rx_while_transmitting=atoi(value);
 
 #ifdef SOAPYSDR
-    if(protocol == SOAPYSDR_PROTOCOL && device==SOAPYSDR_USB_DEVICE) {
+    if(device==SOAPYSDR_USB_DEVICE) {
       char name[128];
       for(int i=0;i<radio->info.soapy.rx_gains;i++) {
         sprintf(name,"radio.adc[0].rx_gain.%s",radio->info.soapy.rx_gain[i]) ;
@@ -2339,7 +2360,7 @@ g_print("radioSaveState: %s\n",property_path);
     setProperty("rx_gain_calibration",value);
 
 #ifdef SOAPYSDR
-    if(protocol == SOAPYSDR_PROTOCOL && device==SOAPYSDR_USB_DEVICE) {
+    if(device==SOAPYSDR_USB_DEVICE) {
       char name[128];
       for(int i=0;i<radio->info.soapy.rx_gains;i++) {
         sprintf(name,"radio.adc[0].rx_gain.%s",radio->info.soapy.rx_gain[i]);

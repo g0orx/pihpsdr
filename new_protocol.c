@@ -202,25 +202,20 @@ static socklen_t length=sizeof(addr);
 
 
 //
-// DL1YCF: note that we allocate and free the buffers for the
-// network traffic at a very high rate, and I observed certain
-// problems with this (possibly due to deficiencies in the
-// runtime system when firing malloc and free from different threads
-// at very high rate).
+// We used to allocate (malloc) and free (free) the buffers for the
+// network traffic at a very high rate, this may be a problem on
+// some systems. In fact, only a handful of buffers are actually used.
 //
 // Therefore we now allocate a pool of network buffers *once*, make 
-// them a linked list, and do our own memory managemant for these
+// them a linked list, and simply maintain a "free" flag.
 //
-//
-// This is ONLY MEANT for allocating buffers from within the
-// thread reading the buffers. Buffers for sending have a fixed
-// static allocation (e.g. high_priority_buffer_to_radio), so the
-// only "malloc" left is in the new_protocol_restart function where
-// a temporary buffer for draining the input queue is used.
+// This only applies to the network buffers filled with data in
+// new_protocol_thread(), so this need not be thread-safe.
 //
 
 //
-// one buffer
+// One buffer. The fences can be used to detect over-writing them
+// 
 //
 
 struct mybuffer_ {
@@ -234,7 +229,7 @@ struct mybuffer_ {
 typedef struct mybuffer_ mybuffer;
 
 //
-// number of buffers used (for statistics)
+// number of buffers allocated (for statistics)
 //
 static int num_buf = 0; 
 
@@ -243,10 +238,14 @@ static int num_buf = 0;
 //
 static mybuffer *buflist = NULL;
 
+//
+// The buffers used by new_protocol_thread
+//
 static mybuffer *iq_buffer[MAX_DDC];
 static mybuffer *command_response_buffer;
 static mybuffer *high_priority_buffer;
 static mybuffer *mic_line_buffer;
+
 static int mic_bytes_read;
 
 static unsigned char general_buffer[60];
@@ -254,11 +253,13 @@ static unsigned char high_priority_buffer_to_radio[1444];
 static unsigned char transmit_specific_buffer[60];
 static unsigned char receive_specific_buffer[1444];
 
-// DL1YCF
+//
 // new_protocol_receive_specific and friends are not thread-safe, but called
-// periodically from  timer thread and asynchronously from everywhere else
+// periodically from  timer thread *and* asynchronously from everywhere else
 // therefore we need to implement a critical section for each of these functions.
-// It seems that this is not necessary for the audio and TX-IQ buffers.
+// The audio buffer needs a mutex since both RX and TX threads may write to
+// this one (CW side tone).
+//
 
 static pthread_mutex_t rx_spec_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t tx_spec_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -296,7 +297,7 @@ static mybuffer *free_buffer() {
   mybuffer *bp=buflist;
   while (bp) {
     if (bp->free == 1) {
-      // found free buffer. Mark as used and return
+      // found free buffer. Mark as used and return that one.
       bp->free=0;
       return bp;
     }
@@ -1950,43 +1951,22 @@ static void process_mic_data(int bytes) {
 }
 
 //
-// Pure DL1YCF paranoia:
-//
 // Note that new_protocol_cw_audio_samples() is called by the TX thread, while
 // new_protocol_audio_samples() is called by the RX thread.
 //
-// To make this bullet-proof, we need a mutex to ensure that only one of these
-// two functions is active at a given time.
 //
-// The problem is that upon a RX/TX transition, both functions may be called at
-// the same time, and the status if isTransmitting() may be changed at a moment
-// such that *both* functions proceed.
-//
-// So in 99% if the cases, the check on isTransmitting() controls that only one
-// of the two functions becomes active, but at the moment of a RX/TX transition
+// To avoid race conditions, we need a mutex covering these functions.
+// In 99% if the cases, the check on isTransmitting() controls that only one
+// of the functions becomes active, but at the moment of a RX/TX transition
 // this may fail.
 //
-// The same problem occured in the audio modules (audio_write vs. cw_audio_write)
-// and has been resolved with a mutex, and this we now also do here using
-// audio_mutex.
-//
-// Note that in almost all cases, no "blocking" occures, such that the lock/unlock
-// should cost only few CPU cycles. This may be different on systems with several
-// CPU sockets if "locking" the mutex causes cache in-coherency.
+// So "blocking" can only occur very rarely, such that the lock/unlock
+// should cost only few CPU cycles. 
 //
 
 void new_protocol_cw_audio_samples(short left_audio_sample,short right_audio_sample) {
   int rc;
   int txmode=get_tx_mode();
-
-  //
-  // The audio mutex has been introduced since it cannot be
-  // guaranteed that there is no race condition here: while
-  // new_protocol_audio_samples is called by the RX thread,
-  // the TX thread calls its sibling new_protocol_cw_audio_samples,
-  // and at the moment of a RX/TX transition, both threads may
-  // actually write into the audio buffer at the same time.
-  //
 
   if (isTransmitting() && (txmode==modeCWU || txmode==modeCWL)) {
     //
@@ -2027,14 +2007,6 @@ void new_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right
   //
   if (isTransmitting() && (txmode==modeCWU || txmode==modeCWL)) return;
 
-  //
-  // The audio mutex has been introduced since it cannot be
-  // guaranteed that there is no race condition here: while
-  // new_protocol_audio_samples is called by the RX thread,
-  // the TX thread calls its sibling new_protocol_cw_audio_samples,
-  // and at the moment of a RX/TX transition, both threads may
-  // actually write into the audio buffer at the same time.
-  //
   pthread_mutex_lock(&audio_mutex);
   // insert the samples
   audiobuffer[audioindex++]=left_audio_sample>>8;
@@ -2116,8 +2088,8 @@ void new_protocol_iq_samples(int isample,int qsample) {
 
 void* new_protocol_timer_thread(void* arg) {
   //
-  // We now sent HighPriority as well as General packets
-  // in addition. General packet re-sending is, for example,
+  // Periodically send HighPriority as well as General packets.
+  // A general packet is, for example,
   // required if the band changes (band->disblePA), and HighPrio
   // packets are necessary at very many instances when changing
   // something in the menus, and then a small delay does no harm

@@ -468,7 +468,7 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
         }
 
 #ifdef SOAPYSDR
-        if(d->protocol != SOAPYSDR_PROTOCOL || d->device!=SOAPYSDR_USB_DEVICE) {
+        if(d->device!=SOAPYSDR_USB_DEVICE) {
 #endif
           // if not on the same subnet then cannot start it
           if((d->info.network.interface_address.sin_addr.s_addr&d->info.network.interface_netmask.sin_addr.s_addr) != (d->info.network.address.sin_addr.s_addr&d->info.network.interface_netmask.sin_addr.s_addr)) {

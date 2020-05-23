@@ -2159,10 +2159,8 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
             sprintf(reply,"ZZSP%d;",split);
             send_resp(client->fd,reply) ;
           } else if(command[5]==';') {
-	    // use ext_set_split to take care of antenna switching
-            split=atoi(&command[4]);
-            tx_set_mode(transmitter,get_tx_mode());
-            vfo_update();
+	    int val=atoi(&command[4]);
+	    ext_set_split((gpointer) val);
           }
           break;
         case 'R': //ZZSR
@@ -2186,10 +2184,8 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
             sprintf(reply,"ZZSW%d;",split);
             send_resp(client->fd,reply) ;
           } else if(command[5]==';') {
-	    // use ext_set_split to take care of antenna switching
-            split=atoi(&command[4]);
-            tx_set_mode(transmitter,get_tx_mode());
-            vfo_update();
+            int val=atoi(&command[4]);
+            ext_set_split((gpointer) val);
           }
           break;
         case 'Y': //ZZSY
@@ -2746,10 +2742,8 @@ int parse_cmd(void *data) {
             sprintf(reply,"FT%d;",split);
             send_resp(client->fd,reply) ;
           } else if(command[3]==';') {
-	    // use ext_set_split to take care of antenna switching
-            split=atoi(&command[2]);
-            tx_set_mode(transmitter,get_tx_mode());
-            vfo_update();
+            int val=atoi(&command[2]);
+            ext_set_split((gpointer) val);
           }
           break;
         case 'W': //FW

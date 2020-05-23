@@ -995,32 +995,16 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
 }
 
 //
-// Pure DL1YCF paranoia:
-//
-// To make this bullet-proof, we need a mutex covering the next three functions
+// To avoid race conditions, we need a mutex covering the next three functions
 // that are called both by the RX and TX thread, and are filling and sending the
 // output buffer.
 //
-// Note that old_protocol_iq_samples() and old_protocol_iq_samples_with_sidetone()
-// are mutually exclusive by design (the TX thread calls the latter one if doing
-// CW, the first one otherwise).
-//
-// The problem is that upon a RX/TX transition, old_protocol_audio_samples() and
-// old_protocol_iq_samples() may be called by the RX and TX thread at the same
-// time, and the status if isTransmitting() may be changed at a moment such that
-// *both* functions proceed.
-//
-// So in 99% if the cases, the check on isTransmitting() controls that only one
-// of the two functions becomes active, but at the moment of a RX/TX transition
+// In 99% if the cases, the check on isTransmitting() controls that only one
+// of the functions becomes active, but at the moment of a RX/TX transition
 // this may fail.
 //
-// The same problem occured in the audio modules (audio_write vs. cw_audio_write)
-// and has been resolved with a mutex, and this we now also do here using
-// send_buffer_mutex.
-//
-// Note that in almost all cases, no "blocking" occures, such that the lock/unlock
-// should cost only few CPU cycles. This may be different on systems with several
-// CPU sockets if "locking" the mutex causes cache in-coherency.
+// So "blocking" can only occur very rarely, such that the lock/unlock
+// should cost only few CPU cycles.
 //
 
 static pthread_mutex_t send_buffer_mutex   = PTHREAD_MUTEX_INITIALIZER;

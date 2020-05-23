@@ -309,7 +309,10 @@ int ext_update_att_preamp(void *data) {
 
 int ext_set_alex_attenuation(void *data) {
   int val=GPOINTER_TO_INT(data);
-  set_alex_attenuation(val);
+  BAND *band=band_get_band(vfo[VFO_A].band);
+  // store changed attenuation in "band" info
+  band->alexAttenuation=val;
+  set_alex_attenuation();
   return 0;
 }
 
@@ -569,18 +572,21 @@ int ext_agc_update(void *data) {
   return 0;
 }
 
+int ext_set_split(void *data) {
+  if(can_transmit) {
+    split=GPOINTER_TO_INT(data),
+    tx_set_mode(transmitter,get_tx_mode());
+    set_alex_tx_antenna();
+    g_idle_add(ext_vfo_update, NULL);
+  }
+  return 0;
+}
+
 int ext_split_toggle(void *data) {
-  BAND *band;
   if(can_transmit) {
     split=split==1?0:1;
     tx_set_mode(transmitter,get_tx_mode());
-    //
-    // Since the TX band possibly changed, we have to
-    // adjust the TX antenna
-    //
-    band=band_get_band(vfo[get_tx_vfo()].band);
-    set_alex_tx_antenna(band->alexTxAntenna);
-
+    set_alex_tx_antenna();
     g_idle_add(ext_vfo_update, NULL);
   }
   return 0;

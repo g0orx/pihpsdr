@@ -311,22 +311,20 @@ void vfo_band_changed(int id,int b) {
     case 0:
       bandstack->current_entry=vfo[id].bandstack;
       receiver_vfo_changed(receiver[id]);
-      BAND *band=band_get_band(vfo[id].band);
-      set_alex_rx_antenna(band->alexRxAntenna);
-      if(can_transmit) {
-        set_alex_tx_antenna(band->alexTxAntenna);
-      }
-      set_alex_attenuation(band->alexAttenuation);
       receiver_vfo_changed(receiver[0]);
       break;
    case 1:
+      // Split: RX1 controls TX frequency
       if(receivers==2) {
         receiver_vfo_changed(receiver[1]);
       }
       break;
   }
+  set_alex_attenuation();
+  set_alex_rx_antenna();
 
   if(can_transmit) {
+    set_alex_tx_antenna();
     tx_set_mode(transmitter,get_tx_mode());
     //
     // If the band has changed, it is necessary to re-calculate
@@ -365,13 +363,6 @@ void vfo_bandstack_changed(int b) {
   switch(id) {
     case 0:
       bandstack->current_entry=vfo[id].bandstack;
-      receiver_vfo_changed(receiver[id]);
-      BAND *band=band_get_band(vfo[id].band);
-      set_alex_rx_antenna(band->alexRxAntenna);
-      if(can_transmit) {
-        set_alex_tx_antenna(band->alexTxAntenna);
-      }
-      set_alex_attenuation(band->alexAttenuation);
       receiver_vfo_changed(receiver[0]);
       break;
    case 1:
@@ -381,7 +372,10 @@ void vfo_bandstack_changed(int b) {
       break;
   }
 
+  set_alex_rx_antenna();
+  set_alex_attenuation();
   if(can_transmit) {
+    set_alex_tx_antenna();
     tx_set_mode(transmitter,get_tx_mode());
     //
     // I do not think the band can change within this function.

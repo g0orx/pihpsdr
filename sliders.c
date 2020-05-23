@@ -246,11 +246,13 @@ static gboolean load_att_type_cb(gpointer data) {
 
 static void c25_att_combobox_changed(GtkWidget *widget, gpointer data) {
   int val = atoi(gtk_combo_box_get_active_id(GTK_COMBO_BOX(widget)));
-  if (active_receiver->adc == 0) {
+  if (active_receiver->id == 0) {
     // this button is only valid for the first receiver
     // store attenuation, such that in meter.c the correct level is displayed
     adc_attenuation[active_receiver->adc] = 12*val;
-    set_alex_attenuation(val);
+    BAND* band = band_get_band(vfo[VFO_A].band);
+    band->alexAttenuation=val;
+    set_alex_attenuation();
   } else {
     // always show "0 dB" on the button if the second RX is active
     if (val != 0) {

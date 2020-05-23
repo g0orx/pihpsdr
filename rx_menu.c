@@ -33,6 +33,7 @@
 #include "receiver.h"
 #include "sliders.h"
 #include "new_protocol.h"
+#include "vfo.h"
 
 static GtkWidget *parent_window=NULL;
 static GtkWidget *menu_b=NULL;
@@ -80,8 +81,12 @@ static void preamp_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void alex_att_cb(GtkWidget *widget, gpointer data) {
+  BAND *band;
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
-    set_alex_attenuation((intptr_t) data);
+    // store value in the "band" info
+    band=band_get_band(vfo[VFO_A].band);
+    band->alexAttenuation=GPOINTER_TO_INT(data);
+    set_alex_attenuation();
     update_att_preamp();
   }
 }

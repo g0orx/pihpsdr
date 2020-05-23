@@ -97,6 +97,7 @@ void receiver_set_active(RECEIVER *rx) {
   // setup the transmitter mode and filter
   if(can_transmit) {
     tx_set_mode(transmitter,get_tx_mode());
+    set_alex_tx_antenna();
   }
 }
 
@@ -113,19 +114,6 @@ gboolean receiver_button_release_event(GtkWidget *widget, GdkEventButton *event,
       if(event->button==3) {
         g_idle_add(ext_start_rx,NULL);
       }
-
-      //
-      // The RX/TX antenna may have been changed (in the ant menu) while
-      // this RX was inactive. In this case, ant switching  must be done now.
-      //
-      // set RX antenna
-      int id=active_receiver->id;
-      BAND *band=band_get_band(vfo[id].band);
-      set_alex_rx_antenna(band->alexRxAntenna);
-      // set TX antenna
-      band=band_get_band(vfo[get_tx_vfo()].band);
-      set_alex_tx_antenna(band->alexTxAntenna);
-
 #ifdef CLIENT_SERVER
    }
 #endif
@@ -985,7 +973,7 @@ fprintf(stderr,"create_receiver: id=%d buffer_size=%d fft_size=%d pixels=%d fps=
   }
 fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
 #ifdef SOAPYSDR
-  if(radio->protocol == SOAPYSDR_PROTOCOL && radio->device==SOAPYSDR_USB_DEVICE) {
+  if(radio->device==SOAPYSDR_USB_DEVICE) {
     rx->sample_rate=radio->info.soapy.sample_rate;
     rx->resampler=NULL;
     rx->resample_buffer=NULL;

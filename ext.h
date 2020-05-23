@@ -77,6 +77,7 @@ extern void ctun_update(int id,int state);
 extern int ext_ctun_update(void *data);
 extern int ext_agc_update(void *data);
 extern int ext_split_toggle(void *data);
+extern int ext_set_split(void *data);
 
 
 extern int ext_cw_setup();
