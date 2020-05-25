@@ -816,7 +816,7 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%d iq_output_buf
   // We need this one both for old and new protocol, since
   // is is also used to shape the audio samples
   cw_shape_buffer48=g_new(double,tx->buffer_size);
-  if (protocol == NEW_PROTOCOL) {
+  if (protocol == NEW_PROTOCOL || protocol == SOAPYSDR_PROTOCOL) {
     // We need this buffer for the new protocol only, where it is only
     // used to shape the TX envelope
     cw_shape_buffer192=g_new(double,tx->output_samples);
@@ -1117,7 +1117,7 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 	    break;
 	  case NEW_PROTOCOL:
 	    //
-	    // tx->output_samples if four times tx->buffer_size
+	    // tx->output_samples is four times tx->buffer_size
 	    // Take TX envelope from the 192kHz shape buffer
 	    //
 	    isample=0;
@@ -1127,6 +1127,16 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 	      new_protocol_iq_samples(isample,qsample);
 	    }
 	    break;
+#ifdef SOAPYSDR
+          case SOAPYSDR_PROTOCOL:
+	    isample=0;
+            for(j=0;j<tx->output_samples;j++) {
+	      ramp=cw_shape_buffer192[j];	    		// between 0.0 and 1.0
+	      qsample=floor(gain*ramp+0.5);         	    	// always non-negative, isample is just the pulse envelope
+              soapy_protocol_iq_samples((float)isample,(float)qsample);
+	    }
+	    break;
+#endif
 	}
     } else {
 	//
@@ -1258,6 +1268,147 @@ void add_mic_sample(TRANSMITTER *tx,float mic_sample) {
 	      cw_shape_buffer192[i+3]=cwramp192[s+0];
 	   }
 	}
+        if (protocol == SOAPYSDR_PROTOCOL) {
+          //
+          // The ratio between the TX and microphone sample rate can be any value, so
+          // it is difficult to construct a general ramp here. We may at least *assume*
+          // that the ratio is integral. So we use the "192 kHz ramp" and extrapolate
+          // for some cases of the ratio, doing "hard keying" for the un-common cases.
+          //
+          // It should be clear how to generalize things for all ratios, taking the
+          // "48 kHz ramp" data for the odd values of ratio
+          // At any rate, we *must* produce tx->outputsamples IQ samples from an input
+          // buffer of size tx->buffer_size.
+          //
+          int ratio = tx->output_samples / tx->buffer_size;
+	  s=4*cw_shape;
+          i=ratio*tx->samples;
+          if (updown) {
+            switch (ratio) {
+	      case 1:
+                cw_shape_buffer192[i]=cwramp192[s];
+	        break;
+	      case 2:
+                cw_shape_buffer192[i+0]=cwramp192[s+0];
+                cw_shape_buffer192[i+1]=cwramp192[s+2];
+                break;
+              case 4:
+	        cw_shape_buffer192[i+0]=cwramp192[s+0];
+	        cw_shape_buffer192[i+1]=cwramp192[s+1];
+	        cw_shape_buffer192[i+2]=cwramp192[s+2];
+	        cw_shape_buffer192[i+3]=cwramp192[s+3];
+                break;
+              case 8:
+	        cw_shape_buffer192[i+0]=cwramp192[s+0];
+	        cw_shape_buffer192[i+1]=cwramp192[s+0];
+	        cw_shape_buffer192[i+2]=cwramp192[s+1];
+	        cw_shape_buffer192[i+3]=cwramp192[s+1];
+	        cw_shape_buffer192[i+4]=cwramp192[s+2];
+	        cw_shape_buffer192[i+5]=cwramp192[s+2];
+	        cw_shape_buffer192[i+6]=cwramp192[s+3];
+	        cw_shape_buffer192[i+7]=cwramp192[s+3];
+                break;
+              case 12:
+	        cw_shape_buffer192[i+ 0]=cwramp192[s+0];
+	        cw_shape_buffer192[i+ 1]=cwramp192[s+0];
+	        cw_shape_buffer192[i+ 2]=cwramp192[s+0];
+	        cw_shape_buffer192[i+ 3]=cwramp192[s+1];
+	        cw_shape_buffer192[i+ 4]=cwramp192[s+1];
+	        cw_shape_buffer192[i+ 5]=cwramp192[s+1];
+	        cw_shape_buffer192[i+ 6]=cwramp192[s+2];
+	        cw_shape_buffer192[i+ 7]=cwramp192[s+2];
+	        cw_shape_buffer192[i+ 8]=cwramp192[s+2];
+	        cw_shape_buffer192[i+ 9]=cwramp192[s+3];
+	        cw_shape_buffer192[i+10]=cwramp192[s+3];
+	        cw_shape_buffer192[i+11]=cwramp192[s+3];
+                break;
+              case 16:
+	        cw_shape_buffer192[i+ 0]=cwramp192[s+0];
+	        cw_shape_buffer192[i+ 1]=cwramp192[s+0];
+	        cw_shape_buffer192[i+ 2]=cwramp192[s+0];
+	        cw_shape_buffer192[i+ 3]=cwramp192[s+0];
+	        cw_shape_buffer192[i+ 4]=cwramp192[s+1];
+	        cw_shape_buffer192[i+ 5]=cwramp192[s+1];
+	        cw_shape_buffer192[i+ 6]=cwramp192[s+1];
+	        cw_shape_buffer192[i+ 7]=cwramp192[s+1];
+	        cw_shape_buffer192[i+ 8]=cwramp192[s+2];
+	        cw_shape_buffer192[i+ 9]=cwramp192[s+2];
+	        cw_shape_buffer192[i+10]=cwramp192[s+2];
+	        cw_shape_buffer192[i+11]=cwramp192[s+2];
+	        cw_shape_buffer192[i+12]=cwramp192[s+3];
+	        cw_shape_buffer192[i+13]=cwramp192[s+3];
+	        cw_shape_buffer192[i+14]=cwramp192[s+3];
+	        cw_shape_buffer192[i+15]=cwramp192[s+3];
+                break;
+	      default:
+	        // hard keying
+	        for (s=0; s<ratio; s++) cw_shape_buffer192[i+s]=1.0;
+	        break;
+            }
+          } else {
+	    switch(ratio) {
+              case 1:
+                cw_shape_buffer192[i]=cwramp192[s];
+	        break;
+	      case 2:
+                cw_shape_buffer192[i+0]=cwramp192[s+2];
+                cw_shape_buffer192[i+1]=cwramp192[s+0];
+                break;
+              case 4:
+	        cw_shape_buffer192[i+0]=cwramp192[s+3];
+	        cw_shape_buffer192[i+1]=cwramp192[s+2];
+	        cw_shape_buffer192[i+2]=cwramp192[s+1];
+	        cw_shape_buffer192[i+3]=cwramp192[s+0];
+                break;
+              case 8:
+	        cw_shape_buffer192[i+0]=cwramp192[s+3];
+	        cw_shape_buffer192[i+1]=cwramp192[s+3];
+	        cw_shape_buffer192[i+2]=cwramp192[s+2];
+	        cw_shape_buffer192[i+3]=cwramp192[s+2];
+	        cw_shape_buffer192[i+4]=cwramp192[s+1];
+	        cw_shape_buffer192[i+5]=cwramp192[s+1];
+	        cw_shape_buffer192[i+6]=cwramp192[s+0];
+	        cw_shape_buffer192[i+7]=cwramp192[s+0];
+                break;
+              case 12:
+	        cw_shape_buffer192[i+ 0]=cwramp192[s+3];
+	        cw_shape_buffer192[i+ 1]=cwramp192[s+3];
+	        cw_shape_buffer192[i+ 2]=cwramp192[s+3];
+	        cw_shape_buffer192[i+ 3]=cwramp192[s+2];
+	        cw_shape_buffer192[i+ 4]=cwramp192[s+2];
+	        cw_shape_buffer192[i+ 5]=cwramp192[s+2];
+	        cw_shape_buffer192[i+ 6]=cwramp192[s+1];
+	        cw_shape_buffer192[i+ 7]=cwramp192[s+1];
+	        cw_shape_buffer192[i+ 8]=cwramp192[s+1];
+	        cw_shape_buffer192[i+ 9]=cwramp192[s+0];
+	        cw_shape_buffer192[i+10]=cwramp192[s+0];
+	        cw_shape_buffer192[i+11]=cwramp192[s+0];
+                break;
+              case 16:
+	        cw_shape_buffer192[i+ 0]=cwramp192[s+3];
+	        cw_shape_buffer192[i+ 1]=cwramp192[s+3];
+	        cw_shape_buffer192[i+ 2]=cwramp192[s+3];
+	        cw_shape_buffer192[i+ 3]=cwramp192[s+3];
+	        cw_shape_buffer192[i+ 4]=cwramp192[s+2];
+	        cw_shape_buffer192[i+ 5]=cwramp192[s+2];
+	        cw_shape_buffer192[i+ 6]=cwramp192[s+2];
+	        cw_shape_buffer192[i+ 7]=cwramp192[s+2];
+	        cw_shape_buffer192[i+ 8]=cwramp192[s+1];
+	        cw_shape_buffer192[i+ 9]=cwramp192[s+1];
+	        cw_shape_buffer192[i+10]=cwramp192[s+1];
+	        cw_shape_buffer192[i+11]=cwramp192[s+1];
+	        cw_shape_buffer192[i+12]=cwramp192[s+0];
+	        cw_shape_buffer192[i+13]=cwramp192[s+0];
+	        cw_shape_buffer192[i+14]=cwramp192[s+0];
+	        cw_shape_buffer192[i+15]=cwramp192[s+0];
+                break;
+	      default:
+	        // hard keying
+	        for (s=0; s<ratio; s++) cw_shape_buffer192[i+s]=0.0;
+	        break;
+            }
+          }
+        }  // end of SOAPY case
   } else {
 //
 //	If no longer transmitting, or no longer doing CW: reset pulse shaper.
