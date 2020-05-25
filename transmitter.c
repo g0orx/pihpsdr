@@ -817,8 +817,8 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%d iq_output_buf
   // is is also used to shape the audio samples
   cw_shape_buffer48=g_new(double,tx->buffer_size);
   if (protocol == NEW_PROTOCOL || protocol == SOAPYSDR_PROTOCOL) {
-    // We need this buffer for the new protocol only, where it is only
-    // used to shape the TX envelope
+    // In the original protocol (P1) the TX sample rate equals the
+    // mic sample rate, therefore we do not need this buffer there
     cw_shape_buffer192=g_new(double,tx->output_samples);
   }
 fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%p iq_output_buffer=%p pixels=%p\n",tx->mic_input_buffer,tx->iq_output_buffer,tx->pixel_samples);
@@ -1129,6 +1129,10 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 	    break;
 #ifdef SOAPYSDR
           case SOAPYSDR_PROTOCOL:
+            //
+            // the only difference to the P2 treatment is that we do not
+            // generate audio samples to be sent to the radio
+            //
 	    isample=0;
             for(j=0;j<tx->output_samples;j++) {
 	      ramp=cw_shape_buffer192[j];	    		// between 0.0 and 1.0
@@ -1335,6 +1339,10 @@ void add_mic_sample(TRANSMITTER *tx,float mic_sample) {
 	  cw_shape_buffer192[4*tx->samples+3]=0.0;
 	}
         if (protocol == SOAPYSDR_PROTOCOL) {
+          //
+          // this essentially the P2 code, where the ratio
+          // is fixed to 4
+          //
           int ratio = tx->output_samples / tx->buffer_size;
           int i=ratio*tx->samples;
           int j;
