@@ -72,6 +72,7 @@ static void serial_value_changed_cb(GtkWidget *widget, gpointer data) {
 
 static void rigctl_debug_cb(GtkWidget *widget, gpointer data) {
   rigctl_debug=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+  g_print("---------- RIGCTL DEBUG %s ----------\n",rigctl_debug?"ON":"OFF");
 }
 
 static void rigctl_enable_cb(GtkWidget *widget, gpointer data) {
