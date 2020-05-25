@@ -288,7 +288,10 @@ void load_filters(void) {
     filter_board_changed();
   }
 
-  if(filter_board==ALEX || filter_board==APOLLO) {
+  //
+  // This should not be necessary HERE
+  //
+  if(filter_board==ALEX || filter_board==APOLLO || filter_board==CHARLY25) {
       set_alex_rx_antenna();
       set_alex_tx_antenna();
       set_alex_attenuation();

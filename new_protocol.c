@@ -202,14 +202,14 @@ static socklen_t length=sizeof(addr);
 
 
 //
-// We used to allocate (malloc) and free (free) the buffers for the
-// network traffic at a very high rate, this may be a problem on
-// some systems. In fact, only a handful of buffers are actually used.
+// Instead of allocating and free-ing (malloc/free) the network buffers
+// at a very high rate, we do it the "pedestrian" way, which may
+// alleviate the system load a little.
 //
-// Therefore we now allocate a pool of network buffers *once*, make 
+// Therefore we allocate a pool of network buffers *once*, make 
 // them a linked list, and simply maintain a "free" flag.
 //
-// This only applies to the network buffers filled with data in
+// This ONLY applies to the network buffers filled with data in
 // new_protocol_thread(), so this need not be thread-safe.
 //
 
@@ -292,7 +292,7 @@ static void  process_mic_data(int bytes);
 // 5 new ones. Note these buffer "live" as long as the
 // program lives. They are never free()d.
 //
-static mybuffer *free_buffer() {
+static mybuffer *get_my_buffer() {
   int i;
   mybuffer *bp=buflist;
   while (bp) {
@@ -1430,7 +1430,6 @@ void new_protocol_stop() {
 void new_protocol_restart() {
   fd_set fds;
   struct timeval tv;
-  mybuffer *bp;
   char *buffer;
   //
   // halt the protocol, wait 200 msec, and re-start it
@@ -1504,7 +1503,7 @@ g_print("new_protocol_thread\n");
 
     while(running) {
 
-        mybuf=free_buffer();
+        mybuf=get_my_buffer();
         buffer=mybuf->buffer;
         bytesread=recvfrom(data_socket,buffer,NET_BUFFER_SIZE,0,(struct sockaddr*)&addr,&length);
 

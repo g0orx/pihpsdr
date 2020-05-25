@@ -424,9 +424,6 @@ static gpointer rigctl_cw_thread(gpointer data)
       continue;
     }
 
-    if (rigctl_debug && cw_busy) {
-      g_print("SendCW: -->%s<--\n", cw_buf);
-    }
     //
     // if a message arrives and the TX mode is not CW, silently ignore
     //
@@ -2578,26 +2575,6 @@ int parse_cmd(void *data) {
           // set/read Auto Mode Function Parameters
           implemented=FALSE;
           break;
-        case 'I': //AI
-          // set/read Auto Information
-          implemented=FALSE;
-          break;
-        case 'L': // AL
-          // set/read Auto Notch level
-          implemented=FALSE;
-          break;
-        case 'M': // AM
-          // set/read Auto Mode
-          implemented=FALSE;
-          break;
-        case 'N': // AN
-          // set/read Antenna Connection
-          implemented=FALSE;
-          break;
-        case 'S': // AS
-          // set/read Auto Mode Function Parameters
-          implemented=FALSE;
-          break;
         default:
           implemented=FALSE;
           break;
@@ -2943,6 +2920,8 @@ int parse_cmd(void *data) {
           } else if(command[27]==';') {
             if(cw_busy==0) {
               strncpy(cw_buf,&command[3],24);
+              // if command is too long, strncpy does not terminate destination
+              cw_buf[24]='\0';
               cw_busy=1;
             }
           } else {
