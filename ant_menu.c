@@ -60,6 +60,9 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 }
 
 static void rx_ant_cb(GtkToggleButton *widget, gpointer data) {
+  //
+  // Note this function is only called for the ORIGINAL and NEW protocol
+  //
   if(gtk_toggle_button_get_active(widget)) {
     int b=(GPOINTER_TO_UINT(data))>>4;
     int ant=(GPOINTER_TO_UINT(data))&0xF;
@@ -70,6 +73,9 @@ static void rx_ant_cb(GtkToggleButton *widget, gpointer data) {
 }
 
 static void adc0_antenna_cb(GtkComboBox *widget,gpointer data) {
+  //
+  // Note this function is only called for the SOAPYSDR protocol
+  //
   ADC *adc=(ADC *)data;
   adc->antenna=gtk_combo_box_get_active(widget);
   if(radio->protocol==NEW_PROTOCOL) {
@@ -82,6 +88,9 @@ static void adc0_antenna_cb(GtkComboBox *widget,gpointer data) {
 }
 
 static void dac0_antenna_cb(GtkComboBox *widget,gpointer data) {
+  //
+  // Note this function is only called for the SOAPYSDR protocol
+  //
   DAC *dac=(DAC *)data;
   dac->antenna=gtk_combo_box_get_active(widget);
   if(radio->protocol==NEW_PROTOCOL) {
@@ -94,6 +103,9 @@ static void dac0_antenna_cb(GtkComboBox *widget,gpointer data) {
 }
 
 static void tx_ant_cb(GtkToggleButton *widget, gpointer data) {
+  //
+  // Note this function is only called for the ORIGINAL and NEW protocol
+  //
   if(gtk_toggle_button_get_active(widget)) {
     int b=(GPOINTER_TO_UINT(data))>>4;
     int ant=(GPOINTER_TO_UINT(data))&0xF;
