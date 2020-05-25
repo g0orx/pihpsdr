@@ -22,6 +22,9 @@
 
 #include <gtk/gtk.h>
 
+#define CTCSS_FREQUENCIES 38
+extern double ctcss_frequencies[CTCSS_FREQUENCIES];
+
 typedef struct _transmitter {
   int id;
   int dac;
@@ -77,7 +80,7 @@ typedef struct _transmitter {
   int auto_on;
   int single_on;
 
-  double ctcss_frequency;
+  gboolean ctcss_enabled;
   int ctcss;
 
   int deviation;
@@ -128,7 +131,7 @@ extern void tx_set_filter(TRANSMITTER *tx,int low,int high);
 extern void transmitter_set_deviation(TRANSMITTER *tx);
 extern void transmitter_set_am_carrier_level(TRANSMITTER *tx);
 extern void tx_set_pre_emphasize(TRANSMITTER *tx,int state);
-extern void transmitter_set_ctcss(TRANSMITTER *tx,int run,double frequency);
+extern void transmitter_set_ctcss(TRANSMITTER *tx,int state,int i);
 
 extern void add_mic_sample(TRANSMITTER *tx,float mic_sample);
 extern void add_freedv_mic_sample(TRANSMITTER *tx,float mic_sample);

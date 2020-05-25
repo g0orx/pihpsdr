@@ -489,6 +489,7 @@ void rx_panadapter_update(RECEIVER *rx) {
   } else {
     s1=(double)samples[pan]+(double)adc_attenuation[rx->adc];
   }
+  cairo_move_to(cr, 0.0, s1);
   if (filter_board == ALEX && rx->adc == 0) s1 += (double)(10*rx->alex_attenuation);
   if (filter_board == CHARLY25) {
     if (rx->preamp) s1 -= 18.0;

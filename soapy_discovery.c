@@ -34,10 +34,10 @@ static void get_info(char *driver) {
   SoapySDRKwargs args={};
   int software_version=0;
   int rtlsdr_val=0;
-  char fw_version[64];
-  char gw_version[64];
-  char hw_version[64];
-  char p_version[64];
+  char fw_version[16];
+  char gw_version[16];
+  char hw_version[16];
+  char p_version[16];
 
   fprintf(stderr,"soapy_discovery: get_info: %s\n", driver);
 

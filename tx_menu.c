@@ -103,13 +103,20 @@ static void am_carrier_level_value_changed_cb(GtkWidget *widget, gpointer data) 
 
 static void ctcss_cb (GtkWidget *widget, gpointer data) {
   int state=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
-  transmitter_set_ctcss(transmitter,state,transmitter->ctcss_frequency);
+  transmitter_set_ctcss(transmitter,state,transmitter->ctcss);
 }
 
+static void ctcss_frequency_cb(GtkWidget *widget, gpointer data) {
+  int i=gtk_combo_box_get_active(GTK_COMBO_BOX(widget));
+  transmitter_set_ctcss(transmitter,transmitter->ctcss_enabled,i);
+}
+
+/*
 static void ctcss_spin_cb (GtkWidget *widget, gpointer data) {
   double frequency=gtk_spin_button_get_value(GTK_SPIN_BUTTON(widget));
   transmitter_set_ctcss(transmitter,transmitter->ctcss,frequency);
 }
+*/
 
 static void tune_use_drive_cb (GtkWidget *widget, gpointer data) {
   transmitter->tune_use_drive=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
@@ -228,6 +235,7 @@ static void tune_value_changed_cb(GtkWidget *widget, gpointer data) {
 
 void tx_menu(GtkWidget *parent) {
   int i;
+  char temp[32];
 
   parent_window=parent;
 
@@ -490,11 +498,23 @@ void tx_menu(GtkWidget *parent) {
   col=0;
 
   GtkWidget *ctcss_b=gtk_check_button_new_with_label("CTCSS Enable");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ctcss_b), transmitter->ctcss);
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ctcss_b), transmitter->ctcss_enabled);
   gtk_widget_show(ctcss_b);
   gtk_grid_attach(GTK_GRID(grid),ctcss_b,col,row,1,1);
   g_signal_connect(ctcss_b,"toggled",G_CALLBACK(ctcss_cb),NULL);
 
+
+  col++;
+  GtkWidget *ctcss_frequency_b=gtk_combo_box_text_new();
+  for(i=0;i<CTCSS_FREQUENCIES;i++) {
+    sprintf(temp,"%0.1f",ctcss_frequencies[i]);
+    gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(ctcss_frequency_b),NULL,temp);
+    gtk_combo_box_set_active(GTK_COMBO_BOX(ctcss_frequency_b),transmitter->ctcss==i);
+  }
+  gtk_grid_attach(GTK_GRID(grid),ctcss_frequency_b,col,row,1,1);
+  g_signal_connect(ctcss_frequency_b,"changed",G_CALLBACK(ctcss_frequency_cb),NULL);
+
+/*
   col++;
   GtkWidget *ctcss_spin=gtk_spin_button_new_with_range(67.0,250.3,0.1);
   gtk_spin_button_set_value(GTK_SPIN_BUTTON(ctcss_spin),(double)transmitter->ctcss_frequency);
@@ -503,7 +523,7 @@ void tx_menu(GtkWidget *parent) {
   
   row++;
   col=0;
-
+*/
   GtkWidget *tune_use_drive_b=gtk_check_button_new_with_label("Tune use drive");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (tune_use_drive_b), transmitter->tune_use_drive);
   gtk_widget_show(tune_use_drive_b);

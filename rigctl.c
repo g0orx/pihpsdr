@@ -194,94 +194,6 @@ void close_rigctl_ports() {
   }
 }
 
-//
-// Used to convert transmitter->ctcss_frequency into 1-39 value for TS2000.
-// This COULD be done with a simple table lookup - but I've already written the code
-// so at this point...
-//
-int convert_ctcss() {
-        int local_tone = 1; 
-        if(transmitter->ctcss_frequency == (double) 67.0) {
-           local_tone = 1; 
-        } else if (transmitter->ctcss_frequency == (double) 71.9) {
-           local_tone = 2; 
-        } else if (transmitter->ctcss_frequency == (double) 74.4) {
-           local_tone = 3; 
-        } else if (transmitter->ctcss_frequency == (double) 77.0) {
-           local_tone = 4; 
-        } else if (transmitter->ctcss_frequency == (double) 79.7) {
-           local_tone = 5; 
-        } else if (transmitter->ctcss_frequency == (double) 82.5) {
-           local_tone = 6; 
-        } else if (transmitter->ctcss_frequency == (double) 85.4) {
-           local_tone = 7; 
-        } else if (transmitter->ctcss_frequency == (double) 88.5) {
-           local_tone = 8; 
-        } else if (transmitter->ctcss_frequency == (double) 91.5) {
-           local_tone = 9; 
-        } else if (transmitter->ctcss_frequency == (double) 94.8) {
-           local_tone = 10; 
-        } else if (transmitter->ctcss_frequency == (double) 97.4) {
-           local_tone = 11; 
-        } else if (transmitter->ctcss_frequency == (double) 100.0) {
-           local_tone = 12; 
-        } else if (transmitter->ctcss_frequency == (double) 103.5) {
-           local_tone = 13; 
-        } else if (transmitter->ctcss_frequency == (double) 107.2) {
-           local_tone = 14; 
-        } else if (transmitter->ctcss_frequency == (double) 110.9) {
-           local_tone = 15; 
-        } else if (transmitter->ctcss_frequency == (double) 114.8) {
-           local_tone = 16; 
-        } else if (transmitter->ctcss_frequency == (double) 118.8) {
-           local_tone = 17; 
-        } else if (transmitter->ctcss_frequency == (double) 123.0) {
-           local_tone = 18; 
-        } else if (transmitter->ctcss_frequency == (double) 127.3) {
-           local_tone = 19; 
-        } else if (transmitter->ctcss_frequency == (double) 131.8) {
-           local_tone = 20; 
-        } else if (transmitter->ctcss_frequency == (double) 136.5) {
-           local_tone = 21; 
-        } else if (transmitter->ctcss_frequency == (double) 141.3) {
-           local_tone = 22; 
-        } else if (transmitter->ctcss_frequency == (double) 146.2) {
-           local_tone = 23; 
-        } else if (transmitter->ctcss_frequency == (double) 151.4) {
-           local_tone = 24; 
-        } else if (transmitter->ctcss_frequency == (double) 156.7) {
-           local_tone = 25; 
-        } else if (transmitter->ctcss_frequency == (double) 162.2) {
-           local_tone = 26; 
-        } else if (transmitter->ctcss_frequency == (double) 167.9) {
-           local_tone = 27; 
-        } else if (transmitter->ctcss_frequency == (double) 173.8) {
-           local_tone = 28; 
-        } else if (transmitter->ctcss_frequency == (double) 179.9) {
-           local_tone = 29; 
-        } else if (transmitter->ctcss_frequency == (double) 186.2) {
-           local_tone = 30; 
-        } else if (transmitter->ctcss_frequency == (double) 192.8) {
-           local_tone = 31; 
-        } else if (transmitter->ctcss_frequency == (double) 203.5) {
-           local_tone = 32; 
-        } else if (transmitter->ctcss_frequency == (double) 210.7) {
-           local_tone = 33; 
-        } else if (transmitter->ctcss_frequency == (double) 218.1) {
-           local_tone = 34; 
-        } else if (transmitter->ctcss_frequency == (double) 225.7) {
-           local_tone = 35; 
-        } else if (transmitter->ctcss_frequency == (double) 233.6) {
-           local_tone = 36; 
-        } else if (transmitter->ctcss_frequency == (double) 241.8) {
-           local_tone = 37; 
-        } else if (transmitter->ctcss_frequency == (double) 250.3) {
-           local_tone = 38; 
-        } else if (transmitter->ctcss_frequency == (double) 1750.0) {
-           local_tone = 39; 
-        }
-        return(local_tone);
-}
 int vfo_sm=0;   // VFO State Machine - this keeps track of
 
 // 
@@ -2626,30 +2538,47 @@ int parse_cmd(void *data) {
   char reply[80];
   reply[0]='\0';
   gboolean implemented=TRUE;
+  gboolean errord=FALSE;
 
   switch(command[0]) {
     case 'A':
       switch(command[1]) {
+        case 'C': //AC
+          // set/read internal atu status
+          implemented=FALSE;
+          break;
         case 'G': //AG
           // set/read AF Gain
-          if(command[3]==';') {
-            // send reply back
-            sprintf(reply,"AG0%03d;",(int)(receiver[0]->volume*100.0));
+          if(command[2]==';') {
+            // send reply back (covert from 0..1 to 0..255)
+            sprintf(reply,"AG0%03d;",(int)(receiver[0]->volume*255.0));
             send_resp(client->fd,reply) ;
           } else if(command[6]==';') {
             int gain=atoi(&command[3]);
-            receiver[0]->volume=(double)gain/100.0;
+            receiver[0]->volume=(double)gain/255.0;
             update_af_gain();
           }
           break;
         case 'I': //AI
-	  // We do not support AI commands and silently ignore them.
-	  // If the AI mode is queried, we reply "no AI"
-          if(command[2]==';') {
-	    sprintf(reply,"AI0;");
-            send_resp(client->fd,reply) ;
-	  }
-	  break;
+          // set/read Auto Information
+          implemented=FALSE;
+          break;
+        case 'L': // AL
+          // set/read Auto Notch level
+          implemented=FALSE;
+          break;
+        case 'M': // AM
+          // set/read Auto Mode
+          implemented=FALSE;
+          break;
+        case 'N': // AN
+          // set/read Antenna Connection
+          implemented=FALSE;
+          break;
+        case 'S': // AS
+          // set/read Auto Mode Function Parameters
+          implemented=FALSE;
+          break;
         default:
           implemented=FALSE;
           break;
@@ -2657,13 +2586,25 @@ int parse_cmd(void *data) {
       break;
     case 'B':
       switch(command[1]) {
+        case 'C': //BC
+          // set/read Beat Canceller
+          implemented=FALSE;
+          break;
         case 'D': //BD
           //band down 1 band
           band_minus(receiver[0]->id);
           break;
+        case 'P': //BP
+          // set/read Manual Beat Canceller frequency
+          implemented=FALSE;
+          break;
         case 'U': //BU
           //band up 1 band
           band_plus(receiver[0]->id);
+          break;
+        case 'Y': //BY
+          // read busy signal
+          implemented=FALSE;
           break;
         default:
           implemented=FALSE;
@@ -2672,6 +2613,42 @@ int parse_cmd(void *data) {
       break;
     case 'C':
       switch(command[1]) {
+        case 'A': //CA
+          // set/read CW Auto Tune
+          implemented=FALSE;
+          break;
+        case 'G': //CG
+          // set/read Carrier Gain
+          implemented=FALSE;
+          break;
+        case 'I': //CI
+          // sets the current frequency to the CALL Channel
+          implemented=FALSE;
+          break;
+        case 'M': //CM
+          // sets/reads the Packet Cluster Tune function
+          implemented=FALSE;
+          break;
+        case 'N': //CN
+          // sets/reads CTCSS function
+          if(command[3]==';') {
+            sprintf(reply,"CN%02d;",transmitter->ctcss+1);
+            send_resp(client->fd,reply) ;
+          } else if(command[4]==';') {
+            int i=atoi(&command[2])-1;
+            transmitter_set_ctcss(transmitter,transmitter->ctcss_enabled,i);
+          }
+          break;
+        case 'T': //CT
+          // sets/reads CTCSS status
+          if(command[3]==';') {
+            sprintf(reply,"CT%d;",transmitter->ctcss_enabled);
+            send_resp(client->fd,reply) ;
+          } else if(command[3]==';') {
+            int state=atoi(&command[2]);
+            transmitter_set_ctcss(transmitter,state,transmitter->ctcss);
+          }
+          break;
         default:
           implemented=FALSE;
           break;
@@ -2679,9 +2656,17 @@ int parse_cmd(void *data) {
       break;
     case 'D':
       switch(command[1]) {
+        case 'C': //DC
+          // set/read TX band status
+          implemented=FALSE;
+          break;
         case 'N': //DN
           // move VFO A down 1 step size
           vfo_id_step(VFO_A,-1);
+          break;
+        case 'Q': //DQ
+          // set/read DCS function status
+          implemented=FALSE;
           break;
         default:
           implemented=FALSE;
@@ -2690,6 +2675,10 @@ int parse_cmd(void *data) {
       break;
     case 'E':
       switch(command[1]) {
+        case 'X': //EX
+          // set/read the extension menu
+          implemented=FALSE;
+          break;
         default:
           implemented=FALSE;
           break;
@@ -2727,14 +2716,41 @@ int parse_cmd(void *data) {
             vfo_update();
           }
           break;
+        case 'C': //FC
+          // set/read the sub receiver VFO frequency menu
+          implemented=FALSE;
+          break;
+        case 'D': //FD
+          // set/read the filter display dot pattern
+          implemented=FALSE;
+          break;
         case 'R': //FR
           // set/read transceiver receive VFO
           if(command[2]==';') {
-            sprintf(reply,"FR0;");
+            sprintf(reply,"FR%d;",active_receiver->id);
             send_resp(client->fd,reply) ;
           } else if(command[3]==';') {
-            // ignore set command
+            int id=atoi(&command[2]);
+            switch(id) {
+              case 0:
+                active_receiver=receiver[id];
+                break;
+              case 1:
+                if(receivers==2) {
+                  active_receiver=receiver[id];
+                } else {
+                  implemented=FALSE;
+                }
+                break;
+              default:
+                implemented=FALSE;
+                break;
+            }
           }
+          break;
+        case 'S': //FS
+          // set/read the fine tune function status
+          implemented=FALSE;
           break;
         case 'T': //FT
           // set/read transceiver transmit VFO
@@ -2748,7 +2764,73 @@ int parse_cmd(void *data) {
           break;
         case 'W': //FW
           // set/read filter width
-          implemented=FALSE;
+          // make sure filter is filterVar1
+          if(vfo[active_receiver->id].filter!=filterVar1) {
+            vfo_filter_changed(filterVar1);
+          }
+          FILTER *mode_filters=filters[vfo[active_receiver->id].mode];
+          FILTER *filter=&mode_filters[filterVar1];
+          int val=0;
+          if(command[2]==';') {
+            switch(vfo[active_receiver->id].mode) {
+              case modeCWL:
+              case modeCWU:
+                val=2*filter->high;
+                break;
+              case modeAM:
+              case modeSAM:
+                val=filter->low>=-4000;
+                break;
+              case modeFMN:
+                val=active_receiver->deviation==5000;
+                break;
+              default:
+                implemented=FALSE;
+                break;
+            }
+            if(implemented) {
+              sprintf(reply,"FW%04d;",val);
+              send_resp(client->fd,reply) ;
+            }
+          } else if(command[6]==';') {
+            int fw=atoi(&command[2]);
+            int val=
+            filter->low=fw;
+            switch(vfo[active_receiver->id].mode) {
+              case modeCWL:
+              case modeCWU:
+                filter->low=fw/2;
+                filter->high=fw/2;
+                break;
+              case modeFMN:
+                if(fw==0) {
+                  filter->low=-4000;
+                  filter->high=4000;
+                  active_receiver->deviation=2500;
+                } else {
+                  filter->low=-8000;
+                  filter->high=8000;
+                  active_receiver->deviation=5000;
+                }
+                break;
+              case modeAM:
+              case modeSAM:
+                if(fw==0) {
+                  filter->low=-4000;
+                  filter->high=4000;
+                } else {
+                  filter->low=-8000;
+                  filter->high=8000;
+                }
+                break;
+              default:
+                implemented=FALSE;
+                break;
+            }
+            if(implemented) {
+              vfo_filter_changed(filterVar1);
+            }
+          }
           break;
         default:
           implemented=FALSE;
@@ -2760,11 +2842,11 @@ int parse_cmd(void *data) {
         case 'T': //GT
           // set/read RX1 AGC
           if(command[2]==';') {
-            sprintf(reply,"GT%03d;",receiver[0]->agc);
+            sprintf(reply,"GT%03d;",receiver[0]->agc*5);
             send_resp(client->fd,reply) ;
           } else if(command[5]==';') {
             // update RX1 AGC
-            receiver[0]->agc=atoi(&command[2]);
+            receiver[0]->agc=atoi(&command[2])/5;
             vfo_update();
           }
           break;
@@ -2784,15 +2866,24 @@ int parse_cmd(void *data) {
       switch(command[1]) {
         case 'D': //ID
           // get ID
-          strcpy(reply,"ID019;");
+          strcpy(reply,"ID019;"); // TS-2000
           send_resp(client->fd,reply);
           break;
         case 'F': //IF
-          sprintf(reply,"IF%011lld%04lld%+06lld%d%d000%d%d%d0%d0000;",
+          sprintf(reply,"IF%011lld%04lld%+06lld%d%d000%d%d%d0%d%d%02d0;",
                   vfo[VFO_A].ctun?vfo[VFO_A].ctun_frequency:vfo[VFO_A].frequency,
                   step,vfo[VFO_A].rit,vfo[VFO_A].rit_enabled,transmitter==NULL?0:transmitter->xit_enabled,
-                  mox,split,0,split?1:0);
+                  mox,split,0,split?1:0,transmitter->ctcss_enabled,transmitter->ctcss);
           send_resp(client->fd,reply);
+          break;
+        case 'S': //IS
+          // set/read IF shift
+          if(command[2]==';') {
+            strcpy(reply,"IS 0000;");
+            send_resp(client->fd,reply);
+          } else {
+            implemented=FALSE;
+          }
           break;
         default:
           implemented=FALSE;
@@ -2808,39 +2899,36 @@ int parse_cmd(void *data) {
       break;
     case 'K':
       switch(command[1]) {
-        case 'S':  // KS set CW speed
-	  if (command[2] == ';') {
-	    sprintf(reply,"KS%03d;", cw_keyer_speed);
+        case 'S': //KS
+          // set/read keying speed
+          if(command[2]==';') {
+            sprintf(reply,"KS%03d;",cw_keyer_speed);
             send_resp(client->fd,reply);
-          } else {
-            int val=atoi(&command[2]);
-            if (val >= 1 && val <= 60)  {
-	      cw_keyer_speed=val;
+          } else if(command[5]==';') {
+            int speed=atoi(&command[2]);
+            if(speed>=1 && speed<=60) {
+              cw_keyer_speed=speed;
 #ifdef LOCALCW
-	      keyer_update();
+              keyer_update();
 #endif
-	      vfo_update();
-            } else {
-	      send_resp(fd,"?;");
-	    }
+              vfo_update();
+            }
+          } else {
           }
-	  break;
-	case 'Y': // KY commands
-	  if (command[2] == ';') {
-	    // This is a query for available buffer space
-            if (cw_busy) {
-	      sprintf(reply,"KY1;");
-	    } else {
-	      sprintf(reply,"KY0;");
-	    }
+          break;
+        case 'Y': //KY
+          // convert the chaaracters into Morse Code
+          if(command[2]==';') {
+            sprintf(reply,"KY%d;",cw_busy);
             send_resp(client->fd,reply);
-	  } else if (cw_busy == 0) {
-	    // send morse
-	    strncpy(cw_buf, command+3, 24);
-	    cw_buf[24]=0;
-	    cw_busy=1;
-	  }
-	  break;
+          } else if(command[27]==';') {
+            if(cw_busy==0) {
+              strncpy(cw_buf,&command[3],24);
+              cw_busy=1;
+            }
+          } else {
+          }
+          break;
         default:
           implemented=FALSE;
           break;
@@ -2848,6 +2936,24 @@ int parse_cmd(void *data) {
       break;
     case 'L':
       switch(command[1]) {
+        case 'K': //LK
+          // set/read key lock
+          if(command[2]==';') {
+            sprintf(reply,"LK%d%d;",locked,locked);
+            send_resp(client->fd,reply);
+          } else if(command[27]==';') {
+            locked=command[2]=='1';
+            vfo_update();
+          }
+          break;
+        case 'M': //LM
+          // set/read keyer recording status
+          implemented=FALSE;
+          break;
+        case 'T': //LT
+          // set/read ALT fucntion status
+          implemented=FALSE;
+          break;
         default:
           implemented=FALSE;
           break;
@@ -2855,75 +2961,112 @@ int parse_cmd(void *data) {
       break;
     case 'M':
       switch(command[1]) {
+        case 'C': //MC
+          // set/read Memory Channel
+          implemented=FALSE;
+          break;
         case 'D': //MD
           // set/read operating mode
-	  // Note that the code numbers for the TS-2000 are
-	  // LSB(1), USB(2), CW(3), FM(4), AM(5), FSK(6), CWR(7), FSK-R(9)
-	  // We map FSK->DIGL, FSK-R->DIGU, CWU->CW and CWL->CW-R
-	  // We therefore need to "translate" piHPSDR internal
-	  // mode numbers to the Kenwood ones
           if(command[2]==';') {
-            switch (vfo[VFO_A].mode) {
-	      case modeLSB:
-		sprintf(reply,"MD1;");
-		break;
-	      case modeUSB:
-		sprintf(reply,"MD2;");
-		break;
-	      case modeCWU:
-		sprintf(reply,"MD3;");
-		break;
-	      case modeFMN:
-		sprintf(reply,"MD4;");
-		break;
-	      case modeAM:
-		sprintf(reply,"MD5;");
-		break;
-	      case modeDIGL:
-		sprintf(reply,"MD6;");
-		break;
-	      case modeCWL:
-		sprintf(reply,"MD7;");
-		break;
-	      case modeDIGU:
-		sprintf(reply,"MD9;");
-		break;
-	      default:
-		sprintf(reply,"?;");
-		break;
-	    }
+            int mode=1;
+            switch(vfo[VFO_A].mode) {
+              case modeLSB:
+                mode=1;
+                break;
+              case modeUSB:
+                mode=2;
+                break;
+              case modeCWL:
+                mode=7;
+                break;
+              case modeCWU:
+                mode=3;
+                break;
+              case modeFMN:
+                mode=4;
+                break;
+              case modeAM:
+              case modeSAM:
+                mode=5;
+                break;
+              case modeDIGL:
+                mode=6;
+                break;
+              case modeDIGU:
+                mode=9;
+                break;
+              default:
+                break;
+            }
+            sprintf(reply,"MD%d;",mode);
             send_resp(client->fd,reply);
           } else if(command[3]==';') {
-	    switch(atoi(&command[2])) {
-	      case 1:
-		vfo_mode_changed(modeLSB);
-		break;
-	      case 2:
-		vfo_mode_changed(modeUSB);
-		break;
-	      case 3:
-		vfo_mode_changed(modeCWU);
-		break;
-	      case 4:
-		vfo_mode_changed(modeFMN);
-		break;
-	      case 5:
-		vfo_mode_changed(modeAM);
-		break;
-	      case 6:
-		vfo_mode_changed(modeDIGL);
-		break;
-	      case 7:
-		vfo_mode_changed(modeCWL);
-		break;
-	      case 9:
-		vfo_mode_changed(modeDIGU);
-		break;
-	      default:
-		// just do nothing
-		break;
-	    }
+            int mode=modeUSB;
+            switch(atoi(&command[2])) {
+              case 1:
+                mode=modeLSB;
+                break;
+              case 2:
+                mode=modeUSB;
+                break;
+              case 3:
+                mode=modeCWU;
+                break;
+              case 4:
+                mode=modeFMN;
+                break;
+              case 5:
+                mode=modeAM;
+                break;
+              case 6:
+                mode=modeDIGL;
+                break;
+              case 7:
+                mode=modeCWL;
+                break;
+              case 9:
+                mode=modeDIGU;
+                break;
+              default:
+                break;
+            }
+            vfo_mode_changed(mode);
           }
+          break;
+        case 'F': //MF
+          // set/read Menu
+          implemented=FALSE;
+          break;
+        case 'G': //MG
+          // set/read Menu Gain (-12..60 converts to 0..100)
+          if(command[2]==';') {
+            sprintf(reply,"MG%03d;",(int)(((mic_gain+12.0)/72.0)*100.0));
+            send_resp(client->fd,reply);
+          } else if(command[5]==';') {
+            double gain=(double)atoi(&command[2]);
+            gain=((gain/100.0)*72.0)-12.0;
+            set_mic_gain(gain);
+          }
+          break;
+        case 'L': //ML
+          // set/read Monitor Function Level
+          implemented=FALSE;
+          break;
+        case 'O': //MO
+          // set/read Monitor Function On/Off
+          implemented=FALSE;
+          break;
+        case 'R': //MR
+          // read Memory Channel
+          implemented=FALSE;
+          break;
+        case 'U': //MU
+          // set/read Memory Group
+          implemented=FALSE;
+          break;
+        case 'W': //MW
+          // Write Memory Channel
+          implemented=FALSE;
           break;
         default:
           implemented=FALSE;
@@ -2933,7 +3076,7 @@ int parse_cmd(void *data) {
     case 'N':
       switch(command[1]) {
         case 'B': //NB
-          // set/read NB1
+          // set/read noise blanker
           if(command[2]==';') {
             sprintf(reply,"NB%d;",active_receiver->nb);
             send_resp(client->fd,reply);
@@ -2941,6 +3084,40 @@ int parse_cmd(void *data) {
             active_receiver->nb=atoi(&command[2]);
             if(active_receiver->nb) {
               active_receiver->nb2=0;
+            }
+            update_noise();
+          }
+          break;
+        case 'L': //NL
+          // set/read noise blanker level
+          implemented=FALSE;
+          break;
+        case 'R': //NR
+          // set/read noise reduction
+          if(command[2]==';') {
+            int n=0;
+            if(active_receiver->nr) {
+              n=1;
+            } else if(active_receiver->nr2) {
+              n=2;
+            }
+            sprintf(reply,"NR%d;",n);
+            send_resp(client->fd,reply);
+          } else if(command[3]==';') {
+            int n=atoi(&command[2]);
+            switch(n) {
+              case 0: // NR OFF
+                active_receiver->nr=0;
+                active_receiver->nr2=0;
+                break;
+              case 1: // NR ON
+                active_receiver->nr=1;
+                active_receiver->nr2=0;
+                break;
+              case 2: // NR2 ON
+                active_receiver->nr=0;
+                active_receiver->nr2=1;
+                break;
             }
             update_noise();
           }
@@ -2963,6 +3140,18 @@ int parse_cmd(void *data) {
       break;
     case 'O':
       switch(command[1]) {
+        case 'F': //OF
+          // set/read offset frequency
+          implemented=FALSE;
+          break;
+        case 'I': //OI
+          // set/read offset frequency
+          implemented=FALSE;
+          break;
+        case 'S': //OS
+          // set/read offset function status
+          implemented=FALSE;
+          break;
         default:
           implemented=FALSE;
           break;
@@ -2970,6 +3159,19 @@ int parse_cmd(void *data) {
       break;
     case 'P':
       switch(command[1]) {
+        case 'A': //PA
+          // set/read preamp function status
+          if(command[2]==';') {
+            sprintf(reply,"PA%d0;",active_receiver->preamp);
+            send_resp(client->fd,reply);
+          } else if(command[4]==';') {
+            active_receiver->preamp=command[2]=='1';
+          }
+          break;
+        case 'B': //PB
+          // set/read FRU-3A playback status
+          implemented=FALSE;
+          break;
         case 'C': //PC
           // set/read PA Power
           if(command[2]==';') {
@@ -2978,6 +3180,35 @@ int parse_cmd(void *data) {
           } else if(command[5]==';') {
             set_drive((double)atoi(&command[2]));
           }
+          break;
+        case 'I': //PI
+          // store in program memory channel
+          implemented=FALSE;
+          break;
+        case 'K': //PK
+          // read packet cluster data
+          implemented=FALSE;
+          break;
+        case 'L': //PL
+          // set/read speach processor input/output level
+          if(command[2]==';') {
+            sprintf(reply,"PL%03d000;",(int)((transmitter->compressor_level/20.0)*100.0));
+            send_resp(client->fd,reply);
+          } else if(command[8]==';') {
+            command[5]='\0';
+            double level=(double)atoi(&command[2]);
+            level=(level/100.0)*20.0;
+            transmitter_set_compressor_level(transmitter,level);
+            vfo_update();
+          }
+          break;
+        case 'M': //PM
+          // recall program memory
+          implemented=FALSE;
+          break;
+        case 'R': //PR
+          // set/read speech processor function
+          implemented=FALSE;
           break;
         case 'S': //PS
           // set/read Power (always ON)
@@ -2995,6 +3226,18 @@ int parse_cmd(void *data) {
       break;
     case 'Q':
       switch(command[1]) {
+        case 'C': //QC
+          // set/read DCS code
+          implemented=FALSE;
+          break;
+        case 'I': //QI
+          // store in quick memory
+          implemented=FALSE;
+          break;
+        case 'R': //QR
+          // set/read quick memory channel data
+          implemented=FALSE;
+          break;
         default:
           implemented=FALSE;
           break;
@@ -3002,6 +3245,29 @@ int parse_cmd(void *data) {
       break;
     case 'R':
       switch(command[1]) {
+        case 'A': //RA
+          // set/read Attenuator function
+          if(command[2]==';') {
+            int att=0;
+            if(have_rx_gain) {
+              att=(int)(adc_attenuation[active_receiver->adc]+12);
+              att=(int)(((double)att/60.0)*99.0);
+            } else {
+              att=(int)(adc_attenuation[active_receiver->adc]);
+              att=(int)(((double)att/31.0)*99.0);
+            }
+            sprintf(reply,"RA%02d00;",att);
+            send_resp(client->fd,reply);
+          } else if(command[4]==';') {
+            int att=atoi(&command[2]);
+            if(have_rx_gain) {
+              att=(int)((((double)att/99.0)*60.0)-12.0);
+            } else {
+              att=(int)(((double)att/99.0)*31.0);
+            }
+            set_attenuation_value((double)att);
+          }
+          break;
         case 'C': //RC
           // clears RIT
           if(command[2]==';') {
@@ -3022,6 +3288,18 @@ int parse_cmd(void *data) {
             vfo[VFO_A].rit=atoi(&command[2]);
             vfo_update();
           }
+          break;
+        case 'G': //RG
+          // set/read RF gain status
+          implemented=FALSE;
+          break;
+        case 'L': //RL
+          // set/read noise reduction level
+          implemented=FALSE;
+          break;
+        case 'M': //RM
+          // set/read meter function
+          implemented=FALSE;
           break;
         case 'T': //RT
           // set/read RIT enable
@@ -3060,6 +3338,297 @@ int parse_cmd(void *data) {
       break;
     case 'S':
       switch(command[1]) {
+        case 'A': //SA
+          // set/read stallite mode status
+          if(command[2]==';') {
+            sprintf(reply,"SA%d%d%d%d%d%d%dSAT?    ;",sat_mode==SAT_MODE|sat_mode==RSAT_MODE,0,0,0,sat_mode=SAT_MODE,sat_mode=RSAT_MODE,0);
+            send_resp(client->fd,reply);
+          } else if(command[9]==';') {
+            if(command[2]=='0') {
+              sat_mode=SAT_NONE;
+            } else if(command[2]=='1') {
+              if(command[6]=='0' && command[7]=='0') {
+                sat_mode=SAT_NONE;
+              } else if(command[6]=='1' && command[7]=='0') {
+                sat_mode=SAT_MODE;
+              } else if(command[6]=='0' && command[7]=='1') {
+                sat_mode=RSAT_MODE;
+              } else {
+                implemented=FALSE;
+              }
+            }
+          } else {
+            implemented=FALSE;
+          }
+          break;
+        case 'B': //SB
+          // set/read SUB,TF-W status
+          implemented=FALSE;
+          break;
+        case 'C': //SC
+          // set/read SCAN function status
+          implemented=FALSE;
+          break;
+        case 'D': //SD
+          // set/read CW break-in time delay
+          if(command[2]==';') {
+            sprintf(reply,"SD%04d;",(int)fmin(cw_keyer_hang_time,1000));
+            send_resp(client->fd,reply);
+          } else if(command[6]==';') {
+            int b=fmin(atoi(&command[2]),1000);
+            cw_breakin=b==0;
+            cw_keyer_hang_time=b;
+          } else {
+            implemented=FALSE;
+          }
+          break;
+        case 'H': //SH
+          {
+          // set/read filter high
+          // make sure filter is filterVar1
+          if(vfo[active_receiver->id].filter!=filterVar1) {
+            vfo_filter_changed(filterVar1);
+          }
+          FILTER *mode_filters=filters[vfo[active_receiver->id].mode];
+          FILTER *filter=&mode_filters[filterVar1];
+          if(command[2]==';') {
+            int fh=5;
+            int high=filter->high;
+            if(vfo[active_receiver->id].mode==modeLSB) {
+              high=abs(filter->low);
+            }
+            if(high<=1400) {
+              fh=0;
+            } else if(high<=1600) {
+              fh=1;
+            } else if(high<=1800) {
+              fh=2;
+            } else if(high<=2000) {
+              fh=3;
+            } else if(high<=2200) {
+              fh=4;
+            } else if(high<=2400) {
+              fh=5;
+            } else if(high<=2600) {
+              fh=6;
+            } else if(high<=2800) {
+              fh=7;
+            } else if(high<=3000) {
+              fh=8;
+            } else if(high<=3400) {
+              fh=9;
+            } else if(high<=4000) {
+              fh=10;
+            } else {
+              fh=11;
+            }
+            sprintf(reply,"SH%02d;",fh);
+            send_resp(client->fd,reply) ;
+          } else if(command[4]==';') {
+            int i=atoi(&command[2]);
+            int fh=100;
+            switch(vfo[active_receiver->id].mode) {
+              case modeLSB:
+              case modeUSB:
+              case modeFMN:
+                switch(i) {
+                  case 0:
+                    fh=1400;
+                    break;
+                  case 1:
+                    fh=1600;
+                    break;
+                  case 2:
+                    fh=1800;
+                    break;
+                  case 3:
+                    fh=2000;
+                    break;
+                  case 4:
+                    fh=2200;
+                    break;
+                  case 5:
+                    fh=2400;
+                    break;
+                  case 6:
+                    fh=2600;
+                    break;
+                  case 7:
+                    fh=2800;
+                    break;
+                  case 8:
+                    fh=3000;
+                    break;
+                  case 9:
+                    fh=3400;
+                    break;
+                  case 10:
+                    fh=4000;
+                    break;
+                  case 11:
+                    fh=5000;
+                    break;
+                  default:
+                    fh=100;
+                    break;
+                }
+                break;
+              case modeAM:
+              case modeSAM:
+                switch(i) {
+                  case 0:
+                    fh=10;
+                    break;
+                  case 1:
+                    fh=100;
+                    break;
+                  case 2:
+                    fh=200;
+                    break;
+                  case 3:
+                    fh=500;
+                    break;
+                  default:
+                    fh=100;
+                    break;
+                }
+                break;
+            }
+            if(vfo[active_receiver->id].mode==modeLSB) {
+              filter->low=-fh;
+            } else {
+              filter->high=fh;
+            }
+            vfo_filter_changed(filterVar1);
+          }
+          }
+          break;
+        case 'I': //SI
+          // enter satellite memory name
+          implemented=FALSE;
+          break;
+        case 'L': //SL
+          {
+          // set/read filter low
+          // make sure filter is filterVar1
+          if(vfo[active_receiver->id].filter!=filterVar1) {
+            vfo_filter_changed(filterVar1);
+          }
+          FILTER *mode_filters=filters[vfo[active_receiver->id].mode];
+          FILTER *filter=&mode_filters[filterVar1];
+          if(command[2]==';') {
+            int fl=2;
+            int low=filter->low;
+            if(vfo[active_receiver->id].mode==modeLSB) {
+              low=abs(filter->high);
+            }
+
+            if(low<=10) {
+              fl=0;
+            } else if(low<=50) {
+              fl=1;
+            } else if(low<=100) {
+              fl=2;
+            } else if(low<=200) {
+              fl=3;
+            } else if(low<=300) {
+              fl=4;
+            } else if(low<=400) {
+              fl=5;
+            } else if(low<=500) {
+              fl=6;
+            } else if(low<=600) {
+              fl=7;
+            } else if(low<=700) {
+              fl=8;
+            } else if(low<=800) {
+              fl=9;
+            } else if(low<=900) {
+              fl=10;
+            } else {
+              fl=11;
+            }
+            sprintf(reply,"SL%02d;",fl);
+            send_resp(client->fd,reply) ;
+          } else if(command[4]==';') {
+            int i=atoi(&command[2]);
+            int fl=100;
+            switch(vfo[active_receiver->id].mode) {
+              case modeLSB:
+              case modeUSB:
+              case modeFMN:
+                switch(i) {
+                  case 0:
+                    fl=10;
+                    break;
+                  case 1:
+                    fl=50;
+                    break;
+                  case 2:
+                    fl=100;
+                    break;
+                  case 3:
+                    fl=200;
+                    break;
+                  case 4:
+                    fl=300;
+                    break;
+                  case 5:
+                    fl=400;
+                    break;
+                  case 6:
+                    fl=500;
+                    break;
+                  case 7:
+                    fl=600;
+                    break;
+                  case 8:
+                    fl=700;
+                    break;
+                  case 9:
+                    fl=800;
+                    break;
+                  case 10:
+                    fl=900;
+                    break;
+                  case 11:
+                    fl=1000;
+                    break;
+                  default:
+                    fl=100;
+                    break;
+                }
+                break;
+              case modeAM:
+              case modeSAM:
+                switch(i) {
+                  case 0:
+                    fl=10;
+                    break;
+                  case 1:
+                    fl=100;
+                    break;
+                  case 2:
+                    fl=200;
+                    break;
+                  case 3:
+                    fl=500;
+                    break;
+                  default:
+                    fl=100;
+                    break;
+                }
+                break;
+            }
+            if(vfo[active_receiver->id].mode==modeLSB) {
+              filter->high=-fl;
+            } else {
+              filter->low=fl;
+            }
+            vfo_filter_changed(filterVar1);
+          }
+          }
+          break;
         case 'M': //SM
           // read the S meter
           if(command[3]==';') {
@@ -3070,6 +3639,43 @@ int parse_cmd(void *data) {
             }
           }
           break;
+        case 'Q': //SQ
+          // set/read Squelch level
+          if(command[3]==';') {
+            int p1=atoi(&command[2]);
+            if(p1==0) { // Main receiver
+              sprintf(reply,"SQ%d%03d;",p1,(int)((double)active_receiver->squelch/100.0*255.0));
+              send_resp(client->fd,reply);
+            }
+          } else if(command[6]==';') {
+            if(command[2]=='0') {
+              int p2=atoi(&command[3]);
+              active_receiver->squelch=(int)((double)p2/255.0*100.0);
+              set_squelch();
+            }
+          } else {
+          }
+          break;
+        case 'R': //SR
+          // reset transceiver
+          implemented=FALSE;
+          break;
+        case 'S': //SS
+          // set/read program scan pause frequency
+          implemented=FALSE;
+          break;
+        case 'T': //ST
+          // set/read MULTI/CH channel frequency steps
+          implemented=FALSE;
+          break;
+        case 'U': //SU
+          // set/read program scan pause frequency
+          implemented=FALSE;
+          break;
+        case 'V': //SV
+          // execute memory transfer function
+          implemented=FALSE;
+          break;
         default:
           implemented=FALSE;
           break;
@@ -3077,11 +3683,39 @@ int parse_cmd(void *data) {
       break;
     case 'T':
       switch(command[1]) {
+        case 'C': //TC
+          // set/read internal TNC mode
+          implemented=FALSE;
+          break;
+        case 'D': //TD
+          // send DTMF memory channel data
+          implemented=FALSE;
+          break;
+        case 'I': //TI
+          // read TNC LED status
+          implemented=FALSE;
+          break;
+        case 'N': //TN
+          // set/read sub-tone frequency
+          implemented=FALSE;
+          break;
+        case 'O': //TO
+          // set/read TONE function
+          implemented=FALSE;
+          break;
+        case 'S': //TS
+          // set/read TF-SET function
+          implemented=FALSE;
+          break;
         case 'X': //TX
           // set transceiver to TX mode
           if(command[2]==';') {
             mox_update(1);
           }
+          break;
+        case 'Y': //TY
+          // set/read microprocessor firmware type
+          implemented=FALSE;
           break;
         default:
           implemented=FALSE;
@@ -3090,6 +3724,10 @@ int parse_cmd(void *data) {
       break;
     case 'U':
       switch(command[1]) {
+        case 'L': //UL
+          // detects the PLL unlock status
+          implemented=FALSE;
+          break;
         case 'P': //UP
           // move VFO A up by step
           if(command[2]==';') {
@@ -3102,6 +3740,36 @@ int parse_cmd(void *data) {
       break;
     case 'V':
       switch(command[1]) {
+        case 'D': //VD
+          // set/read VOX delay time
+          implemented=FALSE;
+          break;
+        case 'G': //VG
+          // set/read VOX gain (0..9)
+          if(command[2]==';') {
+            // convert 0.0..1.0 to 0..9
+            sprintf(reply,"VG%03d;",(int)((vox_threshold*100.0)*0.9));
+            send_resp(client->fd,reply);
+          } else if(command[5]==';') {
+            // convert 0..9 to 0.0..1.0
+            vox_threshold=atof(&command[2])/9.0;
+            vfo_update();
+          }
+          break;
+        case 'R': //VR
+          // emulate VOICE1 or VOICE2 key
+          implemented=FALSE;
+          break;
+        case 'X': //VX
+          // set/read VOX status
+          if(command[2]==';') {
+            sprintf(reply,"VX%d;",vox_enabled);
+            send_resp(client->fd,reply);
+          } else if(command[3]==';') {
+            vox_enabled=atoi(&command[2]);
+            vfo_update();
+          }
+          break;
         default:
           implemented=FALSE;
           break;
@@ -3154,7 +3822,8 @@ int parse_cmd(void *data) {
   }
 
   if(!implemented) {
-    g_print("RIGCTL: UNIMPLEMENTED COMMAND: %s\n",info->command);
+    if(rigctl_debug) g_print("RIGCTL: UNIMPLEMENTED COMMAND: %s\n",info->command);
+    send_resp(client->fd,"?;");
   }
 
   g_free(info->command);

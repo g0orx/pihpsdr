@@ -93,6 +93,13 @@ static int cw_shape = 0;
 extern double cwramp48[];		// see cwramp.c, for 48 kHz sample rate
 extern double cwramp192[];		// see cwramp.c, for 192 kHz sample rate
 
+double ctcss_frequencies[CTCSS_FREQUENCIES]= {
+  67.0,71.9,74.4,77.0,79.7,82.5,85.4,88.5,91.5,94.8,
+  97.4,100.0,103.5,107.2,110.9,114.8,118.8,123.0,127.3,131.8,
+  136.5,141.3,146.2,151.4,156.7,162.2,167.9,173.8,179.9,186.2,
+  192.8,203.5,210.7,218.1,225.7,233.6,241.8,250.3
+};
+
 static void init_analyzer(TRANSMITTER *tx);
 
 static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_data) {
@@ -121,12 +128,12 @@ void transmitter_set_am_carrier_level(TRANSMITTER *tx) {
   SetTXAAMCarrierLevel(tx->id, tx->am_carrier_level);
 }
 
-void transmitter_set_ctcss(TRANSMITTER *tx,int run,double frequency) {
-  tx->ctcss=run;
-  tx->ctcss_frequency=frequency;
-fprintf(stderr,"transmitter_set_ctcss: ctcss_frequency=%f run=%d\n",tx->ctcss_frequency,tx->ctcss);
-  SetTXACTCSSFreq(tx->id, tx->ctcss_frequency);
-  SetTXACTCSSRun(tx->id, tx->ctcss);
+void transmitter_set_ctcss(TRANSMITTER *tx,int state,int i) {
+g_print("transmitter_set_ctcss: state=%d i=%d frequency=%0.1f\n",state,i,ctcss_frequencies[i]);
+  tx->ctcss_enabled=state;
+  tx->ctcss=i;
+  SetTXACTCSSFreq(tx->id, ctcss_frequencies[tx->ctcss]);
+  SetTXACTCSSRun(tx->id, tx->ctcss_enabled);
 }
 
 void transmitter_set_compressor_level(TRANSMITTER *tx,double level) {
@@ -208,11 +215,11 @@ void transmitter_save_state(TRANSMITTER *tx) {
   sprintf(value,"%d",tx->attenuation);
   setProperty(name,value);
 #endif
+  sprintf(name,"transmitter.%d.ctcss_enabled",tx->id);
+  sprintf(value,"%d",tx->ctcss_enabled);
+  setProperty(name,value);
   sprintf(name,"transmitter.%d.ctcss",tx->id);
   sprintf(value,"%d",tx->ctcss);
-  setProperty(name,value);
-  sprintf(name,"transmitter.%d.ctcss_frequency",tx->id);
-  sprintf(value,"%f",tx->ctcss_frequency);
   setProperty(name,value);
   sprintf(name,"transmitter.%d.deviation",tx->id);
   sprintf(value,"%d",tx->deviation);
@@ -309,12 +316,12 @@ void transmitter_restore_state(TRANSMITTER *tx) {
   value=getProperty(name);
   if(value) tx->attenuation=atoi(value);
 #endif
+  sprintf(name,"transmitter.%d.ctcss_enabled",tx->id);
+  value=getProperty(name);
+  if(value) tx->ctcss_enabled=atoi(value);
   sprintf(name,"transmitter.%d.ctcss",tx->id);
   value=getProperty(name);
   if(value) tx->ctcss=atoi(value);
-  sprintf(name,"transmitter.%d.ctcss_frequency",tx->id);
-  value=getProperty(name);
-  if(value) tx->ctcss_frequency=atof(value);
   sprintf(name,"transmitter.%d.deviation",tx->id);
   value=getProperty(name);
   if(value) tx->deviation=atoi(value);
@@ -772,8 +779,8 @@ fprintf(stderr,"create_transmitter: id=%d buffer_size=%d mic_sample_rate=%d mic_
   tx->single_on=0;
 
   tx->attenuation=0;
-  tx->ctcss=0;
-  tx->ctcss_frequency=100.0;
+  tx->ctcss=11;
+  tx->ctcss_enabled=FALSE;
 
   tx->deviation=2500;
   tx->am_carrier_level=0.5;
@@ -851,7 +858,7 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%p iq_output_buf
     SetTXAEQRun(tx->id, 0);
   }
 
-  transmitter_set_ctcss(tx,tx->ctcss,tx->ctcss_frequency);
+  transmitter_set_ctcss(tx,tx->ctcss_enabled,tx->ctcss);
   SetTXAAMSQRun(tx->id, 0);
   SetTXAosctrlRun(tx->id, 0);
 
