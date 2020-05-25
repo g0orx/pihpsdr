@@ -1462,9 +1462,6 @@ static void rxtx(int state) {
 
 void setMox(int state) {
   if(!can_transmit) return;
-#ifdef SOAPYSDR
-  if(protocol==SOAPYSDR_PROTOCOL && !transmitter->local_microphone) return;
-#endif
   vox_cancel();  // remove time-out
   if(mox!=state) {
     if (state && vox) {
