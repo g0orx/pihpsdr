@@ -220,6 +220,9 @@ int pa_mic_cb(const void *inputBuffer, void *outputBuffer, unsigned long framesP
     switch(protocol) {
       case ORIGINAL_PROTOCOL:
       case NEW_PROTOCOL:
+#ifdef SOAPYSDR
+      case SOAPYSDR_PROTOCOL:
+#endif
 	//
 	// put sample into ring buffer
 	//
@@ -236,12 +239,6 @@ int pa_mic_cb(const void *inputBuffer, void *outputBuffer, unsigned long framesP
 	  }
 	}
 	break;
-#ifdef SOAPYSDR
-      case SOAPYSDR_PROTOCOL:
-	// Note that this call ends up deeply in the TX engine
-	soapy_protocol_process_local_mic(sample);
-	break;
-#endif
       default:
 	break;
     }
