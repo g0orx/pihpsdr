@@ -2558,6 +2558,25 @@ int parse_cmd(void *data) {
             receiver[0]->volume=(double)gain/255.0;
             update_af_gain();
           }
+        case 'I': //AI
+          // set/read Auto Information
+          implemented=FALSE;
+          break;
+        case 'L': // AL
+          // set/read Auto Notch level
+          implemented=FALSE;
+          break;
+        case 'M': // AM
+          // set/read Auto Mode
+          implemented=FALSE;
+          break;
+        case 'N': // AN
+          // set/read Antenna Connection
+          implemented=FALSE;
+          break;
+        case 'S': // AS
+          // set/read Auto Mode Function Parameters
+          implemented=FALSE;
           break;
         case 'I': //AI
           // set/read Auto Information
@@ -3391,7 +3410,7 @@ int parse_cmd(void *data) {
           }
           FILTER *mode_filters=filters[vfo[active_receiver->id].mode];
           FILTER *filter=&mode_filters[filterVar1];
-          if(command[2]==';') {
+	  if(command[2]==';') {
             int fh=5;
             int high=filter->high;
             if(vfo[active_receiver->id].mode==modeLSB) {
@@ -3516,13 +3535,13 @@ int parse_cmd(void *data) {
           }
           FILTER *mode_filters=filters[vfo[active_receiver->id].mode];
           FILTER *filter=&mode_filters[filterVar1];
-          if(command[2]==';') {
+	  if(command[2]==';') {
             int fl=2;
             int low=filter->low;
             if(vfo[active_receiver->id].mode==modeLSB) {
               low=abs(filter->high);
             }
-
+          
             if(low<=10) {
               fl=0;
             } else if(low<=50) {
