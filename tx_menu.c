@@ -509,8 +509,8 @@ void tx_menu(GtkWidget *parent) {
   for(i=0;i<CTCSS_FREQUENCIES;i++) {
     sprintf(temp,"%0.1f",ctcss_frequencies[i]);
     gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(ctcss_frequency_b),NULL,temp);
-    gtk_combo_box_set_active(GTK_COMBO_BOX(ctcss_frequency_b),transmitter->ctcss==i);
   }
+  gtk_combo_box_set_active(GTK_COMBO_BOX(ctcss_frequency_b),transmitter->ctcss);
   gtk_grid_attach(GTK_GRID(grid),ctcss_frequency_b,col,row,1,1);
   g_signal_connect(ctcss_frequency_b,"changed",G_CALLBACK(ctcss_frequency_cb),NULL);
 
