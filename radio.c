@@ -1221,6 +1221,10 @@ void start_radio() {
     if (serial_enable) {
       launch_serial();
     }
+  } else {
+    // since we do not spawn the serial thread,
+    // disable serial
+    serial_enable=0;
   }
 
   if(can_transmit) {
