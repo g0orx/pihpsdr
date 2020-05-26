@@ -598,7 +598,7 @@ static gboolean update_display(gpointer data) {
         break;
 
 #ifdef SOAPYSDR
-      case SOAPY_PROTOCOL:
+      case SOAPYSDR_PROTOCOL:
         transmitter->fwd=0.0;
         transmitter->exciter=0.0;
         transmitter->rev=0.0;
