@@ -577,6 +577,7 @@ int ext_set_split(void *data) {
     split=GPOINTER_TO_INT(data),
     tx_set_mode(transmitter,get_tx_mode());
     set_alex_tx_antenna();
+    calcDriveLevel();
     g_idle_add(ext_vfo_update, NULL);
   }
   return 0;
@@ -587,6 +588,7 @@ int ext_split_toggle(void *data) {
     split=split==1?0:1;
     tx_set_mode(transmitter,get_tx_mode());
     set_alex_tx_antenna();
+    calcDriveLevel();
     g_idle_add(ext_vfo_update, NULL);
   }
   return 0;

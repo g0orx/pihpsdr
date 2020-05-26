@@ -96,8 +96,10 @@ void receiver_set_active(RECEIVER *rx) {
   g_idle_add(sliders_active_receiver_changed,NULL);
   // setup the transmitter mode and filter
   if(can_transmit) {
+    // TX band has possibly changed
     tx_set_mode(transmitter,get_tx_mode());
     set_alex_tx_antenna();
+    calcDriveLevel();
   }
 }
 
