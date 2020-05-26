@@ -2557,7 +2557,15 @@ int parse_cmd(void *data) {
           }
         case 'I': //AI
           // set/read Auto Information
-          implemented=FALSE;
+          // many clients start the connection with an "AI0" command.
+          // piHPSDR is constantly in an "AI0" state, therefore
+          // silently ignore AI0 commands and flag an error for
+          // all other possiblities
+          if (command[2] == '0' && command[3] == ';') {
+            // do nothing
+          } else {
+            implemented=FALSE;
+          }
           break;
         case 'L': // AL
           // set/read Auto Notch level
