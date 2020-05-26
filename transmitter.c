@@ -597,7 +597,7 @@ static gboolean update_display(gpointer data) {
         }
         break;
 
-#ifdef SOAPY_SDR
+#ifdef SOAPYSDR
       case SOAPY_PROTOCOL:
         transmitter->fwd=0.0;
         transmitter->exciter=0.0;
@@ -812,24 +812,38 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%d iq_output_buf
   tx->pixel_samples=g_new(float,tx->pixels);
   if (cw_shape_buffer48) g_free(cw_shape_buffer48);
   if (cw_shape_buffer192) g_free(cw_shape_buffer192);
-  //
-  // We need this one both for old and new protocol, since
-  // is is also used to shape the audio samples
-  cw_shape_buffer48=g_new(double,tx->buffer_size);
-  if (protocol == NEW_PROTOCOL || protocol == SOAPYSDR_PROTOCOL) {
-    // In the original protocol (P1) the TX sample rate equals the
-    // mic sample rate, therefore we do not need this buffer there
-    cw_shape_buffer192=g_new(double,tx->output_samples);
+  switch (protocol) {
+    case ORIGINAL_PROTOCOL:
+      //
+      // We need no buffer for the IQ sample amplitudes because
+      // we make dual use of the buffer for the audio amplitudes
+      // (TX sample rate ==  mic sample rate)
+      //
+      cw_shape_buffer48=g_new(double,tx->buffer_size);
+      break;
+   case NEW_PROTOCOL:
+#ifdef SOAPYSDR
+   case SOAPYSDR_PROTOCOL:
+#endif
+      //
+      // We need two buffers: one for the audio sample amplitudes
+      // and another one for the TX IQ amplitudes
+      // (TX and mic sample rate are usually different).
+      //
+      cw_shape_buffer48=g_new(double,tx->buffer_size);
+      cw_shape_buffer192=g_new(double,tx->output_samples);
+      break;
   }
-fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%p iq_output_buffer=%p pixels=%p\n",tx->mic_input_buffer,tx->iq_output_buffer,tx->pixel_samples);
+  g_print("transmitter: allocate buffers: mic_input_buffer=%p iq_output_buffer=%p pixels=%p\n",
+          tx->mic_input_buffer,tx->iq_output_buffer,tx->pixel_samples);
 
-  fprintf(stderr,"create_transmitter: OpenChannel id=%d buffer_size=%d fft_size=%d sample_rate=%d dspRate=%d outputRate=%d\n",
-              tx->id,
-              tx->buffer_size,
-              2048, // tx->fft_size,
-              tx->mic_sample_rate,
-              tx->mic_dsp_rate,
-              tx->iq_output_rate);
+  g_print("create_transmitter: OpenChannel id=%d buffer_size=%d fft_size=%d sample_rate=%d dspRate=%d outputRate=%d\n",
+          tx->id,
+          tx->buffer_size,
+          2048, // tx->fft_size,
+          tx->mic_sample_rate,
+          tx->mic_dsp_rate,
+          tx->iq_output_rate);
 
   OpenChannel(tx->id,
               tx->buffer_size,
@@ -1272,6 +1286,7 @@ void add_mic_sample(TRANSMITTER *tx,float mic_sample) {
 	      cw_shape_buffer192[i+3]=cwramp192[s+0];
 	   }
 	}
+#ifdef SOAPYSDR
         if (protocol == SOAPYSDR_PROTOCOL) {
           //
           // The ratio between the TX and microphone sample rate can be any value, so
@@ -1318,7 +1333,8 @@ void add_mic_sample(TRANSMITTER *tx,float mic_sample) {
               for (j=0; j<ratio; j++) cw_shape_buffer192[i++]=cwramp48[cw_shape];
             }
           }
-        }  // end of SOAPY case
+        }
+#endif
   } else {
 //
 //	If no longer transmitting, or no longer doing CW: reset pulse shaper.
@@ -1338,6 +1354,7 @@ void add_mic_sample(TRANSMITTER *tx,float mic_sample) {
 	  cw_shape_buffer192[4*tx->samples+2]=0.0;
 	  cw_shape_buffer192[4*tx->samples+3]=0.0;
 	}
+#ifdef SOAPYSDR
         if (protocol == SOAPYSDR_PROTOCOL) {
           //
           // this essentially the P2 code, where the ratio
@@ -1348,6 +1365,7 @@ void add_mic_sample(TRANSMITTER *tx,float mic_sample) {
           int j;
           for (j=0; j<ratio; j++) cw_shape_buffer192[i++]=0.0;
         }
+#endif
   }
   tx->mic_input_buffer[tx->samples*2]=mic_sample_double;
   tx->mic_input_buffer[(tx->samples*2)+1]=0.0; //mic_sample_double;
