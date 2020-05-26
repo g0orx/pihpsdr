@@ -3987,8 +3987,11 @@ int launch_serial () {
 void disable_serial () {
      g_print("RIGCTL: Disable Serial port %s\n",ser_port);
      serial_running=FALSE;
-     g_thread_join(serial_server_thread_id);
-     close(fd);
+     // wait for the serial server actually terminating
+     if (serial_server_thread_id) {
+       g_thread_join(serial_server_thread_id);
+     }
+     serial_server_thread_id=NULL;
 }
 
 //
