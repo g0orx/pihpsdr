@@ -480,8 +480,12 @@ void vfo_a_to_b() {
   if(receivers==2) {
     receiver_vfo_changed(receiver[1]);
   }
+  set_alex_rx_antenna();
+  set_alex_attenuation();
   if(can_transmit) {
+    set_alex_tx_antenna();
     tx_set_mode(transmitter,get_tx_mode());
+    calcDriveLevel();  // sends HighPrio packet if in new protocol
   }
   g_idle_add(ext_vfo_update,NULL);
 }
@@ -497,8 +501,12 @@ void vfo_b_to_a() {
   vfo[VFO_A].rit_enabled=vfo[VFO_B].rit_enabled;
   vfo[VFO_A].rit=vfo[VFO_B].rit;
   receiver_vfo_changed(receiver[0]);
+  set_alex_rx_antenna();
+  set_alex_attenuation();
   if(can_transmit) {
+    set_alex_tx_antenna();
     tx_set_mode(transmitter,get_tx_mode());
+    calcDriveLevel();  // sends HighPrio packet if in new protocol
   }
   g_idle_add(ext_vfo_update,NULL);
 }
@@ -548,8 +556,12 @@ void vfo_a_swap_b() {
   if(receivers==2) {
     receiver_vfo_changed(receiver[1]);
   }
+  set_alex_rx_antenna();
+  set_alex_attenuation();
   if(can_transmit) {
+    set_alex_tx_antenna();
     tx_set_mode(transmitter,get_tx_mode());
+    calcDriveLevel();  // sends HighPrio packet if in new protocol
   }
   g_idle_add(ext_vfo_update,NULL);
 }
