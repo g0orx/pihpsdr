@@ -436,6 +436,9 @@ hpsdrsim:       hpsdrsim.o newhpsdrsim.o
 #       start of piHPSDR) but also the radio settings and the midi.props file
 #       are stored.
 #
+#       ONLY the wdsp library is bundled with the app, all others, including
+#       the SoapySDR support modules, must be installed separatedly.
+#
 #############################################################################
 
 .PHONY: app
@@ -450,15 +453,19 @@ app:	$(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) \
 	@mkdir -p pihpsdr.app/Contents/MacOS
 	@mkdir -p pihpsdr.app/Contents/Frameworks
 	@mkdir -p pihpsdr.app/Contents/Resources
-	@cp pihpsdr pihpsdr.app/Contents/MacOS/pihpsdr-bin
+	@cp pihpsdr pihpsdr.app/Contents/MacOS/pihpsdr
 	@cp MacOS/PkgInfo pihpsdr.app/Contents
 	@cp MacOS/Info.plist pihpsdr.app/Contents
 	@cp MacOS/hpsdr.icns pihpsdr.app/Contents/Resources/hpsdr.icns
-	@cp MacOS/pihpsdr.sh pihpsdr.app/Contents/MacOS/pihpsdr
 	@cp MacOS/hpsdr.png pihpsdr.app/Contents/Resources
 #
-#       We no longer *distribute* a binary but instead compile&link it a-new
-#       on every target machine. Therefore, no libraries need be includede in the
-#       app bundle
+#	Copy the WDSP library into the executable
+#
+	@lib=`otool -L pihpsdr.app/Contents/MacOS/pihpsdr | grep libwdsp | sed -e "s/ (.*//" | sed -e 's/	//'`; \
+	 libfn=`basename $$lib`; \
+	 cp "$$lib" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
+	 chmod u+w "pihpsdr.app/Contents/Frameworks/$$libfn"; \
+	 install_name_tool -id "@executable_path/../Frameworks/$$libfn" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
+	 install_name_tool -change "$$lib" "@executable_path/../Frameworks/$$libfn" pihpsdr.app/Contents/MacOS/pihpsdr
 #
 #############################################################################
