@@ -12,6 +12,8 @@ neither "homebrew" nor "MacPorts" installed on your machine,
 the shell script "brew.init" in the MacOS directory initializes
 the "homebrew" universe, loads all packages required to compile pihpsdr
 and also the SoapySDR library and support files for some radios.
+When running this script, you will be ased the administrator password
+of your Macintosh *once*.
 
 Currently, pihpsdr has been tested on the MacOS with the Adalm Pluto
 but if you have experience with other radios, drop me a note at

@@ -28,15 +28,16 @@ brew install fftw
 # list produced, search for the same string using the
 # "search" facility of your internet browser
 #
+brew install cmake
 brew install libusb
 brew install pothosware/pothos/soapysdr
+brew install pothosware/pothos/soapyplutosdr
 brew install pothosware/pothos/limesuite
 brew install pothosware/pothos/soapyrtlsdr
 brew install pothosware/pothos/soapyairspy
 brew install pothosware/pothos/soapyairspyhf
 brew install pothosware/pothos/soapyhackrf
 brew install pothosware/pothos/soapyredpitaya
-brew install pothosware/pothos/soapyrtlsdr
 
 #
 # This is for PrivacyProtection
@@ -55,7 +56,7 @@ git clone https://github.com/dl1ycf/pihpsdr.git
 #
 cd $HOME/wdsp
 make -f Makefile.mac -j 4
-make install
+make -f Makefile.mac install
 #
 # compile pihpsdr, and move app bundle to the Desktop
 #
