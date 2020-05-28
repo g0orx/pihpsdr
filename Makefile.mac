@@ -12,7 +12,7 @@ PURESIGNAL_INCLUDE=PURESIGNAL
 LOCALCW_INCLUDE=LOCALCW
 
 # uncomment the line below for SoapySDR
-#SOAPYSDR_INCLUDE=SOAPYSDR
+SOAPYSDR_INCLUDE=SOAPYSDR
 
 # uncomment the line to below include support for sx1509 i2c expander
 #SX1509_INCLUDE=sx1509
@@ -407,31 +407,6 @@ clean:
 	-rm -f $(PROGRAM) hpsdrsim
 	-rm -rf $(PROGRAM).app
 
-install: $(PROGRAM)
-	cp $(PROGRAM) /usr/local/bin
-
-release: $(PROGRAM)
-	cp $(PROGRAM) release/pihpsdr
-	cd release; tar cvf pihpsdr.tar pihpsdr
-	cd release; tar cvf pihpsdr-$(GIT_VERSION).tar pihpsdr
-
-nocontroller: clean controller1 $(PROGRAM)
-	cp $(PROGRAM) release/pihpsdr
-	cd release; tar cvf pihpsdr-nocontroller.$(GIT_VERSION).tar pihpsdr
-
-controller1: clean $(PROGRAM)
-	cp $(PROGRAM) release/pihpsdr
-	cd release; tar cvf pihpsdr-controller1.$(GIT_VERSION).tar pihpsdr
-
-controller2v1: clean $(PROGRAM)
-	cp $(PROGRAM) release/pihpsdr
-	cd release; tar cvf pihpsdr-controller2-v1.$(GIT_VERSION).tar pihpsdr
-
-controller2v2: clean $(PROGRAM)
-	cp $(PROGRAM) release/pihpsdr
-	cd release; tar cvf pihpsdr-controller2-v2.$(GIT_VERSION).tar pihpsdr
-
-
 #############################################################################
 #
 # hpsdrsim is a cool program that emulates an SDR board with UDP and TCP
@@ -454,20 +429,6 @@ hpsdrsim:       hpsdrsim.o newhpsdrsim.o
 #
 # This is for MacOS "app" creation ONLY
 #
-# Note: Note that we need a wrapper script to start the program, and
-#       that it requires a working GTK installation on the Mac.
-#       The program will not work if the
-#       libgtk, libgdk, libglib, libgobj, libgio libraries
-#       are copied to the Frameworks dir and "activated", because
-#       this stuff depends on tons of other files in /usr/local.
-#
-#       We bundle the "app" with the other libraries such as WDSP,
-#       portaudio, fftw etc. such that the "app" runs on Macs which
-#       do not have them. But it is *very* hard to do this with GTK.
-#
-#       piHPSDR working dir
-#       ===================
-#
 #       The piHPSDR working directory is
 #	$HOME -> Application Support -> piHPSDR
 #
@@ -476,11 +437,13 @@ hpsdrsim:       hpsdrsim.o newhpsdrsim.o
 #       are stored.
 #
 #############################################################################
+
+.PHONY: app
 app:	$(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) \
 		$(LOCALCW_OBJS) \
 		$(PURESIGNAL_OBJS) $(MIDI_OBJS) $(SOAPYSDR_OBJS) $(STEMLAB_OBJS)
 	$(LINK) -headerpad_max_install_names -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) \
-		$(USBOZY_OBJS)  \
+		$(USBOZY_OBJS)  $(SOAPYSDR_OBJS) \
 		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(LIBS)
 	@rm -rf pihpsdr.app
@@ -494,8 +457,8 @@ app:	$(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) \
 	@cp MacOS/pihpsdr.sh pihpsdr.app/Contents/MacOS/pihpsdr
 	@cp MacOS/hpsdr.png pihpsdr.app/Contents/Resources
 #
-#       Copying the libraries is too error-prone at the end
-#       So *do not do* that, instead the app will only work if the libraries are installed in the correct place
+#       We no longer *distribute* a binary but instead compile&link it a-new
+#       on every target machine. Therefore, no libraries need be includede in the
+#       app bundle
 #
 #############################################################################
-
