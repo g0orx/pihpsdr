@@ -549,12 +549,24 @@ long long rigctl_getFrequency() {
 void send_resp (int fd,char * msg) {
   if(rigctl_debug) g_print("RIGCTL: RESP=%s\n",msg);
   int length=strlen(msg);
-  int written=0;
+  int rc;
+  int count=0;
   
-  while(written<length) {
-    written+=write(fd,&msg[written],length-written);   
+//
+// We have to make sure that send_resp quickly returns
+// if something goes wrong, because it is executed in the
+// GTK idle loop
+//
+  while(length>0) {
+    rc=write(fd,msg,length);   
+    if (rc < 0) return;
+    if (rc == 0) {
+      count++;
+      if (count > 10) return;
+    }
+    length -= rc;
+    msg += rc;
   }
-  
 }
 
 //
@@ -2814,7 +2826,7 @@ int parse_cmd(void *data) {
             switch(vfo[active_receiver->id].mode) {
               case modeCWL:
               case modeCWU:
-                val=2*filter->high;
+                val=filter->low*2;
                 break;
               case modeAM:
               case modeSAM:
