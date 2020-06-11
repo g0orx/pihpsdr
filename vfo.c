@@ -310,11 +310,9 @@ void vfo_band_changed(int id,int b) {
   switch(id) {
     case 0:
       bandstack->current_entry=vfo[id].bandstack;
-      receiver_vfo_changed(receiver[id]);
       receiver_vfo_changed(receiver[0]);
       break;
    case 1:
-      // Split: RX1 controls TX frequency
       if(receivers==2) {
         receiver_vfo_changed(receiver[1]);
       }
