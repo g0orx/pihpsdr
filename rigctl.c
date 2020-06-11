@@ -129,9 +129,8 @@ typedef struct _client {
 typedef struct _command {
   CLIENT *client;
   char *command;
+  struct timespec *rcvd;  // exact time when this command has been received
 } COMMAND;
-
-int fd;  // Serial port file descriptor
 
 static CLIENT client[MAX_CLIENTS];
 
@@ -547,7 +546,7 @@ long long rigctl_getFrequency() {
 // returns the command string
 //
 void send_resp (int fd,char * msg) {
-  if(rigctl_debug) g_print("RIGCTL: RESP=%s\n",msg);
+  if(rigctl_debug) g_print("RIGCTL: fd=%d RESP=%s\n",fd, msg);
   int length=strlen(msg);
   int rc;
   int count=0;
@@ -678,17 +677,19 @@ static gpointer rigctl_client (gpointer data) {
          command_index++;
          if(cmd_input[i]==';') {
            command[command_index]='\0';
-           if(rigctl_debug) g_print("RIGCTL: command=%s\n",command);
+           if(rigctl_debug) g_print("RIGCTL: fd=%d command=%s\n",client->fd,command);
            COMMAND *info=g_new(COMMAND,1);
            info->client=client;
            info->command=command;
+           info->rcvd=g_new(struct timespec, 1);
+           clock_gettime(CLOCK_MONOTONIC, info->rcvd);
            g_idle_add(parse_cmd,info);
            command=g_new(char,MAXDATASIZE);
            command_index=0;
          }
        }
      }
-g_print("RIGCTL: Leaving rigctl_client thread");
+g_print("RIGCTL: Leaving rigctl_client thread\n");
   if(client->fd!=-1) {
     g_print("setting SO_LINGER to 0 for client_socket: %d\n",client->fd);
     struct linger linger = { 0 };
@@ -2578,12 +2579,25 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
 int parse_cmd(void *data) {
   COMMAND *info=(COMMAND *)data;
   CLIENT *client=info->client;
+  struct timespec *ts=info->rcvd;
   char *command=info->command;
   char reply[80];
   reply[0]='\0';
   gboolean implemented=TRUE;
   gboolean errord=FALSE;
+  struct timespec now;
 
+  if (rigctl_debug) {
+    //
+    // Time (in msec) after reception of the command
+    //
+    long diff; // diff in msec
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    now.tv_sec  -= ts->tv_sec;
+    now.tv_nsec -= ts->tv_nsec;
+    diff = 1000*now.tv_sec + (now.tv_nsec / 1000000);
+    g_print("RIGCTL: parse start TIME=%ld fd=%d COMMAND=%s\n", diff, client->fd, command);
+  }
   switch(command[0]) {
     case 'A':
       switch(command[1]) {
@@ -3853,7 +3867,19 @@ int parse_cmd(void *data) {
     send_resp(client->fd,"?;");
   }
 
+  if (rigctl_debug) {
+    //
+    // Time (in msec) after reception of the command
+    //
+    long diff; // diff in msec
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    now.tv_sec  -= ts->tv_sec;
+    now.tv_nsec -= ts->tv_nsec;
+    diff = 1000*now.tv_sec + (now.tv_nsec / 1000000);
+    g_print("RIGCTL: parse end  : TIME=%ld fd=%d COMMAND=%s\n", diff, client->fd, command);
+  }
   g_free(info->command);
+  g_free(info->rcvd);
   g_free(info);
   return 0;
 }
@@ -3932,17 +3958,19 @@ static gpointer serial_server(gpointer data) {
      g_idle_add(ext_vfo_update,NULL);
      serial_running=TRUE;
      while(serial_running) {
-       numbytes = read (fd, cmd_input, sizeof cmd_input);
+       numbytes = read (client->fd, cmd_input, sizeof cmd_input);
        if(numbytes>0) {
          for(i=0;i<numbytes;i++) {
            command[command_index]=cmd_input[i];
            command_index++;
            if(cmd_input[i]==';') { 
              command[command_index]='\0';
-             if(rigctl_debug) g_print("RIGCTL: command=%s\n",command);
+             if(rigctl_debug) g_print("RIGCTL: fd=%d command=%s\n",client->fd,command);
              COMMAND *info=g_new(COMMAND,1);
              info->client=client;
              info->command=command;
+	     info->rcvd=g_new(struct timespec, 1);
+             clock_gettime(CLOCK_MONOTONIC, info->rcvd);
              g_mutex_lock(&mutex_busy->m);
              g_idle_add(parse_cmd,info);
              g_mutex_unlock(&mutex_busy->m);
@@ -3962,10 +3990,12 @@ static gpointer serial_server(gpointer data) {
      if(rigctl_debug) g_print("RIGCTL: SER DEC - cat_control=%d\n",cat_control);
      g_mutex_unlock(&mutex_a->m);
      g_idle_add(ext_vfo_update,NULL);
+     g_free(client);  // this is the serial_client allocated in launch_serial
      return NULL;
 }
 
 int launch_serial () {
+     int fd;
      g_print("RIGCTL: Launch Serial port %s\n",ser_port);
      if(mutex_b_exists == 0) {
         mutex_b = g_new(GT_MUTEX,1);
