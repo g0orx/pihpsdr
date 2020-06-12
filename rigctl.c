@@ -2633,6 +2633,7 @@ int parse_cmd(void *data) {
             receiver[0]->volume=(double)gain/255.0;
             update_af_gain();
           }
+          break;
         case 'I': //AI
           // set/read Auto Information
           // many clients start the connection with an "AI0" command.
@@ -3791,6 +3792,7 @@ int parse_cmd(void *data) {
           if(command[2]==';') {
             vfo_step(1);
           }
+          break;
         default:
           implemented=FALSE;
           break;
