@@ -11,6 +11,10 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
+#ifdef __APPLE__
+#include "MacOS.h"  // emulate clock_gettime on old MacOS systems
+#endif
+
 #include "midi.h"
 
 void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
