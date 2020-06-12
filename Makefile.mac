@@ -164,6 +164,7 @@ COMPILE=$(CC) $(CFLAGS) $(OPTIONS) $(INCLUDES)
 PROGRAM=pihpsdr
 
 SOURCES= \
+MacOS.c \
 audio.c \
 band.c \
 configure.c \
@@ -234,6 +235,7 @@ protocols.c
 
 
 HEADERS= \
+MacOS.h \
 audio.h \
 agc.h \
 alex.h \
@@ -304,6 +306,7 @@ protocols.h
 
 
 OBJS= \
+MacOS.o \
 audio.o \
 portaudio.o \
 band.o \
