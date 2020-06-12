@@ -65,7 +65,7 @@ static inline int clock_nanosleep(clockid_t clock_id, int flags,
   struct timespec now;
   int rc;
 
-  if (clock_id == TIMER_ABSTIME) {
+  if (flags == TIMER_ABSTIME) {
     //
     // sleep until point in the future
     //
