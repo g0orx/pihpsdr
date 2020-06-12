@@ -58,6 +58,13 @@
 #endif
 #include <math.h>
 
+#define RIGCTL_TIMING
+#ifdef RIGCTL_TIMING
+#ifdef __APPLE__
+#include "MacOS.h"  // emulate clock_gettime on old MacOS systems
+#endif
+#endif
+
 #define NEW_PARSER
 
 // IP stuff below
@@ -129,7 +136,9 @@ typedef struct _client {
 typedef struct _command {
   CLIENT *client;
   char *command;
+#ifdef RIGCTL_TIMING
   struct timespec *rcvd;  // exact time when this command has been received
+#endif
 } COMMAND;
 
 static CLIENT client[MAX_CLIENTS];
@@ -681,8 +690,10 @@ static gpointer rigctl_client (gpointer data) {
            COMMAND *info=g_new(COMMAND,1);
            info->client=client;
            info->command=command;
+#ifdef RIGCTL_TIMING
            info->rcvd=g_new(struct timespec, 1);
            clock_gettime(CLOCK_MONOTONIC, info->rcvd);
+#endif
            g_idle_add(parse_cmd,info);
            command=g_new(char,MAXDATASIZE);
            command_index=0;
@@ -2579,7 +2590,9 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
 int parse_cmd(void *data) {
   COMMAND *info=(COMMAND *)data;
   CLIENT *client=info->client;
+#ifdef RIGCTL_TIMING
   struct timespec *ts=info->rcvd;
+#endif
   char *command=info->command;
   char reply[80];
   reply[0]='\0';
@@ -2587,6 +2600,7 @@ int parse_cmd(void *data) {
   gboolean errord=FALSE;
   struct timespec now;
 
+#ifdef RIGCTL_TIMING
   if (rigctl_debug) {
     //
     // Time (in msec) after reception of the command
@@ -2598,6 +2612,9 @@ int parse_cmd(void *data) {
     diff = 1000*now.tv_sec + (now.tv_nsec / 1000000);
     g_print("RIGCTL: parse start TIME=%ld fd=%d COMMAND=%s\n", diff, client->fd, command);
   }
+#else
+    g_print("RIGCTL: fd=%d COMMAND=%s\n", client->fd, command);
+#endif
   switch(command[0]) {
     case 'A':
       switch(command[1]) {
@@ -3867,6 +3884,7 @@ int parse_cmd(void *data) {
     send_resp(client->fd,"?;");
   }
 
+#ifdef RIGCTL_TIMING
   if (rigctl_debug) {
     //
     // Time (in msec) after reception of the command
@@ -3878,8 +3896,11 @@ int parse_cmd(void *data) {
     diff = 1000*now.tv_sec + (now.tv_nsec / 1000000);
     g_print("RIGCTL: parse end  : TIME=%ld fd=%d COMMAND=%s\n", diff, client->fd, command);
   }
+#endif
   g_free(info->command);
+#ifdef RIGCTL_TIMING
   g_free(info->rcvd);
+#endif
   g_free(info);
   return 0;
 }
@@ -3969,8 +3990,10 @@ static gpointer serial_server(gpointer data) {
              COMMAND *info=g_new(COMMAND,1);
              info->client=client;
              info->command=command;
+#ifdef RIGCTL_TIMING
 	     info->rcvd=g_new(struct timespec, 1);
              clock_gettime(CLOCK_MONOTONIC, info->rcvd);
+#endif
              g_mutex_lock(&mutex_busy->m);
              g_idle_add(parse_cmd,info);
              g_mutex_unlock(&mutex_busy->m);
