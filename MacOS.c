@@ -54,15 +54,11 @@ void MacOSstartup(char *path) {
     struct stat st;
     int fdin, fdout;
     int rc;
-    FILE *fpout;
-    fpout=fopen("/Users/chwu/Desktop/out.log", "w");
-    fprintf(fpout,"LOG\n"); fflush(fpout);
 //
 //  If the current work dir is NOT "/", just do nothing
 //    
     *workdir=0;
     c=getcwd(workdir,sizeof(workdir));
-    fprintf(fpout,"START CWD=%s len=%d\n", workdir, (int) strlen(workdir)); fflush(fpout);
     if (strlen(workdir) != 1 || *workdir != '/') return;
 
 //
@@ -74,31 +70,26 @@ void MacOSstartup(char *path) {
     if ((homedir = getenv("HOME")) == NULL) {
       homedir = getpwuid(getuid())->pw_dir;
     }
-    fprintf(fpout,"HOMEDIR=%s\n", homedir); fflush(fpout);
     if (strlen(homedir) +strlen(AppSupport) > 1020) return;
     strcpy(workdir,homedir);
     strcat(workdir, AppSupport);
-    fprintf(fpout,"WORKDIR=%s\n", workdir); fflush(fpout);
 
 //
 //  Check if working dir exists, otherwise try to create it
 //
     if (stat(workdir, &st) < 0) {
-      fprintf(fpout,"TRY MAKE\n"); fflush(fpout),
       mkdir(workdir, 0755);
     }
 //
 //  Is it there? If not, give up
 //
     if (stat(workdir, &st) < 0) {
-      fprintf(fpout,"NOT THERE\n"); fflush(fpout);
       return;
     }
 //
 //  Is it a directory? If not, give up
 //
     if ((st.st_mode & S_IFDIR) == 0) {
-      fprintf(fpout,"NO DIR\n"); fflush(fpout);
       return;
     }
 //
@@ -106,7 +97,6 @@ void MacOSstartup(char *path) {
 //
     chdir(workdir);
     c=getcwd(workdir,sizeof(workdir));
-    fprintf(fpout,"NOW CWD=%s len=%d\n", workdir, (int) strlen(workdir)); fflush(fpout);
 //
 //  Copy icon from app bundle to the work dir
 //
@@ -138,7 +128,6 @@ void MacOSstartup(char *path) {
         }
       }
     }
-    fclose(fpout);
 }
 
 #endif
