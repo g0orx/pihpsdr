@@ -93,7 +93,11 @@ g_print("zoom_value_changed_cb\n");
 
 void set_zoom(int rx,double value) {
 g_print("set_zoom: %f\n",value);
-  receiver[rx]->zoom=value;
+  g_mutex_lock(&pan_zoom_mutex);
+  g_mutex_lock(&active_receiver->display_mutex);
+  receiver_change_zoom(receiver[rx], value);
+  g_mutex_unlock(&active_receiver->display_mutex);
+  g_mutex_unlock(&pan_zoom_mutex);
   if(display_zoompan) {
     gtk_range_set_value (GTK_RANGE(zoom_scale),receiver[rx]->zoom);
   } else {
@@ -164,7 +168,9 @@ g_print("pan_value_changed_cb\n");
 
 void set_pan(int rx,double value) {
 g_print("set_pan: %f\n",value);
-  receiver[rx]->pan=(int)value;
+  g_mutex_lock(&pan_zoom_mutex);
+  receiver_change_pan(receiver[rx],value);
+  g_mutex_unlock(&pan_zoom_mutex);
   if(display_zoompan) {
     gtk_range_set_value (GTK_RANGE(pan_scale),receiver[rx]->pan);
   } else {
@@ -184,7 +190,7 @@ g_print("set_pan: %f\n",value);
       GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
       pan_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, receiver[rx]->zoom==1?receiver[rx]->pixels:receiver[rx]->pixels-receiver[rx]->width, 1.00);
       gtk_widget_set_size_request (pan_scale, 400, 30);
-      gtk_range_set_value (GTK_RANGE(pan_scale),receiver[rx]->pan);
+      gtk_range_set_value (GTK_RANGE(pan_scale),(double) receiver[rx]->pan);
       gtk_widget_show(pan_scale);
       gtk_container_add(GTK_CONTAINER(content),pan_scale);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
@@ -209,14 +215,14 @@ g_print("remote_set_pan: EXIT\n");
 }
 
 void update_pan(double pan) {
-  g_mutex_lock(&pan_zoom_mutex);
+//  g_mutex_lock(&pan_zoom_mutex);
   if(active_receiver->zoom>1) {
     int p=active_receiver->pan+(int)pan;
     if(p<0) p=0;
     if(p>(active_receiver->pixels-active_receiver->width)) p=active_receiver->pixels-active_receiver->width;
     set_pan(active_receiver->id,(double)p);
   }
-  g_mutex_lock(&pan_zoom_mutex);
+//  g_mutex_unlock(&pan_zoom_mutex);
 }
 
 GtkWidget *zoompan_init(int my_width, int my_height) {
