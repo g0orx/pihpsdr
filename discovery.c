@@ -365,6 +365,7 @@ void discovery() {
   
     fprintf(stderr,"discovery: found %d devices\n", devices);
     gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_ARROW));
+
     discovery_dialog = gtk_dialog_new();
     gtk_window_set_transient_for(GTK_WINDOW(discovery_dialog),GTK_WINDOW(top_window));
     gtk_window_set_title(GTK_WINDOW(discovery_dialog),"piHPSDR - Discovery");
@@ -521,6 +522,16 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
 #endif
 
       }
+    }
+
+
+    g_print("%s: devices=%d autostart=%d\n",__FUNCTION__,devices,autostart);
+
+    if(devices==1 && autostart) {
+        d=&discovered[0];
+	if(d->status==STATE_AVAILABLE) {
+          if(start_cb(NULL,NULL,(gpointer)d)) return;
+	}
     }
 
 #ifdef CLIENT_SERVER

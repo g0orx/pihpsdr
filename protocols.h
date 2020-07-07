@@ -23,8 +23,9 @@ extern gboolean enable_protocol_2;
 extern gboolean enable_soapy_protocol;
 #endif
 #ifdef STEMLAB_DISCOVERY
-gboolean enable_stemlab;
+extern gboolean enable_stemlab;
 #endif
+extern gboolean autostart;
 
 extern void protocols_save_state();
 extern void protocols_restore_state();

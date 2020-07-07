@@ -41,6 +41,7 @@ gboolean enable_soapy_protocol;
 #ifdef STEMLAB_DISCOVERY
 gboolean enable_stemlab;
 #endif
+gboolean autostart;
 
 void protocols_save_state() {
   char value[80];
@@ -59,6 +60,8 @@ void protocols_save_state() {
   setProperty("enable_stemlab",value);
 #endif
 
+  sprintf(value,"%d",autostart);
+  setProperty("autostart",value);
   saveProperties("protocols.props");
   
 }
@@ -83,6 +86,10 @@ void protocols_restore_state() {
   value=getProperty("enable_stemlab");
   if(value) enable_stemlab=atoi(value);
 #endif
+  autostart=FALSE;
+  value=getProperty("autostart");
+  if(value) autostart=atoi(value);
+
   clearProperties();
 }
 
@@ -113,6 +120,10 @@ static void stemlab_cb(GtkToggleButton *widget, gpointer data) {
   enable_stemlab=gtk_toggle_button_get_active(widget);
 }
 #endif
+
+static void autostart_cb(GtkToggleButton *widget, gpointer data) {
+  autostart=gtk_toggle_button_get_active(widget);
+}
 
 void configure_protocols(GtkWidget *parent) {
   int row;
@@ -160,6 +171,13 @@ void configure_protocols(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),b_enable_stemlab,0,row,1,1);
   row++;
 #endif
+
+  GtkWidget *b_autostart=gtk_check_button_new_with_label("Auto start if only one device");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_autostart), autostart);
+  gtk_widget_show(b_autostart);
+  g_signal_connect(b_autostart,"toggled",G_CALLBACK(autostart_cb),NULL);
+  gtk_grid_attach(GTK_GRID(grid),b_autostart,0,row,1,1);
+  row++;
 
   gtk_container_add(GTK_CONTAINER(content),grid);
 

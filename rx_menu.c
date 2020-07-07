@@ -305,6 +305,17 @@ void rx_menu(GtkWidget *parent) {
       gtk_grid_attach(GTK_GRID(grid),random_b,x,3,1,1);
       g_signal_connect(random_b,"toggled",G_CALLBACK(random_cb),NULL);
 
+      if((protocol==ORIGINAL_PROTOCOL && device == DEVICE_METIS) ||
+#ifdef USBOZY
+         (protocol==ORIGINAL_PROTOCOL && device == DEVICE_OZY) ||
+#endif
+	 (protocol==NEW_PROTOCOL && device == NEW_DEVICE_ATLAS)) {
+        GtkWidget *preamp_b=gtk_check_button_new_with_label("Preamp");
+        gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (preamp_b), active_receiver->preamp);
+        gtk_grid_attach(GTK_GRID(grid),preamp_b,x,4,1,1);
+        g_signal_connect(preamp_b,"toggled",G_CALLBACK(preamp_cb),NULL);
+      }
+
       if (filter_board == ALEX && active_receiver->adc == 0
           && ((protocol==ORIGINAL_PROTOCOL && device != DEVICE_ORION2) || (protocol==NEW_PROTOCOL && device != NEW_DEVICE_ORION2))) {
   
