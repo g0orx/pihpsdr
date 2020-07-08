@@ -1069,7 +1069,9 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 
   if (isTransmitting()) {
 
-    if(radio->device==NEW_DEVICE_ATLAS && atlas_penelope) {
+    if(  (    (protocol == NEW_PROTOCOL && radio->device==NEW_DEVICE_ATLAS) 
+           || (protocol==ORIGINAL_PROTOCOL && radio->device==DEVICE_METIS)
+         ) && atlas_penelope) {
       //
       // On these boards, drive level changes are performed by
       // scaling the TX IQ samples. In the other cases, DriveLevel
