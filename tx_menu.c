@@ -530,8 +530,9 @@ void tx_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),tune_use_drive_b,col,row,1,1);
   g_signal_connect(tune_use_drive_b,"toggled",G_CALLBACK(tune_use_drive_cb),NULL);
 
-  row++;
-  col=0;
+  //row++;
+  //col=0;
+  col++;
   
   GtkWidget *tune_percent_label=gtk_label_new(NULL);
   gtk_label_set_markup(GTK_LABEL(tune_percent_label), "<b>Tune Percent:</b>");
