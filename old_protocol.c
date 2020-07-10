@@ -1422,10 +1422,16 @@ static int last_power=0;
       case 4:
         output_buffer[C0]=0x14;
         output_buffer[C1]=0x00;
-        // All current boards have NO switchable preamps
-        //for(i=0;i<receivers;i++) {
-        //  output_buffer[C1]|=(receiver[i]->preamp<<i);
-        //}
+
+#ifdef USBOZY
+        if ((device == DEVICE_OZY) || (device == DEVICE_METIS)) {
+#else
+        if (device == DEVICE_METIS) {
+#endif
+          for(i=0;i<receivers;i++) {
+            output_buffer[C1]|=(receiver[i]->preamp<<i);
+          }
+        }
         if(mic_ptt_enabled==0) {
           output_buffer[C1]|=0x40;
         }
