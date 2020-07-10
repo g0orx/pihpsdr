@@ -363,58 +363,9 @@ void discovery() {
 
   status_text("Discovery");
   
-#ifdef AUTOSTART_OPTION
-//
-// An option suggested by Chris AG5RR / VK3ICM
-//
-// If a radio is found with a specific hardware address told to piHPSDR,
-// then it is started immediately at this point
-//
-   char *myradio=getenv("STARTMYHARDWARE");
-   g_print("GETENV returns %p\n", myradio);
-   if (myradio && devices > 0) {
-     int mymac[6];
-     mymac[5]=-1;
-     g_print("Consider starting radio with HW addr=%s\n", myradio);
-     sscanf(myradio,"%02x.%02x.%02x.%02x.%02x.%02x",          &mymac[0],&mymac[1],&mymac[2],&mymac[3],&mymac[4],&mymac[5]);
-     g_print("HW addr parsed=%02x.%02x.%02x.%02x.%02x.%02x\n", mymac[0] ,mymac[1], mymac[2], mymac[3], mymac[4], mymac[5]);
-     for (int i=0; i < devices; i++) {
-       d=&discovered[i];
-#ifdef USBOZY
-       if (d->device == DEVICE_OZY) break;		// no MAC addr available
-#endif
-#ifdef SOAPYSDR
-       if (d->protocol == SOAPYSDR_PROTOCOL) break;	// no MAC addr available
-#endif
-#ifdef STEMLAB_DISCOVERY
-       if (d->protocol == STEMLAB_PROTOCOL) break;	// no MAC addr available (at this point)
-#endif
-       if(d->status!=STATE_AVAILABLE) break;		// in use or other problem
-       // not on the same subnet so cannot start it (but allow APIPA!)
-       if (strncmp(inet_ntoa(d->info.network.address.sin_addr),"169.254.",8)) {
-         if((d->info.network.interface_address.sin_addr.s_addr&d->info.network.interface_netmask.sin_addr.s_addr) != (d->info.network.address.sin_addr.s_addr&d->info.network.interface_netmask.sin_addr.s_addr)) break;
-       }
-//
-//     Now we consider starting THIS radio, if the HW address matches
-//
-       if (d->info.network.mac_address[0] != mymac[0]) break;
-       if (d->info.network.mac_address[1] != mymac[1]) break;
-       if (d->info.network.mac_address[2] != mymac[2]) break;
-       if (d->info.network.mac_address[3] != mymac[3]) break;
-       if (d->info.network.mac_address[4] != mymac[4]) break;
-       if (d->info.network.mac_address[5] != mymac[5]) break;
-//
-//     all tests passed. Start this radio
-//
-       radio=d;
-       start_radio();
-       return;
-     }
-   }
-#endif
-
     fprintf(stderr,"discovery: found %d devices\n", devices);
     gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_ARROW));
+
     discovery_dialog = gtk_dialog_new();
     gtk_window_set_transient_for(GTK_WINDOW(discovery_dialog),GTK_WINDOW(top_window));
     gtk_window_set_title(GTK_WINDOW(discovery_dialog),"piHPSDR - Discovery");
@@ -579,6 +530,16 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
 #endif
 
       }
+    }
+
+
+    g_print("%s: devices=%d autostart=%d\n",__FUNCTION__,devices,autostart);
+
+    if(devices==1 && autostart) {
+        d=&discovered[0];
+	if(d->status==STATE_AVAILABLE) {
+          if(start_cb(NULL,NULL,(gpointer)d)) return;
+	}
     }
 
 #ifdef CLIENT_SERVER
