@@ -1,5 +1,9 @@
 /*
- *  Replace missing library functions with inline code
+ *  Some functions are possibly missing on MacOS and in this case
+ *  are replaced with "static inline" functions:
+ *
+ *  clock_gettime()
+ *  clock_nanosleep()
  */
 
 #ifdef __APPLE__
@@ -51,7 +55,7 @@ static inline int clock_gettime( clockid_t clk_id, struct timespec *ts )
 
 //
 // MacOS does not have clock_nanosleep but it does have nanosleep
-// We ignores clock_id (assuming CLOCK_MONOTONIC)
+// We ignore clock_id (assuming CLOCK_MONOTONIC)
 // but for the flags we allow TIMER_ABSTIME (sleep until a specific poin
 // in time), for all other value we sleep for a speficic period.
 //

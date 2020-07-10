@@ -6,8 +6,6 @@
  *
  * MaOSstartup(char *path)      : create working dir in "$HOME/Library/Application Support" etc.
  *
- * clock_gettime()              : MacOS implementation if it is not available
- * clock_nanosleep()            : MacOS implementation
  */
 
 #ifdef __APPLE__
