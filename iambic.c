@@ -232,9 +232,8 @@ static int cwvox = 0;
 
 #ifdef __APPLE__
 #include "MacOS.h"  // emulate clock_gettime on old MacOS systems
-#endif
+#else
 
-#ifndef __APPLE__
 // using clock_nanosleep of librt
 extern int clock_nanosleep(clockid_t __clock_id, int __flags,
       __const struct timespec *__req,
