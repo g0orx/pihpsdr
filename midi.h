@@ -199,10 +199,10 @@ struct desc {
    struct desc       *next;       // Next defined action for a controller/key with that note value (NULL for end of list)
 };
 
-struct {
+struct cmdtable{
    struct desc *desc[128];    // description for Note On/Off and ControllerChange
    struct desc *pitch;        // description for PitchChanges
-} MidiCommandsTable;
+};
 
 //
 // Layer-1 entry point, called once for all the MIDI devices

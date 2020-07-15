@@ -7,11 +7,14 @@
  * MIDI events into MIDI actions in the SDR console.
  */
 
+#include <gtk/gtk.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
 #include "midi.h"
+
+struct cmdtable MidiCommandsTable;
 
 void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
 
@@ -21,7 +24,7 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
     static struct timespec tp, last_wheel_tp={0,0};
     long delta;
 
-//fprintf(stderr,"MIDI:EVENT=%d CHAN=%d NOTE=%d VAL=%d\n",event,channel,note,val);
+//g_print("%s:EVENT=%d CHAN=%d NOTE=%d VAL=%d\n",__FUNCTION__,event,channel,note,val);
     if (event == MIDI_PITCH) {
 	desc=MidiCommandsTable.pitch;
     } else {
