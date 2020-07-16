@@ -44,7 +44,9 @@ struct _vfo {
   long long lo;
   long long offset;
 
-} vfo[MAX_VFOS];
+};
+
+extern struct _vfo vfo[MAX_VFOS];
 
 //
 // Store filter and NR settings on a per-mode basis
@@ -57,8 +59,9 @@ struct _mode_settings {
   int nr2;
   int anf;
   int snb;
-} mode_settings[MODES];
+};
 
+extern struct _mode_settings mode_settings[];
 
 typedef struct _set_frequency {
   int vfo;

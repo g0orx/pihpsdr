@@ -34,6 +34,6 @@
 #define modeDRM 11
 #define MODES 12
 
-char *mode_string[MODES];
+extern char *mode_string[MODES];
 
 #endif

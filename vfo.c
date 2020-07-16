@@ -70,6 +70,8 @@ char *step_labels[]={"1Hz","10Hz","25Hz","50Hz","100Hz","250Hz","500Hz","1kHz","
 static GtkWidget* menu=NULL;
 static GtkWidget* band_menu=NULL;
 
+struct _vfo vfo[MAX_VFOS];
+struct _mode_settings mode_settings[MODES];
 
 static void vfo_save_bandstack() {
   BANDSTACK *bandstack=bandstack_get_bandstack(vfo[0].band);
