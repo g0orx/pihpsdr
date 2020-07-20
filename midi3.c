@@ -225,6 +225,9 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 		new=(action == CWL);
 		keyer_event(new,val);
 	    }
+#else
+	    g_print("%s: %s:%d\n",__FUNCTION__,action==CWL?"CWL":"CWR",val);
+
 #endif
 	    break;
 	/////////////////////////////////////////////////////////// "CWSPEED"
