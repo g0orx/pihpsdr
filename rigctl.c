@@ -551,9 +551,9 @@ void send_resp (int fd,char * msg) {
   int count=0;
   
 //
-// We have to make sure that send_resp quickly returns
-// if something goes wrong, because it is executed in the
-// GTK idle loop
+// Possibly, the channel is already closed. In this case
+// give up (rc < 0) or at most try a few times (rc == 0)
+// since we are in the GTK idle loop
 //
   while(length>0) {
     rc=write(fd,msg,length);   
