@@ -32,8 +32,7 @@ MIDI_INCLUDE=MIDI
 # uncomment the line below for various debug facilities
 #DEBUG_OPTION=-D DEBUG
 
-CC?=gcc
-LINK?=gcc
+CFLAGS?= -g -Wno-deprecated-declarations
 
 ifeq ($(CONTROLLER2_V2_INCLUDE),CONTROLLER2_V2)
 CONTROLLER2_OPTIONS=-D CONTROLLER2_V2
@@ -140,12 +139,10 @@ hpsdr_server.o
 endif
 
 GTKINCLUDES=`pkg-config --cflags gtk+-3.0`
-GTKLIBS=`pkg-config --libs gtk+-3.0`
+GTKLIBS=`pkg-config --libs-only gtk+-3.0`
 
 AUDIO_OPTIONS=-DPORTAUDIO
-AUDIO_LIBS=-lportaudio -O3
-
-CFLAGS?= -g -Wno-deprecated-declarations
+AUDIO_LIBS=-lportaudio
 
 OPTIONS=$(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) \
 	$(SOAPYSDR_OPTIONS) $(LOCALCW_OPTIONS) \
@@ -153,7 +150,7 @@ OPTIONS=$(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS
         $(CONTROLLER2_OPTIONS) $(AUDIO_OPTIONS) \
 	-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION)
 
-LIBS=     -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(GTKLIBS) $(SOAPYSDRLIBS) $(STEMLAB_LIBS) $(MIDI_LIBS)
+LIBS=-lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(GTKLIBS) $(SOAPYSDRLIBS) $(STEMLAB_LIBS) $(MIDI_LIBS)
 INCLUDES=$(GTKINCLUDES)
 
 COMPILE=$(CC) $(CFLAGS) $(OPTIONS) $(INCLUDES)
@@ -378,7 +375,7 @@ protocols.o
 $(PROGRAM):  $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) \
 		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS)
-	$(LINK) -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) \
+	$(LD) -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) \
 		$(SOAPYSDR_OBJS) $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(LIBS)
 
@@ -430,7 +427,7 @@ newhpsdrsim.o:	newhpsdrsim.c hpsdrsim.h
 	$(CC) -c -O newhpsdrsim.c
 
 hpsdrsim:       hpsdrsim.o newhpsdrsim.o
-	$(LINK) -o hpsdrsim hpsdrsim.o newhpsdrsim.o -lportaudio -lm -lpthread
+	$(LD) -o hpsdrsim hpsdrsim.o newhpsdrsim.o -lportaudio -lm -lpthread
 
 #############################################################################
 #
