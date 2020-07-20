@@ -12,10 +12,10 @@ GPIO_INCLUDE=GPIO
 PURESIGNAL_INCLUDE=PURESIGNAL
 
 # uncomment the line to below include support local CW keyer
-LOCALCW_INCLUDE=LOCALCW
+#LOCALCW_INCLUDE=LOCALCW
 
 # uncomment the line below for SoapySDR
-SOAPYSDR_INCLUDE=SOAPYSDR
+#SOAPYSDR_INCLUDE=SOAPYSDR
 
 # uncomment the line to below include support for sx1509 i2c expander
 #SX1509_INCLUDE=sx1509
@@ -27,12 +27,12 @@ SOAPYSDR_INCLUDE=SOAPYSDR
 #STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_NOAVAHI
 
 # uncomment the line below to include MIDI support
-MIDI_INCLUDE=MIDI
+#MIDI_INCLUDE=MIDI
 
 # uncomment the line below for various debug facilities
 #DEBUG_OPTION=-D DEBUG
 
-PTT_INCLUDE=PTT
+#PTT_INCLUDE=PTT
 
 # very early code not included yet
 #SERVER_INCLUDE=SERVER
