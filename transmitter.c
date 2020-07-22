@@ -427,6 +427,7 @@ static gboolean update_display(gpointer data) {
       int start = (full-width) /2;      // Copy from start ... (end-1) 
       float *tfp=tx->pixel_samples;
       float *rfp=rx_feedback->pixel_samples+start;
+      float offset;
       int i;
       //
       // The TX panadapter shows a RELATIVE signal strength. A CW or single-tone signal at
@@ -436,22 +437,24 @@ static gboolean update_display(gpointer data) {
       // on the attenuation effective in the feedback path.
       // We try to normalize the feeback signal such that is looks like a "normal" TX
       // panadapter if the feedback is optimal for PURESIGNAL (that is, if the attenuation
-      // is optimal). The correction depends on the protocol (different peak levels in the TX
-      // feedback channel, old=0.407, new=0.2899, difference is 3 dB).
+      // is optimal). The correction (offset) depends on the protocol (different peak levels in the TX
+      // feedback channel.
       switch (protocol) {
         case ORIGINAL_PROTOCOL:
-          for (i=0; i<width; i++) {
-            *tfp++ =*rfp++ + 12.0;
-          }
+	  // TX dac feedback peak = 0.406, on HermesLite2 0.230
+          offset = (device == DEVICE_HERMES_LITE2) ? 17.0 : 12.0;
           break;
         case NEW_PROTOCOL:
-          for (i=0; i<width; i++) {
-            *tfp++ =*rfp++ + 15.0;
-          }
+          // TX dac feedback peak = 0.2899
+	  offset = 15.0;
           break;
         default:
-          memcpy(tfp, rfp, width*sizeof(float));
+          // we probably never come here
+          offset = 0.0;
           break;
+      }
+      for (i=0; i<width; i++) {
+        *tfp++ =*rfp++ + offset;
       }
       g_mutex_unlock(&rx_feedback->mutex);
     } else {

@@ -1463,7 +1463,12 @@ static int last_power=0;
           if (rxgain > 60) rxgain=60;
 	  // encode all 6 bits of RXgain in ATT value and set bit6
           if (isTransmitting()) {
-	    output_buffer[C4] = 0x40 | (31 - (transmitter->attenuation & 0x1F));
+	    //
+	    // Set the preamp to (19-TXatt) dB (+19 ... –12 dB)
+	    // temporary change: use +31 ... 0 dB to allow PURESIGNAL on
+            // a barefoot HL2 with "cross talk" feedback from the TRX relay
+            //
+	    output_buffer[C4] = 0x40 | (43 - (transmitter->attenuation & 0x1F));
           } else { 
 	    output_buffer[C4] = 0x40 | (rxgain & 0x3F);
           }
@@ -1520,7 +1525,9 @@ static int last_power=0;
 	    }
 	}
         output_buffer[C3]=0x00;
-        output_buffer[C3]|=transmitter->attenuation;			// Step attenuator of first ADC, value used when TXing
+ 	// this is a no-op on the HermesLite2 which needs b7 set to make this effective
+	// no need to bother here since we do this manually (see above)
+        output_buffer[C3]|=transmitter->attenuation & 0x1F;  // Step attenuator of first ADC, value used when TXing
         output_buffer[C4]=0x00;
         break;
       case 7:
