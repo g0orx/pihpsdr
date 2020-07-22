@@ -375,7 +375,7 @@ protocols.o
 $(PROGRAM):  $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) \
 		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS)
-	$(LD) -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) \
+	$(CC) -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) \
 		$(SOAPYSDR_OBJS) $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(LIBS)
 
@@ -427,7 +427,7 @@ newhpsdrsim.o:	newhpsdrsim.c hpsdrsim.h
 	$(CC) -c -O newhpsdrsim.c
 
 hpsdrsim:       hpsdrsim.o newhpsdrsim.o
-	$(LD) -o hpsdrsim hpsdrsim.o newhpsdrsim.o -lportaudio -lm -lpthread
+	$(CC) -o hpsdrsim hpsdrsim.o newhpsdrsim.o -lportaudio -lm -lpthread
 
 #############################################################################
 #
@@ -449,7 +449,7 @@ hpsdrsim:       hpsdrsim.o newhpsdrsim.o
 app:	$(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) \
 		$(LOCALCW_OBJS) \
 		$(PURESIGNAL_OBJS) $(MIDI_OBJS) $(SOAPYSDR_OBJS) $(STEMLAB_OBJS)
-	$(LINK) -headerpad_max_install_names -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) \
+	$(CC)  -headerpad_max_install_names -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) \
 		$(USBOZY_OBJS)  $(SOAPYSDR_OBJS) \
 		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(LIBS)
