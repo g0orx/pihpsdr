@@ -139,7 +139,7 @@ hpsdr_server.o
 endif
 
 GTKINCLUDES=`pkg-config --cflags gtk+-3.0`
-GTKLIBS=`pkg-config --libs-only gtk+-3.0`
+GTKLIBS=`pkg-config --libs gtk+-3.0`
 
 AUDIO_OPTIONS=-DPORTAUDIO
 AUDIO_LIBS=-lportaudio
