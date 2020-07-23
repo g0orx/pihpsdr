@@ -2198,7 +2198,6 @@ static void encoder_changed(int action,int pos) {
       update_diversity_phase((double)pos*0.1);
       break;
     case ENCODER_ZOOM:
-g_print("GPIO: ENCODER_ZOOM: update_zoom: pos=%d\n",pos);
       update_zoom((double)pos);
       break;
     case ENCODER_PAN:

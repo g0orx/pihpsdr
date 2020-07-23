@@ -603,6 +603,7 @@ if(!radio_is_remote) {
   }
 #endif
   
+/*
 #ifdef CLIENT_SERVER
   if(!radio_is_remote) {
 #endif
@@ -622,6 +623,7 @@ if(!radio_is_remote) {
 #ifdef CLIENT_SERVER
   }
 #endif
+*/
 
   if(display_zoompan) {
     zoompan = zoompan_init(display_width,ZOOMPAN_HEIGHT);
@@ -659,6 +661,27 @@ g_print("create_visual: calling radio_change_receivers: receivers=%d r=%d\n",rec
 
   //gtk_widget_show_all (fixed);
   gtk_widget_show_all (top_window);
+
+
+#ifdef CLIENT_SERVER
+  if(!radio_is_remote) {
+#endif
+  switch(protocol) {
+    case ORIGINAL_PROTOCOL:
+      old_protocol_init(0,display_width,receiver[0]->sample_rate);
+      break;
+    case NEW_PROTOCOL:
+      new_protocol_init(display_width);
+      break;
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
+      soapy_protocol_init(0,false);
+      break;
+#endif
+  }
+#ifdef CLIENT_SERVER
+  }
+#endif
 
 }
   

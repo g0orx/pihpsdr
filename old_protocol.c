@@ -1679,6 +1679,8 @@ static int metis_write(unsigned char ep,unsigned char* buffer,int length) {
 
 static void metis_restart() {
   int i;
+
+  g_print("%s\n",__FUNCTION__);
   //
   // In TCP-ONLY mode, we possibly need to re-connect
   // since if we come from a METIS-stop, the server
@@ -1722,6 +1724,7 @@ static void metis_start_stop(int command) {
   int tmp;
   unsigned char buffer[1032];
     
+  g_print("%s: %d\n",__FUNCTION__,command);
 #ifdef USBOZY
   if(device!=DEVICE_OZY)
   {
