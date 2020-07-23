@@ -532,6 +532,11 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
       }
     }
 
+#ifdef GPIO
+    controller=CONTROLLER2_V2;
+    gpio_set_defaults(controller);
+    gpio_restore_state();
+#endif
 
     g_print("%s: devices=%d autostart=%d\n",__FUNCTION__,devices,autostart);
 
@@ -574,10 +579,6 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
 #endif
 
 #ifdef GPIO
-    controller=CONTROLLER2_V2;
-    gpio_set_defaults(controller);
-    gpio_restore_state();
-
     GtkWidget *gpio=gtk_combo_box_text_new();
     gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(gpio),NULL,"No Controller");
     gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(gpio),NULL,"Controller1");
