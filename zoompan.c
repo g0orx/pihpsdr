@@ -51,12 +51,16 @@ static GdkRGBA gray;
 int zoompan_active_receiver_changed(void *data) {
   if(display_zoompan) {
     g_mutex_lock(&pan_zoom_mutex);
+    g_signal_handler_block(G_OBJECT(zoom_scale),zoom_signal_id);
+    g_signal_handler_block(G_OBJECT(pan_scale),pan_signal_id);
     gtk_range_set_value(GTK_RANGE(zoom_scale),active_receiver->zoom);
     gtk_range_set_range(GTK_RANGE(pan_scale),0.0,(double)(active_receiver->zoom==1?active_receiver->pixels:active_receiver->pixels-active_receiver->width));
     gtk_range_set_value (GTK_RANGE(pan_scale),active_receiver->pan);
     if(active_receiver->zoom == 1) {
       gtk_widget_set_sensitive(pan_scale, FALSE);
     }
+    g_signal_handler_unblock(G_OBJECT(pan_scale),pan_signal_id);
+    g_signal_handler_unblock(G_OBJECT(zoom_scale),zoom_signal_id);
     g_mutex_unlock(&pan_zoom_mutex);
   }
   return FALSE;
