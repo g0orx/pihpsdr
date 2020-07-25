@@ -520,7 +520,7 @@ void new_protocol_init(int pixels) {
     command_response_thread_id = g_thread_new( "command_response thread",command_response_thread, NULL);
     if( ! command_response_thread_id ) {
       g_print("g_thread_new failed on command_response_thread\n");
-      abort();
+      exit( -1 );
     }
     g_print( "command_response_thread: id=%p\n",command_response_thread_id);
 #ifdef __APPLE__
@@ -537,7 +537,7 @@ void new_protocol_init(int pixels) {
     high_priority_thread_id = g_thread_new( "high_priority thread", high_priority_thread, NULL);
     if( ! high_priority_thread_id ) {
       g_print("g_thread_new failed on high_priority_thread\n");
-      abort();
+      exit( -1 );
     }
     g_print( "high_priority_thread: id=%p\n",high_priority_thread_id);
 #ifdef __APPLE__
@@ -554,7 +554,7 @@ void new_protocol_init(int pixels) {
     mic_line_thread_id = g_thread_new( "mic_line thread", mic_line_thread, NULL);
     if( ! mic_line_thread_id ) {
       g_print("g_thread_new failed on mic_line_thread\n");
-      abort();
+      exit( -1 );
     }
     g_print( "mic_line_thread: id=%p\n",mic_line_thread_id);
 
@@ -590,7 +590,7 @@ void new_protocol_init(int pixels) {
     data_socket=socket(PF_INET,SOCK_DGRAM,IPPROTO_UDP);
     if(data_socket<0) {
         g_print("NewProtocol: create socket failed for data_socket\n");
-        abort();
+        exit(-1);
     }
 
     int optval = 1;
@@ -600,7 +600,7 @@ void new_protocol_init(int pixels) {
     // bind to the interface
     if(bind(data_socket,(struct sockaddr*)&radio->info.network.interface_address,radio->info.network.interface_length)<0) {
         g_print("metis: bind socket failed for data_socket\n");
-        abort();
+        exit(-1);
     }
 
 g_print("new_protocol_init: data_socket %d bound to interface %s:%d\n",data_socket,inet_ntoa(radio->info.network.interface_address.sin_addr),ntohs(radio->info.network.interface_address.sin_port));
@@ -654,7 +654,7 @@ g_print("new_protocol_init: data_socket %d bound to interface %s:%d\n",data_sock
     if( ! new_protocol_thread_id )
     {
         g_print("g_thread_new failed on new_protocol_thread\n");
-        abort();
+        exit( -1 );
     }
     g_print( "new_protocol_thread: id=%p\n",new_protocol_thread_id);
 
@@ -707,7 +707,7 @@ static void new_protocol_general() {
 
     if((rc=sendto(data_socket,general_buffer,sizeof(general_buffer),0,(struct sockaddr*)&base_addr,base_addr_length))<0) {
         g_print("sendto socket failed for general: rc=%d errno=%d\n",rc,errno);
-        abort();
+        exit(1);
     }
 
     if(rc!=sizeof(general_buffer)) {
@@ -1197,6 +1197,7 @@ static void new_protocol_high_priority() {
     if((rc=sendto(data_socket,high_priority_buffer_to_radio,sizeof(high_priority_buffer_to_radio),0,(struct sockaddr*)&high_priority_addr,high_priority_addr_length))<0) {
         g_print("sendto socket failed for high priority: rc=%d errno=%d\n",rc,errno);
         abort();
+        //exit(1);
     }
  
     if(rc!=sizeof(high_priority_buffer_to_radio)) {
@@ -1291,7 +1292,7 @@ static void new_protocol_transmit_specific() {
 
     if((rc=sendto(data_socket,transmit_specific_buffer,sizeof(transmit_specific_buffer),0,(struct sockaddr*)&transmitter_addr,transmitter_addr_length))<0) {
         g_print("sendto socket failed for tx specific: rc=%d errno=%d\n",rc,errno);
-	abort();
+	exit(1);
     }
 
     if(rc!=sizeof(transmit_specific_buffer)) {
@@ -1391,7 +1392,7 @@ static void new_protocol_receive_specific() {
 
     if((rc=sendto(data_socket,receive_specific_buffer,sizeof(receive_specific_buffer),0,(struct sockaddr*)&receiver_addr,receiver_addr_length))<0) {
       g_print("sendto socket failed for receive specific: rc=%d errno=%d\n",rc,errno);
-      abort();
+      exit(1);
     }
  
     if(rc!=sizeof(receive_specific_buffer)) {
@@ -1410,7 +1411,7 @@ static void new_protocol_start() {
     if( ! new_protocol_timer_thread_id )
     {
         g_print("g_thread_new failed on new_protocol_timer_thread\n");
-	abort();
+	exit( -1 );
     }
     g_print( "new_protocol_timer_thread: id=%p\n",new_protocol_timer_thread_id);
 
@@ -1519,7 +1520,7 @@ g_print("new_protocol_thread\n");
 
         if(bytesread<0) {
             g_print("recvfrom socket failed for new_protocol_thread");
-	    abort();
+            exit(-1);
         }
 
         sourceport=ntohs(addr.sin_port);
@@ -2052,7 +2053,7 @@ void new_protocol_flush_iq_samples() {
   rc=sendto(data_socket,iqbuffer,sizeof(iqbuffer),0,(struct sockaddr*)&iq_addr,iq_addr_length);
   if(rc<0) {
     g_print("sendto socket failed for iq-flush, rc=%d errno=%d\n",rc,errno);
-    abort();
+    exit(1);
   }
   iqindex=4;
   tx_iq_sequence++;
@@ -2078,7 +2079,7 @@ void new_protocol_iq_samples(int isample,int qsample) {
     rc=sendto(data_socket,iqbuffer,sizeof(iqbuffer),0,(struct sockaddr*)&iq_addr,iq_addr_length);
     if(rc<0) {
       g_print("sendto socket failed for iq, rc=%d errno=%d\n",rc,errno);
-      abort();
+      exit(1);
     }
     iqindex=4;
     tx_iq_sequence++;

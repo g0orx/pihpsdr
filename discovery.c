@@ -532,20 +532,6 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
       }
     }
 
-#ifdef GPIO
-    controller=CONTROLLER2_V2;
-    gpio_set_defaults(controller);
-    gpio_restore_state();
-#endif
-
-    g_print("%s: devices=%d autostart=%d\n",__FUNCTION__,devices,autostart);
-
-    if(devices==1 && autostart) {
-        d=&discovered[0];
-	if(d->status==STATE_AVAILABLE) {
-          if(start_cb(NULL,NULL,(gpointer)d)) return;
-	}
-    }
 
 #ifdef CLIENT_SERVER
 
@@ -579,6 +565,10 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
 #endif
 
 #ifdef GPIO
+    controller=CONTROLLER2_V2;
+    gpio_set_defaults(controller);
+    gpio_restore_state();
+
     GtkWidget *gpio=gtk_combo_box_text_new();
     gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(gpio),NULL,"No Controller");
     gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(gpio),NULL,"Controller1");
@@ -628,6 +618,16 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
     gtk_container_add (GTK_CONTAINER (content), grid);
     gtk_widget_show_all(discovery_dialog);
 fprintf(stderr,"showing device dialog\n");
+
+    // autostart if enabled and only one device
+    g_print("%s: devices=%d autostart=%d\n",__FUNCTION__,devices,autostart);
+
+    if(devices==1 && autostart) {
+        d=&discovered[0];
+	if(d->status==STATE_AVAILABLE) {
+          if(start_cb(NULL,NULL,(gpointer)d)) return;
+	}
+    }
 
 }
 

@@ -288,7 +288,7 @@ void old_protocol_init(int rx,int pixels,int rate) {
     if( ! receive_thread_id )
     {
       g_print("g_thread_new failed on receive_thread\n");
-      abort();
+      exit( -1 );
     }
     g_print( "receive_thread: id=%p\n",receive_thread_id);
   }
@@ -317,7 +317,7 @@ static void start_usb_receive_threads()
   if( ! ozy_EP6_rx_thread_id )
   {
     g_print("g_thread_new failed for ozy_ep6_rx_thread\n");
-    abort();
+    exit( -1 );
   }
 }
 
@@ -353,6 +353,7 @@ static gpointer ozy_ep6_rx_thread(gpointer arg) {
     {
       g_print("old_protocol_ep6_read: OzyBulkRead failed %d bytes\n",bytes);
       perror("ozy_read(EP6 read failed");
+      //exit(1);
     }
     else
 // process the received data normally
@@ -380,7 +381,7 @@ static void open_udp_socket() {
     tmp=socket(PF_INET,SOCK_DGRAM,IPPROTO_UDP);
     if(tmp<0) {
       perror("old_protocol: create socket failed for data_socket\n");
-      abort();
+      exit(-1);
     }
 
     int optval = 1;
@@ -415,7 +416,7 @@ static void open_udp_socket() {
 g_print("binding UDP socket to %s:%d\n",inet_ntoa(radio->info.network.interface_address.sin_addr),ntohs(radio->info.network.interface_address.sin_port));
     if(bind(tmp,(struct sockaddr*)&radio->info.network.interface_address,radio->info.network.interface_length)<0) {
       perror("old_protocol: bind socket failed for data_socket\n");
-      abort();
+      exit(-1);
     }
 
     memcpy(&data_addr,&radio->info.network.address,radio->info.network.address_length);
@@ -441,7 +442,7 @@ static void open_tcp_socket() {
     tmp=socket(AF_INET, SOCK_STREAM, 0);
     if (tmp < 0) {
       perror("tcp_socket: create socket failed for TCP socket");
-      abort();
+      exit(-1);
     }
     int optval = 1;
     if(setsockopt(tmp, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval))<0) {
@@ -1465,10 +1466,10 @@ static int last_power=0;
           if (isTransmitting()) {
 	    //
 	    // Set the preamp to (19-TXatt) dB (+19 ... –12 dB)
-	    // temporary change: use +31 ... 0 dB to allow PURESIGNAL on
+	    // temporary change: use more amplification to allow PURESIGNAL on
             // a barefoot HL2 with "cross talk" feedback from the TRX relay
             //
-	    output_buffer[C4] = 0x40 | (43 - (transmitter->attenuation & 0x1F));
+	    output_buffer[C4] = 0x40 | (45 - (transmitter->attenuation & 0x1F));
           } else { 
 	    output_buffer[C4] = 0x40 | (rxgain & 0x3F);
           }
@@ -1706,6 +1707,8 @@ static int metis_write(unsigned char ep,unsigned char* buffer,int length) {
 
 static void metis_restart() {
   int i;
+
+  g_print("%s\n",__FUNCTION__);
   //
   // In TCP-ONLY mode, we possibly need to re-connect
   // since if we come from a METIS-stop, the server
@@ -1749,6 +1752,7 @@ static void metis_start_stop(int command) {
   int tmp;
   unsigned char buffer[1032];
     
+  g_print("%s: %d\n",__FUNCTION__,command);
 #ifdef USBOZY
   if(device!=DEVICE_OZY)
   {
@@ -1808,7 +1812,7 @@ static void metis_send_buffer(unsigned char* buffer,int length) {
   if (tcp_socket >= 0) {
     if (length != 1032) {
        g_print("PROGRAMMING ERROR: TCP LENGTH != 1032\n");
-       abort();
+       exit(-1);
     }
     if(sendto(tcp_socket,buffer,length,0,NULL, 0) != length) {
       perror("sendto socket failed for TCP metis_send_data\n");
@@ -1820,7 +1824,7 @@ static void metis_send_buffer(unsigned char* buffer,int length) {
   } else {
     // This should not happen
     g_print("METIS send: neither UDP nor TCP socket available!\n");
-    abort();
+    exit(-1);
   }
 }
 
