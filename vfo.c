@@ -270,6 +270,7 @@ void vfo_xvtr_changed() {
 
 void vfo_band_changed(int id,int b) {
   BANDSTACK *bandstack;
+  int m; 
 
 #ifdef CLIENT_SERVER
   if(radio_is_remote) {
@@ -301,6 +302,22 @@ void vfo_band_changed(int id,int b) {
   vfo[id].mode=entry->mode;
   vfo[id].filter=entry->filter;
   vfo[id].lo=band->frequencyLO+band->errorLO;
+
+//
+// Change to the filter/NR combination stored for this mode
+//
+  m=vfo[id].mode;
+
+  vfo[id].filter      =mode_settings[m].filter;
+  active_receiver->nr =mode_settings[m].nr;
+  active_receiver->nr2=mode_settings[m].nr2;
+  active_receiver->nb =mode_settings[m].nb;
+  active_receiver->nb2=mode_settings[m].nb2;
+  active_receiver->anf=mode_settings[m].anf;
+  active_receiver->snb=mode_settings[m].snb;
+
+  // make changes effective
+  g_idle_add(ext_update_noise, NULL);
 
   // turn off ctun
   vfo[id].ctun=0;
