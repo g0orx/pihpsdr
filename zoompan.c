@@ -50,18 +50,18 @@ static GdkRGBA gray;
 
 int zoompan_active_receiver_changed(void *data) {
   if(display_zoompan) {
-    //g_mutex_lock(&pan_zoom_mutex);
-    //g_signal_handler_block(G_OBJECT(zoom_scale),zoom_signal_id);
-    //g_signal_handler_block(G_OBJECT(pan_scale),pan_signal_id);
+    g_mutex_lock(&pan_zoom_mutex);
+    g_signal_handler_block(G_OBJECT(zoom_scale),zoom_signal_id);
+    g_signal_handler_block(G_OBJECT(pan_scale),pan_signal_id);
     gtk_range_set_value(GTK_RANGE(zoom_scale),active_receiver->zoom);
     gtk_range_set_range(GTK_RANGE(pan_scale),0.0,(double)(active_receiver->zoom==1?active_receiver->pixels:active_receiver->pixels-active_receiver->width));
     gtk_range_set_value (GTK_RANGE(pan_scale),active_receiver->pan);
     if(active_receiver->zoom == 1) {
       gtk_widget_set_sensitive(pan_scale, FALSE);
     }
-    //g_signal_handler_unblock(G_OBJECT(pan_scale),pan_signal_id);
-    //g_signal_handler_unblock(G_OBJECT(zoom_scale),zoom_signal_id);
-    //g_mutex_unlock(&pan_zoom_mutex);
+    g_signal_handler_unblock(G_OBJECT(pan_scale),pan_signal_id);
+    g_signal_handler_unblock(G_OBJECT(zoom_scale),zoom_signal_id);
+    g_mutex_unlock(&pan_zoom_mutex);
   }
   return FALSE;
 }
@@ -95,12 +95,8 @@ static void zoom_value_changed_cb(GtkWidget *widget, gpointer data) {
 }
 
 void set_zoom(int rx,double value) {
-  g_mutex_lock(&pan_zoom_mutex);
-  g_mutex_lock(&active_receiver->display_mutex);
   receiver[rx]->zoom=value;
   receiver_change_zoom(receiver[rx],value);
-  g_mutex_unlock(&active_receiver->display_mutex);
-  g_mutex_unlock(&pan_zoom_mutex);
   if(display_zoompan) {
     g_signal_handler_block(G_OBJECT(zoom_scale),zoom_signal_id);
     gtk_range_set_value (GTK_RANGE(zoom_scale),receiver[rx]->zoom);
@@ -177,9 +173,7 @@ static void pan_value_changed_cb(GtkWidget *widget, gpointer data) {
 }
 
 void set_pan(int rx,double value) {
-  g_mutex_lock(&pan_zoom_mutex);
-  receiver_change_pan(receiver[rx],value);
-  g_mutex_unlock(&pan_zoom_mutex);
+  receiver[rx]->pan=(int)value;
   if(display_zoompan) {
     g_signal_handler_block(G_OBJECT(pan_scale),pan_signal_id);
     gtk_range_set_value (GTK_RANGE(pan_scale),receiver[rx]->pan);
