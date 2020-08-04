@@ -1465,11 +1465,24 @@ static int last_power=0;
 	  // encode all 6 bits of RXgain in ATT value and set bit6
           if (isTransmitting()) {
 	    //
-	    // Set the preamp to (19-TXatt) dB (+19 ... –12 dB)
-	    // temporary change: use more amplification to allow PURESIGNAL on
-            // a barefoot HL2 with "cross talk" feedback from the TRX relay
+            // The "TX attenuation" value (0 ... 31 dB) has to be mapped to a
+            // a range of preamp settings. This range is very different on the
+            // HermesLite when using "internal" feedback (crosstalk from the
+            // RX/TX releay) or "external" feedback (attenuator output
+            // connected with RF3 input of the HermesLite2).
+            // To cope with both situations, the preamp range is
+            // +2 ... +33 dB if "Internal" feedback is selected in the
+            // PS menu (this is optimal for "crosstalk" feedback) and
+            // if external feedback is used (check either EXT1 or ByPass
+            // in the PS menu) the preamp range is -12 ... +19 dB.
             //
-	    output_buffer[C4] = 0x40 | (45 - (transmitter->attenuation & 0x1F));
+            //
+	    output_buffer[C4] = 0x40 | (33 - (transmitter->attenuation & 0x1F));
+#ifdef PURESIGNAL
+	    if (receiver[PS_RX_FEEDBACK]->alex_antenna == 0) {
+	      output_buffer[C4] = 0x40 | (45 - (transmitter->attenuation & 0x1F));
+            }
+#endif
           } else { 
 	    output_buffer[C4] = 0x40 | (rxgain & 0x3F);
           }
@@ -1525,10 +1538,21 @@ static int last_power=0;
 	      output_buffer[C1]|=(receiver[1]->adc<<(2*rx2channel));
 	    }
 	}
-        output_buffer[C3]=0x00;
- 	// this is a no-op on the HermesLite2 which needs b7 set to make this effective
-	// no need to bother here since we do this manually (see above)
-        output_buffer[C3]|=transmitter->attenuation & 0x1F;  // Step attenuator of first ADC, value used when TXing
+        if (have_rx_gain) {
+          //
+          // On the HermesLite2, we need bit7 set to make this feature active,
+          // and need bit6 set to tell HL2 to directly use the lowest 6 bits
+          // for the built-in preamp. For the effect of choosing different
+          // "alex antennas" see above.
+          output_buffer[C3] = 0xC0 | (33 - (transmitter->attenuation & 0x1F));
+#ifdef PURESIGNAL
+          if (receiver[PS_RX_FEEDBACK]->alex_antenna == 0) {
+            output_buffer[C3] = 0xC0 | (45 - (transmitter->attenuation & 0x1F));
+          }
+#endif
+        } else {
+          output_buffer[C3]=transmitter->attenuation & 0x1F;  // Step attenuator of first ADC, value used when TXing
+        }
         output_buffer[C4]=0x00;
         break;
       case 7:
