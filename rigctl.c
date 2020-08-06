@@ -586,6 +586,7 @@ static gpointer rigctl_server(gpointer data) {
 
   setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
   setsockopt(server_socket, SOL_SOCKET, SO_REUSEPORT, &on, sizeof(on));
+  setsockopt(server_socket, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on));
 
   // bind to listening port
   memset(&server_address,0,sizeof(server_address));
@@ -601,45 +602,46 @@ static gpointer rigctl_server(gpointer data) {
   for(i=0;i<MAX_CLIENTS;i++) {
     client[i].fd=-1;
   }
+  // listen with a max queue of 3
+  if(listen(server_socket,3)<0) {
+    perror("rigctl_server: listen failed");
+    close(server_socket);
+    return NULL;
+  }
   server_running=1;
 
   // must start the thread here in order NOT to inherit a lock
   if (!rigctl_cw_thread_id) rigctl_cw_thread_id = g_thread_new("RIGCTL cw", rigctl_cw_thread, NULL);
 
   while(server_running) {
-    // listen with a max queue of 3
-    if(listen(server_socket,3)<0) {
-      perror("rigctl_server: listen failed");
-      close(server_socket);
-      return NULL;
-    }
+    int spare;
 
     // find a spare thread
+    spare = -1;
     for(i=0;i<MAX_CLIENTS;i++) {
-      if(client[i].fd==-1) {
-
-        g_print("Using client: %d\n",i);
-
-        client[i].fd=accept(server_socket,(struct sockaddr*)&client[i].address,&client[i].address_length);
-        if(client[i].fd<0) {
-          perror("rigctl_server: client accept failed");
-          continue;
-        }
-
-        client[i].thread_id = g_thread_new("rigctl client", rigctl_client, (gpointer)&client[i]);
-        if(client[i].thread_id==NULL) {
-          g_print("g_thread_new failed (n rigctl_client\n");
-          g_print("setting SO_LINGER to 0 for client_socket: %d\n",client[i].fd);
-          struct linger linger = { 0 };
-          linger.l_onoff = 1;
-          linger.l_linger = 0;
-          if(setsockopt(client[i].fd,SOL_SOCKET,SO_LINGER,(const char *)&linger,sizeof(linger))==-1) {
-            perror("setsockopt(...,SO_LINGER,...) failed for client");
-          }
-          close(client[i].fd);
-        }
+      if(client[i].fd == -1) {
+        spare=i;
+        break;
       }
     }
+    // if all threads are busy, wait and continue
+    if (spare < 0) {
+      usleep(100000L);
+      continue;
+    }
+    // A thread is available, try to get connection
+
+    g_print("Using client: %d\n",spare);
+
+    client[spare].fd=accept(server_socket,(struct sockaddr*)&client[spare].address,&client[spare].address_length);
+    if(client[spare].fd<0) {
+      perror("rigctl_server: client accept failed");
+      client[spare].fd = -1;
+      continue;
+    }
+
+    client[spare].thread_id = g_thread_new("rigctl client", rigctl_client, (gpointer)&client[spare]);
+    // no check on return value since g_thread_new succeeds or program aborts
   }
 
   close(server_socket);
@@ -3999,6 +4001,7 @@ int launch_serial () {
      serial_server_thread_id = g_thread_new( "Serial server", serial_server, serial_client);
      if(!serial_server_thread_id )
      {
+       // NOTREACHED, since program aborts if g_thread_new fails
        g_free(serial_client);
        g_print("g_thread_new failed on serial_server\n");
        return 0;
@@ -4046,6 +4049,7 @@ g_print("launch_rigctl: mutex_busy=%p\n",mutex_busy);
    rigctl_server_thread_id = g_thread_new( "rigctl server", rigctl_server, GINT_TO_POINTER(rigctl_port_base));
    if( ! rigctl_server_thread_id )
    {
+     // NOTREACHED, since program aborts if g_thread_new fails
      g_print("g_thread_new failed on rigctl_server\n");
    }
 }
