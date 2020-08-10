@@ -49,6 +49,7 @@
 #endif
 #include "ext.h"
 #include "zoompan.h"
+#include "equalizer_menu.h"
 
 
 // The following calls functions can be called usig g_idle_add
@@ -681,6 +682,11 @@ int ext_set_rf_gain(void *data) {
 
 int ext_update_noise(void *data) {
   update_noise();
+  return 0;
+}
+
+int ext_update_eq(void *data) {
+  update_eq();
   return 0;
 }
 

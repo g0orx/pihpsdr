@@ -1306,6 +1306,11 @@ g_print("send_squelch rx=%d enable=%d squelch=%d\n",rx,enable,squelch);
   }
 }
 
+void send_eq(int s, int rxeq, int txeq) {
+  // inform client about RX/TX equalizer status
+  // NOT-YET
+}
+
 void send_noise(int s,int rx,int nb,int nb2,int nr,int nr2,int anf,int snb) {
   NOISE_COMMAND command;
 g_print("send_noise rx=%d nb=%d nb2=%d nr=%d nr2=%d anf=%d snb=%d\n",rx,nb,nb2,nr,nr2,anf,snb);

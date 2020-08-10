@@ -125,6 +125,7 @@ extern int ext_set_rf_gain(void *data);
 extern int ext_set_duplex(void *data);
 
 extern int ext_update_noise(void *data);
+extern int ext_update_eq(void *data);
 #ifdef PURESIGNAL
 extern int ext_start_ps(void *data);
 #endif
