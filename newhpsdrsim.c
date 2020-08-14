@@ -9,9 +9,6 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <math.h>
-#ifdef __APPLE__
-#include "MacOS.h"  // emulate clock_gettime on old MacOS systems
-#endif
 
 #define EXTERN extern
 #include "hpsdrsim.h"
@@ -757,6 +754,9 @@ void *rx_thread(void *data) {
   unsigned int seed;
   
   struct timespec delay;
+#ifdef __APPLE__
+  struct timespec now;
+#endif
 
   myddc=(int) (uintptr_t) data;
   if (myddc < 0 || myddc >= NUMRECEIVERS) return NULL;
@@ -926,7 +926,24 @@ void *rx_thread(void *data) {
           delay.tv_nsec -= 1000000000;
           delay.tv_sec++;
 	}
+#ifdef __APPLE__
+        //
+        // The (so-called) operating system for Mac does not have clock_nanosleep(),
+        // but is has clock_gettime as well as nanosleep.
+        // So, to circumvent this problem, we look at the watch and determine
+        // how long we should sleep now.
+        //
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        now.tv_sec =delay.tv_sec  - now.tv_sec;
+        now.tv_nsec=delay.tv_nsec - now.tv_nsec;
+        while (now.tv_nsec < 0) {
+         now.tv_nsec += 1000000000;
+         now.tv_sec--;
+        }
+        nanosleep(&now, NULL);
+#else
         clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &delay, NULL);
+#endif
         if (sendto(sock, buffer, 1444, 0, (struct sockaddr*)&addr_new, sizeof(addr_new)) < 0) {
           perror("***** ERROR: RX thread sendto");
           break;
@@ -1183,6 +1200,9 @@ void *mic_thread(void *data) {
   int rc;
   int i;
   struct timespec delay;
+#ifdef __APPLE__
+  struct timespec now;
+#endif
 
 
   sock=socket(AF_INET, SOCK_DGRAM, 0);
@@ -1222,7 +1242,24 @@ void *mic_thread(void *data) {
       delay.tv_nsec -= 1000000000;
       delay.tv_sec++;
     }
+#ifdef __APPLE__
+    //
+    // The (so-called) operating system for Mac does not have clock_nanosleep(),
+    // but is has clock_gettime as well as nanosleep.
+    // So, to circumvent this problem, we look at the watch and determine
+    // how long we should sleep now.
+    //
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    now.tv_sec =delay.tv_sec  - now.tv_sec;
+    now.tv_nsec=delay.tv_nsec - now.tv_nsec;
+    while (now.tv_nsec < 0) {
+     now.tv_nsec += 1000000000;
+     now.tv_sec--;
+    }
+    nanosleep(&now, NULL);
+#else
     clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &delay, NULL);
+#endif
     if (sendto(sock, buffer, 132, 0, (struct sockaddr*)&addr_new, sizeof(addr_new)) < 0) {
       perror("***** ERROR: Mic thread sendto");
       break;

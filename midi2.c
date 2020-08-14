@@ -12,10 +12,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
-#ifdef __APPLE__
-#include "MacOS.h"  // emulate clock_gettime on old MacOS systems
-#endif
-
 #include "midi.h"
 
 struct cmdtable MidiCommandsTable;

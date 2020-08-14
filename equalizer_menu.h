@@ -18,5 +18,3 @@
 */
 
 void equalizer_menu(GtkWidget *parent);
-
-void update_eq();

@@ -77,7 +77,6 @@ extern void ctun_update(int id,int state);
 extern int ext_ctun_update(void *data);
 extern int ext_agc_update(void *data);
 extern int ext_split_toggle(void *data);
-extern int ext_set_split(void *data);
 
 
 extern int ext_cw_setup();
@@ -125,7 +124,6 @@ extern int ext_set_rf_gain(void *data);
 extern int ext_set_duplex(void *data);
 
 extern int ext_update_noise(void *data);
-extern int ext_update_eq(void *data);
 #ifdef PURESIGNAL
 extern int ext_start_ps(void *data);
 #endif

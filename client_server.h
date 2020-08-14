@@ -488,7 +488,6 @@ extern void send_agc_gain(int s,int rx,int gain,int hang,int thresh);
 extern void send_attenuation(int s,int rx,int attenuation);
 extern void send_squelch(int s,int rx,int enable,int squelch);
 extern void send_noise(int s,int rx,int nb,int nb2,int nr,int nr2,int anf,int snb);
-extern void send_eq(int s, int rxeq, int txeq);
 extern void send_band(int s,int rx,int band);
 extern void send_mode(int s,int rx,int mode);
 extern void send_filter(int s,int rx,int filter);

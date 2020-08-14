@@ -430,7 +430,7 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
             break;
 #ifdef SOAPYSDR
           case SOAPYSDR_PROTOCOL:
-            sprintf(text,"%s (Protocol SOAPY_SDR %s) via Soapy lib",d->name,d->info.soapy.version);
+            sprintf(text,"%s (Protocol SOAPY_SDR %s) on USB",d->name,d->info.soapy.version);
             break;
 #endif
 #ifdef STEMLAB_DISCOVERY
@@ -472,18 +472,10 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
         if(d->device!=SOAPYSDR_USB_DEVICE) {
 #endif
           // if not on the same subnet then cannot start it
-	  //
-	  // DL1YCF: APIPA modification
-	  // so-called APIPA addresses are of the numerical form 169.254.xxx.yyy and these addresses are used
-	  // by many radios if they do not get a DHCP address. These addresses are valid even if outside the
-	  // netmask of the (physical) interface making the connection - so do not complain in this case!
-	  //
-          if (strncmp(inet_ntoa(d->info.network.address.sin_addr),"169.254.",8)) {
-            if((d->info.network.interface_address.sin_addr.s_addr&d->info.network.interface_netmask.sin_addr.s_addr) != (d->info.network.address.sin_addr.s_addr&d->info.network.interface_netmask.sin_addr.s_addr)) {
-              gtk_button_set_label(GTK_BUTTON(start_button),"Subnet!");
-              gtk_widget_set_sensitive(start_button, FALSE);
-            }
-	  }
+          if((d->info.network.interface_address.sin_addr.s_addr&d->info.network.interface_netmask.sin_addr.s_addr) != (d->info.network.address.sin_addr.s_addr&d->info.network.interface_netmask.sin_addr.s_addr)) {
+            gtk_button_set_label(GTK_BUTTON(start_button),"Subnet!");
+            gtk_widget_set_sensitive(start_button, FALSE);
+          }
 #ifdef SOAPYSDR
         }
 #endif

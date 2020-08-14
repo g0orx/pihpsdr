@@ -230,10 +230,7 @@ static sem_t cw_event;
 
 static int cwvox = 0;
 
-#ifdef __APPLE__
-#include "MacOS.h"  // emulate clock_gettime on old MacOS systems
-#else
-
+#ifndef __APPLE__
 // using clock_nanosleep of librt
 extern int clock_nanosleep(clockid_t __clock_id, int __flags,
       __const struct timespec *__req,
@@ -346,6 +343,9 @@ static void* keyer_thread(void *arg) {
     int kdelay;
     int old_volume;
     int txmode;
+#ifdef __APPLE__
+    struct timespec now;
+#endif
 
     fprintf(stderr,"keyer_thread  state running= %d\n", running);
     while(running) {
@@ -427,7 +427,18 @@ static void* keyer_thread(void *arg) {
                 	  loop_delay.tv_sec++;
             		}
 			if (!*kdash) break;
+#ifdef __APPLE__
+                	clock_gettime(CLOCK_MONOTONIC, &now);
+                	now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
+                	now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
+                	while (now.tv_nsec < 0) {
+                    	  now.tv_nsec += 1000000000;
+                    	  now.tv_sec--;
+                	}
+                	nanosleep(&now, NULL);
+#else
             		clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
+#endif
 		      }
 		      // dash released.
                       set_keyer_out(0);
@@ -460,7 +471,18 @@ static void* keyer_thread(void *arg) {
                   loop_delay.tv_nsec -= NSEC_PER_SEC;
                   loop_delay.tv_sec++;
 		}
+#ifdef __APPLE__
+                clock_gettime(CLOCK_MONOTONIC, &now);
+                now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
+                now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
+                while (now.tv_nsec < 0) {
+                  now.tv_nsec += 1000000000;
+                  now.tv_sec--;
+                }
+                nanosleep(&now, NULL);
+#else
                 clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
+#endif
                 set_keyer_out(0);
                 key_state = DOTDELAY;       // add inter-character spacing of one dot length
 		kdelay=0;
@@ -511,7 +533,18 @@ static void* keyer_thread(void *arg) {
                   loop_delay.tv_nsec -= NSEC_PER_SEC;
                   loop_delay.tv_sec++;
                 }
+#ifdef __APPLE__
+                clock_gettime(CLOCK_MONOTONIC, &now);
+                now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
+                now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
+                while (now.tv_nsec < 0) {
+                  now.tv_nsec += 1000000000;
+                  now.tv_sec--;
+                }
+                nanosleep(&now, NULL);
+#else
                 clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
+#endif
                 set_keyer_out(0);
                 key_state = DASHDELAY;       // add inter-character spacing of one dot length
 		kdelay=0;
@@ -569,7 +602,18 @@ static void* keyer_thread(void *arg) {
                 loop_delay.tv_nsec -= NSEC_PER_SEC;
                 loop_delay.tv_sec++;
             }
+#ifdef __APPLE__
+            clock_gettime(CLOCK_MONOTONIC, &now);
+            now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
+            now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
+            while (now.tv_nsec < 0) {
+              now.tv_nsec += 1000000000;
+              now.tv_sec--;
+            }
+            nanosleep(&now, NULL);
+#else
             clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
+#endif
         }
 	//
 	// If we have reduced the side tone volume, restore it!

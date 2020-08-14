@@ -995,24 +995,8 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
   }
 }
 
-//
-// To avoid race conditions, we need a mutex covering the next three functions
-// that are called both by the RX and TX thread, and are filling and sending the
-// output buffer.
-//
-// In 99% if the cases, the check on isTransmitting() controls that only one
-// of the functions becomes active, but at the moment of a RX/TX transition
-// this may fail.
-//
-// So "blocking" can only occur very rarely, such that the lock/unlock
-// should cost only few CPU cycles.
-//
-
-static pthread_mutex_t send_buffer_mutex   = PTHREAD_MUTEX_INITIALIZER;
-
 void old_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right_audio_sample) {
   if(!isTransmitting()) {
-    pthread_mutex_lock(&send_buffer_mutex);
     output_buffer[output_buffer_index++]=left_audio_sample>>8;
     output_buffer[output_buffer_index++]=left_audio_sample;
     output_buffer[output_buffer_index++]=right_audio_sample>>8;
@@ -1025,7 +1009,6 @@ void old_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right
       ozy_send_buffer();
       output_buffer_index=8;
     }
-    pthread_mutex_unlock(&send_buffer_mutex);
   }
 }
 
@@ -1038,7 +1021,6 @@ void old_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right
 //
 void old_protocol_iq_samples_with_sidetone(int isample, int qsample, int side) {
   if(isTransmitting()) {
-    pthread_mutex_lock(&send_buffer_mutex);
     output_buffer[output_buffer_index++]=side >> 8;
     output_buffer[output_buffer_index++]=side;
     output_buffer[output_buffer_index++]=side >> 8;
@@ -1051,13 +1033,11 @@ void old_protocol_iq_samples_with_sidetone(int isample, int qsample, int side) {
       ozy_send_buffer();
       output_buffer_index=8;
     }
-    pthread_mutex_unlock(&send_buffer_mutex);
   }
 }
 
 void old_protocol_iq_samples(int isample,int qsample) {
   if(isTransmitting()) {
-    pthread_mutex_lock(&send_buffer_mutex);
     output_buffer[output_buffer_index++]=0;
     output_buffer[output_buffer_index++]=0;
     output_buffer[output_buffer_index++]=0;
@@ -1070,7 +1050,6 @@ void old_protocol_iq_samples(int isample,int qsample) {
       ozy_send_buffer();
       output_buffer_index=8;
     }
-    pthread_mutex_unlock(&send_buffer_mutex);
   }
 }
 
@@ -1204,7 +1183,7 @@ void ozy_send_buffer() {
       case 5:		// XVTR with old pa board
         output_buffer[C3] |= 0xE0;
         break;
-      case 104:		// EXT2 with ANAN-7000: does not exist, use EXT1
+      case 104:		// EXT2 with ANAN-7000: does not exit, use EXT1
       case 103:		// EXT1 with ANAN-7000
         output_buffer[C3]|= 0x40;
         break;
@@ -1464,25 +1443,7 @@ static int last_power=0;
           if (rxgain > 60) rxgain=60;
 	  // encode all 6 bits of RXgain in ATT value and set bit6
           if (isTransmitting()) {
-	    //
-            // The "TX attenuation" value (0 ... 31 dB) has to be mapped to a
-            // a range of preamp settings. This range is very different on the
-            // HermesLite when using "internal" feedback (crosstalk from the
-            // RX/TX releay) or "external" feedback (attenuator output
-            // connected with RF3 input of the HermesLite2).
-            // To cope with both situations, the preamp range is
-            // +2 ... +33 dB if "Internal" feedback is selected in the
-            // PS menu (this is optimal for "crosstalk" feedback) and
-            // if external feedback is used (check either EXT1 or ByPass
-            // in the PS menu) the preamp range is -12 ... +19 dB.
-            //
-            //
-	    output_buffer[C4] = 0x40 | (33 - (transmitter->attenuation & 0x1F));
-#ifdef PURESIGNAL
-	    if (receiver[PS_RX_FEEDBACK]->alex_antenna == 0) {
-	      output_buffer[C4] = 0x40 | (45 - (transmitter->attenuation & 0x1F));
-            }
-#endif
+	    output_buffer[C4] = 0x40 | (31 - (transmitter->attenuation & 0x1F));
           } else { 
 	    output_buffer[C4] = 0x40 | (rxgain & 0x3F);
           }
@@ -1538,21 +1499,8 @@ static int last_power=0;
 	      output_buffer[C1]|=(receiver[1]->adc<<(2*rx2channel));
 	    }
 	}
-        if (have_rx_gain) {
-          //
-          // On the HermesLite2, we need bit7 set to make this feature active,
-          // and need bit6 set to tell HL2 to directly use the lowest 6 bits
-          // for the built-in preamp. For the effect of choosing different
-          // "alex antennas" see above.
-          output_buffer[C3] = 0xC0 | (33 - (transmitter->attenuation & 0x1F));
-#ifdef PURESIGNAL
-          if (receiver[PS_RX_FEEDBACK]->alex_antenna == 0) {
-            output_buffer[C3] = 0xC0 | (45 - (transmitter->attenuation & 0x1F));
-          }
-#endif
-        } else {
-          output_buffer[C3]=transmitter->attenuation & 0x1F;  // Step attenuator of first ADC, value used when TXing
-        }
+        output_buffer[C3]=0x00;
+        output_buffer[C3]|=transmitter->attenuation;			// Step attenuator of first ADC, value used when TXing
         output_buffer[C4]=0x00;
         break;
       case 7:

@@ -33,7 +33,6 @@
 #include "receiver.h"
 #include "sliders.h"
 #include "new_protocol.h"
-#include "vfo.h"
 
 static GtkWidget *parent_window=NULL;
 static GtkWidget *menu_b=NULL;
@@ -81,12 +80,8 @@ static void preamp_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void alex_att_cb(GtkWidget *widget, gpointer data) {
-  BAND *band;
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
-    // store value in the "band" info
-    band=band_get_band(vfo[VFO_A].band);
-    band->alexAttenuation=GPOINTER_TO_INT(data);
-    set_alex_attenuation();
+    set_alex_attenuation((intptr_t) data);
     update_att_preamp();
   }
 }
@@ -314,7 +309,7 @@ void rx_menu(GtkWidget *parent) {
 #ifdef USBOZY
          (protocol==ORIGINAL_PROTOCOL && device == DEVICE_OZY) ||
 #endif
-        (protocol==NEW_PROTOCOL && device == NEW_DEVICE_ATLAS)) {
+	 (protocol==NEW_PROTOCOL && device == NEW_DEVICE_ATLAS)) {
         GtkWidget *preamp_b=gtk_check_button_new_with_label("Preamp");
         gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (preamp_b), active_receiver->preamp);
         gtk_grid_attach(GTK_GRID(grid),preamp_b,x,4,1,1);

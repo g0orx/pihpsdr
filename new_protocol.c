@@ -199,53 +199,10 @@ static socklen_t length=sizeof(addr);
 
 // Network buffers
 #define NET_BUFFER_SIZE 2048
-
-
-//
-// Instead of allocating and free-ing (malloc/free) the network buffers
-// at a very high rate, we do it the "pedestrian" way, which may
-// alleviate the system load a little.
-//
-// Therefore we allocate a pool of network buffers *once*, make 
-// them a linked list, and simply maintain a "free" flag.
-//
-// This ONLY applies to the network buffers filled with data in
-// new_protocol_thread(), so this need not be thread-safe.
-//
-
-//
-// One buffer. The fences can be used to detect over-writing them
-// 
-//
-
-struct mybuffer_ {
-   struct mybuffer_ *next;
-   int             free;
-   long            lowfence;
-   unsigned char   buffer[NET_BUFFER_SIZE];
-   long            highfence;
-} mybuffer_;
-
-typedef struct mybuffer_ mybuffer;
-
-//
-// number of buffers allocated (for statistics)
-//
-static int num_buf = 0; 
-
-//
-// head of buffer list
-//
-static mybuffer *buflist = NULL;
-
-//
-// The buffers used by new_protocol_thread
-//
-static mybuffer *iq_buffer[MAX_DDC];
-static mybuffer *command_response_buffer;
-static mybuffer *high_priority_buffer;
-static mybuffer *mic_line_buffer;
-
+static unsigned char *iq_buffer[MAX_DDC];
+static unsigned char *command_response_buffer;
+static unsigned char *high_priority_buffer;
+static unsigned char *mic_line_buffer;
 static int mic_bytes_read;
 
 static unsigned char general_buffer[60];
@@ -253,19 +210,16 @@ static unsigned char high_priority_buffer_to_radio[1444];
 static unsigned char transmit_specific_buffer[60];
 static unsigned char receive_specific_buffer[1444];
 
-//
+// DL1YCF
 // new_protocol_receive_specific and friends are not thread-safe, but called
-// periodically from  timer thread *and* asynchronously from everywhere else
+// periodically from  timer thread and asynchronously from everywhere else
 // therefore we need to implement a critical section for each of these functions.
-// The audio buffer needs a mutex since both RX and TX threads may write to
-// this one (CW side tone).
-//
+// It seems that this is not necessary for the audio and TX-IQ buffers.
 
 static pthread_mutex_t rx_spec_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t tx_spec_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t hi_prio_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t general_mutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t audio_mutex   = PTHREAD_MUTEX_INITIALIZER;
 
 static int local_ptt=0;
 
@@ -286,40 +240,6 @@ static void process_div_iq_data(unsigned char *buffer);
 static void  process_command_response();
 static void  process_high_priority();
 static void  process_mic_data(int bytes);
-
-//
-// obtain free buffer, if nothing is left allocate
-// 5 new ones. Note these buffer "live" as long as the
-// program lives. They are never free()d.
-//
-static mybuffer *get_my_buffer() {
-  int i;
-  mybuffer *bp=buflist;
-  while (bp) {
-    if (bp->free == 1) {
-      // found free buffer. Mark as used and return that one.
-      bp->free=0;
-      return bp;
-    }
-    bp=bp->next;
-  }
-  //
-  // no free buffer found, allocate some extra ones
-  // and add to the head of the list
-  //
-  for (i=0; i<5; i++) {
-    bp = malloc(sizeof(mybuffer));
-    bp->free=1;
-    bp->next = buflist;
-    buflist=bp;
-    num_buf++;
-  }
-  g_print("NewProtocol: number of buffer increased to %d\n", num_buf);
-  // Mark the first buffer in list as used and return that one.
-  buflist->free=0;
-  return buflist;
-}
-
 
 #ifdef INCLUDED
 static void new_protocol_calc_buffers() {
@@ -706,7 +626,7 @@ static void new_protocol_general() {
 //g_print("new_protocol_general: %s:%d\n",inet_ntoa(base_addr.sin_addr),ntohs(base_addr.sin_port));
 
     if((rc=sendto(data_socket,general_buffer,sizeof(general_buffer),0,(struct sockaddr*)&base_addr,base_addr_length))<0) {
-        g_print("sendto socket failed for general: rc=%d errno=%d\n",rc,errno);
+        g_print("sendto socket failed for general\n");
         exit(1);
     }
 
@@ -741,7 +661,7 @@ static void new_protocol_high_priority() {
     high_priority_buffer_to_radio[3]=high_priority_sequence;
     high_priority_buffer_to_radio[4]=running;
 //
-//  We need not set PTT if doing internal CW with break-in
+//  We need not set PTT of doing internal CW with break-in
 //
     if(txmode==modeCWU || txmode==modeCWL) {
       if (isTransmitting() && (!cw_keyer_internal || !cw_breakin || CAT_cw_is_active)) high_priority_buffer_to_radio[4]|=0x02;
@@ -1059,7 +979,7 @@ static void new_protocol_high_priority() {
       case 5:           // XVTR with old pa board
             alex0 |= ALEX_RX_ANTENNA_XVTR | ALEX_RX_ANTENNA_BYPASS;
           break;
-      case 104:         // EXT2 with ANAN-7000: does not exist, use EXT1
+      case 104:         // EXT2 with ANAN-7000: does not exit, use EXT1
       case 103:         // EXT1 with ANAN-7000
           alex0 |= ALEX_RX_ANTENNA_EXT1 | ANAN7000_RX_SELECT;
 	  break;
@@ -1291,8 +1211,8 @@ static void new_protocol_transmit_specific() {
 //g_print("new_protocol_transmit_specific: %s:%d\n",inet_ntoa(transmitter_addr.sin_addr),ntohs(transmitter_addr.sin_port));
 
     if((rc=sendto(data_socket,transmit_specific_buffer,sizeof(transmit_specific_buffer),0,(struct sockaddr*)&transmitter_addr,transmitter_addr_length))<0) {
-        g_print("sendto socket failed for tx specific: rc=%d errno=%d\n",rc,errno);
-	exit(1);
+        g_print("sendto socket failed for tx specific: %d\n",rc);
+        exit(1);
     }
 
     if(rc!=sizeof(transmit_specific_buffer)) {
@@ -1391,7 +1311,7 @@ static void new_protocol_receive_specific() {
 //g_print("new_protocol_receive_specific: %s:%d enable=%02X\n",inet_ntoa(receiver_addr.sin_addr),ntohs(receiver_addr.sin_port),receive_specific_buffer[7]);
 
     if((rc=sendto(data_socket,receive_specific_buffer,sizeof(receive_specific_buffer),0,(struct sockaddr*)&receiver_addr,receiver_addr_length))<0) {
-      g_print("sendto socket failed for receive specific: rc=%d errno=%d\n",rc,errno);
+      g_print("sendto socket failed for receive_specific: %d\n",rc);
       exit(1);
     }
  
@@ -1411,7 +1331,7 @@ static void new_protocol_start() {
     if( ! new_protocol_timer_thread_id )
     {
         g_print("g_thread_new failed on new_protocol_timer_thread\n");
-	exit( -1 );
+        exit( -1 );
     }
     g_print( "new_protocol_timer_thread: id=%p\n",new_protocol_timer_thread_id);
 
@@ -1491,7 +1411,6 @@ static gpointer new_protocol_thread(gpointer data) {
     short sourceport;
     unsigned char *buffer;
     int bytesread;
-    mybuffer *mybuf;
 
 g_print("new_protocol_thread\n");
 
@@ -1504,17 +1423,16 @@ g_print("new_protocol_thread\n");
 
     while(running) {
 
-        mybuf=get_my_buffer();
-        buffer=mybuf->buffer;
+        buffer=malloc(NET_BUFFER_SIZE);
         bytesread=recvfrom(data_socket,buffer,NET_BUFFER_SIZE,0,(struct sockaddr*)&addr,&length);
 
         if (!running) {
           //
           // When leaving piHPSDR, it may happen that the protocol has been stopped while
-	  // we were doing "recvfrom". In this case, we want to let the main
-	  // thread terminate gracefully, including writing the props files.
+	  // we were doing "recvfrom". In this case, we do not want to "exit" but let the main
+	  // thread exit gracefully, including writing the props files.
 	  //
-	  mybuf->free=1;
+	  free(buffer);
 	  break;
 	}
 
@@ -1546,7 +1464,7 @@ g_print("new_protocol_thread\n");
 #else
                 sem_wait(&iq_sem_ready[ddc]);
 #endif
-                iq_buffer[ddc]=mybuf;
+                iq_buffer[ddc]=buffer;
 #ifdef __APPLE__
                 sem_post(iq_sem_buffer[ddc]);
 #else
@@ -1560,7 +1478,7 @@ g_print("new_protocol_thread\n");
 #else
               sem_wait(&command_response_sem_ready);
 #endif
-              command_response_buffer=mybuf;
+              command_response_buffer=buffer;
 #ifdef __APPLE__
               sem_post(command_response_sem_buffer);
 #else
@@ -1574,7 +1492,7 @@ g_print("new_protocol_thread\n");
 #else
               sem_wait(&high_priority_sem_ready);
 #endif
-              high_priority_buffer=mybuf;
+              high_priority_buffer=buffer;
 #ifdef __APPLE__
               sem_post(high_priority_sem_buffer);
 #else
@@ -1588,7 +1506,7 @@ g_print("new_protocol_thread\n");
 #else
               sem_wait(&mic_line_sem_ready);
 #endif
-              mic_line_buffer=mybuf;
+              mic_line_buffer=buffer;
               mic_bytes_read=bytesread;
 #ifdef __APPLE__
               sem_post(mic_line_sem_buffer);
@@ -1598,7 +1516,7 @@ g_print("new_protocol_thread\n");
               break;
             default:
 g_print("new_protocol_thread: Unknown port %d\n",sourceport);
-              mybuf->free=1;
+              free(buffer);
               break;
         }
     }
@@ -1617,7 +1535,7 @@ static gpointer command_response_thread(gpointer data) {
     sem_wait(&command_response_sem_buffer);
 #endif
     process_command_response();
-    command_response_buffer->free=1;
+    free(command_response_buffer);
   }
 }
 
@@ -1632,7 +1550,7 @@ g_print("high_priority_thread\n");
     sem_wait(&high_priority_sem_buffer);
 #endif
     process_high_priority();
-    high_priority_buffer->free=1;
+    free(high_priority_buffer);
   }
 }
 
@@ -1651,7 +1569,7 @@ g_print("mic_line_thread\n");
 //  since this is our pace-maker
 //
     process_mic_data(mic_bytes_read);
-    mic_line_buffer->free=1;
+    free(mic_line_buffer);
   }
 }
 
@@ -1668,8 +1586,8 @@ static gpointer iq_thread(gpointer data) {
     sem_post(&iq_sem_ready[ddc]);
     sem_wait(&iq_sem_buffer[ddc]);
 #endif
-    if (iq_buffer[ddc] == NULL) continue;
-    buffer=iq_buffer[ddc]->buffer;
+    buffer=iq_buffer[ddc];
+    if (buffer == NULL) continue;
 //
 //  Perform sequence check HERE for all cases
 //
@@ -1698,7 +1616,7 @@ static gpointer iq_thread(gpointer data) {
 	  process_div_iq_data(buffer);
 	  break;
     }
-    iq_buffer[ddc]->free=1;
+    free(buffer);
   }
 }
 
@@ -1865,14 +1783,13 @@ static void process_ps_iq_data(unsigned char *buffer) {
 
 static void process_command_response() {
     long sequence;
-    unsigned char *buffer = command_response_buffer->buffer;
-    sequence=((buffer[0]&0xFF)<<24)+((buffer[1]&0xFF)<<16)+((buffer[2]&0xFF)<<8)+(buffer[3]&0xFF);
+    sequence=((command_response_buffer[0]&0xFF)<<24)+((command_response_buffer[1]&0xFF)<<16)+((command_response_buffer[2]&0xFF)<<8)+(command_response_buffer[3]&0xFF);
     if (sequence != response_sequence) {
 	g_print("CommRes SeqErr: expected=%ld seen=%ld\n", response_sequence, sequence);
 	response_sequence=sequence;
     }
     response_sequence++;
-    response=buffer[4]&0xFF;
+    response=command_response_buffer[4]&0xFF;
     g_print("CommandResponse with seq=%ld and command=%d\n",sequence,response);
 #ifdef __APPLE__
     sem_post(response_sem);
@@ -1881,14 +1798,13 @@ static void process_command_response() {
 #endif
 }
 
-static void process_high_priority() {
+static void process_high_priority(unsigned char *buffer) {
     long sequence;
     int previous_ptt;
     int previous_dot;
     int previous_dash;
-    unsigned char *buffer=high_priority_buffer->buffer;
 
-    sequence=((buffer[0]&0xFF)<<24)+((buffer[1]&0xFF)<<16)+((buffer[2]&0xFF)<<8)+(buffer[3]&0xFF);
+    sequence=((high_priority_buffer[0]&0xFF)<<24)+((high_priority_buffer[1]&0xFF)<<16)+((high_priority_buffer[2]&0xFF)<<8)+(high_priority_buffer[3]&0xFF);
     if (sequence != highprio_rcvd_sequence) {
 	g_print("HighPrio SeqErr Expected=%ld Seen=%ld\n", highprio_rcvd_sequence, sequence);
 	highprio_rcvd_sequence=sequence;
@@ -1899,15 +1815,15 @@ static void process_high_priority() {
     previous_dot=dot;
     previous_dash=dash;
 
-    local_ptt=buffer[4]&0x01;
-    dot=(buffer[4]>>1)&0x01;
-    dash=(buffer[4]>>2)&0x01;
-    pll_locked=(buffer[4]>>4)&0x01;
-    adc_overload=buffer[5]&0x01;
-    exciter_power=((buffer[6]&0xFF)<<8)|(buffer[7]&0xFF);
-    alex_forward_power=((buffer[14]&0xFF)<<8)|(buffer[15]&0xFF);
-    alex_reverse_power=((buffer[22]&0xFF)<<8)|(buffer[23]&0xFF);
-    supply_volts=((buffer[49]&0xFF)<<8)|(buffer[50]&0xFF);
+    local_ptt=high_priority_buffer[4]&0x01;
+    dot=(high_priority_buffer[4]>>1)&0x01;
+    dash=(high_priority_buffer[4]>>2)&0x01;
+    pll_locked=(high_priority_buffer[4]>>4)&0x01;
+    adc_overload=high_priority_buffer[5]&0x01;
+    exciter_power=((high_priority_buffer[6]&0xFF)<<8)|(high_priority_buffer[7]&0xFF);
+    alex_forward_power=((high_priority_buffer[14]&0xFF)<<8)|(high_priority_buffer[15]&0xFF);
+    alex_reverse_power=((high_priority_buffer[22]&0xFF)<<8)|(high_priority_buffer[23]&0xFF);
+    supply_volts=((high_priority_buffer[49]&0xFF)<<8)|(high_priority_buffer[50]&0xFF);
 
     if (cw_keyer_internal) {
       // Stops CAT cw transmission if paddle hit in "internal" CW
@@ -1933,9 +1849,8 @@ static void process_mic_data(int bytes) {
   int i;
   short sample;
   float fsample;
-  unsigned char *buffer=mic_line_buffer->buffer;
 
-  sequence=((buffer[0]&0xFF)<<24)+((buffer[1]&0xFF)<<16)+((buffer[2]&0xFF)<<8)+(buffer[3]&0xFF);
+  sequence=((mic_line_buffer[0]&0xFF)<<24)+((mic_line_buffer[1]&0xFF)<<16)+((mic_line_buffer[2]&0xFF)<<8)+(mic_line_buffer[3]&0xFF);
   if (sequence != micsamples_sequence) {
     g_print("MicSample SeqErr Expected=%ld Seen=%ld\n", micsamples_sequence, sequence);
     micsamples_sequence=sequence;
@@ -1943,58 +1858,43 @@ static void process_mic_data(int bytes) {
   micsamples_sequence++;
   b=4;
   for(i=0;i<MIC_SAMPLES;i++) {
-    sample=(short)(buffer[b++]<<8);
-    sample |= (short) (buffer[b++]&0xFF);
+    sample=(short)(mic_line_buffer[b++]<<8);
+    sample |= (short) (mic_line_buffer[b++]&0xFF);
     fsample = transmitter->local_microphone ? audio_get_next_mic_sample() : (float) sample * 0.00003051;
     add_mic_sample(transmitter,fsample);
   }
 }
 
-//
-// Note that new_protocol_cw_audio_samples() is called by the TX thread, while
-// new_protocol_audio_samples() is called by the RX thread.
-//
-//
-// To avoid race conditions, we need a mutex covering these functions.
-// In 99% if the cases, the check on isTransmitting() controls that only one
-// of the functions becomes active, but at the moment of a RX/TX transition
-// this may fail.
-//
-// So "blocking" can only occur very rarely, such that the lock/unlock
-// should cost only few CPU cycles. 
-//
-
 void new_protocol_cw_audio_samples(short left_audio_sample,short right_audio_sample) {
   int rc;
   int txmode=get_tx_mode();
-
+  //
+  // Only process samples if transmitting in CW
   if (isTransmitting() && (txmode==modeCWU || txmode==modeCWL)) {
-    //
-    // Only process samples if transmitting in CW
-    //
-    pthread_mutex_lock(&audio_mutex);
-    // insert the samples
-    audiobuffer[audioindex++]=left_audio_sample>>8;
-    audiobuffer[audioindex++]=left_audio_sample;
-    audiobuffer[audioindex++]=right_audio_sample>>8;
-    audiobuffer[audioindex++]=right_audio_sample;
 
-    if(audioindex>=sizeof(audiobuffer)) {
-      // insert the sequence
-      audiobuffer[0]=audiosequence>>24;
-      audiobuffer[1]=audiosequence>>16;
-      audiobuffer[2]=audiosequence>>8;
-      audiobuffer[3]=audiosequence;
+  // insert the samples
+  audiobuffer[audioindex++]=left_audio_sample>>8;
+  audiobuffer[audioindex++]=left_audio_sample;
+  audiobuffer[audioindex++]=right_audio_sample>>8;
+  audiobuffer[audioindex++]=right_audio_sample;
 
-      // send the buffer
-      rc=sendto(data_socket,audiobuffer,sizeof(audiobuffer),0,(struct sockaddr*)&audio_addr,audio_addr_length);
-      if(rc!=sizeof(audiobuffer)) {
-        g_print("sendto socket failed for %ld bytes of audio: rc=%d errno=%d\n",(long)sizeof(audiobuffer),rc,errno);
-      }
-      audioindex=4;
-      audiosequence++;
+  if(audioindex>=sizeof(audiobuffer)) {
+
+    // insert the sequence
+    audiobuffer[0]=audiosequence>>24;
+    audiobuffer[1]=audiosequence>>16;
+    audiobuffer[2]=audiosequence>>8;
+    audiobuffer[3]=audiosequence;
+
+    // send the buffer
+
+    rc=sendto(data_socket,audiobuffer,sizeof(audiobuffer),0,(struct sockaddr*)&audio_addr,audio_addr_length);
+    if(rc!=sizeof(audiobuffer)) {
+      g_print("sendto socket failed for %ld bytes of audio: %d\n",(long)sizeof(audiobuffer),rc);
     }
-    pthread_mutex_unlock(&audio_mutex);
+    audioindex=4;
+    audiosequence++;
+  }
   }
 }
 
@@ -2004,10 +1904,8 @@ void new_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right
   int txmode=get_tx_mode();
   //
   // Only process samples if NOT transmitting in CW
-  //
   if (isTransmitting() && (txmode==modeCWU || txmode==modeCWL)) return;
 
-  pthread_mutex_lock(&audio_mutex);
   // insert the samples
   audiobuffer[audioindex++]=left_audio_sample>>8;
   audiobuffer[audioindex++]=left_audio_sample;
@@ -2026,12 +1924,11 @@ void new_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right
 
     rc=sendto(data_socket,audiobuffer,sizeof(audiobuffer),0,(struct sockaddr*)&audio_addr,audio_addr_length);
     if(rc!=sizeof(audiobuffer)) {
-      g_print("sendto socket failed for %ld bytes of audio: rc=%d errno=%d\n",(long)sizeof(audiobuffer),rc,errno);
+      g_print("sendto socket failed for %ld bytes of audio: %d\n",(long)sizeof(audiobuffer),rc);
     }
     audioindex=4;
     audiosequence++;
   }
-  pthread_mutex_unlock(&audio_mutex);
 }
 
 void new_protocol_flush_iq_samples() {
@@ -2039,7 +1936,6 @@ void new_protocol_flush_iq_samples() {
 // this is called at the end of a TX phase:
 // zero out "rest" of TX IQ buffer and send it
 //
-  int rc;
   while (iqindex < sizeof(iqbuffer)) {
     iqbuffer[iqindex++]=0;
   }
@@ -2050,9 +1946,8 @@ void new_protocol_flush_iq_samples() {
   iqbuffer[3]=tx_iq_sequence;
 
   // send the buffer
-  rc=sendto(data_socket,iqbuffer,sizeof(iqbuffer),0,(struct sockaddr*)&iq_addr,iq_addr_length);
-  if(rc<0) {
-    g_print("sendto socket failed for iq-flush, rc=%d errno=%d\n",rc,errno);
+  if(sendto(data_socket,iqbuffer,sizeof(iqbuffer),0,(struct sockaddr*)&iq_addr,iq_addr_length)<0) {
+    g_print("sendto socket failed for iq\n");
     exit(1);
   }
   iqindex=4;
@@ -2060,8 +1955,6 @@ void new_protocol_flush_iq_samples() {
 }
 
 void new_protocol_iq_samples(int isample,int qsample) {
-  int rc;
-
   iqbuffer[iqindex++]=isample>>16;
   iqbuffer[iqindex++]=isample>>8;
   iqbuffer[iqindex++]=isample;
@@ -2076,9 +1969,8 @@ void new_protocol_iq_samples(int isample,int qsample) {
     iqbuffer[3]=tx_iq_sequence;
 
     // send the buffer
-    rc=sendto(data_socket,iqbuffer,sizeof(iqbuffer),0,(struct sockaddr*)&iq_addr,iq_addr_length);
-    if(rc<0) {
-      g_print("sendto socket failed for iq, rc=%d errno=%d\n",rc,errno);
+    if(sendto(data_socket,iqbuffer,sizeof(iqbuffer),0,(struct sockaddr*)&iq_addr,iq_addr_length)<0) {
+      g_print("sendto socket failed for iq\n");
       exit(1);
     }
     iqindex=4;
@@ -2088,8 +1980,8 @@ void new_protocol_iq_samples(int isample,int qsample) {
 
 void* new_protocol_timer_thread(void* arg) {
   //
-  // Periodically send HighPriority as well as General packets.
-  // A general packet is, for example,
+  // We now sent HighPriority as well as General packets
+  // in addition. General packet re-sending is, for example,
   // required if the band changes (band->disblePA), and HighPrio
   // packets are necessary at very many instances when changing
   // something in the menus, and then a small delay does no harm

@@ -483,7 +483,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
         case MIDI_PAN:  // wheel and knob
 	    switch (type) {
               case MIDI_WHEEL:
-                g_idle_add(ext_pan_update,GINT_TO_POINTER(val*10));
+                g_idle_add(ext_pan_update,GINT_TO_POINTER(val));
                 break;
 	      case MIDI_KNOB:
                 g_idle_add(ext_pan_set,GINT_TO_POINTER(val));

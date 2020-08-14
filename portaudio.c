@@ -220,9 +220,6 @@ int pa_mic_cb(const void *inputBuffer, void *outputBuffer, unsigned long framesP
     switch(protocol) {
       case ORIGINAL_PROTOCOL:
       case NEW_PROTOCOL:
-#ifdef SOAPYSDR
-      case SOAPYSDR_PROTOCOL:
-#endif
 	//
 	// put sample into ring buffer
 	//
@@ -239,6 +236,12 @@ int pa_mic_cb(const void *inputBuffer, void *outputBuffer, unsigned long framesP
 	  }
 	}
 	break;
+#ifdef SOAPYSDR
+      case SOAPYSDR_PROTOCOL:
+	// Note that this call ends up deeply in the TX engine
+	soapy_protocol_process_local_mic(sample);
+	break;
+#endif
       default:
 	break;
     }
@@ -418,13 +421,6 @@ void audio_close_output(RECEIVER *rx) {
 // we have to store the data such that the PA callback function
 // can access it.
 //
-// Note that the check on isTransmitting() takes care that "blocking"
-// by the mutex can only occur in the moment of a RX/TX transition if
-// both audio_write() and cw_audio_write() get a "go".
-//
-// So mutex locking/unlocking should only cost few CPU cycles in
-// normal operation.
-//
 int audio_write (RECEIVER *rx, float left, float right)
 {
   int mode=modeUSB;
@@ -462,7 +458,6 @@ int cw_audio_write(float sample) {
   RECEIVER *rx = active_receiver;
   float *buffer = rx->local_audio_buffer;
 
-  g_mutex_lock(&rx->local_audio_mutex);
   if (rx->playback_handle != NULL && rx->local_audio_buffer != NULL) {
     buffer[rx->local_audio_buffer_offset++] = sample;
     if (rx->local_audio_buffer_offset == MY_AUDIO_BUFFER_SIZE) {
@@ -471,7 +466,6 @@ int cw_audio_write(float sample) {
       rx->local_audio_buffer_offset=0;
     }
   }
-  g_mutex_unlock(&rx->local_audio_mutex);
   return 0;
 }
 

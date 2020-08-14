@@ -427,7 +427,6 @@ static gboolean update_display(gpointer data) {
       int start = (full-width) /2;      // Copy from start ... (end-1) 
       float *tfp=tx->pixel_samples;
       float *rfp=rx_feedback->pixel_samples+start;
-      float offset;
       int i;
       //
       // The TX panadapter shows a RELATIVE signal strength. A CW or single-tone signal at
@@ -437,24 +436,22 @@ static gboolean update_display(gpointer data) {
       // on the attenuation effective in the feedback path.
       // We try to normalize the feeback signal such that is looks like a "normal" TX
       // panadapter if the feedback is optimal for PURESIGNAL (that is, if the attenuation
-      // is optimal). The correction (offset) depends on the protocol (different peak levels in the TX
-      // feedback channel.
+      // is optimal). The correction depends on the protocol (different peak levels in the TX
+      // feedback channel, old=0.407, new=0.2899, difference is 3 dB).
       switch (protocol) {
         case ORIGINAL_PROTOCOL:
-	  // TX dac feedback peak = 0.406, on HermesLite2 0.230
-          offset = (device == DEVICE_HERMES_LITE2) ? 17.0 : 12.0;
+          for (i=0; i<width; i++) {
+            *tfp++ =*rfp++ + 12.0;
+          }
           break;
         case NEW_PROTOCOL:
-          // TX dac feedback peak = 0.2899
-	  offset = 15.0;
+          for (i=0; i<width; i++) {
+            *tfp++ =*rfp++ + 15.0;
+          }
           break;
         default:
-          // we probably never come here
-          offset = 0.0;
+          memcpy(tfp, rfp, width*sizeof(float));
           break;
-      }
-      for (i=0; i<width; i++) {
-        *tfp++ =*rfp++ + offset;
       }
       g_mutex_unlock(&rx_feedback->mutex);
     } else {
@@ -600,8 +597,8 @@ static gboolean update_display(gpointer data) {
         }
         break;
 
-#ifdef SOAPYSDR
-      case SOAPYSDR_PROTOCOL:
+#ifdef SOAPY_SDR
+      case SOAPY_PROTOCOL:
         transmitter->fwd=0.0;
         transmitter->exciter=0.0;
         transmitter->rev=0.0;
@@ -815,38 +812,24 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%d iq_output_buf
   tx->pixel_samples=g_new(float,tx->pixels);
   if (cw_shape_buffer48) g_free(cw_shape_buffer48);
   if (cw_shape_buffer192) g_free(cw_shape_buffer192);
-  switch (protocol) {
-    case ORIGINAL_PROTOCOL:
-      //
-      // We need no buffer for the IQ sample amplitudes because
-      // we make dual use of the buffer for the audio amplitudes
-      // (TX sample rate ==  mic sample rate)
-      //
-      cw_shape_buffer48=g_new(double,tx->buffer_size);
-      break;
-   case NEW_PROTOCOL:
-#ifdef SOAPYSDR
-   case SOAPYSDR_PROTOCOL:
-#endif
-      //
-      // We need two buffers: one for the audio sample amplitudes
-      // and another one for the TX IQ amplitudes
-      // (TX and mic sample rate are usually different).
-      //
-      cw_shape_buffer48=g_new(double,tx->buffer_size);
-      cw_shape_buffer192=g_new(double,tx->output_samples);
-      break;
+  //
+  // We need this one both for old and new protocol, since
+  // is is also used to shape the audio samples
+  cw_shape_buffer48=g_new(double,tx->buffer_size);
+  if (protocol == NEW_PROTOCOL) {
+    // We need this buffer for the new protocol only, where it is only
+    // used to shape the TX envelope
+    cw_shape_buffer192=g_new(double,tx->output_samples);
   }
-  g_print("transmitter: allocate buffers: mic_input_buffer=%p iq_output_buffer=%p pixels=%p\n",
-          tx->mic_input_buffer,tx->iq_output_buffer,tx->pixel_samples);
+fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%p iq_output_buffer=%p pixels=%p\n",tx->mic_input_buffer,tx->iq_output_buffer,tx->pixel_samples);
 
-  g_print("create_transmitter: OpenChannel id=%d buffer_size=%d fft_size=%d sample_rate=%d dspRate=%d outputRate=%d\n",
-          tx->id,
-          tx->buffer_size,
-          2048, // tx->fft_size,
-          tx->mic_sample_rate,
-          tx->mic_dsp_rate,
-          tx->iq_output_rate);
+  fprintf(stderr,"create_transmitter: OpenChannel id=%d buffer_size=%d fft_size=%d sample_rate=%d dspRate=%d outputRate=%d\n",
+              tx->id,
+              tx->buffer_size,
+              2048, // tx->fft_size,
+              tx->mic_sample_rate,
+              tx->mic_dsp_rate,
+              tx->iq_output_rate);
 
   OpenChannel(tx->id,
               tx->buffer_size,
@@ -1072,9 +1055,7 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 
   if (isTransmitting()) {
 
-    if(  (    (protocol == NEW_PROTOCOL && radio->device==NEW_DEVICE_ATLAS) 
-           || (protocol==ORIGINAL_PROTOCOL && radio->device==DEVICE_METIS)
-         ) && atlas_penelope) {
+    if(radio->device==NEW_DEVICE_ATLAS && atlas_penelope) {
       //
       // On these boards, drive level changes are performed by
       // scaling the TX IQ samples. In the other cases, DriveLevel
@@ -1136,7 +1117,7 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 	    break;
 	  case NEW_PROTOCOL:
 	    //
-	    // tx->output_samples is four times tx->buffer_size
+	    // tx->output_samples if four times tx->buffer_size
 	    // Take TX envelope from the 192kHz shape buffer
 	    //
 	    isample=0;
@@ -1146,20 +1127,6 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 	      new_protocol_iq_samples(isample,qsample);
 	    }
 	    break;
-#ifdef SOAPYSDR
-          case SOAPYSDR_PROTOCOL:
-            //
-            // the only difference to the P2 treatment is that we do not
-            // generate audio samples to be sent to the radio
-            //
-	    isample=0;
-            for(j=0;j<tx->output_samples;j++) {
-	      ramp=cw_shape_buffer192[j];	    		// between 0.0 and 1.0
-	      qsample=floor(gain*ramp+0.5);         	    	// always non-negative, isample is just the pulse envelope
-              soapy_protocol_iq_samples((float)isample,(float)qsample);
-	    }
-	    break;
-#endif
 	}
     } else {
 	//
@@ -1291,55 +1258,6 @@ void add_mic_sample(TRANSMITTER *tx,float mic_sample) {
 	      cw_shape_buffer192[i+3]=cwramp192[s+0];
 	   }
 	}
-#ifdef SOAPYSDR
-        if (protocol == SOAPYSDR_PROTOCOL) {
-          //
-          // The ratio between the TX and microphone sample rate can be any value, so
-          // it is difficult to construct a general ramp here. We may at least *assume*
-          // that the ratio is integral. We can extrapolate from the shapes calculated
-          // for 48 and 192 kHz sample rate.
-          //
-          // At any rate, we *must* produce tx->outputsamples IQ samples from an input
-          // buffer of size tx->buffer_size.
-          //
-          int ratio = tx->output_samples / tx->buffer_size;
-          int j;
-          i=ratio*tx->samples;  // current position in TX IQ buffer
-          if (updown) {
-            //
-            // Climb up the ramp
-            //
-            if (ratio % 4 == 0) {
-              // simple adaptation from the 192 kHz ramp
-              ratio = ratio / 4;
-	      s=4*cw_shape;
-	      for (j=0; j<ratio; j++) cw_shape_buffer192[i++]=cwramp192[s+0];
-	      for (j=0; j<ratio; j++) cw_shape_buffer192[i++]=cwramp192[s+1];
-	      for (j=0; j<ratio; j++) cw_shape_buffer192[i++]=cwramp192[s+2];
-	      for (j=0; j<ratio; j++) cw_shape_buffer192[i++]=cwramp192[s+3];
-            } else {
-              // simple adaptation from the 48 kHz ramp
-              for (j=0; j<ratio; j++) cw_shape_buffer192[i++]=cwramp48[cw_shape];
-            }
-          } else {
-            //
-            // Walk down the ramp
-            //
-            if (ratio % 4 == 0) {
-              // simple adaptation from the 192 kHz ramp
-              ratio = ratio / 4;
-	      s=4*cw_shape;
-	      for (j=0; j<ratio; j++) cw_shape_buffer192[i++]=cwramp192[s+3];
-	      for (j=0; j<ratio; j++) cw_shape_buffer192[i++]=cwramp192[s+2];
-	      for (j=0; j<ratio; j++) cw_shape_buffer192[i++]=cwramp192[s+1];
-	      for (j=0; j<ratio; j++) cw_shape_buffer192[i++]=cwramp192[s+0];
-            } else {
-              // simple adaptation from the 48 kHz ramp
-              for (j=0; j<ratio; j++) cw_shape_buffer192[i++]=cwramp48[cw_shape];
-            }
-          }
-        }
-#endif
   } else {
 //
 //	If no longer transmitting, or no longer doing CW: reset pulse shaper.
@@ -1351,7 +1269,6 @@ void add_mic_sample(TRANSMITTER *tx,float mic_sample) {
 	cw_key_up=0;
 	cw_key_down=0;
 	cw_shape=0;
-        // insert "silence" in CW audio and TX IQ buffers
   	cw_shape_buffer48[tx->samples]=0.0;
 	if (protocol == NEW_PROTOCOL) {
 	  cw_shape_buffer192[4*tx->samples+0]=0.0;
@@ -1359,18 +1276,6 @@ void add_mic_sample(TRANSMITTER *tx,float mic_sample) {
 	  cw_shape_buffer192[4*tx->samples+2]=0.0;
 	  cw_shape_buffer192[4*tx->samples+3]=0.0;
 	}
-#ifdef SOAPYSDR
-        if (protocol == SOAPYSDR_PROTOCOL) {
-          //
-          // this essentially the P2 code, where the ratio
-          // is fixed to 4
-          //
-          int ratio = tx->output_samples / tx->buffer_size;
-          int i=ratio*tx->samples;
-          int j;
-          for (j=0; j<ratio; j++) cw_shape_buffer192[i++]=0.0;
-        }
-#endif
   }
   tx->mic_input_buffer[tx->samples*2]=mic_sample_double;
   tx->mic_input_buffer[(tx->samples*2)+1]=0.0; //mic_sample_double;

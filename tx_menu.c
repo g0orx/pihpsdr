@@ -520,19 +520,18 @@ void tx_menu(GtkWidget *parent) {
   gtk_spin_button_set_value(GTK_SPIN_BUTTON(ctcss_spin),(double)transmitter->ctcss_frequency);
   gtk_grid_attach(GTK_GRID(grid),ctcss_spin,col,row,1,1);
   g_signal_connect(ctcss_spin,"value-changed",G_CALLBACK(ctcss_spin_cb),NULL);
-*/  
+  
   row++;
   col=0;
-
+*/
   GtkWidget *tune_use_drive_b=gtk_check_button_new_with_label("Tune use drive");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (tune_use_drive_b), transmitter->tune_use_drive);
   gtk_widget_show(tune_use_drive_b);
   gtk_grid_attach(GTK_GRID(grid),tune_use_drive_b,col,row,1,1);
   g_signal_connect(tune_use_drive_b,"toggled",G_CALLBACK(tune_use_drive_cb),NULL);
 
-  //row++;
-  //col=0;
-  col++;
+  row++;
+  col=0;
   
   GtkWidget *tune_percent_label=gtk_label_new(NULL);
   gtk_label_set_markup(GTK_LABEL(tune_percent_label), "<b>Tune Percent:</b>");

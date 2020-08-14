@@ -64,9 +64,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#ifdef __APPLE__
-#include "MacOS.h"  // emulate clock_gettime on old MacOS systems
-#endif
 
 #define NEED_DUMMY_AUDIO 1
 
@@ -758,8 +755,8 @@ int main(int argc, char *argv[])
 				  buffer[ 6]=0xBB;
 				  buffer[ 7]=0xCC;
 				  buffer[ 8]=0xDD;
-				  buffer[ 9]=0xEF;
-				  buffer[10]=0xFE;
+				  buffer[ 9]=0xEE;
+				  buffer[10]=0xFF;
 				  buffer[11]=NEWDEVICE;
 				  buffer[12]=38;
 				  buffer[13]=19;
@@ -785,8 +782,8 @@ int main(int argc, char *argv[])
                                   buffer[ 6]=0xBB;
                                   buffer[ 7]=0xCC;
                                   buffer[ 8]=0xDD;
-                                  buffer[ 9]=0xEF;
-                                  buffer[10]=0xFE;
+                                  buffer[ 9]=0xEE;
+                                  buffer[10]=0xFF;
                                   buffer[11]=NEWDEVICE;
                                   buffer[12]=38;
                                   buffer[13]=103;
@@ -815,8 +812,8 @@ int main(int argc, char *argv[])
                                   buffer[ 6]=0xBB;
                                   buffer[ 7]=0xCC;
                                   buffer[ 8]=0xDD;
-                                  buffer[ 9]=0xEF;
-                                  buffer[10]=0xFE;
+                                  buffer[ 9]=0xEE;
+                                  buffer[10]=0xFF;
 				  buffer[11]=103;
 				  buffer[12]=NEWDEVICE;
 				  buffer[13]=(checksum >> 8) & 0xFF;
@@ -838,16 +835,16 @@ int main(int argc, char *argv[])
 				  if (buffer[ 6] != 0xBB) break;
 				  if (buffer[ 7] != 0xCC) break;
 				  if (buffer[ 8] != 0xDD) break;
-				  if (buffer[ 9] != 0xEF) break;
-				  if (buffer[10] != 0xFE) break;
+				  if (buffer[ 9] != 0xEE) break;
+				  if (buffer[10] != 0xFF) break;
                                   memset(buffer, 0, 60);
                                   buffer [4]=0x02+active_thread;
                                   buffer [5]=0xAA;
                                   buffer[ 6]=0xBB;
                                   buffer[ 7]=0xCC;
                                   buffer[ 8]=0xDD;
-                                  buffer[ 9]=0xEF;
-                                  buffer[10]=0xFE;
+                                  buffer[ 9]=0xEE;
+                                  buffer[10]=0xFF;
                                   buffer[11]=NEWDEVICE;
                                   buffer[12]=38;
                                   buffer[13]=103;
@@ -1161,6 +1158,9 @@ void *handler_ep6(void *arg)
         int16_t ssample;
 
         struct timespec delay;
+#ifdef __APPLE__
+	struct timespec now;
+#endif
         long wait;
         int noiseIQpt,toneIQpt,divpt,rxptr;
         double i1,q1,fac1,fac2,fac3,fac4;
@@ -1366,7 +1366,24 @@ void *handler_ep6(void *arg)
                   delay.tv_nsec -= 1000000000;
                   delay.tv_sec++;
                 }
+#ifdef __APPLE__
+		//
+		// The (so-called) operating system for Mac does not have clock_nanosleep(),
+		// but is has clock_gettime as well as nanosleep.
+		// So, to circumvent this problem, we look at the watch and determine
+		// how long we should sleep now.
+		//
+		clock_gettime(CLOCK_MONOTONIC, &now);
+		now.tv_sec =delay.tv_sec  - now.tv_sec;
+		now.tv_nsec=delay.tv_nsec - now.tv_nsec;
+		while (now.tv_nsec < 0) {
+		    now.tv_nsec += 1000000000;
+		    now.tv_sec--;
+		}
+		nanosleep(&now, NULL);
+#else
 		clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &delay, NULL);
+#endif
 
 		if (sock_TCP_Client > -1)
 		{

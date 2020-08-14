@@ -71,7 +71,6 @@
 #ifdef LOCALCW
 #include "iambic.h"
 #endif
-#include "rigctl_menu.h"
 #ifdef MIDI
 // rather than including MIDI.h with all its internal stuff
 // (e.g. enum components) we just declare the single bit thereof
@@ -954,26 +953,13 @@ void start_radio() {
 
   status_text(text);
 
-  switch (protocol) {
-    case ORIGINAL_PROTOCOL:
-    case NEW_PROTOCOL:
-      sprintf(text,"piHPSDR: %s (%s %s) %s (%s) on %s",
-                   radio->name,
-                   p,
-                   version,
-                   ip,
-                   mac,
-                   iface);
-      break;
-#ifdef SOAPYSDR
-    case SOAPYSDR_PROTOCOL:
-      sprintf(text,"piHPSDR: %s (%s %s)",
-                   radio->name,
-                   p,
-                   version);
-      break;
-#endif
-  }
+  sprintf(text,"piHPSDR: %s (%s %s) %s (%s) on %s",
+                          radio->name,
+                          p,
+                          version,
+                          ip,
+                          mac,
+                          iface);
 
   gtk_window_set_title (GTK_WINDOW (top_window), text);
 
@@ -1218,13 +1204,6 @@ void start_radio() {
 
   if(rigctl_enable) {
     launch_rigctl();
-    if (serial_enable) {
-      launch_serial();
-    }
-  } else {
-    // since we do not spawn the serial thread,
-    // disable serial
-    serial_enable=0;
   }
 
   if(can_transmit) {
@@ -1466,6 +1445,9 @@ static void rxtx(int state) {
 
 void setMox(int state) {
   if(!can_transmit) return;
+#ifdef SOAPYSDR
+  if(protocol==SOAPYSDR_PROTOCOL && !transmitter->local_microphone) return;
+#endif
   vox_cancel();  // remove time-out
   if(mox!=state) {
     if (state && vox) {
@@ -1795,76 +1777,46 @@ void set_attenuation(int value) {
       case NEW_PROTOCOL:
         schedule_high_priority();
         break;
+    }
+}
+
+void set_alex_rx_antenna(int v) {
+    if(active_receiver->id==0) {
+      active_receiver->alex_antenna=v;
+      if(protocol==NEW_PROTOCOL) {
+          schedule_high_priority();
+      }
+    }
 #ifdef SOAPYSDR
-      case SOAPYSDR_PROTOCOL:
-        soapy_protocol_set_gain(active_receiver,value * 1.0);
-        break;
+    if(protocol==SOAPYSDR_PROTOCOL) {
+        soapy_protocol_set_rx_antenna(active_receiver,v);
+    }
 #endif
+}
+
+void set_alex_tx_antenna(int v) {
+    transmitter->alex_antenna=v;
+    if(protocol==NEW_PROTOCOL) {
+        schedule_high_priority();
     }
 }
 
 //
-// For HPSDR, only receiver[0]->rx_antenna has an effect
-// The antenna is set according to what is stored in the "band" info
-// We have to call this routine in the HPSDR case each time a band is switched.
+// There is an error here.
+// The alex att should not be associated with a receiver,
+// but with an ADC. *all* receivers bound to that ADC
+// will experience the same attenuation.
 //
-void set_alex_rx_antenna() {
-    BAND *band;
-    switch (protocol) {
-      case ORIGINAL_PROTOCOL:
-        band=band_get_band(vfo[VFO_A].band);
-        receiver[0]->alex_antenna=band->alexRxAntenna;
-        break;
-      case NEW_PROTOCOL:
-        band=band_get_band(vfo[VFO_A].band);
-        receiver[0]->alex_antenna=band->alexRxAntenna;
-        schedule_high_priority();
-        break;
+// This means, alex_attenuation should not be stored in thre
+// receiver, but separately (as is the case with adc_attenuation).
+//
+void set_alex_attenuation(int v) {
+    if(active_receiver->id==0) {
+      active_receiver->alex_attenuation=v;
+      if(protocol==NEW_PROTOCOL) {
+          schedule_high_priority();
       }
-}
-
-//
-// For HPSDR, determine which band control the TX and
-// set TX antenna accordingly
-// We have to call this routine
-// in the HPSDR case each time the TX band is switched,
-// which is for each band switch, each time "split" is
-// changed, and in case of "split", each time the active
-// RX changes!
-//
-void set_alex_tx_antenna() {
-    BAND *band;
-    if (!can_transmit) return;
-    switch (protocol) {
-      case ORIGINAL_PROTOCOL:
-        band=band_get_band(vfo[get_tx_vfo()].band);
-        transmitter->alex_antenna=band->alexTxAntenna;
-	break;
-      case NEW_PROTOCOL:
-        band=band_get_band(vfo[get_tx_vfo()].band);
-        transmitter->alex_antenna=band->alexTxAntenna;
-        schedule_high_priority();
-	break;
     }
-}
-
-//
-// For HPSDR, only receiver[0]->alex_attenuation has an effect
-// Set this from the attenuation stored "per band"
-//
-void set_alex_attenuation() {
-    BAND *band;
-    switch (protocol) {
-      case ORIGINAL_PROTOCOL:
-        band=band_get_band(vfo[VFO_A].band);
-        receiver[0]->alex_attenuation=band->alexAttenuation;
-        break;
-      case NEW_PROTOCOL:
-        band=band_get_band(vfo[VFO_A].band);
-        receiver[0]->alex_attenuation=band->alexAttenuation;
-        schedule_high_priority();
-        break;
-      }
 }
 
 void radioRestoreState() {
@@ -2085,12 +2037,6 @@ g_print("radioRestoreState: %s\n",property_path);
     if(value) rigctl_enable=atoi(value);
     value=getProperty("rigctl_port_base");
     if(value) rigctl_port_base=atoi(value);
-    value=getProperty("rigctl_serial_enable");
-    if (value) serial_enable=atoi(value);
-    value=getProperty("rigctl_serial_baud_rate");
-    if (value) serial_baud_rate=atoi(value);
-    value=getProperty("rigctl_serial_port");
-    if (value) strcpy(ser_port,value);
 
     value=getProperty("adc_0_attenuation");
     if(value) adc_attenuation[0]=atoi(value);
@@ -2443,11 +2389,6 @@ g_print("radioSaveState: %s\n",property_path);
     setProperty("rigctl_enable",value);
     sprintf(value,"%d",rigctl_port_base);
     setProperty("rigctl_port_base",value);
-    sprintf(value,"%d",serial_enable);
-    setProperty("rigctl_serial_enable",value);
-    sprintf(value,"%d",serial_baud_rate);
-    setProperty("rigctl_serial_baud_rate",value);
-    setProperty("rigctl_serial_port",ser_port);
 
     sprintf(value,"%d",display_sequence_errors);
     setProperty("radio.display_sequence_errors",value);
