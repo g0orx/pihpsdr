@@ -94,10 +94,16 @@ void MacOSstartup(char *path) {
 //  chdir to the work dir
 //
     chdir(workdir);
-    c=getcwd(workdir,sizeof(workdir));
+//
+//  Make two local files for stdout and stderr, to allow
+//  post-mortem debugging
+//
+    (void) freopen("pihpsdr.stdout", "w", stdout);
+    (void) freopen("pihpsdr.stderr", "w", stderr);
 //
 //  Copy icon from app bundle to the work dir
 //
+    c=getcwd(workdir,sizeof(workdir));
     if (strlen(path) < 1024) {
       //
       // source = basename of the executable
