@@ -586,7 +586,6 @@ static gpointer rigctl_server(gpointer data) {
 
   setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
   setsockopt(server_socket, SOL_SOCKET, SO_REUSEPORT, &on, sizeof(on));
-  setsockopt(server_socket, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on));
 
   // bind to listening port
   memset(&server_address,0,sizeof(server_address));
