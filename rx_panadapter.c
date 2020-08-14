@@ -45,6 +45,8 @@
 #include "client_server.h"
 #endif
 
+#define LINE_WIDTH 0.5
+
 //static float panadapter_max=-60.0;
 //static float panadapter_min=-160.0;
 
@@ -136,7 +138,7 @@ void rx_panadapter_update(RECEIVER *rx) {
   //clear_panadater_surface();
   cairo_t *cr;
   cr = cairo_create (rx->panadapter_surface);
-  cairo_set_line_width(cr, 1.0);
+  cairo_set_line_width(cr, LINE_WIDTH);
   cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
   cairo_rectangle(cr,0,0,display_width,display_height);
   cairo_fill(cr);
@@ -230,7 +232,7 @@ void rx_panadapter_update(RECEIVER *rx) {
   }
 
   double dbm_per_line=(double)display_height/((double)rx->panadapter_high-(double)rx->panadapter_low);
-  cairo_set_line_width(cr, 1.0);
+  cairo_set_line_width(cr, LINE_WIDTH);
   cairo_select_font_face(cr, "FreeMono", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
   cairo_set_font_size(cr, 12);
   char v[32];
@@ -384,7 +386,7 @@ void rx_panadapter_update(RECEIVER *rx) {
     // band edges
     if(band->frequencyMin!=0LL) {
       cairo_set_source_rgb (cr, 1.0, 0.0, 0.0);
-      cairo_set_line_width(cr, 1.0);
+      cairo_set_line_width(cr, LINE_WIDTH);
       if((min_display<band->frequencyMin)&&(max_display>band->frequencyMin)) {
         i=(band->frequencyMin-min_display)/(long long)HzPerPixel;
         cairo_move_to(cr,(double)i,0.0);
@@ -467,7 +469,7 @@ void rx_panadapter_update(RECEIVER *rx) {
   } else {
     cairo_set_source_rgb (cr, 0.5, 0.0, 0.0);
   }
-  cairo_set_line_width(cr, 1.0);
+  cairo_set_line_width(cr, LINE_WIDTH);
   cairo_move_to(cr,vfofreq+(offset/HzPerPixel),0.0);
   cairo_line_to(cr,vfofreq+(offset/HzPerPixel),(double)display_height);
   cairo_stroke(cr);
@@ -529,19 +531,37 @@ void rx_panadapter_update(RECEIVER *rx) {
 
   if(display_filled) {
     cairo_close_path (cr);
+
+    cairo_pattern_t *gradient;
+    gradient = cairo_pattern_create_linear(0.0, display_height, 0.0, 0.0);
+    if(active) {
+      cairo_pattern_add_color_stop_rgb (gradient,0.0,0.0,1.0,0.0); // Green
+      cairo_pattern_add_color_stop_rgb (gradient,0.25,1.0,0.65,0.0); // Orange
+      cairo_pattern_add_color_stop_rgb (gradient,0.50,1.0,1.0,0.0); // Yellow
+      cairo_pattern_add_color_stop_rgb (gradient,0.75,1.0,0.0,0.0); // Red
+    } else {
+      cairo_pattern_add_color_stop_rgb (gradient,0.0,0.0,0.5,0.0); // Green
+      cairo_pattern_add_color_stop_rgb (gradient,0.25,0.5,0.33,0.0); // Orange
+      cairo_pattern_add_color_stop_rgb (gradient,0.50,0.5,0.5,0.0); // Yellow
+      cairo_pattern_add_color_stop_rgb (gradient,0.75,0.5,0.0,0.0); // Red
+    }
+    cairo_set_source(cr, gradient);
+    /*
     if(active) {
       cairo_set_source_rgba(cr, 1.0, 1.0, 1.0,0.5);
     } else {
       cairo_set_source_rgba(cr, 0.5, 0.5, 0.5,0.5);
     }
+    */
     cairo_fill_preserve (cr);
+    cairo_pattern_destroy(gradient);
   }
   if(active) {
     cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
   } else {
     cairo_set_source_rgb(cr, 0.5, 0.5, 0.5);
   }
-  cairo_set_line_width(cr, 1.0);
+  cairo_set_line_width(cr, LINE_WIDTH);
   cairo_stroke(cr);
 
 #ifdef GPIO
