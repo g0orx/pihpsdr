@@ -127,6 +127,7 @@ g_print("set_zoom: %f\n",value);
       gtk_range_set_value (GTK_RANGE(zoom_scale),receiver[rx]->zoom);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
     }
+    receiver_change_zoom(active_receiver,value);
   }
   vfo_update();
 }
@@ -198,6 +199,7 @@ g_print("set_pan: %f\n",value);
       gtk_range_set_value (GTK_RANGE(pan_scale),receiver[rx]->pan);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
     }
+    receiver_change_pan(active_receiver,gtk_range_get_value(GTK_RANGE(pan_scale)));
   }
 }
 
@@ -213,14 +215,14 @@ g_print("remote_set_pan: EXIT\n");
 }
 
 void update_pan(double pan) {
-  g_mutex_lock(&pan_zoom_mutex);
+  //g_mutex_lock(&pan_zoom_mutex);
   if(active_receiver->zoom>1) {
     int p=active_receiver->pan+(int)pan;
     if(p<0) p=0;
     if(p>(active_receiver->pixels-active_receiver->width)) p=active_receiver->pixels-active_receiver->width;
     set_pan(active_receiver->id,(double)p);
   }
-  g_mutex_lock(&pan_zoom_mutex);
+  //g_mutex_lock(&pan_zoom_mutex);
 }
 
 GtkWidget *zoompan_init(int my_width, int my_height) {
