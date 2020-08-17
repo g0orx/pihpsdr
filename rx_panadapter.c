@@ -529,40 +529,49 @@ void rx_panadapter_update(RECEIVER *rx) {
     cairo_line_to(cr, (double)i, s2);
   }
 
-  if(display_filled) {
-    cairo_close_path (cr);
-
-    cairo_pattern_t *gradient;
+  cairo_pattern_t *gradient;
+  if(display_gradient) {
     gradient = cairo_pattern_create_linear(0.0, display_height, 0.0, 0.0);
+    // calculate where S9 is
+    double S9=-73;
+    if(vfo[rx->id].frequency>30000000LL) {
+      S9=-93;
+    }
+    S9 = floor((rx->panadapter_high - S9)
+                            * (double) display_height
+                            / (rx->panadapter_high - rx->panadapter_low));
+    S9 = 1.0-(S9/(double)display_height);
+  
     if(active) {
       cairo_pattern_add_color_stop_rgb (gradient,0.0,0.0,1.0,0.0); // Green
-      cairo_pattern_add_color_stop_rgb (gradient,0.25,1.0,0.65,0.0); // Orange
-      cairo_pattern_add_color_stop_rgb (gradient,0.50,1.0,1.0,0.0); // Yellow
-      cairo_pattern_add_color_stop_rgb (gradient,0.75,1.0,0.0,0.0); // Red
+      cairo_pattern_add_color_stop_rgb (gradient,S9/3.0,1.0,0.65,0.0); // Orange
+      cairo_pattern_add_color_stop_rgb (gradient,(S9/3.0)*2.0,1.0,1.0,0.0); // Yellow
+      cairo_pattern_add_color_stop_rgb (gradient,S9,1.0,0.0,0.0); // Red
     } else {
       cairo_pattern_add_color_stop_rgb (gradient,0.0,0.0,0.5,0.0); // Green
-      cairo_pattern_add_color_stop_rgb (gradient,0.25,0.5,0.33,0.0); // Orange
-      cairo_pattern_add_color_stop_rgb (gradient,0.50,0.5,0.5,0.0); // Yellow
-      cairo_pattern_add_color_stop_rgb (gradient,0.75,0.5,0.0,0.0); // Red
+      cairo_pattern_add_color_stop_rgb (gradient,S9/3.0,0.5,0.325,0.0); // Orange
+      cairo_pattern_add_color_stop_rgb (gradient,(S9/3.0)*2.0,0.5,0.5,0.0); // Yellow
+      cairo_pattern_add_color_stop_rgb (gradient,S9,0.5,0.0,0.0); // Red
     }
     cairo_set_source(cr, gradient);
-    /*
+  } else {
     if(active) {
       cairo_set_source_rgba(cr, 1.0, 1.0, 1.0,0.5);
     } else {
       cairo_set_source_rgba(cr, 0.5, 0.5, 0.5,0.5);
     }
-    */
-    cairo_fill_preserve (cr);
-    cairo_pattern_destroy(gradient);
   }
-  if(active) {
-    cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
-  } else {
-    cairo_set_source_rgb(cr, 0.5, 0.5, 0.5);
+
+  if(display_filled) {
+    cairo_close_path (cr);
+    cairo_fill_preserve (cr);
   }
   cairo_set_line_width(cr, LINE_WIDTH);
   cairo_stroke(cr);
+
+  if(display_gradient) {
+    cairo_pattern_destroy(gradient);
+  }
 
 #ifdef GPIO
   if(rx->id==0 && controller==CONTROLLER1) {

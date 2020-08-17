@@ -525,6 +525,7 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
     }
 
 
+
 #ifdef CLIENT_SERVER
 
     loadProperties("remote.props");
@@ -611,7 +612,7 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
     gtk_widget_show_all(discovery_dialog);
 fprintf(stderr,"showing device dialog\n");
 
-    // autostart if enabled and only one device
+    // autostart if one device and autostart enabled
     g_print("%s: devices=%d autostart=%d\n",__FUNCTION__,devices,autostart);
 
     if(devices==1 && autostart) {
@@ -620,7 +621,6 @@ fprintf(stderr,"showing device dialog\n");
           if(start_cb(NULL,NULL,(gpointer)d)) return;
 	}
     }
-
 }
 
 

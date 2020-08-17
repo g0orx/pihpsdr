@@ -404,6 +404,10 @@ static void penelopetx_cb(GtkWidget *widget, gpointer data) {
   atlas_penelope=atlas_penelope==1?0:1;
 }
 
+static void janus_cb(GtkWidget *widget, gpointer data) {
+  atlas_janus=atlas_janus==1?0:1;
+}
+
 void radio_menu(GtkWidget *parent) {
   parent_window=parent;
 
@@ -740,6 +744,12 @@ void radio_menu(GtkWidget *parent) {
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (pene_tx_b), atlas_penelope);
     gtk_grid_attach(GTK_GRID(grid),pene_tx_b,col,row,1,1);
     g_signal_connect(pene_tx_b,"toggled",G_CALLBACK(penelopetx_cb),NULL);
+    row++;
+
+    GtkWidget *janus_b=gtk_check_button_new_with_label("Janus");
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (janus_b), atlas_janus);
+    gtk_grid_attach(GTK_GRID(grid),janus_b,col,row,1,1);
+    g_signal_connect(janus_b,"toggled",G_CALLBACK(janus_cb),NULL);
     row++;
 
     if(row>temp_row) temp_row=row;

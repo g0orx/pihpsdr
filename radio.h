@@ -125,6 +125,7 @@ extern int atlas_clock_source_10mhz;
 extern int atlas_clock_source_128mhz;
 extern int atlas_config;
 extern int atlas_mic_source;
+extern int atlas_janus;
 
 extern int classE;
 
@@ -147,6 +148,7 @@ extern int panadapter_high;
 extern int panadapter_low;
 
 extern int display_filled;
+extern int display_gradient;
 extern int display_detector_mode;
 extern int display_average_mode;
 extern double display_average_time;
