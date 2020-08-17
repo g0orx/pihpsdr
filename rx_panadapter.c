@@ -530,6 +530,7 @@ void rx_panadapter_update(RECEIVER *rx) {
   }
 
   cairo_pattern_t *gradient;
+  gradient=NULL;
   if(display_gradient) {
     gradient = cairo_pattern_create_linear(0.0, display_height, 0.0, 0.0);
     // calculate where S9 is
@@ -569,7 +570,7 @@ void rx_panadapter_update(RECEIVER *rx) {
   cairo_set_line_width(cr, LINE_WIDTH);
   cairo_stroke(cr);
 
-  if(display_gradient) {
+  if(gradient) {
     cairo_pattern_destroy(gradient);
   }
 
