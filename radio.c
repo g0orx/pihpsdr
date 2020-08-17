@@ -143,6 +143,7 @@ int atlas_clock_source_10mhz=0;
 int atlas_clock_source_128mhz=0;
 int atlas_config=0;
 int atlas_mic_source=0;
+int atlas_janus=0;
 
 int classE=0;
 
@@ -165,6 +166,7 @@ int panadapter_high=-40;
 int panadapter_low=-140;
 
 int display_filled=1;
+int display_gradient=0;
 int display_detector_mode=DETECTOR_MODE_AVERAGE;
 int display_average_mode=AVERAGE_MODE_LOG_RECURSIVE;
 double display_average_time=120.0;
@@ -1878,6 +1880,8 @@ g_print("radioRestoreState: %s\n",property_path);
 
   value=getProperty("display_filled");
   if(value) display_filled=atoi(value);
+  value=getProperty("display_gradient");
+  if(value) display_gradient=atoi(value);
   value=getProperty("display_zoompan");
   if(value) display_zoompan=atoi(value);
   value=getProperty("display_sliders");
@@ -2171,6 +2175,8 @@ g_print("radioSaveState: %s\n",property_path);
 
   sprintf(value,"%d",display_filled);
   setProperty("display_filled",value);
+  sprintf(value,"%d",display_gradient);
+  setProperty("display_gradient",value);
   sprintf(value,"%d",display_zoompan);
   setProperty("display_zoompan",value);
   sprintf(value,"%d",display_sliders);

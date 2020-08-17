@@ -30,6 +30,7 @@
 * modified further Laurence Barker G8NJJ to add USB functionality to pihpsdr
 */
 
+#include <gtk/gtk.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>    // tolower
@@ -65,8 +66,9 @@
 
 #define OZY_BUFFER_SIZE 512
 
+#define OZY_IO_TIMEOUT 10
 //#define OZY_IO_TIMEOUT 500
-#define OZY_IO_TIMEOUT 2000
+//#define OZY_IO_TIMEOUT 2000
 #define MAX_EPO_PACKET_SIZE 64
 
 static int init=0;
@@ -156,11 +158,15 @@ int ozy_write(int ep,unsigned char* buffer,int buffer_size) {
 	int rc;
 	int bytes;
 
+	bytes=0;
 	rc = libusb_bulk_transfer(ozy_handle,(unsigned char)ep,buffer,buffer_size,&bytes,OZY_IO_TIMEOUT);
 	if(rc==0) {
 		rc=bytes;
+	} else if(rc==-7) {
+	  g_print("%s: timeout bytes=%d ep=%d\n",__FUNCTION__,bytes,ep);
+	  libusb_clear_halt(ozy_handle,(unsigned char)ep);
 	}
-
+        rc=buffer_size;
 	return rc;
 }
 
@@ -649,7 +655,7 @@ int ozy_initialise()
 	ozy_get_firmware_string(ozy_firmware_version,8);
 	fprintf(stderr,"Ozy FX2 version: %s\n",ozy_firmware_version);
 		
-	ozy_i2c_readvars();
+	//ozy_i2c_readvars();
 	ozy_close();
 	sleep(1);
 	ozy_open();		

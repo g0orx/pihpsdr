@@ -98,6 +98,28 @@
 #define LT2208_RANDOM_OFF         0x00
 #define LT2208_RANDOM_ON          0x10
 
+// state machine buffer processing
+enum {
+  SYNC_0=0,
+  SYNC_1,
+  SYNC_2,
+  CONTROL_0,
+  CONTROL_1,
+  CONTROL_2,
+  CONTROL_3,
+  CONTROL_4,
+  LEFT_SAMPLE_HI,
+  LEFT_SAMPLE_MID,
+  LEFT_SAMPLE_LOW,
+  RIGHT_SAMPLE_HI,
+  RIGHT_SAMPLE_MID,
+  RIGHT_SAMPLE_LOW,
+  MIC_SAMPLE_HI,
+  MIC_SAMPLE_LOW,
+  SKIP
+};
+static int state=SYNC_0;
+
 //#define DEBUG_PROTO 1
 
 #ifdef DEBUG_PROTO
@@ -176,27 +198,6 @@ static int output_buffer_index=8;
 
 static int command=1;
 
-enum {
-  SYNC_0=0,
-  SYNC_1,
-  SYNC_2,
-  CONTROL_0,
-  CONTROL_1,
-  CONTROL_2,
-  CONTROL_3,
-  CONTROL_4,
-  LEFT_SAMPLE_HI,
-  LEFT_SAMPLE_MID,
-  LEFT_SAMPLE_LOW,
-  RIGHT_SAMPLE_HI,
-  RIGHT_SAMPLE_MID,
-  RIGHT_SAMPLE_LOW,
-  MIC_SAMPLE_HI,
-  MIC_SAMPLE_LOW,
-  SKIP
-};
-static int state=SYNC_0;
-
 static GThread *receive_thread_id;
 static gpointer receive_thread(gpointer arg);
 static void process_ozy_input_buffer(unsigned char  *buffer);
@@ -237,14 +238,52 @@ static void ozyusb_write(unsigned char* buffer,int length);
 static unsigned char usb_output_buffer[EP6_BUFFER_SIZE];
 static unsigned char ep6_inbuffer[EP6_BUFFER_SIZE];
 static unsigned char usb_buffer_block = 0;
+#define USB_TIMEOUT -7
 #endif
 
+static GMutex dump_mutex;
+
+void dump_buffer(unsigned char *buffer,int length,const char *who) {
+  g_mutex_lock(&dump_mutex);
+  g_print("%s: %s: %d\n",__FUNCTION__,who,length);
+  int i=0;
+  int line=0;
+  while(i<length) {
+    g_print("%02X",buffer[i]);
+    i++;
+    line++;
+    if(line==16) {
+      g_print("\n");
+      line=0;
+    }
+  }
+  if(line!=0) {
+    g_print("\n");
+  }
+  g_print("\n");
+  g_mutex_unlock(&dump_mutex);
+}
+
 void old_protocol_stop() {
-  metis_start_stop(0);
+#ifdef USBOZY
+  if(device!=DEVICE_OZY) {
+#endif
+    g_print("%s\n",__FUNCTION__);
+    metis_start_stop(0);
+#ifdef USBOZY
+  }
+#endif
 }
 
 void old_protocol_run() {
-  metis_restart();
+#ifdef USBOZY
+  if(device!=DEVICE_OZY) {
+#endif
+    g_print("%s\n",__FUNCTION__);
+    metis_restart();
+#ifdef USBOZY
+  }
+#endif
 }
 
 void old_protocol_set_mic_sample_rate(int rate) {
@@ -291,15 +330,14 @@ void old_protocol_init(int rx,int pixels,int rate) {
       exit( -1 );
     }
     g_print( "receive_thread: id=%p\n",receive_thread_id);
+
+    g_print("old_protocol_init: prime radio\n");
+    for(i=8;i<OZY_BUFFER_SIZE;i++) {
+      output_buffer[i]=0;
+    }
+
+    metis_restart();
   }
-
-
-  g_print("old_protocol_init: prime radio\n");
-  for(i=8;i<OZY_BUFFER_SIZE;i++) {
-    output_buffer[i]=0;
-  }
-
-  metis_restart();
 
 }
 
@@ -343,6 +381,9 @@ static gpointer ozy_ep6_rx_thread(gpointer arg) {
   while (running)
   {
     bytes = ozy_read(EP6_IN_ID,ep6_inbuffer,EP6_BUFFER_SIZE); // read a 2K buffer at a time
+
+    //g_print("%s: read %d bytes\n",__FUNCTION__,bytes);
+    //dump_buffer(ep6_inbuffer,bytes,__FUNCTION__);
 
     if (bytes == 0)
     {
@@ -422,7 +463,7 @@ g_print("binding UDP socket to %s:%d\n",inet_ntoa(radio->info.network.interface_
     memcpy(&data_addr,&radio->info.network.address,radio->info.network.address_length);
     data_addr.sin_port=htons(DATA_PORT);
     data_socket=tmp;
-    g_print("UDP socket established: %d\n", data_socket);
+    g_print("%s: UDP socket established: %d for %s:%d\n",__FUNCTION__,data_socket,inet_ntoa(data_addr.sin_addr),ntohs(data_addr.sin_port));
 }
 
 static void open_tcp_socket() {
@@ -477,6 +518,8 @@ static gpointer receive_thread(gpointer arg) {
   g_print( "old_protocol: receive_thread\n");
   running=1;
 
+  //metis_restart();
+
   length=sizeof(addr);
   while(running) {
 
@@ -508,6 +551,7 @@ static gpointer receive_thread(gpointer arg) {
 	  } else if (data_socket >= 0) {
             bytes_read=recvfrom(data_socket,buffer,sizeof(buffer),0,(struct sockaddr*)&addr,&length);
             if(bytes_read < 0 && errno != EAGAIN) perror("old_protocol recvfrom UDP:");
+	    //g_print("%s: bytes_read=%d\n",__FUNCTION__,bytes_read);
           } else {
 	    // This could happen in METIS start/stop sequences
 	    usleep(100000);
@@ -770,6 +814,7 @@ static int how_many_receivers() {
     return ret;
 }
 
+/*
 static void process_ozy_input_buffer(unsigned char  *buffer) {
   int i;
   int r;
@@ -994,6 +1039,288 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
     metis_restart();
   }
 }
+*/
+
+static int nreceiver;
+static int left_sample;
+static int right_sample;
+static short mic_sample;
+static double left_sample_double;
+static double right_sample_double;
+double left_sample_double_rx;
+double right_sample_double_rx;
+double left_sample_double_tx;
+double right_sample_double_tx;
+double left_sample_double_main;
+double right_sample_double_main;
+double left_sample_double_aux;
+double right_sample_double_aux;
+
+static int nsamples;
+static int iq_samples;
+
+static void process_control_bytes() {
+  int previous_ptt;
+  int previous_dot;
+  int previous_dash;
+
+  // do not set ptt. In PURESIGNAL, this would stop the
+  // receiver sending samples to WDSP abruptly.
+  // Do the RX-TX change only via ext_mox_update.
+  previous_ptt=local_ptt;
+  previous_dot=dot;
+  previous_dash=dash;
+  local_ptt=(control_in[0]&0x01)==0x01;
+  dash=(control_in[0]&0x02)==0x02;
+  dot=(control_in[0]&0x04)==0x04;
+
+  if (cw_keyer_internal) {
+    // Stops CAT cw transmission if paddle hit in "internal" CW
+    if ((dash || dot) && cw_keyer_internal) cw_key_hit=1;
+  } else {
+#ifdef LOCALCW
+    //
+    // report "key hit" event to the local keyer
+    // (local keyer will stop CAT cw if necessary)
+    if (dash != previous_dash) keyer_event(0, dash);
+    if (dot  != previous_dot ) keyer_event(1, dot );
+#endif
+  }
+
+  if(previous_ptt!=local_ptt) {
+    g_idle_add(ext_mox_update,(gpointer)(long)(local_ptt));
+  }
+
+  switch((control_in[0]>>3)&0x1F) {
+    case 0:
+      adc_overload=control_in[1]&0x01;
+      if (device != DEVICE_HERMES_LITE2) {
+        //
+        // HL2 uses these bits of the protocol for a different purpose:
+        // C1 unused except the ADC overload bit
+        // C2/C3 contains underflow/overflow and TX FIFO count
+        //
+        IO1=(control_in[1]&0x02)?0:1;
+        IO2=(control_in[1]&0x04)?0:1;
+        IO3=(control_in[1]&0x08)?0:1;
+        if(mercury_software_version!=control_in[2]) {
+          mercury_software_version=control_in[2];
+          g_print("  Mercury Software version: %d (0x%0X)\n",mercury_software_version,mercury_software_version);
+        }
+        if(penelope_software_version!=control_in[3]) {
+          penelope_software_version=control_in[3];
+          g_print("  Penelope Software version: %d (0x%0X)\n",penelope_software_version,penelope_software_version);
+        }
+      }
+      if(ozy_software_version!=control_in[4]) {
+        ozy_software_version=control_in[4];
+        g_print("FPGA firmware version: %d.%d\n",ozy_software_version/10,ozy_software_version%10);
+      }
+      break;
+    case 1:
+      if (device != DEVICE_HERMES_LITE2) {
+        //
+        // HL2 uses C1/C2 for measuring the temperature
+        //
+        exciter_power=((control_in[1]&0xFF)<<8)|(control_in[2]&0xFF); // from Penelope or Hermes
+        temperature=0;
+      } else {
+        exciter_power=0;
+        temperature+=((control_in[1]&0xFF)<<8)|(control_in[2]&0xFF); // HL2
+        n_temperature++;
+        if(n_temperature==10) {
+          average_temperature=temperature/10;
+          temperature=0;
+          n_temperature=0;
+        }
+      }
+      alex_forward_power=((control_in[3]&0xFF)<<8)|(control_in[4]&0xFF); // from Alex or Apollo
+      break;
+    case 2:
+      alex_reverse_power=((control_in[1]&0xFF)<<8)|(control_in[2]&0xFF); // from Alex or Apollo
+      if (device != DEVICE_HERMES_LITE2) {
+        AIN3=((control_in[3]&0xFF)<<8)|(control_in[4]&0xFF); // For Penelope or Hermes
+        current=0;
+      } else {
+        AIN3=0;
+        current+=((control_in[3]&0xFF)<<8)|(control_in[4]&0xFF); // HL2
+        n_current++;
+        if(n_current==10) {
+          average_current=current/10;
+          current=0;
+          n_current=0;
+        }
+      }
+      break;
+    case 3:
+      AIN4=((control_in[1]&0xFF)<<8)|(control_in[2]&0xFF); // For Penelope or Hermes
+      AIN6=((control_in[3]&0xFF)<<8)|(control_in[4]&0xFF); // For Penelope or Hermes
+      break;
+  }
+
+}
+
+static int num_hpsdr_receivers;
+static int rxfdbk;
+static int txfdbk;
+static int rx1channel;
+static int rx2channel;
+
+static void process_ozy_byte(int b) {
+  int i,j;
+  switch(state) {
+    case SYNC_0:
+      if(b==SYNC) {
+        state++;
+      }
+      break;
+    case SYNC_1:
+      if(b==SYNC) {
+        state++;
+      }
+      break;
+    case SYNC_2:
+      if(b==SYNC) {
+        state++;
+      }
+      break;
+    case CONTROL_0:
+      control_in[0]=b;
+      state++;
+      break;
+    case CONTROL_1:
+      control_in[1]=b;
+      state++;
+      break;
+    case CONTROL_2:
+      control_in[2]=b;
+      state++;
+      break;
+    case CONTROL_3:
+      control_in[3]=b;
+      state++;
+      break;
+    case CONTROL_4:
+      control_in[4]=b;
+      process_control_bytes();
+      nreceiver=0;
+      iq_samples=(512-8)/((num_hpsdr_receivers*6)+2);
+      nsamples=0;
+      state++;
+      break;
+    case LEFT_SAMPLE_HI:
+      left_sample=(int)((signed char)b<<16);
+      state++;
+      break;
+    case LEFT_SAMPLE_MID:
+      left_sample|=(int)((((unsigned char)b)<<8)&0xFF00);
+      state++;
+      break;
+    case LEFT_SAMPLE_LOW:
+      left_sample|=(int)((unsigned char)b&0xFF);
+      left_sample_double=(double)left_sample/8388607.0; // 24 bit sample 2^23-1
+      state++;
+      break;
+    case RIGHT_SAMPLE_HI:
+      right_sample=(int)((signed char)b<<16);
+      state++;
+      break;
+    case RIGHT_SAMPLE_MID:
+      right_sample|=(int)((((unsigned char)b)<<8)&0xFF00);
+      state++;
+      break;
+    case RIGHT_SAMPLE_LOW:
+      right_sample|=(int)((unsigned char)b&0xFF);
+      right_sample_double=(double)right_sample/8388607.0; // 24 bit sample 2^23-1
+
+      if (isTransmitting() && transmitter->puresignal) {
+        //
+        // transmitting with PURESIGNAL. Get sample pairs and feed to pscc
+        //
+        if (nreceiver == rxfdbk) {
+          left_sample_double_rx=left_sample_double;
+          right_sample_double_rx=right_sample_double;
+        } else if (nreceiver == txfdbk) {
+          left_sample_double_tx=left_sample_double;
+          right_sample_double_tx=right_sample_double;
+        }
+        // this is pure paranoia, it allows for txfdbk < rxfdbk
+        if (nreceiver+1 == num_hpsdr_receivers) {
+          add_ps_iq_samples(transmitter, left_sample_double_tx,right_sample_double_tx,left_sample_double_rx,right_sample_double_rx);
+        }
+      }
+
+      if (!isTransmitting() && diversity_enabled) {
+        //
+        // receiving with DIVERSITY. Get sample pairs and feed to diversity mixer
+        //
+        if (nreceiver == rx1channel) {
+          left_sample_double_main=left_sample_double;
+          right_sample_double_main=right_sample_double;
+        } else if (nreceiver == rx2channel) {
+          left_sample_double_aux=left_sample_double;
+          right_sample_double_aux=right_sample_double;
+        }
+        // this is pure paranoia, it allows for rx2channel < rx1channel
+        if (nreceiver+1 == num_hpsdr_receivers) {
+          add_div_iq_samples(receiver[0], left_sample_double_main,right_sample_double_main,left_sample_double_aux,right_sample_double_aux);
+          // if we have a second receiver, display "auxiliary" receiver as well
+          if (receivers >1) add_iq_samples(receiver[1], left_sample_double_aux,right_sample_double_aux);
+        }
+      }
+
+      if ((!isTransmitting() || duplex) && !diversity_enabled) {
+        //
+        // RX without DIVERSITY. Feed samples to RX1 and RX2
+        //
+        if (nreceiver == rx1channel) {
+           add_iq_samples(receiver[0], left_sample_double,right_sample_double);
+        } else if (nreceiver == rx2channel && receivers > 1) {
+           add_iq_samples(receiver[1], left_sample_double,right_sample_double);
+        }
+      }
+      nreceiver++;
+      if(nreceiver==num_hpsdr_receivers) {
+        state++;
+      } else {
+        state=LEFT_SAMPLE_HI;
+      }
+      break;
+    case MIC_SAMPLE_HI:
+      mic_sample=(short)(b<<8);
+      state++;
+      break;
+    case MIC_SAMPLE_LOW:
+      mic_sample|=(short)(b&0xFF);
+      if(!transmitter->local_microphone) {
+        mic_samples++;
+        if(mic_samples>=mic_sample_divisor) { // reduce to 48000
+          add_mic_sample(transmitter,(float)mic_sample/32768.0);
+          mic_samples=0;
+        }
+      }
+      nsamples++;
+      if(nsamples==iq_samples) {
+        state=SYNC_0;
+      } else {
+        nreceiver=0;
+        state=LEFT_SAMPLE_HI;
+      }
+      break;
+  }
+}
+
+static void process_ozy_input_buffer(unsigned char  *buffer) {
+  int i;
+  num_hpsdr_receivers=how_many_receivers();
+  rxfdbk = rx_feedback_channel();
+  txfdbk = tx_feedback_channel();
+  rx1channel = first_receiver_channel();
+  rx2channel = second_receiver_channel();
+  for(i=0;i<512;i++) {
+    process_ozy_byte(buffer[i]&0xFF);
+  }
+}
 
 //
 // To avoid race conditions, we need a mutex covering the next three functions
@@ -1081,6 +1408,7 @@ static void process_bandscope_buffer(char  *buffer) {
 
 void ozy_send_buffer() {
 
+
   int txmode=get_tx_mode();
   int txvfo=get_tx_vfo();
   int i;
@@ -1096,6 +1424,7 @@ void ozy_send_buffer() {
   if(metis_offset==8) {
     //
     // Every second packet is a "C0=0" packet
+    // Unless USB device
     //
     output_buffer[C0]=0x00;
     output_buffer[C1]=0x00;
@@ -1122,13 +1451,28 @@ void ozy_send_buffer() {
     if (device == DEVICE_METIS)
 #endif
     {
-      if (atlas_mic_source)
+      // atlas_mic_source is FALSE when using Janus
+      
+      if (atlas_mic_source) {
         output_buffer[C1] |= PENELOPE_MIC;
-      output_buffer[C1] |= CONFIG_BOTH;
+        output_buffer[C1] |= CONFIG_BOTH;
+      }
+
       if (atlas_clock_source_128mhz)
         output_buffer[C1] |= MERCURY_122_88MHZ_SOURCE;
       output_buffer[C1] |= ((atlas_clock_source_10mhz & 3) << 2);
+   }
+
+#ifdef USBOZY
+    // check for Janus
+    if (device == DEVICE_OZY && !atlas_mic_source) {
+      output_buffer[C2]=0x00;
+      output_buffer[C3]=0x00;
+      output_buffer[C4]=0x00;
+      ozyusb_write(output_buffer,OZY_BUFFER_SIZE);
+      return;
     }
+#endif
 
     output_buffer[C2]=0x00;
     if(classE) {
@@ -1464,7 +1808,7 @@ static int last_power=0;
           if (rxgain > 60) rxgain=60;
 	  // encode all 6 bits of RXgain in ATT value and set bit6
           if (isTransmitting()) {
-	    //
+            //
             // The "TX attenuation" value (0 ... 31 dB) has to be mapped to a
             // a range of preamp settings. This range is very different on the
             // HermesLite when using "internal" feedback (crosstalk from the
@@ -1476,11 +1820,10 @@ static int last_power=0;
             // if external feedback is used (check either EXT1 or ByPass
             // in the PS menu) the preamp range is -12 ... +19 dB.
             //
-            //
-	    output_buffer[C4] = 0x40 | (33 - (transmitter->attenuation & 0x1F));
+           output_buffer[C4] = 0x40 | (33 - (transmitter->attenuation & 0x1F));
 #ifdef PURESIGNAL
-	    if (receiver[PS_RX_FEEDBACK]->alex_antenna == 0) {
-	      output_buffer[C4] = 0x40 | (45 - (transmitter->attenuation & 0x1F));
+           if (receiver[PS_RX_FEEDBACK]->alex_antenna == 0) {
+             output_buffer[C4] = 0x40 | (45 - (transmitter->attenuation & 0x1F));
             }
 #endif
           } else { 
@@ -1658,6 +2001,16 @@ static int last_power=0;
 static void ozyusb_write(unsigned char* buffer,int length)
 {
   int i;
+  i = ozy_write(EP2_OUT_ID,buffer,length);
+  if(i!=length) {
+    if(i==USB_TIMEOUT) {
+      g_print("%s: ozy_write timeout for %d bytes\n",__FUNCTION__,length);
+    } else {
+      g_print("%s: ozy_write for %d bytes returned %d\n",__FUNCTION__,length,i);
+    }
+  }
+
+/*
 
 // batch up 4 USB frames (2048 bytes) then do a USB write
   switch(usb_buffer_block++)
@@ -1677,15 +2030,31 @@ static void ozyusb_write(unsigned char* buffer,int length)
 
     case 3:
       memcpy(usb_output_buffer + 1024 + 512, buffer, length);
-      usb_buffer_block = 0;           // reset counter
 // and write the 4 usb frames to the usb in one 2k packet
       i = ozy_write(EP2_OUT_ID,usb_output_buffer,EP6_BUFFER_SIZE);
+
+      //dump_buffer(usb_output_buffer,EP6_BUFFER_SIZE,__FUNCTION__);
+
+      //g_print("%s: written %d\n",__FUNCTION__,i);
+      //dump_buffer(usb_output_buffer,EP6_BUFFER_SIZE);
+
       if(i != EP6_BUFFER_SIZE)
       {
-        perror("old_protocol: OzyWrite ozy failed");
+	if(i==USB_TIMEOUT) {
+	  while(i==USB_TIMEOUT) {
+            g_print("%s: USB_TIMEOUT: ozy_write ...\n",__FUNCTION__);
+            i = ozy_write(EP2_OUT_ID,usb_output_buffer,EP6_BUFFER_SIZE);
+	  }
+	  g_print("%s: ozy_write TIMEOUT\n",__FUNCTION__);
+        } else {
+          perror("old_protocol: OzyWrite ozy failed");
+	}
       }
+
+      usb_buffer_block = 0;           // reset counter
       break;
   }
+*/
 }
 #endif
 
@@ -1768,7 +2137,13 @@ static void metis_restart() {
   usleep(250000);
 
   // start the data flowing
-  metis_start_stop(1);
+#ifdef USBOZY
+  if(device!=DEVICE_OZY) {
+#endif
+    metis_start_stop(1);
+#ifdef USBOZY
+  }
+#endif
 }
 
 static void metis_start_stop(int command) {
@@ -1828,10 +2203,13 @@ static void metis_start_stop(int command) {
 }
 
 static void metis_send_buffer(unsigned char* buffer,int length) {
+  int bytes_sent;
   //
   // Send using either the UDP or TCP socket. Do not use TCP for
   // packets that are not 1032 bytes long
   //
+
+  //g_print("%s: length=%d\n",__FUNCTION__,length);
 
   if (tcp_socket >= 0) {
     if (length != 1032) {
@@ -1842,8 +2220,11 @@ static void metis_send_buffer(unsigned char* buffer,int length) {
       perror("sendto socket failed for TCP metis_send_data\n");
     }
   } else if (data_socket >= 0) {
-    if(sendto(data_socket,buffer,length,0,(struct sockaddr*)&data_addr,sizeof(data_addr))!=length) {
-      perror("sendto socket failed for UDP metis_send_data\n");
+//g_print("%s: sendto %d for %s:%d length=%d\n",__FUNCTION__,data_socket,inet_ntoa(data_addr.sin_addr),ntohs(data_addr.sin_port),length);
+    bytes_sent=sendto(data_socket,buffer,length,0,(struct sockaddr*)&data_addr,sizeof(data_addr));
+    if(bytes_sent!=length) {
+      g_print("%s: UDP sendto failed: %d: %s\n",__FUNCTION__,errno,strerror(errno));
+      //perror("sendto socket failed for UDP metis_send_data\n");
     }
   } else {
     // This should not happen

@@ -77,6 +77,10 @@ static void filled_cb(GtkWidget *widget, gpointer data) {
   display_filled=display_filled==1?0:1;
 }
 
+static void gradient_cb(GtkWidget *widget, gpointer data) {
+  display_gradient=display_gradient==1?0:1;
+}
+
 static void frames_per_second_value_changed_cb(GtkWidget *widget, gpointer data) {
   updates_per_second=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
   active_receiver->fps=updates_per_second;
@@ -178,6 +182,15 @@ void display_menu(GtkWidget *parent) {
   gtk_widget_show(filled_b);
   gtk_grid_attach(GTK_GRID(grid),filled_b,col,row,1,1);
   g_signal_connect(filled_b,"toggled",G_CALLBACK(filled_cb),NULL);
+
+  col++;
+
+  GtkWidget *gradient_b=gtk_check_button_new_with_label("Gradient");
+  //gtk_widget_override_font(filled_b, pango_font_description_from_string("Arial 18"));
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (gradient_b), display_gradient);
+  gtk_widget_show(gradient_b);
+  gtk_grid_attach(GTK_GRID(grid),gradient_b,col,row,1,1);
+  g_signal_connect(gradient_b,"toggled",G_CALLBACK(gradient_cb),NULL);
 
   row++;
   col=0;
