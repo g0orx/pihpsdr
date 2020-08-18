@@ -179,24 +179,7 @@ int audio_open_input() {
 g_print("audio_open_input: %s\n",transmitter->microphone_name);
   
   mic_buffer_size = 256;
-/*
-  switch(protocol) {
-    case ORIGINAL_PROTOCOL:
-      mic_buffer_size = 720;
-      break;
-    case NEW_PROTOCOL:
-      mic_buffer_size = 64;
-      break;
-#ifdef SOAPYSDR
-    case SOAPYSDR_PROTOCOL:
-      mic_buffer_size = 720;
-      break;
-#endif
-    default:
-      break;
-  }
-*/
-  
+
   g_print("audio_open_input: mic_buffer_size=%d\n",mic_buffer_size);
   i=0;
   while(transmitter->microphone_name[i]!=' ') {
@@ -231,6 +214,7 @@ g_print("audio_open_input: using format %s (%s)\n",snd_pcm_format_name(formats[i
 
   if(i>=FORMATS) {
     g_print("audio_open_input: cannot find usable format\n");
+    audio_close_input();
     return err;
   }
 
@@ -255,6 +239,7 @@ g_print("audio_open_input: allocating ring buffer\n");
   mic_ring_buffer=(float *) g_new(float,MICRINGLEN);
   mic_ring_read_pt = mic_ring_write_pt=0;
   if (mic_ring_buffer == NULL) {
+    audio_close_input();
     return -1;
   }
 
@@ -263,6 +248,8 @@ g_print("audio_open_input: creating mic_read_thread\n");
   mic_read_thread_id = g_thread_try_new("microphone",mic_read_thread,NULL,&error);
   if(!mic_read_thread_id ) {
     g_print("g_thread_new failed on mic_read_thread: %s\n",error->message);
+    audio_close_input();
+    return -1;
   }
 
   return 0;

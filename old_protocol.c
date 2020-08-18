@@ -1168,6 +1168,7 @@ static int rx2channel;
 
 static void process_ozy_byte(int b) {
   int i,j;
+  float fsample;
   switch(state) {
     case SYNC_0:
       if(b==SYNC) {
@@ -1292,12 +1293,11 @@ static void process_ozy_byte(int b) {
       break;
     case MIC_SAMPLE_LOW:
       mic_sample|=(short)(b&0xFF);
-      if(!transmitter->local_microphone) {
-        mic_samples++;
-        if(mic_samples>=mic_sample_divisor) { // reduce to 48000
-          add_mic_sample(transmitter,(float)mic_sample/32768.0);
-          mic_samples=0;
-        }
+      mic_samples++;
+      if(mic_samples>=mic_sample_divisor) { // reduce to 48000
+        fsample = transmitter->local_microphone ? audio_get_next_mic_sample() : (float) mic_sample * 0.00003051;
+        add_mic_sample(transmitter,fsample);
+        mic_samples=0;
       }
       nsamples++;
       if(nsamples==iq_samples) {
