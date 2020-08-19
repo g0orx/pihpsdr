@@ -557,6 +557,7 @@ void tx_menu(GtkWidget *parent) {
 
 
   if(transmitter->local_microphone && (protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL)) {
+    gtk_widget_hide(micin_b);
     gtk_widget_hide(linein_b);
     gtk_widget_hide(micboost_b);
   }
