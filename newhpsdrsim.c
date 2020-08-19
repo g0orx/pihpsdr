@@ -508,11 +508,31 @@ void *duc_specific_thread(void *data) {
      }
      if (orion != buffer[50]) {
 	orion=buffer[50];
-	fprintf(stderr,"TX: ORION bits (mic etc): %x\n", orion);
+        if (orion & 0x04) {
+	  fprintf(stderr,"TX: ORION MicPtt disabled\n");
+        } else {
+	  fprintf(stderr,"TX: ORION MicPtt enabled\n");
+        }
+        if (orion & 0x08) {
+	  fprintf(stderr,"TX: ORION PTT=ring MIC=tip\n");
+        } else {
+	  fprintf(stderr,"TX: ORION PTT=tip  MIC=ring\n");
+        }       
+        if (orion & 0x01) {
+	  gain= buffer[51];
+	  fprintf(stderr,"TX: ORION Line-In selected\n");
+        } else {
+	  fprintf(stderr,"TX: ORION Microphone selected\n");
+        }
+        if (orion & 0x02) { 
+	  fprintf(stderr,"TX: ORION Microphone 20dB boost selected\n");
+        } else {
+	  fprintf(stderr,"TX: ORION Microphone 20dB boost NOT selected\n");
+        }
      }
      if (gain != buffer[51]) {
-	gain= buffer[51];
-	fprintf(stderr,"TX: LineIn Gain (dB): %f\n", 12.0 - 1.5*gain);
+       gain=buffer[51];
+       fprintf(stderr,"TX: LineIn Gain (dB): %f\n", -34.0 + 1.5*gain);
      }
      if (txatt != buffer[59]) {
 	txatt = buffer[59];
