@@ -32,7 +32,7 @@ MIDI_INCLUDE=MIDI
 # uncomment the line below for various debug facilities
 #DEBUG_OPTION=-D DEBUG
 
-CFLAGS?= -g -Wno-deprecated-declarations
+CFLAGS?= -O -Wno-deprecated-declarations
 
 ifeq ($(CONTROLLER2_V2_INCLUDE),CONTROLLER2_V2)
 CONTROLLER2_OPTIONS=-D CONTROLLER2_V2
