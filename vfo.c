@@ -410,6 +410,7 @@ void vfo_band_changed(int id,int b) {
   switch(id) {
     case 0:
       bandstack->current_entry=vfo[id].bandstack;
+      // set_alex_attenuation(band->alexAttenuation); // nowhere maintained
       receiver_vfo_changed(receiver[0]);
       break;
    case 1:
@@ -418,7 +419,6 @@ void vfo_band_changed(int id,int b) {
       }
       break;
   }
-  set_alex_attenuation();
   set_alex_rx_antenna();
 
   if(can_transmit) {
@@ -461,6 +461,7 @@ void vfo_bandstack_changed(int b) {
   switch(id) {
     case 0:
       bandstack->current_entry=vfo[id].bandstack;
+      // set_alex_attenuation(band->alexAttenuation); // nowhere maintained
       receiver_vfo_changed(receiver[0]);
       break;
    case 1:
@@ -471,7 +472,6 @@ void vfo_bandstack_changed(int b) {
   }
 
   set_alex_rx_antenna();
-  set_alex_attenuation();
   if(can_transmit) {
     set_alex_tx_antenna();
     tx_set_mode(transmitter,get_tx_mode());
@@ -590,7 +590,6 @@ void vfo_a_to_b() {
     receiver_vfo_changed(receiver[1]);
   }
   set_alex_rx_antenna();
-  set_alex_attenuation();
   if(can_transmit) {
     set_alex_tx_antenna();
     tx_set_mode(transmitter,get_tx_mode());
@@ -611,7 +610,6 @@ void vfo_b_to_a() {
   vfo[VFO_A].rit=vfo[VFO_B].rit;
   receiver_vfo_changed(receiver[0]);
   set_alex_rx_antenna();
-  set_alex_attenuation();
   if(can_transmit) {
     set_alex_tx_antenna();
     tx_set_mode(transmitter,get_tx_mode());
@@ -666,7 +664,6 @@ void vfo_a_swap_b() {
     receiver_vfo_changed(receiver[1]);
   }
   set_alex_rx_antenna();
-  set_alex_attenuation();
   if(can_transmit) {
     set_alex_tx_antenna();
     tx_set_mode(transmitter,get_tx_mode());

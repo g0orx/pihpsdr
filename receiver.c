@@ -1027,7 +1027,7 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
   
   BAND *b=band_get_band(vfo[rx->id].band);
   rx->alex_antenna=b->alexRxAntenna;
-  rx->alex_attenuation=b->alexAttenuation;
+  //rx->alex_attenuation=b->alexAttenuation;  // nowhere maintained
 
   rx->agc=AGC_MEDIUM;
   rx->agc_gain=80.0;

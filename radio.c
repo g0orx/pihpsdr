@@ -184,7 +184,11 @@ double mic_gain=0.0;
 int binaural=0;
 
 int mic_linein=0;
-int linein_gain=16; // 0..31
+//
+// linein_gain = 0...31 maps onto -34.5dB ... +12 dB
+// (in 1.5 dB steps), and 0 dB corresponds to linein_gain=23
+//
+int linein_gain=23;
 int mic_boost=0;
 int mic_bias_enabled=0;
 int mic_ptt_enabled=0;
@@ -1852,21 +1856,12 @@ void set_alex_tx_antenna() {
 
 //
 // For HPSDR, only receiver[0]->alex_attenuation has an effect
-// Set this from the attenuation stored "per band"
 //
-void set_alex_attenuation() {
-    BAND *band;
-    switch (protocol) {
-      case ORIGINAL_PROTOCOL:
-        band=band_get_band(vfo[VFO_A].band);
-        receiver[0]->alex_attenuation=band->alexAttenuation;
-        break;
-      case NEW_PROTOCOL:
-        band=band_get_band(vfo[VFO_A].band);
-        receiver[0]->alex_attenuation=band->alexAttenuation;
-        schedule_high_priority();
-        break;
-      }
+void set_alex_attenuation(int v) {
+    receiver[0]->alex_attenuation=v;
+    if(protocol==NEW_PROTOCOL) {
+      schedule_high_priority();
+    }
 }
 
 void radioRestoreState() {

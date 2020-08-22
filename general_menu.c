@@ -110,7 +110,7 @@ static void alex_cb(GtkWidget *widget, gpointer data) {
     if(active_receiver->id==0) {
       set_alex_rx_antenna(band->alexRxAntenna);
       set_alex_tx_antenna(band->alexTxAntenna);
-      set_alex_attenuation(band->alexAttenuation);
+      // set_alex_attenuation(band->alexAttenuation); // nowhere maintained
     }
   }
 }

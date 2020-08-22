@@ -310,10 +310,7 @@ int ext_update_att_preamp(void *data) {
 
 int ext_set_alex_attenuation(void *data) {
   int val=GPOINTER_TO_INT(data);
-  BAND *band=band_get_band(vfo[VFO_A].band);
-  // store changed attenuation in "band" info
-  band->alexAttenuation=val;
-  set_alex_attenuation();
+  set_alex_attenuation(val);
   return 0;
 }
 

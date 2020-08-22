@@ -33,7 +33,6 @@
 #include "receiver.h"
 #include "sliders.h"
 #include "new_protocol.h"
-#include "vfo.h"
 
 static GtkWidget *parent_window=NULL;
 static GtkWidget *menu_b=NULL;
@@ -81,12 +80,8 @@ static void preamp_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void alex_att_cb(GtkWidget *widget, gpointer data) {
-  BAND *band;
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
-    // store value in the "band" info
-    band=band_get_band(vfo[VFO_A].band);
-    band->alexAttenuation=GPOINTER_TO_INT(data);
-    set_alex_attenuation();
+    set_alex_attenuation((intptr_t) data);
     update_att_preamp();
   }
 }
@@ -314,7 +309,7 @@ void rx_menu(GtkWidget *parent) {
 #ifdef USBOZY
          (protocol==ORIGINAL_PROTOCOL && device == DEVICE_OZY) ||
 #endif
-        (protocol==NEW_PROTOCOL && device == NEW_DEVICE_ATLAS)) {
+	 (protocol==NEW_PROTOCOL && device == NEW_DEVICE_ATLAS)) {
         GtkWidget *preamp_b=gtk_check_button_new_with_label("Preamp");
         gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (preamp_b), active_receiver->preamp);
         gtk_grid_attach(GTK_GRID(grid),preamp_b,x,4,1,1);
@@ -324,6 +319,9 @@ void rx_menu(GtkWidget *parent) {
       if (filter_board == ALEX && active_receiver->adc == 0
           && ((protocol==ORIGINAL_PROTOCOL && device != DEVICE_ORION2) || (protocol==NEW_PROTOCOL && device != NEW_DEVICE_ORION2))) {
   
+        //
+        // The "Alex ATT" value is stored in receiver[0] no matter how the ADCs are selected
+        //
         GtkWidget *alex_att_label=gtk_label_new(NULL);
         gtk_label_set_markup(GTK_LABEL(alex_att_label), "<b>Alex Attenuator</b>");
         gtk_grid_attach(GTK_GRID(grid), alex_att_label, x, 5, 1, 1);
@@ -332,7 +330,7 @@ void rx_menu(GtkWidget *parent) {
           gchar button_text[] = "xx dB";
           sprintf(button_text, "%d dB", i*10);
           GtkWidget *alex_att_b=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(last_alex_att_b), button_text);
-          gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(alex_att_b), active_receiver->alex_attenuation == i);
+          gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(alex_att_b), receiver[0]->alex_attenuation == i);
           gtk_grid_attach(GTK_GRID(grid), alex_att_b, x, 6 + i, 1, 1);
           g_signal_connect(alex_att_b, "toggled", G_CALLBACK(alex_att_cb), GINT_TO_POINTER(i));
           last_alex_att_b = alex_att_b;

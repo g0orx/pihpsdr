@@ -130,12 +130,13 @@ static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
                 FILTER* band_filters=filters[entry->mode];
                 FILTER* band_filter=&band_filters[entry->filter];
                 set_filter(active_receiver,band_filter->low,band_filter->high);
+                if(active_receiver->id==0) {
+                  set_alex_rx_antenna();
+                  set_alex_tx_antenna();
+                  // set_alex_attenuation(band->alexAttenuation); // nowhere maintained
+                }
               }
               setFrequency(f);
-	      // defer set_alex.. until here since setFrequency sets the VFO.band
-              set_alex_rx_antenna();
-              set_alex_tx_antenna();
-              set_alex_attenuation();
               g_idle_add(ext_vfo_update,NULL);
             }
             set = 1;

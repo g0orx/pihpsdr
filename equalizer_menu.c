@@ -98,7 +98,10 @@ void set_eq() {
 void update_eq() {
 #ifdef CLIENT_SERVER
   if(radio_is_remote) {
-     send_eq(client_socket,enable_rx_eq, enable_tx_equalizer);
+     //
+     // insert here any function to inform the client of equalizer setting
+     // changes, if this becomes part of the protocol
+     //
   } else {
 #endif
     set_eq();

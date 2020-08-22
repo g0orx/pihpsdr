@@ -288,13 +288,21 @@ void load_filters(void) {
     filter_board_changed();
   }
 
-  //
-  // This should not be necessary HERE
-  //
-  if(filter_board==ALEX || filter_board==APOLLO || filter_board==CHARLY25) {
+  if(filter_board==ALEX || filter_board==APOLLO) {
+    BAND *band=band_get_current_band();
+    // mode and filters have nothing to do with the filter board
+    //BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
+    //setFrequency(entry->frequency);
+    //setMode(entry->mode);
+    //set_mode(active_receiver,entry->mode);
+    //FILTER* band_filters=filters[entry->mode];
+    //FILTER* band_filter=&band_filters[entry->filter];
+    //set_filter(active_receiver,band_filter->low,band_filter->high);
+    if(active_receiver->id==0) {
       set_alex_rx_antenna();
       set_alex_tx_antenna();
-      set_alex_attenuation();
+      //set_alex_attenuation(band->alexAttenuation); // nowhere maintained
+    }
   }
   att_type_changed();
 }

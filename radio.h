@@ -337,7 +337,7 @@ extern void setSquelch(RECEIVER *rx);
 extern void set_attenuation(int value);
 extern void set_alex_rx_antenna(void);
 extern void set_alex_tx_antenna(void);
-extern void set_alex_attenuation(void);
+extern void set_alex_attenuation(int v);
 
 extern int isTransmitting();
 

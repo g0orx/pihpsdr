@@ -250,9 +250,7 @@ static void c25_att_combobox_changed(GtkWidget *widget, gpointer data) {
     // this button is only valid for the first receiver
     // store attenuation, such that in meter.c the correct level is displayed
     adc_attenuation[active_receiver->adc] = 12*val;
-    BAND* band = band_get_band(vfo[VFO_A].band);
-    band->alexAttenuation=val;
-    set_alex_attenuation();
+    set_alex_attenuation(val);
   } else {
     // always show "0 dB" on the button if the second RX is active
     if (val != 0) {
