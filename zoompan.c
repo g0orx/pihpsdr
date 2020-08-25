@@ -108,6 +108,7 @@ g_print("set_zoom: %f\n",value);
         scale_status=NO_FUNCTION;
       }
     }
+    receiver_change_zoom(active_receiver,value);
     if(scale_status==NO_FUNCTION) {
       scale_status=ZOOM;
       scale_rx=rx;
@@ -127,7 +128,6 @@ g_print("set_zoom: %f\n",value);
       gtk_range_set_value (GTK_RANGE(zoom_scale),receiver[rx]->zoom);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
     }
-    receiver_change_zoom(active_receiver,value);
   }
   vfo_update();
 }
@@ -180,6 +180,7 @@ g_print("set_pan: %f\n",value);
         scale_status=NO_FUNCTION;
       }
     }
+    receiver_change_pan(active_receiver,value);
     if(scale_status==NO_FUNCTION) {
       scale_status=PAN;
       scale_rx=rx;
@@ -199,7 +200,6 @@ g_print("set_pan: %f\n",value);
       gtk_range_set_value (GTK_RANGE(pan_scale),receiver[rx]->pan);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
     }
-    receiver_change_pan(active_receiver,gtk_range_get_value(GTK_RANGE(pan_scale)));
   }
 }
 
