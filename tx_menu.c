@@ -193,13 +193,17 @@ static void local_microphone_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void micin_changed(GtkWidget *widget, gpointer data) {
-  mic_linein=0;
-  g_idle_add(ext_sliders_update,NULL);
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
+    mic_linein=0;
+    g_idle_add(ext_sliders_update,NULL);
+  }
 }
 
 static void linein_changed(GtkWidget *widget, gpointer data) {
-  mic_linein=1;
-  g_idle_add(ext_sliders_update,NULL);
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
+    mic_linein=1;
+    g_idle_add(ext_sliders_update,NULL);
+  }
 }
 
 static void local_input_changed_cb(GtkWidget *widget, gpointer data) {
