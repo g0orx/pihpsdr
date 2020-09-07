@@ -3,7 +3,10 @@
 
 enum {
     CHECK = 0,
+    STRAIGHT,
+    PREDOT,
     SENDDOT,
+    PREDASH,
     SENDDASH,
     DOTDELAY,
     DASHDELAY,
