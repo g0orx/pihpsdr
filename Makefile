@@ -32,7 +32,11 @@ PURESIGNAL_INCLUDE=PURESIGNAL
 # uncomment the line below for various debug facilities
 #DEBUG_OPTION=-D DEBUG
 
+# uncomment the line below for GPIO PTT input
 #PTT_INCLUDE=PTT
+
+# Choose "PORTAUDIO" or "ALSA" for the audio system
+AUDIO_MODULE=PORTAUDIO
 
 # very early code not included yet
 #SERVER_INCLUDE=SERVER
@@ -169,13 +173,18 @@ endif
 GTKINCLUDES=`pkg-config --cflags gtk+-3.0`
 GTKLIBS=`pkg-config --libs gtk+-3.0`
 
+ifeq ($(AUDIO_MODULE), PORTAUDIO)
+AUDIO_OPTIONS=-DPORTAUDIO
+AUDIO_LIBS=-lportaudio
+else
+AUDIO_OPTIONS=
 AUDIO_LIBS=-lasound
-#AUDIO_LIBS=-lsoundio
+endif
 
 CFLAGS=	-g -Wno-deprecated-declarations -O3
 OPTIONS=$(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) \
 	$(GPIO_OPTIONS) $(SOAPYSDR_OPTIONS) $(LOCALCW_OPTIONS) \
-	$(STEMLAB_OPTIONS) \
+	$(STEMLAB_OPTIONS) $(AUDIO_OPTIONS) \
         $(PTT_OPTIONS) \
 	$(SERVER_OPTIONS) \
 	-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION)
