@@ -1517,18 +1517,6 @@ void tx_set_ps_sample_rate(TRANSMITTER *tx,int rate) {
 #endif
 }
 
-//
-// This is the old key-down/key-up interface for iambic.c
-// but now it also smoothes (cw_shape) the signal
-//
-void cw_hold_key(int state) {
-  if (state) {
-    cw_key_down = 960000;    // up to 20 sec
-  } else {
-    cw_key_down = 0;
-  }
-}
-
 // Sine tone generator:
 // somewhat improved, and provided two siblings
 // for generating side tones simultaneously on the
