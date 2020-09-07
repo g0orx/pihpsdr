@@ -29,6 +29,7 @@
 #include <arpa/inet.h>
 #ifdef MIDI
 #include <sys/stat.h>
+#include <fcntl.h>
 #endif
 
 #include "discovered.h"
