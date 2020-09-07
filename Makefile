@@ -201,6 +201,7 @@ PROGRAM=pihpsdr
 
 SOURCES= \
 audio.c \
+portaudio.c \
 band.c \
 discovered.c \
 discovery.c \
@@ -338,6 +339,7 @@ protocols.h
 
 OBJS= \
 audio.o \
+portaudio.o \
 band.o \
 discovered.o \
 discovery.o \
