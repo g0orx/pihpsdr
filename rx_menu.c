@@ -380,6 +380,11 @@ void rx_menu(GtkWidget *parent) {
     i=gtk_combo_box_get_active(GTK_COMBO_BOX(output));
     if (i < 0) {
       gtk_combo_box_set_active(GTK_COMBO_BOX(output),0);
+      if (active_receiver->audio_name != NULL) {
+        g_free(active_receiver->audio_name);
+        active_receiver->audio_name=g_new(gchar,strlen(output_devices[0].name)+1);
+        strcpy(active_receiver->audio_name,output_devices[0].name);
+      }
     }
 
     gtk_grid_attach(GTK_GRID(grid),output,x,++row,1,1);

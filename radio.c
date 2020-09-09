@@ -2551,7 +2551,7 @@ int remote_start(void *data) {
   for(int i=0;i<receivers;i++) {
     receiver_restore_state(receiver[i]);
     if(receiver[i]->local_audio) {
-      audio_open_output(receiver[i]);
+      if (audio_open_output(receiver[i]) < 0) receiver[i].local_audio=0;
     }
   }
   reconfigure_radio();

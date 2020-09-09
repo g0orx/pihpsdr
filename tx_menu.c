@@ -294,9 +294,18 @@ void tx_menu(GtkWidget *parent) {
     }
 
     // If the combo box shows no device, take the first one
+    // AND set the mic.name to that device name.
+    // This situation occurs if the local microphone device in the props
+    // file is no longer present
+
     i=gtk_combo_box_get_active(GTK_COMBO_BOX(input));
     if (i < 0) {
       gtk_combo_box_set_active(GTK_COMBO_BOX(input),0);
+      if(transmitter->microphone_name!=NULL) {
+        g_free(transmitter->microphone_name);
+      }
+      transmitter->microphone_name=g_new(gchar,strlen(input_devices[0].name)+1);
+      strcpy(transmitter->microphone_name,input_devices[0].name);
     }
 
     gtk_grid_attach(GTK_GRID(grid),input,col,row,3,1);
