@@ -34,8 +34,8 @@ PURESIGNAL_INCLUDE=PURESIGNAL
 
 #PTT_INCLUDE=PTT
 
-# Choose "PORTAUDIO" or "ALSA" for the audio system
-AUDIO_MODULE=ALSA
+# uncomment the line below to get the "portaudio" audio module (instead of the standard one).
+#AUDIO_MODULE=PORTAUDIO
 
 # very early code not included yet
 #SERVER_INCLUDE=SERVER
