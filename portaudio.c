@@ -228,11 +228,16 @@ int pa_out_cb(const void *inputBuffer, void *outputBuffer, unsigned long framesP
   RECEIVER *rx = (RECEIVER *)userdata;
   int i, newpt;
   float *buffer=rx->local_audio_buffer;
+  int avail;  // only used for debug
 
   if (out == NULL) {
     fprintf(stderr,"PortAudio error: bogus audio buffer in callback\n");
     return paContinue;
   }
+  // DEBUG: report water mark
+  //avail = rx->local_audio_buffer_inpt - rx->local_audio_buffer_outpt;
+  //if (avail < 0) avail += MY_RING_BUFFER_SIZE;
+  //fprintf(stderr,"AVAIL=%d\n", avail);
   newpt=rx->local_audio_buffer_outpt;
   for (i=0; i< framesPerBuffer; i++) {
     if (rx->local_audio_buffer_inpt == newpt) {
@@ -360,7 +365,8 @@ int audio_open_output(RECEIVER *rx)
   outputParameters.device = padev;
   outputParameters.hostApiSpecificStreamInfo = NULL;
   outputParameters.sampleFormat = paFloat32;
-  outputParameters.suggestedLatency = Pa_GetDeviceInfo(padev)->defaultLowOutputLatency ;
+  // use a zero for the latency to get the minimum value
+  outputParameters.suggestedLatency = 0.0; //Pa_GetDeviceInfo(padev)->defaultLowOutputLatency ;
   outputParameters.hostApiSpecificStreamInfo = NULL; //See you specific host's API docs for info on using this field
 
   //
@@ -556,36 +562,83 @@ int audio_write (RECEIVER *rx, float left, float right)
   return 0;
 }
 
+//
+// During CW, between the elements the side tone contains "true" silence.
+// We detect a sequence of 24 subsequent zero samples, and insert or delete
+// a zero sample depending on the buffer water mark:
+// If there are more than two portaudio buffers available, delete one sample,
+// if it drops down to less than one portaudio buffer, insert one sample
+//
+// Thus we have an active latency management.
+//
 int cw_audio_write(float sample) {
   RECEIVER *rx = active_receiver;
   float *buffer = rx->local_audio_buffer;
   int oldpt, newpt;
+  static int count=0;
+  int avail;
+  int adjust;
 
   g_mutex_lock(&rx->local_audio_mutex);
   if (rx->playback_handle != NULL && buffer != NULL) {
     if (rx->local_audio_cw == 0) {
       //
       // First time producing CW audio after RX/TX transition:
-      // empty audio buffer, insert one batch of silence, and
-      // continue with small latency.
+      // empty audio buffer and insert a single batch of silence
       //
       rx->local_audio_cw=1;
       bzero(buffer, sizeof(float)*MY_AUDIO_BUFFER_SIZE);
       rx->local_audio_buffer_inpt=MY_AUDIO_BUFFER_SIZE;
       rx->local_audio_buffer_outpt=0;
     }
-    // 
-    // put sample into ring buffer
-    //
-    oldpt=rx->local_audio_buffer_inpt;
-    newpt=oldpt+1;
-    if (newpt == MY_RING_BUFFER_SIZE) newpt=0; 
-    if (newpt != rx->local_audio_buffer_outpt) {
+    count++;
+    if (sample != 0.0) count=0;
+    adjust=0;
+    if (count >= 24) {
+      count=0;
       //
-      // buffer space available
+      // We arrive here if we have seen 24 zero samples in a row.
+      // First look how many samples there are in the ring buffer
       //
-      buffer[oldpt] = sample;
-      rx->local_audio_buffer_inpt=newpt;
+      avail = rx->local_audio_buffer_inpt - rx->local_audio_buffer_outpt;
+      if (avail < 0) avail += MY_RING_BUFFER_SIZE;
+      if (avail > 2*MY_AUDIO_BUFFER_SIZE) adjust=2;  // too full: skip one sample
+      if (avail < 1*MY_AUDIO_BUFFER_SIZE) adjust=1;  // too empty: insert one sample
+    }
+    switch (adjust) {
+      case 0:
+        // 
+        // default case: put sample into ring buffer
+        //
+        oldpt=rx->local_audio_buffer_inpt;
+        newpt=oldpt+1;
+        if (newpt == MY_RING_BUFFER_SIZE) newpt=0; 
+        if (newpt != rx->local_audio_buffer_outpt) {
+          //
+          // buffer space available
+          //
+          buffer[oldpt] = sample;
+          rx->local_audio_buffer_inpt=newpt;
+        }
+        break;
+      case 1:
+        //
+        // buffer becomes too empty, and we just saw 24 samples of silence:
+        // insert two samples of silence. No check on "buffer full" needed
+        //
+        oldpt=rx->local_audio_buffer_inpt;
+        buffer[oldpt++]=0.0;
+        if (oldpt == MY_RING_BUFFER_SIZE) oldpt=0;
+        buffer[oldpt++]=0.0;
+        if (oldpt == MY_RING_BUFFER_SIZE) oldpt=0;
+        rx->local_audio_buffer_inpt=oldpt;
+        break;
+      case 2:
+        //
+        // buffer becomes too full, and we just saw
+        // 24 samples of silence: just skip it
+        //
+        break;
     }
   }
   g_mutex_unlock(&rx->local_audio_mutex);
