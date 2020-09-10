@@ -32,7 +32,6 @@ PURESIGNAL_INCLUDE=PURESIGNAL
 # uncomment the line below for various debug facilities
 #DEBUG_OPTION=-D DEBUG
 
-# uncomment the line below for GPIO PTT input
 #PTT_INCLUDE=PTT
 
 # Choose "PORTAUDIO" or "ALSA" for the audio system
