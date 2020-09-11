@@ -34,9 +34,6 @@ PURESIGNAL_INCLUDE=PURESIGNAL
 
 #PTT_INCLUDE=PTT
 
-# uncomment the line below to get the "portaudio" audio module (instead of the standard one).
-#AUDIO_MODULE=PORTAUDIO
-
 # very early code not included yet
 #SERVER_INCLUDE=SERVER
 
@@ -172,18 +169,13 @@ endif
 GTKINCLUDES=`pkg-config --cflags gtk+-3.0`
 GTKLIBS=`pkg-config --libs gtk+-3.0`
 
-ifeq ($(AUDIO_MODULE), PORTAUDIO)
-AUDIO_OPTIONS=-DPORTAUDIO
-AUDIO_LIBS=-lportaudio
-else
-AUDIO_OPTIONS=
 AUDIO_LIBS=-lasound
-endif
+#AUDIO_LIBS=-lsoundio
 
 CFLAGS=	-g -Wno-deprecated-declarations -O3
 OPTIONS=$(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) \
 	$(GPIO_OPTIONS) $(SOAPYSDR_OPTIONS) $(LOCALCW_OPTIONS) \
-	$(STEMLAB_OPTIONS) $(AUDIO_OPTIONS) \
+	$(STEMLAB_OPTIONS) \
         $(PTT_OPTIONS) \
 	$(SERVER_OPTIONS) \
 	-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION)
@@ -200,7 +192,6 @@ PROGRAM=pihpsdr
 
 SOURCES= \
 audio.c \
-portaudio.c \
 band.c \
 discovered.c \
 discovery.c \
@@ -338,7 +329,6 @@ protocols.h
 
 OBJS= \
 audio.o \
-portaudio.o \
 band.o \
 discovered.o \
 discovery.o \
