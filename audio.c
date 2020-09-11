@@ -380,7 +380,7 @@ int cw_audio_write(float sample){
       count=0;
     }
 
-    if(rx->local_audio_buffer_offset>=short_audio-buffer_size) {
+    if(rx->local_audio_buffer_offset>=short_audio_buffer_size) {
 
       if ((rc = snd_pcm_writei (rx->playback_handle, rx->local_audio_buffer, rx->local_audio_buffer_offset)) != rx->local_audio_buffer_offset) {
         if(rc<0) {
