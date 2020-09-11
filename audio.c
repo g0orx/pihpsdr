@@ -141,6 +141,7 @@ g_print("audio_open_output: using format %s (%s)\n",snd_pcm_format_name(formats[
   }
 
   rx->local_audio_buffer_offset=0;
+  rx->local_audio_cw=0;
   switch(rx->local_audio_format) {
     case SND_PCM_FORMAT_S16_LE:
 g_print("audio_open_output: local_audio_buffer: size=%d sample=%ld\n",rx->local_audio_buffer_size,sizeof(gint16));
@@ -304,24 +305,49 @@ g_print("audio_close_input: free mic buffer\n");
 }
 
 //
-// This is for writing a CW side tone. It is essentially
-// a copy of audio_write using the active receiver.
-// Note that audio_write must be switched off for the
-// active_receiver when transmitting.
+// This is for writing a CW side tone.
+// To keep sidetone latencies low, only use 256 samples of the
+// RX audio buffer, and slightly shorten periods of silence
+// as long as the delay is too large.
 //
 int cw_audio_write(float sample){
   snd_pcm_sframes_t delay;
   long rc;
-  long trim;
   float *float_buffer;
   gint32 *long_buffer;
   gint16 *short_buffer;
+  static int count=0;
+  int    short_audio_buffer_size;
 	
   RECEIVER *rx = active_receiver;
  
   g_mutex_lock(&rx->local_audio_mutex);
   if(rx->playback_handle!=NULL && rx->local_audio_buffer!=NULL) {
 
+    //
+    // For CW side tone, use short audio buffers
+    //
+    short_audio_buffer_size=rx->local_audio_buffer_size;
+    if (short_audio_buffer_size > 256) short_audio_buffer_size = 256;
+
+    if (rx->local_audio_cw == 0) {
+      //
+      // first invocation of cw_audio_write e.g. after a RX/TX transition:
+      // clear audio buffer local to pihpsdr, rewind ALSA buffer
+      // if contains too many samples
+      //
+      rx->local_audio_cw=1;
+      rx->local_audio_buffer_offset=0;
+      if (snd_pcm_delay(rx->playback_handle, &delay) == 0) {
+         if (delay > 1024) snd_pcm_rewind(rx->playback_handle, delay-1024);
+      }
+    }
+
+    if (sample != 0.0) count=0;  // count upwards during silence
+
+    //
+    // Put sample into buffer
+    //
     switch(rx->local_audio_format) {
       case SND_PCM_FORMAT_S16_LE:
         short_buffer=(gint16 *)rx->local_audio_buffer;
@@ -341,29 +367,30 @@ int cw_audio_write(float sample){
     }
     rx->local_audio_buffer_offset++;
 
-    if(rx->local_audio_buffer_offset>=rx->local_audio_buffer_size) {
-
-      trim=0;
-
-      int max_delay=rx->local_audio_buffer_size*4;
-      if(snd_pcm_delay(rx->playback_handle,&delay)==0) {
-        if(delay>max_delay) {
-          trim=delay-max_delay;
-g_print("audio delay=%ld trim=%ld audio_buffer_size=%d\n",delay,trim,rx->local_audio_buffer_size);
-        }
+    if (++count >= 16) {
+      //
+      // We have just seen 16 zero samples, and we are not running low
+      // in the ALSA output buffer --> skip one sample
+      // This keeps the output buffer at the low water mark for
+      // optimizing latency.
+      //
+      if (snd_pcm_delay(rx->playback_handle,&delay) == 0) {
+        if (delay >= 1024) rx->local_audio_buffer_offset--;
       }
+      count=0;
+    }
 
-      if(trim<rx->local_audio_buffer_size) {
-        if ((rc = snd_pcm_writei (rx->playback_handle, rx->local_audio_buffer, rx->local_audio_buffer_size-trim)) != rx->local_audio_buffer_size-trim) {
-          if(rc<0) {
-            if(rc==-EPIPE) {
-              if ((rc = snd_pcm_prepare (rx->playback_handle)) < 0) {
-                g_print("audio_write: cannot prepare audio interface for use %ld (%s)\n", rc, snd_strerror (rc));
-                g_mutex_unlock(&rx->local_audio_mutex);
-                return rc;
-              } else {
-                // ignore short write
-              }
+    if(rx->local_audio_buffer_offset>=short_audio-buffer_size) {
+
+      if ((rc = snd_pcm_writei (rx->playback_handle, rx->local_audio_buffer, rx->local_audio_buffer_offset)) != rx->local_audio_buffer_offset) {
+        if(rc<0) {
+          if(rc==-EPIPE) {
+            if ((rc = snd_pcm_prepare (rx->playback_handle)) < 0) {
+              g_print("audio_write: cannot prepare audio interface for use %ld (%s)\n", rc, snd_strerror (rc));
+              g_mutex_unlock(&rx->local_audio_mutex);
+              return rc;
+            } else {
+              // ignore short write
             }
           }
         }
@@ -406,6 +433,38 @@ int audio_write(RECEIVER *rx,float left_sample,float right_sample) {
   g_mutex_lock(&rx->local_audio_mutex);
 
   if(rx->playback_handle!=NULL && rx->local_audio_buffer!=NULL) {
+
+    if (rx->local_audio_cw == 1) {
+      //
+      // we come from a CWTX-RX transition where we kept the ALSA audio buffer
+      // at the low-water mark. So with this call, send one bunch of silence
+      // to do a partial re-fill.
+      //
+      rx->local_audio_cw=0;
+      switch(rx->local_audio_format) {
+        case SND_PCM_FORMAT_S16_LE:
+          bzero(rx->local_audio_buffer,2*sizeof(gint16)*rx->local_audio_buffer_size);
+          break;
+        case SND_PCM_FORMAT_S32_LE:
+          bzero(rx->local_audio_buffer,2*sizeof(gint32)*rx->local_audio_buffer_size);
+          break;
+        case SND_PCM_FORMAT_FLOAT_LE:
+          bzero(rx->local_audio_buffer,2*sizeof(gfloat)*rx->local_audio_buffer_size);
+          break;
+      }
+      rx->local_audio_buffer_offset=0;
+      //
+      // In principle, this should be done after *all* TX/RX transition
+      // unless in duplex mode, since the ALSA buffers are drained in this case.
+      //
+      if(snd_pcm_delay(rx->playback_handle,&delay)==0) {
+        if (delay < 1024) {
+          snd_pcm_writei (rx->playback_handle, rx->local_audio_buffer, rx->local_audio_buffer_size);
+          //g_print("Audio output buffer partially refilled, delay was %ld\n", delay);
+        }
+      }
+    }
+    
     switch(rx->local_audio_format) {
       case SND_PCM_FORMAT_S16_LE:
         short_buffer=(gint16 *)rx->local_audio_buffer;

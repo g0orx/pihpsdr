@@ -119,18 +119,13 @@ typedef struct _receiver {
   gchar *audio_name;
 #ifdef PORTAUDIO
   PaStream *playback_handle;
-  // In the PORTAUDIO module, the local audio buffer is
-  // a ring buffer so we need two ring buffer
-  // pointers here.
-  // The local_audio_cw flag switches between
-  // high-latency (RX) and low-latency (CW TX) mode.
-  gint local_audio_buffer_inpt;
-  gint local_audio_buffer_outpt;
-  gint local_audio_cw;  
+  gint local_audio_buffer_inpt;    // pointer in audio ring-buffer
+  gint local_audio_buffer_outpt;   // pointer in audio ring-buffer
 #else
   snd_pcm_t *playback_handle;
   snd_pcm_format_t local_audio_format;
 #endif
+  gint local_audio_cw;             // flag for latency switching
   gint local_audio_buffer_size;
   gint local_audio_buffer_offset;
   void *local_audio_buffer;
