@@ -557,8 +557,8 @@ void tx_menu(GtkWidget *parent) {
 
   if(transmitter->local_microphone && (protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL)) {
     // If device has no microphone input, these widgest may not exist
-    if (micbin_b != NULL)   gtk_widget_hide(micin_b);
-    if (linein_b != NULL)   gtk_widget_hide(linein_b);
+    if (micin_b    != NULL) gtk_widget_hide(micin_b);
+    if (linein_b   != NULL) gtk_widget_hide(linein_b);
     if (micboost_b != NULL) gtk_widget_hide(micboost_b);
   }
 
