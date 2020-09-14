@@ -310,6 +310,16 @@ g_print("audio_close_input: free mic buffer\n");
 // RX audio buffer, and slightly shorten periods of silence
 // as long as the delay is too large.
 //
+// There are three parameters to control the latency:
+//
+// short_audio_buffer_size  length of piHPSDR's audio buffer (default: 256)
+// delay low water mark     stretch pauses if delay falls below  (default: 896)
+// delay high water mark    shorten pauses if delay exceeds (default: 1152)
+//
+// By default, it is tried to keep the delay in the range 1024 +/- 128
+// Note that when sending the buffer, delay "jumps" by the buffer size
+//
+
 int cw_audio_write(float sample){
   snd_pcm_sframes_t delay;
   long rc;
@@ -369,13 +379,37 @@ int cw_audio_write(float sample){
 
     if (++count >= 16) {
       //
-      // We have just seen 16 zero samples, and we are not running low
-      // in the ALSA output buffer --> skip one sample
-      // This keeps the output buffer at the low water mark for
-      // optimizing latency.
+      // We have just seen 16 zero samples, so this is the right place
+      // to adjust the buffer filling.
+      // If buffer gets too full   ==> skip the sample
+      // If buffer gets too lempty ==> insert zero sample
       //
       if (snd_pcm_delay(rx->playback_handle,&delay) == 0) {
-        if (delay >= 1024) rx->local_audio_buffer_offset--;
+        if (delay > 1152) {
+          // delete the last sample
+          rx->local_audio_buffer_offset--;
+        }
+        if ((delay < 896) && (rx->local_audio_buffer_offset < short_audio_buffer_size)) {
+          // insert another zero sample
+          switch(rx->local_audio_format) {
+            case SND_PCM_FORMAT_S16_LE:
+              short_buffer=(gint16 *)rx->local_audio_buffer;
+              short_buffer[rx->local_audio_buffer_offset*2]=0;
+              short_buffer[(rx->local_audio_buffer_offset*2)+1]=0;
+              break;
+            case SND_PCM_FORMAT_S32_LE:
+              long_buffer=(gint32 *)rx->local_audio_buffer;
+              long_buffer[rx->local_audio_buffer_offset*2]=0;
+              long_buffer[(rx->local_audio_buffer_offset*2)+1]=0;
+              break;
+            case SND_PCM_FORMAT_FLOAT_LE:
+              float_buffer=(float *)rx->local_audio_buffer;
+              float_buffer[rx->local_audio_buffer_offset*2]=0.0;
+              float_buffer[(rx->local_audio_buffer_offset*2)+1]=0.0;
+              break;
+          }
+          rx->local_audio_buffer_offset++;
+        }
       }
       count=0;
     }
