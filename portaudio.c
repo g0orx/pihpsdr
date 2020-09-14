@@ -564,7 +564,7 @@ int audio_write (RECEIVER *rx, float left, float right)
 
 //
 // During CW, between the elements the side tone contains "true" silence.
-// We detect a sequence of 24 subsequent zero samples, and insert or delete
+// We detect a sequence of 16 subsequent zero samples, and insert or delete
 // a zero sample depending on the buffer water mark:
 // If there are more than two portaudio buffers available, delete one sample,
 // if it drops down to less than one portaudio buffer, insert one sample
@@ -584,26 +584,26 @@ int cw_audio_write(float sample) {
     if (rx->local_audio_cw == 0) {
       //
       // First time producing CW audio after RX/TX transition:
-      // empty audio buffer and insert a single batch of silence
+      // empty audio buffer and insert 512 samples of silence
       //
       rx->local_audio_cw=1;
-      bzero(buffer, sizeof(float)*MY_AUDIO_BUFFER_SIZE);
-      rx->local_audio_buffer_inpt=MY_AUDIO_BUFFER_SIZE;
+      bzero(buffer, 512*sizeof(float));
+      rx->local_audio_buffer_inpt=512;
       rx->local_audio_buffer_outpt=0;
     }
     count++;
     if (sample != 0.0) count=0;
     adjust=0;
-    if (count >= 24) {
+    if (count >= 16) {
       count=0;
       //
-      // We arrive here if we have seen 24 zero samples in a row.
+      // We arrive here if we have seen 16 zero samples in a row.
       // First look how many samples there are in the ring buffer
       //
       avail = rx->local_audio_buffer_inpt - rx->local_audio_buffer_outpt;
       if (avail < 0) avail += MY_RING_BUFFER_SIZE;
-      if (avail > 2*MY_AUDIO_BUFFER_SIZE) adjust=2;  // too full: skip one sample
-      if (avail < 1*MY_AUDIO_BUFFER_SIZE) adjust=1;  // too empty: insert one sample
+      if (avail > 768) adjust=2;  // too full: skip one sample
+      if (avail < 512) adjust=1;  // too empty: insert one sample
     }
     switch (adjust) {
       case 0:
@@ -623,7 +623,7 @@ int cw_audio_write(float sample) {
         break;
       case 1:
         //
-        // buffer becomes too empty, and we just saw 24 samples of silence:
+        // buffer becomes too empty, and we just saw 16 samples of silence:
         // insert two samples of silence. No check on "buffer full" needed
         //
         oldpt=rx->local_audio_buffer_inpt;
@@ -636,7 +636,7 @@ int cw_audio_write(float sample) {
       case 2:
         //
         // buffer becomes too full, and we just saw
-        // 24 samples of silence: just skip it
+        // 16 samples of silence: just skip it
         //
         break;
     }
