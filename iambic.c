@@ -360,6 +360,10 @@ static void* keyer_thread(void *arg) {
 	// check mode: to not induce RX/TX transition if not in CW mode
         txmode=get_tx_mode();
         if (cw_breakin && (txmode == modeCWU || txmode == modeCWL)) {
+          //
+          // Possibly we are still in a TX/RX transition from the end of the last
+          // hang time. Therefore we must queue the "Mox on" even if MOX is still
+          // there
           g_idle_add(ext_mox_update, (gpointer)(long) 1);
           // Wait for mox, that is, wait for WDSP shutting down the RX and
           // firing up the TX. This induces a small delay when hitting the key for
