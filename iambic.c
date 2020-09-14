@@ -412,8 +412,8 @@ static void* keyer_thread(void *arg) {
                     // If both paddles are pressed (should not happen), then
                     // the dash paddle wins.
                     if (*kdash) {                  // send manual dashes
-                      cw_key_up=960000;            // 20 sec maximum
-                      cw_key_down=0;
+                      cw_key_down=960000;            // 20 sec maximum
+                      cw_key_up=0;
                       gpio_cw_sidetone_set(1);
                       key_state=STRAIGHT;
                     }
@@ -432,7 +432,7 @@ static void* keyer_thread(void *arg) {
 		// Wait for dash paddle being released in "straight key" mode.
                 //
                 if (! *kdash) {
-                  cw_key_up=0;
+                  cw_key_down=0;
                   gpio_cw_sidetone_set(0);
 		  cwvox=cw_keyer_hang_time;
                   key_state=CHECK;
