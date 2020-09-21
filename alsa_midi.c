@@ -129,19 +129,19 @@ static void *midi_thread(void *arg) {
 			   // messages with velocity == 0 when releasing
 			   // a push-button
 			   if (arg2 == 0) {
-			     NewMidiEvent(MIDI_NOTE, chan, arg1, 0);
+			     NewMidiEvent(MIDI_EVENT_NOTE, chan, arg1, 0);
 			   } else {
-			     NewMidiEvent(MIDI_NOTE, chan, arg1, 1);
+			     NewMidiEvent(MIDI_EVENT_NOTE, chan, arg1, 1);
 			   }
 			   break;
 			case CMD_NOTEOFF:
-			   NewMidiEvent(MIDI_NOTE, chan, arg1, 0);
+			   NewMidiEvent(MIDI_EVENT_NOTE, chan, arg1, 0);
 			   break;
 			case CMD_CTRL:
-			   NewMidiEvent(MIDI_CTRL, chan, arg1, arg2);
+			   NewMidiEvent(MIDI_EVENT_CTRL, chan, arg1, arg2);
 			   break;
 			case CMD_PITCH:
-			   NewMidiEvent(MIDI_PITCH, chan, 0, arg1+128*arg2);
+			   NewMidiEvent(MIDI_EVENT_PITCH, chan, 0, arg1+128*arg2);
 			   break;
                     }
 		    state=STATE_SKIP;
