@@ -377,7 +377,7 @@ $(PROGRAM):  $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS)
 	$(CC) -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) \
 		$(SOAPYSDR_OBJS) $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
-		$(MIDI_OBJS) $(STEMLAB_OBJS) $(LIBS)
+		$(MIDI_OBJS) $(STEMLAB_OBJS) $(LIBS) $(LDFLAGS)
 
 all:	prebuild  $(PROGRAM) $(HEADERS) $(REMOTE_HEADERS) $(USBOZY_HEADERS) $(SOAPYSDR_HEADERS) \
 	$(LOCALCW_HEADERS) \
@@ -452,7 +452,7 @@ app:	$(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) \
 	$(CC)   -headerpad_max_install_names -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) \
 		$(USBOZY_OBJS)  $(SOAPYSDR_OBJS) \
 		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
-		$(MIDI_OBJS) $(STEMLAB_OBJS) $(LIBS)
+		$(MIDI_OBJS) $(STEMLAB_OBJS) $(LIBS) $(LDFLAGS)
 	@rm -rf pihpsdr.app
 	@mkdir -p pihpsdr.app/Contents/MacOS
 	@mkdir -p pihpsdr.app/Contents/Frameworks
