@@ -516,7 +516,14 @@ int audio_write (RECEIVER *rx, float left, float right)
     if (avail < 0) avail += MY_RING_BUFFER_SIZE;
     if (avail <  MY_RING_LOW_WATER) {
       //
-      // fill half a ring buffer's length of silence
+      // Running the RX-audio for a very long time
+      // and with audio hardware whose "48000 Hz" are a little fasterthan the "48000 Hz" of
+      // the SDR will very slowly drain the buffer. We recover from this by brutally
+      // inserting half a buffer's length of silence.
+      // Note that this also happens the first time we arrive here, and after a TX/RX
+      // transition if RX audio has been shut down during TX.
+      // When coming from a TX/RX transition while in CW mode, the buffer will
+      // *always* be quite empty.
       //
       oldpt=rx->local_audio_buffer_inpt;
       for (i=0; i< MY_RING_BUFFER_SIZE/2; i++) {
@@ -524,23 +531,19 @@ int audio_write (RECEIVER *rx, float left, float right)
         if (oldpt >= MY_RING_BUFFER_SIZE) oldpt=0;
       }
       rx->local_audio_buffer_inpt=oldpt;
-      //This is triggered after each RX/TX transition unless we operate CW and/or DUPLEX.
       //g_print("audio_write: buffer was nearly empty, inserted silence\n");
     }
     if (avail > MY_RING_HIGH_WATER) {
       //
-      // Running the RX for a very long time (without doing TX)
+      // Running the RX-audio for a very long time 
       // and with audio hardware whose "48000 Hz" are a little slower than the "48000 Hz" of
       // the SDR will very slowly fill the buffer. This should be the only situation where
       // this "buffer overrun" condition should occur. We recover from this by brutally
       // deleting half a buffer size of audio, such that the next overrun is in the distant
       // future.
       //
-      oldpt=rx->local_audio_buffer_inpt;
-      for (i=0; i< MY_RING_BUFFER_SIZE/2; i++) {
-        oldpt--;
-        if (oldpt < 0) oldpt = MY_RING_BUFFER_SIZE;
-      }
+      oldpt=rx->local_audio_buffer_inpt-MY_RING_BUFFER_SIZE/2;
+      if (oldpt < 0) oldpt += MY_RING_BUFFER_SIZE;
       rx->local_audio_buffer_inpt=oldpt;
       g_print("audio_write: buffer was nearly full, deleted audio\n");
     }
