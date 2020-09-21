@@ -44,85 +44,87 @@
 
 //
 // MIDIaction encodes the "action" to be taken in Layer3
-// (sorted alphabetically by the keyword)
+// (sorted alphabetically by the keyword).
+// All MIDIaction entries should begin with "MIDI_ACTION"
 //
 enum MIDIaction {
-  ACTION_NONE=0,	// NONE:		No-Op (unassigned key)
-  VFO_A2B,		// A2B:			VFO A -> B
-  MIDI_AF_GAIN,		// AFGAIN:		AF gain
-  AGCATTACK,		// AGCATTACK:		AGC ATTACK (cycle fast/med/slow etc.)
-  MIDI_AGC,		// AGCVAL:		AGC level
-  ANF,			// ANF:			toggel ANF on/off
-  ATT,			// ATT:			Step attenuator or Programmable attenuator
-  VFO_B2A,		// B2A:			VFO B -> A
-  BAND_DOWN,		// BANDDOWN:		cycle through bands downwards
-  BAND_UP,		// BANDUP:		cycle through bands upwards
-  COMPRESS,		// COMPRESS:		TX compressor value
-  MIDI_CTUN,		// CTUN:		toggle CTUN on/off
-  VFO,			// CURRVFO:		change VFO frequency
-  CWL,			// CWL:			Left paddle pressed (use with ONOFF)
-  CWR,			// CWR:			Right paddle pressed (use with ONOFF)
-  CWSPEED,		// CWSPEED:		Set speed of (iambic) CW keyer
-  DIV_COARSEGAIN,	// DIVCOARSEGAIN:	change DIVERSITY gain in large increments
-  DIV_COARSEPHASE,	// DIVPHASE:		change DIVERSITY phase in large increments
-  DIV_FINEGAIN,		// DIVFINEGAIN:		change DIVERSITY gain in small increments
-  DIV_FINEPHASE,	// DIVFINEPHASE:	change DIVERSITY phase in small increments
-  DIV_GAIN,		// DIVGAIN:		change DIVERSITY gain in medium increments
-  DIV_PHASE,		// DIVPHASE:		change DIVERSITY phase in medium increments
-  DIV_TOGGLE,		// DIVTOGGLE:		DIVERSITY on/off
-  MIDI_DUP,		// DUP:			toggle duplex on/off
-  FILTER_DOWN,		// FILTERDOWN:		cycle through filters downwards
-  FILTER_UP,		// FILTERUP:		cycle through filters upwards
-  MIDI_LOCK,		// LOCK:		lock VFOs, disable frequency changes
-  MIC_VOLUME,		// MICGAIN:		MIC gain
-  MODE_DOWN,		// MODEDOWN:		cycle through modes downwards
-  MODE_UP,		// MODEUP:		cycle through modes upwards
-  MIDI_MOX,		// MOX:			toggle "mox" state
-  MIDI_MUTE,		// MUTE:		toggle mute on/off
-  MIDI_NB,		// NOISEBLANKER:	cycle through NoiseBlanker states (none, NB, NB2)
-  MIDI_NR,		// NOISEREDUCTION:	cycle through NoiseReduction states (none, NR, NR2)
-  MIDI_PAN,		// PAN:			change panning of panadater/waterfall when zoomed
-  PAN_HIGH,		// PANHIGH:		"high" value of current panadapter
-  PAN_LOW,		// PANLOW:		"low" value of current panadapter
-  PRE,			// PREAMP:		preamp on/off
-  MIDI_PS,		// PURESIGNAL:		toggle PURESIGNAL on/off
-  MIDI_RF_GAIN,		// RFGAIN:		receiver RF gain
-  TX_DRIVE,		// RFPOWER:		adjust TX RF output power
-  MIDI_RIT_CLEAR,	// RITCLEAR:		clear RIT and XIT value
-  RIT_STEP,		// RITSTEP:		cycle through RIT/XIT step size values
-  RIT_TOGGLE,  		// RITTOGGLE:		toggle RIT on/off
-  RIT_VAL,		// RITVAL:		change RIT value
-  MIDI_SAT,		// SAT:			cycle through SAT modes off/SAT/RSAT
-  SNB,			// SNB:			toggle SNB on/off
-  MIDI_SPLIT,		// SPLIT:		Split on/off
-  SWAP_RX, 		// SWAPRX:		swap active receiver (if there are two receivers)
-  SWAP_VFO,		// SWAPVFO:		swap VFO A/B frequency
-  MIDI_TUNE,		// TUNE:		toggle "tune" state
-  VFOA,			// VFOA:		change VFO-A frequency
-  VFOB,			// VFOB:		change VFO-B frequency
-  VFO_STEP_UP,		// VFOSTEPUP:		cycle through vfo steps upwards;
-  VFO_STEP_DOWN,	// VFOSTEPDOWN:		cycle through vfo steps downwards;
-  VOX, 			// VOX:			toggle VOX on/off
-  VOXLEVEL, 		// VOXLEVEL:		adjust VOX threshold
-  MIDI_XIT_CLEAR,	// XITCLEAR:		clear XIT value
-  XIT_VAL,		// XITVAL:		change XIT value
-  MIDI_ZOOM,		// ZOOM:		change zoom factor
-  ZOOM_UP,		// ZOOMUP:		change zoom factor
-  ZOOM_DOWN,		// ZOOMDOWN:		change zoom factor
+  MIDI_ACTION_NONE=0,		// NONE:		No-Op (unassigned key)
+  MIDI_ACTION_VFO_A2B,		// A2B:			VFO A -> B
+  MIDI_ACTION_AF_GAIN,		// AFGAIN:		AF gain
+  MIDI_ACTION_AGCATTACK,	// AGCATTACK:		AGC ATTACK (cycle fast/med/slow etc.)
+  MIDI_ACTION_AGC,		// AGCVAL:		AGC level
+  MIDI_ACTION_ANF,		// ANF:			toggel ANF on/off
+  MIDI_ACTION_ATT,		// ATT:			Step attenuator or Programmable attenuator
+  MIDI_ACTION_VFO_B2A,		// B2A:			VFO B -> A
+  MIDI_ACTION_BAND_DOWN,	// BANDDOWN:		cycle through bands downwards
+  MIDI_ACTION_BAND_UP,		// BANDUP:		cycle through bands upwards
+  MIDI_ACTION_COMPRESS,		// COMPRESS:		TX compressor value
+  MIDI_ACTION_CTUN,		// CTUN:		toggle CTUN on/off
+  MIDI_ACTION_VFO,		// CURRVFO:		change VFO frequency
+  MIDI_ACTION_CWL,		// CWL:			Left paddle pressed (use with ONOFF)
+  MIDI_ACTION_CWR,		// CWR:			Right paddle pressed (use with ONOFF)
+  MIDI_ACTION_CWSPEED,		// CWSPEED:		Set speed of (iambic) CW keyer
+  MIDI_ACTION_DIV_COARSEGAIN,	// DIVCOARSEGAIN:	change DIVERSITY gain in large increments
+  MIDI_ACTION_DIV_COARSEPHASE,	// DIVPHASE:		change DIVERSITY phase in large increments
+  MIDI_ACTION_DIV_FINEGAIN,	// DIVFINEGAIN:		change DIVERSITY gain in small increments
+  MIDI_ACTION_DIV_FINEPHASE,	// DIVFINEPHASE:	change DIVERSITY phase in small increments
+  MIDI_ACTION_DIV_GAIN,		// DIVGAIN:		change DIVERSITY gain in medium increments
+  MIDI_ACTION_DIV_PHASE,	// DIVPHASE:		change DIVERSITY phase in medium increments
+  MIDI_ACTION_DIV_TOGGLE,	// DIVTOGGLE:		DIVERSITY on/off
+  MIDI_ACTION_DUP,		// DUP:			toggle duplex on/off
+  MIDI_ACTION_FILTER_DOWN,	// FILTERDOWN:		cycle through filters downwards
+  MIDI_ACTION_FILTER_UP,	// FILTERUP:		cycle through filters upwards
+  MIDI_ACTION_LOCK,		// LOCK:		lock VFOs, disable frequency changes
+  MIDI_ACTION_MIC_VOLUME,	// MICGAIN:		MIC gain
+  MIDI_ACTION_MODE_DOWN,	// MODEDOWN:		cycle through modes downwards
+  MIDI_ACTION_MODE_UP,		// MODEUP:		cycle through modes upwards
+  MIDI_ACTION_MOX,		// MOX:			toggle "mox" state
+  MIDI_ACTION_MUTE,		// MUTE:		toggle mute on/off
+  MIDI_ACTION_NB,		// NOISEBLANKER:	cycle through NoiseBlanker states (none, NB, NB2)
+  MIDI_ACTION_NR,		// NOISEREDUCTION:	cycle through NoiseReduction states (none, NR, NR2)
+  MIDI_ACTION_PAN,		// PAN:			change panning of panadater/waterfall when zoomed
+  MIDI_ACTION_PAN_HIGH,		// PANHIGH:		"high" value of current panadapter
+  MIDI_ACTION_PAN_LOW,		// PANLOW:		"low" value of current panadapter
+  MIDI_ACTION_PRE,		// PREAMP:		preamp on/off
+  MIDI_ACTION_PTTONOFF,		// PTT:			set PTT state to "on" or "off"
+  MIDI_ACTION_PS,		// PURESIGNAL:		toggle PURESIGNAL on/off
+  MIDI_ACTION_RF_GAIN,		// RFGAIN:		receiver RF gain
+  MIDI_ACTION_TX_DRIVE,		// RFPOWER:		adjust TX RF output power
+  MIDI_ACTION_RIT_CLEAR,	// RITCLEAR:		clear RIT and XIT value
+  MIDI_ACTION_RIT_STEP,		// RITSTEP:		cycle through RIT/XIT step size values
+  MIDI_ACTION_RIT_TOGGLE,  	// RITTOGGLE:		toggle RIT on/off
+  MIDI_ACTION_RIT_VAL,		// RITVAL:		change RIT value
+  MIDI_ACTION_SAT,		// SAT:			cycle through SAT modes off/SAT/RSAT
+  MIDI_ACTION_SNB,		// SNB:			toggle SNB on/off
+  MIDI_ACTION_SPLIT,		// SPLIT:		Split on/off
+  MIDI_ACTION_SWAP_RX, 		// SWAPRX:		swap active receiver (if there are two receivers)
+  MIDI_ACTION_SWAP_VFO,		// SWAPVFO:		swap VFO A/B frequency
+  MIDI_ACTION_TUNE,		// TUNE:		toggle "tune" state
+  MIDI_ACTION_VFOA,		// VFOA:		change VFO-A frequency
+  MIDI_ACTION_VFOB,		// VFOB:		change VFO-B frequency
+  MIDI_ACTION_VFO_STEP_UP,	// VFOSTEPUP:		cycle through vfo steps upwards;
+  MIDI_ACTION_VFO_STEP_DOWN,	// VFOSTEPDOWN:		cycle through vfo steps downwards;
+  MIDI_ACTION_VOX, 		// VOX:			toggle VOX on/off
+  MIDI_ACTION_VOXLEVEL, 	// VOXLEVEL:		adjust VOX threshold
+  MIDI_ACTION_XIT_CLEAR,	// XITCLEAR:		clear XIT value
+  MIDI_ACTION_XIT_VAL,		// XITVAL:		change XIT value
+  MIDI_ACTION_ZOOM,		// ZOOM:		change zoom factor
+  MIDI_ACTION_ZOOM_UP,		// ZOOMUP:		change zoom factor
+  MIDI_ACTION_ZOOM_DOWN,	// ZOOMDOWN:		change zoom factor
 };
 
 //
 // MIDItype encodes the type of MIDI control. This info
 // is passed from Layer-2 to Layer-3
 //
-// MIDI_KEY has no parameters and indicates that some
+// MIDI_TYPE_KEY has no parameters and indicates that some
 // button has been pressed.
 //
-// MIDI_KNOB has a "value" parameter (between 0 and 100)
+// MIDI_TYPE_KNOB has a "value" parameter (between 0 and 100)
 // and indicates that some knob has been set to a specific
 // position.
 //
-// MIDI_WHEEL has a "direction" parameter and indicates that
+// MIDI_TYPE_WHEEL has a "direction" parameter and indicates that
 // some knob has been turned left/down or right/ip. The  value
 // can be
 //
@@ -135,10 +137,10 @@ enum MIDIaction {
 //
 
 enum MIDItype {
- TYPE_NONE=0,
- MIDI_KEY,          // Button (press event)
- MIDI_KNOB,         // Knob   (value between 0 and 100)
- MIDI_WHEEL         // Wheel  (direction and speed)
+ MIDI_TYPE_NONE=0,
+ MIDI_TYPE_KEY,          // Button (press event)
+ MIDI_TYPE_KNOB,         // Knob   (value between 0 and 100)
+ MIDI_TYPE_WHEEL         // Wheel  (direction and speed)
 };
 
 //
@@ -148,10 +150,10 @@ enum MIDItype {
 // MIDI_KNOB or MIDI_WHEEL, depending on the device description.
 //
 enum MIDIevent {
- EVENT_NONE=0,
- MIDI_NOTE,
- MIDI_CTRL,
- MIDI_PITCH
+ MIDI_EVENT_NONE=0,
+ MIDI_EVENT_NOTE,
+ MIDI_EVENT_CTRL,
+ MIDI_EVENT_PITCH
 };
 
 //
