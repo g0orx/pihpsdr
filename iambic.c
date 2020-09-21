@@ -335,6 +335,7 @@ static void* keyer_thread(void *arg) {
     int kdelay;
     int old_volume;
     int txmode;
+    int moxbefore;
 
     fprintf(stderr,"keyer_thread  state running= %d\n", running);
     while(running) {
@@ -359,6 +360,10 @@ static void* keyer_thread(void *arg) {
 
 	// check mode: to not induce RX/TX transition if not in CW mode
         txmode=get_tx_mode();
+        moxbefore=mox;
+        // Trigger VOX if CAT CW was active and we have interrupted it by hitting a key
+        if (enforce_cw_vox) moxbefore=0;
+
         if (cw_breakin && (txmode == modeCWU || txmode == modeCWL)) {
           //
           // Possibly we are still in a TX/RX transition from the end of the last
@@ -374,8 +379,6 @@ static void* keyer_thread(void *arg) {
           while ((!mox || cw_not_ready) && i-- > 0) usleep(1000L);
           cwvox=(int) cw_keyer_hang_time;
 	}
-	// Trigger VOX if CAT CW was active and we have interrupted it by hitting a key
-	if (enforce_cw_vox) cwvox=(int) cw_keyer_hang_time;
 
         key_state = CHECK;
 
@@ -397,7 +400,7 @@ static void* keyer_thread(void *arg) {
 		// If CW-vox still hanging, continue "busy-spinning"
                 if (cwvox == 0) {
 		    // we have just reduced cwvox from 1 to 0.
-		    g_idle_add(ext_mox_update,(gpointer)(long) 0);
+		    if (!moxbefore) g_idle_add(ext_mox_update,(gpointer)(long) 0);
 		} else {
 		    key_state=CHECK;
 		}
