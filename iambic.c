@@ -230,8 +230,6 @@ static sem_t *cw_event;
 static sem_t cw_event;
 #endif
 
-static int cwvox = 0;
-
 #ifdef __APPLE__
 #include "MacOS.h"  // emulate clock_gettime on old MacOS systems
 #else
@@ -336,6 +334,7 @@ static void* keyer_thread(void *arg) {
     int old_volume;
     int txmode;
     int moxbefore;
+    int cwvox;
 
     fprintf(stderr,"keyer_thread  state running= %d\n", running);
     while(running) {
@@ -358,11 +357,33 @@ static void* keyer_thread(void *arg) {
 	  cw_keyer_sidetone_volume=0;
 	}
 
-	// check mode: to not induce RX/TX transition if not in CW mode
+	//
+	// Normally the keyer will be used in "break-in" mode, that is, we switch to TX
+	// automatically here, and after a certain "hang" time we will switch back to RX
+	// if no further Morse key events arrive.
+	// The other option is to use a PTT foot-switch (that is, "manually" switching to
+	// TX before starting CW, and "manually" switching back to RX after all CW text has
+	// been sent). In this case, there should be no automatic TX/RX transition after the
+	// CW "hang" (or CW vox) time. This case is detected here: if we are already in TX
+	// mode when a key is hit, we remember this ("moxbefore") and in this case, the keyer
+	// will not switch back to RX.
+	//
+	// There is however one exception: if we sent "automatic" CW (by CAT CW commands) and
+	// interrupt the automatic transmission by hitting a key, we want to automatically
+	// switch back to RX. This is flagged by the variable enforce_cw_vox.
+	//
+	// CAVEAT: When doing CW, one might reach the hang time and immedeately thereafter
+	// continue CW transmission. In this case we may arrive here *before* the RX/TX
+	// transition is completed and incorrectly assume the use of a foot switch.
+	//
+	// THEREFORE: when we do automatic TX/RX transition below we must wait until the
+	// TX/RX transition has been completed.
+	//
+	// DETAIL: do not induce RX/TX transition if not in CW mode
         txmode=get_tx_mode();
         moxbefore=mox;
-        // Trigger VOX if CAT CW was active and we have interrupted it by hitting a key
         if (enforce_cw_vox) moxbefore=0;
+        cwvox=0;   // if not using CW break-in this will stay at zero
 
         if (cw_breakin && (txmode == modeCWU || txmode == modeCWL)) {
           //
@@ -389,6 +410,8 @@ static void* keyer_thread(void *arg) {
 	  // just leave the while-loop without removing MOX
 	  //
 	  // re-trigger VOX if *not* busy-spinning
+	  // (that is, for *all* states except EXITLOOP and CHECK)
+	  //
           if (cwvox > 0 && key_state != EXITLOOP && key_state != CHECK) cwvox=(int) cw_keyer_hang_time;
 
 	  switch (key_state) {
@@ -400,7 +423,13 @@ static void* keyer_thread(void *arg) {
 		// If CW-vox still hanging, continue "busy-spinning"
                 if (cwvox == 0) {
 		    // we have just reduced cwvox from 1 to 0.
-		    if (!moxbefore) g_idle_add(ext_mox_update,(gpointer)(long) 0);
+		    if (!moxbefore) {
+			g_idle_add(ext_mox_update,(gpointer)(long) 0);
+			// see above: wait for mox really gone, but give up after 200 msec
+			// in order not to be "caught" here
+			i=200;
+			while (mox && i-- > 0) usleep(1000L);
+		    }
 		} else {
 		    key_state=CHECK;
 		}
@@ -441,7 +470,6 @@ static void* keyer_thread(void *arg) {
                 if (! *kdash) {
                   cw_key_down=0;
                   gpio_cw_sidetone_set(0);
-		  cwvox=cw_keyer_hang_time;
                   key_state=CHECK;
                 }
                 break;
