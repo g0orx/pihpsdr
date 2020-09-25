@@ -34,6 +34,7 @@
 #include "new_protocol.h"
 #include "old_protocol.h"
 #include "iambic.h"
+#include "ext.h"
 
 static GtkWidget *parent_window=NULL;
 
@@ -48,6 +49,10 @@ void cw_changed() {
 #ifdef LOCALCW
   keyer_update();
 #endif
+//
+// speed and side tone frequency are displayed in the VFO bar
+//
+  g_idle_add(ext_vfo_update, NULL);
 }
 
 static void cleanup() {
