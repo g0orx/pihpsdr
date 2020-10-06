@@ -28,8 +28,6 @@
 static pthread_t midi_thread_id;
 static void* midi_thread(void *);
 
-static char portname[64];
-
 static enum {
         STATE_SKIP,		// skip bytes
         STATE_ARG1,             // one arg byte to come
@@ -43,7 +41,7 @@ static enum {
 	CMD_PITCH,
 } command;
 
-static void *midi_thread(void *arg) {
+static void *midi_thread(void *data) {
     int ret;
     snd_rawmidi_t *input;
     int npfds;
@@ -53,9 +51,11 @@ static void *midi_thread(void *arg) {
     unsigned short revents;
     int i;
     int chan,arg1,arg2;
+    char *portname = (char *) data;
 
     if ((ret = snd_rawmidi_open(&input, NULL, portname, SND_RAWMIDI_NONBLOCK)) < 0) {
         fprintf(stderr,"cannot open port \"%s\": %s\n", portname, snd_strerror(ret));
+        free(portname);
         return NULL;
     }
     snd_rawmidi_read(input, NULL, 0); /* trigger reading */
@@ -160,6 +160,7 @@ void register_midi_device(char *myname) {
     const char *devnam, *subnam;
     int found=0;
     char name[64];
+    char *portname;
 
     card=-1;
     if ((ret = snd_card_next(&card)) < 0) {
@@ -204,27 +205,31 @@ void register_midi_device(char *myname) {
                                    card, device, sub, snd_strerror(ret));
                     break;
                 }
-		if (found) break;
 		devnam = snd_rawmidi_info_get_name(info);
 		subnam = snd_rawmidi_info_get_subdevice_name(info);
-		// If there is only one sub-device and it has no name, we  use
-		// devnam for comparison and make a portname of form "hw:x,y",
-		// else we use subnam for comparison and make a portname of form "hw:x,y,z".
-                if (sub == 0 && subnam[0] == '\0') {
-		    sprintf(portname,"hw:%d,%d", card, device);
-		} else {
-		    sprintf(portname,"hw:%d,%d,%d", card, device, sub);
-		    devnam=subnam;
-		}
 		if (!strncmp(myname, devnam, mylen)) {
 		    found=1;
+                    // free() portname at the end of midi_thread
+                    portname=malloc(64);
+		    // If there is only one sub-device and it has no name, we  use
+		    // devnam for comparison and make a portname of form "hw:x,y",
+		    // else we use subnam for comparison and make a portname of form "hw:x,y,z".
+                    if (sub == 0 && subnam[0] == '\0') {
+		        sprintf(portname,"hw:%d,%d", card, device);
+		    } else {
+		        sprintf(portname,"hw:%d,%d,%d", card, device, sub);
+		        devnam=subnam;
+		    }
 		    fprintf(stderr,"MIDI device %s selected (PortName=%s)\n", devnam, portname);
 		} else {
-                    fprintf(stderr,"MIDI device found BUT NOT SELECTED: %s\n", devnam);
+                    fprintf(stderr,"MIDI device %s not matching %s\n", devnam, myname);
 		}
+                if (found) break;
 	    }
+            if (found) break;
 	}
 	snd_ctl_close(ctl);
+        if (found) break;
 	// next card
         if ((ret = snd_card_next(&card)) < 0) {
             fprintf(stderr,"cannot determine card number: %s\n", snd_strerror(ret));
@@ -236,7 +241,9 @@ void register_midi_device(char *myname) {
         return;
     }
     // Found our MIDI input device. Spawn off a thread reading data
-    ret = pthread_create(&midi_thread_id, NULL, midi_thread, NULL);
+    // (use the same variable midi_thread_id for all MIDI threads
+    // since it is not used again).
+    ret = pthread_create(&midi_thread_id, NULL, midi_thread, portname);
     if (ret < 0) {
 	fprintf(stderr,"Failed to create MIDI read thread\n");
     }
