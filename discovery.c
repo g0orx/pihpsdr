@@ -567,7 +567,7 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
 #endif
 
 #ifdef GPIO
-    controller=CONTROLLER2_V2;
+    controller=NO_CONTROLLER;
     gpio_set_defaults(controller);
     gpio_restore_state();
 
