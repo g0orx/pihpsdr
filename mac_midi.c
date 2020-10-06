@@ -164,12 +164,11 @@ void register_midi_device(char *myname) {
 	    MIDIObjectGetStringProperty(dev, kMIDIPropertyName, &pname);
 	    CFStringGetCString(pname, name, sizeof(name), 0);
 	    CFRelease(pname);
-	    fprintf(stderr,"MIDI device found: >>>%s<<<\n", name);
 	    if (!strncmp(name, myname, mylen)) {
 		FoundMIDIref=i;
-		fprintf(stderr,"MIDI device found and selected: >>>%s<<<\n", name);
+		fprintf(stderr,"MIDI: registering device >%s<\n", name);
 	    } else {
-		fprintf(stderr,"MIDI device found BUT NOT SELECTED: >>>%s<<<\n", name);
+		fprintf(stderr,"MIDI: looking for >%s< so %s does not match\n", myname,name);
 	    }
 	}
     }
