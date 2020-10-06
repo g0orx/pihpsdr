@@ -581,10 +581,12 @@ void vfo_a_to_b() {
   vfo[VFO_B].frequency=vfo[VFO_A].frequency;
   vfo[VFO_B].mode=vfo[VFO_A].mode;
   vfo[VFO_B].filter=vfo[VFO_A].filter;
-  vfo[VFO_B].lo=vfo[VFO_A].lo;
-  vfo[VFO_B].offset=vfo[VFO_A].offset;
+  vfo[VFO_B].ctun=vfo[VFO_A].ctun;
+  vfo[VFO_B].ctun_frequency=vfo[VFO_A].ctun_frequency;
   vfo[VFO_B].rit_enabled=vfo[VFO_A].rit_enabled;
   vfo[VFO_B].rit=vfo[VFO_A].rit;
+  vfo[VFO_B].lo=vfo[VFO_A].lo;
+  vfo[VFO_B].offset=vfo[VFO_A].offset;
 
   if(receivers==2) {
     receiver_vfo_changed(receiver[1]);
@@ -604,10 +606,13 @@ void vfo_b_to_a() {
   vfo[VFO_A].frequency=vfo[VFO_B].frequency;
   vfo[VFO_A].mode=vfo[VFO_B].mode;
   vfo[VFO_A].filter=vfo[VFO_B].filter;
-  vfo[VFO_A].lo=vfo[VFO_B].lo;
-  vfo[VFO_A].offset=vfo[VFO_B].offset;
+  vfo[VFO_A].ctun=vfo[VFO_B].ctun;
+  vfo[VFO_A].ctun_frequency=vfo[VFO_B].ctun_frequency;
   vfo[VFO_A].rit_enabled=vfo[VFO_B].rit_enabled;
   vfo[VFO_A].rit=vfo[VFO_B].rit;
+  vfo[VFO_A].lo=vfo[VFO_B].lo;
+  vfo[VFO_A].offset=vfo[VFO_B].offset;
+
   receiver_vfo_changed(receiver[0]);
   set_alex_rx_antenna();
   if(can_transmit) {
@@ -624,40 +629,48 @@ void vfo_a_swap_b() {
   long long temp_frequency;
   int temp_mode;
   int temp_filter;
-  int temp_lo;
-  int temp_offset;
+  int temp_ctun;
+  long long temp_ctun_frequency;
   int temp_rit_enabled;
-  int temp_rit;
+  long long temp_rit;
+  long long temp_lo;
+  long long temp_offset;
 
   temp_band=vfo[VFO_A].band;
   temp_bandstack=vfo[VFO_A].bandstack;
   temp_frequency=vfo[VFO_A].frequency;
   temp_mode=vfo[VFO_A].mode;
   temp_filter=vfo[VFO_A].filter;
-  temp_lo=vfo[VFO_A].lo;
-  temp_offset=vfo[VFO_A].offset;
+  temp_ctun=vfo[VFO_A].ctun;
+  temp_ctun_frequency=vfo[VFO_A].ctun_frequency;
   temp_rit_enabled=vfo[VFO_A].rit_enabled;
   temp_rit=vfo[VFO_A].rit;
+  temp_lo=vfo[VFO_A].lo;
+  temp_offset=vfo[VFO_A].offset;
 
   vfo[VFO_A].band=vfo[VFO_B].band;
   vfo[VFO_A].bandstack=vfo[VFO_B].bandstack;
   vfo[VFO_A].frequency=vfo[VFO_B].frequency;
   vfo[VFO_A].mode=vfo[VFO_B].mode;
   vfo[VFO_A].filter=vfo[VFO_B].filter;
-  vfo[VFO_A].lo=vfo[VFO_B].lo;
-  vfo[VFO_A].offset=vfo[VFO_B].offset;
+  vfo[VFO_A].ctun=vfo[VFO_B].ctun;
+  vfo[VFO_A].ctun_frequency=vfo[VFO_B].ctun_frequency;
   vfo[VFO_A].rit_enabled=vfo[VFO_B].rit_enabled;
   vfo[VFO_A].rit=vfo[VFO_B].rit;
+  vfo[VFO_A].lo=vfo[VFO_B].lo;
+  vfo[VFO_A].offset=vfo[VFO_B].offset;
 
   vfo[VFO_B].band=temp_band;
   vfo[VFO_B].bandstack=temp_bandstack;
   vfo[VFO_B].frequency=temp_frequency;
   vfo[VFO_B].mode=temp_mode;
   vfo[VFO_B].filter=temp_filter;
-  vfo[VFO_B].lo=temp_lo;
-  vfo[VFO_B].offset=temp_offset;
+  vfo[VFO_B].ctun=temp_ctun;
+  vfo[VFO_B].ctun_frequency=temp_ctun_frequency;
   vfo[VFO_B].rit_enabled=temp_rit_enabled;
   vfo[VFO_B].rit=temp_rit;
+  vfo[VFO_B].lo=temp_lo;
+  vfo[VFO_B].offset=temp_offset;
 
   receiver_vfo_changed(receiver[0]);
   if(receivers==2) {
