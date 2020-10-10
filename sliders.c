@@ -158,6 +158,7 @@ static void attenuation_value_changed_cb(GtkWidget *widget, gpointer data) {
 
 void set_attenuation_value(double value) {
   adc_attenuation[active_receiver->adc]=(int)value;
+  set_attenuation(adc_attenuation[active_receiver->adc]);
   if(display_sliders) {
     if (have_rx_gain) {
 	gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc_attenuation[active_receiver->adc]);
@@ -200,7 +201,6 @@ void set_attenuation_value(double value) {
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
     }
   }
-  set_attenuation(adc_attenuation[active_receiver->adc]);
 }
 
 void update_att_preamp(void) {
@@ -703,6 +703,8 @@ void set_squelch() {
 }
 
 void set_compression(TRANSMITTER* tx) {
+  // Update VFO panel to reflect changed value
+  g_idle_add(ext_vfo_update, NULL);
 #ifdef COMPRESSION_SLIDER_INSTEAD_OF_SQUELCH
   if(display_sliders) {
     gtk_range_set_value (GTK_RANGE(comp_scale),tx->compressor_level);
@@ -735,8 +737,6 @@ void set_compression(TRANSMITTER* tx) {
 #ifdef COMPRESSION_SLIDER_INSTEAD_OF_SQUELCH
   }
 #endif
-  // Now we are also displaying the TX compressor value in the VFO panel
-  g_idle_add(ext_vfo_update, NULL);
 }
 
 void show_diversity_gain() {
