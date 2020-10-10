@@ -372,30 +372,20 @@ static void* keyer_thread(void *arg) {
 	// interrupt the automatic transmission by hitting a key, we want to automatically
 	// switch back to RX. This is flagged by the variable enforce_cw_vox.
 	//
-	// CAVEAT: When doing CW, one might reach the hang time and immedeately thereafter
-	// continue CW transmission. In this case we may arrive here *before* the RX/TX
-	// transition is completed and incorrectly assume the use of a foot switch.
-	//
-	// THEREFORE: when we do automatic TX/RX transition below we must wait until the
-	// TX/RX transition has been completed.
-	//
-	// DETAIL: do not induce RX/TX transition if not in CW mode
         txmode=get_tx_mode();
         moxbefore=mox;
         if (enforce_cw_vox) moxbefore=0;
         cwvox=0;   // if not using CW break-in this will stay at zero
 
         if (cw_breakin && (txmode == modeCWU || txmode == modeCWL)) {
-          //
-          // Possibly we are still in a TX/RX transition from the end of the last
-          // hang time. Therefore we must queue the "Mox on" even if MOX is still
-          // there
           g_idle_add(ext_mox_update, (gpointer)(long) 1);
+	  //
           // Wait for mox, that is, wait for WDSP shutting down the RX and
           // firing up the TX. This induces a small delay when hitting the key for
           // the first time, but excludes that the first dot is swallowed.
           // Note: if out-of-band, mox will never come, therefore
           // give up after 200 msec.
+	  //
           i=200;
           while ((!mox || cw_not_ready) && i-- > 0) usleep(1000L);
           cwvox=(int) cw_keyer_hang_time;
@@ -425,9 +415,12 @@ static void* keyer_thread(void *arg) {
 		    // we have just reduced cwvox from 1 to 0.
 		    if (!moxbefore) {
 			g_idle_add(ext_mox_update,(gpointer)(long) 0);
-			// see above: wait for mox really gone, but give up after 200 msec
-			// in order not to be "caught" here
-			i=200;
+			// Wait for MOX really gone. This is necessary since otherwise we may
+		 	// still "see" PTT active upon the next key stroke and therefore fail
+			// to go into CW-vox mode. However, only wait up to 250 msec
+                        // in order not to be
+			// "caught" here.
+			i=250;
 			while (mox && i-- > 0) usleep(1000L);
 		    }
 		} else {
