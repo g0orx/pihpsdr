@@ -288,8 +288,8 @@ long long tune_timeout;
 int analog_meter=0;
 int smeter=RXA_S_AV;
 
-int local_audio=0;
-int local_microphone=0;
+//int local_audio=0;
+//int local_microphone=0;
 
 int eer_pwm_min=100;
 int eer_pwm_max=800;
@@ -1187,6 +1187,26 @@ void start_radio() {
 
   radioRestoreState();
 
+  //
+  // This must come *after* radioRestoreState since this
+  // reads the local audio settings from the props file
+  // (and this is now removed from *_protocol_init and create_receiver)
+  //
+
+  for(int i=0;i<receivers;i++) {
+    receiver_restore_state(receiver[i]);
+    if(receiver[i]->local_audio) {
+      if (audio_open_output(receiver[i]) < 0) receiver[i]->local_audio=0;
+    }
+  }
+  if(transmitter->local_microphone && can_transmit) {
+    if(audio_open_input()!=0) {
+      g_print("audio_open_input failed\n");
+      transmitter->local_microphone=0;
+    }
+  }
+
+
 //
 // It is possible that an option has been read in
 // which is not compatible with the hardware.
@@ -2001,14 +2021,12 @@ g_print("radioRestoreState: %s\n",property_path);
     if(value) smeter=atoi(value);
     value=getProperty("alc");
     if(value) alc=atoi(value);
-#ifdef OLD_AUDIO
-    value=getProperty("local_audio");
-    if(value) local_audio=atoi(value);
-    value=getProperty("n_selected_output_device");
-    if(value) n_selected_output_device=atoi(value);
-#endif
-    value=getProperty("local_microphone");
-    if(value) local_microphone=atoi(value);
+//    value=getProperty("local_audio");
+//    if(value) local_audio=atoi(value);
+//    value=getProperty("n_selected_output_device");
+//    if(value) n_selected_output_device=atoi(value);
+//    value=getProperty("local_microphone");
+//    if(value) local_microphone=atoi(value);
 //    value=getProperty("n_selected_input_device");
 //    if(value) n_selected_input_device=atoi(value);
     value=getProperty("enable_tx_equalizer");
@@ -2299,14 +2317,12 @@ g_print("radioSaveState: %s\n",property_path);
     setProperty("smeter",value);
     sprintf(value,"%d",alc);
     setProperty("alc",value);
-#ifdef OLD_AUDIO
-    sprintf(value,"%d",local_audio);
-    setProperty("local_audio",value);
-    sprintf(value,"%d",n_selected_output_device);
-    setProperty("n_selected_output_device",value);
-#endif
-    sprintf(value,"%d",local_microphone);
-    setProperty("local_microphone",value);
+//    sprintf(value,"%d",local_audio);
+//    setProperty("local_audio",value);
+//    sprintf(value,"%d",n_selected_output_device);
+//    setProperty("n_selected_output_device",value);
+//    sprintf(value,"%d",local_microphone);
+//    setProperty("local_microphone",value);
 
     sprintf(value,"%d",enable_tx_equalizer);
     setProperty("enable_tx_equalizer",value);
@@ -2548,10 +2564,16 @@ int remote_start(void *data) {
 #endif
   radioRestoreState();
   create_visual();
+  if(transmitter->local_microphone) {
+    if(audio_open_input()!=0) {
+      g_print("audio_open_input failed\n");
+      transmitter->local_microphone=0;
+    }
+  }
   for(int i=0;i<receivers;i++) {
     receiver_restore_state(receiver[i]);
     if(receiver[i]->local_audio) {
-      if (audio_open_output(receiver[i]) < 0) receiver[i].local_audio=0;
+      if (audio_open_output(receiver[i]) < 0) receiver[i]->local_audio=0;
     }
   }
   reconfigure_radio();
