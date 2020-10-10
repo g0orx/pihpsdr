@@ -3928,6 +3928,7 @@ static gpointer serial_server(gpointer data) {
      }
      close(client->fd);
      cat_control--;
+     return NULL;
 }
 
 int launch_serial () {
