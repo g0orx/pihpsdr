@@ -1156,10 +1156,13 @@ fprintf(stderr,"RXASetMP %d\n",rx->low_latency);
 
   create_visual(rx);
 
+#if 0
+// now done in radio.c
 fprintf(stderr,"create_receiver: rx=%p id=%d local_audio=%d\n",rx,rx->id,rx->local_audio);
   if(rx->local_audio) {
     if (audio_open_output(rx) < 0) rx->local_audio=0;
   }
+#endif
 
   return rx;
 }
