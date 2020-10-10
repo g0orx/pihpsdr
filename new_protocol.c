@@ -296,7 +296,7 @@ static mybuffer *get_my_buffer() {
   int i;
   mybuffer *bp=buflist;
   while (bp) {
-    if (bp->free == 1) {
+    if (bp->free) {
       // found free buffer. Mark as used and return that one.
       bp->free=0;
       return bp;
@@ -476,21 +476,15 @@ void new_protocol_init(int pixels) {
 #endif
     micoutputsamples=buffer_size*4;
 
-#ifdef OLD_AUDIO
-    if(local_audio) {
-      if(audio_open_output()!=0) {
-        g_print("audio_open_output failed\n");
-        local_audio=0;
-      }
-    }
-#endif
-
+#if 0
+    // now done in radio.c
     if(transmitter->local_microphone) {
       if(audio_open_input()!=0) {
         g_print("audio_open_input failed\n");
         transmitter->local_microphone=0;
       }
     }
+#endif
 
 #ifdef INCLUDED
     new_protocol_calc_buffers();
