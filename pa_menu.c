@@ -280,7 +280,7 @@ void pa_menu(GtkWidget *parent) {
       break;
   }
 
-
+  int b=0;
   for(i=0;i<bands;i++) {
     BAND *band=band_get_band(i);
 
@@ -290,16 +290,39 @@ void pa_menu(GtkWidget *parent) {
     gtk_label_set_markup(GTK_LABEL(band_label), band_text);
     //gtk_widget_override_font(band_label, pango_font_description_from_string("Arial 18"));
     gtk_widget_show(band_label);
-    gtk_grid_attach(GTK_GRID(grid1),band_label,(i/6)*2,(i%6)+1,1,1);
+    gtk_grid_attach(GTK_GRID(grid1),band_label,(b/6)*2,(b%6)+1,1,1);
 
     GtkWidget *pa_r=gtk_spin_button_new_with_range(38.8,100.0,0.1);
     //gtk_widget_override_font(pa_r, pango_font_description_from_string("Arial 18"));
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(pa_r),(double)band->pa_calibration);
     gtk_widget_show(pa_r);
-    gtk_grid_attach(GTK_GRID(grid1),pa_r,((i/6)*2)+1,(i%6)+1,1,1);
+    gtk_grid_attach(GTK_GRID(grid1),pa_r,((b/6)*2)+1,(b%6)+1,1,1);
     g_signal_connect(pa_r,"value_changed",G_CALLBACK(pa_value_changed_cb),band);
+
+    b++;
   }
 
+  for(i=BANDS;i<BANDS+XVTRS;i++) {
+    BAND *band=band_get_band(i);
+    if(strlen(band->title)>0) {
+      GtkWidget *band_label=gtk_label_new(NULL);
+      char band_text[32];
+      sprintf(band_text,"<b>%s</b>",band->title);
+      gtk_label_set_markup(GTK_LABEL(band_label), band_text);
+      //gtk_widget_override_font(band_label, pango_font_description_from_string("Arial 18"));
+      gtk_widget_show(band_label);
+      gtk_grid_attach(GTK_GRID(grid1),band_label,(b/6)*2,(b%6)+1,1,1);
+
+      GtkWidget *pa_r=gtk_spin_button_new_with_range(38.8,100.0,0.1);
+      //gtk_widget_override_font(pa_r, pango_font_description_from_string("Arial 18"));
+      gtk_spin_button_set_value(GTK_SPIN_BUTTON(pa_r),(double)band->pa_calibration);
+      gtk_widget_show(pa_r);
+      gtk_grid_attach(GTK_GRID(grid1),pa_r,((b/6)*2)+1,(b%6)+1,1,1);
+      g_signal_connect(pa_r,"value_changed",G_CALLBACK(pa_value_changed_cb),band);
+
+      b++;
+    }
+  }
 
   gtk_notebook_append_page(GTK_NOTEBOOK(notebook),grid1,gtk_label_new("Calibrate"));
 
