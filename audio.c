@@ -182,7 +182,7 @@ g_print("audio_open_input: %s\n",transmitter->microphone_name);
 
   g_print("audio_open_input: mic_buffer_size=%d\n",mic_buffer_size);
   i=0;
-  while(transmitter->microphone_name[i]!=' ') {
+  while(i<63 && transmitter->microphone_name[i]!=' ') {
     hw[i]=transmitter->microphone_name[i];
     i++;
   }
