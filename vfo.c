@@ -270,6 +270,7 @@ void vfo_xvtr_changed() {
 
 void vfo_band_changed(int id,int b) {
   BANDSTACK *bandstack;
+  int m;
 
 #ifdef CLIENT_SERVER
   if(radio_is_remote) {
@@ -301,6 +302,22 @@ void vfo_band_changed(int id,int b) {
   vfo[id].mode=entry->mode;
   vfo[id].filter=entry->filter;
   vfo[id].lo=band->frequencyLO+band->errorLO;
+
+  //
+  // Change to the filter/NR combination stored for this mode
+  //
+  m=vfo[id].mode;
+
+  vfo[id].filter      =mode_settings[m].filter;
+  active_receiver->nr =mode_settings[m].nr;
+  active_receiver->nr2=mode_settings[m].nr2;
+  active_receiver->nb =mode_settings[m].nb;
+  active_receiver->nb2=mode_settings[m].nb2;
+  active_receiver->anf=mode_settings[m].anf;
+  active_receiver->snb=mode_settings[m].snb;
+
+  // make changes effective
+  g_idle_add(ext_update_noise, NULL);
 
   // turn off ctun
   vfo[id].ctun=0;
@@ -480,10 +497,12 @@ void vfo_a_to_b() {
   vfo[VFO_B].frequency=vfo[VFO_A].frequency;
   vfo[VFO_B].mode=vfo[VFO_A].mode;
   vfo[VFO_B].filter=vfo[VFO_A].filter;
-  vfo[VFO_B].lo=vfo[VFO_A].lo;
-  vfo[VFO_B].offset=vfo[VFO_A].offset;
+  vfo[VFO_B].ctun=vfo[VFO_A].ctun;
+  vfo[VFO_B].ctun_frequency=vfo[VFO_A].ctun_frequency;
   vfo[VFO_B].rit_enabled=vfo[VFO_A].rit_enabled;
   vfo[VFO_B].rit=vfo[VFO_A].rit;
+  vfo[VFO_B].lo=vfo[VFO_A].lo;
+  vfo[VFO_B].offset=vfo[VFO_A].offset;
 
   if(receivers==2) {
     receiver_vfo_changed(receiver[1]);
@@ -500,10 +519,13 @@ void vfo_b_to_a() {
   vfo[VFO_A].frequency=vfo[VFO_B].frequency;
   vfo[VFO_A].mode=vfo[VFO_B].mode;
   vfo[VFO_A].filter=vfo[VFO_B].filter;
-  vfo[VFO_A].lo=vfo[VFO_B].lo;
-  vfo[VFO_A].offset=vfo[VFO_B].offset;
+  vfo[VFO_A].ctun=vfo[VFO_B].ctun;
+  vfo[VFO_A].ctun_frequency=vfo[VFO_B].ctun_frequency;
   vfo[VFO_A].rit_enabled=vfo[VFO_B].rit_enabled;
   vfo[VFO_A].rit=vfo[VFO_B].rit;
+  vfo[VFO_A].lo=vfo[VFO_B].lo;
+  vfo[VFO_A].offset=vfo[VFO_B].offset;
+
   receiver_vfo_changed(receiver[0]);
   if(can_transmit) {
     tx_set_mode(transmitter,get_tx_mode());
@@ -517,40 +539,48 @@ void vfo_a_swap_b() {
   long long temp_frequency;
   int temp_mode;
   int temp_filter;
-  int temp_lo;
-  int temp_offset;
+  int temp_ctun;
+  long long temp_ctun_frequency;
   int temp_rit_enabled;
-  int temp_rit;
+  long long temp_rit;
+  long long temp_lo;
+  long long temp_offset;
 
   temp_band=vfo[VFO_A].band;
   temp_bandstack=vfo[VFO_A].bandstack;
   temp_frequency=vfo[VFO_A].frequency;
   temp_mode=vfo[VFO_A].mode;
   temp_filter=vfo[VFO_A].filter;
-  temp_lo=vfo[VFO_A].lo;
-  temp_offset=vfo[VFO_A].offset;
+  temp_ctun=vfo[VFO_A].ctun;
+  temp_ctun_frequency=vfo[VFO_A].ctun_frequency;
   temp_rit_enabled=vfo[VFO_A].rit_enabled;
   temp_rit=vfo[VFO_A].rit;
+  temp_lo=vfo[VFO_A].lo;
+  temp_offset=vfo[VFO_A].offset;
 
   vfo[VFO_A].band=vfo[VFO_B].band;
   vfo[VFO_A].bandstack=vfo[VFO_B].bandstack;
   vfo[VFO_A].frequency=vfo[VFO_B].frequency;
   vfo[VFO_A].mode=vfo[VFO_B].mode;
   vfo[VFO_A].filter=vfo[VFO_B].filter;
-  vfo[VFO_A].lo=vfo[VFO_B].lo;
-  vfo[VFO_A].offset=vfo[VFO_B].offset;
+  vfo[VFO_A].ctun=vfo[VFO_B].ctun;
+  vfo[VFO_A].ctun_frequency=vfo[VFO_B].ctun_frequency;
   vfo[VFO_A].rit_enabled=vfo[VFO_B].rit_enabled;
   vfo[VFO_A].rit=vfo[VFO_B].rit;
+  vfo[VFO_A].lo=vfo[VFO_B].lo;
+  vfo[VFO_A].offset=vfo[VFO_B].offset;
 
   vfo[VFO_B].band=temp_band;
   vfo[VFO_B].bandstack=temp_bandstack;
   vfo[VFO_B].frequency=temp_frequency;
   vfo[VFO_B].mode=temp_mode;
   vfo[VFO_B].filter=temp_filter;
-  vfo[VFO_B].lo=temp_lo;
-  vfo[VFO_B].offset=temp_offset;
+  vfo[VFO_B].ctun=temp_ctun;
+  vfo[VFO_B].ctun_frequency=temp_ctun_frequency;
   vfo[VFO_B].rit_enabled=temp_rit_enabled;
   vfo[VFO_B].rit=temp_rit;
+  vfo[VFO_B].lo=temp_lo;
+  vfo[VFO_B].offset=temp_offset;
 
   receiver_vfo_changed(receiver[0]);
   if(receivers==2) {
@@ -1105,7 +1135,7 @@ void vfo_update() {
         if(can_transmit) {
           cairo_move_to(cr, 330, 50);  
   	  if (transmitter->compressor) {
-  	      sprintf(temp_text,"CMPR %d dB",(int) transmitter->compressor_level);
+              sprintf(temp_text,"CMPR %d",(int) transmitter->compressor_level);
               cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
               cairo_show_text(cr, temp_text);
 	  } else {
@@ -1113,6 +1143,16 @@ void vfo_update() {
               cairo_show_text(cr, "CMPR OFF");
 	  }
         }
+        //
+        // Indicate whether an equalizer is active
+        //
+        cairo_move_to(cr, 400, 50);
+        if ((isTransmitting() && enable_tx_equalizer) || (!isTransmitting() && enable_rx_equalizer)) {
+          cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
+        } else {
+          cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
+        }
+        cairo_show_text(cr, "EQ");
 
         cairo_move_to(cr, 500, 50);  
         if(diversity_enabled) {

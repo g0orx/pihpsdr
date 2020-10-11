@@ -94,6 +94,8 @@ static gboolean enable_cb (GtkWidget *widget, GdkEventButton *event, gpointer da
     enable_rx_equalizer=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
     SetRXAEQRun(active_receiver->id, enable_rx_equalizer);
   }
+  // EQ status is now shown in VFO bar
+  g_idle_add(ext_vfo_update, NULL);
   return FALSE;
 }
 
