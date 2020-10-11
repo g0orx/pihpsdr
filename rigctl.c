@@ -3341,7 +3341,7 @@ int parse_cmd(void *data) {
         case 'A': //SA
           // set/read stallite mode status
           if(command[2]==';') {
-            sprintf(reply,"SA%d%d%d%d%d%d%dSAT?    ;",sat_mode==SAT_MODE|sat_mode==RSAT_MODE,0,0,0,sat_mode=SAT_MODE,sat_mode=RSAT_MODE,0);
+            sprintf(reply,"SA%d%d%d%d%d%d%dSAT?    ;",sat_mode==SAT_MODE|sat_mode==RSAT_MODE,0,0,0,sat_mode==SAT_MODE,sat_mode==RSAT_MODE,0);
             send_resp(client->fd,reply);
           } else if(command[9]==';') {
             if(command[2]=='0') {
@@ -3928,6 +3928,7 @@ static gpointer serial_server(gpointer data) {
      }
      close(client->fd);
      cat_control--;
+     return NULL;
 }
 
 int launch_serial () {

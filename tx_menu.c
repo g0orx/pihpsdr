@@ -193,13 +193,17 @@ static void local_microphone_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void micin_changed(GtkWidget *widget, gpointer data) {
-  mic_linein=0;
-  g_idle_add(ext_sliders_update,NULL);
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
+    mic_linein=0;
+    g_idle_add(ext_sliders_update,NULL);
+  }
 }
 
 static void linein_changed(GtkWidget *widget, gpointer data) {
-  mic_linein=1;
-  g_idle_add(ext_sliders_update,NULL);
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
+    mic_linein=1;
+    g_idle_add(ext_sliders_update,NULL);
+  }
 }
 
 static void local_input_changed_cb(GtkWidget *widget, gpointer data) {
@@ -290,9 +294,18 @@ void tx_menu(GtkWidget *parent) {
     }
 
     // If the combo box shows no device, take the first one
+    // AND set the mic.name to that device name.
+    // This situation occurs if the local microphone device in the props
+    // file is no longer present
+
     i=gtk_combo_box_get_active(GTK_COMBO_BOX(input));
     if (i < 0) {
       gtk_combo_box_set_active(GTK_COMBO_BOX(input),0);
+      if(transmitter->microphone_name!=NULL) {
+        g_free(transmitter->microphone_name);
+      }
+      transmitter->microphone_name=g_new(gchar,strlen(input_devices[0].name)+1);
+      strcpy(transmitter->microphone_name,input_devices[0].name);
     }
 
     gtk_grid_attach(GTK_GRID(grid),input,col,row,3,1);
@@ -520,18 +533,19 @@ void tx_menu(GtkWidget *parent) {
   gtk_spin_button_set_value(GTK_SPIN_BUTTON(ctcss_spin),(double)transmitter->ctcss_frequency);
   gtk_grid_attach(GTK_GRID(grid),ctcss_spin,col,row,1,1);
   g_signal_connect(ctcss_spin,"value-changed",G_CALLBACK(ctcss_spin_cb),NULL);
-  
+*/  
   row++;
   col=0;
-*/
+
   GtkWidget *tune_use_drive_b=gtk_check_button_new_with_label("Tune use drive");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (tune_use_drive_b), transmitter->tune_use_drive);
   gtk_widget_show(tune_use_drive_b);
   gtk_grid_attach(GTK_GRID(grid),tune_use_drive_b,col,row,1,1);
   g_signal_connect(tune_use_drive_b,"toggled",G_CALLBACK(tune_use_drive_cb),NULL);
 
-  row++;
-  col=0;
+  //row++;
+  //col=0;
+  col++;
   
   GtkWidget *tune_percent_label=gtk_label_new(NULL);
   gtk_label_set_markup(GTK_LABEL(tune_percent_label), "<b>Tune Percent:</b>");
