@@ -1228,7 +1228,7 @@ void vfo_update() {
         if(can_transmit) {
           cairo_move_to(cr, 330, 50);  
   	  if (transmitter->compressor) {
-  	      sprintf(temp_text,"CMPR %d",(int) transmitter->compressor_level);
+              sprintf(temp_text,"CMPR %d",(int) transmitter->compressor_level);
               cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
               cairo_show_text(cr, temp_text);
 	  } else {
