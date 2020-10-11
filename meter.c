@@ -625,15 +625,24 @@ if(analog_meter) {
         cairo_move_to(cr, offset+(double)(114*db)-6.0, (double)meter_height-1);
         cairo_show_text(cr, "+60");
 
-        cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
         // if frequency > 30MHz then -93 is S9
         double l=fmax(-127.0,level);
         if(vfo[active_receiver->id].frequency>30000000LL) {
           l=level+20.0;
         }
         
+        //cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
+	// use gradient to draw green below S9 else red
+	cairo_pattern_t *pat=cairo_pattern_create_linear(0.0,0.0,114.0,0.0);
+	cairo_pattern_add_color_stop_rgb(pat,0.0,0.0,1.0,0.0); // Green
+	cairo_pattern_add_color_stop_rgb(pat,0.5,0.0,1.0,0.0); // Green
+	cairo_pattern_add_color_stop_rgb(pat,0.5,1.0,0.0,0.0); // Red
+	cairo_pattern_add_color_stop_rgb(pat,1.0,1.0,0.0,0.0); // Red
+        cairo_set_source(cr, pat);
+
         cairo_rectangle(cr, offset+0.0, (double)(meter_height-40), (double)((l+127.0)*db), 20.0);
         cairo_fill(cr);
+	cairo_pattern_destroy(pat);
 
         if(l>max_level || max_count==10) {
           max_level=l;
