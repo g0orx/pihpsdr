@@ -131,6 +131,11 @@ g_print("oc_menu: parent=%p\n",parent);
 
   GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
 
+  GtkWidget *sw=gtk_scrolled_window_new (NULL, NULL);
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sw),GTK_POLICY_AUTOMATIC,GTK_POLICY_ALWAYS);
+  gtk_widget_set_size_request(sw, 600, 400);
+  GtkWidget *viewport=gtk_viewport_new(NULL,NULL);
+
   GtkWidget *grid=gtk_grid_new();
   gtk_grid_set_column_spacing (GTK_GRID(grid),10);
   //gtk_grid_set_row_spacing (GTK_GRID(grid),10);
@@ -305,7 +310,9 @@ g_print("oc_menu: parent=%p\n",parent);
   g_signal_connect(oc_memory_tune_time_b,"value_changed",G_CALLBACK(oc_memory_tune_time_cb),NULL);
   j++;
 
-  gtk_container_add(GTK_CONTAINER(content),grid);
+  gtk_container_add(GTK_CONTAINER(viewport),grid);
+  gtk_container_add(GTK_CONTAINER(sw),viewport);
+  gtk_container_add(GTK_CONTAINER(content),sw);
 
   sub_menu=dialog;
 
