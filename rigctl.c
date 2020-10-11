@@ -204,12 +204,11 @@ static int  cat_cw_seen=0;
 
 static int dotsamples;
 static int dashsamples;
-static int InterCharacterSamples;
 
 //
-// send_dash()          send a "key-down" of a dashlen, followed by a "key-up" of a dotlen
-// send_dot()           send a "key-down" of a dotlen,  followed by a "key-up" of a dotlen
-// send_space(int smpl) send a "key_down" of zero,      followed by a "key-up" of smpl
+// send_dash()         send a "key-down" of a dashlen, followed by a "key-up" of a dotlen
+// send_dot()          send a "key-down" of a dotlen,  followed by a "key-up" of a dotlen
+// send_space(int len) send a "key_down" of zero,      followed by a "key-up" of len*dotlen
 //
 // The "trick" to get proper timing is, that we really specify  the number of samples
 // for the next element (dash/dot/nothing) and the following pause. 30 wpm is no
@@ -252,7 +251,7 @@ void send_dot() {
   cw_key_up   = dotsamples;
 }
 
-void send_space(int smpl) {
+void send_space(int len) {
   int TimeToGo;
     for(;;) {
     TimeToGo=cw_key_up+cw_key_down;
@@ -266,7 +265,7 @@ void send_space(int smpl) {
   }
   // If local CW keying has set in, do not interfere
   if (cw_key_hit || cw_not_ready) return;
-  cw_key_up = smpl;
+  cw_key_up = len*dotsamples;
 }
 
 void rigctl_send_cw_char(char cw_char) {
@@ -375,20 +374,16 @@ void rigctl_send_cw_char(char cw_char) {
 
     // The last element (dash or dot) sent already has one dotlen space appended.
     // If the current character is another "printable" sign, we need an additional
-    // pause of about 2 dotlens to form the inter-character spacing.
+    // pause of 2 dotlens to form the inter-character spacing of 3 dotlens.
     // However if the current character is a "space" we must produce an inter-word
     // spacing (7 dotlens) and therefore need 6 additional dotlens
     // We need no longer take care of a sequence of spaces since adjacent spaces
     // are now filtered out while filling the CW character (ring-) buffer.
-    //
-    // The value of InterCharacterSamples is close to 2*dotsamples, but may be
-    // a little longer if inter-character space is a little bit stretched.
-    // here.
 
     if (cw_char == ' ') {
-      send_space(6*dotsamples);             // produce inter-word space of 7 dotlens
+      send_space(6);  // produce inter-word space of 7 dotlens
     } else {
-      send_space(InterCharacterSamples);    // produce inter-character space
+      send_space(2);  // produce inter-character space of 3 dotlens
     }
 }
 
@@ -456,36 +451,9 @@ static gpointer rigctl_cw_thread(gpointer data)
     // The dot and dash length may have changed, so recompute them here
     // This means that we can change the speed (KS command) while
     // the buffer is being sent
-    // Note that InterCharacterSamples is the amount of "silent"
-    // samples *in addition to* the one-dotlength pause that follows
-    // each dot or dash.
-    //
 
-#ifdef STRETCHED_CW
-    //
-    // Stretch inter-character spacing from 3 to 3.5 dots,
-    // so the dotlen must be shortened a little bit to give
-    // the same speed in words per minute:
-    // "PARIS" now has 52 dots instead of 50.
-    //
-    //  55385 = 60 * 48000 / 52
-    //   3323 = (60 * 48000 * 3) / (52 * 50)
-    // 138462 = (60 * 48000 * 5) / (52 * 2)
-    dotsamples = 55385 / cw_keyer_speed;
-    dashsamples = (3323 * cw_keyer_weight) / cw_keyer_speed;
-    InterCharacterSamples = 141284 / cw_keyer_speed;
-#else
-    //
-    // Standard CW timing with 3 dotlength inter-character spacing.
-    //
-    //  57600 = 60 * 48000 / 50
-    //   3456 = (60 * 48000 * 3) / (50 * 50)
-    // 115200 = (60 * 48000 * 2) / 50  
     dotsamples = 57600 / cw_keyer_speed;
     dashsamples = (3456 * cw_keyer_weight) / cw_keyer_speed;
-    InterCharacterSamples = 115200 / cw_keyer_speed;
-#endif
-
     CAT_cw_is_active=1;
     if (!mox) {
 	// activate PTT
