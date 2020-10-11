@@ -296,18 +296,12 @@ void old_protocol_init(int rx,int pixels,int rate) {
 
   old_protocol_set_mic_sample_rate(rate);
 
-#if 0
-  //
-  // Now done in radio.c, because local mic option is not yet
-  // read in when calling old_protocol_init
-  //
   if(transmitter->local_microphone) {
     if(audio_open_input()!=0) {
       g_print("audio_open_input failed\n");
       transmitter->local_microphone=0;
     }
   }
-#endif
 
   display_width=pixels;
  

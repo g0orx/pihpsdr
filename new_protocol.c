@@ -476,15 +476,19 @@ void new_protocol_init(int pixels) {
 #endif
     micoutputsamples=buffer_size*4;
 
-#if 0
-    // now done in radio.c
+//  if(local_audio) {
+//   if(audio_open_output()!=0) {
+//     g_print("audio_open_output failed\n");
+//     local_audio=0;
+//   }
+//  }
+
     if(transmitter->local_microphone) {
       if(audio_open_input()!=0) {
         g_print("audio_open_input failed\n");
         transmitter->local_microphone=0;
       }
     }
-#endif
 
 #ifdef INCLUDED
     new_protocol_calc_buffers();

@@ -281,8 +281,6 @@ fprintf(stderr,"soapy_protocol_init: SoapySDRDevice_make\n");
   }
   SoapySDRKwargs_clear(&args);
 
-#if 0
-  // now done in radio.c
   if(can_transmit) {
     if(transmitter->local_microphone) {
       if(audio_open_input()!=0) {
@@ -291,7 +289,6 @@ fprintf(stderr,"soapy_protocol_init: SoapySDRDevice_make\n");
       }
     }
   }
-#endif
 
 }
 

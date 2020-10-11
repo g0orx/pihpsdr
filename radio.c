@@ -1187,26 +1187,6 @@ void start_radio() {
 
   radioRestoreState();
 
-  //
-  // This must come *after* radioRestoreState since this
-  // reads the local audio settings from the props file
-  // (and this is now removed from *_protocol_init and create_receiver)
-  //
-
-  for(int i=0;i<receivers;i++) {
-    receiver_restore_state(receiver[i]);
-    if(receiver[i]->local_audio) {
-      if (audio_open_output(receiver[i]) < 0) receiver[i]->local_audio=0;
-    }
-  }
-  if(transmitter->local_microphone && can_transmit) {
-    if(audio_open_input()!=0) {
-      g_print("audio_open_input failed\n");
-      transmitter->local_microphone=0;
-    }
-  }
-
-
 //
 // It is possible that an option has been read in
 // which is not compatible with the hardware.
