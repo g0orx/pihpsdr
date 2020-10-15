@@ -141,4 +141,6 @@ extern int ext_remote_set_zoom(void *data);
 extern int ext_remote_set_pan(void *data);
 extern int ext_set_title(void *data);
 
+extern int ext_store_memory_slot(void *data);
+extern int ext_recall_memory_slot(void *data);
 

@@ -26,17 +26,8 @@
 
 #include "new_menu.h"
 #include "store_menu.h"
-#include "band.h"
-#include "bandstack.h"
-#include "filter.h"
-#include "mode.h"
-#include "radio.h"
-#include "rigctl.h"
-#include "band.h"
-#include "vfo.h"
 #include "button_text.h"
 #include "store.h"
-#include "ext.h"
 
 static GtkWidget *parent_window=NULL;
 
@@ -67,47 +58,19 @@ static gboolean store_select_cb (GtkWidget *widget, gpointer data) {
    fprintf(stderr,"STORE BUTTON PUSHED=%d\n",index);
    char workstr[40];
      
-   /* Update mem[data] with current info  */
+   store_memory_slot(index);
 
-   mem[index].frequency = vfo[active_receiver->id].frequency; // Store current frequency
-   mem[index].mode = vfo[active_receiver->id].mode;
-   mem[index].filter=vfo[active_receiver->id].filter;
+   sprintf(workstr,"M%d=%8.6f MHz", index,((double) mem[index].frequency)/1000000.0);
+   gtk_button_set_label(GTK_BUTTON(store_button[index]),workstr);
 
-    fprintf(stderr,"store_select_cb: Index=%d\n",index);
-    fprintf(stderr,"store_select_cb: freqA=%11lld\n",mem[index].frequency);
-    fprintf(stderr,"store_select_cb: mode=%d\n",mem[index].mode);
-    fprintf(stderr,"store_select_cb: filter=%d\n",mem[index].filter);
-
-    sprintf(workstr,"M%d=%8.6f MHz", index,((double) mem[index].frequency)/1000000.0);
-    gtk_button_set_label(GTK_BUTTON(store_button[index]),workstr);
-
-   // Save in the file now..
-   memSaveState();
-  return FALSE;
+   return FALSE;
 }
+
 
 static gboolean recall_select_cb (GtkWidget *widget, gpointer data) {
     int index = GPOINTER_TO_INT(data);
-    long long new_freq;
-    
-    //new_freq = mem[index].frequency;
-    strcpy(mem[index].title,"Active");
-    new_freq = mem[index].frequency;
-    fprintf(stderr,"recall_select_cb: Index=%d\n",index);
-    fprintf(stderr,"recall_select_cb: freqA=%11lld\n",new_freq);
-    fprintf(stderr,"recall_select_cb: mode=%d\n",mem[index].mode);
-    fprintf(stderr,"recall_select_cb: filter=%d\n",mem[index].filter);
-    
-    vfo[active_receiver->id].frequency = new_freq;
-    vfo[active_receiver->id].band = get_band_from_frequency(new_freq);
-    vfo[active_receiver->id].mode = mem[index].mode;
-    vfo[active_receiver->id].filter = mem[index].filter;
-    //vfo_band_changed(vfo[active_receiver->id].band);
-    vfo_filter_changed(mem[index].filter);
-    vfo_mode_changed(mem[index].mode);
-    g_idle_add(ext_vfo_update,NULL);
-
-  return FALSE;
+    recall_memory_slot(index);
+    return FALSE;
 }
 
 void store_menu(GtkWidget *parent) {

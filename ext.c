@@ -50,6 +50,7 @@
 #include "ext.h"
 #include "zoompan.h"
 #include "equalizer_menu.h"
+#include "store.h"
 
 
 // The following calls functions can be called usig g_idle_add
@@ -1151,5 +1152,15 @@ g_print("ext_remote_set_pan: %d\n",pan);
 
 int ext_set_title(void *data) {
   gtk_window_set_title(GTK_WINDOW(top_window),(char *)data);
+  return 0;
+}
+
+int ext_store_memory_slot(void *data) {
+  store_memory_slot(GPOINTER_TO_INT(data));
+  return 0;
+}
+
+int ext_recall_memory_slot(void *data) {
+  recall_memory_slot(GPOINTER_TO_INT(data));
   return 0;
 }

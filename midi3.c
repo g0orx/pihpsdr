@@ -22,6 +22,7 @@
 #include "ext.h"
 #include "agc.h"
 #include "midi.h"
+#include "store.h"
 #ifdef LOCALCW
 #include "iambic.h"
 #endif
@@ -602,6 +603,20 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    }
 #endif
 	    break;
+	/////////////////////////////////////////////////////////// "RECALLM[0-4]"
+	case MIDI_ACTION_MEM_RECALL_M0:
+	case MIDI_ACTION_MEM_RECALL_M1:
+	case MIDI_ACTION_MEM_RECALL_M2:
+	case MIDI_ACTION_MEM_RECALL_M3:
+	case MIDI_ACTION_MEM_RECALL_M4:
+            //
+	    // only knob supported
+            //
+            if (type == MIDI_TYPE_KNOB) {
+                new = action - MIDI_ACTION_MEM_RECALL_M0,
+		g_idle_add(ext_recall_memory_slot, GINT_TO_POINTER(new));
+	    }
+            break;
 	/////////////////////////////////////////////////////////// "RFGAIN"
         case MIDI_ACTION_RF_GAIN: // knob or wheel supported
             if (type == MIDI_TYPE_KNOB) {
@@ -725,6 +740,20 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
               g_idle_add(ext_split_toggle, NULL);
 	    }
 	    break;
+	/////////////////////////////////////////////////////////// "STOREM[0-4]"
+	case MIDI_ACTION_MEM_STORE_M0:
+	case MIDI_ACTION_MEM_STORE_M1:
+	case MIDI_ACTION_MEM_STORE_M2:
+	case MIDI_ACTION_MEM_STORE_M3:
+	case MIDI_ACTION_MEM_STORE_M4:
+            //
+	    // only knob supported
+            //
+            if (type == MIDI_TYPE_KNOB) {
+                new = action - MIDI_ACTION_MEM_STORE_M0;
+		g_idle_add(ext_recall_memory_slot, GINT_TO_POINTER(new));
+	    }
+            break;
 	/////////////////////////////////////////////////////////// "SWAPRX"
 	case MIDI_ACTION_SWAP_RX:	// only key supported
 	    if (type == MIDI_TYPE_KEY && receivers == 2) {

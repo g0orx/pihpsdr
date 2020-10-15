@@ -30,36 +30,11 @@
 #include "property.h"
 #include "store.h"
 #include "store_menu.h"
+#include "radio.h"
+#include "ext.h"
+#include "vfo.h"
 
-
-/*
-struct MEM {
-    char title[16];     // Begin BAND Struct
-    BANDSTACK *bandstack;
-    unsigned char OCrx;
-    unsigned char OCtx;
-    int preamp;
-    int alexRxAntenna;
-    int alexTxAntenna;
-    int alexAttenuation;
-    double pa_calibration;
-    long long frequencyMin;
-    long long frequencyMax;
-    long long frequencyLO;
-    int disablePA;
-    long long frequency; // Begin BANDSTACK_ENTRY
-    int mode;
-    int filter;
-    int var1Low;
-    int var1High;
-    int var2Low;
-    int var2High;
-}*/
 MEM mem[NUM_OF_MEMORYS];  // This makes it a compile time option
-
-/*                                           */
-/* Memory uses the same format as Band Stack */
-/* Implement NUM_OF_MEMORYS memory locations for now... */
 
 void memSaveState() {
     char name[128];
@@ -67,26 +42,18 @@ void memSaveState() {
     int b;
 
     for(b=0;b<NUM_OF_MEMORYS;b++) {
-      if(strlen(mem[b].title)>0) {
-        sprintf(name,"mem.%d.title",b);
-        setProperty(name,mem[b].title);
+      sprintf(value,"%lld",mem[b].frequency);
+      sprintf(name,"mem.%d.freqA",b);
+      setProperty(name,value);
 
-        sprintf(value,"%lld",mem[b].frequency);
-        sprintf(name,"mem.%d.freqA",b);
-        setProperty(name,value);
+      sprintf(value,"%d",mem[b].mode);
+      sprintf(name,"mem.%d.mode",b);
+      setProperty(name,value);
 
-        sprintf(value,"%d",mem[b].mode);
-        sprintf(name,"mem.%d.mode",b);
-        setProperty(name,value);
-
-        sprintf(value,"%d",mem[b].filter);
-        sprintf(name,"mem.%d.filter",b);
-        setProperty(name,value);
-      }
+      sprintf(value,"%d",mem[b].filter);
+      sprintf(name,"mem.%d.filter",b);
+      setProperty(name,value);
     }
-
-    //sprintf(value,"%d",band);
-    //setProperty("band",value);
 }
 
 void memRestoreState() {
@@ -97,7 +64,6 @@ void memRestoreState() {
     // Initialize the array with default values
     // Allows this to be a compile time option..
     for(b=0; b<NUM_OF_MEMORYS; b++) {
-       strcpy(mem[b].title,"10");  
        mem[b].frequency = 28010000LL;
        mem[b].mode = modeCWU;
        mem[b].filter = filterF0;
@@ -106,36 +72,74 @@ void memRestoreState() {
     fprintf(stderr,"memRestoreState: restore memory\n");
 
     for(b=0;b<NUM_OF_MEMORYS;b++) {
-        sprintf(name,"mem.%d.title",b);
-        value=getProperty(name);
-        if(value) {
-          strcpy(mem[b].title,value);
-          fprintf(stderr,"RESTORE: index=%d title=%s\n",b,value);
-	}
+      sprintf(name,"mem.%d.freqA",b);
+      value=getProperty(name);
+      if(value) {
+         mem[b].frequency=atoll(value);
+         fprintf(stderr,"RESTORE MEM:Mem %d=FreqA %11lld\n",b,mem[b].frequency);
+      }
 
-        sprintf(name,"mem.%d.freqA",b);
-        value=getProperty(name);
-        if(value) {
-	  mem[b].frequency=atoll(value);
-          fprintf(stderr,"RESTORE MEM:Mem %d=FreqA %11lld\n",b,mem[b].frequency);
-	}
+      sprintf(name,"mem.%d.mode",b);
+      value=getProperty(name);
+      if(value) {
+        mem[b].mode=atoi(value);
+        fprintf(stderr,"RESTORE: index=%d mode=%d\n",b,mem[b].mode);
+      }
 
-        sprintf(name,"mem.%d.mode",b);
-        value=getProperty(name);
-        if(value) {
-	  mem[b].mode=atoi(value);
-          fprintf(stderr,"RESTORE: index=%d mode=%d\n",b,mem[b].mode);
-	}
-
-        sprintf(name,"mem.%d.filter",b);
-        value=getProperty(name);
-        if(value) {
-	  mem[b].filter=atoi(value);
-          fprintf(stderr,"RESTORE: index=%d filter=%d\n",b,mem[b].filter);
-	}
+      sprintf(name,"mem.%d.filter",b);
+      value=getProperty(name);
+      if(value) {
+        mem[b].filter=atoi(value);
+        fprintf(stderr,"RESTORE: index=%d filter=%d\n",b,mem[b].filter);
+      }
     }
+}
 
-    //value=getProperty("band");
-    //if(value) band=atoi(value);
+void recall_memory_slot(int index) {
+    long long new_freq;
+    int id=active_receiver->id;
+
+    new_freq = mem[index].frequency;
+    fprintf(stderr,"recall_select_cb: Index=%d\n",index);
+    fprintf(stderr,"recall_select_cb: freqA=%11lld\n",new_freq);
+    fprintf(stderr,"recall_select_cb: mode=%d\n",mem[index].mode);
+    fprintf(stderr,"recall_select_cb: filter=%d\n",mem[index].filter);
+
+    //
+    // Recalling a memory slot is equivalent to the following actions
+    //
+    // a) set the new frequency via the "Freq" menu
+    // b) set the new mode via the "Mode" menu
+    // c) set the new filter via the "Filter" menu
+    //
+    // Step b) automatically restores the filter, noise reduction, and
+    // equalizer settings stored with that mode
+    //
+    // Step c) will not only change the filter but also store the new setting
+    // with that mode.
+    //
+    local_set_frequency(active_receiver->id, new_freq);
+    vfo_mode_changed(mem[index].mode);
+    vfo_filter_changed(mem[index].filter);
+    g_idle_add(ext_vfo_update,NULL);
+}
+
+void store_memory_slot(int index) {
+   char workstr[40];
+   int id=active_receiver->id;
+
+   //
+   // Store current frequency, mode, and filter in slot #index
+   //
+   mem[index].frequency = vfo[id].frequency;
+   mem[index].mode = vfo[id].mode;
+   mem[index].filter=vfo[id].filter;
+
+   fprintf(stderr,"store_select_cb: Index=%d\n",index);
+   fprintf(stderr,"store_select_cb: freqA=%11lld\n",mem[index].frequency);
+   fprintf(stderr,"store_select_cb: mode=%d\n",mem[index].mode);
+   fprintf(stderr,"store_select_cb: filter=%d\n",mem[index].filter);
+
+   memSaveState();
 }
 

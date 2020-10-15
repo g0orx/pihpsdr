@@ -30,8 +30,7 @@
 * @brief Band definition
 */
 struct _MEM_STORE {
-    char title[16];     // Begin BAND Struct
-    long long frequency; // Begin BANDSTACK_ENTRY
+    long long frequency;
     int mode;
     int filter;
 };
@@ -41,5 +40,7 @@ typedef struct _MEM_STORE MEM;
 extern MEM mem[];
 void memRestoreState(); 
 void memSaveState(); 
+void recall_memory_slot(int index);
+void store_memory_slot(int index);
 
 #endif
