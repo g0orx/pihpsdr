@@ -610,9 +610,9 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	case MIDI_ACTION_MEM_RECALL_M3:
 	case MIDI_ACTION_MEM_RECALL_M4:
             //
-	    // only knob supported
+	    // only key supported
             //
-            if (type == MIDI_TYPE_KNOB) {
+            if (type == MIDI_TYPE_KEY) {
                 new = action - MIDI_ACTION_MEM_RECALL_M0,
 		g_idle_add(ext_recall_memory_slot, GINT_TO_POINTER(new));
 	    }
@@ -747,11 +747,11 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	case MIDI_ACTION_MEM_STORE_M3:
 	case MIDI_ACTION_MEM_STORE_M4:
             //
-	    // only knob supported
+	    // only key supported
             //
-            if (type == MIDI_TYPE_KNOB) {
+            if (type == MIDI_TYPE_KEY) {
                 new = action - MIDI_ACTION_MEM_STORE_M0;
-		g_idle_add(ext_recall_memory_slot, GINT_TO_POINTER(new));
+		g_idle_add(ext_store_memory_slot, GINT_TO_POINTER(new));
 	    }
             break;
 	/////////////////////////////////////////////////////////// "SWAPRX"
