@@ -60,6 +60,10 @@ static void agc_hang_threshold_value_changed_cb(GtkWidget *widget, gpointer data
   active_receiver->agc_hang_threshold=(int)gtk_range_get_value(GTK_RANGE(widget));
   if(active_receiver->agc==AGC_LONG || active_receiver->agc==AGC_SLOW) {
     SetRXAAGCHangThreshold(active_receiver->id, (int)active_receiver->agc_hang_threshold);
+    //
+    // recalculate position of hang line for panadapter
+    //
+    GetRXAAGCHangLevel(active_receiver->id, &active_receiver->agc_hang);
   }
 }
 

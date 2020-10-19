@@ -716,6 +716,13 @@ void set_agc(RECEIVER *rx, int agc) {
       SetRXAAGCHangThreshold(rx->id,100);
       break;
   }
+  //
+  // Determine the "panadapter" AGC line positions. These are re-calculated
+  // the first time the AGC slider is moved, but we need correct values 
+  // until then.
+  // 
+  GetRXAAGCHangLevel(rx->id, &rx->agc_hang);
+  GetRXAAGCThresh(rx->id, &rx->agc_thresh, 4096.0, (double)rx->sample_rate);
 }
 
 void set_offset(RECEIVER *rx,long long offset) {
@@ -1203,6 +1210,10 @@ g_print("receiver_change_sample_rate: id=%d rate=%d scale=%d buffer_size=%d outp
     return;
   }
 #endif
+  //
+  // re-calculate AGC line for panadapter since it depends on sample rate
+  //
+  GetRXAAGCThresh(rx->id, &rx->agc_thresh, 4096.0, (double)rx->sample_rate);
   if (rx->audio_output_buffer != NULL) {
     g_free(rx->audio_output_buffer);
   }
