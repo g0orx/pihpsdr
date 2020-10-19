@@ -30,6 +30,7 @@
 #include "equalizer_menu.h"
 #include "radio.h"
 #include "channel.h"
+#include "ext.h"
 
 static GtkWidget *parent_window=NULL;
 
