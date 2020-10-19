@@ -208,7 +208,7 @@ static void linein_changed(GtkWidget *widget, gpointer data) {
 
 static void local_input_changed_cb(GtkWidget *widget, gpointer data) {
   int i = gtk_combo_box_get_active(GTK_COMBO_BOX(widget));
-g_print("local_input_changed_cp: %d %s\n",i,input_devices[i].name);
+g_print("local_input_changed_cb: %d %s\n",i,input_devices[i].name);
   if(transmitter->local_microphone) {
     audio_close_input();
   }
