@@ -105,6 +105,14 @@ static int		txdrive = 0;
 static int		txatt = 0;
 static int		sidetone_volume = -1;
 static int		cw_internal = -1;
+static int		envgain = 0;
+static int              pwmmin = 0;
+static int              pwmmax = 0;
+static int		adc2bpf = 0;
+static int		anan7kps = 0;
+static int		anan7kxvtr = 0;
+static int              dash = 0;
+static int              dot  = 0;
 static int		rx_att[2] = {-1,-1};
 static int		rx1_attE = -1;
 static int              rx_preamp[4] = {-1,-1,-1,-1};
@@ -905,7 +913,6 @@ void process_ep2(uint8_t *frame)
         int mod_ptt;
         int mod;
 
-        
 	chk_data(frame[0] & 1, ptt, "PTT");
 	switch (frame[0])
 	{
@@ -1132,6 +1139,20 @@ void process_ep2(uint8_t *frame)
 	case 33:
             chk_data((frame[1] << 2) | (frame[2] & 3), cw_hang, "CW HANG");
             chk_data((frame[3] << 4) | (frame[4] & 255), freq, "SIDE TONE FREQ");
+	    break;
+
+	case 34:
+	case 35:
+	    chk_data(frame[1] << 2 | (frame[2] & 3), pwmmin,"PWM MIN");
+	    chk_data(frame[3] << 2 | (frame[4] & 3), pwmmax,"PWM MAX");
+	    break;
+        
+	case 36:
+	case 37:
+	    chk_data(frame[1], adc2bpf,"ADC2 BPF settings");
+            chk_data(frame[2] & 0x02, anan7kxvtr, "Anan7k/8k XVTR enable");  
+	    chk_data(frame[2] & 0x40, anan7kps,  "Anan7k PureSignal flag");
+	    chk_data(frame[3] << 8 | frame[4], envgain, "Firmware EnvGain");
 	    break;
 	}
 }
