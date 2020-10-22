@@ -336,10 +336,6 @@ static void* keyer_thread(void *arg) {
     int moxbefore;
     int cwvox;
 
-//GR-uncomment
-//  struct timespec ts; double now;   // for debug code
-
-
     fprintf(stderr,"keyer_thread  state running= %d\n", running);
     while(running) {
         enforce_cw_vox=0;
@@ -445,10 +441,6 @@ static void* keyer_thread(void *arg) {
                     // If both paddles are pressed (should not happen), then
                     // the dash paddle wins.
                     if (*kdash) {                  // send manual dashes
-//GR-uncomment
-//clock_gettime(CLOCK_MONOTONIC, &ts);
-//now=ts.tv_sec + 1E-9*ts.tv_nsec;
-//g_print("key-down at %12.3f\n",now);
                       cw_key_down=960000;            // 20 sec maximum
                       cw_key_up=0;
                       gpio_cw_sidetone_set(1);
@@ -469,10 +461,6 @@ static void* keyer_thread(void *arg) {
 		// Wait for dash paddle being released in "straight key" mode.
                 //
                 if (! *kdash) {
-//GR-uncomment
-//clock_gettime(CLOCK_MONOTONIC, &ts);
-//now=ts.tv_sec + 1E-9*ts.tv_nsec;
-//g_print("key-up at %12.3f\n",now);
                   cw_key_down=0;
                   gpio_cw_sidetone_set(0);
                   key_state=CHECK;
