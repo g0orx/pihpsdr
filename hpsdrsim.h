@@ -55,8 +55,9 @@ EXTERN double noiseQtab[LENNOISE];
 // using DIVERSITY
 //
 EXTERN int diversity;
+EXTERN int noiseblank;
 
-#define LENDIV 16000
+#define LENDIV 48000
 EXTERN double divtab[LENDIV];
 //
 // An 800-Hz tone with 0 dBm

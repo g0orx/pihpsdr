@@ -229,6 +229,7 @@ int main(int argc, char *argv[])
 	// seed value for random number generator
 	seed = ((uintptr_t) &seed) & 0xffffff;
         diversity=0;
+        noiseblank=0;
         OLDDEVICE=DEVICE_ORION2;
         NEWDEVICE=NEW_DEVICE_ORION2;
 
@@ -246,6 +247,7 @@ int main(int argc, char *argv[])
             if (!strncmp(argv[i],"-audio",        6))  {do_audio=1;}
             if (!strncmp(argv[i],"-P1",           3))  {oldnew=1;}
             if (!strncmp(argv[i],"-P2",           3))  {oldnew=2;}
+            if (!strncmp(argv[i],"-nb",           3))  {noiseblank=1;}
         }
 
         switch (OLDDEVICE) {
@@ -282,7 +284,20 @@ int main(int argc, char *argv[])
 	  off += 0.016362461737446839783659600954581;
 	}
 
-	if (diversity) {
+        //
+        // Use only one buffer, so diversity and
+        // noise blanker testing are mutually exclusive
+        // so diversity==0 means "no man-made noise",
+        //    diversity==1 && noiseblank == 0 means "noise for testing diversity"
+        //    diversity==1 && noiseblank == 1 means "noise for testing noise blanker"
+        //
+        if (noiseblank) diversity=1;
+
+	if (diversity && !noiseblank) {
+          //
+          // The diversity signal is a "comb" with a lot
+          // of equally spaces cosines
+          //
 	  fprintf(stderr,"DIVERSITY testing activated!\n");
 	  fprintf(stderr,".... producing some man-made noise\n");
           memset(divtab, 0, LENDIV*sizeof(double));
@@ -307,6 +322,18 @@ int main(int argc, char *argv[])
 	    divtab[i]=divtab[i]*off;
 	  }
 	}
+
+        if (diversity && noiseblank) {
+           //
+           // Create impulse noise as a real-time signal
+           // 5 impulses per second
+           //
+           memset(divtab, 0, LENDIV*sizeof(double));
+           fprintf(stderr,"NOISE BLANKER test activated\n");
+           for (i=0; i<5; i++) {
+             for (j=9600*i; j< 9600*i+100; j++) divtab[j]=1.0;
+           }
+        }
 	
 //
 //      clear TX fifo
@@ -1285,11 +1312,15 @@ void *handler_ep6(void *arg)
 		    pointer += 8;
 		    memset(pointer, 0, 504);
 		    fac1=rxatt_dbl[0]*0.0002239;	// Amplitude of 800-Hz-signal to ADC1
-		    if (diversity) {
+		    if (diversity && !noiseblank) {
 			fac2=0.0001*rxatt_dbl[0];	// Amplitude of broad "man-made" noise to ADC1
 			fac4=0.0002*rxatt_dbl[1];	// Amplitude of broad "man-made" noise to ADC2
 							// (phase shifted 90 deg., 6 dB stronger)
 		    }
+                    if (diversity && noiseblank) {
+			fac2=0.001;
+			fac4=0.0;
+                    }
 		    for (j=0; j<n; j++) {
 			// ADC1: noise + weak tone on RX, feedback sig. on TX (except STEMlab)
 		        if (ptt && (OLDDEVICE != DEVICE_C25)) {
@@ -1299,7 +1330,7 @@ void *handler_ep6(void *arg)
 			  adc1isample= (txatt_dbl*i1*fac3+noiseItab[noiseIQpt]) * 8388607.0;
 			  adc1qsample= (txatt_dbl*q1*fac3+noiseItab[noiseIQpt]) * 8388607.0;
 			} else if (diversity) {
-			  // man made noise only to I samples
+			  // man made noise to ADC1 samples
 			  adc1isample= (noiseItab[noiseIQpt]+toneItab[toneIQpt]*fac1+divtab[divpt]*fac2) * 8388607.0;
 			  adc1qsample= (noiseQtab[noiseIQpt]+toneQtab[toneIQpt]*fac1                   ) * 8388607.0;
 			} else {
