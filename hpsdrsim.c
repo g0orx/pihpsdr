@@ -230,6 +230,8 @@ int main(int argc, char *argv[])
 	seed = ((uintptr_t) &seed) & 0xffffff;
         diversity=0;
         noiseblank=0;
+        nb_pulse=0;
+        nb_width=0;
         OLDDEVICE=DEVICE_ORION2;
         NEWDEVICE=NEW_DEVICE_ORION2;
 
@@ -247,7 +249,13 @@ int main(int argc, char *argv[])
             if (!strncmp(argv[i],"-audio",        6))  {do_audio=1;}
             if (!strncmp(argv[i],"-P1",           3))  {oldnew=1;}
             if (!strncmp(argv[i],"-P2",           3))  {oldnew=2;}
-            if (!strncmp(argv[i],"-nb",           3))  {noiseblank=1;}
+            if (!strncmp(argv[i],"-nb",           3))  {
+		noiseblank=1;
+                if (i < argc-1) sscanf(argv[++i],"%d",&nb_pulse);
+                if (i < argc-1) sscanf(argv[++i],"%d",&nb_width);
+                if (nb_pulse < 1 || nb_pulse > 200) nb_pulse=5;
+                if (nb_width < 1 || nb_width > 200) nb_width=100;
+            }
         }
 
         switch (OLDDEVICE) {
@@ -326,12 +334,16 @@ int main(int argc, char *argv[])
         if (diversity && noiseblank) {
            //
            // Create impulse noise as a real-time signal
-           // 5 impulses per second
+           // n impulses per second
+           // m samples wide
+           // about -80 dBm in 1000 Hz
            //
+           off=sqrt(0.05 / (nb_pulse*nb_width));
            memset(divtab, 0, LENDIV*sizeof(double));
-           fprintf(stderr,"NOISE BLANKER test activated\n");
-           for (i=0; i<5; i++) {
-             for (j=9600*i; j< 9600*i+100; j++) divtab[j]=1.0;
+           fprintf(stderr,"NOISE BLANKER test activated: %d pulses of width %d within %d samples\n",
+				nb_pulse, nb_width, LENDIV);
+           for (i=0; i<nb_pulse; i++) {
+             for (j=(i*LENDIV)/nb_pulse; j< (i*LENDIV)/nb_pulse+nb_width; j++) divtab[j]=off;
            }
         }
 	
@@ -1318,7 +1330,7 @@ void *handler_ep6(void *arg)
 							// (phase shifted 90 deg., 6 dB stronger)
 		    }
                     if (diversity && noiseblank) {
-			fac2=0.001;
+			fac2=0.1;
 			fac4=0.0;
                     }
 		    for (j=0; j<n; j++) {
