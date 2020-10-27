@@ -56,6 +56,7 @@ EXTERN double noiseQtab[LENNOISE];
 //
 EXTERN int diversity;
 EXTERN int noiseblank;
+EXTERN int nb_pulse, nb_width;
 
 #define LENDIV 48000
 EXTERN double divtab[LENDIV];
