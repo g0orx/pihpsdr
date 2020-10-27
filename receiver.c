@@ -1107,6 +1107,20 @@ fprintf(stderr,"create_receiver: OpenChannel id=%d buffer_size=%d fft_size=%d sa
               1, // run
               0.010, 0.025, 0.0, 0.010, 0);
 
+//
+// It has been reported that the piHPSDR noise blankers do not function 
+// satisfactorily. I could reproduce this after building an "impulse noise source"
+// into the HPSDR simulator, and also confirmed that a popular Windows SDR program
+// has much better NB/NB2 performance.
+//
+// Digging into it, I found the Windows SDR program used NB default parameters *very*
+// different from those recommended in the WDSP manual: slewtime, hangtime and advtime
+// default to 0.01 msec, and the threshold to 30 (which is internally multiplied with 0.165
+// to obtain the WDSP threshold parameter).
+//
+// Since there is currently no GUI in piHPSDR to change these values, they are now hard-
+// coded here (0.01 msec ==> 0.00001 sec, 30 ==> 4.95).
+//
   create_anbEXT(rx->id,1,  rx->buffer_size,rx->sample_rate,0.00001,0.00001,0.00001,0.05, 4.95);
   create_nobEXT(rx->id,1,0,rx->buffer_size,rx->sample_rate,0.00001,0.00001,0.00001,0.05, 4.95);
   
