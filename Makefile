@@ -475,8 +475,7 @@ controller2v2: clean $(PROGRAM)
 #############################################################################
 
 hpsdrsim.o:	hpsdrsim.c hpsdrsim.h
-#	$(CC) -c -O -DALSASOUND hpsdrsim.c
-	$(CC) -c -O hpsdrsim.c
+	$(CC) -c -O -DALSASOUND hpsdrsim.c
 
 newhpsdrsim.o:	newhpsdrsim.c hpsdrsim.h
 	$(CC) -c -O newhpsdrsim.c
