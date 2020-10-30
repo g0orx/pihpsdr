@@ -578,6 +578,78 @@ int ext_split_toggle(void *data) {
   return 0;
 }
 
+int ext_mox_tune_button(void *data) {
+  (void) data;
+  sim_mox_cb(NULL, NULL);
+  return 0;
+}
+
+int ext_s1_button(void *data) {
+  const gboolean pressed = GPOINTER_TO_INT(data) != 0;
+  if (pressed) {
+    sim_s1_pressed_cb(NULL, NULL);
+  } else {
+    sim_s1_released_cb(NULL, NULL);
+  }
+  return 0;
+}
+
+int ext_s2_button(void *data) {
+  const gboolean pressed = GPOINTER_TO_INT(data) != 0;
+  if (pressed) {
+    sim_s2_pressed_cb(NULL, NULL);
+  } else {
+    sim_s2_released_cb(NULL, NULL);
+  }
+  return 0;
+}
+
+int ext_s3_button(void *data) {
+  const gboolean pressed = GPOINTER_TO_INT(data) != 0;
+  if (pressed) {
+    sim_s3_pressed_cb(NULL, NULL);
+  } else {
+    sim_s3_released_cb(NULL, NULL);
+  }
+  return 0;
+}
+
+int ext_s4_button(void *data) {
+  const gboolean pressed = GPOINTER_TO_INT(data) != 0;
+  if (pressed) {
+    sim_s4_pressed_cb(NULL, NULL);
+  } else {
+    sim_s4_released_cb(NULL, NULL);
+  }
+  return 0;
+}
+
+int ext_s5_button(void *data) {
+  const gboolean pressed = GPOINTER_TO_INT(data) != 0;
+  if (pressed) {
+    sim_s5_pressed_cb(NULL, NULL);
+  } else {
+    sim_s5_released_cb(NULL, NULL);
+  }
+  return 0;
+}
+
+int ext_s6_button(void *data) {
+  const gboolean pressed = GPOINTER_TO_INT(data) != 0;
+  if (pressed) {
+    sim_s6_pressed_cb(NULL, NULL);
+  } else {
+    sim_s6_released_cb(NULL, NULL);
+  }
+  return 0;
+}
+
+int ext_function_button(void *data) {
+  (void) data;
+  sim_function_cb(NULL, NULL);
+  return 0;
+}
+
 int ext_start_rx(void *data) {
   start_rx();
   return 0;

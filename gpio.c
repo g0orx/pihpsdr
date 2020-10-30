@@ -294,76 +294,6 @@ char *sw_string[SWITCH_ACTIONS] = {
 
 int *sw_action=NULL;
 
-static int mox_pressed(void *data) {
-  if(running) sim_mox_cb(NULL,NULL);
-  return 0;
-}
-
-static int s1_pressed(void *data) {
-  if(running) sim_s1_pressed_cb(NULL,NULL);
-  return 0;
-}
-
-static int s1_released(void *data) {
-  if(running) sim_s1_released_cb(NULL,NULL);
-  return 0;
-}
-
-static int s2_pressed(void *data) {
-  if(running) sim_s2_pressed_cb(NULL,NULL);
-  return 0;
-}
-
-static int s2_released(void *data) {
-  if(running) sim_s2_released_cb(NULL,NULL);
-  return 0;
-}
-
-static int s3_pressed(void *data) {
-  if(running) sim_s3_pressed_cb(NULL,NULL);
-  return 0;
-}
-
-static int s3_released(void *data) {
-  if(running) sim_s3_released_cb(NULL,NULL);
-  return 0;
-}
-
-static int s4_pressed(void *data) {
-  if(running) sim_s4_pressed_cb(NULL,NULL);
-  return 0;
-}
-
-static int s4_released(void *data) {
-  if(running) sim_s4_released_cb(NULL,NULL);
-  return 0;
-}
-
-static int s5_pressed(void *data) {
-  if(running) sim_s5_pressed_cb(NULL,NULL);
-  return 0;
-}
-
-static int s5_released(void *data) {
-  if(running) sim_s5_released_cb(NULL,NULL);
-  return 0;
-}
-
-static int s6_pressed(void *data) {
-  if(running) sim_s6_pressed_cb(NULL,NULL);
-  return 0;
-}
-
-static int s6_released(void *data) {
-  if(running) sim_s6_released_cb(NULL,NULL);
-  return 0;
-}
-
-static int function_pressed(void *data) {
-  if(running) sim_function_cb(NULL,NULL);
-  return 0;
-}
-
 static int vfo_function_pressed(void *data) {
   RECEIVER *rx;
   if(receivers==2) {
@@ -583,7 +513,7 @@ static void functionAlert() {
     int level=digitalRead(FUNCTION_BUTTON);
     if(level!=function_level) {
       if(level==0) {
-        if(running) g_idle_add(function_pressed,NULL);
+        if(running) g_idle_add(ext_function_button,NULL);
       }
       function_level=level;
       function_debounce=t+settle_time;
@@ -601,9 +531,9 @@ static void s1Alert() {
     int level=digitalRead(S1_BUTTON);
     if(level!=s1_level) {
       if(level==0) {
-        if(running) g_idle_add(s1_pressed,NULL);
+        if(running) g_idle_add(ext_s1_button, GINT_TO_POINTER(1));
       } else {
-        if(running) g_idle_add(s1_released,NULL);
+        if(running) g_idle_add(ext_s1_button, GINT_TO_POINTER(0));
       }
       s1_level=level;
       s1_debounce=t+settle_time;
@@ -621,9 +551,9 @@ static void s2Alert() {
     int level=digitalRead(S2_BUTTON);
     if(level!=s2_level) {
       if(level==0) {
-        if(running) g_idle_add(s2_pressed,NULL);
+        if(running) g_idle_add(ext_s2_button, GINT_TO_POINTER(1));
       } else {
-        if(running) g_idle_add(s2_released,NULL);
+        if(running) g_idle_add(ext_s2_button, GINT_TO_POINTER(0));
       }
       s2_level=level;
       s2_debounce=t+settle_time;
@@ -641,9 +571,9 @@ static void s3Alert() {
     int level=digitalRead(S3_BUTTON);
     if(level!=s3_level) {
       if(level==0) {
-        if(running) g_idle_add(s3_pressed,NULL);
+        if(running) g_idle_add(ext_s3_button, GINT_TO_POINTER(1));
       } else {
-        if(running) g_idle_add(s3_released,NULL);
+        if(running) g_idle_add(ext_s3_button, GINT_TO_POINTER(0));
       }
       s3_level=level;
       s3_debounce=t+settle_time;
@@ -661,9 +591,9 @@ static void s4Alert() {
     int level=digitalRead(S4_BUTTON);
     if(level!=s4_level) {
       if(level==0) {
-        if(running) g_idle_add(s4_pressed,NULL);
+        if(running) g_idle_add(ext_s4_button, GINT_TO_POINTER(1));
       } else {
-        if(running) g_idle_add(s4_released,NULL);
+        if(running) g_idle_add(ext_s4_button, GINT_TO_POINTER(0));
       }
       s4_level=level;
       s4_debounce=t+settle_time;
@@ -681,9 +611,9 @@ static void s5Alert() {
     int level=digitalRead(S5_BUTTON);
     if(level!=s5_level) {
       if(level==0) {
-        if(running) g_idle_add(s5_pressed,NULL);
+        if(running) g_idle_add(ext_s5_button, GINT_TO_POINTER(1));
       } else {
-        if(running) g_idle_add(s5_released,NULL);
+        if(running) g_idle_add(ext_s5_button, GINT_TO_POINTER(0));
       }
       s5_level=level;
       s5_debounce=t+settle_time;
@@ -701,9 +631,9 @@ static void s6Alert() {
     int level=digitalRead(S6_BUTTON);
     if(level!=s6_level) {
       if(level==0) {
-        if(running) g_idle_add(s6_pressed,NULL);
+        if(running) g_idle_add(ext_s6_button, GINT_TO_POINTER(1));
       } else {
-        if(running) g_idle_add(s6_released,NULL);
+        if(running) g_idle_add(ext_s6_button, GINT_TO_POINTER(0));
       }
       s6_level=level;
       s6_debounce=t+settle_time;
@@ -721,7 +651,7 @@ static void moxAlert() {
     int level=digitalRead(MOX_BUTTON);
     if(level!=mox_level) {
       if(level==0) {
-        if(running) g_idle_add(mox_pressed,NULL);
+        if(running) g_idle_add(ext_mox_tune_button,NULL);
       }
       mox_level=level;
       mox_debounce=t+settle_time;

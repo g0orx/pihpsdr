@@ -732,6 +732,54 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 		g_idle_add(ext_vfo_a_swap_b,NULL);
 	    }
 	    break;    
+	/////////////////////////////////////////////////////////// "TOOLBARMOX"
+	case TOOLBAR_MOX_TUNE:	// only key supported
+	    if (type == MIDI_KEY) {
+		g_idle_add(ext_mox_tune_button, NULL);
+	    }
+	    break;
+	/////////////////////////////////////////////////////////// "TOOLBARS1"
+	case TOOLBAR_S1:	// only key supported
+	    if (type == MIDI_KEY) {
+		g_idle_add(ext_s1_button, GINT_TO_POINTER(val));
+	    }
+	    break;
+	/////////////////////////////////////////////////////////// "TOOLBARS2"
+	case TOOLBAR_S2:	// only key supported
+	    if (type == MIDI_KEY) {
+		g_idle_add(ext_s2_button, GINT_TO_POINTER(val));
+	    }
+	    break;
+	/////////////////////////////////////////////////////////// "TOOLBARS3"
+	case TOOLBAR_S3:	// only key supported
+	    if (type == MIDI_KEY) {
+		g_idle_add(ext_s3_button, GINT_TO_POINTER(val));
+	    }
+	    break;
+	/////////////////////////////////////////////////////////// "TOOLBARS4"
+	case TOOLBAR_S4:	// only key supported
+	    if (type == MIDI_KEY) {
+		g_idle_add(ext_s4_button, GINT_TO_POINTER(val));
+	    }
+	    break;
+	/////////////////////////////////////////////////////////// "TOOLBARS5"
+	case TOOLBAR_S5:	// only key supported
+	    if (type == MIDI_KEY) {
+		g_idle_add(ext_s5_button, GINT_TO_POINTER(val));
+	    }
+	    break;
+	/////////////////////////////////////////////////////////// "TOOLBARS6"
+	case TOOLBAR_S6:	// only key supported
+	    if (type == MIDI_KEY) {
+		g_idle_add(ext_s6_button, GINT_TO_POINTER(val));
+	    }
+	    break;
+	/////////////////////////////////////////////////////////// "TOOLBARMOX"
+	case TOOLBAR_FUNCTION:	// only key supported
+	    if (type == MIDI_KEY) {
+		g_idle_add(ext_function_button, NULL);
+	    }
+	    break;
 	/////////////////////////////////////////////////////////// "TUNE"
 	case MIDI_TUNE: // only key supported
 	    if (type == MIDI_KEY && can_transmit) {
