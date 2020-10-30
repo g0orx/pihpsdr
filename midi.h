@@ -97,6 +97,14 @@ enum MIDIaction {
   MIDI_SPLIT,		// SPLIT:		Split on/off
   SWAP_RX, 		// SWAPRX:		swap active receiver (if there are two receivers)
   SWAP_VFO,		// SWAPVFO:		swap VFO A/B frequency
+  TOOLBAR_MOX_TUNE,	// TOOLBARMOX:		Press first toolbar button (Mox/Tune)
+  TOOLBAR_S1,		// TOOLBARS1:		Press second toolbar button
+  TOOLBAR_S2,		// TOOLBARS2:		Press third toolbar button
+  TOOLBAR_S3,		// TOOLBARS3:		Press fourth toolbar button
+  TOOLBAR_S4,		// TOOLBARS4:		Press fifth toolbar button
+  TOOLBAR_S5,		// TOOLBARS5:		Press sixth toolbar button
+  TOOLBAR_S6,		// TOOLBARS6:		Press seventh toolbar button
+  TOOLBAR_FUNCTION,	// TOOLBARFUNCTION:	Press eigth toolbar button (Function)
   MIDI_TUNE,		// TUNE:		toggle "tune" state
   VFOA,			// VFOA:		change VFO-A frequency
   VFOB,			// VFOB:		change VFO-B frequency

@@ -78,6 +78,14 @@ extern int ext_ctun_update(void *data);
 extern int ext_agc_update(void *data);
 extern int ext_split_toggle(void *data);
 
+extern int ext_mox_tune_button(void *data);
+extern int ext_s1_button(void *data);
+extern int ext_s2_button(void *data);
+extern int ext_s3_button(void *data);
+extern int ext_s4_button(void *data);
+extern int ext_s5_button(void *data);
+extern int ext_s6_button(void *data);
+extern int ext_function_button(void *data);
 
 extern int ext_cw_setup();
 extern int ext_cw_key(void *data);
