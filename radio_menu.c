@@ -236,6 +236,10 @@ void setDuplex() {
   g_idle_add(ext_vfo_update, NULL);
 }
 
+static void PA_enable_cb(GtkWidget *widget, gpointer data) {
+  pa_enabled=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+}
+
 static void duplex_cb(GtkWidget *widget, gpointer data) {
   if (isTransmitting()) {
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (duplex_b), duplex);
@@ -801,6 +805,15 @@ void radio_menu(GtkWidget *parent) {
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(rx_gain_calibration_b),(double)rx_gain_calibration);
     gtk_grid_attach(GTK_GRID(grid),rx_gain_calibration_b,col,row,1,1);
     g_signal_connect(rx_gain_calibration_b,"value_changed",G_CALLBACK(rx_gain_calibration_value_changed_cb),NULL);
+    col++;
+
+    if ((protocol == ORIGINAL_PROTOCOL && device == DEVICE_HERMES_LITE2) ||
+        (protocol == NEW_PROTOCOL      && device == NEW_DEVICE_HERMES_LITE2)) {
+        GtkWidget *PA_enable_b=gtk_check_button_new_with_label("HL2 PA enable");
+        gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (PA_enable_b), pa_enabled);
+        gtk_grid_attach(GTK_GRID(grid),PA_enable_b,col,row,1,1);
+        g_signal_connect(PA_enable_b,"toggled",G_CALLBACK(PA_enable_cb),NULL);
+    }
 
     row++;
   }

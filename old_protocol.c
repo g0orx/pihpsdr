@@ -1704,13 +1704,13 @@ static int last_power=0;
           output_buffer[C2]|=0x02;
         }
         if(filter_board==APOLLO || device==DEVICE_HERMES_LITE2) {
-          output_buffer[C2]|=0x2C;
+          output_buffer[C2]|=0x24;
         }
         if((filter_board==APOLLO) && tune) {
           output_buffer[C2]|=0x10;
         }
         if((device==DEVICE_HERMES_LITE2) && pa_enabled) {
-          output_buffer[C2]|=0x10; // Enable PA
+          output_buffer[C2]|=0x08; // Enable PA
         } 
         if(band_get_current()==band6) {
           output_buffer[C3]=output_buffer[C3]|0x40; // Alex 6M low noise amplifier
