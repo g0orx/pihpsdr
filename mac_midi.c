@@ -168,7 +168,7 @@ void register_midi_device(char *myname) {
 		FoundMIDIref=i;
 		fprintf(stderr,"MIDI: registering device >%s<\n", name);
 	    } else {
-		fprintf(stderr,"MIDI: looking for >%s< so %s does not match\n", myname,name);
+		fprintf(stderr,"MIDI: looking for >%s< so >%s< does not match\n", myname,name);
 	    }
 	}
     }
