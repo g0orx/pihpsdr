@@ -1089,6 +1089,36 @@ static void full_tx_buffer(TRANSMITTER *tx) {
         gain=gain*(double)transmitter->drive_level*0.00392;
       }
     }
+    if (protocol == ORIGINAL_PROTOCOL && radio->device == DEVICE_HERMES_LITE2) {
+      //
+      // The HermesLite2 is built around the AD9866 modem chip. The TX level can
+      // be adjusted from 0.0 to -7.5 dB in 0.5 db steps, and these settings are
+      // encoded in the top 4 bits of the HPSDR "drive level".
+      //
+      // In old_protocol.c, the TX attenuator is set according to the drive level,
+      // here we only apply a (mostly small) additional damping of the IQ samples
+      // to achieve a smooth drive level adjustment.
+      // However, if the drive level requires an attenuation *much* larger than
+      // 7.5 dB we have to damp significantly at this place, which may affect IMD.
+      //
+      int power;
+      double f,g;
+      if(tune && !transmitter->tune_use_drive) {
+        f=sqrt((double)transmitter->tune_percent * 0.01);
+        power=(int)((double)transmitter->drive_level*f);
+      } else {
+        power=transmitter->drive_level;
+      }
+      g=-15.0;
+      if (power > 0) {
+        f = 40.0 * log10((double) power / 255.0);   // 2* attenuation in dB
+        g= ceil(f);                                 // 2* attenuation rounded to half-dB steps
+        if (g < -15.0) g=-15.0;                     // nominal TX attenuation
+        gain=gain*pow(10.0,0.05*(f-g));
+      } else {
+        gain=0.0;
+      }
+    }
 
     if (txflag == 0 && protocol == NEW_PROTOCOL) {
 	//
