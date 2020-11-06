@@ -1726,9 +1726,11 @@ static int last_power=0;
           output_buffer[C2]|=0x10;
         }
         if (device==DEVICE_HERMES_LITE2) {
-          // do not set Apollo/Alex bits,
-          // but set ADDR=0x09 bits 18(always), 19(pa enable), 20(tune)
-          output_buffer[C2]= 0x04;
+          // do not set any Apollo/Alex bits,
+          // ADDR=0x09 bit 19 follows "PA enable" state
+          // ADDR=0x09 bit 20 follows "TUNE" state
+          // ADDR=0x09 bit 18 always cleared (external tuner enabled)
+          output_buffer[C2]= 0x00;
           if (pa_enabled) output_buffer[C2] |= 0x08;
           if (tune)       output_buffer[C2] |= 0x10;
         } 
