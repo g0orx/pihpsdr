@@ -89,10 +89,10 @@ enum MIDIaction {
   MIDI_ACTION_PTTONOFF,		// PTT:			set PTT state to "on" or "off"
   MIDI_ACTION_PS,		// PURESIGNAL:		toggle PURESIGNAL on/off
   MIDI_ACTION_MEM_RECALL_M0,    // RECALLM0:		load current freq/mode/filter from memory slot #0
-  MIDI_ACTION_MEM_RECALL_M1,    // RECALLM1:		load current freq/mode/filter from memory slot #0
-  MIDI_ACTION_MEM_RECALL_M2,    // RECALLM2:		load current freq/mode/filter from memory slot #0
-  MIDI_ACTION_MEM_RECALL_M3,    // RECALLM3:		load current freq/mode/filter from memory slot #0
-  MIDI_ACTION_MEM_RECALL_M4,    // RECALLM4:		load current freq/mode/filter from memory slot #0
+  MIDI_ACTION_MEM_RECALL_M1,    // RECALLM1:		load current freq/mode/filter from memory slot #1
+  MIDI_ACTION_MEM_RECALL_M2,    // RECALLM2:		load current freq/mode/filter from memory slot #2
+  MIDI_ACTION_MEM_RECALL_M3,    // RECALLM3:		load current freq/mode/filter from memory slot #3
+  MIDI_ACTION_MEM_RECALL_M4,    // RECALLM4:		load current freq/mode/filter from memory slot #4
   MIDI_ACTION_RF_GAIN,		// RFGAIN:		receiver RF gain
   MIDI_ACTION_TX_DRIVE,		// RFPOWER:		adjust TX RF output power
   MIDI_ACTION_RIT_CLEAR,	// RITCLEAR:		clear RIT and XIT value
