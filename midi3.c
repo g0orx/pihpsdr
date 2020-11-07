@@ -875,34 +875,28 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    }
             break;
 	/////////////////////////////////////////////////////////// "ZOOM"
-        case MIDI_ACTION_ZOOM:  // wheel and knob
-            switch (type) {
-              case MIDI_TYPE_WHEEL:
-g_print("MIDI_ZOOM: MIDI_TYPE_WHEEL: val=%d\n",val);
-                g_idle_add(ext_zoom_update,GINT_TO_POINTER(val));
-                break;
-              case MIDI_TYPE_KNOB:
-g_print("MIDI_ZOOM: MIDI_TYPE_KNOB: val=%d\n",val);
-                g_idle_add(ext_zoom_set,GINT_TO_POINTER(val));
-                break;
-	      default:
-		// no action for keys (should not come here anyway)
-		break;
-            }
-            break;
 	/////////////////////////////////////////////////////////// "ZOOMDOWN"
 	/////////////////////////////////////////////////////////// "ZOOMUP"
-        case MIDI_ACTION_ZOOM_UP:  // key
-        case MIDI_ACTION_ZOOM_DOWN:  // key
+        //
+        // The ZOOM key word is redundant but we leave it to maintain
+        // backwards compatibility
+        //
+        case MIDI_ACTION_ZOOM:       // wheel, knob
+        case MIDI_ACTION_ZOOM_UP:    // key, wheel, knob
+        case MIDI_ACTION_ZOOM_DOWN:  // key, wheel, knob
 	    switch (type) {
 	      case MIDI_TYPE_KEY:
-		new =  (action == MIDI_ACTION_ZOOM_UP) ? 1 : -1;
+                if (action == MIDI_ACTION_ZOOM) break;
+		new =  (action == MIDI_ACTION_ZOOM_UP) ? 1 :-1;
                 g_idle_add(ext_zoom_update,GINT_TO_POINTER(new));
 		break;
 	      case MIDI_TYPE_WHEEL:
 		new = (val > 0) ? 1 : -1;
                 g_idle_add(ext_zoom_update,GINT_TO_POINTER(new));
 		break;
+              case MIDI_TYPE_KNOB:
+                g_idle_add(ext_zoom_set,GINT_TO_POINTER(val));
+                break;
 	      default:
 		// do nothing
 		// we should not come here anyway
