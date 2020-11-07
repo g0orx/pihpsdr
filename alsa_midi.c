@@ -220,9 +220,9 @@ void register_midi_device(char *myname) {
 		        sprintf(portname,"hw:%d,%d,%d", card, device, sub);
 		        devnam=subnam;
 		    }
-		    fprintf(stderr,"MIDI device %s selected (PortName=%s)\n", devnam, portname);
+		    fprintf(stderr,"MIDI device >%s< selected (PortName=>%s<)\n", devnam, portname);
 		} else {
-                    fprintf(stderr,"MIDI device %s not matching %s\n", devnam, myname);
+                    fprintf(stderr,"MIDI device >%s< not matching >%s<\n", devnam, myname);
 		}
                 if (found) break;
 	    }
