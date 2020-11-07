@@ -58,11 +58,10 @@
 #endif
 #include <math.h>
 
-#define NEW_PARSER
-
 // IP stuff below
 #include <sys/socket.h>
 #include <arpa/inet.h> //inet_addr
+#include <netinet/tcp.h>
 
 int rigctl_port_base=19090;
 int rigctl_enable=0;
