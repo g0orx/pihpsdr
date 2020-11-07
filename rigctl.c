@@ -93,13 +93,9 @@ int cat_control;
 extern int enable_tx_equalizer;
 
 typedef struct {GMutex m; } GT_MUTEX;
-GT_MUTEX * mutex_a;
-GT_MUTEX * mutex_b;
-GT_MUTEX * mutex_c;
-GT_MUTEX * mutex_busy;
 
-int mutex_b_exists = 0;
-
+GT_MUTEX * mutex_a;       // implements atomic updates of cat_control
+GT_MUTEX * mutex_busy;    // un-necessary lock in serial thread
 
 FILE * out;
 int  output;
@@ -611,7 +607,9 @@ static gpointer rigctl_server(gpointer data) {
   while(server_running) {
     int spare;
 
-    // find a spare thread
+    //
+    // find a spare slot
+    //
     spare = -1;
     for(i=0;i<MAX_CLIENTS;i++) {
       if(client[i].fd == -1) {
@@ -619,24 +617,40 @@ static gpointer rigctl_server(gpointer data) {
         break;
       }
     }
-    // if all threads are busy, wait and continue
+    // if all slots are in use, wait and continue
     if (spare < 0) {
       usleep(100000L);
       continue;
     }
-    // A thread is available, try to get connection
 
-    g_print("Using client: %d\n",spare);
-
+    //
+    // A slot is available, try to get connection via accept()
+    //
+    g_print("rigctl: slot= %d waiting for connection\n",spare);
     client[spare].fd=accept(server_socket,(struct sockaddr*)&client[spare].address,&client[spare].address_length);
     if(client[spare].fd<0) {
       perror("rigctl_server: client accept failed");
       client[spare].fd = -1;
       continue;
     }
+    g_print("rigctl: slot= %d connected with fd=%d\n",spare,client[spare].fd);
 
+    //
+    // Setting TCP_NODELAY may (or may not) improve responsiveness
+    // by *disabling* Nagle's algorithm for clustering small packets
+    //
+#ifdef __APPLE__
+    if(setsockopt(client[spare].fd, IPPROTO_TCP, TCP_NODELAY, (void *)&on, sizeof(on))<0) {
+#else
+    if(setsockopt(client[spare].fd, SOL_TCP, TCP_NODELAY, (void *)&on, sizeof(on))<0) {
+#endif
+      perror("TCP_NODELAY");
+    }
+
+    //
+    // Spawn off a thread for handling this new connection
+    //
     client[spare].thread_id = g_thread_new("rigctl client", rigctl_client, (gpointer)&client[spare]);
-    // no check on return value since g_thread_new succeeds or program aborts
   }
 
   close(server_socket);
@@ -683,7 +697,11 @@ static gpointer rigctl_client (gpointer data) {
          }
        }
      }
-g_print("RIGCTL: Leaving rigctl_client thread\n");
+  g_print("RIGCTL: Leaving rigctl_client thread\n");
+  //
+  // If rigctl is disabled via the GUI, the connections are closed by close_rigctl_ports()
+  // but even the we should decrement cat_control
+  //
   if(client->fd!=-1) {
     g_print("setting SO_LINGER to 0 for client_socket: %d\n",client->fd);
     struct linger linger = { 0 };
@@ -694,13 +712,13 @@ g_print("RIGCTL: Leaving rigctl_client thread\n");
     }
     close(client->fd);
     client->fd=-1;
-    // Decrement CAT_CONTROL
-    g_mutex_lock(&mutex_a->m);
-    cat_control--;
-    if(rigctl_debug) g_print("RIGCTL: CTLA DEC - cat_control=%d\n",cat_control);
-    g_mutex_unlock(&mutex_a->m);
-    g_idle_add(ext_vfo_update,NULL);
   }
+  // Decrement CAT_CONTROL
+  g_mutex_lock(&mutex_a->m);
+  cat_control--;
+  if(rigctl_debug) g_print("RIGCTL: CTLA DEC - cat_control=%d\n",cat_control);
+  g_mutex_unlock(&mutex_a->m);
+  g_idle_add(ext_vfo_update,NULL);
   return NULL; 
 }
 
@@ -3966,11 +3984,6 @@ static gpointer serial_server(gpointer data) {
 int launch_serial () {
      int fd;
      g_print("RIGCTL: Launch Serial port %s\n",ser_port);
-     if(mutex_b_exists == 0) {
-        mutex_b = g_new(GT_MUTEX,1);
-        g_mutex_init(&mutex_b->m);
-        mutex_b_exists = 1;
-     }
 
      if(mutex_busy==NULL) {
        mutex_busy = g_new(GT_MUTEX,1);
@@ -3994,13 +4007,6 @@ int launch_serial () {
      serial_client->fd=fd;
 
      serial_server_thread_id = g_thread_new( "Serial server", serial_server, serial_client);
-     if(!serial_server_thread_id )
-     {
-       // NOTREACHED, since program aborts if g_thread_new fails
-       g_free(serial_client);
-       g_print("g_thread_new failed on serial_server\n");
-       return 0;
-     }
      return 1;
 }
 
@@ -4024,21 +4030,9 @@ void launch_rigctl () {
    g_print( "LAUNCHING RIGCTL!!\n");
 
    rigctl_busy = 1;
-   mutex_a = g_new(GT_MUTEX,1);
+   cat_control = 0;
+   mutex_a = g_new(GT_MUTEX,1);  // memory leak
    g_mutex_init(&mutex_a->m);
-
-   if(mutex_b_exists == 0) {
-      mutex_b = g_new(GT_MUTEX,1);
-      g_mutex_init(&mutex_b->m);
-      mutex_b_exists = 1;
-   }
-   
-   mutex_c = g_new(GT_MUTEX,1);
-   g_mutex_init(&mutex_c->m);
-
-   mutex_busy = g_new(GT_MUTEX,1);
-g_print("launch_rigctl: mutex_busy=%p\n",mutex_busy);
-   g_mutex_init(&mutex_busy->m);
 
    // This routine encapsulates the thread call
    rigctl_server_thread_id = g_thread_new( "rigctl server", rigctl_server, GINT_TO_POINTER(rigctl_port_base));
