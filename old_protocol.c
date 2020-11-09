@@ -1903,7 +1903,7 @@ static int last_power=0;
 	      output_buffer[C1]|=(receiver[1]->adc<<(2*rx2channel));
 	    }
 	}
-        if (have_rx_gain) {
+        if (device == DEVICE_HERMES_LITE2) {
           //
           // On the HermesLite2, we need bit7 set to make this feature active,
           // and need bit6 set to tell HL2 to directly use the lowest 6 bits
