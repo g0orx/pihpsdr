@@ -399,7 +399,7 @@ g_print("ptt_released\n");
 #endif
 
 static int e_function_pressed(void *data) {
-  int action=(int)data;
+  int action=GPOINTER_TO_INT(data);
 g_print("e_function_pressed: %d\n",action);
   switch(action) {
     case TUNE:
@@ -541,7 +541,7 @@ static unsigned long e2debounce=0;
 static void e2FunctionAlert() {
     int level=digitalRead(E2_FUNCTION);
     if(level==0) {
-      if(running) g_idle_add(e_function_pressed,(gpointer)e2_sw_action);
+      if(running) g_idle_add(e_function_pressed,GINT_TO_POINTER(e2_sw_action));
     }
 }
 
@@ -550,7 +550,7 @@ static unsigned long e3debounce=0;
 static void e3FunctionAlert() {
     int level=digitalRead(E3_FUNCTION);
     if(level==0) {
-      if(running) g_idle_add(e_function_pressed,(gpointer)e3_sw_action);
+      if(running) g_idle_add(e_function_pressed,GINT_TO_POINTER(e3_sw_action));
     }
 }
 
@@ -559,7 +559,7 @@ static unsigned long e4debounce=0;
 static void e4FunctionAlert() {
     int level=digitalRead(E4_FUNCTION);
     if(level==0) {
-      if(running) g_idle_add(e_function_pressed,(gpointer)e4_sw_action);
+      if(running) g_idle_add(e_function_pressed,GINT_TO_POINTER(e4_sw_action));
     }
 }
 
@@ -568,7 +568,7 @@ static unsigned long e5debounce=0;
 static void e5FunctionAlert() {
     int level=digitalRead(E5_FUNCTION);
     if(level==0) {
-      if(running) g_idle_add(e_function_pressed,(gpointer)e5_sw_action);
+      if(running) g_idle_add(e_function_pressed,GINT_TO_POINTER(e5_sw_action));
     }
 }
 
@@ -1902,7 +1902,7 @@ int lock_get_state() {
 
 static int vfo_encoder_changed(void *data) {
   if(!locked) {
-    int pos=(int)data;
+    int pos=GPOINTER_TO_INT(data);
     vfo_step(pos);
   }
   //free(data);
@@ -2207,7 +2207,7 @@ static void encoder_changed(int action,int pos) {
 }
 
 static int e2_encoder_changed(void *data) {
-  int pos=(int)data;
+  int pos=GPOINTER_TO_INT(data);
   if(active_menu==E2_MENU) {
     encoder_select(pos);
   } else {
@@ -2217,7 +2217,7 @@ static int e2_encoder_changed(void *data) {
 }
 
 static int e3_encoder_changed(void *data) {
-  int pos=(int)data;
+  int pos=GPOINTER_TO_INT(data);
   if(active_menu==E3_MENU) {
     encoder_select(pos);
   } else {
@@ -2227,7 +2227,7 @@ static int e3_encoder_changed(void *data) {
 }
 
 static int e4_encoder_changed(void *data) {
-  int pos=(int)data;
+  int pos=GPOINTER_TO_INT(data);
   if(active_menu==E4_MENU) {
     encoder_select(pos);
   } else {
@@ -2237,7 +2237,7 @@ static int e4_encoder_changed(void *data) {
 }
 
 static int e5_encoder_changed(void *data) {
-  int pos=(int)data;
+  int pos=GPOINTER_TO_INT(data);
   if(active_menu==E5_MENU) {
     encoder_select(pos);
   } else {
@@ -2248,7 +2248,7 @@ static int e5_encoder_changed(void *data) {
 
 
 static int e2_top_encoder_changed(void *data) {
-  int pos=(int)data;
+  int pos=GPOINTER_TO_INT(data);
   if(active_menu==E2_MENU) {
     encoder_select(pos);
   } else {
@@ -2258,7 +2258,7 @@ static int e2_top_encoder_changed(void *data) {
 }
 
 static int e3_top_encoder_changed(void *data) {
-  int pos=(int)data;
+  int pos=GPOINTER_TO_INT(data);
   if(active_menu==E3_MENU) {
     encoder_select(pos);
   } else {
@@ -2268,7 +2268,7 @@ static int e3_top_encoder_changed(void *data) {
 }
 
 static int e4_top_encoder_changed(void *data) {
-  int pos=(int)data;
+  int pos=GPOINTER_TO_INT(data);
   if(active_menu==E4_MENU) {
     encoder_select(pos);
   } else {
@@ -2278,7 +2278,7 @@ static int e4_top_encoder_changed(void *data) {
 }
 
 static int e5_top_encoder_changed(void *data) {
-  int pos=(int)data;
+  int pos=GPOINTER_TO_INT(data);
   if(active_menu==E5_MENU) {
     encoder_select(pos);
   } else {
@@ -2297,28 +2297,28 @@ static gpointer rotary_encoder_thread(gpointer data) {
 
         pos=vfo_encoder_get_pos();
         if(pos!=0) {
-            g_idle_add(vfo_encoder_changed,(gpointer)pos);
+            g_idle_add(vfo_encoder_changed,GINT_TO_POINTER(pos));
         }
 
         pos=e2_encoder_get_pos();
         if(pos!=0) {
-            g_idle_add(e2_encoder_changed,(gpointer)pos);
+            g_idle_add(e2_encoder_changed,GINT_TO_POINTER(pos));
         }
 
         pos=e3_encoder_get_pos();
         if(pos!=0) {
-            g_idle_add(e3_encoder_changed,(gpointer)pos);
+            g_idle_add(e3_encoder_changed,GINT_TO_POINTER(pos));
         }
 
         pos=e4_encoder_get_pos();
         if(pos!=0) {
-            g_idle_add(e4_encoder_changed,(gpointer)pos);
+            g_idle_add(e4_encoder_changed,GINT_TO_POINTER(pos));
         }
 
         if(controller==CONTROLLER2_V1 || controller==CONTROLLER2_V2) {
           pos=e5_encoder_get_pos();
           if(pos!=0) {
-              g_idle_add(e5_encoder_changed,(gpointer)pos);
+              g_idle_add(e5_encoder_changed,GINT_TO_POINTER(pos));
           }
         }
 
@@ -2326,22 +2326,22 @@ static gpointer rotary_encoder_thread(gpointer data) {
         if(controller==CONTROLLER2_V2) {
           pos=e2_top_encoder_get_pos();
           if(pos!=0) {
-              g_idle_add(e2_top_encoder_changed,(gpointer)pos);
+              g_idle_add(e2_top_encoder_changed,GINT_TO_POINTER(pos));
           }
   
           pos=e3_top_encoder_get_pos();
           if(pos!=0) {
-              g_idle_add(e3_top_encoder_changed,(gpointer)pos);
+              g_idle_add(e3_top_encoder_changed,GINT_TO_POINTER(pos));
           }
   
           pos=e4_top_encoder_get_pos();
           if(pos!=0) {
-              g_idle_add(e4_top_encoder_changed,(gpointer)pos);
+              g_idle_add(e4_top_encoder_changed,GINT_TO_POINTER(pos));
           }
   
           pos=e5_top_encoder_get_pos();
           if(pos!=0) {
-            g_idle_add(e5_top_encoder_changed,(gpointer)pos);
+            g_idle_add(e5_top_encoder_changed,GINT_TO_POINTER(pos));
           }
         }
 

@@ -501,7 +501,7 @@ void top_encoder_select(int pos) {
 }
 
   static gboolean action_select_cb (GtkWidget *widget, gpointer data) {
-    int action=(int)data;
+    int action=GPOINTER_TO_INT(data);
     switch(encoder) {
       case 2:
         e2_encoder_action=action;
@@ -519,7 +519,7 @@ void top_encoder_select(int pos) {
   }
 
   static gboolean top_action_select_cb (GtkWidget *widget, gpointer data) {
-    int action=(int)data;
+    int action=GPOINTER_TO_INT(data);
     switch(encoder) {
       case 2:
         e2_top_encoder_action=action;

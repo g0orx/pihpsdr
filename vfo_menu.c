@@ -79,7 +79,7 @@ static void squelch_enable_cb(GtkWidget *widget, gpointer data) {
 static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
   char *str = (char *) data;
   const char *labelText;
-  char output[BUF_SIZE], buffer[BUF_SIZE];
+  char output[BUF_SIZE+12], buffer[BUF_SIZE];
   int  len;
   double  mult;
   long long f;
