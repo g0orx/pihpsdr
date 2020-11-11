@@ -479,7 +479,11 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
 	  // by many radios if they do not get a DHCP address. These addresses are valid even if outside the
 	  // netmask of the (physical) interface making the connection - so do not complain in this case!
 	  //
-          if (strncmp(inet_ntoa(d->info.network.address.sin_addr),"169.254.",8)) {
+	  // If the radio has a valid IP address but the computer only has an APIPA address, this also
+	  // leads to a radio address outside the netmask and can be ignored.
+	  //
+          if (strncmp(inet_ntoa(d->info.network.address.sin_addr),"169.254.",8) &&
+              strncmp(inet_ntoa(d->info.network.interface_address.sin_addr),"169.254.",8)) {
             if((d->info.network.interface_address.sin_addr.s_addr&d->info.network.interface_netmask.sin_addr.s_addr) != (d->info.network.address.sin_addr.s_addr&d->info.network.interface_netmask.sin_addr.s_addr)) {
               gtk_button_set_label(GTK_BUTTON(start_button),"Subnet!");
               gtk_widget_set_sensitive(start_button, FALSE);
