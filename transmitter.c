@@ -1060,6 +1060,19 @@ static void full_tx_buffer(TRANSMITTER *tx) {
   } else {
     update_vox(tx);
 
+    //
+    // DL1YCF:
+    // Experience tells that MicGain in FM needs about 15 dB
+    // more than in SSB, so add that (fixed amount of) gain here
+    // This possibly comes from FM pre-emphasis but is completely
+    // heuristic here. We have do do this *after* update_vox().
+    //
+    if (tx->mode == modeFMN && !tune) {
+      for (int i=0; i<2*tx->samples; i+=2) {
+        tx->mic_input_buffer[i] *= 5.6234;  // 20*Log(5.6234) is 15
+      }
+    }
+
     fexchange0(tx->id, tx->mic_input_buffer, tx->iq_output_buffer, &error);
     if(error!=0) {
       fprintf(stderr,"full_tx_buffer: id=%d fexchange0: error=%d\n",tx->id,error);
