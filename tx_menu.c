@@ -228,7 +228,7 @@ g_print("local_input_changed_cb: %d %s\n",i,input_devices[i].name);
 }
 
 static gboolean emp_cb (GtkWidget *widget, gpointer data) {
-  pre_emphasize=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
+  pre_emphasize=!gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
   tx_set_pre_emphasize(transmitter,pre_emphasize);
   return FALSE;
 }
@@ -502,7 +502,7 @@ void tx_menu(GtkWidget *parent) {
   col=0;
 
   GtkWidget *emp_b=gtk_check_button_new_with_label("FM TX Pre-emphasize before limiting");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (emp_b), pre_emphasize);
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (emp_b), !pre_emphasize);
   gtk_widget_show(emp_b);
   gtk_grid_attach(GTK_GRID(grid),emp_b,col,row,2,1);
   g_signal_connect(emp_b,"toggled",G_CALLBACK(emp_cb),NULL);
