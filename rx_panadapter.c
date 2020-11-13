@@ -556,18 +556,26 @@ void rx_panadapter_update(RECEIVER *rx) {
     }
     cairo_set_source(cr, gradient);
   } else {
-    if(active) {
-      cairo_set_source_rgba(cr, 1.0, 1.0, 1.0,0.5);
-    } else {
-      cairo_set_source_rgba(cr, 0.5, 0.5, 0.5,0.5);
-    }
+    //
+    // if filled, use 0.5 (active) and 0.25 (inactive)
+    // if only drawing the line, use 1.0 (active) and 0.5 (inactive)
+    //
+    double brightness=0.25;
+    if (active) brightness=2.0*brightness;
+    if (!display_filled) brightness=2.0*brightness;
+    cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, brightness);
   }
 
   if(display_filled) {
     cairo_close_path (cr);
     cairo_fill_preserve (cr);
+    cairo_set_line_width(cr, LINE_WIDTH);
+  } else {
+    //
+    // if not filling, use a full pixel's width
+    //
+    cairo_set_line_width(cr, 1.0);
   }
-  cairo_set_line_width(cr, LINE_WIDTH);
   cairo_stroke(cr);
 
   if(gradient) {
