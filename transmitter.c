@@ -1062,10 +1062,24 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 
     //
     // DL1YCF:
-    // Experience tells that MicGain in FM needs about 15 dB
-    // more than in SSB, so add that (fixed amount of) gain here
-    // This possibly comes from FM pre-emphasis but is completely
-    // heuristic here. We have do do this *after* update_vox().
+    // The FM pre-emphasis filter in WDSP has maximum unit
+    // gain at about 3000 Hz, so that it attenuates at 300 Hz
+    // by about 20 dB and at 1000 Hz by about 10 dB.
+    // Natural speech has much energy at frequencies below 1000 Hz
+    // which will therefore aquire only little energy, such that
+    // FM sounds rather silent.
+    //
+    // At the expense of having some distortion for the highest
+    // frequencies, we amplify the mic samples here by 15 dB
+    // when doing FM, such that enough "punch" remains after the
+    // FM pre-emphasis filter.
+    // 
+    // If ALC happens before FM pre-emphasis, this has little effect
+    // since the additional gain applied here will most likely be
+    // compensated by ALC, so it is important to have FM pre-emphasis
+    // before ALC (checkbox in tx_menu checked, that is, pre_emphasis==0).
+    //
+    // Note that mic sample amplification has to be done after update_vox()
     //
     if (tx->mode == modeFMN && !tune) {
       for (int i=0; i<2*tx->samples; i+=2) {
