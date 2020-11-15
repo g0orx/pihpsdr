@@ -558,11 +558,11 @@ void rx_panadapter_update(RECEIVER *rx) {
   } else {
     //
     // if filled, use 0.5 (active) and 0.25 (inactive)
-    // if only drawing the line, use 1.0 (active) and 0.5 (inactive)
+    // if only drawing the line, use 0.75 for active RX
     //
     double brightness=0.25;
-    if (active) brightness=2.0*brightness;
-    if (!display_filled) brightness=2.0*brightness;
+    if (active) brightness = 0.50;
+    if (!display_filled && active) brightness =0.75;
     cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, brightness);
   }
 
