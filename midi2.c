@@ -27,8 +27,8 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
     static enum MIDIaction last_wheel_action=MIDI_ACTION_NONE ;
     static struct timespec tp, last_wheel_tp={0,0};
     long delta;
-    struct timespec ts;
-    double now;
+    struct timespec ts;  // used in debug code
+    double now;          // used in debug code
 
 //Un-comment the next three lines to get a log of incoming MIDI events with milli-second time stamps
 //clock_gettime(CLOCK_MONOTONIC, &ts);

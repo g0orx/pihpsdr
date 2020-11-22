@@ -1076,7 +1076,7 @@ static void process_control_bytes() {
 
   if (cw_keyer_internal) {
     // Stops CAT cw transmission if paddle hit in "internal" CW
-    if ((dash || dot) && cw_keyer_internal) cw_key_hit=1;
+    if ((dash || dot)) cw_key_hit=1;
   } else {
 #ifdef LOCALCW
     //

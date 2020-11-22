@@ -370,11 +370,10 @@ void vfo_band_changed(int id,int b) {
   vfo[id].band=b;
   vfo[id].frequency=entry->frequency;
   vfo[id].mode=entry->mode;
-  vfo[id].filter=entry->filter;
   vfo[id].lo=band->frequencyLO+band->errorLO;
 
 //
-// Change to the filter/NR combination stored for this mode
+// Apply the filter/NR combination stored for this mode
 //
   m=vfo[id].mode;
 

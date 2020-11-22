@@ -6,6 +6,8 @@
  *
  * MaOSstartup(char *path)      : create working dir in "$HOME/Library/Application Support" etc.
  *
+ * where *path is argv[0], the file name of the running executable
+ *
  */
 
 #ifdef __APPLE__
@@ -56,7 +58,7 @@ void MacOSstartup(char *path) {
 //  If the current work dir is NOT "/", just do nothing
 //    
     *workdir=0;
-    c=getcwd(workdir,sizeof(workdir));
+    if (getcwd(workdir,sizeof(workdir)) == NULL) return;
     if (strlen(workdir) != 1 || *workdir != '/') return;
 
 //
@@ -103,8 +105,7 @@ void MacOSstartup(char *path) {
 //
 //  Copy icon from app bundle to the work dir
 //
-    c=getcwd(workdir,sizeof(workdir));
-    if (strlen(path) < 1024) {
+    if (getcwd(workdir,sizeof(workdir)) != NULL && strlen(path) < 1024) {
       //
       // source = basename of the executable
       //
