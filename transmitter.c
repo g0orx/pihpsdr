@@ -674,9 +674,10 @@ static void init_analyzer(TRANSMITTER *tx) {
    // This cannot be changed for the TX panel,
    // use peak mode
    //
-   SetDisplayDetectorMode(tx->id, 0, DETECTOR_MODE_PEAK);
-   SetDisplayAverageMode(tx->id, 0,  AVERAGE_MODE_NONE);
-
+   SetDisplayDetectorMode (tx->id,  0, DETECTOR_MODE_PEAK);
+   SetDisplayAverageMode  (tx->id,  0, AVERAGE_MODE_LOG_RECURSIVE);
+   SetDisplayNumAverage   (tx->id,  0, 4);
+   SetDisplayAvBackmult   (tx->id,  0, 0.7788);  // exp(-1/4)
 }
 
 void create_dialog(TRANSMITTER *tx) {
