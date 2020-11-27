@@ -60,7 +60,7 @@
 #define DISPLAY_FONT_SIZE1  8
 #define DISPLAY_FONT_SIZE2 10
 #define DISPLAY_FONT_SIZE3 13
-#define DISPLAY_FONT_SIZE4 18
+#define DISPLAY_FONT_SIZE4 19
 #endif
 
 #endif
