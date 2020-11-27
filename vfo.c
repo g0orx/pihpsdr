@@ -1033,7 +1033,7 @@ void vfo_update() {
         cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
         cairo_paint (cr);
 
-        cairo_select_font_face(cr, "FreeMono",
+        cairo_select_font_face(cr, DISPLAY_FONT,
             CAIRO_FONT_SLANT_NORMAL,
             CAIRO_FONT_WEIGHT_BOLD);
 
@@ -1059,7 +1059,7 @@ void vfo_update() {
             sprintf(temp_text,"%s %s",mode_string[vfo[id].mode],band_filter->title);
             break;
         }
-        cairo_set_font_size(cr, 12);
+        cairo_set_font_size(cr, DISPLAY_FONT_SIZE2);
         cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         cairo_move_to(cr, 5, 15);
         cairo_show_text(cr, temp_text);
@@ -1089,7 +1089,7 @@ void vfo_update() {
             }
         }
         cairo_move_to(cr, 5, 38);  
-        cairo_set_font_size(cr, 22); 
+        cairo_set_font_size(cr, DISPLAY_FONT_SIZE4); 
         cairo_show_text(cr, temp_text);
 
         sprintf(temp_text,"VFO B: %0lld.%06lld",bf/(long long)1000000,bf%(long long)1000000);
@@ -1114,7 +1114,7 @@ void vfo_update() {
           } else {
             cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
           }
-          cairo_set_font_size(cr, 12);
+          cairo_set_font_size(cr, DISPLAY_FONT_SIZE2);
           cairo_show_text(cr, "PS");
         }
 #endif
@@ -1125,7 +1125,7 @@ void vfo_update() {
         } else {
           cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
         }
-        cairo_set_font_size(cr, 12);
+        cairo_set_font_size(cr, DISPLAY_FONT_SIZE2);
         sprintf(temp_text,"Zoom x%d",active_receiver->zoom);
         cairo_show_text(cr, temp_text);
 
@@ -1136,7 +1136,7 @@ void vfo_update() {
         }
         sprintf(temp_text,"RIT: %lldHz",vfo[id].rit);
         cairo_move_to(cr, 170, 15);
-        cairo_set_font_size(cr, 12);
+        cairo_set_font_size(cr, DISPLAY_FONT_SIZE2);
         cairo_show_text(cr, temp_text);
 
 
@@ -1148,7 +1148,7 @@ void vfo_update() {
           }
           sprintf(temp_text,"XIT: %lldHz",transmitter->xit);
           cairo_move_to(cr, 310, 15);
-          cairo_set_font_size(cr, 12);
+          cairo_set_font_size(cr, DISPLAY_FONT_SIZE2);
           cairo_show_text(cr, temp_text);
         }
 
@@ -1325,7 +1325,7 @@ void vfo_update() {
         }
         sprintf(temp_text,"DUP");
         cairo_move_to(cr, 260, 38);
-        cairo_set_font_size(cr, 12);
+        cairo_set_font_size(cr, DISPLAY_FONT_SIZE2);
         cairo_show_text(cr, temp_text);
 
         cairo_destroy (cr);
