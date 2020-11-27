@@ -152,6 +152,13 @@ static int		CommonMercuryFreq = -1;
 static int              freq=-1;
 
 
+struct hl2word {
+   unsigned char c1;
+   unsigned char c2;
+   unsigned char c3;
+   unsigned char c4;
+} hl2addr[64];
+
 // floating-point represeners of TX att, RX att, and RX preamp settings
 
 static double txdrv_dbl = 0.99;
@@ -190,8 +197,6 @@ int main(int argc, char *argv[])
 	pthread_attr_t attr;
 	pthread_t thread;
 
-	uint8_t reply[11] = { 0xef, 0xfe, 2, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0, 1 };
-
 	uint8_t id[4] = { 0xef, 0xfe, 1, 6 };
 	uint32_t code;
         int16_t  sample,l,r;
@@ -207,6 +212,7 @@ int main(int argc, char *argv[])
         struct sockaddr_in addr_from;
         unsigned int seed;
 
+        memzero(hl2addr, sizeof(hl2addr));
 	uint32_t last_seqnum = 0xffffffff, seqnum;  // sequence number of received packet
 
 	int udp_retries=0;
@@ -634,19 +640,28 @@ int main(int argc, char *argv[])
 					fprintf(stderr,"InvalidLength: RvcMsg Code=0x%08x Len=%d\n", code, (int)bytes_read);
 					break;
 				}
-				reply[ 2] = 2;
+				memset(buffer, 0, 60);
+                                buffer[0]=0xEF;
+                                buffer[1]=0xFE;
+                                buffer[2]=0x02;
+                                buffer[3]=0xAA;  // buffer[3:8] is MAC address
+                                buffer[4]=0xBB;
+                                buffer[5]=0xCC;
+                                buffer[6]=0xDD;
+                                buffer[7]=0xEE;
+                                buffer[8]=0xFF;
+				buffer[ 2] = 2;
 				if (active_thread || new_protocol_running()) {
-				    reply[2] = 3;
+				    buffer[2] = 3;
 				}
-				reply[9]=31; // software version
-				reply[10] = OLDDEVICE;
+				buffer[9]=31; // software version
+				buffer[10] = OLDDEVICE;
 				if (OLDDEVICE == DEVICE_HERMES_LITE2) {
 				    // use HL1 device ID and new software version
-				    reply[9]=41;
-				    reply[10]=DEVICE_HERMES_LITE;
+				    buffer[9]=71;
+				    buffer[10]=DEVICE_HERMES_LITE;
+                                    buffer[19]=4;  // number of receivers
 				}
-				memset(buffer, 0, 60);
-				memcpy(buffer, reply, 11);
 
 				if (sock_TCP_Client > -1)
 				{
@@ -1193,6 +1208,23 @@ void process_ep2(uint8_t *frame)
 	    chk_data(frame[2] & 0x40, anan7kps,  "Anan7k PureSignal flag");
 	    chk_data(frame[3] << 8 | frame[4], envgain, "Firmware EnvGain");
 	    break;
+        default:
+            //
+            // The HermesLite2 has an extended address range so we just
+            // report if anything has changed. So if one address has not
+	    // been handled before explicitly, its changes will be reported
+            // here in a generic form.
+            //
+            rc=frame[0] >> 1;
+            if (hl2addr[rc].c1 != frame[1] || hl2addr[rc].c2 != frame[2] ||
+                hl2addr[rc].c3 != frame[3] || hl2addr[rc].c4 != frame[4]) {
+              printf("ADDR=0x%2x C1=0x%2x C2=0x%2x C3=0x%2x C4=0x%2x\n",
+                rc, frame[1], frame[2], frame[3], frame[4]);
+              hl2addr[rc].c1=frame[1];
+              hl2addr[rc].c2=frame[2];
+              hl2addr[rc].c3=frame[3];
+              hl2addr[rc].c4=frame[4];
+            }
 	}
 }
 
