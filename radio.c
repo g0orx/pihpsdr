@@ -466,14 +466,14 @@ static void create_visual() {
 
 
   GtkWidget *minimize_b=gtk_button_new_with_label("Hide");
-  gtk_widget_override_font(minimize_b, pango_font_description_from_string("FreeMono Bold 10"));
+  gtk_widget_override_font(minimize_b, pango_font_description_from_string("FreeSans Bold 10"));
   gtk_widget_set_size_request (minimize_b, MENU_WIDTH, MENU_HEIGHT);
   g_signal_connect (minimize_b, "button-press-event", G_CALLBACK(minimize_cb), NULL) ;
   gtk_fixed_put(GTK_FIXED(fixed),minimize_b,VFO_WIDTH+METER_WIDTH,y);
   y+=MENU_HEIGHT;
 
   GtkWidget *menu_b=gtk_button_new_with_label("Menu");
-  gtk_widget_override_font(menu_b, pango_font_description_from_string("FreeMono Bold 10"));
+  gtk_widget_override_font(menu_b, pango_font_description_from_string("FreeSans Bold 10"));
   gtk_widget_set_size_request (menu_b, MENU_WIDTH, MENU_HEIGHT);
   g_signal_connect (menu_b, "button-press-event", G_CALLBACK(menu_cb), NULL) ;
   gtk_fixed_put(GTK_FIXED(fixed),menu_b,VFO_WIDTH+METER_WIDTH,y);
