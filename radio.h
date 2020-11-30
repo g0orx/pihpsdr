@@ -29,41 +29,12 @@
 //
 // Fonts and sizes for VFO, meter, panadapter etc.
 //
-#ifdef ORIGINAL_PIHPSDR_DISPLAY_FONTS
-
-//
-// This is the original pihpsdr variant
-//
-#define DISPLAY_FONT "FreeMono"
-#define DISPLAY_FONT_SIZE1 10
+#define DISPLAY_FONT "FreeSans"   // FreeMono in original piHPSDR
+#define DISPLAY_FONT_SIZE1 10     // sizes are as in original piHPSDR
 #define DISPLAY_FONT_SIZE2 12
 #define DISPLAY_FONT_SIZE3 16
 #define DISPLAY_FONT_SIZE4 22
 
-#else
-//
-// The FreeMono font renders poorly for small font
-// sizes, the Sans font does much better.
-//
-#define DISPLAY_FONT "Sans"
-
-// For some reason, one can use the original font
-// sizes on Apple Macintosh but must use smaller
-// ones on the RaspPi to get the same appearance.
-//
-#ifdef __APPLE__
-#define DISPLAY_FONT_SIZE1 10
-#define DISPLAY_FONT_SIZE2 12
-#define DISPLAY_FONT_SIZE3 16
-#define DISPLAY_FONT_SIZE4 22
-#else
-#define DISPLAY_FONT_SIZE1  8
-#define DISPLAY_FONT_SIZE2 10
-#define DISPLAY_FONT_SIZE3 13
-#define DISPLAY_FONT_SIZE4 19
-#endif
-
-#endif
 #define NEW_MIC_IN 0x00
 #define NEW_LINE_IN 0x01
 #define NEW_MIC_BOOST 0x02
