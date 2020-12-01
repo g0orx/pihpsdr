@@ -35,6 +35,8 @@
 #define DISPLAY_FONT_SIZE3 16
 #define DISPLAY_FONT_SIZE4 22
 
+#define SLIDERS_FONT "FreeSans Bold 10"   // Used for description in the sliders/zoompan area
+
 #define NEW_MIC_IN 0x00
 #define NEW_LINE_IN 0x01
 #define NEW_MIC_BOOST 0x02
