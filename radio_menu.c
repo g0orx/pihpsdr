@@ -259,55 +259,54 @@ static void sat_cb(GtkWidget *widget, gpointer data) {
 }
 
 void load_filters(void) {
-  if(filter_board==N2ADR) {
-    // set OC filters
-    BAND *band;
-    band=band_get_band(band160);
-    band->OCrx=band->OCtx=1;
-    band=band_get_band(band80);
-    band->OCrx=band->OCtx=66;
-    band=band_get_band(band60);
-    band->OCrx=band->OCtx=68;
-    band=band_get_band(band40);
-    band->OCrx=band->OCtx=68;
-    band=band_get_band(band30);
-    band->OCrx=band->OCtx=72;
-    band=band_get_band(band20);
-    band->OCrx=band->OCtx=72;
-    band=band_get_band(band17);
-    band->OCrx=band->OCtx=80;
-    band=band_get_band(band15);
-    band->OCrx=band->OCtx=80;
-    band=band_get_band(band12);
-    band->OCrx=band->OCtx=96;
-    band=band_get_band(band10);
-    band->OCrx=band->OCtx=96;
-    if(protocol==NEW_PROTOCOL) {
-      schedule_high_priority();
-    }
-    return;
+  BAND *band;
+  switch (filter_board) {
+      case N2ADR:
+        // set OC outputs for each band according to the N2ADR board requirements
+        band=band_get_band(band160);
+        band->OCrx=band->OCtx=1;
+        band=band_get_band(band80);
+        band->OCrx=band->OCtx=66;
+        band=band_get_band(band60);
+        band->OCrx=band->OCtx=68;
+        band=band_get_band(band40);
+        band->OCrx=band->OCtx=68;
+        band=band_get_band(band30);
+        band->OCrx=band->OCtx=72;
+        band=band_get_band(band20);
+        band->OCrx=band->OCtx=72;
+        band=band_get_band(band17);
+        band->OCrx=band->OCtx=80;
+        band=band_get_band(band15);
+        band->OCrx=band->OCtx=80;
+        band=band_get_band(band12);
+        band->OCrx=band->OCtx=96;
+        band=band_get_band(band10);
+        band->OCrx=band->OCtx=96;
+        break;
+    case ALEX:
+    case APOLLO:
+    case CHARLY25:
+        // This is most likely not necessary here, but can do no harm
+        set_alex_rx_antenna();
+        set_alex_tx_antenna();
+        break;
+    case NONE:
+        break;
+    default:
+        break;
   }
-
+  //
+  // After doing filter-board-specific actions,
+  // schedule "General" and "HighPrio" packets for P2
+  //
   if(protocol==NEW_PROTOCOL) {
     filter_board_changed();
+    schedule_high_priority();
   }
-
-  if(filter_board==ALEX || filter_board==APOLLO) {
-    BAND *band=band_get_current_band();
-    // mode and filters have nothing to do with the filter board
-    //BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
-    //setFrequency(entry->frequency);
-    //setMode(entry->mode);
-    //set_mode(active_receiver,entry->mode);
-    //FILTER* band_filters=filters[entry->mode];
-    //FILTER* band_filter=&band_filters[entry->filter];
-    //set_filter(active_receiver,band_filter->low,band_filter->high);
-    if(active_receiver->id==0) {
-      set_alex_rx_antenna();
-      set_alex_tx_antenna();
-      //set_alex_attenuation(band->alexAttenuation); // nowhere maintained
-    }
-  }
+  //
+  // This switches between StepAttenuator slider and CHARLY25 ATT/Preamp checkboxes
+  //
   att_type_changed();
 }
 
