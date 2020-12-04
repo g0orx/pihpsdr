@@ -212,7 +212,7 @@ int main(int argc, char *argv[])
         struct sockaddr_in addr_from;
         unsigned int seed;
 
-        memzero(hl2addr, sizeof(hl2addr));
+        memset(hl2addr, 0, sizeof(hl2addr));
 	uint32_t last_seqnum = 0xffffffff, seqnum;  // sequence number of received packet
 
 	int udp_retries=0;
