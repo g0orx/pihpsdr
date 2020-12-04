@@ -364,7 +364,7 @@ void ant_menu(GtkWidget *parent) {
       //
       GtkWidget *new_pa_b = gtk_check_button_new_with_label("ANAN 100/200 new PA board");
       gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(new_pa_b), new_pa_board);
-      gtk_grid_attach(GTK_GRID(grid), new_pa_b, 3, 0, 1, 1);
+      gtk_grid_attach(GTK_GRID(grid), new_pa_b, 3, 0, 5, 1);
       g_signal_connect(new_pa_b, "toggled", G_CALLBACK(newpa_cb), NULL);
   }
 
