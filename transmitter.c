@@ -956,22 +956,32 @@ void tx_set_filter(TRANSMITTER *tx,int low,int high) {
   int txmode=get_tx_mode();
 
   switch(txmode) {
-    case modeLSB:
+    //
+    // In CW TX, WDSP is not unused anyway but CW signals
+    // are sent at zero frequency, therefore
+    // TX filter should be centered around zero.
+    //
+    // FMN and DRM set fixed TX filter sizes.
+    //
+    // LSB/DIGL "mirror" filter edges
+    //
     case modeCWL:
+    case modeCWU:
+    case modeDSB:
+    case modeAM:
+    case modeSAM:
+    case modeSPEC:
+      tx->filter_low =-high;
+      tx->filter_high=high;
+      break;
+    case modeLSB:
     case modeDIGL:
       tx->filter_low=-high;
       tx->filter_high=-low;
       break;
     case modeUSB:
-    case modeCWU:
     case modeDIGU:
       tx->filter_low=low;
-      tx->filter_high=high;
-      break;
-    case modeDSB:
-    case modeAM:
-    case modeSAM:
-      tx->filter_low=-high;
       tx->filter_high=high;
       break;
     case modeFMN:

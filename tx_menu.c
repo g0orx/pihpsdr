@@ -130,21 +130,38 @@ static void use_rx_filter_cb(GtkWidget *widget, gpointer data) {
   transmitter->use_rx_filter=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
   int filter_low,filter_high;
 
+  //
+  // The result is unreasonable if e.g. the RX mode is FM and the TX mode is USB
+  // but it is designed to do something useful if RX mode is USB and TX mode is LSB
+  // which may occur in cross-band QSOs
+  //
   if(transmitter->use_rx_filter) {
     int m=vfo[active_receiver->id].mode;
-    if(m==modeFMN) {
-      if(active_receiver->deviation==2500) {
-        filter_low=-5500;
-        filter_high=5500;
-      } else {
-        filter_low=-8000;
-        filter_high=8000;
-      }
-    } else {
-      FILTER *mode_filters=filters[m];
-      FILTER *filter=&mode_filters[vfo[active_receiver->id].filter];
-      filter_low=filter->low;
-      filter_high=filter->high;
+    FILTER *mode_filters=filters[m];
+    FILTER *filter=&mode_filters[vfo[active_receiver->id].filter];
+    switch (m) {
+      case modeFMN:
+      case modeDRM:
+      case modeCWU:
+      case modeCWL:
+      case modeAM:
+      case modeDSB:
+      case modeSAM:
+      case modeSPEC:
+        filter_low =-filter->high;
+        filter_high= filter->high;
+        break;
+      case modeLSB:
+      case modeDIGL:
+        // filter edges are in the IQ domain (negative)
+        filter_low=-filter->high;
+        filter_high=-filter->low;
+        break;
+      case modeUSB:
+      case modeDIGU:
+        filter_low=filter->low;
+        filter_high=filter->high;
+        break;
     }
   } else {
     filter_low=tx_filter_low;
