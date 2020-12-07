@@ -1316,34 +1316,10 @@ void receiver_filter_changed(RECEIVER *rx) {
     set_filter(rx,filter_low,filter_high);
   }
 
-  //
-  // tx_set_filter mirrors the filter edges for LSB, DIGL
-  //
   if(can_transmit && transmitter!=NULL) {
     if(transmitter->use_rx_filter) {
-      if(rx==active_receiver) {
-        switch (m) {
-          case modeCWU:
-          case modeCWL:
-          case modeDSB:
-          case modeAM:
-          case modeSAM:
-          case modeFMN:
-          case modeDRM:
-          case modeSPEC:
-            tx_set_filter(transmitter,-filter_high,filter_high);
-            break;
-          case modeUSB:
-          case modeDIGU:
-            tx_set_filter(transmitter,filter_low,filter_high);
-            break;
-          case modeLSB:
-          case modeDIGL:
-            tx_set_filter(transmitter,-filter_high,-filter_low);
-            break;
-        }
-      }
-    }
+      tx_set_filter(transmitter);
+    } 
   }
 }
 

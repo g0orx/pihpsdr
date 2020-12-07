@@ -928,68 +928,83 @@ void tx_set_mode(TRANSMITTER* tx,int mode) {
     int filter_low, filter_high;
     tx->mode=mode;
     SetTXAMode(tx->id, tx->mode);
-    if(tx->use_rx_filter) {
-      int m=vfo[active_receiver->id].mode;
-      if(m==modeFMN) {
-        if(active_receiver->deviation==2500) {
-         filter_low=-5500;
-         filter_high=5500;
-        } else {
-         filter_low=-8000;
-         filter_high=8000;
-        }
-      } else {
-        FILTER *mode_filters=filters[m];
-        FILTER *filter=&mode_filters[vfo[active_receiver->id].filter];
-        filter_low=filter->low;
-        filter_high=filter->high;
-      }
-    } else {
-      filter_low=tx_filter_low;
-      filter_high=tx_filter_high;
-    }
-    tx_set_filter(tx,filter_low,filter_high);
+    tx_set_filter(tx);
   }
 }
 
-void tx_set_filter(TRANSMITTER *tx,int low,int high) {
+void tx_set_filter(TRANSMITTER *tx) {
   int txmode=get_tx_mode();
 
+  // load default values
+  int low  = tx_filter_low;
+  int high = tx_filter_high;  // 0 < low < high
+ 
+  if (tx->use_rx_filter) {
+    //
+    // Use only 'compatible' parts of RX filter settings
+    // to change TX values (importrant for split operation)
+    //
+    int id=active_receiver->id;
+    int rxmode=vfo[id].mode;
+    FILTER *mode_filters=filters[rxmode];
+    FILTER *filter=&mode_filters[vfo[id].filter];
+
+    switch (rxmode) {
+      case modeDSB:
+      case modeAM:
+      case modeSAM:
+      case modeSPEC:
+        high =  filter->high;
+        break;
+      case modeLSB:
+      case modeDIGL:
+        high = -filter->low;
+        low  = -filter->high;
+        break;
+      case modeUSB:
+      case modeDIGU:
+        high = filter->high;
+        low  = filter->low;
+        break;
+    }
+  }
+
   switch(txmode) {
-    //
-    // In CW TX, WDSP is not unused anyway but CW signals
-    // are sent at zero frequency, therefore
-    // TX filter should be centered around zero.
-    //
-    // FMN and DRM set fixed TX filter sizes.
-    //
-    // LSB/DIGL "mirror" filter edges
-    //
     case modeCWL:
     case modeCWU:
+      // default filter setting (low=150, high=2850) and "use rx filter" unreasonable here
+      // note currently WDSP is by-passed in CW anyway.
+      tx->filter_low  =-150;
+      tx->filter_high = 150;
+      break;
     case modeDSB:
     case modeAM:
     case modeSAM:
     case modeSPEC:
+      // disregard the "low" value and use (-high, high)
       tx->filter_low =-high;
       tx->filter_high=high;
       break;
     case modeLSB:
     case modeDIGL:
+      // in IQ space, the filter edges are (-high, -low)
       tx->filter_low=-high;
       tx->filter_high=-low;
       break;
     case modeUSB:
     case modeDIGU:
+      // in IQ space, the filter edges are (low, high)
       tx->filter_low=low;
       tx->filter_high=high;
       break;
     case modeFMN:
+      // calculate filter size from deviation,
+      // assuming that the highest AF frequency is 3000
       if(tx->deviation==2500) {
-        tx->filter_low=-5500;
-        tx->filter_high=5500;
+        tx->filter_low=-5500;  // Carson's rule: +/-(deviation + max_af_frequency)
+        tx->filter_high=5500;  // deviation=2500, max freq = 3000
       } else {
-        tx->filter_low=-8000;
+        tx->filter_low=-8000;  // deviation=5000, max freq = 3000
         tx->filter_high=8000;
       }
       break;
