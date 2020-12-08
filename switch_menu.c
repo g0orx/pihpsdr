@@ -136,7 +136,7 @@ void switch_menu(GtkWidget *parent) {
 
   function=0;
 
-  if(controller==CONTROLLER1) {
+  if(controller==NO_CONTROLLER || controller==CONTROLLER1) {
     notebook=gtk_notebook_new();
   }
  
@@ -155,8 +155,8 @@ next_function_set:
   gint max_switches=MAX_SWITCHES;
   switch(controller) {
     case NO_CONTROLLER:
-      max_switches=0;
-      temp_switches=switches_no_controller;
+      max_switches=8;
+      temp_switches=switches_controller1[function];
       break;
     case CONTROLLER1:
       max_switches=8;
@@ -178,7 +178,7 @@ next_function_set:
   col++;
 
   widget=gtk_label_new(NULL);
-  gtk_label_set_markup(GTK_LABEL(widget),"<b>Function</b>");
+  gtk_label_set_markup(GTK_LABEL(widget),"<b>Action</b>");
   gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
 
   row++;
@@ -191,7 +191,7 @@ next_function_set:
     gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
     col++;
 
-    if(controller==CONTROLLER1 && (i==0 || i==(max_switches-1))) {
+    if((controller==NO_CONTROLLER || controller==CONTROLLER1) && (i==0 || i==(max_switches-1))) {
       widget=gtk_label_new(NULL);
       g_sprintf(label,"<b>%s</b>",sw_string[temp_switches[i].switch_function]);
       gtk_label_set_markup (GTK_LABEL(widget), label);
@@ -205,7 +205,7 @@ next_function_set:
     col=0;
   }
 
-  if(controller==CONTROLLER1) {
+  if(controller==NO_CONTROLLER || controller==CONTROLLER1) {
     g_sprintf(label,"Function %d",function);
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook),grid,gtk_label_new(label));
     function++;

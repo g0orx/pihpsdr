@@ -286,7 +286,7 @@ SWITCH switches_controller2_v2[MAX_SWITCHES]={
   {FALSE,FALSE,0,CTUN}
   };
 
-SWITCH *switches=switches_no_controller;
+SWITCH *switches=switches_controller1[0];
 
 static int running=0;
 
@@ -642,7 +642,7 @@ void gpio_set_defaults(int ctrlr) {
   switch(ctrlr) {
     case NO_CONTROLLER:
       encoders=encoders_no_controller;
-      switches=switches_no_controller;
+      switches=switches_controller1[0];
       break;
     case CONTROLLER1:
       encoders=encoders_controller1;
