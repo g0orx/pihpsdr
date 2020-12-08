@@ -656,6 +656,10 @@ void gpio_set_defaults(int ctrlr) {
       encoders=encoders_controller2_v2;
       switches=switches_controller2_v2;
       break;
+    case CONTROLLER_I2C:
+      encoders=encoders_no_controller;
+      switches=switches_no_controller;
+      break;
   }
 }
 
@@ -1004,17 +1008,19 @@ int gpio_init() {
     }
   }
 
-  monitor_thread_id = g_thread_new( "gpiod monitor", monitor_thread, NULL);
-  if(!monitor_thread_id ) {
-    g_print("%s: g_thread_new failed for monitor_thread\n",__FUNCTION__);
-  }
+  if(controller!=NO_CONTROLLER && controller!=CONTROLLER_I2C) {
+    monitor_thread_id = g_thread_new( "gpiod monitor", monitor_thread, NULL);
+    if(!monitor_thread_id ) {
+      g_print("%s: g_thread_new failed for monitor_thread\n",__FUNCTION__);
+    }
 
-  rotary_encoder_thread_id = g_thread_new( "encoders", rotary_encoder_thread, NULL);
-  if(!rotary_encoder_thread_id ) {
-    g_print("%s: g_thread_new failed on rotary_encoder_thread\n",__FUNCTION__);
-    exit( -1 );
+    rotary_encoder_thread_id = g_thread_new( "encoders", rotary_encoder_thread, NULL);
+    if(!rotary_encoder_thread_id ) {
+      g_print("%s: g_thread_new failed on rotary_encoder_thread\n",__FUNCTION__);
+      exit( -1 );
+    }
+    g_print("%s: rotary_encoder_thread: id=%p\n",__FUNCTION__,rotary_encoder_thread_id);
   }
-  g_print("%s: rotary_encoder_thread: id=%p\n",__FUNCTION__,rotary_encoder_thread_id);
 
   return 0;
 
