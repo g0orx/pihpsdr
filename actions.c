@@ -141,15 +141,15 @@ char *sw_cap_string[SWITCH_ACTIONS] = {
   "AGC",
   "ANF",
   "B>A",
-  "BND-",
-  "BND+",
+  "BAND -",
+  "BAND +",
   "BST-",
   "BST+",
   "CTUN",
   "DIV",
   "DUP",
-  "FLT-",
-  "FLT+",
+  "FILT -",
+  "FILT +",
   "FUNC",
   "LOCK",
   "AGC",
@@ -162,8 +162,8 @@ char *sw_cap_string[SWITCH_ACTIONS] = {
   "MODE",
   "NOISE",
   "PS",
-  "MD-",
-  "MD+",
+  "MODE -",
+  "MODE +",
   "MOX",
   "MUTE",
   "NB",
@@ -172,9 +172,9 @@ char *sw_cap_string[SWITCH_ACTIONS] = {
   "PAN+",
   "PS",
   "RIT",
-  "RIT0",
-  "RIT+",
-  "RIT-",
+  "RIT CL",
+  "RIT -",
+  "RIT +",
   "RSAT",
   "SAT",
   "SNB",
@@ -184,9 +184,9 @@ char *sw_cap_string[SWITCH_ACTIONS] = {
   "TUN-M",
   "2TONE",
   "XIT",
-  "XIT0",
-  "XIT+",
-  "XIT-",
+  "XIT CL",
+  "XIT -",
+  "XIT +",
   "ZOOM-",
   "ZOOM+",
 };
@@ -500,7 +500,7 @@ int switch_action(void *data) {
   if(a->state==PRESSED) {
     switch(a->action) {
       case FUNCTION:
-        if(controller==CONTROLLER1) {
+        if(controller==NO_CONTROLLER || controller==CONTROLLER1) {
           function++;
           if(function>=MAX_FUNCTIONS) {
             function=0;
@@ -513,7 +513,7 @@ int switch_action(void *data) {
         if(getMox()==1) {
           setMox(0);
         }
-        if(a->state) {
+        if(getTune()==1) {
           setTune(0);
           if(canTransmit() || tx_out_of_band) {
             setTune(1);
@@ -529,14 +529,14 @@ int switch_action(void *data) {
         if(getTune()==1) {
           setTune(0);
         }
-        if(a->state) {
+        if(getMox()==0) {
           if(canTransmit() || tx_out_of_band) {
-            setMox(a->state);
+            setMox(1);
           } else {
             transmitter_set_out_of_band(transmitter);
           }
         } else {
-          setMox(a->state);
+          setMox(0);
         }
         g_idle_add(ext_vfo_update,NULL);
         break;
@@ -611,6 +611,12 @@ int switch_action(void *data) {
       case RIT_CLEAR:
         vfo_rit_clear(active_receiver->id);
         break;
+      case RIT_MINUS:
+	vfo_rit(active_receiver->id,-1);
+        break;
+      case RIT_PLUS:
+	vfo_rit(active_receiver->id,1);
+        break;
       case XIT:
         if(can_transmit) {
           transmitter->xit_enabled=transmitter->xit_enabled==1?0:1;
@@ -624,6 +630,38 @@ int switch_action(void *data) {
         if(can_transmit) {
           transmitter->xit=0;
           g_idle_add(ext_vfo_update, NULL);
+        }
+        break;
+      case XIT_MINUS:
+        if(can_transmit) {
+          double value=(double)transmitter->xit;
+          value-=(double)rit_increment;
+          if(value<-10000.0) {
+            value=-10000.0;
+          } else if(value>10000.0) {
+            value=10000.0;
+          }
+          transmitter->xit=(int)value;
+          if(protocol==NEW_PROTOCOL) {
+            schedule_high_priority();
+          }
+          g_idle_add(ext_vfo_update,NULL);
+	}
+	break;
+      case XIT_PLUS:
+        if(can_transmit) {
+          double value=(double)transmitter->xit;
+          value+=(double)rit_increment;
+          if(value<-10000.0) {
+            value=-10000.0;
+          } else if(value>10000.0) {
+            value=10000.0;
+          }
+          transmitter->xit=(int)value;
+          if(protocol==NEW_PROTOCOL) {
+            schedule_high_priority();
+          }
+          g_idle_add(ext_vfo_update,NULL);
         }
         break;
       case BAND_PLUS:
@@ -744,12 +782,13 @@ int switch_action(void *data) {
 #endif
         break;
       case CTUN:
-        vfo[active_receiver->id].ctun=a->state;
+        vfo[active_receiver->id].ctun=!vfo[active_receiver->id].ctun;
         if(!vfo[active_receiver->id].ctun) {
           vfo[active_receiver->id].offset=0;
         }
         vfo[active_receiver->id].ctun_frequency=vfo[active_receiver->id].frequency;
         set_offset(receiver[active_receiver->id],vfo[active_receiver->id].offset);
+        g_idle_add(ext_vfo_update, NULL);
         break;
       case AGC:
         active_receiver->agc++;
