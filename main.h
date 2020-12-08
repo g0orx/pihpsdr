@@ -23,6 +23,16 @@
 #include <sys/utsname.h>
 extern struct utsname unameData;
 
+enum {
+  NO_CONTROLLER,
+  CONTROLLER1,
+  CONTROLLER2_V1,
+  CONTROLLER2_V2,
+  CONTROLLER_I2C
+};
+
+extern gint controller;
+
 extern gint display_width;
 extern gint display_height;
 extern gint full_screen;

@@ -568,6 +568,7 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
     gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(gpio),NULL,"Controller1");
     gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(gpio),NULL,"Controller2 V1");
     gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(gpio),NULL,"Controller2 V2");
+    gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(gpio),NULL,"Controller I2C");
     gtk_grid_attach(GTK_GRID(grid),gpio,0,row,1,1);
 
     gtk_combo_box_set_active(GTK_COMBO_BOX(gpio),controller);

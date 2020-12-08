@@ -24,15 +24,6 @@
 #define MAX_SWITCHES 16
 #define MAX_FUNCTIONS 6
 
-enum {
-  NO_CONTROLLER=0,
-  CONTROLLER1,
-  CONTROLLER2_V1,
-  CONTROLLER2_V2,
-};
-
-extern int controller;
-  
 typedef struct _encoder {
   gboolean bottom_encoder_enabled;
   gboolean bottom_encoder_pullup;

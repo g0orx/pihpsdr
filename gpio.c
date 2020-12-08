@@ -85,8 +85,6 @@ static struct gpiod_chip *chip=NULL;
 static GMutex encoder_mutex;
 static GThread *monitor_thread_id;
 
-int controller=NO_CONTROLLER;
-
 int I2C_INTERRUPT=15;
 
 #define MAX_LINES 32

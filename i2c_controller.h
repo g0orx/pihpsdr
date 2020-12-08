@@ -141,6 +141,7 @@
 #define GAMMA_2_6 6
 #define GAMMA_2_8 7
 
+/*
 enum {
   ENCODER_NO_ACTION=0,
   ENCODER_AF_GAIN,
@@ -240,8 +241,9 @@ enum {
 };
 
 extern char *sw_string[SWITCH_ACTIONS];
+*/
 
-typedef struct _encoder {
+typedef struct i2c_encoder {
   gboolean enabled;
   gint address;
   gint pos;
@@ -254,11 +256,11 @@ typedef struct _encoder {
   gint gp2_function;
   gboolean gp3_enabled; 
   gint gp3_function;
-} ENCODER;
+} I2C_ENCODER;
 
-#define MAX_ENCODERS 7
+#define MAX_I2C_ENCODERS 7
 
-extern ENCODER encoder[MAX_ENCODERS];
+extern I2C_ENCODER encoder[MAX_I2C_ENCODERS];
 
 extern int i2c_controller_init();
 #endif

@@ -29,6 +29,7 @@
 #include <i2c/smbus.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
+#include "actions.h"
 #include "i2c_controller.h"
 #include "vfo.h"
 #include "radio.h"
@@ -37,6 +38,7 @@
 #include "new_menu.h"
 
 
+/*
 char *encoder_string[ENCODER_ACTIONS] = {
   "NO ACTION",
   "AF GAIN",
@@ -130,8 +132,9 @@ char *sw_string[SWITCH_ACTIONS] = {
   "ZOOM -",
   "ZOOM +",
 };
+*/
 
-ENCODER encoder[MAX_ENCODERS]=
+I2C_ENCODER encoder[MAX_I2C_ENCODERS]=
 {
   {TRUE,0x11,0,ENCODER_AF_GAIN,TRUE,MODE_MENU,FALSE,NO_ACTION,FALSE,NO_ACTION,FALSE,NO_ACTION},
   {TRUE,0x12,0,ENCODER_AGC_GAIN,TRUE,FILTER_MENU,FALSE,NO_ACTION,FALSE,NO_ACTION,FALSE,NO_ACTION},
@@ -142,7 +145,7 @@ ENCODER encoder[MAX_ENCODERS]=
   {TRUE,0x10,0,ENCODER_VFO,TRUE,MENU_BAND,FALSE,NO_ACTION,FALSE,NO_ACTION,FALSE,NO_ACTION},
 };
 
-char *gpio_device="/dev/gpiochip0";
+char *i2c_controller_gpio_device="/dev/gpiochip0";
 int new_i2c_interrupt=4;
 
 static struct gpiod_chip *chip=NULL;
@@ -151,7 +154,7 @@ static struct gpiod_line *line=NULL;
 static GMutex encoder_mutex;
 static GThread *monitor_thread_id;
 
-char *i2c_device="/dev/i2c-1";
+char *i2c_controller_i2c_device="/dev/i2c-1";
 
 static int fd=-1;
 
@@ -159,7 +162,7 @@ static GThread *rotary_encoder_thread_id;
 
 static int vfo_encoder_changed(void *data) {
   if(!locked) {
-    gint pos=(gint)data;
+    gint pos=GPOINTER_TO_INT(data);
     vfo_step(pos);
   }
   return 0;
@@ -168,7 +171,7 @@ static int vfo_encoder_changed(void *data) {
 static gpointer rotary_encoder_thread(gpointer data) {
   while(1) {
     g_mutex_lock(&encoder_mutex);
-    for(int i=0;i<MAX_ENCODERS;i++) {
+    for(int i=0;i<MAX_I2C_ENCODERS;i++) {
       if(encoder[i].enabled) {
         if(encoder[i].pos!=0) {
           switch(encoder[i].encoder_function) {
@@ -176,7 +179,7 @@ static gpointer rotary_encoder_thread(gpointer data) {
               if(active_menu==BAND_MENU) {
                 // move to next/previous band
               } else {
-                g_idle_add(vfo_encoder_changed,(gpointer)encoder[i].pos);
+                g_idle_add(vfo_encoder_changed,GINT_TO_POINTER(encoder[i].pos));
               }
               break;
             case ENCODER_AF_GAIN:
@@ -187,7 +190,7 @@ static gpointer rotary_encoder_thread(gpointer data) {
               if(af_gain>1.0) af_gain=1.0;
               double *dp=g_new(double,1);
               *dp=af_gain;
-              g_idle_add(ext_set_af_gain,(gpointer)dp);
+              g_idle_add(ext_set_af_gain,dp);
               }
               break;
             case ENCODER_AGC_GAIN:
@@ -198,7 +201,7 @@ static gpointer rotary_encoder_thread(gpointer data) {
               if(agc_gain>120.0) agc_gain=120.0;
               double *dp=g_new(double,1);
               *dp=agc_gain;
-              g_idle_add(ext_set_agc_gain,(gpointer)dp);
+              g_idle_add(ext_set_agc_gain,dp);
               }
               break;
             case ENCODER_DRIVE:
@@ -209,7 +212,7 @@ static gpointer rotary_encoder_thread(gpointer data) {
               if(drive>drive_max) drive=drive_max;
               double *dp=g_new(double,1);
               *dp=drive;
-              g_idle_add(ext_set_drive,(gpointer)dp);
+              g_idle_add(ext_set_drive,dp);
               }
               break;
           }
@@ -222,20 +225,20 @@ static gpointer rotary_encoder_thread(gpointer data) {
   }
 }
 
-int i2c_init() {
+static int i2c_init() {
   int ret=0;
 
   g_mutex_init(&encoder_mutex);
 
-  g_print("%s: open i2c device %s\n",__FUNCTION__,i2c_device);
-  fd=open(i2c_device, O_RDWR);
+  g_print("%s: open i2c device %s\n",__FUNCTION__,i2c_controller_i2c_device);
+  fd=open(i2c_controller_i2c_device, O_RDWR);
   if(fd<0) {
-    g_print("%s: open i2c device %s failed: %s\n",__FUNCTION__,i2c_device,g_strerror(errno));
+    g_print("%s: open i2c device %s failed: %s\n",__FUNCTION__,i2c_controller_i2c_device,g_strerror(errno));
     goto end;
   }
-  g_print("%s: open i2c device %s fd=%d\n",__FUNCTION__,i2c_device,fd);
+  g_print("%s: open i2c device %s fd=%d\n",__FUNCTION__,i2c_controller_i2c_device,fd);
 
-  for(int i=0;i<MAX_ENCODERS;i++) {
+  for(int i=0;i<MAX_I2C_ENCODERS;i++) {
     if(encoder[i].enabled) {
  
       if (ioctl(fd, I2C_SLAVE, encoder[i].address) < 0) {
@@ -368,13 +371,13 @@ static void encoder_switch_pushed(int i) {
   }
 }
 
-void i2c_interrupt(int line) {
+static void i2c_interrupt(int line) {
   int length;
 
   g_print("%s: line=%d fd=%d\n",__FUNCTION__,line,fd);
   if(fd!=-1) {
     g_mutex_lock(&encoder_mutex);
-    for(int i=0;i<MAX_ENCODERS;i++) {
+    for(int i=0;i<MAX_I2C_ENCODERS;i++) {
       if(encoder[i].enabled) {
         if (ioctl(fd, I2C_SLAVE, encoder[i].address) < 0) {
           g_print("%s: ioctl i2c slave %d failed: %s\n",__FUNCTION__,encoder[i].address,g_strerror(errno));
@@ -461,7 +464,7 @@ static gpointer monitor_thread(gpointer arg) {
   t.tv_sec=60;
   t.tv_nsec=0;
 
-  int ret=gpiod_ctxless_event_monitor(gpio_device,GPIOD_CTXLESS_EVENT_FALLING_EDGE,new_i2c_interrupt,FALSE,"encoder",&t,NULL,interrupt_cb,NULL);
+  int ret=gpiod_ctxless_event_monitor(i2c_controller_gpio_device,GPIOD_CTXLESS_EVENT_FALLING_EDGE,new_i2c_interrupt,FALSE,"encoder",&t,NULL,interrupt_cb,NULL);
   if (ret<0) {
     g_print("%s: ctxless event monitor failed: %s\n",__FUNCTION__,g_strerror(errno));
   }
@@ -470,7 +473,7 @@ static gpointer monitor_thread(gpointer arg) {
   return NULL;
 }
 
-int gpio_init() {
+static int gpio_init() {
   int ret=0;
 
 
@@ -528,7 +531,7 @@ end:
   return ret;
 }
 
-void gpio_close() {
+static void gpio_close() {
   if(line!=NULL) gpiod_line_release(line);
   if(chip!=NULL) gpiod_chip_close(chip);
 }

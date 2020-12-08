@@ -2,6 +2,7 @@
 #include <glib.h>
 #include <glib/gprintf.h>
 
+#include "actions.h"
 #include "i2c_controller.h"
 #include "main.h"
 #include "new_menu.h"
@@ -108,7 +109,7 @@ void i2c_controller_menu(GtkWidget *parent_window) {
   gtk_grid_set_column_spacing (GTK_GRID(grid),2);
   gtk_grid_set_row_spacing (GTK_GRID(grid),2);
 
-  for(int i=0;i<MAX_ENCODERS;i++) {
+  for(int i=0;i<MAX_I2C_ENCODERS;i++) {
     row=i%3;
     col=(i/3)*4;
 
@@ -139,7 +140,7 @@ void i2c_controller_menu(GtkWidget *parent_window) {
   gtk_grid_set_column_spacing (GTK_GRID(grid),2);
   gtk_grid_set_row_spacing (GTK_GRID(grid),2);
 
-  for(int i=0;i<MAX_ENCODERS;i++) {
+  for(int i=0;i<MAX_I2C_ENCODERS;i++) {
     row=i%3;
     col=(i/3)*4;
 

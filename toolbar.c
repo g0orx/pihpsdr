@@ -23,10 +23,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef GPIO
 #include "actions.h"
 #include "gpio.h"
-#endif
 #include "toolbar.h"
 #include "mode.h"
 #include "filter.h"

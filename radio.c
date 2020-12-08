@@ -55,12 +55,8 @@
 #include "soapy_protocol.h"
 #endif
 #include "actions.h"
-#ifdef GPIO
 #include "gpio.h"
-#endif
-#ifdef I2C_CONTROLLER
 #include "i2c_controller.h"
-#endif
 #include "vfo.h"
 #include "vox.h"
 #include "meter.h"
@@ -99,6 +95,8 @@ void MIDIstartup();
 #define SLIDERS_HEIGHT (100)
 #define TOOLBAR_HEIGHT (30)
 #define WATERFALL_HEIGHT (105)
+
+gint controller=NO_CONTROLLER;
 
 GtkWidget *fixed;
 static GtkWidget *vfo_panel;
@@ -603,9 +601,11 @@ if(!radio_is_remote) {
 #endif
   }
 
-#ifdef I2C_CONTROLLER
-  if(i2c_controller_init()<0) {
-    g_print("%s: I2C_CONTROLLER failed to initialize i2c\n", __FUNCTION__);
+#ifdef GPIO
+  if(controller==CONTROLLER_I2C) {
+    if(i2c_controller_init()<0) {
+      g_print("%s: I2C_CONTROLLER failed to initialize i2c\n", __FUNCTION__);
+    }
   }
 #endif
 

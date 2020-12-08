@@ -182,9 +182,11 @@ static void vfo_divisor_value_changed_cb(GtkWidget *widget, gpointer data) {
   vfo_encoder_divisor=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
 }
 
+#ifdef GPIO
 static void gpio_settle_value_changed_cb(GtkWidget *widget, gpointer data) {
   settle_time=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
 }
+#endif
 
 /*
 static void toolbar_dialog_buttons_cb(GtkWidget *widget, gpointer data) {
