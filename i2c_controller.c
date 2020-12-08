@@ -284,6 +284,42 @@ static void i2c_interrupt(int line) {
           //g_print("%s: INT_2\n",__FUNCTION__);
           __s32 i2status=i2c_smbus_read_byte_data(fd,REG_I2STATUS);
           //g_print("%s: i2status=%02X\n",__FUNCTION__,status&0xFF);
+	  if(i2status&GP1_NEG && encoder[i].gp1_enabled) {
+            SWITCH_ACTION *a=g_new(SWITCH_ACTION,1);
+            a->action=encoder[i].gp1_function;
+            a->state=PRESSED;
+            g_idle_add(switch_action,a);
+          }
+          if(i2status&GP1_POS && encoder[i].gp1_enabled) {
+            SWITCH_ACTION *a=g_new(SWITCH_ACTION,1);
+            a->action=encoder[i].gp1_function;
+            a->state=RELEASED;
+            g_idle_add(switch_action,a);
+          }
+          if(i2status&GP2_NEG && encoder[i].gp2_enabled) {
+            SWITCH_ACTION *a=g_new(SWITCH_ACTION,1);
+            a->action=encoder[i].gp2_function;
+            a->state=PRESSED;
+            g_idle_add(switch_action,a);
+          }
+          if(i2status&GP2_POS && encoder[i].gp2_enabled) {
+            SWITCH_ACTION *a=g_new(SWITCH_ACTION,1);
+            a->action=encoder[i].gp2_function;
+            a->state=RELEASED;
+            g_idle_add(switch_action,a);
+          }
+          if(i2status&GP3_NEG && encoder[i].gp3_enabled) {
+            SWITCH_ACTION *a=g_new(SWITCH_ACTION,1);
+            a->action=encoder[i].gp3_function;
+            a->state=PRESSED;
+            g_idle_add(switch_action,a);
+          }
+          if(i2status&GP3_POS && encoder[i].gp3_enabled) {
+            SWITCH_ACTION *a=g_new(SWITCH_ACTION,1);
+            a->action=encoder[i].gp3_function;
+            a->state=RELEASED;
+            g_idle_add(switch_action,a);
+          }
         }
       }
     }
