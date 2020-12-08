@@ -76,10 +76,10 @@ static gboolean deviation_select_cb (GtkWidget *widget, gpointer data) {
   transmitter->deviation=GPOINTER_TO_UINT(data);
   if(active_receiver->deviation==2500) {
     set_filter(active_receiver,-5500,5500);
-    tx_set_filter(transmitter,-5500,5500);
+    tx_set_filter(transmitter);
   } else {
     set_filter(active_receiver,-8000,8000);
-    tx_set_filter(transmitter,-8000,8000);
+    tx_set_filter(transmitter);
   }
   set_deviation(active_receiver);
   transmitter_set_deviation(transmitter);
