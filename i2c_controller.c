@@ -83,50 +83,6 @@ static gpointer rotary_encoder_thread(gpointer data) {
           a->mode=RELATIVE;
           a->val=encoder[i].pos;
           g_idle_add(encoder_action,a);
-/*
-          switch(encoder[i].encoder_function) {
-            case ENCODER_VFO:
-              if(active_menu==BAND_MENU) {
-                // move to next/previous band
-              } else {
-                g_idle_add(vfo_encoder_changed,GINT_TO_POINTER(encoder[i].pos));
-              }
-              break;
-            case ENCODER_AF_GAIN:
-              {
-              double af_gain=active_receiver->volume;
-              af_gain+=((double)encoder[i].pos/100.0);
-              if(af_gain<0.0) af_gain=0.0;
-              if(af_gain>1.0) af_gain=1.0;
-              double *dp=g_new(double,1);
-              *dp=af_gain;
-              g_idle_add(ext_set_af_gain,dp);
-              }
-              break;
-            case ENCODER_AGC_GAIN:
-              {
-              double agc_gain=active_receiver->agc_gain;
-              agc_gain+=(double)encoder[i].pos;
-              if(agc_gain<-20.0) agc_gain=-20.0;
-              if(agc_gain>120.0) agc_gain=120.0;
-              double *dp=g_new(double,1);
-              *dp=agc_gain;
-              g_idle_add(ext_set_agc_gain,dp);
-              }
-              break;
-            case ENCODER_DRIVE:
-              {
-              double drive=getDrive();
-              drive+=(double)encoder[i].pos;
-              if(drive<0.0) drive=0.0;
-              if(drive>drive_max) drive=drive_max;
-              double *dp=g_new(double,1);
-              *dp=drive;
-              g_idle_add(ext_set_drive,dp);
-              }
-              break;
-          }
-*/
           encoder[i].pos=0;
         }
       }
@@ -285,7 +241,7 @@ static void encoder_switch_pushed(int i) {
 static void i2c_interrupt(int line) {
   int length;
 
-  g_print("%s: line=%d fd=%d\n",__FUNCTION__,line,fd);
+  //g_print("%s: line=%d fd=%d\n",__FUNCTION__,line,fd);
   if(fd!=-1) {
     g_mutex_lock(&encoder_mutex);
     for(int i=0;i<MAX_I2C_ENCODERS;i++) {
@@ -312,22 +268,12 @@ static void i2c_interrupt(int line) {
           //g_print("%s: PUSHD\n",__FUNCTION__);
         }
         if(status&RINC) {
-          g_print("%s: RINC from %02X\n",__FUNCTION__,encoder[i].address);
+          //g_print("%s: RINC from %02X\n",__FUNCTION__,encoder[i].address);
           encoder[i].pos++;
-/*
-          __s32 v;
-          __s32 bytes=i2c_smbus_read_i2c_block_data(fd, REG_CVALB4, 4, (__u8 *)&v);
-          g_print("%s: val=%d\n",__FUNCTION__,v);
-*/
         }
         if(status&RDEC) {
-          g_print("%s: RDEC from %02X\n",__FUNCTION__,encoder[i].address);
+          //g_print("%s: RDEC from %02X\n",__FUNCTION__,encoder[i].address);
           encoder[i].pos--;
-/*
-          __s32 v;
-          __s32 bytes=i2c_smbus_read_i2c_block_data(fd, REG_CVALB4, 4, (__u8 *)&v);
-          g_print("%s: val=%d\n",__FUNCTION__,v);
-*/
         }
         if(status&RMAX) {
           //g_print("%s: RMAX\n",__FUNCTION__);
@@ -348,7 +294,7 @@ static void i2c_interrupt(int line) {
 }
 
 static int interrupt_cb(int event_type, unsigned int line, const struct timespec *timeout, void* data) {
-  g_print("%s: event=%d line=%d\n",__FUNCTION__,event_type,line);
+  //g_print("%s: event=%d line=%d\n",__FUNCTION__,event_type,line);
   switch(event_type) {
     case GPIOD_CTXLESS_EVENT_CB_TIMEOUT:
       // timeout - ignore
