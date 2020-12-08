@@ -252,8 +252,7 @@ static void i2c_interrupt(int line) {
         }
         
         __s32 status=i2c_smbus_read_byte_data(fd,REG_ESTATUS);
-        g_print("%s: address=%02X status=%02X\n",__FUNCTION__,encoder[i].address,status&0xFF);
-
+        //g_print("%s: address=%02X status=%02X\n",__FUNCTION__,encoder[i].address,status&0xFF);
 
         if(status&PUSHR) {
           //g_print("%s: PUSHR\n",__FUNCTION__);

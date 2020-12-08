@@ -169,7 +169,7 @@ int panadapter_high=-40;
 int panadapter_low=-140;
 
 int display_filled=1;
-int display_gradient=0;
+int display_gradient=1;
 int display_detector_mode=DETECTOR_MODE_AVERAGE;
 int display_average_mode=AVERAGE_MODE_LOG_RECURSIVE;
 double display_average_time=120.0;
@@ -1152,16 +1152,21 @@ void start_radio() {
 
 #ifdef GPIO
   switch(controller) {
+    case NO_CONTROLLER:
+      display_zoompan=1;
+      display_sliders=1;
+      display_toolbar=1;
+      break;
     case CONTROLLER2_V1:
     case CONTROLLER2_V2:
       display_zoompan=1;
       display_sliders=0;
       display_toolbar=0;
       break;
-    default:
-      display_zoompan=1;
-      display_sliders=1;
-      display_toolbar=1;
+    case CONTROLLER_I2C:
+      display_zoompan=0;
+      display_sliders=0;
+      display_toolbar=0;
       break;
   }
 #else
