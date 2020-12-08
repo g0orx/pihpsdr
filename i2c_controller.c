@@ -181,16 +181,48 @@ static int i2c_init() {
         continue;
       }
 
-      v=PUSHR | PUSHP | PUSHD | RINC | RDEC /*| RMAX | RMIN | INT_2*/; 
-      //g_print("%s: write interrupt config %02X\n",__FUNCTION__, v&0xFF);
-      if(i2c_smbus_write_byte_data(fd,REG_INTCONF,v&0xFF)<0) {
-        g_print("%s: counter CMINB1 config failed: %s\n",__FUNCTION__,g_strerror(errno));
-        encoder[i].enabled=FALSE;
+
+      int int_config=0;
+      if(encoder[i].gp1_enabled) {
+        g_print("%s: encoder %d (0x%02X) GP1 enabled\n",__FUNCTION__,i,encoder[i].address);
+        v=GP_IN | GP_PULL_EN | GP_INT_NE;
+        int_config=INT_2;
+      } else {
+        g_print("%s: encoder %d (0x%02X) GP1 not enabled\n",__FUNCTION__,i,encoder[i].address);
+        v=GP_IN | GP_PULL_EN | GP_INT_DI;
+      }
+      if(i2c_smbus_write_byte_data(fd, REG_GP1CONF, v&0xFF)<0) {
+        g_print("%s: counter REG_GP1CONF config failed: %s\n",__FUNCTION__,g_strerror(errno));
+        continue;
+      }
+      if(encoder[i].gp2_enabled) {
+        g_print("%s: encoder %d (0x%02X) GP2 enabled\n",__FUNCTION__,i,encoder[i].address);
+        v=GP_IN | GP_PULL_EN | GP_INT_NE;
+        int_config=INT_2;
+      } else {
+        g_print("%s: encoder %d (0x%02X) GP2 not enabled\n",__FUNCTION__,i,encoder[i].address);
+        v=GP_IN | GP_PULL_EN | GP_INT_DI;
+      }
+      if(i2c_smbus_write_byte_data(fd, REG_GP2CONF, v&0xFF)<0) {
+        g_print("%s: counter REG_GP2CONF config failed: %s\n",__FUNCTION__,g_strerror(errno));
+        continue;
+      }
+      if(encoder[i].gp3_enabled) {
+        g_print("%s: encoder %d (0x%02X) GP3 enabled\n",__FUNCTION__,i,encoder[i].address);
+        v=GP_IN | GP_PULL_EN | GP_INT_NE;
+        int_config=INT_2;
+      } else {
+        g_print("%s: encoder %d (0x%02X) GP3 not enabled\n",__FUNCTION__,i,encoder[i].address);
+        v=GP_IN | GP_PULL_EN | GP_INT_DI;
+      }
+      if(i2c_smbus_write_byte_data(fd, REG_GP3CONF, v&0xFF)<0) {
+        g_print("%s: counter REG_GP3CONF config failed: %s\n",__FUNCTION__,g_strerror(errno));
         continue;
       }
 
-      //g_print("%s: write interrupt config %02X\n",__FUNCTION__, v&0xFF);
-      if(i2c_smbus_write_byte_data(fd,REG_INTCONF,v&0xFF)<0) {
+      int_config=PUSHR | PUSHP | PUSHD | RINC | RDEC /*| RMAX | RMIN | INT_2*/; 
+      //g_print("%s: write interrupt config %02X\n",__FUNCTION__, int_config&0xFF);
+      if(i2c_smbus_write_byte_data(fd,REG_INTCONF,int_config&0xFF)<0) {
         g_print("%s: counter CMINB1 config failed: %s\n",__FUNCTION__,g_strerror(errno));
         encoder[i].enabled=FALSE;
         continue;
