@@ -911,7 +911,6 @@ void vfo_update() {
         cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
         cairo_paint (cr);
 
-        //cairo_select_font_face(cr, "FreeMono",
         cairo_select_font_face(cr, "FreeSans",
             CAIRO_FONT_SLANT_NORMAL,
             CAIRO_FONT_WEIGHT_BOLD);
@@ -1172,7 +1171,7 @@ void vfo_update() {
         } else {
           cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
         }
-        cairo_show_text(cr, "Split");
+        cairo_show_text(cr, "SPLIT");
 
         cairo_move_to(cr, 260, 28);
         if(sat_mode!=SAT_NONE) {
