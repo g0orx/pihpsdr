@@ -921,7 +921,7 @@ static int setup_line(struct gpiod_chip *chip, int offset, gboolean pullup) {
 
   config.consumer=consumer;
   config.request_type=GPIOD_LINE_REQUEST_DIRECTION_INPUT | GPIOD_LINE_REQUEST_EVENT_BOTH_EDGES;
-#ifdef RASPIAN
+#ifdef RASPBIAN
   config.flags=pullup?GPIOD_LINE_REQUEST_FLAG_ACTIVE_LOW:0;
 #else
   config.flags=pullup?GPIOD_LINE_REQUEST_FLAG_BIAS_PULL_UP:GPIOD_LINE_REQUEST_FLAG_BIAS_PULL_DOWN;

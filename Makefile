@@ -4,7 +4,7 @@ GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 
 ISSUE := $(shell cat /etc/issue.net)
 ifneq ($(filter %Raspbian,$(ISSUE)),)
-	OSFLAG=-D RASPIAN
+	OSFLAG=-D RASPBAN
 endif
 
 # uncomment the following line to force 480x320 screen
