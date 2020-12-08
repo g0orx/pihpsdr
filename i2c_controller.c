@@ -38,102 +38,6 @@
 #include "new_menu.h"
 
 
-/*
-char *encoder_string[ENCODER_ACTIONS] = {
-  "NO ACTION",
-  "AF GAIN",
-  "AF GAIN RX1",
-  "AF GAIN RX2",
-  "AGC GAIN",
-  "AGC GAIN RX1",
-  "AGC GAIN RX2",
-  "ATTENUATION/RX GAIN",
-  "COMP",
-  "CW FREQUENCY",
-  "CW SPEED",
-  "DIVERSITY GAIN",
-  "DIVERSITY GAIN (coarse)",
-  "DIVERSITY GAIN (fine)",
-  "DIVERSITY PHASE",
-  "DIVERSITY PHASE (coarse)",
-  "DIVERSITY PHASE (fine)",
-  "DRIVE",
-  "IF SHIFT",
-  "IF SHIFT RX1",
-  "IF SHIFT RX2",
-  "IF WIDTH",
-  "IF WIDTH RX1",
-  "IF WIDTH RX2",
-  "MIC GAIN",
-  "PAN",
-  "PANADAPTER HIGH",
-  "PANADAPTER LOW",
-  "PANADAPTER STEP",
-  "RF GAIN",
-  "RF GAIN RX1",
-  "RF GAIN RX2",
-  "RIT",
-  "RIT RX1",
-  "RIT RX2",
-  "SQUELCH",
-  "SQUELCH RX1",
-  "SQUELCH RX2",
-  "TUNE DRIVE",
-  "VFO",
-  "WATERFALL HIGH",
-  "WATERFALL LOW",
-  "XIT",
-  "ZOOM",
-};
-
-char *sw_string[SWITCH_ACTIONS] = {
-  "NO ACTION",
-  "A TO B",
-  "A SWAP B",
-  "AGC",
-  "ANF",
-  "B TO A",
-  "BAND -",
-  "BAND +",
-  "BSTACK -",
-  "BSTACK +",
-  "CTUN",
-  "DIV",
-  "FILTER -",
-  "FILTER +",
-  "FUNCTION",
-  "LOCK",
-  "MENU BAND",
-  "MENU BSTACK",
-  "MENU DIV",
-  "MENU FILTER",
-  "MENU FREQUENCY",
-  "MENU MEMORY",
-  "MENU MODE",
-  "MENU PS",
-  "MODE -",
-  "MODE +",
-  "MOX",
-  "MUTE",
-  "NB",
-  "NR",
-  "PAN -",
-  "PAN +",
-  "PS",
-  "RIT",
-  "RIT CL",
-  "SAT",
-  "SNB",
-  "SPLIT",
-  "TUNE",
-  "TWO TONE",
-  "XIT",
-  "XIT CL",
-  "ZOOM -",
-  "ZOOM +",
-};
-*/
-
 I2C_ENCODER encoder[MAX_I2C_ENCODERS]=
 {
   {TRUE,0x11,0,ENCODER_AF_GAIN,TRUE,MODE_MENU,FALSE,NO_ACTION,FALSE,NO_ACTION,FALSE,NO_ACTION},
@@ -174,6 +78,12 @@ static gpointer rotary_encoder_thread(gpointer data) {
     for(int i=0;i<MAX_I2C_ENCODERS;i++) {
       if(encoder[i].enabled) {
         if(encoder[i].pos!=0) {
+          ENCODER_ACTION *a=g_new(ENCODER_ACTION,1);
+          a->action=encoder[i].encoder_function;
+          a->mode=RELATIVE;
+          a->val=encoder[i].pos;
+          g_idle_add(encoder_action,a);
+/*
           switch(encoder[i].encoder_function) {
             case ENCODER_VFO:
               if(active_menu==BAND_MENU) {
@@ -216,8 +126,9 @@ static gpointer rotary_encoder_thread(gpointer data) {
               }
               break;
           }
+*/
+          encoder[i].pos=0;
         }
-        encoder[i].pos=0;
       }
     }
     g_mutex_unlock(&encoder_mutex);
