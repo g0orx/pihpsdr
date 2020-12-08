@@ -2,8 +2,19 @@
 GIT_DATE := $(firstword $(shell git --no-pager show --date=short --format="%ai" --name-only))
 GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 
+ISSUE := $(shell cat /etc/issue.net)
+ifneq ($(filter %Raspbian,$(ISSUE)),)
+	OSFLAG=-D RASPIAN
+endif
+
+# uncomment the following line to force 480x320 screen
+#SMALL_SCREEN_OPTIONS=-D SMALL_SCREEN
+
 # uncomment the line below to include GPIO (For original piHPSDR Controller and Controller2 with i2c)
 GPIO_INCLUDE=GPIO
+
+# uncomment the following line to include support for the new i2c controller
+#I2C_CONTROLLER_INCLUDE=I2C_CONTROLLER
 
 # uncomment the line below to include USB Ozy support
 # USBOZY_INCLUDE=USBOZY
@@ -109,9 +120,23 @@ ifeq ($(PTT_INCLUDE),PTT)
 PTT_OPTIONS=-D PTT
 endif
 
+ifeq ($(I2C_CONTROLLER_INCLUDE),I2C_CONTROLLER)
+  I2C_CONTROLLER_OPTIONS=-D I2C_CONTROLLER
+  I2C_CONTROLLER_LIBS=-lgpiod -li2c
+  I2C_CONTROLLER_SOURCES= \
+  i2c_controller.c \
+  i2c_controller_menu.c
+  I2C_CONTROLLER_HEADERS= \
+  i2c_controller.h \
+  i2c_controller_menu.h
+  I2C_CONTROLLER_OBJS= \
+  i2c_controller.o \
+  i2c_controller_menu.o
+endif
+
 ifeq ($(GPIO_INCLUDE),GPIO)
   GPIO_OPTIONS=-D GPIO
-  GPIO_LIBS=-lwiringPi
+  GPIO_LIBS=-lgpiod -li2c
   GPIO_SOURCES= \
   configure.c \
   i2c.c \
@@ -173,14 +198,14 @@ AUDIO_LIBS=-lasound
 #AUDIO_LIBS=-lsoundio
 
 CFLAGS=	-g -Wno-deprecated-declarations -O3
-OPTIONS=$(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) \
-	$(GPIO_OPTIONS) $(SOAPYSDR_OPTIONS) $(LOCALCW_OPTIONS) \
+OPTIONS=$(SMALL_SCREEN_OPTIONS) $(I2C_ENCODERS_OPTIONS) $(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) \
+	$(I2C_CONTROLLER_OPTIONS) $(GPIO_OPTIONS) $(SOAPYSDR_OPTIONS) $(LOCALCW_OPTIONS) \
 	$(STEMLAB_OPTIONS) \
         $(PTT_OPTIONS) \
 	$(SERVER_OPTIONS) \
-	-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION)
+	-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION) $(OSFLAG)
 
-LIBS=-lrt -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(STEMLAB_LIBS) $(MIDI_LIBS)
+LIBS=-lrt -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(GTKLIBS) $(I2C_CONTROLLER_LIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(STEMLAB_LIBS) $(MIDI_LIBS)
 INCLUDES=$(GTKINCLUDES)
 
 COMPILE=$(CC) $(CFLAGS) $(OPTIONS) $(INCLUDES)
@@ -255,7 +280,9 @@ led.c \
 ext.c \
 error_handler.c \
 cwramp.c \
-protocols.c
+protocols.c \
+css.c \
+actions.c
 
 
 HEADERS= \
@@ -324,7 +351,9 @@ memory.h \
 led.h \
 ext.h \
 error_handler.h \
-protocols.h
+protocols.h \
+css.h \
+actions.h
 
 
 OBJS= \
@@ -392,21 +421,23 @@ led.o \
 ext.o \
 error_handler.o \
 cwramp.o \
-protocols.o
+protocols.o \
+css.o \
+actions.o
 
 $(PROGRAM):  $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) \
-		$(LOCALCW_OBJS) $(GPIO_OBJS) $(PURESIGNAL_OBJS) \
+		$(LOCALCW_OBJS) $(I2C_CONTROLLER_OBJS) $(GPIO_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS)
-	$(LINK) -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(GPIO_OBJS) \
+	$(LINK) -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(I2C_CONTROLLER_OBJS) $(GPIO_OBJS) \
 		$(SOAPYSDR_OBJS) $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS) $(LIBS)
 
 .PHONY:	all
 all:	prebuild  $(PROGRAM) $(HEADERS) $(USBOZY_HEADERS) $(SOAPYSDR_HEADERS) \
-	$(LOCALCW_HEADERS) $(GPIO_HEADERS) \
+	$(LOCALCW_HEADERS) $(I2C_CONTROLLER_HEADERS) $(GPIO_HEADERS) \
 	$(PURESIGNAL_HEADERS) $(MIDI_HEADERS) $(STEMLAB_HEADERS) $(SERVER_HEADERS)\
 	$(SOURCES) \
-	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(LOCALCW_SOURCE) $(GPIO_SOURCES) \
+	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(LOCALCW_SOURCE) $(I2C_CONTROLLER_SOURCES) $(GPIO_SOURCES) \
 	$(PURESIGNAL_SOURCES) $(MIDI_SOURCES) $(STEMLAB_SOURCES) $(SERVER_SOURCES)
 
 .PHONY:	prebuild
@@ -425,7 +456,7 @@ CPPINCLUDES:=$(shell echo $(INCLUDES) | sed -e "s/-pthread / /" )
 .PHONY:	cppcheck
 cppcheck:
 	cppcheck $(CPPOPTIONS) $(OPTIONS) $(CPPINCLUDES) $(SOURCES) $(REMOTE_SOURCES) \
-	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(GPIO_SOURCES) \
+	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(I2C_CONTROLLER_SOURCES) $(GPIO_SOURCES) \
 	$(PURESIGNAL_SOURCES) $(MIDI_SOURCES) $(STEMLAB_SOURCES) $(LOCALCW_SOURCES) \
 	$(SERVER_SOURCES)
 

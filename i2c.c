@@ -4,13 +4,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <linux/i2c-dev.h>
-//#include <i2c/smbus.h>
+#include <i2c/smbus.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
 
 #include <gtk/gtk.h>
-//#include "i2c.h"
-#include "wiringPiI2C.h"
+#include "i2c.h"
+#include "actions.h"
 #include "gpio.h"
 #include "band.h"
 #include "band_menu.h"
@@ -47,28 +47,28 @@ unsigned int i2c_sw[16]=
     { SW_2,SW_3,SW_4,SW_5,SW_6,SW_7,SW_8,SW_9,
       SW_10,SW_11,SW_12,SW_13,SW_14,SW_15,SW_16,SW_17 };
 
-static int write_byte_data(unsigned char addr,unsigned char reg, unsigned char data) {
+static int write_byte_data(unsigned char reg, unsigned char data) {
   int rc;
 
-  rc=wiringPiI2CWriteReg8(fd,reg,data);
+  if(i2c_smbus_write_byte_data(fd,reg,data&0xFF)<0) {
+    g_print("%s: write REG_GCONF config failed: addr=%02X %s\n",__FUNCTION__,i2c_address_1,g_strerror(errno));
+  }
   
-  return 0;
-}
-
-static unsigned char read_byte_data(unsigned char addr,unsigned char reg) {
-  int rc;
-
-  rc=wiringPiI2CReadReg8(fd,reg);
-
   return rc;
 }
 
-static unsigned int read_word_data(unsigned char addr,unsigned char reg) {
-  int rc;
+static unsigned char read_byte_data(unsigned char reg) {
+  __s32 data;
 
-  rc=wiringPiI2CReadReg16(fd,reg);
+  data=i2c_smbus_read_byte_data(fd,reg);
+  return data&0xFF;
+}
 
-  return rc;
+static unsigned int read_word_data(unsigned char reg) {
+  __s32 data;
+
+  data=i2c_smbus_read_word_data(fd,reg);
+  return data&0xFFFF;
 }
 
 
@@ -81,9 +81,9 @@ void i2c_interrupt() {
   unsigned int ints;
 
   do {
-    flags=read_word_data(i2c_address_1,0x0E);
+    flags=read_word_data(0x0E);
     if(flags) {
-      ints=read_word_data(i2c_address_1,0x10);
+      ints=read_word_data(0x10);
 //g_print("i2c_interrupt: flags=%04X ints=%04X\n",flags,ints);
       if(ints) {
         int i;
@@ -242,56 +242,61 @@ void i2c_init() {
 
   int flags, ints;
 
-fprintf(stderr,"i2c_init: %s\n",i2c_device);
-
-  fd=wiringPiI2CSetupInterface(i2c_device, i2c_address_1);
+  g_print("%s: open i2c device %s\n",__FUNCTION__,i2c_device);
+  fd=open(i2c_device, O_RDWR);
   if(fd<0) {
-    g_print("i2c_init failed: fd=%d\n",fd);
+    g_print("%s: open i2c device %s failed: %s\n",__FUNCTION__,i2c_device,g_strerror(errno));
+    return;
+  }
+  g_print("%s: open i2c device %s fd=%d\n",__FUNCTION__,i2c_device,fd);
+
+  if (ioctl(fd, I2C_SLAVE, i2c_address_1) < 0) {
+    g_print("%s: ioctl i2c slave %d failed: %s\n",__FUNCTION__,i2c_address_1,g_strerror(errno));
     return;
   }
 
   // setup i2c
-  if(write_byte_data(i2c_address_1,0x0A,0x44)<0) return;
-  if(write_byte_data(i2c_address_1,0x0B,0x44)<0) return;
+  if(write_byte_data(0x0A,0x44)<0) return;
+  if(write_byte_data(0x0B,0x44)<0) return;
 
   // disable interrupt
-  if(write_byte_data(i2c_address_1,0x04,0x00)<0) return;
-  if(write_byte_data(i2c_address_1,0x05,0x00)<0) return;
+  if(write_byte_data(0x04,0x00)<0) return;
+  if(write_byte_data(0x05,0x00)<0) return;
 
   // clear defaults
-  if(write_byte_data(i2c_address_1,0x06,0x00)<0) return;
-  if(write_byte_data(i2c_address_1,0x07,0x00)<0) return;
+  if(write_byte_data(0x06,0x00)<0) return;
+  if(write_byte_data(0x07,0x00)<0) return;
 
   // OLAT
-  if(write_byte_data(i2c_address_1,0x14,0x00)<0) return;
-  if(write_byte_data(i2c_address_1,0x15,0x00)<0) return;
+  if(write_byte_data(0x14,0x00)<0) return;
+  if(write_byte_data(0x15,0x00)<0) return;
 
   // set GPIOA for pullups
-  if(write_byte_data(i2c_address_1,0x0C,0xFF)<0) return;
-  if(write_byte_data(i2c_address_1,0x0D,0xFF)<0) return;
+  if(write_byte_data(0x0C,0xFF)<0) return;
+  if(write_byte_data(0x0D,0xFF)<0) return;
 
   // reverse polarity
-  if(write_byte_data(i2c_address_1,0x02,0xFF)<0) return;
-  if(write_byte_data(i2c_address_1,0x03,0xFF)<0) return;
+  if(write_byte_data(0x02,0xFF)<0) return;
+  if(write_byte_data(0x03,0xFF)<0) return;
 
   // set GPIOA/B for input
-  if(write_byte_data(i2c_address_1,0x00,0xFF)<0) return;
-  if(write_byte_data(i2c_address_1,0x01,0xFF)<0) return;
+  if(write_byte_data(0x00,0xFF)<0) return;
+  if(write_byte_data(0x01,0xFF)<0) return;
 
   // INTCON
-  if(write_byte_data(i2c_address_1,0x08,0x00)<0) return;
-  if(write_byte_data(i2c_address_1,0x09,0x00)<0) return;
+  if(write_byte_data(0x08,0x00)<0) return;
+  if(write_byte_data(0x09,0x00)<0) return;
 
   // setup for an MCP23017 interrupt
-  if(write_byte_data(i2c_address_1,0x04,0xFF)<0) return;
-  if(write_byte_data(i2c_address_1,0x05,0xFF)<0) return;
+  if(write_byte_data(0x04,0xFF)<0) return;
+  if(write_byte_data(0x05,0xFF)<0) return;
 
   // flush any interrupts
   int count=0;
   do {
-    flags=read_word_data(i2c_address_1,0x0E);
+    flags=read_word_data(0x0E);
     if(flags) {
-      ints=read_word_data(i2c_address_1,0x10);
+      ints=read_word_data(0x10);
       fprintf(stderr,"flush interrupt: flags=%04X ints=%04X\n",flags,ints);
       count++;
       if(count==10) {

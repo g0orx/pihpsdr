@@ -38,6 +38,7 @@
 #include "rx_panadapter.h"
 #include "vfo.h"
 #include "mode.h"
+#include "actions.h"
 #ifdef GPIO
 #include "gpio.h"
 #endif
@@ -573,6 +574,7 @@ void rx_panadapter_update(RECEIVER *rx) {
     cairo_pattern_destroy(gradient);
   }
 
+/*
 #ifdef GPIO
   if(rx->id==0 && controller==CONTROLLER1) {
 
@@ -597,7 +599,7 @@ void rx_panadapter_update(RECEIVER *rx) {
     }
   }
 #endif
-
+*/
   if(display_sequence_errors) {
     if(sequence_errors!=0) {
       cairo_move_to(cr,100.0,50.0);

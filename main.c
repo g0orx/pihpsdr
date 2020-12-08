@@ -42,7 +42,10 @@
 #include "channel.h"
 #include "discovered.h"
 #include "configure.h"
+#include "actions.h"
+#ifdef GPIO
 #include "gpio.h"
+#endif
 #include "wdsp.h"
 #include "new_menu.h"
 #include "radio.h"

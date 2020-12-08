@@ -47,6 +47,7 @@
 #endif
 #include "ext.h"
 #ifdef GPIO
+#include "actions.h"
 #include "gpio.h"
 #include "configure.h"
 #endif

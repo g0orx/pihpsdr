@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 #ifdef GPIO
+#include "actions.h"
 #include "gpio.h"
 #endif
 #include "toolbar.h"
@@ -102,121 +103,14 @@ static gboolean xit_timer_cb(gpointer data) {
 }
 
 void update_toolbar_labels() {
-  switch(function) {
-    case 0:
-      if(can_transmit) {
-        gtk_button_set_label(GTK_BUTTON(sim_mox),"Mox");
-      } else {
-        gtk_button_set_label(GTK_BUTTON(sim_mox),"");
-      }
-      gtk_button_set_label(GTK_BUTTON(sim_s1),"Band");
-      gtk_button_set_label(GTK_BUTTON(sim_s2),"BStack");
-      gtk_button_set_label(GTK_BUTTON(sim_s3),"Mode");
-      gtk_button_set_label(GTK_BUTTON(sim_s4),"Filter");
-      gtk_button_set_label(GTK_BUTTON(sim_s5),"Noise");
-      gtk_button_set_label(GTK_BUTTON(sim_s6),"AGC");
-      set_button_text_color(sim_s1,"black");
-      set_button_text_color(sim_s2,"black");
-      break;
-    case 1:
-      if(can_transmit) {
-        gtk_button_set_label(GTK_BUTTON(sim_mox),"Mox");
-      } else {
-        gtk_button_set_label(GTK_BUTTON(sim_mox),"");
-      }
-      gtk_button_set_label(GTK_BUTTON(sim_s1),"Lock");
-      gtk_button_set_label(GTK_BUTTON(sim_s2),"CTUN");
-      gtk_button_set_label(GTK_BUTTON(sim_s3),"A>B");
-      gtk_button_set_label(GTK_BUTTON(sim_s4),"A<B");
-      gtk_button_set_label(GTK_BUTTON(sim_s5),"A<>B");
-      if(can_transmit) {
-        gtk_button_set_label(GTK_BUTTON(sim_s6),"Split");
-      } else {
-        gtk_button_set_label(GTK_BUTTON(sim_s6),"");
-      }
-      break;
-    case 2:
-      if(can_transmit) {
-        gtk_button_set_label(GTK_BUTTON(sim_mox),"Mox");
-      } else {
-        gtk_button_set_label(GTK_BUTTON(sim_mox),"");
-      }
-      gtk_button_set_label(GTK_BUTTON(sim_s1),"Freq");
-      gtk_button_set_label(GTK_BUTTON(sim_s2),"Mem");
-      gtk_button_set_label(GTK_BUTTON(sim_s3),"RIT");
-      gtk_button_set_label(GTK_BUTTON(sim_s4),"RIT+");
-      gtk_button_set_label(GTK_BUTTON(sim_s5),"RIT-");
-      gtk_button_set_label(GTK_BUTTON(sim_s6),"RIT CL");
-      break;
-    case 3:
-      if(can_transmit) {
-        gtk_button_set_label(GTK_BUTTON(sim_mox),"Mox");
-      } else {
-        gtk_button_set_label(GTK_BUTTON(sim_mox),"");
-      }
-      gtk_button_set_label(GTK_BUTTON(sim_s1),"Freq");
-      gtk_button_set_label(GTK_BUTTON(sim_s2),"Mem");
-      if(can_transmit) {
-        gtk_button_set_label(GTK_BUTTON(sim_s3),"XIT");
-        gtk_button_set_label(GTK_BUTTON(sim_s4),"XIT+");
-        gtk_button_set_label(GTK_BUTTON(sim_s5),"XIT-");
-        gtk_button_set_label(GTK_BUTTON(sim_s6),"XIT CL");
-      } else {
-        gtk_button_set_label(GTK_BUTTON(sim_s3),"");
-        gtk_button_set_label(GTK_BUTTON(sim_s4),"");
-        gtk_button_set_label(GTK_BUTTON(sim_s5),"");
-        gtk_button_set_label(GTK_BUTTON(sim_s6),"");
-      }
-      break;
-    case 4:
-      if(can_transmit) {
-        gtk_button_set_label(GTK_BUTTON(sim_mox),"Mox");
-      } else {
-        gtk_button_set_label(GTK_BUTTON(sim_mox),"");
-      }
-      gtk_button_set_label(GTK_BUTTON(sim_s1),"Freq");
-      if(can_transmit) {
-        gtk_button_set_label(GTK_BUTTON(sim_s2),"Split");
-        gtk_button_set_label(GTK_BUTTON(sim_s3),"Duplex");
-        gtk_button_set_label(GTK_BUTTON(sim_s4),"SAT");
-        gtk_button_set_label(GTK_BUTTON(sim_s5),"RSAT");
-      } else {
-        gtk_button_set_label(GTK_BUTTON(sim_s2),"");
-        gtk_button_set_label(GTK_BUTTON(sim_s3),"");
-        gtk_button_set_label(GTK_BUTTON(sim_s4),"");
-        gtk_button_set_label(GTK_BUTTON(sim_s5),"");
-      }
-      gtk_button_set_label(GTK_BUTTON(sim_s6),"");
-      break;
-    case 5:
-      if(can_transmit) {
-        gtk_button_set_label(GTK_BUTTON(sim_mox),"Tune");
-        if(OCtune!=0 && OCfull_tune_time!=0) {
-          gtk_button_set_label(GTK_BUTTON(sim_s1),"Full");
-        } else {
-          gtk_button_set_label(GTK_BUTTON(sim_s1),"");
-        }
-      } else {
-        gtk_button_set_label(GTK_BUTTON(sim_mox),"");
-        gtk_button_set_label(GTK_BUTTON(sim_s1),"");
-      }
-      if(OCtune!=0 && OCmemory_tune_time!=0) {
-        gtk_button_set_label(GTK_BUTTON(sim_s2),"Memory");
-      } else {
-        gtk_button_set_label(GTK_BUTTON(sim_s2),"");
-      }
-      gtk_button_set_label(GTK_BUTTON(sim_s3),"Band");
-      gtk_button_set_label(GTK_BUTTON(sim_s4),"Mode");
-      gtk_button_set_label(GTK_BUTTON(sim_s5),"Filter");
-      gtk_button_set_label(GTK_BUTTON(sim_s6),"");
-      if(full_tune) {
-        set_button_text_color(sim_s1,"red");
-      }
-      if(memory_tune) {
-        set_button_text_color(sim_s2,"red");
-      }
-      break;
-  }
+  gtk_button_set_label(GTK_BUTTON(sim_mox),sw_cap_string[switches[0].switch_function]);
+  gtk_button_set_label(GTK_BUTTON(sim_s1),sw_cap_string[switches[1].switch_function]);
+  gtk_button_set_label(GTK_BUTTON(sim_s2),sw_cap_string[switches[2].switch_function]);
+  gtk_button_set_label(GTK_BUTTON(sim_s3),sw_cap_string[switches[3].switch_function]);
+  gtk_button_set_label(GTK_BUTTON(sim_s4),sw_cap_string[switches[4].switch_function]);
+  gtk_button_set_label(GTK_BUTTON(sim_s5),sw_cap_string[switches[5].switch_function]);
+  gtk_button_set_label(GTK_BUTTON(sim_s6),sw_cap_string[switches[6].switch_function]);
+  gtk_button_set_label(GTK_BUTTON(sim_function),sw_cap_string[switches[7].switch_function]);
 }
 
 static void close_cb(GtkWidget *widget, gpointer data) {
@@ -606,7 +500,29 @@ void tune_update(int state) {
   g_idle_add(ext_vfo_update,NULL);
 }
 
+void switch_pressed_cb(GtkWidget *widget, gpointer data) {
+  gint i=GPOINTER_TO_INT(data);
+  SWITCH_ACTION *a=g_new(SWITCH_ACTION,1);
+  a->action=switches[i].switch_function;
+  a->state=PRESSED;
+  g_idle_add(switch_action,a);
+}
+
+void switch_released_cb(GtkWidget *widget, gpointer data) {
+  gint i=GPOINTER_TO_INT(data);
+  SWITCH_ACTION *a=g_new(SWITCH_ACTION,1);
+  a->action=switches[i].switch_function;
+  a->state=RELEASED;
+  g_idle_add(switch_action,a);
+}
+
+#ifdef OLD_SWITCHES
 void sim_s1_pressed_cb(GtkWidget *widget, gpointer data) {
+  ACTION *a=g_new(ACTION,1);
+  a->action=switches[1].switch_function;
+  a->val=0;
+  g_idle_add(switch_action,a);
+/*
   switch(function) {
     case 0:
       band_cb(widget,data);
@@ -633,9 +549,11 @@ void sim_s1_pressed_cb(GtkWidget *widget, gpointer data) {
       }
       break;
   }
+*/
 }
 
 void sim_s1_released_cb(GtkWidget *widget, gpointer data) {
+/*
   switch(function) {
     case 0:
       break;
@@ -650,9 +568,15 @@ void sim_s1_released_cb(GtkWidget *widget, gpointer data) {
     case 5:
       break;
   }
+*/
 }
 
 void sim_s2_pressed_cb(GtkWidget *widget, gpointer data) {
+  ACTION *a=g_new(ACTION,1);
+  a->action=switches[2].switch_function;
+  a->val=0;
+  g_idle_add(switch_action,a);
+/*
   switch(function) {
     case 0:
       bandstack_cb(widget,data);
@@ -679,9 +603,11 @@ void sim_s2_pressed_cb(GtkWidget *widget, gpointer data) {
       }
       break;
   }
+*/
 }
 
 void sim_s2_released_cb(GtkWidget *widget, gpointer data) {
+/*
   switch(function) {
     case 0:
       break;
@@ -696,10 +622,16 @@ void sim_s2_released_cb(GtkWidget *widget, gpointer data) {
     case 5:
       break;
   }
+*/
 }
 
 
 void sim_s3_pressed_cb(GtkWidget *widget, gpointer data) {
+  SWITCH_ACTION *a=g_new(SWITCH_ACTION,1);
+  a->action=switches[3].switch_function;
+  a->state=PRESSED;
+  g_idle_add(action,a);
+/*
   switch(function) {
     case 0:
       mode_cb(widget,data);
@@ -721,9 +653,11 @@ void sim_s3_pressed_cb(GtkWidget *widget, gpointer data) {
       band_cb(widget,data);
       break;
   }
+*/
 }
 
 void sim_s3_released_cb(GtkWidget *widget, gpointer data) {
+/*
   switch(function) {
     case 0:
       break;
@@ -738,9 +672,15 @@ void sim_s3_released_cb(GtkWidget *widget, gpointer data) {
     case 5:
       break;
   }
+*/
 }
 
 void sim_s4_pressed_cb(GtkWidget *widget, gpointer data) {
+  SWITCH_ACTION *a=g_new(SWITCH_ACTION,1);
+  a->action=switches[4].switch_function;
+  a->state=PRESSED;
+  g_idle_add(action,a);
+/*
   switch(function) {
     case 0:
       filter_cb(widget,data);
@@ -766,9 +706,11 @@ void sim_s4_pressed_cb(GtkWidget *widget, gpointer data) {
       mode_cb(widget,data);
       break;
   }
+*/
 }
 
 void sim_s4_released_cb(GtkWidget *widget, gpointer data) {
+/*
   switch(function) {
     case 0:
       break;
@@ -791,9 +733,15 @@ void sim_s4_released_cb(GtkWidget *widget, gpointer data) {
     case 5:
       break;
   }
+*/
 }
 
 void sim_s5_pressed_cb(GtkWidget *widget, gpointer data) {
+  SWITCH_ACTION *a=g_new(SWITCH_ACTION,1);
+  a->action=switches[5].switch_function;
+  a->state=PRESSED;
+  g_idle_add(switch_action,a);
+/*
   switch(function) {
     case 0:
       noise_cb(widget,data);
@@ -819,9 +767,11 @@ void sim_s5_pressed_cb(GtkWidget *widget, gpointer data) {
       filter_cb(widget,data);
       break;
   }
+*/
 }
 
 void sim_s5_released_cb(GtkWidget *widget, gpointer data) {
+/*
   switch(function) {
     case 0:
       break;
@@ -844,9 +794,14 @@ void sim_s5_released_cb(GtkWidget *widget, gpointer data) {
     case 5:
       break;
   }
+*/
 }
 
 void sim_s6_pressed_cb(GtkWidget *widget, gpointer data) {
+  SWITCH_ACTION *a=g_new(SWITCH_ACTION,1);
+  a->action=switches[6].switch_function;
+  a->state=PRESSED;
+  g_idle_add(switch_action,a);
   switch(function) {
     case 0:
       agc_cb(widget,data);
@@ -868,6 +823,7 @@ void sim_s6_pressed_cb(GtkWidget *widget, gpointer data) {
 }
 
 void sim_s6_released_cb(GtkWidget *widget, gpointer data) {
+/*
   switch(function) {
     case 0:
       break;
@@ -882,9 +838,15 @@ void sim_s6_released_cb(GtkWidget *widget, gpointer data) {
     case 5:
       break;
   }
+*/
 }
 
-void sim_mox_cb(GtkWidget *widget, gpointer data) {
+void sim_s0_cb(GtkWidget *widget, gpointer data) {
+  SWITCH_ACTION *a=g_new(SWITCH_ACTION,1);
+  a->action=switches[0].switch_function;
+  a->state=PRESSED;
+  g_idle_add(switch_action,a);
+/*
   switch(function) {
     case 0:
     case 1:
@@ -897,16 +859,19 @@ void sim_mox_cb(GtkWidget *widget, gpointer data) {
       tune_cb((GtkWidget *)NULL, (gpointer)NULL);
       break;
   }
+*/
 }
 
-void sim_function_cb(GtkWidget *widget, gpointer data) {
-  function++;
-  if(function>MAX_FUNCTION) {
-    function=0;
-  }
-  update_toolbar_labels();
-  g_idle_add(ext_vfo_update,NULL);
+void sim_s7_cb(GtkWidget *widget, gpointer data) {
+  SWITCH_ACTION *a=g_new(SWITCH_ACTION,1);
+  a->action=switches[7].switch_function;
+  a->state=PRESSED;
+  g_idle_add(switch_action,a);
+/*
+  g_idle_add(process_function_switch,NULL);
+*/
 }
+#endif
 
 GtkWidget *toolbar_init(int my_width, int my_height, GtkWidget* parent) {
     width=my_width;
@@ -931,59 +896,45 @@ GtkWidget *toolbar_init(int my_width, int my_height, GtkWidget* parent) {
     gtk_widget_set_size_request (toolbar, width, height);
     gtk_grid_set_column_homogeneous(GTK_GRID(toolbar),TRUE);
 
-    if(can_transmit) {
-      sim_mox=gtk_button_new_with_label("Mox");
-    } else {
-      sim_mox=gtk_button_new_with_label("");
-    }
-    //gtk_widget_override_font(sim_mox, pango_font_description_from_string("Sans 11"));
-    g_signal_connect(G_OBJECT(sim_mox),"clicked",G_CALLBACK(sim_mox_cb),NULL);
+    sim_mox=gtk_button_new_with_label(sw_cap_string[switches[0].switch_function]);
+    g_signal_connect(G_OBJECT(sim_mox),"pressed",G_CALLBACK(switch_pressed_cb),GINT_TO_POINTER(0));
     gtk_grid_attach(GTK_GRID(toolbar),sim_mox,0,0,4,1);
 
-    sim_s1=gtk_button_new_with_label("Band");
+    sim_s1=gtk_button_new_with_label(sw_cap_string[switches[1].switch_function]);
     gtk_widget_set_size_request (sim_s1, button_width, 0);
-    //gtk_widget_override_font(sim_s1, pango_font_description_from_string("Sans 11"));
-    g_signal_connect(G_OBJECT(sim_s1),"pressed",G_CALLBACK(sim_s1_pressed_cb),NULL);
-    g_signal_connect(G_OBJECT(sim_s1),"released",G_CALLBACK(sim_s1_released_cb),NULL);
+    g_signal_connect(G_OBJECT(sim_s1),"pressed",G_CALLBACK(switch_pressed_cb),GINT_TO_POINTER(1));
+    g_signal_connect(G_OBJECT(sim_s1),"released",G_CALLBACK(switch_released_cb),GINT_TO_POINTER(1));
     gtk_grid_attach(GTK_GRID(toolbar),sim_s1,4,0,4,1);
 
-    sim_s2=gtk_button_new_with_label("BStack");
+    sim_s2=gtk_button_new_with_label(sw_cap_string[switches[2].switch_function]);
     gtk_widget_set_size_request (sim_s2, button_width, 0);
-    //gtk_widget_override_font(sim_s2, pango_font_description_from_string("Sans 11"));
-    g_signal_connect(G_OBJECT(sim_s2),"pressed",G_CALLBACK(sim_s2_pressed_cb),NULL);
-    g_signal_connect(G_OBJECT(sim_s2),"released",G_CALLBACK(sim_s2_released_cb),NULL);
+    g_signal_connect(G_OBJECT(sim_s2),"pressed",G_CALLBACK(switch_pressed_cb),GINT_TO_POINTER(2));
+    g_signal_connect(G_OBJECT(sim_s2),"released",G_CALLBACK(switch_released_cb),GINT_TO_POINTER(2));
     gtk_grid_attach(GTK_GRID(toolbar),sim_s2,8,0,4,1);
 
-    sim_s3=gtk_button_new_with_label("Mode");
-    //gtk_widget_override_font(sim_s3, pango_font_description_from_string("Sans 11"));
-    g_signal_connect(G_OBJECT(sim_s3),"pressed",G_CALLBACK(sim_s3_pressed_cb),NULL);
-    g_signal_connect(G_OBJECT(sim_s3),"released",G_CALLBACK(sim_s3_released_cb),NULL);
+    sim_s3=gtk_button_new_with_label(sw_cap_string[switches[3].switch_function]);
+    g_signal_connect(G_OBJECT(sim_s3),"pressed",G_CALLBACK(switch_pressed_cb),GINT_TO_POINTER(3));
+    g_signal_connect(G_OBJECT(sim_s3),"released",G_CALLBACK(switch_released_cb),GINT_TO_POINTER(3));
     gtk_grid_attach(GTK_GRID(toolbar),sim_s3,12,0,4,1);
 
-    sim_s4=gtk_button_new_with_label("Filter");
-    //gtk_widget_override_font(sim_s4, pango_font_description_from_string("Sans 11"));
-    g_signal_connect(G_OBJECT(sim_s4),"pressed",G_CALLBACK(sim_s4_pressed_cb),NULL);
-    g_signal_connect(G_OBJECT(sim_s4),"released",G_CALLBACK(sim_s4_released_cb),NULL);
+    sim_s4=gtk_button_new_with_label(sw_cap_string[switches[4].switch_function]);
+    g_signal_connect(G_OBJECT(sim_s4),"pressed",G_CALLBACK(switch_pressed_cb),GINT_TO_POINTER(4));
+    g_signal_connect(G_OBJECT(sim_s4),"released",G_CALLBACK(switch_released_cb),GINT_TO_POINTER(4));
     gtk_grid_attach(GTK_GRID(toolbar),sim_s4,16,0,4,1);
 
-    sim_s5=gtk_button_new_with_label("Noise");
-    //gtk_widget_override_font(sim_s5, pango_font_description_from_string("Sans 11"));
-    g_signal_connect(G_OBJECT(sim_s5),"pressed",G_CALLBACK(sim_s5_pressed_cb),NULL);
-    g_signal_connect(G_OBJECT(sim_s5),"released",G_CALLBACK(sim_s5_released_cb),NULL);
+    sim_s5=gtk_button_new_with_label(sw_cap_string[switches[5].switch_function]);
+    g_signal_connect(G_OBJECT(sim_s5),"pressed",G_CALLBACK(switch_pressed_cb),GINT_TO_POINTER(5));
+    g_signal_connect(G_OBJECT(sim_s5),"released",G_CALLBACK(switch_released_cb),GINT_TO_POINTER(5));
     gtk_grid_attach(GTK_GRID(toolbar),sim_s5,20,0,4,1);
 
-    sim_s6=gtk_button_new_with_label("AGC");
-    //gtk_widget_override_font(sim_s6, pango_font_description_from_string("Sans 11"));
-    g_signal_connect(G_OBJECT(sim_s6),"pressed",G_CALLBACK(sim_s6_pressed_cb),NULL);
-    g_signal_connect(G_OBJECT(sim_s6),"released",G_CALLBACK(sim_s6_released_cb),NULL);
+    sim_s6=gtk_button_new_with_label(sw_cap_string[switches[6].switch_function]);
+    g_signal_connect(G_OBJECT(sim_s6),"pressed",G_CALLBACK(switch_pressed_cb),GINT_TO_POINTER(6));
+    g_signal_connect(G_OBJECT(sim_s6),"released",G_CALLBACK(switch_released_cb),GINT_TO_POINTER(6));
     gtk_grid_attach(GTK_GRID(toolbar),sim_s6,24,0,4,1);
 
-    sim_function=gtk_button_new_with_label("Function");
-    //gtk_widget_override_font(sim_function, pango_font_description_from_string("Sans 11"));
-    g_signal_connect(G_OBJECT(sim_function),"clicked",G_CALLBACK(sim_function_cb),NULL);
+    sim_function=gtk_button_new_with_label(sw_cap_string[switches[7].switch_function]);
+    g_signal_connect(G_OBJECT(sim_function),"pressed",G_CALLBACK(switch_pressed_cb),GINT_TO_POINTER(7));
     gtk_grid_attach(GTK_GRID(toolbar),sim_function,28,0,4,1);
-
-    //update_toolbar_labels();
 
     last_dialog=NULL;
 

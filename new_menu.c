@@ -57,11 +57,17 @@
 #include "vfo_menu.h"
 #include "fft_menu.h"
 #include "main.h"
+#include "actions.h"
+#ifdef GPIO
 #include "gpio.h"
+#endif
 #include "old_protocol.h"
 #include "new_protocol.h"
 #ifdef CLIENT_SERVER
 #include "server_menu.h"
+#endif
+#ifdef I2C_CONTROLLER
+#include "i2c_controller_menu.h"
 #endif
 
 
@@ -468,6 +474,18 @@ static gboolean server_cb (GtkWidget *widget, GdkEventButton *event, gpointer da
 }
 #endif
 
+#ifdef I2C_CONTROLLER
+void start_i2c_controller() {
+  cleanup();
+  i2c_controller_menu(top_window);
+}
+
+static gboolean i2c_controller_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  start_i2c_controller();
+  return TRUE;
+}
+#endif
+
 void new_menu()
 {
   int i;
@@ -616,17 +634,24 @@ void new_menu()
     i++;
 
 #ifdef GPIO
-    GtkWidget *encoders_b=gtk_button_new_with_label("Encoders");
-    g_signal_connect (encoders_b, "button-press-event", G_CALLBACK(encoder_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),encoders_b,(i%5),i/5,1,1);
-    i++;
+    if(controller!=NO_CONTROLLER) {
+      GtkWidget *encoders_b=gtk_button_new_with_label("Encoders");
+      g_signal_connect (encoders_b, "button-press-event", G_CALLBACK(encoder_cb), NULL);
+      gtk_grid_attach(GTK_GRID(grid),encoders_b,(i%5),i/5,1,1);
+      i++;
 
-    if(controller==CONTROLLER2_V1 || controller==CONTROLLER2_V2) {
       GtkWidget *switches_b=gtk_button_new_with_label("Switches");
       g_signal_connect (switches_b, "button-press-event", G_CALLBACK(switch_cb), NULL);
       gtk_grid_attach(GTK_GRID(grid),switches_b,(i%5),i/5,1,1);
       i++;
     }
+#endif
+
+#ifdef I2C_CONTROLLER
+    GtkWidget *i2c_controller_b=gtk_button_new_with_label("I2C Controller");
+    g_signal_connect (i2c_controller_b, "button-press-event", G_CALLBACK(i2c_controller_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),i2c_controller_b,(i%5),i/5,1,1);
+    i++;
 #endif
 
 //

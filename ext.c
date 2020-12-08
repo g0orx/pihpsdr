@@ -159,6 +159,7 @@ int ext_noise_update(void *data) {
 }
 
 int ext_mox_update(void *data) {
+g_print("%s\n",__FUNCTION__);
   mox_update(GPOINTER_TO_INT(data));
   return 0;
 }
@@ -262,6 +263,13 @@ int ext_vfo_id_step(void *data) {
 int ext_set_mic_gain(void * data) {
   double d=*(double *)data;
   set_mic_gain(d);
+  free(data);
+  return 0;
+}
+
+int ext_set_af_gain(void *data) {
+  double d=*(double *)data;
+  set_af_gain(active_receiver->id,d);
   free(data);
   return 0;
 }

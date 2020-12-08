@@ -911,7 +911,8 @@ void vfo_update() {
         cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
         cairo_paint (cr);
 
-        cairo_select_font_face(cr, "FreeMono",
+        //cairo_select_font_face(cr, "FreeMono",
+        cairo_select_font_face(cr, "FreeSans",
             CAIRO_FONT_SLANT_NORMAL,
             CAIRO_FONT_WEIGHT_BOLD);
 

@@ -54,8 +54,12 @@
 #ifdef SOAPYSDR
 #include "soapy_protocol.h"
 #endif
+#include "actions.h"
 #ifdef GPIO
 #include "gpio.h"
+#endif
+#ifdef I2C_CONTROLLER
+#include "i2c_controller.h"
 #endif
 #include "vfo.h"
 #include "vox.h"
@@ -107,10 +111,12 @@ static GtkWidget *panadapter;
 static GtkWidget *waterfall;
 static GtkWidget *audio_waterfall;
 
+/*
 #ifdef GPIO
 static GtkWidget *encoders;
 static cairo_surface_t *encoders_surface = NULL;
 #endif
+*/
 	gint sat_mode;
 
 	int region=REGION_OTHER;
@@ -596,6 +602,12 @@ if(!radio_is_remote) {
     }
 #endif
   }
+
+#ifdef I2C_CONTROLLER
+  if(i2c_controller_init()<0) {
+    g_print("%s: I2C_CONTROLLER failed to initialize i2c\n", __FUNCTION__);
+  }
+#endif
 
 #ifdef LOCALCW
   // init local keyer if enabled
