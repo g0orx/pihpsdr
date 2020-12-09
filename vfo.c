@@ -1039,8 +1039,11 @@ void vfo_update() {
 
         switch(vfo[id].mode) {
           case modeFMN:
+            //
+            // filter edges are +/- 5500 if deviation==2500,
+            //              and +/- 8000 if deviation==5000
             if(active_receiver->deviation==2500) {
-              sprintf(temp_text,"%s 8k",mode_string[vfo[id].mode]);
+              sprintf(temp_text,"%s 11k",mode_string[vfo[id].mode]);
             } else {
               sprintf(temp_text,"%s 16k",mode_string[vfo[id].mode]);
             }
