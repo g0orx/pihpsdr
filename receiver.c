@@ -1247,6 +1247,12 @@ g_print("receiver_change_sample_rate: id=%d rate=%d scale=%d buffer_size=%d outp
 
   SetChannelState(rx->id,1,0);
 
+  //
+  // for a non-PS receiver, adjust pixels and hz_per_pixel depending on the zoom value
+  //
+  rx->pixels=rx->width*rx->zoom;
+  rx->hz_per_pixel=(double)rx->sample_rate/(double)rx->pixels;
+
   g_mutex_unlock(&rx->mutex);
 
 fprintf(stderr,"receiver_change_sample_rate: id=%d rate=%d buffer_size=%d output_samples=%d\n",rx->id, rx->sample_rate, rx->buffer_size, rx->output_samples);
