@@ -135,7 +135,6 @@ GPIO_SOURCES= \
   switch_menu.c \
   i2c_controller.c \
   i2c_controller_menu.c
-
 GPIO_HEADERS= \
   configure.h \
   i2c.h \
@@ -144,7 +143,6 @@ GPIO_HEADERS= \
   switch_menu.h \
   i2c_controller.h \
   i2c_controller_menu.h
-
 GPIO_OBJS= \
   configure.o \
   i2c.o \
@@ -192,8 +190,8 @@ endif
 GTKINCLUDES=`pkg-config --cflags gtk+-3.0`
 GTKLIBS=`pkg-config --libs gtk+-3.0`
 
-AUDIO_LIBS=-lasound
-#AUDIO_LIBS=-lsoundio
+AUDIO_LIBS=-lpulse-simple -lpulse -lpulse-mainloop-glib
+//AUDIO_LIBS=-lasound
 
 CFLAGS=	-g -Wno-deprecated-declarations -O3
 OPTIONS=$(SMALL_SCREEN_OPTIONS) $(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) \
@@ -214,7 +212,7 @@ COMPILE=$(CC) $(CFLAGS) $(OPTIONS) $(INCLUDES)
 PROGRAM=pihpsdr
 
 SOURCES= \
-audio.c \
+pulseaudio.c \
 band.c \
 discovered.c \
 discovery.c \
@@ -284,7 +282,7 @@ actions.c
 
 
 HEADERS= \
-audio.h \
+pulseaudio.h \
 agc.h \
 alex.h \
 band.h \
@@ -355,7 +353,7 @@ actions.h
 
 
 OBJS= \
-audio.o \
+pulseaudio.o \
 band.o \
 discovered.o \
 discovery.o \

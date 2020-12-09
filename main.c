@@ -176,9 +176,13 @@ gboolean main_delete (GtkWidget *widget) {
 static int init(void *data) {
   char wisdom_directory[1024];
 
-  fprintf(stderr,"init\n");
+  g_print("%s\n",__FUNCTION__);
 
   audio_get_cards();
+
+  // wait for get_cards to complete
+  //g_mutex_lock(&audio_mutex);
+  //g_mutex_unlock(&audio_mutex);
 
   cursor_arrow=gdk_cursor_new(GDK_ARROW);
   cursor_watch=gdk_cursor_new(GDK_WATCH);

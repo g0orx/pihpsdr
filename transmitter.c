@@ -1223,7 +1223,7 @@ void add_mic_sample(TRANSMITTER *tx,float mic_sample) {
 	// side tone
 	ramp=cwramp48[cw_shape];
 	cwsample=0.00197 * getNextSideToneSample() * cw_keyer_sidetone_volume * ramp;
-	cw_audio_write(cwsample);
+	cw_audio_write(active_receiver,cwsample);
         cw_shape_buffer48[tx->samples]=ramp;
 	//
 	// In the new protocol, we MUST maintain a constant flow of audio samples to the radio

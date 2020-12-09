@@ -897,7 +897,7 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
   rx->agc_slope=35.0;
   rx->agc_hang_threshold=0.0;
   
-  rx->playback_handle=NULL;
+  //rx->playback_handle=NULL;
   rx->local_audio_buffer=NULL;
   rx->local_audio_buffer_size=2048;
   rx->local_audio=0;
@@ -1031,7 +1031,7 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
   rx->agc_slope=35.0;
   rx->agc_hang_threshold=0.0;
   
-  rx->playback_handle=NULL;
+  //rx->playback_handle=NULL;
   rx->local_audio=0;
   g_mutex_init(&rx->local_audio_mutex);
   rx->local_audio_buffer=NULL;

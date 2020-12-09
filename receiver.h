@@ -23,7 +23,9 @@
 #ifdef PORTAUDIO
 #include "portaudio.h"
 #else
-#include <alsa/asoundlib.h>
+#include <pulse/pulseaudio.h>
+#include <pulse/simple.h>
+//#include <alsa/asoundlib.h>
 #endif
 
 enum _audio_t {
@@ -120,12 +122,14 @@ typedef struct _receiver {
 #ifdef PORTAUDIO
   PaStream *playback_handle;
 #else
-  snd_pcm_t *playback_handle;
-  snd_pcm_format_t local_audio_format;
+  pa_simple* playstream;
+  gboolean output_started;
+//  snd_pcm_t *playback_handle;
+//  snd_pcm_format_t local_audio_format;
 #endif
   gint local_audio_buffer_size;
   gint local_audio_buffer_offset;
-  void *local_audio_buffer;
+  float *local_audio_buffer;
   GMutex local_audio_mutex;
 
   gint low_latency;
