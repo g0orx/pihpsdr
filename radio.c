@@ -56,7 +56,6 @@
 #endif
 #include "actions.h"
 #include "gpio.h"
-#include "i2c_controller.h"
 #include "vfo.h"
 #include "vox.h"
 #include "meter.h"
@@ -600,14 +599,6 @@ if(!radio_is_remote) {
     }
 #endif
   }
-
-#ifdef GPIO
-  if(controller==CONTROLLER_I2C) {
-    if(i2c_controller_init()<0) {
-      g_print("%s: I2C_CONTROLLER failed to initialize i2c\n", __FUNCTION__);
-    }
-  }
-#endif
 
 #ifdef LOCALCW
   // init local keyer if enabled

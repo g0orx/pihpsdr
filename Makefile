@@ -15,8 +15,6 @@ endif
 #    CONTROLLER1 (Original Controller)
 #    CONTROLLER2_V1 single encoders with MCP23017 switches
 #    CONTROLLER2_V2 dual encoders with MCP23017 switches
-#    CONTORLLER_I2C i2c controller using 7 I2C Encoder V2.1 boards from http://www.duppa.net/i2c-encoder-v2-1/
-#                   7 encoders and 16 switches one LED
 #
 GPIO_INCLUDE=GPIO
 
@@ -132,25 +130,19 @@ GPIO_SOURCES= \
   i2c.c \
   gpio.c \
   encoder_menu.c \
-  switch_menu.c \
-  i2c_controller.c \
-  i2c_controller_menu.c
+  switch_menu.c
 GPIO_HEADERS= \
   configure.h \
   i2c.h \
   gpio.h \
   encoder_menu.h \
-  switch_menu.h \
-  i2c_controller.h \
-  i2c_controller_menu.h
+  switch_menu.h
 GPIO_OBJS= \
   configure.o \
   i2c.o \
   gpio.o \
   encoder_menu.o \
-  switch_menu.o \
-  i2c_controller.o \
-  i2c_controller_menu.o
+  switch_menu.o
 endif
 
 #

@@ -60,7 +60,6 @@
 #include "actions.h"
 #ifdef GPIO
 #include "gpio.h"
-#include "i2c_controller_menu.h"
 #endif
 #include "old_protocol.h"
 #include "new_protocol.h"
@@ -201,15 +200,6 @@ static gboolean switch_cb (GtkWidget *widget, GdkEventButton *event, gpointer da
   return TRUE;
 }
 
-void start_i2c_controller() {
-  cleanup();
-  i2c_controller_menu(top_window);
-}
-
-static gboolean i2c_controller_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  start_i2c_controller();
-  return TRUE;
-}
 #endif
 
 static gboolean cw_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
@@ -612,14 +602,6 @@ void new_menu()
         GtkWidget *switches_b=gtk_button_new_with_label("Switches");
         g_signal_connect (switches_b, "button-press-event", G_CALLBACK(switch_cb), NULL);
         gtk_grid_attach(GTK_GRID(grid),switches_b,(i%5),i/5,1,1);
-        i++;
-        }
-        break;
-      case CONTROLLER_I2C:
-        {
-        GtkWidget *i2c_controller_b=gtk_button_new_with_label("I2C Controller");
-        g_signal_connect (i2c_controller_b, "button-press-event", G_CALLBACK(i2c_controller_cb), NULL);
-        gtk_grid_attach(GTK_GRID(grid),i2c_controller_b,(i%5),i/5,1,1);
         i++;
         }
         break;
