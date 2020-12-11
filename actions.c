@@ -510,18 +510,17 @@ int switch_action(void *data) {
         }
         break;
       case TUNE:
-        if(getMox()==1) {
+	if(getMox()==1) {
           setMox(0);
         }
-        if(getTune()==1) {
-          setTune(0);
+        if(getTune()==0) {
           if(canTransmit() || tx_out_of_band) {
             setTune(1);
           } else {
             transmitter_set_out_of_band(transmitter);
           }
         } else {
-          setTune(a->state);
+          setTune(0);
         }
         g_idle_add(ext_vfo_update,NULL);
         break;
