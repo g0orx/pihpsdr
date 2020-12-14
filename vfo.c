@@ -1078,6 +1078,25 @@ void vfo_update() {
         long long af = vfo[0].ctun ? vfo[0].ctun_frequency : vfo[0].frequency;
         long long bf = vfo[1].ctun ? vfo[1].ctun_frequency : vfo[1].frequency;
 
+        //
+        // If RIT or XIT is active, add this to displayed VFO frequency
+        //
+        // Adjust VFO_A frequency
+        //
+        if (isTransmitting() && txvfo == 0) {
+          if (transmitter->xit_enabled) af += transmitter->xit;
+        } else {
+          if (vfo[0].rit_enabled) af += vfo[0].rit;
+        }
+        //
+        // Adjust VFO_B frequency
+        //
+        if (isTransmitting() && txvfo == 1) {
+          if (transmitter->xit_enabled) bf += transmitter->xit;
+        } else {
+          if (vfo[1].rit_enabled) bf += vfo[0].rit;
+        }
+
         int oob=0;
         if (can_transmit) oob=transmitter->out_of_band;
         sprintf(temp_text,"VFO A: %0lld.%06lld",af/(long long)1000000,af%(long long)1000000);
