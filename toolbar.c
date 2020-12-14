@@ -91,7 +91,7 @@ static gboolean rit_timer_cb(gpointer data) {
 
 static gboolean xit_timer_cb(gpointer data) {
   int i=GPOINTER_TO_INT(data);
-  transmitter->xit+=(i*rit_increment);
+  transmitter->xit+=(10*i*rit_increment);
   if(transmitter->xit>10000) transmitter->xit=10000;
   if(transmitter->xit<-10000) transmitter->xit=-10000;
   if(protocol==NEW_PROTOCOL) {
@@ -427,7 +427,12 @@ static void xit_enable_cb(GtkWidget *widget, gpointer data) {
 static void xit_cb(GtkWidget *widget, gpointer data) {
   if(can_transmit) {
     int i=GPOINTER_TO_INT(data);
-    transmitter->xit+=i*rit_increment;
+    //
+    // in practical operation, you mostly want to change rit by small amounts
+    // (if listening to a group of non-transceive members) but XIT is mostly used
+    // for "split" operation and needs 10 times larger increments
+    //
+    transmitter->xit+=i*rit_increment*10;
     if(transmitter->xit>10000) transmitter->xit=10000;
     if(transmitter->xit<-10000) transmitter->xit=-10000;
     if(protocol==NEW_PROTOCOL) {
