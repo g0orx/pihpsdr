@@ -1078,6 +1078,16 @@ void vfo_update() {
         long long af = vfo[0].ctun ? vfo[0].ctun_frequency : vfo[0].frequency;
         long long bf = vfo[1].ctun ? vfo[1].ctun_frequency : vfo[1].frequency;
 
+#if 0
+//
+// DL1YCF: code still here but deactivated:
+// there is no consensus whether the "VFO display frequency" should move if
+// RIT/XIT values are changed. My Kenwood TS590 does, but some popular
+// other SDR software does not.
+// So although I do not feel too well if the actual TX frequency is not
+// that on the display, I deactivate the code but leave it here so it
+// can quickly be re-activated if one wants.
+// 
         //
         // If RIT or XIT is active, add this to displayed VFO frequency
         //
@@ -1096,6 +1106,7 @@ void vfo_update() {
         } else {
           if (vfo[1].rit_enabled) bf += vfo[0].rit;
         }
+#endif
 
         int oob=0;
         if (can_transmit) oob=transmitter->out_of_band;
