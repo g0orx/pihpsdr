@@ -61,6 +61,7 @@ enum MIDIaction {
   MIDI_ACTION_COMPRESS,		// COMPRESS:		TX compressor value
   MIDI_ACTION_CTUN,		// CTUN:		toggle CTUN on/off
   MIDI_ACTION_VFO,		// CURRVFO:		change VFO frequency
+  MIDI_ACTION_CWKEY,		// CWKEY:		Unconditional CW key-down/up (outside keyer)
   MIDI_ACTION_CWL,		// CWL:			Left paddle pressed (use with ONOFF)
   MIDI_ACTION_CWR,		// CWR:			Right paddle pressed (use with ONOFF)
   MIDI_ACTION_CWSPEED,		// CWSPEED:		Set speed of (iambic) CW keyer
