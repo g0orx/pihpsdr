@@ -229,8 +229,9 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
           //
 	    if (type == MIDI_TYPE_KEY) {
               if (val != 0) {
-		cw_key_down=480000;  // max. 10 sec
+		cw_key_down=960000;  // max. 20 sec to protect hardware
 		cw_key_up=0;
+		cw_key_hit=1;        // abort any pending CAT CW messages
 	      } else {
 		cw_key_down=0;
 		cw_key_up=0;
