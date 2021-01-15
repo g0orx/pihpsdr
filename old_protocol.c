@@ -814,232 +814,230 @@ static int how_many_receivers() {
     return ret;
 }
 
-/*
-static void process_ozy_input_buffer(unsigned char  *buffer) {
-  int i;
-  int r;
-  int b=0;
-  int previous_ptt;
-  int previous_dot;
-  int previous_dash;
-  int left_sample;
-  int right_sample;
-  short mic_sample;
-  float fsample;
-  double left_sample_double;
-  double right_sample_double;
-  double gain=pow(10.0, mic_gain / 20.0);
-  double left_sample_double_rx;
-  double right_sample_double_rx;
-  double left_sample_double_tx;
-  double right_sample_double_tx;
-  double left_sample_double_main;
-  double right_sample_double_main;
-  double left_sample_double_aux;
-  double right_sample_double_aux;
-
-  int id=active_receiver->id;
-
-  int num_hpsdr_receivers=how_many_receivers();
-  int rxfdbk = rx_feedback_channel();
-  int txfdbk = tx_feedback_channel();
-  int rx1channel = first_receiver_channel();
-  int rx2channel = second_receiver_channel();
-
-  if(buffer[b++]==SYNC && buffer[b++]==SYNC && buffer[b++]==SYNC) {
-    // extract control bytes
-    control_in[0]=buffer[b++];
-    control_in[1]=buffer[b++];
-    control_in[2]=buffer[b++];
-    control_in[3]=buffer[b++];
-    control_in[4]=buffer[b++];
-
-    // do not set ptt. In PURESIGNAL, this would stop the
-    // receiver sending samples to WDSP abruptly.
-    // Do the RX-TX change only via ext_mox_update.
-    previous_ptt=local_ptt;
-    previous_dot=dot;
-    previous_dash=dash;
-    local_ptt=(control_in[0]&0x01)==0x01;
-    dash=(control_in[0]&0x02)==0x02;
-    dot=(control_in[0]&0x04)==0x04;
-
-    if (cw_keyer_internal) {
-      // Stops CAT cw transmission if paddle hit in "internal" CW
-      if ((dash || dot) && cw_keyer_internal) cw_key_hit=1;
-    } else {
-#ifdef LOCALCW
-      //
-      // report "key hit" event to the local keyer
-      // (local keyer will stop CAT cw if necessary)
-      if (dash != previous_dash) keyer_event(0, dash);
-      if (dot  != previous_dot ) keyer_event(1, dot );
-#endif
-    }
-
-    if(previous_ptt!=local_ptt) {
-      g_idle_add(ext_mox_update,(gpointer)(long)(local_ptt));
-    }
-
-    switch((control_in[0]>>3)&0x1F) {
-      case 0:
-        adc_overload=control_in[1]&0x01;
-        if (device != DEVICE_HERMES_LITE2) {
-	  //
-	  // HL2 uses these bits of the protocol for a different purpose:
-	  // C1 unused except the ADC overload bit
-          // C2/C3 contains underflow/overflow and TX FIFO count
-	  //
-          IO1=(control_in[1]&0x02)?0:1;
-          IO2=(control_in[1]&0x04)?0:1;
-          IO3=(control_in[1]&0x08)?0:1;
-          if(mercury_software_version!=control_in[2]) {
-            mercury_software_version=control_in[2];
-            g_print("  Mercury Software version: %d (0x%0X)\n",mercury_software_version,mercury_software_version);
-          }
-          if(penelope_software_version!=control_in[3]) {
-            penelope_software_version=control_in[3];
-            g_print("  Penelope Software version: %d (0x%0X)\n",penelope_software_version,penelope_software_version);
-          }
-        }
-        if(ozy_software_version!=control_in[4]) {
-          ozy_software_version=control_in[4];
-          g_print("FPGA firmware version: %d.%d\n",ozy_software_version/10,ozy_software_version%10);
-        }
-        break;
-      case 1:
-        if (device != DEVICE_HERMES_LITE2) {
-	  //
-	  // HL2 uses C1/C2 for measuring the temperature
-	  //
-          exciter_power=((control_in[1]&0xFF)<<8)|(control_in[2]&0xFF); // from Penelope or Hermes
-          temperature=0;
-        } else {
-          exciter_power=0;
-          temperature+=((control_in[1]&0xFF)<<8)|(control_in[2]&0xFF); // HL2
-          n_temperature++;
-          if(n_temperature==10) {
-            average_temperature=temperature/10;
-            temperature=0;
-            n_temperature=0;
-          }
-	} 
-        alex_forward_power=((control_in[3]&0xFF)<<8)|(control_in[4]&0xFF); // from Alex or Apollo
-        break;
-      case 2:
-        alex_reverse_power=((control_in[1]&0xFF)<<8)|(control_in[2]&0xFF); // from Alex or Apollo
-        if (device != DEVICE_HERMES_LITE2) {
-          AIN3=((control_in[3]&0xFF)<<8)|(control_in[4]&0xFF); // For Penelope or Hermes
-          current=0;
-        } else {
-          AIN3=0;
-          current+=((control_in[3]&0xFF)<<8)|(control_in[4]&0xFF); // HL2
-          n_current++;
-          if(n_current==10) {
-            average_current=current/10;
-            current=0;
-            n_current=0;
-          }
-        }
-        break;
-      case 3:
-        AIN4=((control_in[1]&0xFF)<<8)|(control_in[2]&0xFF); // For Penelope or Hermes
-        AIN6=((control_in[3]&0xFF)<<8)|(control_in[4]&0xFF); // For Penelope or Hermes
-        break;
-    }
-
-    int iq_samples=(512-8)/((num_hpsdr_receivers*6)+2);
-
-    for(i=0;i<iq_samples;i++) {
-      for(r=0;r<num_hpsdr_receivers;r++) {
-        left_sample   = (int)((signed char) buffer[b++])<<16;
-        left_sample  |= (int)((((unsigned char)buffer[b++])<<8)&0xFF00);
-        left_sample  |= (int)((unsigned char)buffer[b++]&0xFF);
-        right_sample  = (int)((signed char)buffer[b++]) << 16;
-        right_sample |= (int)((((unsigned char)buffer[b++])<<8)&0xFF00);
-        right_sample |= (int)((unsigned char)buffer[b++]&0xFF);
-
-        left_sample_double=(double)left_sample/8388607.0; // 24 bit sample 2^23-1
-        right_sample_double=(double)right_sample/8388607.0; // 24 bit sample 2^23-1
-
-	if (isTransmitting() && transmitter->puresignal) {
-	  //
-	  // transmitting with PURESIGNAL. Get sample pairs and feed to pscc
-	  //
-	  if (r == rxfdbk) {
-            left_sample_double_rx=left_sample_double;
-            right_sample_double_rx=right_sample_double;
-          } else if (r == txfdbk) {
-            left_sample_double_tx=left_sample_double;
-            right_sample_double_tx=right_sample_double;
-          }
-	  // this is pure paranoia, it allows for txfdbk < rxfdbk
-          if (r+1 == num_hpsdr_receivers) {
-            add_ps_iq_samples(transmitter, left_sample_double_tx,right_sample_double_tx,left_sample_double_rx,right_sample_double_rx);
-          }
-        }
-
-	if (!isTransmitting() && diversity_enabled) {
-	  //
-	  // receiving with DIVERSITY. Get sample pairs and feed to diversity mixer
-	  //
-          if (r == rx1channel) {
-            left_sample_double_main=left_sample_double;
-            right_sample_double_main=right_sample_double;
-          } else if (r == rx2channel) {
-            left_sample_double_aux=left_sample_double;
-            right_sample_double_aux=right_sample_double;
-          }
-	  // this is pure paranoia, it allows for rx2channel < rx1channel
-          if (r+1 == num_hpsdr_receivers) {
-            add_div_iq_samples(receiver[0], left_sample_double_main,right_sample_double_main,left_sample_double_aux,right_sample_double_aux);
-	    // if we have a second receiver, display "auxiliary" receiver as well
-            if (receivers >1) add_iq_samples(receiver[1], left_sample_double_aux,right_sample_double_aux);
-          }
-	}
-
-        if ((!isTransmitting() || duplex) && !diversity_enabled) {
-	  //
-	  // RX without DIVERSITY. Feed samples to RX1 and RX2
-	  //
-          if (r == rx1channel) {
-             add_iq_samples(receiver[0], left_sample_double,right_sample_double);
-          } else if (r == rx2channel && receivers > 1) {
-             add_iq_samples(receiver[1], left_sample_double,right_sample_double);
-          }
-        }
-      } // end of loop over the receiver channels
-
-      //
-      // Process mic samples. Take them from radio or from
-      // "local microphone" ring buffer
-      //
-      mic_sample  = (short)(buffer[b++]<<8);
-      mic_sample |= (short)(buffer[b++]&0xFF);
-
-      mic_samples++;
-      if(mic_samples>=mic_sample_divisor) { // reduce to 48000
-        fsample = transmitter->local_microphone ? audio_get_next_mic_sample() : (float) mic_sample * 0.00003051;
-        add_mic_sample(transmitter,fsample);
-        mic_samples=0;
-      }
-
-    }
-  } else {
-    time_t t;
-    struct tm* gmt;
-    time(&t);
-    gmt=gmtime(&t);
-
-    g_print("%s: process_ozy_input_buffer: did not find sync: restarting\n",
-            asctime(gmt));
-
-
-    metis_start_stop(0);
-    metis_restart();
-  }
-}
-*/
+//OLDCODE   static void process_ozy_input_buffer(unsigned char  *buffer) {
+//OLDCODE     int i;
+//OLDCODE     int r;
+//OLDCODE     int b=0;
+//OLDCODE     int previous_ptt;
+//OLDCODE     int previous_dot;
+//OLDCODE     int previous_dash;
+//OLDCODE     int left_sample;
+//OLDCODE     int right_sample;
+//OLDCODE     short mic_sample;
+//OLDCODE     float fsample;
+//OLDCODE     double left_sample_double;
+//OLDCODE     double right_sample_double;
+//OLDCODE     double gain=pow(10.0, mic_gain / 20.0);
+//OLDCODE     double left_sample_double_rx;
+//OLDCODE     double right_sample_double_rx;
+//OLDCODE     double left_sample_double_tx;
+//OLDCODE     double right_sample_double_tx;
+//OLDCODE     double left_sample_double_main;
+//OLDCODE     double right_sample_double_main;
+//OLDCODE     double left_sample_double_aux;
+//OLDCODE     double right_sample_double_aux;
+//OLDCODE   
+//OLDCODE     int id=active_receiver->id;
+//OLDCODE   
+//OLDCODE     int num_hpsdr_receivers=how_many_receivers();
+//OLDCODE     int rxfdbk = rx_feedback_channel();
+//OLDCODE     int txfdbk = tx_feedback_channel();
+//OLDCODE     int rx1channel = first_receiver_channel();
+//OLDCODE     int rx2channel = second_receiver_channel();
+//OLDCODE   
+//OLDCODE     if(buffer[b++]==SYNC && buffer[b++]==SYNC && buffer[b++]==SYNC) {
+//OLDCODE       // extract control bytes
+//OLDCODE       control_in[0]=buffer[b++];
+//OLDCODE       control_in[1]=buffer[b++];
+//OLDCODE       control_in[2]=buffer[b++];
+//OLDCODE       control_in[3]=buffer[b++];
+//OLDCODE       control_in[4]=buffer[b++];
+//OLDCODE   
+//OLDCODE       // do not set ptt. In PURESIGNAL, this would stop the
+//OLDCODE       // receiver sending samples to WDSP abruptly.
+//OLDCODE       // Do the RX-TX change only via ext_mox_update.
+//OLDCODE       previous_ptt=local_ptt;
+//OLDCODE       previous_dot=dot;
+//OLDCODE       previous_dash=dash;
+//OLDCODE       local_ptt=(control_in[0]&0x01)==0x01;
+//OLDCODE       dash=(control_in[0]&0x02)==0x02;
+//OLDCODE       dot=(control_in[0]&0x04)==0x04;
+//OLDCODE   
+//OLDCODE       if (cw_keyer_internal) {
+//OLDCODE         // Stops CAT cw transmission if paddle hit in "internal" CW
+//OLDCODE         if ((dash || dot) && cw_keyer_internal) cw_key_hit=1;
+//OLDCODE       } else {
+//OLDCODE   #ifdef LOCALCW
+//OLDCODE         //
+//OLDCODE         // report "key hit" event to the local keyer
+//OLDCODE         // (local keyer will stop CAT cw if necessary)
+//OLDCODE         if (dash != previous_dash) keyer_event(0, dash);
+//OLDCODE         if (dot  != previous_dot ) keyer_event(1, dot );
+//OLDCODE   #endif
+//OLDCODE       }
+//OLDCODE   
+//OLDCODE       if(previous_ptt!=local_ptt) {
+//OLDCODE         g_idle_add(ext_mox_update,(gpointer)(long)(local_ptt));
+//OLDCODE       }
+//OLDCODE   
+//OLDCODE       switch((control_in[0]>>3)&0x1F) {
+//OLDCODE         case 0:
+//OLDCODE           adc_overload=control_in[1]&0x01;
+//OLDCODE           if (device != DEVICE_HERMES_LITE2) {
+//OLDCODE   	  //
+//OLDCODE   	  // HL2 uses these bits of the protocol for a different purpose:
+//OLDCODE   	  // C1 unused except the ADC overload bit
+//OLDCODE             // C2/C3 contains underflow/overflow and TX FIFO count
+//OLDCODE   	  //
+//OLDCODE             IO1=(control_in[1]&0x02)?0:1;
+//OLDCODE             IO2=(control_in[1]&0x04)?0:1;
+//OLDCODE             IO3=(control_in[1]&0x08)?0:1;
+//OLDCODE             if(mercury_software_version!=control_in[2]) {
+//OLDCODE               mercury_software_version=control_in[2];
+//OLDCODE               g_print("  Mercury Software version: %d (0x%0X)\n",mercury_software_version,mercury_software_version);
+//OLDCODE             }
+//OLDCODE             if(penelope_software_version!=control_in[3]) {
+//OLDCODE               penelope_software_version=control_in[3];
+//OLDCODE               g_print("  Penelope Software version: %d (0x%0X)\n",penelope_software_version,penelope_software_version);
+//OLDCODE             }
+//OLDCODE           }
+//OLDCODE           if(ozy_software_version!=control_in[4]) {
+//OLDCODE             ozy_software_version=control_in[4];
+//OLDCODE             g_print("FPGA firmware version: %d.%d\n",ozy_software_version/10,ozy_software_version%10);
+//OLDCODE           }
+//OLDCODE           break;
+//OLDCODE         case 1:
+//OLDCODE           if (device != DEVICE_HERMES_LITE2) {
+//OLDCODE   	  //
+//OLDCODE   	  // HL2 uses C1/C2 for measuring the temperature
+//OLDCODE   	  //
+//OLDCODE             exciter_power=((control_in[1]&0xFF)<<8)|(control_in[2]&0xFF); // from Penelope or Hermes
+//OLDCODE             temperature=0;
+//OLDCODE           } else {
+//OLDCODE             exciter_power=0;
+//OLDCODE             temperature+=((control_in[1]&0xFF)<<8)|(control_in[2]&0xFF); // HL2
+//OLDCODE             n_temperature++;
+//OLDCODE             if(n_temperature==10) {
+//OLDCODE               average_temperature=temperature/10;
+//OLDCODE               temperature=0;
+//OLDCODE               n_temperature=0;
+//OLDCODE             }
+//OLDCODE   	} 
+//OLDCODE           alex_forward_power=((control_in[3]&0xFF)<<8)|(control_in[4]&0xFF); // from Alex or Apollo
+//OLDCODE           break;
+//OLDCODE         case 2:
+//OLDCODE           alex_reverse_power=((control_in[1]&0xFF)<<8)|(control_in[2]&0xFF); // from Alex or Apollo
+//OLDCODE           if (device != DEVICE_HERMES_LITE2) {
+//OLDCODE             AIN3=((control_in[3]&0xFF)<<8)|(control_in[4]&0xFF); // For Penelope or Hermes
+//OLDCODE             current=0;
+//OLDCODE           } else {
+//OLDCODE             AIN3=0;
+//OLDCODE             current+=((control_in[3]&0xFF)<<8)|(control_in[4]&0xFF); // HL2
+//OLDCODE             n_current++;
+//OLDCODE             if(n_current==10) {
+//OLDCODE               average_current=current/10;
+//OLDCODE               current=0;
+//OLDCODE               n_current=0;
+//OLDCODE             }
+//OLDCODE           }
+//OLDCODE           break;
+//OLDCODE         case 3:
+//OLDCODE           AIN4=((control_in[1]&0xFF)<<8)|(control_in[2]&0xFF); // For Penelope or Hermes
+//OLDCODE           AIN6=((control_in[3]&0xFF)<<8)|(control_in[4]&0xFF); // For Penelope or Hermes
+//OLDCODE           break;
+//OLDCODE       }
+//OLDCODE   
+//OLDCODE       int iq_samples=(512-8)/((num_hpsdr_receivers*6)+2);
+//OLDCODE   
+//OLDCODE       for(i=0;i<iq_samples;i++) {
+//OLDCODE         for(r=0;r<num_hpsdr_receivers;r++) {
+//OLDCODE           left_sample   = (int)((signed char) buffer[b++])<<16;
+//OLDCODE           left_sample  |= (int)((((unsigned char)buffer[b++])<<8)&0xFF00);
+//OLDCODE           left_sample  |= (int)((unsigned char)buffer[b++]&0xFF);
+//OLDCODE           right_sample  = (int)((signed char)buffer[b++]) << 16;
+//OLDCODE           right_sample |= (int)((((unsigned char)buffer[b++])<<8)&0xFF00);
+//OLDCODE           right_sample |= (int)((unsigned char)buffer[b++]&0xFF);
+//OLDCODE   
+//OLDCODE           left_sample_double=(double)left_sample/8388607.0; // 24 bit sample 2^23-1
+//OLDCODE           right_sample_double=(double)right_sample/8388607.0; // 24 bit sample 2^23-1
+//OLDCODE   
+//OLDCODE   	if (isTransmitting() && transmitter->puresignal) {
+//OLDCODE   	  //
+//OLDCODE   	  // transmitting with PURESIGNAL. Get sample pairs and feed to pscc
+//OLDCODE   	  //
+//OLDCODE   	  if (r == rxfdbk) {
+//OLDCODE               left_sample_double_rx=left_sample_double;
+//OLDCODE               right_sample_double_rx=right_sample_double;
+//OLDCODE             } else if (r == txfdbk) {
+//OLDCODE               left_sample_double_tx=left_sample_double;
+//OLDCODE               right_sample_double_tx=right_sample_double;
+//OLDCODE             }
+//OLDCODE   	  // this is pure paranoia, it allows for txfdbk < rxfdbk
+//OLDCODE             if (r+1 == num_hpsdr_receivers) {
+//OLDCODE               add_ps_iq_samples(transmitter, left_sample_double_tx,right_sample_double_tx,left_sample_double_rx,right_sample_double_rx);
+//OLDCODE             }
+//OLDCODE           }
+//OLDCODE   
+//OLDCODE   	if (!isTransmitting() && diversity_enabled) {
+//OLDCODE   	  //
+//OLDCODE   	  // receiving with DIVERSITY. Get sample pairs and feed to diversity mixer
+//OLDCODE   	  //
+//OLDCODE             if (r == rx1channel) {
+//OLDCODE               left_sample_double_main=left_sample_double;
+//OLDCODE               right_sample_double_main=right_sample_double;
+//OLDCODE             } else if (r == rx2channel) {
+//OLDCODE               left_sample_double_aux=left_sample_double;
+//OLDCODE               right_sample_double_aux=right_sample_double;
+//OLDCODE             }
+//OLDCODE   	  // this is pure paranoia, it allows for rx2channel < rx1channel
+//OLDCODE             if (r+1 == num_hpsdr_receivers) {
+//OLDCODE               add_div_iq_samples(receiver[0], left_sample_double_main,right_sample_double_main,left_sample_double_aux,right_sample_double_aux);
+//OLDCODE   	    // if we have a second receiver, display "auxiliary" receiver as well
+//OLDCODE               if (receivers >1) add_iq_samples(receiver[1], left_sample_double_aux,right_sample_double_aux);
+//OLDCODE             }
+//OLDCODE   	}
+//OLDCODE   
+//OLDCODE           if ((!isTransmitting() || duplex) && !diversity_enabled) {
+//OLDCODE   	  //
+//OLDCODE   	  // RX without DIVERSITY. Feed samples to RX1 and RX2
+//OLDCODE   	  //
+//OLDCODE             if (r == rx1channel) {
+//OLDCODE                add_iq_samples(receiver[0], left_sample_double,right_sample_double);
+//OLDCODE             } else if (r == rx2channel && receivers > 1) {
+//OLDCODE                add_iq_samples(receiver[1], left_sample_double,right_sample_double);
+//OLDCODE             }
+//OLDCODE           }
+//OLDCODE         } // end of loop over the receiver channels
+//OLDCODE   
+//OLDCODE         //
+//OLDCODE         // Process mic samples. Take them from radio or from
+//OLDCODE         // "local microphone" ring buffer
+//OLDCODE         //
+//OLDCODE         mic_sample  = (short)(buffer[b++]<<8);
+//OLDCODE         mic_sample |= (short)(buffer[b++]&0xFF);
+//OLDCODE   
+//OLDCODE         mic_samples++;
+//OLDCODE         if(mic_samples>=mic_sample_divisor) { // reduce to 48000
+//OLDCODE           fsample = transmitter->local_microphone ? audio_get_next_mic_sample() : (float) mic_sample * 0.00003051;
+//OLDCODE           add_mic_sample(transmitter,fsample);
+//OLDCODE           mic_samples=0;
+//OLDCODE         }
+//OLDCODE   
+//OLDCODE       }
+//OLDCODE     } else {
+//OLDCODE       time_t t;
+//OLDCODE       struct tm* gmt;
+//OLDCODE       time(&t);
+//OLDCODE       gmt=gmtime(&t);
+//OLDCODE   
+//OLDCODE       g_print("%s: process_ozy_input_buffer: did not find sync: restarting\n",
+//OLDCODE               asctime(gmt));
+//OLDCODE   
+//OLDCODE   
+//OLDCODE       metis_start_stop(0);
+//OLDCODE       metis_restart();
+//OLDCODE     }
+//OLDCODE   }
 
 static int nreceiver;
 static int left_sample;
