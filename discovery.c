@@ -77,6 +77,12 @@ GtkWidget *host_port_spinner;
 gint host_port=45000;
 #endif
 
+//
+// This is a variable for the second phase of STEMlab discovery.
+// Here we know we have a stemlab and will re-discover only P1
+//
+static int discover_only_p1 = 0;
+
 static gboolean delete_event_cb(GtkWidget *widget, GdkEvent *event, gpointer data) {
   _exit(0);
 }
@@ -97,21 +103,16 @@ static gboolean start_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
 	ret=stemlab_start_app(gtk_combo_box_get_active_id(GTK_COMBO_BOX(apps_combobox[device_id])));
     }
     //
-    // We have started the SDR app on the RedPitaya, but may need to fill
-    // in information necessary for starting the radio, including the
-    // MAC address and the interface listening to. Even when using AVAHI,
-    // we miss some information.
-    // To get all required info, we do a "fake" discovery on the RedPitaya IP address.
-    // Here we also try TCP if UDP does not work, such that we can work with STEMlabs
-    // in remote subnets.
+    // To make this bullet-proof, we do another "discover" now
+    // and proceeding this way is the only way to choose between UDP and TCP connection
+    // Since we have just started the app, we temporarily deactivate STEMlab detection
     //
-    if (ret == 0) {
-      ret=stemlab_get_info(device_id);
-    }
-    // At this point, if stemlab_start_app failed, we cannot recover
-    if (ret != 0) exit(-1);
+    stemlab_cleanup();
+    discover_only_p1=1;
+    gtk_widget_destroy(discovery_dialog);
+    g_idle_add(ext_discovery,NULL);
+    return TRUE;
   }
-  stemlab_cleanup();
 #endif
   gtk_widget_destroy(discovery_dialog);
   start_radio();
@@ -335,7 +336,7 @@ void discovery() {
 #endif
 
 #ifdef STEMLAB_DISCOVERY
-  if(enable_stemlab) {
+  if(enable_stemlab && ! discover_only_p1) {
 #ifdef NO_AVAHI
     status_text("Looking for STEMlab WEB apps");
 #else
@@ -350,17 +351,20 @@ void discovery() {
     old_discovery();
   }
 
-  if(enable_protocol_2) {
+  if(enable_protocol_2 && ! discover_only_p1) {
     status_text("Protocol 2 ... Discovering Devices");
     new_discovery();
   }
 
 #ifdef SOAPYSDR
-  if(enable_soapy_protocol) {
+  if(enable_soapy_protocol && ! discover_only_p1) {
     status_text("SoapySDR ... Discovering Devices");
     soapy_discovery();
   }
 #endif
+
+  // subsequent discoveries check all protocols enabled.
+  discover_only_p1=0;
 
   status_text("Discovery");
   
@@ -437,7 +441,7 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
 #ifdef STEMLAB_DISCOVERY
           case STEMLAB_PROTOCOL:
 #ifdef NO_AVAHI
-            sprintf(text,"Choose RedPitaya App from %s and start radio: ",inet_ntoa(d->info.network.address.sin_addr));
+            sprintf(text,"Choose RedPitaya App from %s and re-discover: ",inet_ntoa(d->info.network.address.sin_addr));
 #else
             sprintf(text, "STEMlab (%02X:%02X:%02X:%02X:%02X:%02X) on %s",
                            d->info.network.mac_address[0],
