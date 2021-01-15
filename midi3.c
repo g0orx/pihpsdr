@@ -220,23 +220,23 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	/////////////////////////////////////////////////////////// "CW"
 	case MIDI_ACTION_CWKEY: // only key
 	  //
-	  // This is a CW key-up/down which works outside the keyer.
-	  // It is intended for the use of external keyers
-	  // and works if not compiled with LOCALCW
-	  // and/or using "CW handled in radio". 
-	  // NO BREAK-IN! The keyer has to send a MIDI "PTT on" command and
-	  // wait a decent amount of time before doing key-down.
+	  // This is a CW key-up/down which uses functions from the keyer
+	  // that by-pass the interrupt-driven standard action.
+	  // It is intended to
+	  // be used with external keyers that send key-up/down messages via
+	  // MIDI using this command.
+	  //
+	  // NO BREAK-IN! The keyer has to take care of sending MIDI PTT
+	  // on/off messages at appropriate times.
           //
+#ifdef LOCALCW
 	    if (type == MIDI_TYPE_KEY) {
-              if (val != 0) {
-		cw_key_down=960000;  // max. 20 sec to protect hardware
-		cw_key_up=0;
-		cw_key_hit=1;        // abort any pending CAT CW messages
-	      } else {
-		cw_key_down=0;
-		cw_key_up=0;
-	      }
+              keyer_straight_key(val);
             }
+#else
+	    g_print("%s: CWKEY:%d\n",__FUNCTION__,val);
+
+#endif
 	    break;
 	/////////////////////////////////////////////////////////// "CWL"
 	/////////////////////////////////////////////////////////// "CWR"

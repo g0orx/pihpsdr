@@ -248,6 +248,22 @@ int gpio_cw_sidetone_enabled() { return 0; }
 void gpio_cw_sidetone_set(int level) {}
 #endif
 
+void keyer_straight_key(state) {
+  //
+  // Interface for simple key-down action e.g. from a MIDI message
+  //
+  if (state != 0) {
+    cw_key_down=960000;  // max. 20 sec to protect hardware
+    cw_key_up=0;
+    cw_key_active=1;
+    gpio_cw_sidetone_set(1);
+  } else {
+    cw_key_down=0;
+    cw_key_up=0;
+    gpio_cw_sidetone_set(0);
+  }
+}
+
 void keyer_update() {
     //
     // This function will take notice of changes in the following variables
@@ -441,9 +457,7 @@ static void* keyer_thread(void *arg) {
                     // If both paddles are pressed (should not happen), then
                     // the dash paddle wins.
                     if (*kdash) {                  // send manual dashes
-                      cw_key_down=960000;            // 20 sec maximum
-                      cw_key_up=0;
-                      gpio_cw_sidetone_set(1);
+                      keyer_straight_key(1);       // do key down
                       key_state=STRAIGHT;
                     }
                 } else {
@@ -461,8 +475,7 @@ static void* keyer_thread(void *arg) {
 		// Wait for dash paddle being released in "straight key" mode.
                 //
                 if (! *kdash) {
-                  cw_key_down=0;
-                  gpio_cw_sidetone_set(0);
+                  keyer_straight_key(0);   // key-up
                   key_state=CHECK;
                 }
                 break;
