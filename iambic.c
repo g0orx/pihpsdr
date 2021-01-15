@@ -255,7 +255,7 @@ void keyer_straight_key(state) {
   if (state != 0) {
     cw_key_down=960000;  // max. 20 sec to protect hardware
     cw_key_up=0;
-    cw_key_active=1;
+    cw_key_hit=1;
     gpio_cw_sidetone_set(1);
   } else {
     cw_key_down=0;
