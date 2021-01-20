@@ -108,6 +108,7 @@ static gboolean start_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
     // Since we have just started the app, we temporarily deactivate STEMlab detection
     //
     stemlab_cleanup();
+    sleep(2);          // let Stemlab SDR app start
     discover_only_p1=1;
     gtk_widget_destroy(discovery_dialog);
     g_idle_add(ext_discovery,NULL);
