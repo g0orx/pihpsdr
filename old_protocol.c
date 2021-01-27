@@ -1943,21 +1943,39 @@ static int last_power=0;
         output_buffer[C4]=eer_pwm_max & 0x03;
         break;
       case 10:
-        output_buffer[C0]=0x24;
-        output_buffer[C1]=0x00;
+        if (device == DEVICE_HERMES_LITE2) {
+          //
+          // The 0x24 command has a different meaning in the HL2.
+          // Instead, we sent the 0x2E command (PTT hang / TX latency times)
+          // Increasing the TX latency time slightly above the default
+          // make TX-IQ-FIFO under-run less probable which leads to
+          // "TX/RX relay chatter"
+          //
+          output_buffer[C0]=0x2E;
+          output_buffer[C1]=0x00;
+          output_buffer[C2]=0x00;
+          output_buffer[C3]=5;    //  5 msec PTT hang time, only bits 4:0
+          output_buffer[C4]=30;   // 35 msec TX latency,    only bits 6:0
+        } else {
+          //
+          // This is possibly only relevant for Orion-II boards
+          //
+          output_buffer[C0]=0x24;
+          output_buffer[C1]=0x00;
 
-        if(isTransmitting()) {
+          if(isTransmitting()) {
             output_buffer[C1]|=0x80; // ground RX2 on transmit, bit0-6 are Alex2 filters
+          }
+          output_buffer[C2]=0x00;
+          if(receiver[0]->alex_antenna==5) { // XVTR
+            output_buffer[C2]=0x02;          // Alex2 XVTR enable
+          }
+          if(transmitter->puresignal) {
+            output_buffer[C2]|=0x40;	   // Synchronize RX5 and TX frequency on transmit (ANAN-7000)
+          }
+          output_buffer[C3]=0x00;            // Alex2 filters
+          output_buffer[C4]=0x00;            // Alex2 filters
         }
-        output_buffer[C2]=0x00;
-        if(receiver[0]->alex_antenna==5) { // XVTR
-          output_buffer[C2]=0x02;          // Alex2 XVTR enable
-        }
-        if(transmitter->puresignal) {
-          output_buffer[C2]|=0x40;	   // Synchronize RX5 and TX frequency on transmit (ANAN-7000)
-        }
-        output_buffer[C3]=0x00;            // Alex2 filters
-        output_buffer[C4]=0x00;            // Alex2 filters
         break;
     }
 
