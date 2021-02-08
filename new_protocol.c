@@ -594,6 +594,17 @@ void new_protocol_init(int pixels) {
     int optval = 1;
     setsockopt(data_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
     setsockopt(data_socket, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval));
+#ifdef __APPLE__
+    optval = 0x10;  // IPTOS_LOWDELAY
+    if(setsockopt(data_socket, IPPROTO_IP, IP_TOS, &optval, sizeof(optval))<0) {
+      perror("data_socket: SO_PRIORITY");
+    }
+#else
+    optval = 6;
+    if(setsockopt(data_socket, SOL_SOCKET, SO_PRIORITY, &optval, sizeof(optval))<0) {
+      perror("data_socket: SO_PRIORITY");
+    }
+#endif
 
     // bind to the interface
     if(bind(data_socket,(struct sockaddr*)&radio->info.network.interface_address,radio->info.network.interface_length)<0) {

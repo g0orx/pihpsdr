@@ -439,6 +439,17 @@ static void open_udp_socket() {
     if (setsockopt(tmp, SOL_SOCKET, SO_RCVBUF, &optval, sizeof(optval))<0) {
       perror("data_socket: SO_RCVBUF");
     }
+#ifdef __APPLE__
+    optval = 0x10;  // IPTOS_LOWDELAY
+    if(setsockopt(tmp, IPPROTO_IP, IP_TOS, &optval, sizeof(optval))<0) {
+      perror("data_socket: SO_PRIORITY");
+    }
+#else
+    optval = 6;
+    if(setsockopt(tmp, SOL_SOCKET, SO_PRIORITY, &optval, sizeof(optval))<0) {
+      perror("data_socket: SO_PRIORITY");
+    }
+#endif
 
     //
     // set a timeout for receive
@@ -502,6 +513,17 @@ static void open_tcp_socket() {
     if (setsockopt(tmp, SOL_SOCKET, SO_RCVBUF, &optval, sizeof(optval))<0) {
       perror("tcp_socket: SO_RCVBUF");
     }
+#ifdef __APPLE__
+    optval = 0x10;  // IPTOS_LOWDELAY
+    if(setsockopt(tmp, IPPROTO_IP, IP_TOS, &optval, sizeof(optval))<0) {
+      perror("data_socket: SO_PRIORITY");
+    }
+#else
+    optval = 6;
+    if(setsockopt(tmp, SOL_SOCKET, SO_PRIORITY, &optval, sizeof(optval))<0) {
+      perror("data_socket: SO_PRIORITY");
+    }
+#endif
     tcp_socket=tmp;
     g_print("TCP socket established: %d\n", tcp_socket);
 }
