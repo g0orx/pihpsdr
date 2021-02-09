@@ -68,7 +68,6 @@
 
 #define SYNC 0x7F
 #define OZY_BUFFER_SIZE 512
-//#define OUTPUT_BUFFER_SIZE 1024
 
 // ozy command and control
 #define MOX_DISABLED    0x00
@@ -120,38 +119,6 @@ enum {
 };
 static int state=SYNC_0;
 
-//#define DEBUG_PROTO 1
-
-#ifdef DEBUG_PROTO
-/*
- * This is for debugging the protocol
- */
-
-static int C3_RX1_OUT=-1;
-static int C3_RX1_ANT=-1;
-static int C4_TX_REL=-1;
-static int PC_PTT=-1;
-static int CASE1=-1;
-static int CASE2=-1;
-
-static int C2_FB=-1;
-static int C3_HPF=-1;
-static int C3_BP=-1;
-static int C3_LNA=-1;
-static int C3_TXDIS=-1;
-
-static int C4_LPF=-1;
-
-static int C1_DRIVE=-1;
-
-static int proto_mod=0;
-static int proto_val;
-
-#define CHECK(x, var) proto_val=(x); if ((x) != var) { proto_mod=1; var=proto_val;}
-#endif
-
-//static int buffer_size=BUFFER_SIZE;
-
 static int display_width;
 
 static int speed;
@@ -162,8 +129,6 @@ static int output_rate=48000;
 static int data_socket=-1;
 static int tcp_socket=-1;
 static struct sockaddr_in data_addr;
-
-static int output_buffer_size;
 
 static unsigned char control_in[5]={0x00,0x00,0x00,0x00,0x00};
 
@@ -317,7 +282,7 @@ void old_protocol_init(int rx,int pixels,int rate) {
   else
 #endif
   {
-    g_print("old_protocol starting receive thread: buffer_size=%d output_buffer_size=%d\n",buffer_size,output_buffer_size);
+    g_print("old_protocol starting receive thread\n");
     if (radio->use_tcp) {
       open_tcp_socket();
     } else  {
@@ -349,7 +314,7 @@ void old_protocol_init(int rx,int pixels,int rate) {
 //
 static void start_usb_receive_threads()
 {
-  g_print("old_protocol starting USB receive thread: buffer_size=%d\n",buffer_size);
+  g_print("old_protocol starting USB receive thread\n");
 
   ozy_EP6_rx_thread_id = g_thread_new( "OZY EP6 RX", ozy_ep6_rx_thread, NULL);
   if( ! ozy_EP6_rx_thread_id )
@@ -1338,10 +1303,24 @@ static pthread_mutex_t send_buffer_mutex   = PTHREAD_MUTEX_INITIALIZER;
 void old_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right_audio_sample) {
   if(!isTransmitting()) {
     pthread_mutex_lock(&send_buffer_mutex);
-    output_buffer[output_buffer_index++]=left_audio_sample>>8;
-    output_buffer[output_buffer_index++]=left_audio_sample;
-    output_buffer[output_buffer_index++]=right_audio_sample>>8;
-    output_buffer[output_buffer_index++]=right_audio_sample;
+    //
+    // The HL2 makes no use of audio samples, but instead
+    // uses them to write to extended addrs which we do not
+    // want to do un-intentionally, therefore send zeros
+    // We could also stop this data stream during TX
+    // completely
+    //
+    if (device == DEVICE_HERMES_LITE2) {
+      output_buffer[output_buffer_index++]=0;
+      output_buffer[output_buffer_index++]=0;
+      output_buffer[output_buffer_index++]=0;
+      output_buffer[output_buffer_index++]=0;
+    } else {
+      output_buffer[output_buffer_index++]=left_audio_sample>>8;
+      output_buffer[output_buffer_index++]=left_audio_sample;
+      output_buffer[output_buffer_index++]=right_audio_sample>>8;
+      output_buffer[output_buffer_index++]=right_audio_sample;
+    }
     output_buffer[output_buffer_index++]=0;
     output_buffer[output_buffer_index++]=0;
     output_buffer[output_buffer_index++]=0;
@@ -1364,10 +1343,17 @@ void old_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right
 void old_protocol_iq_samples_with_sidetone(int isample, int qsample, int side) {
   if(isTransmitting()) {
     pthread_mutex_lock(&send_buffer_mutex);
-    output_buffer[output_buffer_index++]=side >> 8;
-    output_buffer[output_buffer_index++]=side;
-    output_buffer[output_buffer_index++]=side >> 8;
-    output_buffer[output_buffer_index++]=side;
+    if (device == DEVICE_HERMES_LITE2) {
+      output_buffer[output_buffer_index++]=0;
+      output_buffer[output_buffer_index++]=0;
+      output_buffer[output_buffer_index++]=0;
+      output_buffer[output_buffer_index++]=0;
+    } else {
+      output_buffer[output_buffer_index++]=side >> 8;
+      output_buffer[output_buffer_index++]=side;
+      output_buffer[output_buffer_index++]=side >> 8;
+      output_buffer[output_buffer_index++]=side;
+    }
     output_buffer[output_buffer_index++]=isample>>8;
     output_buffer[output_buffer_index++]=isample;
     output_buffer[output_buffer_index++]=qsample>>8;
@@ -1571,12 +1557,6 @@ void ozy_send_buffer() {
         output_buffer[C3] |= 0x80;
 	break;
     }
-#ifdef DEBUG_PROTO
-    CHECK(i, CASE1);
-    CHECK((output_buffer[C3] & 0x80) >> 7, C3_RX1_OUT);
-    CHECK((output_buffer[C3] & 0x60) >> 5, C3_RX1_ANT);
-#endif
-
 
     output_buffer[C4]=0x04;  // duplex
     //
@@ -1626,16 +1606,15 @@ void ozy_send_buffer() {
           output_buffer[C4]|=0x03;
           break;
     }
-#ifdef DEBUG_PROTO
-    CHECK(i, CASE2);
-    CHECK(output_buffer[C4] & 0x03, C4_TX_REL);
-#endif
-
     // end of "C0=0" packet
   } else {
     //
     // metis_offset !=8: send the other C&C packets in round-robin
     // RX frequency commands are repeated for each RX
+    output_buffer[C1]=0x00;
+    output_buffer[C2]=0x00;
+    output_buffer[C3]=0x00;
+    output_buffer[C4]=0x00;
     switch(command) {
       case 1: // tx frequency
         output_buffer[C0]=0x02;
@@ -1644,6 +1623,7 @@ void ozy_send_buffer() {
         output_buffer[C2]=txFrequency>>16;
         output_buffer[C3]=txFrequency>>8;
         output_buffer[C4]=txFrequency;
+        command=2;
         break;
       case 2: // rx frequency
         if(current_rx<num_hpsdr_receivers) {
@@ -1656,15 +1636,17 @@ void ozy_send_buffer() {
           current_rx++;
         }
 	// if we have reached the last RX channel, wrap around
+        // and proceed with the next "command"
         if(current_rx>=num_hpsdr_receivers) {
           current_rx=0;
+          command=3;
         }
         break;
       case 3:
         {
         BAND *band=band_get_current_band();
         int power=0;
-static int last_power=0;
+//static int last_power=0;
 	//
 	// Some HPSDR apps for the RedPitaya generate CW inside the FPGA, but while
 	// doing this, DriveLevel changes are processed by the server, but do not become effective.
@@ -1690,6 +1672,12 @@ static int last_power=0;
             // we always use the att level that produces a little bit *less* attenuation
             // than required, and down-scale the IQ samples in transmitter.c
             //
+            // NOTE: this down-scaling does not occur when connecting a CW key to the HL2
+            //       and using "internal" CW, because in this case the IQ samples are
+            //       generated in the FPGA. A typical symptom is that the CW signals are
+            //       stronger than the "TUNE" signal, and in the case of very low drive slider
+            //       values they can be *much* stronger.
+            //
             if (power > 0) {
               int hl2power = 15+(int)lround(ceil(40.0 * log10((double) power / 255.0)));
               if (hl2power < 0) hl2power=0;
@@ -1708,9 +1696,6 @@ static int last_power=0;
 
         output_buffer[C0]=0x12;
         output_buffer[C1]=power&0xFF;
-        output_buffer[C2]=0x00;
-        output_buffer[C3]=0x00;
-        output_buffer[C4]=0x00;
         if(mic_boost) {
           output_buffer[C2]|=0x01;
         }
@@ -1741,7 +1726,9 @@ static int last_power=0;
 #ifdef PURESIGNAL
 	//
 	// If using PURESIGNAL and a feedback to EXT1, we have to manually activate the RX HPF/BPF
-	// filters and select "bypass"
+	// filters and select "bypass" since the feedback signal must arrive at the board
+        // un-altered. This is not necessary for feedback at the "ByPass" jack since filter bypass
+        // is realized in hardware here.
 	//
         if (isTransmitting() && transmitter->puresignal && receiver[PS_RX_FEEDBACK]->alex_antenna == 6) {
           output_buffer[C2] |= 0x40;  // enable manual filter selection
@@ -1773,20 +1760,11 @@ static int last_power=0;
 	  }
 	}
 #endif
-#ifdef DEBUG_PROTO
-	CHECK(output_buffer[C1], C1_DRIVE);
-	CHECK((output_buffer[C2] & 0xE0) >> 5, C2_FB);
-	CHECK(output_buffer[C3] & 0x1F, C3_HPF);
-        CHECK((output_buffer[C3] & 0x20) >> 5, C3_BP);
-        CHECK((output_buffer[C3] & 0x40) >> 6, C3_LNA);
-        CHECK((output_buffer[C3] & 0x80) >> 7, C3_TXDIS);
-        CHECK(output_buffer[C4], C4_LPF);
-#endif
         }
+        command=4;
         break;
       case 4:
         output_buffer[C0]=0x14;
-        output_buffer[C1]=0x00;
 
 #ifdef USBOZY
         if ((device == DEVICE_OZY) || (device == DEVICE_METIS)) {
@@ -1806,13 +1784,10 @@ static int last_power=0;
         if(mic_ptt_tip_bias_ring) {
           output_buffer[C1]|=0x10;
         }
-        output_buffer[C2]=0x00;
         output_buffer[C2]|=linein_gain;
         if(transmitter->puresignal) {
           output_buffer[C2]|=0x40;
         }
-        output_buffer[C3]=0x00;
-        output_buffer[C4]=0x00;
   
 	// upon TX, use transmitter->attenuation
 	// Usually the firmware takes care of this, but it is no
@@ -1856,10 +1831,10 @@ static int last_power=0;
             output_buffer[C4]=0x20 | (adc_attenuation[0] & 0x1F);
           } 
         }
+        command=5;
 	break;
       case 5:
         output_buffer[C0]=0x16;
-        output_buffer[C1]=0x00;
         if(n_adc==2) {
 	  // must set bit 5 ("Att enable") all the time
           // upon transmitting, use high attenuation, since this is
@@ -1877,18 +1852,16 @@ static int last_power=0;
 	    }
           }
         }
-        output_buffer[C2]=0x00; // ADC3 attenuator disabled.
         if(cw_keys_reversed!=0) {
           output_buffer[C2]|=0x40;
         }
         output_buffer[C3]=cw_keyer_speed | (cw_keyer_mode<<6);
         output_buffer[C4]=cw_keyer_weight | (cw_keyer_spacing<<7);
+        command=6;
         break;
       case 6:
         // need to add tx attenuation and rx ADC selection
         output_buffer[C0]=0x1C;
-        output_buffer[C1]=0x00;
-        output_buffer[C2]=0x00;
         // if n_adc == 1, there is only a single ADC, so we can leave everything
         // set to zero
 	if (n_adc  > 1) {
@@ -1916,17 +1889,16 @@ static int last_power=0;
         } else {
           output_buffer[C3]=transmitter->attenuation & 0x1F;  // Step attenuator of first ADC, value used when TXing
         }
-        output_buffer[C4]=0x00;
+        command=7;
         break;
       case 7:
         output_buffer[C0]=0x1E;
-        output_buffer[C1]=0x00;
         if((txmode==modeCWU || txmode==modeCWL) && !tune && cw_keyer_internal && !transmitter->twotone) {
           output_buffer[C1]|=0x01;
         }
         output_buffer[C2]=cw_keyer_sidetone_volume;
         output_buffer[C3]=cw_keyer_ptt_delay;
-        output_buffer[C4]=0x00;
+        command=8;
         break;
       case 8:
         output_buffer[C0]=0x20;
@@ -1934,6 +1906,7 @@ static int last_power=0;
         output_buffer[C2]=cw_keyer_hang_time & 0x03;
         output_buffer[C3]=(cw_keyer_sidetone_frequency>>4) & 0xFF;
         output_buffer[C4]=cw_keyer_sidetone_frequency & 0x0F;
+        command=9;
         break;
       case 9:
         output_buffer[C0]=0x22;
@@ -1941,51 +1914,49 @@ static int last_power=0;
         output_buffer[C2]=eer_pwm_min & 0x03;
         output_buffer[C3]=(eer_pwm_max>>3) & 0xFF;
         output_buffer[C4]=eer_pwm_max & 0x03;
+        command=10;
         break;
       case 10:
-        if (device == DEVICE_HERMES_LITE2) {
-          //
-          // The 0x24 command has a different meaning in the HL2.
-          // Instead, we sent the 0x2E command (PTT hang / TX latency times)
-          // Increasing the TX latency time slightly above the default
-          // make TX-IQ-FIFO under-run less probable which leads to
-          // "TX/RX relay chatter"
-          //
-          output_buffer[C0]=0x2E;
-          output_buffer[C1]=0x00;
-          output_buffer[C2]=0x00;
-          output_buffer[C3]=5;    //  5 msec PTT hang time, only bits 4:0
-          output_buffer[C4]=30;   // 35 msec TX latency,    only bits 6:0
-        } else {
-          //
-          // This is possibly only relevant for Orion-II boards
-          //
-          output_buffer[C0]=0x24;
-          output_buffer[C1]=0x00;
+        //
+        // This is possibly only relevant for Orion-II boards
+        //
+        output_buffer[C0]=0x24;
 
-          if(isTransmitting()) {
-            output_buffer[C1]|=0x80; // ground RX2 on transmit, bit0-6 are Alex2 filters
-          }
-          output_buffer[C2]=0x00;
-          if(receiver[0]->alex_antenna==5) { // XVTR
-            output_buffer[C2]=0x02;          // Alex2 XVTR enable
-          }
-          if(transmitter->puresignal) {
-            output_buffer[C2]|=0x40;	   // Synchronize RX5 and TX frequency on transmit (ANAN-7000)
-          }
-          output_buffer[C3]=0x00;            // Alex2 filters
-          output_buffer[C4]=0x00;            // Alex2 filters
+        if(isTransmitting()) {
+          output_buffer[C1]|=0x80; // ground RX2 on transmit, bit0-6 are Alex2 filters
+        }
+        if(receiver[0]->alex_antenna==5) { // XVTR
+          output_buffer[C2] |= 0x02;          // Alex2 XVTR enable
+        }
+        if(transmitter->puresignal) {
+          output_buffer[C2] |= 0x40;	   // Synchronize RX5 and TX frequency on transmit (ANAN-7000)
+        }
+
+        //
+        // This was the last command defined in the HPSDR document so we
+        // roll back to the first command.
+        // The HermesLite-II uses an extended command set so in this case
+        // we proceed.
+        if (device == DEVICE_HERMES_LITE2) {
+          command=11;
+        } else {
+          command=1;
         }
         break;
-    }
-
-    if(current_rx==0) {
-      command++;
-      if(command>10) {
+      case 11:
+        // HL2 only
+        // specify some more robust TX latency and PTT hang times
+        // ToDo: add user interface to change these values
+        output_buffer[C0]=0x2E;
+        output_buffer[C3]=20;   // 30 msec PTT hang time, only bits 4:0
+        output_buffer[C4]=40;   // 30 msec TX latency,    only bits 6:0
+        //
+        // This was the last command we use out of the extended HL2 command set,
+        // so roll back to the first one.
+        //
         command=1;
-      }
+        break;
     }
-  
   }
 
   // set mox
@@ -2006,20 +1977,6 @@ static int last_power=0;
       output_buffer[C0]|=0x01;
     }
   }
-#ifdef DEBUG_PROTO
-  CHECK(output_buffer[C0] & 1, PC_PTT);
-
-/*
- * ship out line after each complete run
- */
-  if (proto_mod && command == 1) {
-    g_print("DIS=%d DRIVE=%3d PTT=%d i1=%4d RXout=%d RXant=%d i2=%d TXrel=%d FB=%d BP=%d LNA=%d HPF=%02x LPF=%02x\n",
-     C3_TXDIS, C1_DRIVE, PC_PTT, CASE1, C3_RX1_OUT, C3_RX1_ANT, CASE2, C4_TX_REL,
-     C2_FB, C3_BP, C3_LNA, C3_HPF, C4_LPF);
-    proto_mod=0;
-  }
-#endif
-     
 
 #ifdef USBOZY
 //
