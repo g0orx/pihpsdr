@@ -677,7 +677,7 @@ static void init_analyzer(TRANSMITTER *tx) {
    SetDisplayDetectorMode (tx->id,  0, DETECTOR_MODE_PEAK);
    SetDisplayAverageMode  (tx->id,  0, AVERAGE_MODE_LOG_RECURSIVE);
    SetDisplayNumAverage   (tx->id,  0, 4);
-   SetDisplayAvBackmult   (tx->id,  0, 0.7788);  // exp(-1/4)
+   SetDisplayAvBackmult   (tx->id,  0, 0.4000);
 }
 
 void create_dialog(TRANSMITTER *tx) {
