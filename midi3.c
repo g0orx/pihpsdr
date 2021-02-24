@@ -229,14 +229,18 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	  // NO BREAK-IN! The keyer has to take care of sending MIDI PTT
 	  // on/off messages at appropriate times.
           //
-#ifdef LOCALCW
+          // Since this if for immediate key-down, it does not rely on LOCALCW
+          //
 	    if (type == MIDI_TYPE_KEY) {
-              keyer_straight_key(val);
+              if (val != 0) {
+                cw_key_down=960000;  // max. 20 sec to protect hardware
+                cw_key_up=0;
+                cw_key_hit=1;
+              } else {
+                cw_key_down=0;
+                cw_key_up=0;
+              }
             }
-#else
-	    g_print("%s: CWKEY:%d\n",__FUNCTION__,val);
-
-#endif
 	    break;
 	/////////////////////////////////////////////////////////// "CWL"
 	/////////////////////////////////////////////////////////// "CWR"
