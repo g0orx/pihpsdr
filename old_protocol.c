@@ -1099,6 +1099,24 @@ static void process_control_bytes() {
           g_print("  Penelope Software version: %d (0x%0X)\n",penelope_software_version,penelope_software_version);
         }
       }
+      //
+      //DEBUG code to monitor HL2 TX-FIFO filling and 
+      //underflow/overflow detection.
+      //
+      // Measured on HL2 software version 7.2:
+      // multiply FIFO value with 32 to get sample cound
+      // multiply FIFO value with 0.67 to get FIFO length in milli-seconds
+      // Overflow at about 3600 samples (75 msec).
+      //
+      // As a result, we set the "TX latency" to 40 msec (see below).
+      //
+      //
+      //if (device == DEVICE_HERMES_LITE2 && isTransmitting()) {
+      //   fprintf(stderr,"TX FIFO: %d", control_in[3] & 0x7F);
+      //   if ((control_in[3] & 0xC0) == 0xC0) fprintf(stderr," OVER ");
+      //   if ((control_in[3] & 0xC0) == 0x80) fprintf(stderr," UNDER ");
+      //   fprintf(stderr,"\n");
+      //}
       if(ozy_software_version!=control_in[4]) {
         ozy_software_version=control_in[4];
         g_print("FPGA firmware version: %d.%d\n",ozy_software_version/10,ozy_software_version%10);
@@ -1968,12 +1986,17 @@ void ozy_send_buffer() {
         }
         break;
       case 11:
-        // HL2 only
+        // DL1YCF: HermesLite-II only
         // specify some more robust TX latency and PTT hang times
-        // ToDo: add user interface to change these values
+        // A latency of 40 msec means that we first send two buffers
+        // of TX iq samples (assuming a buffer length of 1024 samples,
+        // that is 21 msec) before HL2 starts TXing. This should be
+        // enough to prevent underflows and leave some head-room
+        // my measurements indicate that the TX FIFO can hold about
+        // 75 msec or 3600 samples (cum grano salis). 
         output_buffer[C0]=0x2E;
-        output_buffer[C3]=20;   // 30 msec PTT hang time, only bits 4:0
-        output_buffer[C4]=40;   // 30 msec TX latency,    only bits 6:0
+        output_buffer[C3]=20;   // 20 msec PTT hang time, only bits 4:0
+        output_buffer[C4]=40;   // 40 msec TX latency,    only bits 6:0
         //
         // This was the last command we use out of the extended HL2 command set,
         // so roll back to the first one. It is obvious how to extend this
