@@ -1973,10 +1973,8 @@ g_print("radioRestoreState: %s\n",property_path);
     if(value) cw_keyer_weight=atoi(value);
     value=getProperty("cw_keyer_spacing");
     if(value) cw_keyer_spacing=atoi(value);
-#ifdef LOCALCW
     value=getProperty("cw_keyer_internal");
     if(value) cw_keyer_internal=atoi(value);
-#endif
     value=getProperty("cw_keyer_sidetone_volume");
     if(value) cw_keyer_sidetone_volume=atoi(value);
     value=getProperty("cw_keyer_ptt_delay");
