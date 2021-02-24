@@ -253,6 +253,8 @@ unsigned int n_temperature;
 unsigned int current;
 unsigned int average_current;
 unsigned int n_current;
+unsigned int tx_fifo_underrun;
+unsigned int tx_fifo_overrun;
 unsigned int alex_forward_power;
 unsigned int alex_reverse_power;
 unsigned int AIN3;
@@ -1181,6 +1183,8 @@ void start_radio() {
   n_temperature=0;
   current=0;
   average_current=0;
+  tx_fifo_underrun=0;
+  tx_fifo_overrun=0;
   n_current=0;
 
   display_sequence_errors=TRUE;

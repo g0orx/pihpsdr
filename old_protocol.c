@@ -142,6 +142,7 @@ static long ep4_sequence;
 
 static uint32_t last_seq_num=-0xffffffff;
 static int suppress_ozy_packet = 0;
+static int tx_fifo_flag = 0;
 
 static int current_rx=0;
 
@@ -1111,12 +1112,29 @@ static void process_control_bytes() {
       // As a result, we set the "TX latency" to 40 msec (see below).
       //
       //
-      //if (device == DEVICE_HERMES_LITE2 && isTransmitting()) {
-      //   fprintf(stderr,"TX FIFO: %d", control_in[3] & 0x7F);
-      //   if ((control_in[3] & 0xC0) == 0xC0) fprintf(stderr," OVER ");
-      //   if ((control_in[3] & 0xC0) == 0x80) fprintf(stderr," UNDER ");
-      //   fprintf(stderr,"\n");
-      //}
+      // Note after an RX/TX transition, "underflow" is reported
+      // until the TX fifo begins to fill, so we ignore underflows
+      // until the first packet reporting "no underflow" after each
+      // RX/TX transition.
+      //
+      if (device == DEVICE_HERMES_LITE2) {
+           if (!isTransmitting()) {
+              // during RX: set flag to zero
+              tx_fifo_flag=0;
+           } else {
+             // after RX/TX transition: ignore underflow condition
+             // until it first vanishes. tx_fifo_flag becomes "true"
+             // as soon as a "no underflow" condition is seen.
+             //
+             //fprintf(stderr,"TX FIFO: %d", control_in[3] & 0x7F);
+             //if ((control_in[3] & 0xC0) == 0xC0) fprintf(stderr," OVER ");
+             //if ((control_in[3] & 0xC0) == 0x80) fprintf(stderr," UNDER ");
+             //fprintf(stderr,"\n");
+             if ((control_in[3] & 0xC0) != 0x80) tx_fifo_flag=1;
+             if ((control_in[3] & 0xC0) == 0x80 && tx_fifo_flag) tx_fifo_underrun=1;
+             if ((control_in[3] & 0xC0) == 0xC0) tx_fifo_overrun=1;
+           }
+      }
       if(ozy_software_version!=control_in[4]) {
         ozy_software_version=control_in[4];
         g_print("FPGA firmware version: %d.%d\n",ozy_software_version/10,ozy_software_version%10);
