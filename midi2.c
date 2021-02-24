@@ -18,6 +18,9 @@
 
 #include "midi.h"
 
+static double midi_startup_time;
+static int    midi_wait_startup=0;
+
 struct cmdtable MidiCommandsTable;
 
 void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
@@ -30,10 +33,25 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
     struct timespec ts;  // used in debug code
     double now;          // used in debug code
 
-//Un-comment the next three lines to get a log of incoming MIDI events with milli-second time stamps
+//Un-comment next three lines to get a log of incoming MIDI messages
 //clock_gettime(CLOCK_MONOTONIC, &ts);
 //now=ts.tv_sec + 1E-9*ts.tv_nsec;
 //g_print("%s:%12.3f:EVENT=%d CHAN=%d NOTE=%d VAL=%d\n",__FUNCTION__,now,event,channel,note,val);
+
+    //
+    // the midi_wait_startup/midi_startup_time mechanism takes care that in the first
+    // second after registering a MIDI device, all incoming MIDI messages are just discarded.
+    // This has been introduced since sometimes "old" MIDI messages are lingering around in the
+    // the system and get delivered immediately after registering the MIDI device.
+    // The midi_wait_startup variable takes care that we do not check the clock again and again
+    // after the first second.
+    //
+    if (midi_wait_startup) {
+      clock_gettime(CLOCK_MONOTONIC, &ts);
+      now=ts.tv_sec + 1E-9*ts.tv_nsec;
+      if (now < midi_startup_time + 1.0) return;
+      midi_wait_startup=0;
+    }
     if (event == MIDI_EVENT_PITCH) {
 	desc=MidiCommandsTable.pitch;
     } else {
@@ -222,6 +240,7 @@ void MIDIstartup() {
     enum MIDIevent event;
     int i;
     char c;
+    struct timespec ts;
 
     for (i=0; i<128; i++) MidiCommandsTable.desc[i]=NULL;
     MidiCommandsTable.pitch=NULL;
@@ -262,6 +281,9 @@ void MIDIstartup() {
 	while (cq > cp+7 && (*cq == ' ' || *cq == '\t')) cq--;
 	*(cq+1)=0;
 //fprintf(stderr,"MIDI:REG:>>>%s<<<\n",cp+7);
+        midi_wait_startup=1;
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        midi_startup_time=ts.tv_sec + 1E-9*ts.tv_nsec;
 	register_midi_device(cp+7);
         continue; // nothing more in this line
       }
