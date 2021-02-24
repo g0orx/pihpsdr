@@ -59,7 +59,8 @@ int n_output_devices=0;
 // inserted. This usually only happens after TX/RX transitions
 //
 // If we go TX in CW mode, cw_audio_write() is called. If it is called for
-// the first time, the ring buffer is cleared and only 256 samples of silence
+// the first time with a non-zero sidetone volume,
+// the ring buffer is cleared and only 256 samples of silence
 // are put into it. During the TX phase, the buffer filling remains low
 // which we need for small CW sidetone latencies. If we then go to RX again
 // a "low water mark" condition is detected in the first call to audio_write()
@@ -67,6 +68,8 @@ int n_output_devices=0;
 //
 // Experiments indicate that we can indeed keep the ring buffer about half full
 // during RX and quite empty during CW-TX.
+//
+// If the sidetone volume is zero, the audio buffers are left unchanged
 //
 
 #define MY_AUDIO_BUFFER_SIZE 256
@@ -584,7 +587,7 @@ int cw_audio_write(float sample) {
 
   g_mutex_lock(&rx->local_audio_mutex);
   if (rx->playback_handle != NULL && buffer != NULL) {
-    if (rx->local_audio_cw == 0) {
+    if (rx->local_audio_cw == 0 && cw_keyer_sidetone_volume > 0) {
       //
       // First time producing CW audio after RX/TX transition:
       // empty audio buffer and insert 512 samples of silence
@@ -593,21 +596,24 @@ int cw_audio_write(float sample) {
       bzero(buffer, 512*sizeof(float));
       rx->local_audio_buffer_inpt=512;
       rx->local_audio_buffer_outpt=0;
-    }
-    count++;
-    if (sample != 0.0) count=0;
-    adjust=0;
-    if (count >= 16) {
       count=0;
-      //
-      // We arrive here if we have seen 16 zero samples in a row.
-      // First look how many samples there are in the ring buffer
-      //
-      avail = rx->local_audio_buffer_inpt - rx->local_audio_buffer_outpt;
-      if (avail < 0) avail += MY_RING_BUFFER_SIZE;
-      if (avail > 768) adjust=2;  // too full: skip one sample
-      if (avail < 512) adjust=1;  // too empty: insert one sample
     }
+    adjust=0;
+    if (rx->local_audio_cw) {
+      count++;
+      if (sample != 0.0) count=0;
+      if (count >= 16) {
+        count=0;
+        //
+        // We arrive here if we have seen 16 zero samples in a row.
+        // First look how many samples there are in the ring buffer
+        //
+        avail = rx->local_audio_buffer_inpt - rx->local_audio_buffer_outpt;
+        if (avail < 0) avail += MY_RING_BUFFER_SIZE;
+        if (avail > 768) adjust=2;  // too full: skip one sample
+        if (avail < 512) adjust=1;  // too empty: insert one sample
+      }
+    }  
     switch (adjust) {
       case 0:
         // 
