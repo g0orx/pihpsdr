@@ -14,7 +14,6 @@ enum {
     EXITLOOP
 };
 
-void keyer_straight_key(int state);
 void keyer_event(int left, int state);
 void keyer_update();
 void keyer_close();
