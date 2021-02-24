@@ -50,7 +50,9 @@
 #include "toolbar.h"
 #include "vfo.h"
 #include "ext.h"
+#ifdef LOCALCW
 #include "iambic.h"
+#endif
 #include "error_handler.h"
 
 #define min(x,y) (x<y?x:y)
@@ -1974,7 +1976,8 @@ void ozy_send_buffer() {
         output_buffer[C4]=40;   // 30 msec TX latency,    only bits 6:0
         //
         // This was the last command we use out of the extended HL2 command set,
-        // so roll back to the first one.
+        // so roll back to the first one. It is obvious how to extend this
+        // to cover more of the HL2 extended command set.
         //
         command=1;
         break;
