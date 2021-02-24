@@ -120,7 +120,7 @@ void create_dialog(TRANSMITTER *tx);
 void reconfigure_transmitter(TRANSMITTER *tx,int width,int height);
 
 //
-// CW pulse shaper variables, needed by rigctl (CAT CW) and iambic.c (LOCALCW)
+// CW pulse shaper variables
 //
 extern int cw_key_up;
 extern int cw_key_down;
