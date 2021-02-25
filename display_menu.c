@@ -440,25 +440,23 @@ void display_menu(GtkWidget *parent) {
 
   col++;
 
-  if(controller!=CONTROLLER_I2C) {
-    GtkWidget *b_display_sliders=gtk_check_button_new_with_label("Display Sliders");
-    //gtk_widget_override_font(b_display_sliders, pango_font_description_from_string("Arial 18"));
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_sliders), display_sliders);
-    gtk_widget_show(b_display_sliders);
-    gtk_grid_attach(GTK_GRID(grid),b_display_sliders,col,row,1,1);
-    g_signal_connect(b_display_sliders,"toggled",G_CALLBACK(display_sliders_cb),(gpointer *)NULL);
-  
-    col++;
-  
-    GtkWidget *b_display_toolbar=gtk_check_button_new_with_label("Display Toolbar");
-    //gtk_widget_override_font(b_display_toolbar, pango_font_description_from_string("Arial 18"));
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_toolbar), display_toolbar);
-    gtk_widget_show(b_display_toolbar);
-    gtk_grid_attach(GTK_GRID(grid),b_display_toolbar,col,row,1,1);
-    g_signal_connect(b_display_toolbar,"toggled",G_CALLBACK(display_toolbar_cb),(gpointer *)NULL);
-  
-    col++;
-  }
+  GtkWidget *b_display_sliders=gtk_check_button_new_with_label("Display Sliders");
+  //gtk_widget_override_font(b_display_sliders, pango_font_description_from_string("Arial 18"));
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_sliders), display_sliders);
+  gtk_widget_show(b_display_sliders);
+  gtk_grid_attach(GTK_GRID(grid),b_display_sliders,col,row,1,1);
+  g_signal_connect(b_display_sliders,"toggled",G_CALLBACK(display_sliders_cb),(gpointer *)NULL);
+
+  col++;
+
+  GtkWidget *b_display_toolbar=gtk_check_button_new_with_label("Display Toolbar");
+  //gtk_widget_override_font(b_display_toolbar, pango_font_description_from_string("Arial 18"));
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_toolbar), display_toolbar);
+  gtk_widget_show(b_display_toolbar);
+  gtk_grid_attach(GTK_GRID(grid),b_display_toolbar,col,row,1,1);
+  g_signal_connect(b_display_toolbar,"toggled",G_CALLBACK(display_toolbar_cb),(gpointer *)NULL);
+
+  col++;
 
   GtkWidget *b_display_sequence_errors=gtk_check_button_new_with_label("Display Seq Errs");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_display_sequence_errors), display_sequence_errors);

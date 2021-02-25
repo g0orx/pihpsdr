@@ -191,7 +191,7 @@ next_function_set:
     gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
     col++;
 
-    if((controller==NO_CONTROLLER || controller==CONTROLLER1) && (i==0 || i==(max_switches-1))) {
+    if((controller==NO_CONTROLLER || controller==CONTROLLER1) && (temp_switches[i].switch_function==FUNCTION)) {
       widget=gtk_label_new(NULL);
       g_sprintf(label,"<b>%s</b>",sw_string[temp_switches[i].switch_function]);
       gtk_label_set_markup (GTK_LABEL(widget), label);

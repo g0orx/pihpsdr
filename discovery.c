@@ -434,8 +434,9 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
             break;
 #ifdef SOAPYSDR
           case SOAPYSDR_PROTOCOL:
-            sprintf(text,"%s (Protocol SOAPY_SDR %s) on USB",d->name,d->info.soapy.version);
+            sprintf(text,"%s (Protocol SOAPY_SDR %s) on %s",d->name,d->info.soapy.version,d->info.soapy.address);
             break;
+
 #endif
 #ifdef STEMLAB_DISCOVERY
           case STEMLAB_PROTOCOL:
@@ -571,7 +572,7 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
     gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(gpio),NULL,"Controller1");
     gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(gpio),NULL,"Controller2 V1");
     gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(gpio),NULL,"Controller2 V2");
-    gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(gpio),NULL,"Controller I2C");
+    //gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(gpio),NULL,"Controller I2C");
     gtk_grid_attach(GTK_GRID(grid),gpio,0,row,1,1);
 
     gtk_combo_box_set_active(GTK_COMBO_BOX(gpio),controller);
@@ -586,12 +587,13 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
     g_signal_connect (protocols_b, "button-press-event", G_CALLBACK(protocols_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),protocols_b,2,row,1,1);
 
+/*
 #ifdef MIDI
     GtkWidget *midi_b=gtk_button_new_with_label("ImportMIDI");
     g_signal_connect (midi_b, "button-press-event", G_CALLBACK(midi_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),midi_b,3,row,1,1);
 #endif
-
+*/
     row++;
 
 #ifdef GPIO

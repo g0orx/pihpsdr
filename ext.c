@@ -53,6 +53,47 @@
 
 // The following calls functions can be called usig g_idle_add
 
+int ext_menu_filter(void *data) {
+  start_filter();
+  return 0;
+}
+
+int ext_menu_mode(void *data) {
+  start_mode();
+  return 0;
+}
+
+int ext_num_pad(void *data) {
+  gint val=GPOINTER_TO_INT(data);
+  RECEIVER *rx=active_receiver;
+  if(!vfo[rx->id].entering_frequency) {
+    vfo[rx->id].entered_frequency=0;
+    vfo[rx->id].entering_frequency=TRUE;
+  }
+  switch(val) {
+    case -1: // clear
+      vfo[rx->id].entered_frequency=0;
+      vfo[rx->id].entering_frequency=FALSE;
+      break;
+    case -2: // enter
+      if(vfo[rx->id].entered_frequency!=0) {
+        vfo[rx->id].frequency=vfo[rx->id].entered_frequency;
+	if(vfo[rx->id].ctun) {
+          vfo[rx->id].ctun=FALSE;
+          vfo[rx->id].offset=0;
+          vfo[rx->id].ctun_frequency=vfo[rx->id].frequency;
+	}
+      }
+      vfo[rx->id].entering_frequency=FALSE;
+      break;
+    default:
+      vfo[rx->id].entered_frequency=(vfo[rx->id].entered_frequency*10)+val;
+      break;
+  }
+  vfo_update(rx);
+  return 0;
+}
+
 int ext_vfo_mode_changed(void * data)
 {
   int mode=GPOINTER_TO_INT(data);
@@ -426,6 +467,13 @@ void band_plus(int id) {
       found=1;
     }
   }
+}
+
+int ext_band_select(void *data) {
+  int b=GPOINTER_TO_INT(data);
+  g_print("%s: %d\n",__FUNCTION__,b);
+  vfo_band_changed(active_receiver->id,b);
+  return 0;
 }
 
 int ext_band_plus(void *data) {

@@ -75,8 +75,8 @@
 #define RXACTION_PS     2    // deliver 2*119 samples to PS engine
 #define RXACTION_DIV    3    // take 2*119 samples, mix them, deliver to a receiver
 
-static int rxcase[MAX_DDC];
-static int rxid  [MAX_DDC];
+static int rxcase[7/*MAX_DDC*/];
+static int rxid  [7/*MAX_DDC*/];
 
 int data_socket=-1;
 
@@ -109,8 +109,8 @@ static int audio_addr_length;
 static struct sockaddr_in iq_addr;
 static int iq_addr_length;
 
-static struct sockaddr_in data_addr[MAX_DDC];
-static int data_addr_length[MAX_DDC];
+static struct sockaddr_in data_addr[7/*MAX_DDC*/];
+static int data_addr_length[7/*MAX_DDC*/];
 
 static GThread *new_protocol_thread_id;
 static GThread *new_protocol_timer_thread_id;
@@ -119,7 +119,7 @@ static long high_priority_sequence = 0;
 static long general_sequence = 0;
 static long rx_specific_sequence = 0;
 static long tx_specific_sequence = 0;
-static long ddc_sequence[MAX_DDC];
+static long ddc_sequence[7/*MAX_DDC*/];
 
 //static int buffer_size=BUFFER_SIZE;
 //static int fft_size=4096;
@@ -175,13 +175,13 @@ static sem_t mic_line_sem_buffer;
 #endif
 static GThread *mic_line_thread_id;
 #ifdef __APPLE__
-static sem_t *iq_sem_ready[MAX_DDC];
-static sem_t *iq_sem_buffer[MAX_DDC];
+static sem_t *iq_sem_ready[7/*MAX_DDC*/];
+static sem_t *iq_sem_buffer[7/*MAX_DDC*/];
 #else
-static sem_t iq_sem_ready[MAX_DDC];
-static sem_t iq_sem_buffer[MAX_DDC];
+static sem_t iq_sem_ready[7/*MAX_DDC*/];
+static sem_t iq_sem_buffer[7/*MAX_DDC*/];
 #endif
-static GThread *iq_thread_id[MAX_DDC];
+static GThread *iq_thread_id[7/*MAX_DDC*/];
 
 #ifdef INCLUDED
 static int outputsamples;
@@ -199,7 +199,7 @@ static socklen_t length=sizeof(addr);
 
 // Network buffers
 #define NET_BUFFER_SIZE 2048
-static unsigned char *iq_buffer[MAX_DDC];
+static unsigned char *iq_buffer[7/*MAX_DDC*/];
 static unsigned char *command_response_buffer;
 static unsigned char *high_priority_buffer;
 static unsigned char *mic_line_buffer;

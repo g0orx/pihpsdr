@@ -25,7 +25,6 @@
 #else
 #include <pulse/pulseaudio.h>
 #include <pulse/simple.h>
-//#include <alsa/asoundlib.h>
 #endif
 
 enum _audio_t {

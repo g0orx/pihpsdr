@@ -1,11 +1,9 @@
+# get the OS Name
+UNAME_S := $(shell uname -s)
+
 # Get git commit version and date
 GIT_DATE := $(firstword $(shell git --no-pager show --date=short --format="%ai" --name-only))
 GIT_VERSION := $(shell git describe --abbrev=0 --tags)
-
-ISSUE := $(shell cat /etc/issue.net)
-ifneq ($(filter %Raspbian,$(ISSUE)),)
-	OSFLAG=-D RASPBIAN
-endif
 
 # uncomment the following line to force 480x320 screen
 #SMALL_SCREEN_OPTIONS=-D SMALL_SCREEN
@@ -28,7 +26,7 @@ PURESIGNAL_INCLUDE=PURESIGNAL
 #LOCALCW_INCLUDE=LOCALCW
 
 # uncomment the line below for SoapySDR
-#SOAPYSDR_INCLUDE=SOAPYSDR
+SOAPYSDR_INCLUDE=SOAPYSDR
 
 # uncomment the line to below include support for sx1509 i2c expander
 #SX1509_INCLUDE=sx1509
@@ -40,7 +38,7 @@ PURESIGNAL_INCLUDE=PURESIGNAL
 #STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_NOAVAHI
 
 # uncomment the line below to include MIDI support
-#MIDI_INCLUDE=MIDI
+MIDI_INCLUDE=MIDI
 
 # uncomment the line below for various debug facilities
 #DEBUG_OPTION=-D DEBUG
@@ -55,10 +53,17 @@ LINK=gcc
 
 ifeq ($(MIDI_INCLUDE),MIDI)
 MIDI_OPTIONS=-D MIDI
-MIDI_SOURCES= alsa_midi.c midi2.c midi3.c
-MIDI_HEADERS= midi.h
-MIDI_OBJS= alsa_midi.o midi2.o midi3.o
+MIDI_HEADERS= midi.h midi_menu.h
+ifeq ($(UNAME_S), Darwin)
+MIDI_SOURCES= mac_midi.c midi2.c midi3.c
+MIDI_OBJS= mac_midi.o midi2.o midi3.o midi_menu.o
+MIDI_LIBS= -framework CoreMIDI -framework Foundation
+endif
+ifeq ($(UNAME_S), Linux)
+MIDI_SOURCES= alsa_midi.c midi2.c midi3.c midi_menu.c
+MIDI_OBJS= alsa_midi.o midi2.o midi3.o midi_menu.o
 MIDI_LIBS= -lasound
+endif
 endif
 
 ifeq ($(PURESIGNAL_INCLUDE),PURESIGNAL)
@@ -123,6 +128,10 @@ PTT_OPTIONS=-D PTT
 endif
 
 ifeq ($(GPIO_INCLUDE),GPIO)
+GPIOD_VERSION=$(shell pkg-config --modversion libgpiod)
+ifeq ($(GPIOD_VERSION),1.2)
+GPIOD_OPTIONS=-D OLD_GPIOD
+endif
 GPIO_OPTIONS=-D GPIO
 GPIO_LIBS=-lgpiod -li2c
 GPIO_SOURCES= \
@@ -182,18 +191,33 @@ endif
 GTKINCLUDES=`pkg-config --cflags gtk+-3.0`
 GTKLIBS=`pkg-config --libs gtk+-3.0`
 
+ifeq ($(UNAME_S), Linux)
 AUDIO_LIBS=-lpulse-simple -lpulse -lpulse-mainloop-glib
-//AUDIO_LIBS=-lasound
+AUDIO_SOURCES=pulseaudio.c
+AUDIO_OBJS=pulseaudio.o
+endif
+ifeq ($(UNAME_S), Darwin)
+AUDIO_OPTIONS=-DPORTAUDIO
+AUDIO_LIBS=-lportaudio
+AUDIO_SOURCES=portaudio.c
+AUDIO_OBJS=portaudio.o
+endif
 
 CFLAGS=	-g -Wno-deprecated-declarations -O3
 OPTIONS=$(SMALL_SCREEN_OPTIONS) $(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) \
-	$(GPIO_OPTIONS) $(SOAPYSDR_OPTIONS) $(LOCALCW_OPTIONS) \
+	$(GPIO_OPTIONS) $(GPIOD_OPTIONS) $(SOAPYSDR_OPTIONS) $(LOCALCW_OPTIONS) \
 	$(STEMLAB_OPTIONS) \
         $(PTT_OPTIONS) \
 	$(SERVER_OPTIONS) \
-	-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION) $(OSFLAG)
+	$(AUDIO_OPTIONS) \
+	-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION)
 
-LIBS=-lrt -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(STEMLAB_LIBS) $(MIDI_LIBS)
+
+ifeq ($(UNAME_S), Linux)
+RT_OPTION=-lrt
+endif
+
+LIBS=$(RT_OPTION) -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(STEMLAB_LIBS) $(MIDI_LIBS)
 INCLUDES=$(GTKINCLUDES)
 
 COMPILE=$(CC) $(CFLAGS) $(OPTIONS) $(INCLUDES)
@@ -204,7 +228,6 @@ COMPILE=$(CC) $(CFLAGS) $(OPTIONS) $(INCLUDES)
 PROGRAM=pihpsdr
 
 SOURCES= \
-pulseaudio.c \
 band.c \
 discovered.c \
 discovery.c \
@@ -270,11 +293,16 @@ error_handler.c \
 cwramp.c \
 protocols.c \
 css.c \
-actions.c
+actions.c \
+configure.c \
+i2c.c \
+gpio.c \
+encoder_menu.c \
+switch_menu.c
+
 
 
 HEADERS= \
-pulseaudio.h \
 agc.h \
 alex.h \
 band.h \
@@ -341,11 +369,16 @@ ext.h \
 error_handler.h \
 protocols.h \
 css.h \
-actions.h
+actions.h \
+configure.h \
+i2c.h \
+gpio.h \
+encoder_menu.h \
+switch_menu.h
+
 
 
 OBJS= \
-pulseaudio.o \
 band.o \
 discovered.o \
 discovery.o \
@@ -411,21 +444,26 @@ error_handler.o \
 cwramp.o \
 protocols.o \
 css.o \
-actions.o
+actions.o \
+configure.o \
+i2c.o \
+gpio.o \
+encoder_menu.o \
+switch_menu.o
 
-$(PROGRAM):  $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) \
-		$(LOCALCW_OBJS) $(GPIO_OBJS) $(PURESIGNAL_OBJS) \
+$(PROGRAM):  $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) \
+		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS)
-	$(LINK) -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(GPIO_OBJS) \
+	$(LINK) -o $(PROGRAM) $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) \
 		$(SOAPYSDR_OBJS) $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS) $(LIBS)
 
 .PHONY:	all
-all:	prebuild  $(PROGRAM) $(HEADERS) $(USBOZY_HEADERS) $(SOAPYSDR_HEADERS) \
-	$(LOCALCW_HEADERS) $(GPIO_HEADERS) \
+all:	prebuild  $(PROGRAM) $(HEADERS) $(AUDIO_HEADERS) $(USBOZY_HEADERS) $(SOAPYSDR_HEADERS) \
+	$(LOCALCW_HEADERS) \
 	$(PURESIGNAL_HEADERS) $(MIDI_HEADERS) $(STEMLAB_HEADERS) $(SERVER_HEADERS)\
-	$(SOURCES) \
-	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(LOCALCW_SOURCE) $(GPIO_SOURCES) \
+	$(AUDIO_SOURCES) $(SOURCES) \
+	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(LOCALCW_SOURCE)
 	$(PURESIGNAL_SOURCES) $(MIDI_SOURCES) $(STEMLAB_SOURCES) $(SERVER_SOURCES)
 
 .PHONY:	prebuild
@@ -443,8 +481,8 @@ CPPINCLUDES:=$(shell echo $(INCLUDES) | sed -e "s/-pthread / /" )
 
 .PHONY:	cppcheck
 cppcheck:
-	cppcheck $(CPPOPTIONS) $(OPTIONS) $(CPPINCLUDES) $(SOURCES) $(REMOTE_SOURCES) \
-	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(GPIO_SOURCES) \
+	cppcheck $(CPPOPTIONS) $(OPTIONS) $(CPPINCLUDES) $(AUDIO_SOURCES) $(SOURCES) $(REMOTE_SOURCES) \
+	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) \
 	$(PURESIGNAL_SOURCES) $(MIDI_SOURCES) $(STEMLAB_SOURCES) $(LOCALCW_SOURCES) \
 	$(SERVER_SOURCES)
 

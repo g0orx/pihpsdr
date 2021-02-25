@@ -1183,6 +1183,7 @@ void receiver_change_sample_rate(RECEIVER *rx,int sample_rate) {
 
 g_print("receiver_change_sample_rate: id=%d rate=%d scale=%d buffer_size=%d output_samples=%d\n",rx->id,sample_rate,scale,rx->buffer_size,rx->output_samples);
 #ifdef PURESIGNAL
+  if(can_transmit && transmitter->puresignal) {
   if (rx->id == PS_RX_FEEDBACK) {
     if (protocol == ORIGINAL_PROTOCOL) {
       rx->pixels = 2* scale * rx->width;
@@ -1198,6 +1199,7 @@ g_print("receiver_change_sample_rate: id=%d rate=%d scale=%d buffer_size=%d outp
                    rx->id, rx->sample_rate, rx->buffer_size, rx->output_samples);
     g_mutex_unlock(&rx->mutex);
     return;
+  }
   }
 #endif
   if (rx->audio_output_buffer != NULL) {

@@ -1,6 +1,6 @@
 /* Copyright (C)
 * 2020 - John Melton, G0ORX/N6LYT
-*
+  *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License
 * as published by the Free Software Foundation; either version 2
@@ -33,10 +33,12 @@
 #include <poll.h>
 #include <sched.h>
 
+#ifdef GPIO
 #include <gpiod.h>
 #include <linux/i2c-dev.h>
 #include <i2c/smbus.h>
 #include <sys/ioctl.h>
+#endif
 
 #include "band.h"
 #include "channel.h"
@@ -60,10 +62,28 @@
 #include "ext.h"
 #include "sliders.h"
 #include "new_protocol.h"
+#include "zoompan.h"
 #ifdef LOCALCW
 #include "iambic.h"
+
+//
+// Broadcom pins #9, 10, 11 are not used
+// by Controller1 and Controller2_V1
+// (and keep #2,3 reserved for I2C extensions)
+//
+int CWL_BUTTON=9;
+int CWR_BUTTON=11;
+int SIDETONE_GPIO=10;
+int ENABLE_GPIO_SIDETONE=0;
+int ENABLE_CW_BUTTONS=1;
+int CW_ACTIVE_LOW=1;
 #endif
-#include "zoompan.h"
+
+#ifdef PTT
+int ENABLE_PTT_GPIO=1;
+int PTT_GPIO=14;
+int PTT_ACTIVE_LOW=1;
+#endif
 
 enum {
   TOP_ENCODER,
@@ -75,12 +95,13 @@ enum {
   B
 };
 
+#ifdef GPIO
 char *consumer="pihpsdr";
 
 char *gpio_device="/dev/gpiochip0";
 
 static struct gpiod_chip *chip=NULL;
-//static struct gpiod_line *line=NULL;
+#endif
 
 static GMutex encoder_mutex;
 static GThread *monitor_thread_id;
@@ -514,6 +535,7 @@ int process_function_switch(void *data) {
   return 0;
 }
 
+#ifdef GPIO
 static unsigned long switch_debounce;
 
 static void process_encoder(int e,int l,int addr,int val) {
@@ -560,8 +582,21 @@ static void process_edge(int offset,int value) {
   gint i;
   gint t;
   gboolean found;
-  // check encoders
+
   found=FALSE;
+#ifdef LOCALCW
+  if(ENABLE_CW_BUTTONS) {
+    if(offset==CWL_BUTTON) {
+      keyer_event(1, CW_ACTIVE_LOW ? (value==PRESSED) : value);
+      found=TRUE;
+    } else if(offset==CWR_BUTTON) {
+      keyer_event(1, CW_ACTIVE_LOW ? (value==PRESSED) : value);
+      found=TRUE;
+    }
+  }
+  if(found) return;
+#endif
+  // check encoders
   for(i=0;i<MAX_ENCODERS;i++) {
     if(encoders[i].bottom_encoder_enabled && encoders[i].bottom_encoder_address_a==offset) {
       //g_print("%s: found %d encoder %d bottom A\n",__FUNCTION__,offset,i);
@@ -635,6 +670,7 @@ static int interrupt_cb(int event_type, unsigned int line, const struct timespec
   }
   return GPIOD_CTXLESS_EVENT_CB_RET_OK;
 }
+#endif
 
 void gpio_set_defaults(int ctrlr) {
   int i;
@@ -655,10 +691,6 @@ void gpio_set_defaults(int ctrlr) {
     case CONTROLLER2_V2:
       encoders=encoders_controller2_v2;
       switches=switches_controller2_v2;
-      break;
-    case CONTROLLER_I2C:
-      encoders=encoders_no_controller;
-      switches=switches_no_controller;
       break;
   }
 }
@@ -887,6 +919,7 @@ void gpio_save_actions() {
   }
 }
 
+#ifdef GPIO
 static gpointer monitor_thread(gpointer arg) {
   struct timespec t;
 
@@ -925,7 +958,7 @@ static int setup_line(struct gpiod_chip *chip, int offset, gboolean pullup) {
 
   config.consumer=consumer;
   config.request_type=GPIOD_LINE_REQUEST_DIRECTION_INPUT | GPIOD_LINE_REQUEST_EVENT_BOTH_EDGES;
-#ifdef RASPBIAN
+#ifdef OLD_GPIOD
   config.flags=pullup?GPIOD_LINE_REQUEST_FLAG_ACTIVE_LOW:0;
 #else
   config.flags=pullup?GPIOD_LINE_REQUEST_FLAG_BIAS_PULL_UP:GPIOD_LINE_REQUEST_FLAG_BIAS_PULL_DOWN;
@@ -943,9 +976,38 @@ static int setup_line(struct gpiod_chip *chip, int offset, gboolean pullup) {
   return 0;
 }
 
+static int setup_output_line(struct gpiod_chip *chip, int offset, int _initial_value) {
+  int ret;
+  struct gpiod_line_request_config config;
+
+  g_print("%s: %d\n",__FUNCTION__,offset);
+  struct gpiod_line *line=gpiod_chip_get_line(chip, offset);
+  if (!line) {
+    g_print("%s: get line %d failed: %s\n",__FUNCTION__,offset,g_strerror(errno));
+    return -1;
+  }
+
+  config.consumer=consumer;
+  config.request_type=GPIOD_LINE_REQUEST_DIRECTION_OUTPUT;
+  ret=gpiod_line_request(line,&config,1);
+  if (ret<0) {
+    g_print("%s: line %d gpiod_line_request failed: %s\n",__FUNCTION__,offset,g_strerror(errno));
+    return ret;
+  }
+
+  // write initial value
+  
+
+  gpiod_line_release(line);
+
+  return 0;
+}
+#endif
+
 int gpio_init() {
   int ret=0;
 
+#ifdef GPIO
   initialiseEpoch();
   switch_debounce=millis();
 
@@ -1008,37 +1070,79 @@ int gpio_init() {
     }
   }
 
-  if(controller!=NO_CONTROLLER && controller!=CONTROLLER_I2C) {
+#ifdef LOCALCW
+  g_print("%s: ENABLE_CW_BUTTONS=%d  CWL_BUTTON=%d CWR_BUTTON=%d\n", __FUNCTION__, ENABLE_CW_BUTTONS, CWL_BUTTON, CWR_BUTTON);
+  if(ENABLE_CW_BUTTONS) {
+    if((ret=setup_line(chip,CWL_BUTTON,CW_ACTIVE_LOW==1))<0) {
+      goto err;
+    }
+    monitor_lines[lines]=CWL_BUTTON;
+    lines++;
+    if((ret=setup_line(chip,CWR_BUTTON,CW_ACTIVE_LOW==1))<0) {
+      goto err;
+    }
+    monitor_lines[lines]=CWR_BUTTON;
+    lines++;
+
+  }
+  if (ENABLE_GPIO_SIDETONE) {
+//
+//  use this pin as an output pin and
+//  set its value to LOW
+//
+    if((ret=setup_output_line(chip,SIDETONE_GPIO,0))<0) {
+      goto err;
+    }
+  }
+#endif
+
+  if(controller!=NO_CONTROLLER
+#ifdef LOCALCW
+    || ENABLE_CW_BUTTONS
+#endif
+    ) {
     monitor_thread_id = g_thread_new( "gpiod monitor", monitor_thread, NULL);
     if(!monitor_thread_id ) {
       g_print("%s: g_thread_new failed for monitor_thread\n",__FUNCTION__);
     }
 
-    rotary_encoder_thread_id = g_thread_new( "encoders", rotary_encoder_thread, NULL);
-    if(!rotary_encoder_thread_id ) {
-      g_print("%s: g_thread_new failed on rotary_encoder_thread\n",__FUNCTION__);
-      exit( -1 );
+    if(controller!=NO_CONTROLLER) {
+      rotary_encoder_thread_id = g_thread_new( "encoders", rotary_encoder_thread, NULL);
+      if(!rotary_encoder_thread_id ) {
+        g_print("%s: g_thread_new failed on rotary_encoder_thread\n",__FUNCTION__);
+        exit( -1 );
+      }
+      g_print("%s: rotary_encoder_thread: id=%p\n",__FUNCTION__,rotary_encoder_thread_id);
     }
-    g_print("%s: rotary_encoder_thread: id=%p\n",__FUNCTION__,rotary_encoder_thread_id);
   }
-
+#endif
   return 0;
 
 err:
 g_print("%s: err\n",__FUNCTION__);
+#ifdef GPIO
   if(chip!=NULL) {
     gpiod_chip_close(chip);
     chip=NULL;
   }
+#endif
   return ret;
 }
 
 void gpio_close() {
+#ifdef GPIO
   if(chip!=NULL) gpiod_chip_close(chip);
+#endif
 }
 
 #ifdef LOCALCW
 void gpio_cw_sidetone_set(int level) {
+  int rc;
+  if (ENABLE_GPIO_SIDETONE) {
+    if((rc=gpiod_ctxless_set_value_ext(gpio_device,SIDETONE_GPIO,level,FALSE,consumer,NULL,NULL,0))<0) {
+      g_print("%s: err=%d\n",__FUNCTION__,rc);
+    }
+  }
 }
 
 int  gpio_left_cw_key() {
@@ -1048,6 +1152,7 @@ int  gpio_right_cw_key() {
 }
 
 int  gpio_cw_sidetone_enabled() {
+  return ENABLE_GPIO_SIDETONE;
 }
 
 #endif

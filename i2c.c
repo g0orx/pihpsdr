@@ -1,3 +1,4 @@
+#ifdef GPIO
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
@@ -306,3 +307,4 @@ void i2c_init() {
   } while(flags!=0);
   
 }
+#endif

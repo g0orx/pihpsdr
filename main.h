@@ -27,8 +27,7 @@ enum {
   NO_CONTROLLER,
   CONTROLLER1,
   CONTROLLER2_V1,
-  CONTROLLER2_V2,
-  CONTROLLER_I2C
+  CONTROLLER2_V2
 };
 
 extern gint controller;

@@ -391,7 +391,7 @@ static void rf_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
     active_receiver->rf_gain=gtk_range_get_value(GTK_RANGE(af_gain_scale));
 #ifdef SOAPYSDR
     if(protocol==SOAPYSDR_PROTOCOL) {
-      soapy_protocol_set_gain(active_receiver,active_receiver->rf_gain);
+      soapy_protocol_set_gain(active_receiver);
     }
 #endif
 }
@@ -404,7 +404,7 @@ void set_rf_gain(int rx,double value) {
   receiver[rx]->rf_gain=value;
 #ifdef SOAPYSDR
   if(protocol==SOAPYSDR_PROTOCOL) {
-    soapy_protocol_set_gain(active_receiver,active_receiver->rf_gain);
+    soapy_protocol_set_gain(active_receiver);
   }
 #endif
   if(display_sliders) {

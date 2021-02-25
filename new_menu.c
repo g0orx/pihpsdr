@@ -58,13 +58,14 @@
 #include "fft_menu.h"
 #include "main.h"
 #include "actions.h"
-#ifdef GPIO
 #include "gpio.h"
-#endif
 #include "old_protocol.h"
 #include "new_protocol.h"
 #ifdef CLIENT_SERVER
 #include "server_menu.h"
+#endif
+#ifdef MIDI
+#include "midi_menu.h"
 #endif
 
 
@@ -193,14 +194,13 @@ static gboolean encoder_cb (GtkWidget *widget, GdkEventButton *event, gpointer d
   encoder_menu(top_window);
   return TRUE;
 }
+#endif
 
 static gboolean switch_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   cleanup();
   switch_menu(top_window);
   return TRUE;
 }
-
-#endif
 
 static gboolean cw_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   cleanup();
@@ -433,6 +433,18 @@ static gboolean server_cb (GtkWidget *widget, GdkEventButton *event, gpointer da
 }
 #endif
 
+#ifdef MIDI
+void start_midi() {
+  cleanup();
+  midi_menu(top_window);
+}
+
+static gboolean midi_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  start_midi();
+  return TRUE;
+}
+#endif
+
 void new_menu()
 {
   int i;
@@ -580,7 +592,6 @@ void new_menu()
     gtk_grid_attach(GTK_GRID(grid),rigctl_b,(i%5),i/5,1,1);
     i++;
 
-#ifdef GPIO
     switch(controller) {
       case NO_CONTROLLER:
 	{
@@ -594,11 +605,12 @@ void new_menu()
       case CONTROLLER2_V1:
       case CONTROLLER2_V2:
         {
+#ifdef GPIO
         GtkWidget *encoders_b=gtk_button_new_with_label("Encoders");
         g_signal_connect (encoders_b, "button-press-event", G_CALLBACK(encoder_cb), NULL);
         gtk_grid_attach(GTK_GRID(grid),encoders_b,(i%5),i/5,1,1);
         i++;
-
+#endif
         GtkWidget *switches_b=gtk_button_new_with_label("Switches");
         g_signal_connect (switches_b, "button-press-event", G_CALLBACK(switch_cb), NULL);
         gtk_grid_attach(GTK_GRID(grid),switches_b,(i%5),i/5,1,1);
@@ -606,6 +618,12 @@ void new_menu()
         }
         break;
     }
+
+#ifdef MIDI
+    GtkWidget *midi_b=gtk_button_new_with_label("MIDI");
+    g_signal_connect (midi_b, "button-press-event", G_CALLBACK(midi_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),midi_b,(i%5),i/5,1,1);
+    i++;
 #endif
 
 //
