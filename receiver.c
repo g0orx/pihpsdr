@@ -150,14 +150,18 @@ gboolean receiver_motion_notify_event(GtkWidget *widget, GdkEventMotion *event, 
                                 &x,
                                 &y,
                                 &state);
-    // G0ORX: removed test as with it unable to drag screen
-    //if(state & GDK_BUTTON1_MASK) {
-      //int moved=last_x-x;
-      int moved=x-last_x;
+    //
+    // It turns out to be difficult sometimes to "jump" to a
+    // frequency by just clicking in the panadaper, since the
+    // operating system may report a very small move between
+    // pressing and releasing. Then x and last_x is the same.
+    //
+    int moved=x-last_x;
+    if (moved != 0) {
       vfo_move((long long)((float)moved*rx->hz_per_pixel),FALSE);
       last_x=x;
       has_moved=TRUE;
-    //}
+    }
   }
 
   return TRUE;
