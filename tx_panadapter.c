@@ -49,6 +49,7 @@ static gdouble hz_per_pixel;
 static gdouble filter_left=0.0;
 static gdouble filter_right=0.0;
 
+static gint tx_fifo_count=0;
 
 /* Create a new surface of the appropriate size to store our scribbles */
 static gboolean
@@ -442,6 +443,25 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     sprintf(text,"%0.0fmA",c);
     cairo_move_to(cr, 160.0, 30.0);
     cairo_show_text(cr, text);
+
+    if (tx_fifo_overrun || tx_fifo_underrun) {
+      cairo_set_source_rgb(cr,1.0,0.0,0.0);
+      if (tx_fifo_underrun) {
+        cairo_move_to(cr, 220.0, 30.0);
+        cairo_show_text(cr, "Underrun");
+      }
+      if (tx_fifo_overrun) {
+        cairo_move_to(cr, 300.0, 30.0);
+        cairo_show_text(cr, "Overrun");
+      }
+      // display for 2 seconds
+      tx_fifo_count++;
+      if (tx_fifo_count >= 2*tx->fps) {
+        tx_fifo_underrun=0;
+        tx_fifo_overrun=0;
+        tx_fifo_count=0;
+      }
+    }
   }
 
   cairo_destroy (cr);

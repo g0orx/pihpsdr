@@ -244,6 +244,8 @@ extern unsigned int n_temperature;
 extern unsigned int current;
 extern unsigned int average_current;
 extern unsigned int n_current;
+extern unsigned int tx_fifo_underrun;
+extern unsigned int tx_fifo_overrun;
 extern unsigned int alex_forward_power;
 extern unsigned int alex_reverse_power;
 extern unsigned int IO1;

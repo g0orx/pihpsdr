@@ -50,7 +50,9 @@
 #include "toolbar.h"
 #include "vfo.h"
 #include "ext.h"
+#ifdef LOCALCW
 #include "iambic.h"
+#endif
 #include "error_handler.h"
 
 #define min(x,y) (x<y?x:y)
@@ -140,6 +142,7 @@ static long ep4_sequence;
 
 static uint32_t last_seq_num=-0xffffffff;
 static int suppress_ozy_packet = 0;
+static int tx_fifo_flag = 0;
 
 static int current_rx=0;
 
@@ -1097,6 +1100,41 @@ static void process_control_bytes() {
           g_print("  Penelope Software version: %d (0x%0X)\n",penelope_software_version,penelope_software_version);
         }
       }
+      //
+      //DEBUG code to monitor HL2 TX-FIFO filling and 
+      //underflow/overflow detection.
+      //
+      // Measured on HL2 software version 7.2:
+      // multiply FIFO value with 32 to get sample cound
+      // multiply FIFO value with 0.67 to get FIFO length in milli-seconds
+      // Overflow at about 3600 samples (75 msec).
+      //
+      // As a result, we set the "TX latency" to 40 msec (see below).
+      //
+      //
+      // Note after an RX/TX transition, "underflow" is reported
+      // until the TX fifo begins to fill, so we ignore underflows
+      // until the first packet reporting "no underflow" after each
+      // RX/TX transition.
+      //
+      if (device == DEVICE_HERMES_LITE2) {
+           if (!isTransmitting()) {
+              // during RX: set flag to zero
+              tx_fifo_flag=0;
+           } else {
+             // after RX/TX transition: ignore underflow condition
+             // until it first vanishes. tx_fifo_flag becomes "true"
+             // as soon as a "no underflow" condition is seen.
+             //
+             //fprintf(stderr,"TX FIFO: %d", control_in[3] & 0x7F);
+             //if ((control_in[3] & 0xC0) == 0xC0) fprintf(stderr," OVER ");
+             //if ((control_in[3] & 0xC0) == 0x80) fprintf(stderr," UNDER ");
+             //fprintf(stderr,"\n");
+             if ((control_in[3] & 0xC0) != 0x80) tx_fifo_flag=1;
+             if ((control_in[3] & 0xC0) == 0x80 && tx_fifo_flag) tx_fifo_underrun=1;
+             if ((control_in[3] & 0xC0) == 0xC0) tx_fifo_overrun=1;
+           }
+      }
       if(ozy_software_version!=control_in[4]) {
         ozy_software_version=control_in[4];
         g_print("FPGA firmware version: %d.%d\n",ozy_software_version/10,ozy_software_version%10);
@@ -1966,15 +2004,21 @@ void ozy_send_buffer() {
         }
         break;
       case 11:
-        // HL2 only
+        // DL1YCF: HermesLite-II only
         // specify some more robust TX latency and PTT hang times
-        // ToDo: add user interface to change these values
+        // A latency of 40 msec means that we first send two buffers
+        // of TX iq samples (assuming a buffer length of 1024 samples,
+        // that is 21 msec) before HL2 starts TXing. This should be
+        // enough to prevent underflows and leave some head-room
+        // my measurements indicate that the TX FIFO can hold about
+        // 75 msec or 3600 samples (cum grano salis). 
         output_buffer[C0]=0x2E;
-        output_buffer[C3]=20;   // 30 msec PTT hang time, only bits 4:0
-        output_buffer[C4]=40;   // 30 msec TX latency,    only bits 6:0
+        output_buffer[C3]=20;   // 20 msec PTT hang time, only bits 4:0
+        output_buffer[C4]=40;   // 40 msec TX latency,    only bits 6:0
         //
         // This was the last command we use out of the extended HL2 command set,
-        // so roll back to the first one.
+        // so roll back to the first one. It is obvious how to extend this
+        // to cover more of the HL2 extended command set.
         //
         command=1;
         break;

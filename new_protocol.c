@@ -59,7 +59,9 @@
 #include "toolbar.h"
 #include "vox.h"
 #include "ext.h"
+#ifdef LOCALCW
 #include "iambic.h"
+#endif
 
 #define min(x,y) (x<y?x:y)
 

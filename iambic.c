@@ -248,7 +248,7 @@ int gpio_cw_sidetone_enabled() { return 0; }
 void gpio_cw_sidetone_set(int level) {}
 #endif
 
-void keyer_straight_key(int state) {
+static void keyer_straight_key(int state) {
   //
   // Interface for simple key-down action e.g. from a MIDI message
   //

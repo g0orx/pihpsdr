@@ -334,26 +334,31 @@ int cw_audio_write(float sample){
   g_mutex_lock(&rx->local_audio_mutex);
   if(rx->playback_handle!=NULL && rx->local_audio_buffer!=NULL) {
 
-    //
-    // For CW side tone, use short audio buffers
-    //
-    short_audio_buffer_size=rx->local_audio_buffer_size;
-    if (short_audio_buffer_size > 256) short_audio_buffer_size = 256;
-
-    if (rx->local_audio_cw == 0) {
+    if (rx->local_audio_cw == 0 && cw_keyer_sidetone_volume > 0) {
       //
       // first invocation of cw_audio_write e.g. after a RX/TX transition:
       // clear audio buffer local to pihpsdr, rewind ALSA buffer
       // if contains too many samples
+      //
+      // if the keyer side tone volume is zero, then we need not care
+      // about side tone latency at all.
       //
       rx->local_audio_cw=1;
       rx->local_audio_buffer_offset=0;
       if (snd_pcm_delay(rx->playback_handle, &delay) == 0) {
          if (delay > 1024) snd_pcm_rewind(rx->playback_handle, delay-1024);
       }
+      count=0;
     }
 
-    if (sample != 0.0) count=0;  // count upwards during silence
+    short_audio_buffer_size=rx->local_audio_buffer_size;
+    if (rx->local_audio_cw) {
+      //
+      // For CW side tone, use short audio buffers
+      //
+      if (short_audio_buffer_size > 256) short_audio_buffer_size = 256;
+      if (sample != 0.0) count=0;  // count upwards during silence
+    }
 
     //
     // Put sample into buffer
@@ -377,7 +382,7 @@ int cw_audio_write(float sample){
     }
     rx->local_audio_buffer_offset++;
 
-    if (++count >= 16) {
+    if (++count >= 16 && rx->local_audio_cw) {
       //
       // We have just seen 16 zero samples, so this is the right place
       // to adjust the buffer filling.

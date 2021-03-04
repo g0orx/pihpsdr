@@ -61,9 +61,9 @@ static int waterfall_samples=0;
 static int waterfall_resample=8;
 
 //
-// CW (CAT-CW and LOCALCW) in the "old protocol" is timed by the
-// heart-beat of the mic samples. The communication with rigctl.c
-// and iambic.c is done via some global variables. Their use is:
+// CW pulses are timed by the heart-beat of the mic samples.
+// Other parts of the program may produce CW RF pulses by manipulating
+// these global variables:
 //
 // cw_key_up/cw_key_down: set number of samples for next key-down/key-up sequence
 //                        Any of these variable will only be set from outside if
