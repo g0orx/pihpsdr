@@ -152,12 +152,14 @@ gboolean receiver_motion_notify_event(GtkWidget *widget, GdkEventMotion *event, 
                                 &state);
     //
     // It turns out to be difficult sometimes to "jump" to a
-    // frequency by just clicking in the panadaper, since the
-    // operating system may report a very small move between
-    // pressing and releasing. Then x and last_x is the same.
+    // frequency by just clicking in the panadaper, since there
+    // might be a move of zero or one pixel between pressing
+    // and releasing the mouse button.
+    // Treat this is a "press/release" event that sets the VFO
+    // frequency to where we have clicked.
     //
     int moved=x-last_x;
-    if (moved != 0) {
+    if (moved > 1 || moved < -1) {
       vfo_move((long long)((float)moved*rx->hz_per_pixel),FALSE);
       last_x=x;
       has_moved=TRUE;
