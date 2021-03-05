@@ -765,7 +765,8 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
             if (type == MIDI_KNOB) {
                 new=val;
             } else  if (type == MIDI_WHEEL) {
-                new=(int)active_receiver->rf_gain+val;
+                //new=(int)active_receiver->rf_gain+val;
+                new=(int)adc[active_receiver->id].gain+val;
             }
             g_idle_add(ext_set_rf_gain, GINT_TO_POINTER((int)new));
 	    break;

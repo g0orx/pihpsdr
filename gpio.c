@@ -95,6 +95,38 @@ enum {
   B
 };
 
+// encoder state table
+#define R_START 0x0
+#define R_CW_FINAL 0x1
+#define R_CW_BEGIN 0x2
+#define R_CW_NEXT 0x3
+#define R_CCW_BEGIN 0x4
+#define R_CCW_FINAL 0x5
+#define R_CCW_NEXT 0x6
+
+#define DIR_NONE 0x0
+// Clockwise step.
+#define DIR_CW 0x10
+// Anti-clockwise step.
+#define DIR_CCW 0x20
+
+guchar encoder_state_table[7][4] = {
+  // R_START
+  {R_START,    R_CW_BEGIN,  R_CCW_BEGIN, R_START},
+  // R_CW_FINAL
+  {R_CW_NEXT,  R_START,     R_CW_FINAL,  R_START | DIR_CW},
+  // R_CW_BEGIN
+  {R_CW_NEXT,  R_CW_BEGIN,  R_START,     R_START},
+  // R_CW_NEXT
+  {R_CW_NEXT,  R_CW_BEGIN,  R_CW_FINAL,  R_START},
+  // R_CCW_BEGIN
+  {R_CCW_NEXT, R_START,     R_CCW_BEGIN, R_START},
+  // R_CCW_FINAL
+  {R_CCW_NEXT, R_CCW_FINAL, R_START,     R_START | DIR_CCW},
+  // R_CCW_NEXT
+  {R_CCW_NEXT, R_CCW_FINAL, R_CCW_BEGIN, R_START},
+};
+
 #ifdef GPIO
 char *consumer="pihpsdr";
 
@@ -112,369 +144,204 @@ int I2C_INTERRUPT=15;
 int monitor_lines[MAX_LINES];
 int lines=0;
 
-long settle_time=150;  // ms
+long settle_time=50;  // ms
 
 // VFO Encoder is always last
 
 ENCODER encoders_no_controller[MAX_ENCODERS]={
-  {FALSE,TRUE,0,0,0,0,0,0,FALSE,TRUE,0,0,0,0,0,0,FALSE,TRUE,0,0},
-  {FALSE,TRUE,0,0,0,0,0,0,FALSE,TRUE,0,0,0,0,0,0,FALSE,TRUE,0,0},
-  {FALSE,TRUE,0,0,0,0,0,0,FALSE,TRUE,0,0,0,0,0,0,FALSE,TRUE,0,0},
-  {FALSE,TRUE,0,0,0,0,0,0,FALSE,TRUE,0,0,0,0,0,0,FALSE,TRUE,0,0},
-  {FALSE,TRUE,0,0,0,0,0,0,FALSE,TRUE,0,0,0,0,0,0,FALSE,TRUE,0,0},
+  {FALSE,TRUE,0,0,0,0,0,0,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,FALSE,TRUE,0,0,0L},
+  {FALSE,TRUE,0,0,0,0,0,0,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,FALSE,TRUE,0,0,0L},
+  {FALSE,TRUE,0,0,0,0,0,0,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,FALSE,TRUE,0,0,0L},
+  {FALSE,TRUE,0,0,0,0,0,0,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,FALSE,TRUE,0,0,0L},
+  {FALSE,TRUE,0,0,0,0,0,0,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,FALSE,TRUE,0,0,0L},
   };
 
 ENCODER encoders_controller1[MAX_ENCODERS]={
-  {TRUE,TRUE,20,1,26,1,0,ENCODER_AF_GAIN,FALSE,TRUE,0,0,0,0,0,0,TRUE,TRUE,25,MENU_BAND},
-  {TRUE,TRUE,16,1,19,1,0,ENCODER_AGC_GAIN,FALSE,TRUE,0,0,0,0,0,0,TRUE,TRUE,8,MENU_BANDSTACK},
-  {TRUE,TRUE,4,1,21,1,0,ENCODER_DRIVE,FALSE,TRUE,0,0,0,0,0,0,TRUE,TRUE,7,MENU_MODE},
-  {TRUE,TRUE,18,1,17,1,0,ENCODER_VFO,FALSE,TRUE,0,0,0,0,0,0,FALSE,TRUE,0,0},
-  {FALSE,TRUE,0,1,0,0,1,0,FALSE,TRUE,0,0,0,0,0,0,FALSE,TRUE,0,0},
+  {TRUE,TRUE,20,1,26,1,0,ENCODER_AF_GAIN,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,TRUE,TRUE,25,MENU_BAND,0L},
+  {TRUE,TRUE,16,1,19,1,0,ENCODER_AGC_GAIN,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,TRUE,TRUE,8,MENU_BANDSTACK,0L},
+  {TRUE,TRUE,4,1,21,1,0,ENCODER_DRIVE,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,TRUE,TRUE,7,MENU_MODE,0L},
+  {TRUE,TRUE,18,1,17,1,0,ENCODER_VFO,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,FALSE,TRUE,0,0,0L},
+  {FALSE,TRUE,0,1,0,0,1,0,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,FALSE,TRUE,0,0,0L},
   };
 
 ENCODER encoders_controller2_v1[MAX_ENCODERS]={
-  {TRUE,TRUE,20,1,26,1,0,ENCODER_AF_GAIN,FALSE,TRUE,0,0,0,0,0,0,TRUE,TRUE,22,MENU_BAND},
-  {TRUE,TRUE,4,1,21,1,0,ENCODER_AGC_GAIN,FALSE,TRUE,0,0,0,0,0,0,TRUE,TRUE,27,MENU_BANDSTACK},
-  {TRUE,TRUE,16,1,19,1,0,ENCODER_IF_WIDTH,FALSE,TRUE,0,0,0,0,0,0,TRUE,TRUE,23,MENU_MODE},
-  {TRUE,TRUE,25,1,8,1,0,ENCODER_RIT,FALSE,TRUE,0,0,0,0,0,0,TRUE,TRUE,24,MENU_FREQUENCY},
-  {TRUE,TRUE,18,1,17,1,0,ENCODER_VFO,FALSE,TRUE,0,0,0,0,0,0,FALSE,TRUE,0,0},
+  {TRUE,TRUE,20,1,26,1,0,ENCODER_AF_GAIN,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,TRUE,TRUE,22,MENU_BAND,0L},
+  {TRUE,TRUE,4,1,21,1,0,ENCODER_AGC_GAIN,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,TRUE,TRUE,27,MENU_BANDSTACK,0L},
+  {TRUE,TRUE,16,1,19,1,0,ENCODER_IF_WIDTH,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,TRUE,TRUE,23,MENU_MODE,0L},
+  {TRUE,TRUE,25,1,8,1,0,ENCODER_RIT,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,TRUE,TRUE,24,MENU_FREQUENCY,0L},
+  {TRUE,TRUE,18,1,17,1,0,ENCODER_VFO,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,FALSE,TRUE,0,0,0L},
   };
 
 ENCODER encoders_controller2_v2[MAX_ENCODERS]={
-  {TRUE,TRUE,5,1,6,1,0,ENCODER_RF_GAIN,TRUE,TRUE,26,1,20,1,0,ENCODER_AF_GAIN,TRUE,TRUE,22,MENU_BAND},
-  {TRUE,TRUE,9,1,7,1,0,ENCODER_ATTENUATION,TRUE,TRUE,21,1,4,1,0,ENCODER_AGC_GAIN,TRUE,TRUE,27,MENU_MODE},
-  {TRUE,TRUE,11,1,10,1,0,ENCODER_IF_WIDTH,TRUE,TRUE,19,1,16,1,0,ENCODER_IF_SHIFT,TRUE,TRUE,23,MENU_FILTER},
-  {TRUE,TRUE,13,1,12,1,0,ENCODER_XIT,TRUE,TRUE,8,1,25,1,0,ENCODER_RIT,TRUE,TRUE,24,MENU_FREQUENCY},
-  {TRUE,TRUE,18,1,17,1,0,ENCODER_VFO,FALSE,TRUE,0,0,0,0,0,0,FALSE,TRUE,0,0},
+  {TRUE,TRUE,5,1,6,1,0,ENCODER_RF_GAIN,R_START,TRUE,TRUE,26,1,20,1,0,ENCODER_AF_GAIN,R_START,TRUE,TRUE,22,MENU_BAND,0L},
+  {TRUE,TRUE,9,1,7,1,0,ENCODER_ATTENUATION,R_START,TRUE,TRUE,21,1,4,1,0,ENCODER_AGC_GAIN,R_START,TRUE,TRUE,27,MENU_MODE,0L},
+  {TRUE,TRUE,11,1,10,1,0,ENCODER_IF_WIDTH,R_START,TRUE,TRUE,19,1,16,1,0,ENCODER_IF_SHIFT,R_START,TRUE,TRUE,23,MENU_FILTER,0L},
+  {TRUE,TRUE,13,1,12,1,0,ENCODER_XIT,R_START,TRUE,TRUE,8,1,25,1,0,ENCODER_RIT,R_START,TRUE,TRUE,24,MENU_FREQUENCY,0L},
+  {TRUE,TRUE,18,1,17,1,0,ENCODER_VFO,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,FALSE,TRUE,0,0,0L},
   };
 
 ENCODER *encoders=encoders_no_controller;
 
 SWITCH switches_no_controller[MAX_SWITCHES]={
-  {FALSE,FALSE,0,NO_ACTION},
-  {FALSE,FALSE,0,NO_ACTION},
-  {FALSE,FALSE,0,NO_ACTION},
-  {FALSE,FALSE,0,NO_ACTION},
-  {FALSE,FALSE,0,NO_ACTION},
-  {FALSE,FALSE,0,NO_ACTION},
-  {FALSE,FALSE,0,NO_ACTION},
-  {FALSE,FALSE,0,NO_ACTION},
-  {FALSE,FALSE,0,NO_ACTION},
-  {FALSE,FALSE,0,NO_ACTION},
-  {FALSE,FALSE,0,NO_ACTION},
-  {FALSE,FALSE,0,NO_ACTION},
-  {FALSE,FALSE,0,NO_ACTION},
-  {FALSE,FALSE,0,NO_ACTION},
-  {FALSE,FALSE,0,NO_ACTION},
-  {FALSE,FALSE,0,NO_ACTION}
+  {FALSE,FALSE,0,NO_ACTION,0L},
+  {FALSE,FALSE,0,NO_ACTION,0L},
+  {FALSE,FALSE,0,NO_ACTION,0L},
+  {FALSE,FALSE,0,NO_ACTION,0L},
+  {FALSE,FALSE,0,NO_ACTION,0L},
+  {FALSE,FALSE,0,NO_ACTION,0L},
+  {FALSE,FALSE,0,NO_ACTION,0L},
+  {FALSE,FALSE,0,NO_ACTION,0L},
+  {FALSE,FALSE,0,NO_ACTION,0L},
+  {FALSE,FALSE,0,NO_ACTION,0L},
+  {FALSE,FALSE,0,NO_ACTION,0L},
+  {FALSE,FALSE,0,NO_ACTION,0L},
+  {FALSE,FALSE,0,NO_ACTION,0L},
+  {FALSE,FALSE,0,NO_ACTION,0L},
+  {FALSE,FALSE,0,NO_ACTION,0L},
+  {FALSE,FALSE,0,NO_ACTION,0L}
   };
 
 SWITCH switches_controller1[MAX_FUNCTIONS][MAX_SWITCHES]={
-  {{TRUE,TRUE,27,MOX},
-   {TRUE,TRUE,13,MENU_BAND},
-   {TRUE,TRUE,12,MENU_BANDSTACK},
-   {TRUE,TRUE,6,MENU_MODE},
-   {TRUE,TRUE,5,MENU_FILTER},
-   {TRUE,TRUE,24,NR},
-   {TRUE,TRUE,23,AGC},
-   {TRUE,TRUE,22,FUNCTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION}},
-  {{TRUE,TRUE,27,MOX},
-   {TRUE,TRUE,13,LOCK},
-   {TRUE,TRUE,12,CTUN},
-   {TRUE,TRUE,6,A_TO_B},
-   {TRUE,TRUE,5,B_TO_A},
-   {TRUE,TRUE,24,A_SWAP_B},
-   {TRUE,TRUE,23,SPLIT},
-   {TRUE,TRUE,22,FUNCTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION}},
-  {{TRUE,TRUE,27,MOX},
-   {TRUE,TRUE,13,MENU_FREQUENCY},
-   {TRUE,TRUE,12,MENU_MEMORY},
-   {TRUE,TRUE,6,RIT},
-   {TRUE,TRUE,5,RIT_PLUS},
-   {TRUE,TRUE,24,RIT_MINUS},
-   {TRUE,TRUE,23,RIT_CLEAR},
-   {TRUE,TRUE,22,FUNCTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION}},
-  {{TRUE,TRUE,27,MOX},
-   {TRUE,TRUE,13,MENU_FREQUENCY},
-   {TRUE,TRUE,12,MENU_MEMORY},
-   {TRUE,TRUE,6,XIT},
-   {TRUE,TRUE,5,XIT_PLUS},
-   {TRUE,TRUE,24,XIT_MINUS},
-   {TRUE,TRUE,23,XIT_CLEAR},
-   {TRUE,TRUE,22,FUNCTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION}},
-  {{TRUE,TRUE,27,MOX},
-   {TRUE,TRUE,13,MENU_FREQUENCY},
-   {TRUE,TRUE,12,SPLIT},
-   {TRUE,TRUE,6,DUPLEX},
-   {TRUE,TRUE,5,SAT},
-   {TRUE,TRUE,24,RSAT},
-   {TRUE,TRUE,23,NO_ACTION},
-   {TRUE,TRUE,22,FUNCTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION}},
-  {{TRUE,TRUE,27,MOX},
-   {TRUE,TRUE,13,TUNE},
-   {TRUE,TRUE,12,TUNE_FULL},
-   {TRUE,TRUE,6,TUNE_MEMORY},
-   {TRUE,TRUE,5,MENU_BAND},
-   {TRUE,TRUE,24,MENU_MODE},
-   {TRUE,TRUE,23,MENU_FILTER},
-   {TRUE,TRUE,22,FUNCTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION},
-   {FALSE,FALSE,0,NO_ACTION}},
+  {{TRUE,TRUE,27,MOX,0L},
+   {TRUE,TRUE,13,MENU_BAND,0L},
+   {TRUE,TRUE,12,MENU_BANDSTACK,0L},
+   {TRUE,TRUE,6,MENU_MODE,0L},
+   {TRUE,TRUE,5,MENU_FILTER,0L},
+   {TRUE,TRUE,24,NR,0L},
+   {TRUE,TRUE,23,AGC,0L},
+   {TRUE,TRUE,22,FUNCTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L}},
+  {{TRUE,TRUE,27,MOX,0L},
+   {TRUE,TRUE,13,LOCK,0L},
+   {TRUE,TRUE,12,CTUN,0L},
+   {TRUE,TRUE,6,A_TO_B,0L},
+   {TRUE,TRUE,5,B_TO_A,0L},
+   {TRUE,TRUE,24,A_SWAP_B,0L},
+   {TRUE,TRUE,23,SPLIT,0L},
+   {TRUE,TRUE,22,FUNCTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L}},
+  {{TRUE,TRUE,27,MOX,0L},
+   {TRUE,TRUE,13,MENU_FREQUENCY,0L},
+   {TRUE,TRUE,12,MENU_MEMORY,0L},
+   {TRUE,TRUE,6,RIT,0L},
+   {TRUE,TRUE,5,RIT_PLUS,0L},
+   {TRUE,TRUE,24,RIT_MINUS,0L},
+   {TRUE,TRUE,23,RIT_CLEAR,0L},
+   {TRUE,TRUE,22,FUNCTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L}},
+  {{TRUE,TRUE,27,MOX,0L},
+   {TRUE,TRUE,13,MENU_FREQUENCY,0L},
+   {TRUE,TRUE,12,MENU_MEMORY,0L},
+   {TRUE,TRUE,6,XIT,0L},
+   {TRUE,TRUE,5,XIT_PLUS,0L},
+   {TRUE,TRUE,24,XIT_MINUS,0L},
+   {TRUE,TRUE,23,XIT_CLEAR,0L},
+   {TRUE,TRUE,22,FUNCTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L}},
+  {{TRUE,TRUE,27,MOX,0L},
+   {TRUE,TRUE,13,MENU_FREQUENCY,0L},
+   {TRUE,TRUE,12,SPLIT,0L},
+   {TRUE,TRUE,6,DUPLEX,0L},
+   {TRUE,TRUE,5,SAT,0L},
+   {TRUE,TRUE,24,RSAT,0L},
+   {TRUE,TRUE,23,NO_ACTION,0L},
+   {TRUE,TRUE,22,FUNCTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L}},
+  {{TRUE,TRUE,27,MOX,0L},
+   {TRUE,TRUE,13,TUNE,0L},
+   {TRUE,TRUE,12,TUNE_FULL,0L},
+   {TRUE,TRUE,6,TUNE_MEMORY,0L},
+   {TRUE,TRUE,5,MENU_BAND,0L},
+   {TRUE,TRUE,24,MENU_MODE,0L},
+   {TRUE,TRUE,23,MENU_FILTER,0L},
+   {TRUE,TRUE,22,FUNCTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L},
+   {FALSE,FALSE,0,NO_ACTION,0L}},
 
   };
 
 SWITCH switches_controller2_v1[MAX_SWITCHES]={
-  {FALSE,FALSE,0,MOX},
-  {FALSE,FALSE,0,TUNE},
-  {FALSE,FALSE,0,PS},
-  {FALSE,FALSE,0,TWO_TONE},
-  {FALSE,FALSE,0,NR},
-  {FALSE,FALSE,0,A_TO_B},
-  {FALSE,FALSE,0,B_TO_A},
-  {FALSE,FALSE,0,MODE_MINUS},
-  {FALSE,FALSE,0,BAND_MINUS},
-  {FALSE,FALSE,0,MODE_PLUS},
-  {FALSE,FALSE,0,BAND_PLUS},
-  {FALSE,FALSE,0,XIT},
-  {FALSE,FALSE,0,NB},
-  {FALSE,FALSE,0,SNB},
-  {FALSE,FALSE,0,LOCK},
-  {FALSE,FALSE,0,CTUN}
+  {FALSE,FALSE,0,MOX,0L},
+  {FALSE,FALSE,0,TUNE,0L},
+  {FALSE,FALSE,0,PS,0L},
+  {FALSE,FALSE,0,TWO_TONE,0L},
+  {FALSE,FALSE,0,NR,0L},
+  {FALSE,FALSE,0,A_TO_B,0L},
+  {FALSE,FALSE,0,B_TO_A,0L},
+  {FALSE,FALSE,0,MODE_MINUS,0L},
+  {FALSE,FALSE,0,BAND_MINUS,0L},
+  {FALSE,FALSE,0,MODE_PLUS,0L},
+  {FALSE,FALSE,0,BAND_PLUS,0L},
+  {FALSE,FALSE,0,XIT,0L},
+  {FALSE,FALSE,0,NB,0L},
+  {FALSE,FALSE,0,SNB,0L},
+  {FALSE,FALSE,0,LOCK,0L},
+  {FALSE,FALSE,0,CTUN,0L}
   };
 
 SWITCH switches_controller2_v2[MAX_SWITCHES]={
-  {FALSE,FALSE,0,MOX},
-  {FALSE,FALSE,0,TUNE},
-  {FALSE,FALSE,0,PS},
-  {FALSE,FALSE,0,TWO_TONE},
-  {FALSE,FALSE,0,NR},
-  {FALSE,FALSE,0,A_TO_B},
-  {FALSE,FALSE,0,B_TO_A},
-  {FALSE,FALSE,0,MODE_MINUS},
-  {FALSE,FALSE,0,BAND_MINUS},
-  {FALSE,FALSE,0,MODE_PLUS},
-  {FALSE,FALSE,0,BAND_PLUS},
-  {FALSE,FALSE,0,XIT},
-  {FALSE,FALSE,0,NB},
-  {FALSE,FALSE,0,SNB},
-  {FALSE,FALSE,0,LOCK},
-  {FALSE,FALSE,0,CTUN}
+  {FALSE,FALSE,0,MOX,0L},
+  {FALSE,FALSE,0,TUNE,0L},
+  {FALSE,FALSE,0,PS,0L},
+  {FALSE,FALSE,0,TWO_TONE,0L},
+  {FALSE,FALSE,0,NR,0L},
+  {FALSE,FALSE,0,A_TO_B,0L},
+  {FALSE,FALSE,0,B_TO_A,0L},
+  {FALSE,FALSE,0,MODE_MINUS,0L},
+  {FALSE,FALSE,0,BAND_MINUS,0L},
+  {FALSE,FALSE,0,MODE_PLUS,0L},
+  {FALSE,FALSE,0,BAND_PLUS,0L},
+  {FALSE,FALSE,0,XIT,0L},
+  {FALSE,FALSE,0,NB,0L},
+  {FALSE,FALSE,0,SNB,0L},
+  {FALSE,FALSE,0,LOCK,0L},
+  {FALSE,FALSE,0,CTUN,0L}
   };
 
 SWITCH *switches=switches_controller1[0];
 
 static int running=0;
-
-/*
-char *encoder_string[ENCODER_ACTIONS] = {
-  "NO ACTION",
-  "AF GAIN",
-  "AF GAIN RX1",
-  "AF GAIN RX2",
-  "AGC GAIN",
-  "AGC GAIN RX1",
-  "AGC GAIN RX2",
-  "ATTENUATION/RX GAIN",
-  "COMP",
-  "CW FREQUENCY",
-  "CW SPEED",
-  "DIVERSITY GAIN",
-  "DIVERSITY GAIN (coarse)",
-  "DIVERSITY GAIN (fine)",
-  "DIVERSITY PHASE",
-  "DIVERSITY PHASE (coarse)",
-  "DIVERSITY PHASE (fine)",
-  "DRIVE",
-  "IF SHIFT",
-  "IF SHIFT RX1",
-  "IF SHIFT RX2",
-  "IF WIDTH",
-  "IF WIDTH RX1",
-  "IF WIDTH RX2",
-  "MIC GAIN",
-  "PAN",
-  "PANADAPTER HIGH",
-  "PANADAPTER LOW",
-  "PANADAPTER STEP",
-  "RF GAIN",
-  "RF GAIN RX1",
-  "RF GAIN RX2",
-  "RIT",
-  "RIT RX1",
-  "RIT RX2",
-  "SQUELCH",
-  "SQUELCH RX1",
-  "SQUELCH RX2",
-  "TUNE DRIVE",
-  "VFO",
-  "WATERFALL HIGH",
-  "WATERFALL LOW",
-  "XIT",
-  "ZOOM",
-};
-
-char *sw_string[SWITCH_ACTIONS] = {
-  "NO ACTION",
-  "A TO B",
-  "A SWAP B",
-  "AGC",
-  "ANF",
-  "B TO A",
-  "BAND -",
-  "BAND +",
-  "BSTACK -",
-  "BSTACK +",
-  "CTUN",
-  "DIV",
-  "DUPLEX",
-  "FILTER -",
-  "FILTER +",
-  "FUNCTION",
-  "LOCK",
-  "MENU AGC",
-  "MENU BAND",
-  "MENU BSTACK",
-  "MENU DIV",
-  "MENU FILTER",
-  "MENU FREQUENCY",
-  "MENU MEMORY",
-  "MENU MODE",
-  "MENU NOISE",
-  "MENU PS",
-  "MODE -",
-  "MODE +",
-  "MOX",
-  "MUTE",
-  "NB",
-  "NR",
-  "PAN -",
-  "PAN +",
-  "PS",
-  "RIT",
-  "RIT CL",
-  "RIT +",
-  "RIT -",
-  "RSAT",
-  "SAT",
-  "SNB",
-  "SPLIT",
-  "TUNE",
-  "TUNE FULL",
-  "TUNE MEM",
-  "TWO TONE",
-  "XIT",
-  "XIT CL",
-  "XIT +",
-  "XIT -",
-  "ZOOM -",
-  "ZOOM +",
-};
-
-char *sw_cap_string[SWITCH_ACTIONS] = {
-  "",
-  "A>B",
-  "A<>B",
-  "AGC",
-  "ANF",
-  "B>A",
-  "BND-",
-  "BND+",
-  "BST-",
-  "BST+",
-  "CTUN",
-  "DIV",
-  "DUP",
-  "FLT-",
-  "FLT+",
-  "FUNC",
-  "LOCK",
-  "AGC",
-  "BAND",
-  "BSTACK",
-  "DIV",
-  "FILTER",
-  "FREQ",
-  "MEM",
-  "MODE",
-  "NOISE",
-  "PS",
-  "MD-",
-  "MD+",
-  "MOX",
-  "MUTE",
-  "NB",
-  "NR",
-  "PAN-",
-  "PAN+",
-  "PS",
-  "RIT",
-  "RIT0",
-  "RIT+",
-  "RIT-",
-  "RSAT",
-  "SAT",
-  "SNB",
-  "SPLIT",
-  "TUNE",
-  "TUN-F",
-  "TUN-M",
-  "2TONE",
-  "XIT",
-  "XIT0",
-  "XIT+",
-  "XIT-",
-  "ZOOM-",
-  "ZOOM+",
-};
-*/
-
-int *sw_action=NULL;
 
 static GThread *rotary_encoder_thread_id;
 
@@ -499,11 +366,13 @@ static gpointer rotary_encoder_thread(gpointer data) {
   ENCODER_ACTION *a;
   int i;
 
-  sleep(2);
+  usleep(250000);
+  g_print("%s\n",__FUNCTION__);
   while(TRUE) {
     g_mutex_lock(&encoder_mutex);
     for(i=0;i<MAX_ENCODERS;i++) {
       if(encoders[i].bottom_encoder_enabled && encoders[i].bottom_encoder_pos!=0) {
+        //g_print("%s: BOTTOM encoder %d pos=%d\n",__FUNCTION__,i,encoders[i].bottom_encoder_pos);
         a=g_new(ENCODER_ACTION,1);
         a->action=encoders[i].bottom_encoder_function;
         a->mode=RELATIVE;
@@ -512,10 +381,11 @@ static gpointer rotary_encoder_thread(gpointer data) {
         encoders[i].bottom_encoder_pos=0;
       }
       if(encoders[i].top_encoder_enabled && encoders[i].top_encoder_pos!=0) {
+        //g_print("%s: TOP encoder %d pos=%d\n",__FUNCTION__,i,encoders[i].top_encoder_pos);
         a=g_new(ENCODER_ACTION,1);
-        a->action=encoders[i].bottom_encoder_function;
+        a->action=encoders[i].top_encoder_function;
         a->mode=RELATIVE;
-        a->val=encoders[i].bottom_encoder_pos;
+        a->val=encoders[i].top_encoder_pos;
         g_idle_add(encoder_action,a);
         encoders[i].top_encoder_pos=0;
       }
@@ -539,22 +409,52 @@ int process_function_switch(void *data) {
 static unsigned long switch_debounce;
 
 static void process_encoder(int e,int l,int addr,int val) {
-//  g_print("%s: encoder=%d level=%d addr=0x%02X val=%d\n",__FUNCTION__,e,l,addr,val);
+  guchar pinstate;
+  //g_print("%s: encoder=%d level=%d addr=0x%02X val=%d\n",__FUNCTION__,e,l,addr,val);
   g_mutex_lock(&encoder_mutex);
   switch(l) {
     case BOTTOM_ENCODER:
       switch(addr) {
         case A:
           encoders[e].bottom_encoder_a_value=val;
-          if(encoders[e].bottom_encoder_a_value==encoders[e].bottom_encoder_b_value) {
-            encoders[e].bottom_encoder_pos++;
-          } else {
-            encoders[e].bottom_encoder_pos--;
+          pinstate=(encoders[e].bottom_encoder_b_value<<1) | encoders[e].bottom_encoder_a_value;
+          encoders[e].bottom_encoder_state=encoder_state_table[encoders[e].bottom_encoder_state&0xf][pinstate];
+          //g_print("%s: state=%02X\n",__FUNCTION__,encoders[e].bottom_encoder_state);
+          switch(encoders[e].bottom_encoder_state&0x30) {
+            case DIR_NONE:
+              break;
+            case DIR_CW:
+              encoders[e].bottom_encoder_pos++;
+              break;
+            case DIR_CCW:
+              encoders[e].bottom_encoder_pos--;
+              break;
+            default:
+              break;
           }
+
           //g_print("%s: %s BOTTOM pos=%d\n",__FUNCTION__,encoder_string[encoders[e].bottom_encoder_function],encoders[e].bottom_encoder_pos);
           break;
         case B:
           encoders[e].bottom_encoder_b_value=val;
+          pinstate=(encoders[e].bottom_encoder_b_value<<1) | encoders[e].bottom_encoder_a_value;
+          encoders[e].bottom_encoder_state=encoder_state_table[encoders[e].bottom_encoder_state&0xf][pinstate];
+          //g_print("%s: state=%02X\n",__FUNCTION__,encoders[e].bottom_encoder_state);
+          switch(encoders[e].bottom_encoder_state&0x30) {
+            case DIR_NONE:
+              break;
+            case DIR_CW:
+              encoders[e].bottom_encoder_pos++;
+              break;
+            case DIR_CCW:
+              encoders[e].bottom_encoder_pos--;
+              break;
+            default:
+              break;
+          }
+
+          //g_print("%s: %s BOTTOM pos=%d\n",__FUNCTION__,encoder_string[encoders[e].bottom_encoder_function],encoders[e].bottom_encoder_pos);
+
           break;
       }
       break;
@@ -562,15 +462,42 @@ static void process_encoder(int e,int l,int addr,int val) {
       switch(addr) {
         case A:
           encoders[e].top_encoder_a_value=val;
-          if(encoders[e].top_encoder_a_value==encoders[e].top_encoder_b_value) {
-            encoders[e].top_encoder_pos++;
-          } else {
-            encoders[e].top_encoder_pos--;
+          pinstate=(encoders[e].top_encoder_b_value<<1) | encoders[e].top_encoder_a_value;
+          encoders[e].top_encoder_state=encoder_state_table[encoders[e].top_encoder_state&0xf][pinstate];
+          //g_print("%s: state=%02X\n",__FUNCTION__,encoders[e].top_encoder_state);
+          switch(encoders[e].top_encoder_state&0x30) {
+            case DIR_NONE:
+              break;
+            case DIR_CW:
+              encoders[e].top_encoder_pos++;
+              break;
+            case DIR_CCW:
+              encoders[e].top_encoder_pos--;
+              break;
+            default:
+              break;
           }
-          g_print("%s: %s TOP pos=%d\n",__FUNCTION__,encoder_string[encoders[e].top_encoder_function],encoders[e].bottom_encoder_pos);
+          //g_print("%s: %s TOP pos=%d\n",__FUNCTION__,encoder_string[encoders[e].top_encoder_function],encoders[e].top_encoder_pos);
           break;
         case B:
           encoders[e].top_encoder_b_value=val;
+          pinstate=(encoders[e].top_encoder_b_value<<1) | encoders[e].top_encoder_a_value;
+          encoders[e].top_encoder_state=encoder_state_table[encoders[e].top_encoder_state&0xf][pinstate];
+          //g_print("%s: state=%02X\n",__FUNCTION__,encoders[e].top_encoder_state);
+          switch(encoders[e].top_encoder_state&0x30) {
+            case DIR_NONE:
+              break;
+            case DIR_CW:
+              encoders[e].top_encoder_pos++;
+              break;
+            case DIR_CCW:
+              encoders[e].top_encoder_pos--;
+              break;
+            default:
+              break;
+          }
+          //g_print("%s: %s TOP pos=%d\n",__FUNCTION__,encoder_string[encoders[e].top_encoder_function],encoders[e].top_encoder_pos);
+
           break;
       }
       break;
@@ -583,6 +510,7 @@ static void process_edge(int offset,int value) {
   gint t;
   gboolean found;
 
+  //g_print("%s: offset=%d value=%d\n",__FUNCTION__,offset,value);
   found=FALSE;
 #ifdef LOCALCW
   if(ENABLE_CW_BUTTONS) {
@@ -619,7 +547,7 @@ static void process_edge(int offset,int value) {
       found=TRUE;
       break;
     } else if(encoders[i].switch_enabled && encoders[i].switch_address==offset) {
-      g_print("%s: found %d encoder %d switch\n",__FUNCTION__,offset,i);
+      //g_print("%s: found %d encoder %d switch\n",__FUNCTION__,offset,i);
       SWITCH_ACTION *a=g_new(SWITCH_ACTION,1);
       a->action=encoders[i].switch_function;
       a->state=value;
@@ -629,16 +557,25 @@ static void process_edge(int offset,int value) {
     }
   }
 
+  if(controller==CONTROLLER2_V1 || controller==CONTROLLER2_V2) {
+    if(I2C_INTERRUPT==offset) {
+      if(value==PRESSED) {
+        i2c_interrupt();
+      }
+      found=TRUE;
+    }
+  }
+
   if(!found) {
     for(i=0;i<MAX_SWITCHES;i++) {
       if(switches[i].switch_enabled && switches[i].switch_address==offset) {
         t=millis();
-        g_print("%s: found %d switch %d value=%d t=%d\n",__FUNCTION__,offset,i,value,t);
+        //g_print("%s: found %d switch %d value=%d t=%d\n",__FUNCTION__,offset,i,value,t);
         found=TRUE;
-        if(t<switch_debounce) {
+        if(t<switches[i].switch_debounce) {
           return;
         }
-        switch_debounce=t+settle_time;
+        switches[i].switch_debounce=t+settle_time;
         SWITCH_ACTION *a=g_new(SWITCH_ACTION,1);
         a->action=switches[i].switch_function;
         a->state=value;
@@ -647,6 +584,8 @@ static void process_edge(int offset,int value) {
       }
     }
   }
+
+
   if(!found) {
     g_print("%s: could not find %d\n",__FUNCTION__,offset);
   }
@@ -838,6 +777,7 @@ void gpio_save_state() {
         setProperty(name,value);
       }
     }
+/*
   } else {
     for(int i=0;i<MAX_SWITCHES;i++) {
       sprintf(name,"switches[%d].switch_enabled",i);
@@ -850,6 +790,7 @@ void gpio_save_state() {
       sprintf(value,"%d",switches[i].switch_address);
       setProperty(name,value);
     }
+*/
   }
 
   saveProperties("gpio.props");
@@ -1064,6 +1005,7 @@ int gpio_init() {
   }
 
   if(controller==CONTROLLER2_V1 || controller==CONTROLLER2_V2) {
+    i2c_init();
     g_print("%s: setup i2c interrupt %d\n",__FUNCTION__,I2C_INTERRUPT);
     if((ret=setup_line(chip,I2C_INTERRUPT,TRUE))<0) {
       goto err;
@@ -1115,6 +1057,7 @@ int gpio_init() {
       g_print("%s: rotary_encoder_thread: id=%p\n",__FUNCTION__,rotary_encoder_thread_id);
     }
   }
+
 #endif
   return 0;
 

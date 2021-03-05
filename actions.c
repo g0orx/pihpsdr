@@ -4,7 +4,6 @@
 #include "discovery.h"
 #include "receiver.h"
 #include "sliders.h"
-#include "toolbar.h"
 #include "band_menu.h"
 #include "diversity_menu.h"
 #include "vfo.h"
@@ -29,6 +28,7 @@
 #include "zoompan.h"
 #include "actions.h"
 #include "gpio.h"
+#include "toolbar.h"
 
 char *encoder_string[ENCODER_ACTIONS] = {
   "NO ACTION",
@@ -38,7 +38,7 @@ char *encoder_string[ENCODER_ACTIONS] = {
   "AGC GAIN",
   "AGC GAIN RX1",
   "AGC GAIN RX2",
-  "ATTENUATION/RX GAIN",
+  "ATTENUATION",
   "COMP",
   "CW FREQUENCY",
   "CW SPEED",
@@ -81,7 +81,7 @@ char *sw_string[SWITCH_ACTIONS] = {
   "",
   "A TO B",
   "A SWAP B",
-  "AGC",
+  "AGC +",
   "ANF",
   "B TO A",
   "BAND -",
@@ -93,18 +93,18 @@ char *sw_string[SWITCH_ACTIONS] = {
   "DUPLEX",
   "FILTER -",
   "FILTER +",
-  "FUNCTION",
+  "FUNCT",
   "LOCK",
-  "MENU AGC",
-  "MENU BAND",
-  "MENU BSTACK",
-  "MENU DIV",
-  "MENU FILTER",
-  "MENU FREQUENCY",
-  "MENU MEMORY",
-  "MENU MODE",
-  "MENU NOISE",
-  "MENU PS",
+  "AGC",
+  "BAND",
+  "BSTACK",
+  "DIV",
+  "FILTER",
+  "FREQUENCY",
+  "MEMORY",
+  "MODE",
+  "NOISE",
+  "PS",
   "MODE -",
   "MODE +",
   "MOX",
@@ -122,9 +122,9 @@ char *sw_string[SWITCH_ACTIONS] = {
   "SAT",
   "SNB",
   "SPLIT",
-  "TUNE",
+  "TUN",
   "TUNE FULL",
-  "TUNE MEMORY",
+  "TUNE MEM",
   "TWO TONE",
   "XIT",
   "XIT CL",
@@ -237,7 +237,8 @@ int encoder_action(void *data) {
       set_af_gain(1,value);
       break;
     case ENCODER_RF_GAIN:
-      value=active_receiver->rf_gain;
+      //value=active_receiver->gain;
+      value=adc[active_receiver->id].gain;
       value+=a->val;
       if(value<0.0) {
         value=0.0;
@@ -247,7 +248,8 @@ int encoder_action(void *data) {
       set_rf_gain(active_receiver->id,value);
       break;
     case ENCODER_RF_GAIN_RX1:
-      value=receiver[0]->rf_gain;
+      //value=receiver[0]->rf_gain;
+      value=adc[receiver[0]->id].gain;
       value+=a->val;
       if(value<0.0) {
         value=0.0;
@@ -257,7 +259,8 @@ int encoder_action(void *data) {
       set_rf_gain(0,value);
       break;
     case ENCODER_RF_GAIN_RX2:
-      value=receiver[1]->rf_gain;
+      //value=receiver[1]->rf_gain;
+      value=adc[receiver[1]->id].gain;
       value+=a->val;
       if(value<0.0) {
         value=0.0;
@@ -500,13 +503,26 @@ int switch_action(void *data) {
   if(a->state==PRESSED) {
     switch(a->action) {
       case FUNCTION:
-        if(controller==NO_CONTROLLER || controller==CONTROLLER1) {
-          function++;
-          if(function>=MAX_FUNCTIONS) {
-            function=0;
-          }
-          switches=switches_controller1[function];
-          update_toolbar_labels();
+	switch(controller) {
+          case NO_CONTROLLER:
+          case CONTROLLER1:
+            function++;
+            if(function>=MAX_FUNCTIONS) {
+              function=0;
+            }
+            toolbar_switches=switches_controller1[function];
+            switches=switches_controller1[function];
+            update_toolbar_labels();
+	    break;
+	  case CONTROLLER2_V1:
+	  case CONTROLLER2_V2:
+            function++;
+            if(function>=MAX_FUNCTIONS) {
+              function=0;
+            }
+            toolbar_switches=switches_controller1[function];
+            update_toolbar_labels();
+	    break;
         }
         break;
       case TUNE:

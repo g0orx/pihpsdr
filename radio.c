@@ -480,14 +480,14 @@ static void create_visual() {
 
 
   GtkWidget *minimize_b=gtk_button_new_with_label("Hide");
-  gtk_widget_override_font(minimize_b, pango_font_description_from_string("FreeSans Bold 10"));
+  gtk_widget_override_font(minimize_b, pango_font_description_from_string("FreeSans Bold 8"));
   gtk_widget_set_size_request (minimize_b, MENU_WIDTH, MENU_HEIGHT);
   g_signal_connect (minimize_b, "button-press-event", G_CALLBACK(minimize_cb), NULL) ;
   gtk_fixed_put(GTK_FIXED(fixed),minimize_b,VFO_WIDTH+METER_WIDTH,y);
   y+=MENU_HEIGHT;
 
   GtkWidget *menu_b=gtk_button_new_with_label("Menu");
-  gtk_widget_override_font(menu_b, pango_font_description_from_string("FreeSans Bold 10"));
+  gtk_widget_override_font(menu_b, pango_font_description_from_string("FreeSans Bold 8"));
   gtk_widget_set_size_request (menu_b, MENU_WIDTH, MENU_HEIGHT);
   g_signal_connect (menu_b, "button-press-event", G_CALLBACK(menu_cb), NULL) ;
   gtk_fixed_put(GTK_FIXED(fixed),menu_b,VFO_WIDTH+METER_WIDTH,y);
@@ -567,24 +567,26 @@ if(!radio_is_remote) {
     calcDriveLevel();
 
 #ifdef PURESIGNAL
-    tx_set_ps_sample_rate(transmitter,protocol==NEW_PROTOCOL?192000:active_receiver->sample_rate);
-    receiver[PS_TX_FEEDBACK]=create_pure_signal_receiver(PS_TX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
-    receiver[PS_RX_FEEDBACK]=create_pure_signal_receiver(PS_RX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
-    switch (protocol) {
-      case NEW_PROTOCOL:
-        pk = 0.2899;
-        break;
-      case ORIGINAL_PROTOCOL:
-        switch (device) {
-          case DEVICE_HERMES_LITE2:
-            pk = 0.2300;
-            break;
-          default:
-            pk = 0.4067;
-            break;
-        }
+    if(protocol==NEW_PROTOCOL || protocol==ORIGINAL_PROTOCOL) {
+      tx_set_ps_sample_rate(transmitter,protocol==NEW_PROTOCOL?192000:active_receiver->sample_rate);
+      receiver[PS_TX_FEEDBACK]=create_pure_signal_receiver(PS_TX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
+      receiver[PS_RX_FEEDBACK]=create_pure_signal_receiver(PS_RX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
+      switch (protocol) {
+        case NEW_PROTOCOL:
+          pk = 0.2899;
+          break;
+        case ORIGINAL_PROTOCOL:
+          switch (device) {
+            case DEVICE_HERMES_LITE2:
+              pk = 0.2300;
+              break;
+            default:
+              pk = 0.4067;
+              break;
+          }
+      }
+      SetPSHWPeak(transmitter->id, pk);
     }
-    SetPSHWPeak(transmitter->id, pk);
 #endif
 
   }
@@ -1111,6 +1113,13 @@ void start_radio() {
   adc[0].antenna=0;
   if(device==SOAPYSDR_USB_DEVICE) {
     adc[0].gain=0;
+    if(radio->info.soapy.rx_gains>0) {
+      adc[0].min_gain=radio->info.soapy.rx_range[0].minimum;
+      adc[0].max_gain=radio->info.soapy.rx_range[0].maximum;;
+    } else {
+      adc[0].min_gain=0.0;
+      adc[0].max_gain=100.0;
+    }
     adc[0].agc=FALSE;
     dac[0].antenna=1;
     dac[0].gain=0;
@@ -1129,6 +1138,14 @@ void start_radio() {
   adc[1].antenna=0;
   if(device==SOAPYSDR_USB_DEVICE) {
     adc[1].gain=0;
+    if(radio->info.soapy.rx_gains>0) {
+      adc[1].min_gain=radio->info.soapy.rx_range[0].minimum;
+      adc[1].max_gain=radio->info.soapy.rx_range[0].maximum;;
+    } else {
+      adc[1].min_gain=0.0;
+      adc[1].max_gain=100.0;
+    }
+    adc[1].max_gain=0;
     adc[1].agc=FALSE;
     dac[1].antenna=1;
     dac[1].gain=0;
@@ -1799,11 +1816,22 @@ void setSquelch(RECEIVER *rx) {
   SetRXAFMSQRun(rx->id, rx->squelch_enable);
 }
 
+void radio_set_rf_gain(RECEIVER *rx) {
+#ifdef SOAPYSDR
+  soapy_protocol_set_gain_element(rx,radio->info.soapy.rx_gain[rx->adc],(int)adc[rx->adc].gain);
+#endif
+}
+
 void set_attenuation(int value) {
     switch(protocol) {
       case NEW_PROTOCOL:
         schedule_high_priority();
         break;
+#ifdef SOAPYSDR
+      case SOAPYSDR_PROTOCOL:
+	soapy_protocol_set_gain_element(active_receiver,radio->info.soapy.rx_gain[0],(int)adc[0].gain);
+	break;
+#endif
     }
 }
 
@@ -1872,6 +1900,9 @@ g_print("radioRestoreState: %s\n",property_path);
 #endif
   } else {
 #endif
+
+    value=getProperty("radio_sample_rate");
+    if (value) radio_sample_rate=atoi(value);
     value=getProperty("diversity_enabled");
     if (value) diversity_enabled=atoi(value);
     value=getProperty("diversity_gain");
@@ -2166,6 +2197,8 @@ g_print("radioSaveState: %s\n",property_path);
 #ifdef CLIENT_SERVER
   if(!radio_is_remote) {
 #endif
+    sprintf(value,"%d",radio_sample_rate);
+    setProperty("radio_sample_rate",value);
     sprintf(value,"%d",diversity_enabled);
     setProperty("diversity_enabled",value);
     sprintf(value,"%f",div_gain);
@@ -2510,7 +2543,9 @@ int remote_start(void *data) {
   for(int i=0;i<receivers;i++) {
     receiver_restore_state(receiver[i]);
     if(receiver[i]->local_audio) {
-      audio_open_output(receiver[i]);
+      if(audio_open_output(receiver[i])) {
+        receiver[i]->local_audio=0;
+      }
     }
   }
   reconfigure_radio();

@@ -199,7 +199,8 @@ if(analog_meter) {
       }
 #ifdef SOAPYSDR
       if(protocol==SOAPYSDR_PROTOCOL) {
-       level-=rx->rf_gain;
+        //level-=rx->rf_gain;
+        level-=adc[rx->id].gain;
       }
 #endif
       if (filter_board == CHARLY25) {
@@ -568,7 +569,8 @@ if(analog_meter) {
       }
 #ifdef SOAPYSDR
       if(protocol==SOAPYSDR_PROTOCOL) {
-       level-=rx->rf_gain;
+        //level-=rx->rf_gain;
+        level-=adc[rx->id].gain;
       }
 #endif
       if (filter_board == CHARLY25) {

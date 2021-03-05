@@ -345,6 +345,8 @@ extern void setTuneDrive(double d);
 extern void calcTuneDriveLevel();
 extern void setSquelch(RECEIVER *rx);
 
+extern void radio_set_rf_gain(RECEIVER *rx);
+
 extern void set_attenuation(int value);
 extern void set_alex_rx_antenna(int v);
 extern void set_alex_tx_antenna(int v);

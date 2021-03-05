@@ -485,6 +485,10 @@ static void add_cb(GtkButton *widget,gpointer user_data) {
   gint type;
   gint action;
 
+  if(str_type==NULL || str_action==NULL) {
+    return;
+  }
+
   if(strcmp(str_type,"KEY")==0) {
     type=MIDI_KEY;
   } else if(strcmp(str_type,"KNOB/SLIDER")==0) {
@@ -871,17 +875,19 @@ static int update(void *data) {
       gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newType),NULL,"NONE");
       switch(thisEvent) {
         case EVENT_NONE:
+          gtk_combo_box_set_active (GTK_COMBO_BOX(newType),0);
           break;
         case MIDI_NOTE:
         case MIDI_PITCH:
           gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newType),NULL,"KEY");
+          gtk_combo_box_set_active (GTK_COMBO_BOX(newType),1);
           break;
         case MIDI_CTRL:
           gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newType),NULL,"KNOB/SLIDER");
           gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newType),NULL,"WHEEL");
+          gtk_combo_box_set_active (GTK_COMBO_BOX(newType),0);
           break;
       }
-      gtk_combo_box_set_active (GTK_COMBO_BOX(newType),0);
       gtk_combo_box_text_remove_all(GTK_COMBO_BOX_TEXT(newAction));
       gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newAction),NULL,"NONE");
       gtk_combo_box_set_active (GTK_COMBO_BOX(newAction),0);

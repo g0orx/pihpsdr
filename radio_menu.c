@@ -93,20 +93,18 @@ static void rf_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
 
 static void rx_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
   ADC *adc=(ADC *)data;
-  int gain;
   if(radio->device==SOAPYSDR_USB_DEVICE) {
-    gain=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
-    soapy_protocol_set_gain_element(receiver[0],(char *)gtk_widget_get_name(widget),gain);
-
+    adc->gain=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+    soapy_protocol_set_gain_element(receiver[0],(char *)gtk_widget_get_name(widget),adc->gain);
 /*
     for(int i=0;i<radio->info.soapy.rx_gains;i++) {
       if(strcmp(radio->info.soapy.rx_gain[i],(char *)gtk_widget_get_name(widget))==0) {
         adc[0].rx_gain[i]=gain;
+        soapy_protocol_set_gain_element(receiver[0],(char *)gtk_widget_get_name(widget),gain);
         break;
       }
     }
 */
-
   }
 }
 
@@ -145,7 +143,10 @@ static void tx_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
 static void agc_changed_cb(GtkWidget *widget, gpointer data) {
   ADC *adc=(ADC *)data;
   gboolean agc=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-  soapy_protocol_set_automatic_gain(receiver[0],agc);
+  soapy_protocol_set_automatic_gain(active_receiver,agc);
+  if(!agc) {
+    soapy_protocol_set_gain(active_receiver);
+  } 
 }
 
 /*
@@ -850,7 +851,7 @@ void radio_menu(GtkWidget *parent) {
     row++;
     temp_row=row;
     col=0;
-    if(strcmp(radio->name,"sdrplay")==0) {
+    if(strcmp(radio->name,"sdrplay")==0 || strcmp(radio->name,"rtlsdr")==0) {
       for(i=0;i<radio->info.soapy.rx_gains;i++) {
         col=0;
         GtkWidget *rx_gain_label=gtk_label_new(radio->info.soapy.rx_gain[i]);
@@ -883,7 +884,8 @@ void radio_menu(GtkWidget *parent) {
         max=73.0;
       }
       GtkWidget *rf_gain_b=gtk_spin_button_new_with_range(0.0,max,1.0);
-      gtk_spin_button_set_value(GTK_SPIN_BUTTON(rf_gain_b),active_receiver->rf_gain);
+      //gtk_spin_button_set_value(GTK_SPIN_BUTTON(rf_gain_b),active_receiver->rf_gain);
+      gtk_spin_button_set_value(GTK_SPIN_BUTTON(rf_gain_b),adc[active_receiver->id].gain);
       gtk_grid_attach(GTK_GRID(grid),rf_gain_b,col,row,1,1);
       g_signal_connect(rf_gain_b,"value_changed",G_CALLBACK(rf_gain_value_changed_cb),&adc[0]);
 

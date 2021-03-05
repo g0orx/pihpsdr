@@ -44,7 +44,6 @@ typedef struct _receiver {
   gint adc;
 
   gdouble volume;
-  gdouble rf_gain;
 
   gint agc;
   gdouble agc_gain;
@@ -64,7 +63,6 @@ typedef struct _receiver {
   gdouble *iq_input_buffer;
   gdouble *audio_output_buffer;
   gint audio_buffer_size;
-  //guchar *audio_buffer;
   gint audio_index;
   guint32 audio_sequence;
   gfloat *pixel_samples;

@@ -92,8 +92,8 @@ void i2c_interrupt() {
           if(i2c_sw[i]==ints) break;
         }
         if(i<16) {
-//g_print("i1c_interrupt: sw=%d action=%d\n",i,sw_action[i]);
-          switch(sw_action[i]) {
+//g_print("i1c_interrupt: sw=%d action=%d\n",i,switches[i].switch_function);
+          switch(switches[i].switch_function) {
             case TUNE:
               if(can_transmit) {
                 int tune=getTune();

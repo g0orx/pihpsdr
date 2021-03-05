@@ -500,7 +500,8 @@ void rx_panadapter_update(RECEIVER *rx) {
   }
 #ifdef SOAPYSDR
   if(protocol==SOAPYSDR_PROTOCOL) {
-    s1-=rx->rf_gain;
+    //s1-=rx->rf_gain;
+    s1-=adc[rx->id].gain;
   }
 #endif
 
@@ -521,7 +522,8 @@ void rx_panadapter_update(RECEIVER *rx) {
     }
 #ifdef SOAPYSDR
     if(protocol==SOAPYSDR_PROTOCOL) {
-      s2-=rx->rf_gain;
+      //s2-=rx->rf_gain;
+      s2-=adc[rx->id].gain;
     }
 #endif
     s2 = floor((rx->panadapter_high - s2)
