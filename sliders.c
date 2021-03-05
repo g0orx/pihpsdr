@@ -855,13 +855,17 @@ fprintf(stderr,"sliders_init: width=%d height=%d\n", width,height);
     gtk_widget_override_font(rf_gain_label, pango_font_description_from_string("Sans 10"));
     gtk_widget_show(rf_gain_label);
     gtk_grid_attach(GTK_GRID(sliders),rf_gain_label,6,0,1,1);
+#ifdef SOAPYSDR
     if(protocol==SOAPYSDR_PROTOCOL) {
       rf_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,adc[0].min_gain, adc[0].max_gain, 1.0);
       gtk_range_set_value (GTK_RANGE(rf_gain_scale),adc[0].gain);
     } else {
+#endif
       rf_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-12.0, 48.0, 1.0);
       gtk_range_set_value (GTK_RANGE(rf_gain_scale),adc_attenuation[active_receiver->adc]);
+#ifdef SOAPYSDR
     }
+#endif
     gtk_widget_override_font(rf_gain_scale, pango_font_description_from_string("Sans 10"));
     gtk_range_set_increments (GTK_RANGE(rf_gain_scale),1.0,1.0);
     gtk_widget_show(rf_gain_scale);
