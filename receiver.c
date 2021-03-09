@@ -168,7 +168,7 @@ gboolean receiver_motion_notify_event(GtkWidget *widget, GdkEventMotion *event, 
     //
     int moved=x-last_x;
     if (moved) {
-      if (has_moved || move < -1 || move > 1) {
+      if (has_moved || moved < -1 || moved > 1) {
         vfo_move((long long)((float)moved*rx->hz_per_pixel),FALSE);
         last_x=x;
         has_moved=TRUE;
