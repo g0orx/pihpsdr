@@ -126,6 +126,8 @@ char *sw_string[SWITCH_ACTIONS] = {
   "TUNE FULL",
   "TUNE MEM",
   "TWO TONE",
+  "VFOSTEP +",
+  "VFOSTEP -",
   "XIT",
   "XIT CL",
   "XIT -",
@@ -183,6 +185,8 @@ char *sw_cap_string[SWITCH_ACTIONS] = {
   "TUN-F",
   "TUN-M",
   "2TONE",
+  "STEP+",
+  "STEP-",
   "XIT",
   "XIT CL",
   "XIT -",
@@ -499,6 +503,7 @@ int encoder_action(void *data) {
 }
 
 int switch_action(void *data) {
+  int i;
   SWITCH_ACTION *a=(SWITCH_ACTION *)data;
   if(a->state==PRESSED) {
     switch(a->action) {
@@ -572,6 +577,26 @@ int switch_action(void *data) {
           tx_set_twotone(transmitter,state);
         }
         break;
+      case VFOSTEP_PLUS:
+        for(i=0;i<STEPS;i++) {
+          if(steps[i]==step) break;
+        }
+        if(i>=STEPS) i=0;
+	i++;
+	if(i>=STEPS) i=0;
+        step=steps[i];
+        g_idle_add(ext_vfo_update, NULL);
+	break;
+      case VFOSTEP_MINUS:
+        for(i=0;i<STEPS;i++) {
+          if(steps[i]==step) break;
+        }
+        if(i>=STEPS) i=0;
+	i--;
+	if(i<0) i=STEPS-1;
+        step=steps[i];
+        g_idle_add(ext_vfo_update, NULL);
+	break;
       case NR:
         if(active_receiver->nr==0 && active_receiver->nr2==0) {
           active_receiver->nr=1;

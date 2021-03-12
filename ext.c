@@ -264,10 +264,11 @@ int ext_tx_set_ps(void *data) {
 
 int ext_update_vfo_step(void *data) {
   int direction=GPOINTER_TO_INT(data);
-  int i=0;
-  while(steps[i]!=step && steps[i]!=0) {
-    i++;
+  int i;
+  for(i=0;i<STEPS;i++) {
+    if(steps[i]==step) break;
   }
+  if(step>=STEPS) i=0;
 
   if(steps[i]!=0) {
     if(direction>0) {
