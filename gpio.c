@@ -778,11 +778,7 @@ void gpio_save_state() {
     }
   }
 
-<<<<<<< HEAD
   if(controller==CONTROLLER2_V1 || controller==CONTROLLER2_V2) {
-=======
-  if(controller!=CONTROLLER1) {
->>>>>>> 98419181d3881fcaa1986ff14175d74cb9e1bccf
     for(int i=0;i<MAX_SWITCHES;i++) {
       sprintf(name,"switches[%d].switch_enabled",i);
       sprintf(value,"%d",switches[i].switch_enabled);
@@ -823,11 +819,7 @@ void gpio_restore_actions() {
       if(value) switches_controller1[f][i].switch_function=atoi(value);
     }
   }
-<<<<<<< HEAD
   if(controller==CONTROLLER2_V1 || controller==CONTROLLER2_V2) {
-=======
-  if(controller!=CONTROLLER1) {
->>>>>>> 98419181d3881fcaa1986ff14175d74cb9e1bccf
     for(int i=0;i<MAX_SWITCHES;i++) {
       sprintf(name,"switches[%d].switch_function",i);
       value=getProperty(name);
@@ -860,11 +852,7 @@ void gpio_save_actions() {
       setProperty(name,value);
     }
   }
-<<<<<<< HEAD
   if(controller==CONTROLLER2_V1 || controller==CONTROLLER2_V2) {
-=======
-  if(controller!=CONTROLLER1) {
->>>>>>> 98419181d3881fcaa1986ff14175d74cb9e1bccf
     for(int i=0;i<MAX_SWITCHES;i++) {
       sprintf(name,"switches[%d].switch_function",i);
       sprintf(value,"%d",switches[i].switch_function);
