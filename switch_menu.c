@@ -77,6 +77,7 @@ void switch_page_cb(GtkNotebook *notebook,GtkWidget *page,guint page_num,gpointe
 static void switch_select_cb(GtkWidget *widget, gpointer data) {
   char text[128];
   CHOICE *choice=(CHOICE *)data;
+g_print("%s: temp_switches=%p\n",__FUNCTION__,temp_switches);
   temp_switches[choice->sw].switch_function=choice->action;
   GtkWidget *label=gtk_bin_get_child(GTK_BIN(choice->button));
   sprintf(text,"<span size=\"smaller\">%s</span>",sw_string[choice->action]);
@@ -129,6 +130,7 @@ void switch_menu(GtkWidget *parent) {
   GtkWidget *widget;
   gint function=0;
 
+g_print("%s: switches_no_controller=%p switches_controller1=%p switches_controller2_v1=%p switches_controller2_v2=%p\n",__FUNCTION__,&switches_no_controller,&switches_controller1,&switches_controller2_v1,&switches_controller2_v2);
 
   dialog=gtk_dialog_new_with_buttons("piHPSDR - Switch Actions",GTK_WINDOW(parent),GTK_DIALOG_DESTROY_WITH_PARENT,("OK"),GTK_RESPONSE_ACCEPT,NULL);
   g_signal_connect (dialog, "response", G_CALLBACK (response_event), NULL);
@@ -172,6 +174,8 @@ next_function_set:
       temp_switches=switches_controller2_v2;
       break;
   }
+
+  g_print("%s: temp_switches=%p\n",temp_switches);
 
   int original_row=row;
 

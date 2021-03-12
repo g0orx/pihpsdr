@@ -45,8 +45,8 @@ static int fd;
 #define SW_17 0X0100
 
 unsigned int i2c_sw[16]=
-    { SW_2,SW_3,SW_4,SW_5,SW_6,SW_7,SW_8,SW_9,
-      SW_10,SW_11,SW_12,SW_13,SW_14,SW_15,SW_16,SW_17 };
+    { SW_2,SW_3,SW_4,SW_5,SW_6,SW_14,SW_15,SW_13,
+      SW_12,SW_11,SW_10,SW_9,SW_7,SW_8,SW_16,SW_17 };
 
 static int write_byte_data(unsigned char reg, unsigned char data) {
   int rc;
@@ -85,14 +85,20 @@ void i2c_interrupt() {
     flags=read_word_data(0x0E);
     if(flags) {
       ints=read_word_data(0x10);
-//g_print("i2c_interrupt: flags=%04X ints=%04X\n",flags,ints);
+g_print("%s: flags=%04X ints=%04X\n",__FUNCTION__,flags,ints);
       if(ints) {
         int i;
         for(i=0;i<16;i++) {
           if(i2c_sw[i]==ints) break;
         }
         if(i<16) {
-//g_print("i1c_interrupt: sw=%d action=%d\n",i,switches[i].switch_function);
+g_print("%s: switches=%p sw=%d action=%d\n",__FUNCTION__,switches,i,switches[i].switch_function);
+          SWITCH_ACTION *a=g_new(SWITCH_ACTION,1);
+          a->action=switches[i].switch_function;
+          a->state=PRESSED;
+          g_idle_add(switch_action,a);
+
+/*
           switch(switches[i].switch_function) {
             case TUNE:
               if(can_transmit) {
@@ -233,6 +239,7 @@ void i2c_interrupt() {
               g_idle_add(ext_zoom_update,GINT_TO_POINTER(1));
               break;
           }
+*/
         }
       }
     }
