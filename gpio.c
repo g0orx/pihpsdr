@@ -777,7 +777,7 @@ void gpio_save_state() {
     }
   }
 
-  if(controller!=CONTROLLER1) {
+  if(controller==CONTROLLER2_V1 || controller==CONTROLLER2_V2) {
     for(int i=0;i<MAX_SWITCHES;i++) {
       sprintf(name,"switches[%d].switch_enabled",i);
       sprintf(value,"%d",switches[i].switch_enabled);
@@ -797,16 +797,18 @@ void gpio_save_state() {
 void gpio_restore_actions() {
   char name[80];
   char *value;
-  for(int i=0;i<MAX_ENCODERS;i++) {
-    sprintf(name,"encoders[%d].bottom_encoder_function",i);
-    value=getProperty(name);
-    if(value) encoders[i].bottom_encoder_function=atoi(value);
-    sprintf(name,"encoders[%d].top_encoder_function",i);
-    value=getProperty(name);
-    if(value) encoders[i].top_encoder_function=atoi(value);
-    sprintf(name,"encoders[%d].switch_function",i);
-    value=getProperty(name);
-    if(value) encoders[i].switch_function=atoi(value);
+  if(controller!=NO_CONTROLLER) {
+    for(int i=0;i<MAX_ENCODERS;i++) {
+      sprintf(name,"encoders[%d].bottom_encoder_function",i);
+      value=getProperty(name);
+      if(value) encoders[i].bottom_encoder_function=atoi(value);
+      sprintf(name,"encoders[%d].top_encoder_function",i);
+      value=getProperty(name);
+      if(value) encoders[i].top_encoder_function=atoi(value);
+      sprintf(name,"encoders[%d].switch_function",i);
+      value=getProperty(name);
+      if(value) encoders[i].switch_function=atoi(value);
+    }
   }
 
   for(int f=0;f<MAX_FUNCTIONS;f++) {
@@ -816,7 +818,7 @@ void gpio_restore_actions() {
       if(value) switches_controller1[f][i].switch_function=atoi(value);
     }
   }
-  if(controller!=CONTROLLER1) {
+  if(controller==CONTROLLER2_V1 || controller==CONTROLLER2_V2) {
     for(int i=0;i<MAX_SWITCHES;i++) {
       sprintf(name,"switches[%d].switch_function",i);
       value=getProperty(name);
@@ -828,16 +830,18 @@ void gpio_restore_actions() {
 void gpio_save_actions() {
   char value[80];
   char name[80];
-  for(int i=0;i<MAX_ENCODERS;i++) {
-    sprintf(name,"encoders[%d].bottom_encoder_function",i);
-    sprintf(value,"%d",encoders[i].bottom_encoder_function);
-    setProperty(name,value);
-    sprintf(name,"encoders[%d].top_encoder_function",i);
-    sprintf(value,"%d",encoders[i].top_encoder_function);
-    setProperty(name,value);
-    sprintf(name,"encoders[%d].switch_function",i);
-    sprintf(value,"%d",encoders[i].switch_function);
-    setProperty(name,value);
+  if(controller!=NO_CONTROLLER) {
+    for(int i=0;i<MAX_ENCODERS;i++) {
+      sprintf(name,"encoders[%d].bottom_encoder_function",i);
+      sprintf(value,"%d",encoders[i].bottom_encoder_function);
+      setProperty(name,value);
+      sprintf(name,"encoders[%d].top_encoder_function",i);
+      sprintf(value,"%d",encoders[i].top_encoder_function);
+      setProperty(name,value);
+      sprintf(name,"encoders[%d].switch_function",i);
+      sprintf(value,"%d",encoders[i].switch_function);
+      setProperty(name,value);
+    }
   }
 
   for(int f=0;f<MAX_FUNCTIONS;f++) {
@@ -847,7 +851,7 @@ void gpio_save_actions() {
       setProperty(name,value);
     }
   }
-  if(controller!=CONTROLLER1) {
+  if(controller==CONTROLLER2_V1 || controller==CONTROLLER2_V2) {
     for(int i=0;i<MAX_SWITCHES;i++) {
       sprintf(name,"switches[%d].switch_function",i);
       sprintf(value,"%d",switches[i].switch_function);
