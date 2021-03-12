@@ -139,6 +139,7 @@ int audio_open_output(RECEIVER *rx) {
     sample_spec.rate=48000;
     sample_spec.channels=2;
     sample_spec.format=PA_SAMPLE_FLOAT32NE;
+   
 
     char stream_id[16];
     sprintf(stream_id,"RX-%d",rx->id);

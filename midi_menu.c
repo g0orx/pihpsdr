@@ -849,6 +849,7 @@ static int update(void *data) {
   int state=GPOINTER_TO_INT(data);
   gchar text[32];
   gint i=1;
+  gint j;
 
   switch(state) {
     case UPDATE_NEW:
@@ -891,6 +892,21 @@ static int update(void *data) {
       gtk_combo_box_text_remove_all(GTK_COMBO_BOX_TEXT(newAction));
       gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newAction),NULL,"NONE");
       gtk_combo_box_set_active (GTK_COMBO_BOX(newAction),0);
+      if(thisEvent==MIDI_PITCH || thisEvent==MIDI_NOTE) {
+	i=1;
+	j=0;
+	while(ActionTable[i].action!=ACTION_NONE) {
+          if(ActionTable[i].type&MIDI_KEY) {
+            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newAction),NULL,ActionTable[i].str);
+            if(ActionTable[i].action==thisAction) {
+              gtk_combo_box_set_active(GTK_COMBO_BOX(newAction),j);
+            }
+            j++;
+          }
+          i++;
+        }
+
+      }
       sprintf(text,"%d",thisVal);
       gtk_label_set_text(GTK_LABEL(newVal),text);
       sprintf(text,"%d",thisMin);

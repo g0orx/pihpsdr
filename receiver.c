@@ -1073,7 +1073,6 @@ g_print("%s: id=%d sample_rate=%d\n",__FUNCTION__,rx->id, rx->sample_rate);
 
 
 g_print("%s (after restore): rx=%p id=%d audio_buffer_size=%d local_audio=%d\n",__FUNCTION__,rx,rx->id,rx->audio_buffer_size,rx->local_audio);
-  //rx->audio_buffer=g_new(guchar,rx->audio_buffer_size);
   int scale=rx->sample_rate/48000;
   rx->output_samples=rx->buffer_size/scale;
   rx->audio_output_buffer=g_new(gdouble,2*rx->output_samples);
