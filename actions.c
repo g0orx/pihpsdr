@@ -322,7 +322,7 @@ int encoder_action(void *data) {
       filter_shift_changed(1,a->val);
       break;
     case ENCODER_ATTENUATION:
-      value=(double)adc_attenuation[active_receiver->adc];
+      value=(double)adc[active_receiver->adc].attenuation;
       value+=(double)a->val;
       if(have_rx_gain) {
         if(value<-12.0) {

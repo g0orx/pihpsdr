@@ -109,7 +109,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 		}
 		break;
 	      case MIDI_WHEEL:
-		new=adc_attenuation[active_receiver->adc] + val;
+		new=adc[active_receiver->adc].attenuation + val;
 		dp=malloc(sizeof(double));
 		*dp=(double) new;
                 if(have_rx_gain) {

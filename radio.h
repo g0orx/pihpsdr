@@ -191,7 +191,7 @@ extern int receivers;
 
 extern ADC adc[2];
 extern DAC dac[2];
-extern int adc_attenuation[2];
+//extern int adc_attenuation[2];
 
 extern int locked;
 

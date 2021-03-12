@@ -193,9 +193,9 @@ if(analog_meter) {
     case SMETER:
       {
       if(have_rx_gain) {
-        level=value+rx_gain_calibration-adc_attenuation[rx->adc];
+        level=value+rx_gain_calibration-adc[rx->adc].attenuation;
       } else {
-        level=value+(double)adc_attenuation[rx->adc];
+        level=value+(double)adc[rx->adc].attenuation;
       }
 #ifdef SOAPYSDR
       if(protocol==SOAPYSDR_PROTOCOL) {
@@ -563,9 +563,9 @@ if(analog_meter) {
       text_location=10;
       offset=5.0;
       if(have_rx_gain) {
-        level=value+rx_gain_calibration-adc_attenuation[rx->adc];
+        level=value+rx_gain_calibration-adc[rx->adc].attenuation;
       } else {
-        level=value+(double)adc_attenuation[rx->adc];
+        level=value+(double)adc[rx->adc].attenuation;
       }
 #ifdef SOAPYSDR
       if(protocol==SOAPYSDR_PROTOCOL) {

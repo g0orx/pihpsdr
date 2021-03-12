@@ -1816,9 +1816,9 @@ static int last_power=0;
           } else {
 	    // if diversity is enabled, use RX1 att value for RX2
             if (diversity_enabled) {
-              output_buffer[C1]=0x20 | (adc_attenuation[receiver[0]->adc] & 0x1F);
+              output_buffer[C1]=0x20 | (adc[receiver[0]->adc].attenuation & 0x1F);
 	    } else {
-              output_buffer[C1]=0x20 | (adc_attenuation[receiver[1]->adc] & 0x1F);
+              output_buffer[C1]=0x20 | (adc[receiver[1]->adc].attenuation & 0x1F);
 	    }
           }
         }

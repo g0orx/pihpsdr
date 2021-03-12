@@ -1101,11 +1101,11 @@ static void new_protocol_high_priority() {
       high_priority_buffer_to_radio[1443]=transmitter->attenuation;
       high_priority_buffer_to_radio[1442]=31;
     } else {
-      high_priority_buffer_to_radio[1443]=adc_attenuation[0];	
+      high_priority_buffer_to_radio[1443]=adc[0].attenuation;	
       if (diversity_enabled) {
-        high_priority_buffer_to_radio[1442]=adc_attenuation[0];  // DIVERSITY: ADC0 att value for ADC1 as well
+        high_priority_buffer_to_radio[1442]=adc[0].attenuation;  // DIVERSITY: ADC0 att value for ADC1 as well
       } else {
-        high_priority_buffer_to_radio[1442]=adc_attenuation[1];
+        high_priority_buffer_to_radio[1442]=adc[1].attenuation;
       }
     }
 

@@ -420,13 +420,13 @@ void rx_panadapter_update(RECEIVER *rx) {
 
   // agc
   if(rx->agc!=AGC_OFF) {
-    double knee_y=rx->agc_thresh+(double)adc_attenuation[rx->adc];
+    double knee_y=rx->agc_thresh+(double)adc[rx->adc].attenuation;
     if (filter_board == ALEX && rx->adc == 0) knee_y += (double)(10*rx->alex_attenuation);
     knee_y = floor((rx->panadapter_high - knee_y)
                         * (double) display_height
                         / (rx->panadapter_high - rx->panadapter_low));
 
-    double hang_y=rx->agc_hang+(double)adc_attenuation[rx->adc];
+    double hang_y=rx->agc_hang+(double)adc[rx->adc].attenuation;
     if (filter_board == ALEX && rx->adc == 0) hang_y += (double)(10*rx->alex_attenuation);
     hang_y = floor((rx->panadapter_high - hang_y)
                         * (double) display_height
@@ -488,9 +488,9 @@ void rx_panadapter_update(RECEIVER *rx) {
   samples[pan]=-200.0;
   samples[display_width-1+pan]=-200.0;
   if(have_rx_gain) {
-    s1=(double)samples[pan]+rx_gain_calibration-adc_attenuation[rx->adc];
+    s1=(double)samples[pan]+rx_gain_calibration-adc[rx->adc].attenuation;
   } else {
-    s1=(double)samples[pan]+(double)adc_attenuation[rx->adc];
+    s1=(double)samples[pan]+(double)adc[rx->adc].attenuation;
   }
   cairo_move_to(cr, 0.0, s1);
   if (filter_board == ALEX && rx->adc == 0) s1 += (double)(10*rx->alex_attenuation);
@@ -511,9 +511,9 @@ void rx_panadapter_update(RECEIVER *rx) {
   cairo_move_to(cr, 0.0, s1);
   for(i=1;i<display_width;i++) {
     if(have_rx_gain) {
-      s2=(double)samples[i+pan]+rx_gain_calibration-adc_attenuation[rx->adc];
+      s2=(double)samples[i+pan]+rx_gain_calibration-adc[rx->adc].attenuation;
     } else {
-      s2=(double)samples[i+pan]+(double)adc_attenuation[rx->adc];
+      s2=(double)samples[i+pan]+(double)adc[rx->adc].attenuation;
     }
     if (filter_board == ALEX && rx->adc == 0) s2 += (double)(10*rx->alex_attenuation);
     if (filter_board == CHARLY25) {
