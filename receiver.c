@@ -153,7 +153,7 @@ gboolean receiver_motion_notify_event(GtkWidget *widget, GdkEventMotion *event, 
                                     &y,
                                     &state);
     //
-    // Sometimes it turned out to be difficult sometimes to "jump" to a
+    // Sometimes it turned out to be difficult to "jump" to a
     // new frequency by just clicking in the panadaper. Futher analysis
     // showed that there were "moves" with zero offset arriving between
     // pressing and releasing the mouse button.
