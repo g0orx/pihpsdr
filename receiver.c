@@ -142,27 +142,37 @@ gboolean receiver_motion_notify_event(GtkWidget *widget, GdkEventMotion *event, 
   int x, y;
   GdkModifierType state;
   RECEIVER *rx=(RECEIVER *)data;
-  // DL1YCF: if !pressed, we may come from the destruction
-  //         of a menu, and should not move the VFO.
-  if(!making_active && pressed) {
+  //
+  // if !pressed, we may come from the destruction
+  // of a menu, and should not move the VFO.
+  //
+  if (!making_active && pressed) {
     gdk_window_get_device_position (event->window,
-                                event->device,
-                                &x,
-                                &y,
-                                &state);
+                                    event->device,
+                                    &x,
+                                    &y,
+                                    &state);
     //
-    // It turns out to be difficult sometimes to "jump" to a
-    // frequency by just clicking in the panadaper, since there
-    // might be a move of zero or one pixel between pressing
-    // and releasing the mouse button.
-    // Treat this is a "press/release" event that sets the VFO
-    // frequency to where we have clicked.
+    // Sometimes it turned out to be difficult to "jump" to a
+    // new frequency by just clicking in the panadaper. Futher analysis
+    // showed that there were "moves" with zero offset arriving between
+    // pressing and releasing the mouse button.
+    // (In fact, on my Macintosh I see zillions of moves with zero offset)
+    // Accepting such a "move" between a  "press" and the next "release" event
+    // sets "has_moved" and results in a "VFO drag" instead of a "VFO set".
+    //
+    // So we do the following:
+    // - "moves" with zero offset are always ignored
+    // - the first "move" to be accepted after a "press" must lead us
+    //   at least 2 pixels away from the original position.
     //
     int moved=x-last_x;
-    if (moved > 1 || moved < -1) {
-      vfo_move((long long)((float)moved*rx->hz_per_pixel),FALSE);
-      last_x=x;
-      has_moved=TRUE;
+    if (moved) {
+      if (has_moved || moved < -1 || moved > 1) {
+        vfo_move((long long)((float)moved*rx->hz_per_pixel),FALSE);
+        last_x=x;
+        has_moved=TRUE;
+      }
     }
   }
 
