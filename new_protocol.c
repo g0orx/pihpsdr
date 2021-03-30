@@ -1956,7 +1956,16 @@ static void process_mic_data(int bytes) {
   for(i=0;i<MIC_SAMPLES;i++) {
     sample=(short)(buffer[b++]<<8);
     sample |= (short) (buffer[b++]&0xFF);
-    fsample = transmitter->local_microphone ? audio_get_next_mic_sample() : (float) sample * 0.00003051;
+    //
+    // If PTT comes from the radio, possibly use audio from BOTH sources
+    // we just add on since in most cases, only one souce will be "active"
+    //
+    if (local_ptt) {
+      fsample = (float) sample * 0.00003051;
+      if (transmitter->local_microphone) fsample +=  audio_get_next_mic_sample();
+    } else {
+      fsample = transmitter->local_microphone ? audio_get_next_mic_sample() : (float) sample * 0.00003051;
+    }
     add_mic_sample(transmitter,fsample);
   }
 }

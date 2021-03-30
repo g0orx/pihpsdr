@@ -1318,7 +1318,19 @@ static void process_ozy_byte(int b) {
       mic_sample|=(short)(b&0xFF);
       mic_samples++;
       if(mic_samples>=mic_sample_divisor) { // reduce to 48000
-        fsample = transmitter->local_microphone ? audio_get_next_mic_sample() : (float) mic_sample * 0.00003051;
+        //
+        // if local_ptt is set, this usually means the PTT at the microphone connected
+        // to the SDR is pressed. In this case, we take audio from BOTH sources
+        // then we can use a "voice keyer" on some loop-back interface but at the same
+        // time use our microphone.
+        // In most situations only one source will be active so we just add.
+        //
+        if (local_ptt) {
+          fsample = (float) mic_sample * 0.00003051;
+          if (transmitter->local_microphone) fsample += audio_get_next_mic_sample();
+        } else {
+          fsample = transmitter->local_microphone ? audio_get_next_mic_sample() : (float) mic_sample * 0.00003051;
+        }
         add_mic_sample(transmitter,fsample);
         mic_samples=0;
       }
