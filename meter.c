@@ -140,7 +140,7 @@ fprintf(stderr,"meter_init: width=%d height=%d\n",width,height);
 }
 
 
-void meter_update(RECEIVER *rx,int meter_type,double value,double reverse,double exciter,double alc) {
+void meter_update(RECEIVER *rx,int meter_type,double value,double reverse,double alc,double swr) {
   
   double level;
   char sf[32];
@@ -148,28 +148,10 @@ void meter_update(RECEIVER *rx,int meter_type,double value,double reverse,double
   double offset;
   char *units="W";
   double interval=10.0;
-  static double swr = 1.0;  // will eventually become part of TRANSMITTER
   cairo_t *cr = cairo_create (meter_surface);
 
   if(meter_type==POWER) {
     level=value;
-    if(level==0.0) {
-      level=exciter;
-      reverse=0.0;  // If no fwd power is available, clear reverse power
-    }
-    if (level > 0.01 && level > 1.01*reverse) {
-        //
-        // SWR means VSWR (voltage based) but we have the forward and
-        // reflected power, so correct for that
-        //
-        double gamma=sqrt(reverse/level);
-        swr=0.7*(1+gamma)/(1-gamma) + 0.3*swr;
-    } else {
-        //
-        // This value may be used for auto SWR protection, so move towards 1.0
-        //
-        swr = 0.7 + 0.3*swr;
-    }
     switch(pa_power) {
       case PA_1W:
         units="mW";

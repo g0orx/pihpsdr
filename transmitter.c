@@ -612,10 +612,33 @@ static gboolean update_display(gpointer data) {
     double fwd=compute_power(transmitter->fwd);
     double rev=compute_power(transmitter->rev);
 
+    //
+    // Calculate SWR here such that it is available in DUPLEX mode
+    // transmitter->swr can be used in other parts of the program to
+    // implement SWR protection etc.
+    //
+    if (fwd > 0.01 && fwd > 1.01*rev) {
+        //
+        // SWR means VSWR (voltage based) but we have the forward and
+        // reflected power, so correct for that
+        //
+        double gamma=sqrt(rev/fwd);
+        transmitter->swr=0.7*(1+gamma)/(1-gamma) + 0.3*transmitter->swr;
+    } else {
+        //
+        // This value may be used for auto SWR protection, so move towards 1.0
+        //
+        transmitter->swr = 0.7 + 0.3*transmitter->swr;
+    }
+    if (fwd == 0.0) {
+      fwd = transmitter->exciter;
+    }
+
+
 //g_print("transmitter: meter_update: fwd:%f->%f rev:%f->%f ex_fwd=%d alex_fwd=%d alex_rev=%d\n",transmitter->fwd,fwd,transmitter->rev,rev,exciter_power,alex_forward_power,alex_reverse_power);
 
     if(!duplex) {
-      meter_update(active_receiver,POWER,/*transmitter->*/fwd,/*transmitter->*/rev,transmitter->exciter,transmitter->alc);
+      meter_update(active_receiver,POWER,fwd,rev,transmitter->alc,transmitter->swr);
     }
 
     return TRUE; // keep going
@@ -804,6 +827,7 @@ fprintf(stderr,"create_transmitter: id=%d buffer_size=%d mic_sample_rate=%d mic_
 
   tx->dialog_x=-1;
   tx->dialog_y=-1;
+  tx->swr = 1.0;
 
   transmitter_restore_state(tx);
 

@@ -102,6 +102,7 @@ typedef struct _transmitter {
   double exciter;
   double rev;
   double alc;
+  double swr;
 
   gint xit_enabled;
   long long xit;
