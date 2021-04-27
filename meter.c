@@ -45,7 +45,6 @@ static int meter_height;
 static int last_meter_type=SMETER;
 static double max_level=-200.0;
 static int max_count=0;
-static int max_reverse=0;
 
 static void
 meter_clear_surface (void)
@@ -149,18 +148,34 @@ void meter_update(RECEIVER *rx,int meter_type,double value,double reverse,double
   double offset;
   char *units="W";
   double interval=10.0;
+  static double swr = 1.0;  // will eventually become part of TRANSMITTER
   cairo_t *cr = cairo_create (meter_surface);
 
   if(meter_type==POWER) {
     level=value;
     if(level==0.0) {
       level=exciter;
+      reverse=0.0;  // If no fwd power is available, clear reverse power
+    }
+    if (level > 0.01 && level > 1.01*reverse) {
+        //
+        // SWR means VSWR (voltage based) but we have the forward and
+        // reflected power, so correct for that
+        //
+        double gamma=sqrt(reverse/level);
+        swr=0.7*(1+gamma)/(1-gamma) + 0.3*swr;
+    } else {
+        //
+        // This value may be used for auto SWR protection, so move towards 1.0
+        //
+        swr = 0.7 + 0.3*swr;
     }
     switch(pa_power) {
       case PA_1W:
         units="mW";
         interval=100.0;
         level=level*1000.0;
+        reverse=reverse*1000;  // scale reverse as well to get correct SWR
         break;
       case PA_10W:
         interval=1.0;
@@ -183,6 +198,11 @@ void meter_update(RECEIVER *rx,int meter_type,double value,double reverse,double
     }
   }
 
+//
+// DL1YCF
+// there is a lot of code repetition in the analog and digital meter cases
+// which should be unified.
+//
 if(analog_meter) {
   cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
   cairo_paint (cr);
@@ -443,12 +463,6 @@ if(analog_meter) {
       cairo_move_to(cr, 80, meter_height-22);
       cairo_show_text(cr, sf);
 
-      double swr;
-      if (max_level > reverse) {
-        swr=(max_level+reverse)/(max_level-reverse);
-      } else {
-        swr=999.9;
-      }
       sprintf(sf,"SWR: %1.1f:1",swr);
       cairo_move_to(cr, 60, meter_height-12);
       cairo_show_text(cr, sf);
@@ -551,7 +565,6 @@ if(analog_meter) {
       max_level=-200;
     } else {
       max_level=0;
-      max_reverse=0;
     }
   }
 
@@ -685,12 +698,6 @@ if(analog_meter) {
       cairo_move_to(cr, 10, 35);
       cairo_show_text(cr, sf);
 
-      double swr;
-      if (max_level > reverse) {
-        swr=(max_level+reverse)/(max_level-reverse);
-      } else {
-        swr=999.9;
-      }
       cairo_select_font_face(cr, DISPLAY_FONT,
             CAIRO_FONT_SLANT_NORMAL,
             CAIRO_FONT_WEIGHT_BOLD);
