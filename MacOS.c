@@ -21,6 +21,8 @@
 #include <fcntl.h>
 #include <pwd.h>
 #include <uuid/uuid.h>
+#include <IOKit/IOKitLib.h>
+#include <IOKit/pwr_mgt/IOPMLib.h>
 
 void MacOSstartup(char *path) {
 //
@@ -54,6 +56,17 @@ void MacOSstartup(char *path) {
     struct stat st;
     int fdin, fdout;
     int rc;
+    static IOPMAssertionID keep_awake = 0;
+
+//
+//  This is to prevent "going to sleep" or activating the screen saver
+//  while piHPSDR is running
+//
+//  works from macOS 10.6 so should be enough
+//  no return check is needed
+ 
+    IOPMAssertionCreateWithName (kIOPMAssertionTypeNoDisplaySleep, kIOPMAssertionLevelOn,
+                                CFSTR ("piHPSDR"), &keep_awake);
 //
 //  If the current work dir is NOT "/", just do nothing
 //    
