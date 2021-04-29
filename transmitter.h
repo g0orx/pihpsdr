@@ -103,6 +103,8 @@ typedef struct _transmitter {
   double rev;
   double alc;
   double swr;
+  gboolean swr_protection;
+  double swr_alarm;
 
   gint xit_enabled;
   long long xit;

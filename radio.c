@@ -339,6 +339,7 @@ gboolean mute_rx_while_transmitting=FALSE;
 double drive_max=100;
 
 gboolean display_sequence_errors=TRUE;
+gboolean display_swr_protection=FALSE;
 gint sequence_errors=0;
 
 gint rx_height;

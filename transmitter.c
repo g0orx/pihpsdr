@@ -236,6 +236,12 @@ void transmitter_save_state(TRANSMITTER *tx) {
   sprintf(name,"transmitter.%d.tune_use_drive",tx->id);
   sprintf(value,"%d",tx->tune_use_drive);
   setProperty(name,value);
+  sprintf(name,"transmitter.%d.swr_protection",tx->id);
+  sprintf(value,"%d",tx->swr_protection);
+  setProperty(name,value);
+  sprintf(name,"transmitter.%d.swr_alarm",tx->id);
+  sprintf(value,"%f",tx->swr_alarm);
+  setProperty(name,value);
   sprintf(name,"transmitter.%d.drive_level",tx->id);
   sprintf(value,"%d",tx->drive_level);
   setProperty(name,value);
@@ -337,6 +343,12 @@ void transmitter_restore_state(TRANSMITTER *tx) {
   sprintf(name,"transmitter.%d.tune_use_drive",tx->id);
   value=getProperty(name);
   if(value) tx->tune_use_drive=atoi(value);
+  sprintf(name,"transmitter.%d.swr_protection",tx->id);
+  value=getProperty(name);
+  if(value) tx->swr_protection=atoi(value);
+  sprintf(name,"transmitter.%d.swr_alarm",tx->id);
+  value=getProperty(name);
+  if(value) tx->swr_alarm=atof(value);
   sprintf(name,"transmitter.%d.drive_level",tx->id);
   value=getProperty(name);
   if(value) tx->drive_level=atoi(value);
@@ -467,7 +479,7 @@ static gboolean update_display(gpointer data) {
       tx_panadapter_update(tx);
     }
 
-    transmitter->alc=GetTXAMeter(tx->id, alc);
+    tx->alc=GetTXAMeter(tx->id, alc);
     double constant1=3.3;
     double constant2=0.095;
     int fwd_cal_offset=6;
@@ -528,20 +540,20 @@ static gboolean update_display(gpointer data) {
         }
         fwd_power=fwd_power-fwd_cal_offset;
         v1=((double)fwd_power/4095.0)*constant1;
-        transmitter->fwd=(v1*v1)/constant2;
+        tx->fwd=(v1*v1)/constant2;
 
         if(device==DEVICE_HERMES_LITE || device==DEVICE_HERMES_LITE2) {
-          transmitter->exciter=0.0;
+          tx->exciter=0.0;
         } else {
           ex_power=ex_power-fwd_cal_offset;
           v1=((double)ex_power/4095.0)*constant1;
-          transmitter->exciter=(v1*v1)/constant2;
+          tx->exciter=(v1*v1)/constant2;
         }
 
-        transmitter->rev=0.0;
+        tx->rev=0.0;
         if(fwd_power!=0) {
           v1=((double)rev_power/4095.0)*constant1;
-          transmitter->rev=(v1*v1)/constant2;
+          tx->rev=(v1*v1)/constant2;
         }
         break;
       case NEW_PROTOCOL:
@@ -585,60 +597,77 @@ static gboolean update_display(gpointer data) {
         }
         fwd_power=fwd_power-fwd_cal_offset;
         v1=((double)fwd_power/4095.0)*constant1;
-        transmitter->fwd=(v1*v1)/constant2;
+        tx->fwd=(v1*v1)/constant2;
 
         ex_power=exciter_power;
         ex_power=ex_power-fwd_cal_offset;
         v1=((double)ex_power/4095.0)*constant1;
-        transmitter->exciter=(v1*v1)/constant2;
+        tx->exciter=(v1*v1)/constant2;
 
-        transmitter->rev=0.0;
+        tx->rev=0.0;
         if(alex_forward_power!=0) {
           rev_power=alex_reverse_power;
           v1=((double)rev_power/4095.0)*constant1;
-          transmitter->rev=(v1*v1)/constant2;
+          tx->rev=(v1*v1)/constant2;
         }
         break;
 
 #ifdef SOAPYSDR
       case SOAPYSDR_PROTOCOL:
-        transmitter->fwd=0.0;
-        transmitter->exciter=0.0;
-        transmitter->rev=0.0;
+        tx->fwd=0.0;
+        tx->exciter=0.0;
+        tx->rev=0.0;
         break;
 #endif
     }
 
-    double fwd=compute_power(transmitter->fwd);
-    double rev=compute_power(transmitter->rev);
+    //
+    // compute_power applies the interpolation table
+    // that corrects the power meter if it has been
+    // calibrated
+    //
+    double fwd=compute_power(tx->fwd);
+    double rev=compute_power(tx->rev);
+
+//g_print("transmitter: meter_update: fwd:%f->%f rev:%f->%f ex_fwd=%d alex_fwd=%d alex_rev=%d\n",tx->fwd,fwd,tx->rev,rev,exciter_power,alex_forward_power,alex_reverse_power);
+
+    tx->fwd=fwd;
+    tx->rev=rev;
 
     //
     // Calculate SWR here such that it is available in DUPLEX mode
-    // transmitter->swr can be used in other parts of the program to
+    // tx->swr can be used in other parts of the program to
     // implement SWR protection etc.
     //
-    if (fwd > 0.01 && fwd > 1.01*rev) {
+    if (tx->fwd > 0.01 && tx->fwd > 1.01*tx->rev) {
         //
         // SWR means VSWR (voltage based) but we have the forward and
         // reflected power, so correct for that
         //
-        double gamma=sqrt(rev/fwd);
-        transmitter->swr=0.7*(1+gamma)/(1-gamma) + 0.3*transmitter->swr;
+        double gamma=sqrt(tx->rev/tx->fwd);
+        tx->swr=0.7*(1+gamma)/(1-gamma) + 0.3*tx->swr;
     } else {
         //
         // This value may be used for auto SWR protection, so move towards 1.0
         //
-        transmitter->swr = 0.7 + 0.3*transmitter->swr;
+        tx->swr = 0.7 + 0.3*tx->swr;
     }
-    if (fwd == 0.0) {
-      fwd = transmitter->exciter;
-    }
+    if (tx->fwd <= 0.0) tx->fwd = tx->exciter;
 
 
-//g_print("transmitter: meter_update: fwd:%f->%f rev:%f->%f ex_fwd=%d alex_fwd=%d alex_rev=%d\n",transmitter->fwd,fwd,transmitter->rev,rev,exciter_power,alex_forward_power,alex_reverse_power);
+//
+//  If SWR is above threshold and SWR protection is enabled,
+//  set the drive slider to zero. Do not do this while tuning
+//
+    if (tx->swr_protection && !getTune() && tx->swr >= tx->swr_alarm) {
+      double *dp = malloc(sizeof(double));
+      *dp = 0.0;
+      g_idle_add(ext_set_drive, (gpointer) dp);
+      display_swr_protection = TRUE;
+    }
 
     if(!duplex) {
-      meter_update(active_receiver,POWER,fwd,rev,transmitter->alc,transmitter->swr);
+      meter_update(active_receiver,POWER,tx->fwd,tx->rev,tx->alc,tx->swr);
     }
 
     return TRUE; // keep going
@@ -828,6 +857,8 @@ fprintf(stderr,"create_transmitter: id=%d buffer_size=%d mic_sample_rate=%d mic_
   tx->dialog_x=-1;
   tx->dialog_y=-1;
   tx->swr = 1.0;
+  tx->swr_protection = FALSE;
+  tx->swr_alarm=3.0;       // default value for SWR protection
 
   transmitter_restore_state(tx);
 
@@ -1159,11 +1190,11 @@ static void full_tx_buffer(TRANSMITTER *tx) {
       // samples are sent with full amplitude.
       // DL1YCF: include factor 0.00392 since DriveLevel == 255 means full amplitude
       //
-      if(tune && !transmitter->tune_use_drive) {
-        double fac=sqrt((double)transmitter->tune_percent * 0.01);
-        gain=gain*(double)transmitter->drive_level*fac*0.00392;
+      if(tune && !tx->tune_use_drive) {
+        double fac=sqrt((double)tx->tune_percent * 0.01);
+        gain=gain*(double)tx->drive_level*fac*0.00392;
       } else {
-        gain=gain*(double)transmitter->drive_level*0.00392;
+        gain=gain*(double)tx->drive_level*0.00392;
       }
     }
     if (protocol == ORIGINAL_PROTOCOL && radio->device == DEVICE_HERMES_LITE2) {
@@ -1180,11 +1211,11 @@ static void full_tx_buffer(TRANSMITTER *tx) {
       //
       int power;
       double f,g;
-      if(tune && !transmitter->tune_use_drive) {
-        f=sqrt((double)transmitter->tune_percent * 0.01);
-        power=(int)((double)transmitter->drive_level*f);
+      if(tune && !tx->tune_use_drive) {
+        f=sqrt((double)tx->tune_percent * 0.01);
+        power=(int)((double)tx->drive_level*f);
       } else {
-        power=transmitter->drive_level;
+        power=tx->drive_level;
       }
       g=-15.0;
       if (power > 0) {
@@ -1525,8 +1556,8 @@ void add_ps_iq_samples(TRANSMITTER *tx, double i_sample_tx,double q_sample_tx, d
 
   if(rx_feedback->samples>=rx_feedback->buffer_size) {
     if(isTransmitting()) {
-      pscc(transmitter->id, rx_feedback->buffer_size, tx_feedback->iq_input_buffer, rx_feedback->iq_input_buffer);
-      if(transmitter->displaying && transmitter->feedback) {
+      pscc(tx->id, rx_feedback->buffer_size, tx_feedback->iq_input_buffer, rx_feedback->iq_input_buffer);
+      if(tx->displaying && tx->feedback) {
         Spectrum0(1, rx_feedback->id, 0, 0, rx_feedback->iq_input_buffer);
       }
     }
@@ -1596,24 +1627,24 @@ void tx_set_ps(TRANSMITTER *tx,int state) {
 }
 
 void tx_set_twotone(TRANSMITTER *tx,int state) {
-  transmitter->twotone=state;
+  tx->twotone=state;
   if(state) {
     // set frequencies and levels
     switch(tx->mode) {
       case modeCWL:
       case modeLSB:
       case modeDIGL:
-	SetTXAPostGenTTFreq(transmitter->id, -900.0, -1700.0);
+	SetTXAPostGenTTFreq(tx->id, -900.0, -1700.0);
         break;
       default:
-	SetTXAPostGenTTFreq(transmitter->id, 900.0, 1700.0);
+	SetTXAPostGenTTFreq(tx->id, 900.0, 1700.0);
 	break;
     }
-    SetTXAPostGenTTMag (transmitter->id, 0.49, 0.49);
-    SetTXAPostGenMode(transmitter->id, 1);
-    SetTXAPostGenRun(transmitter->id, 1);
+    SetTXAPostGenTTMag (tx->id, 0.49, 0.49);
+    SetTXAPostGenMode(tx->id, 1);
+    SetTXAPostGenRun(tx->id, 1);
   } else {
-    SetTXAPostGenRun(transmitter->id, 0);
+    SetTXAPostGenRun(tx->id, 0);
   }
   g_idle_add(ext_mox_update,GINT_TO_POINTER(state));
 }

@@ -445,10 +445,16 @@ if(analog_meter) {
       cairo_move_to(cr, 80, meter_height-22);
       cairo_show_text(cr, sf);
 
+      if (swr > transmitter->swr_alarm) {
+        cairo_set_source_rgb(cr, 1.0, 0.2, 0.0);  // display SWR in red color
+      } else {
+        cairo_set_source_rgb (cr, 1.0, 1.0, 1.0); // display SWR in white color
+      }
       sprintf(sf,"SWR: %1.1f:1",swr);
       cairo_move_to(cr, 60, meter_height-12);
       cairo_show_text(cr, sf);
 
+      cairo_set_source_rgb (cr, 1.0, 1.0, 1.0);
       sprintf(sf,"ALC: %2.1f dB",alc);
       cairo_move_to(cr, 60, meter_height-2);
       cairo_show_text(cr, sf);
@@ -680,6 +686,13 @@ if(analog_meter) {
       cairo_move_to(cr, 10, 35);
       cairo_show_text(cr, sf);
 
+      if (swr > transmitter->swr_alarm) {
+        cairo_set_source_rgb(cr, 1.0, 0.2, 0.0);  // display SWR in red color
+      } else {
+        cairo_set_source_rgb (cr, 1.0, 1.0, 1.0); // display SWR in white color
+      }
+
+
       cairo_select_font_face(cr, DISPLAY_FONT,
             CAIRO_FONT_SLANT_NORMAL,
             CAIRO_FONT_WEIGHT_BOLD);
@@ -687,6 +700,8 @@ if(analog_meter) {
       sprintf(sf,"SWR: %1.1f:1",swr);
       cairo_move_to(cr, 10, 55);
       cairo_show_text(cr, sf);
+
+      cairo_set_source_rgb (cr, 1.0, 1.0, 1.0);  // revert to white color
 
       sprintf(sf,"ALC: %2.1f dB",alc);
       cairo_move_to(cr, meter_width/2, 35);

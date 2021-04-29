@@ -126,6 +126,14 @@ static void tune_percent_cb (GtkWidget *widget, gpointer data) {
   transmitter->tune_percent=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
 }
 
+static void swr_protection_cb (GtkWidget *widget, gpointer data) {
+  transmitter->swr_protection=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+}
+
+static void swr_alarm_cb (GtkWidget *widget, gpointer data) {
+  transmitter->swr_alarm=(double)gtk_spin_button_get_value(GTK_SPIN_BUTTON(widget));
+}
+
 static void use_rx_filter_cb(GtkWidget *widget, gpointer data) {
   transmitter->use_rx_filter=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
 
@@ -539,6 +547,30 @@ void tx_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),tune_percent,col,row,1,1);
   g_signal_connect(tune_percent,"value-changed",G_CALLBACK(tune_percent_cb),NULL);
 
+  row++;
+  col=0;
+
+  GtkWidget *swr_protection_b=gtk_check_button_new_with_label("SWR Protection");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (swr_protection_b), transmitter->swr_protection);
+  gtk_widget_show(swr_protection_b);
+  gtk_grid_attach(GTK_GRID(grid),swr_protection_b,col,row,1,1);
+  g_signal_connect(swr_protection_b,"toggled",G_CALLBACK(swr_protection_cb),NULL);
+
+  col++;
+
+  GtkWidget *swr_alarm_label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(swr_alarm_label), "<b>SWR alarm at:</b>");
+#ifdef GTK316
+  gtk_label_set_xalign(GTK_LABEL(swr_alarm_label),0);
+#endif
+  gtk_widget_show(swr_alarm_label);
+  gtk_grid_attach(GTK_GRID(grid),swr_alarm_label,col,row,1,1);
+
+  col++;
+  GtkWidget *swr_alarm=gtk_spin_button_new_with_range(1.0,10.0,0.1);
+  gtk_spin_button_set_value(GTK_SPIN_BUTTON(swr_alarm),(double)transmitter->swr_alarm);
+  gtk_grid_attach(GTK_GRID(grid),swr_alarm,col,row,1,1);
+  g_signal_connect(swr_alarm,"value-changed",G_CALLBACK(swr_alarm_cb),NULL);
 
   gtk_container_add(GTK_CONTAINER(content),grid);
 

@@ -49,7 +49,8 @@ static gdouble hz_per_pixel;
 static gdouble filter_left=0.0;
 static gdouble filter_right=0.0;
 
-static gint tx_fifo_count=0;
+static gint tx_fifo_count=0;        // timer for FIFO underrun message
+static gint swr_protection_count=0; // timer for SWR protection message
 
 /* Create a new surface of the appropriate size to store our scribbles */
 static gboolean
@@ -399,22 +400,26 @@ void tx_panadapter_update(TRANSMITTER *tx) {
 
   if(duplex) {
     char text[64];
-    cairo_set_source_rgb(cr,1.0,0.0,0.0);
+    cairo_set_source_rgb(cr,1.0,0.2,0.0);
     cairo_set_font_size(cr, DISPLAY_FONT_SIZE3);
 
     if(transmitter->fwd<0.0001) {
-      sprintf(text,"FWD: %0.3f",transmitter->exciter);
+      sprintf(text,"FWD %0.3f W",transmitter->exciter);
     } else {
-      sprintf(text,"FWD: %0.3f",transmitter->fwd);
+      sprintf(text,"FWD %0.1f W",transmitter->fwd);
     }
     cairo_move_to(cr,10,15);
     cairo_show_text(cr, text);
 
-    sprintf(text,"REV: %0.3f",transmitter->rev);
+    //
+    // Since colour is already red, no special
+    // action for "high SWR" warning
+    //
+    sprintf(text,"SWR 1:%1.1f",transmitter->swr);
     cairo_move_to(cr,10,30);
     cairo_show_text(cr, text);
 
-    sprintf(text,"ALC: %0.3f",transmitter->alc);
+    sprintf(text,"ALC %2.1f dB",transmitter->alc);
     cairo_move_to(cr,10,45);
     cairo_show_text(cr, text);
 
@@ -427,6 +432,25 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     cairo_move_to(cr,10,75);
     cairo_show_text(cr, text);
 */
+  }
+
+  //
+  // If the SWR protection has been triggered, display message for three seconds
+  //
+  if (tx->dialog==NULL && display_swr_protection) {
+    char text[64];
+    cairo_set_source_rgb(cr,1.0,0.2,0.0);
+    cairo_set_font_size(cr,DISPLAY_FONT_SIZE3);
+    cairo_move_to(cr, 260.0, 30.0);
+    sprintf(text,"! High SWR > %2.1f", tx->swr_alarm);
+    cairo_show_text(cr, text);
+    cairo_move_to(cr, 260.0, 50.0);
+    cairo_show_text(cr, "! Drive set to zero");
+    swr_protection_count++;
+    if (swr_protection_count >= 3*tx->fps) {
+      display_swr_protection = FALSE;
+      swr_protection_count=0;
+    }
   }
 
   if(tx->dialog==NULL && protocol==ORIGINAL_PROTOCOL && device==DEVICE_HERMES_LITE2) {

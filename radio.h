@@ -320,6 +320,7 @@ extern int rx_gain_calibration;  // position of the RX gain slider that
 extern double drive_max;
 
 extern gboolean display_sequence_errors;
+extern gboolean display_swr_protection;
 extern gint sequence_errors;
 extern GMutex property_mutex;
 
