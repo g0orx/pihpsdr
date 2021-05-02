@@ -1918,6 +1918,16 @@ static void process_high_priority() {
     exciter_power=((buffer[6]&0xFF)<<8)|(buffer[7]&0xFF);
     alex_forward_power=((buffer[14]&0xFF)<<8)|(buffer[15]&0xFF);
     alex_reverse_power=((buffer[22]&0xFF)<<8)|(buffer[23]&0xFF);
+    //
+    //  calculate moving averages of fwd and rev voltages to have a correct SWR
+    //  at the edges of an RF pulse. Otherwise a false trigger of the SWR
+    //  protection may occur. Note that during TX, a HighPrio package from the radio
+    //  is sent every milli-second.
+    //  This exponential average means that the power drops to 1 percent within 16 hits
+    //  (at most 16 msec).
+    //
+    alex_forward_power_average = (alex_forward_power + 3*alex_forward_power_average) >> 2;
+    alex_reverse_power_average = (alex_reverse_power + 3*alex_reverse_power_average) >> 2;
     supply_volts=((buffer[49]&0xFF)<<8)|(buffer[50]&0xFF);
 
     if (cw_keyer_internal) {

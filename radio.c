@@ -257,6 +257,8 @@ unsigned int tx_fifo_underrun;
 unsigned int tx_fifo_overrun;
 unsigned int alex_forward_power;
 unsigned int alex_reverse_power;
+unsigned int alex_forward_power_average=0;
+unsigned int alex_reverse_power_average=0;
 unsigned int AIN3;
 unsigned int AIN4;
 unsigned int AIN6;

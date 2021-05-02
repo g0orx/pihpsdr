@@ -248,6 +248,8 @@ extern unsigned int tx_fifo_underrun;
 extern unsigned int tx_fifo_overrun;
 extern unsigned int alex_forward_power;
 extern unsigned int alex_reverse_power;
+extern unsigned int alex_forward_power_average;
+extern unsigned int alex_reverse_power_average;
 extern unsigned int IO1;
 extern unsigned int IO2;
 extern unsigned int IO3;

@@ -486,11 +486,15 @@ static gboolean update_display(gpointer data) {
 
     int fwd_power;
     int rev_power;
+    int fwd_average;  // only used for SWR calculation, VOLTAGE value
+    int rev_average;  // only used for SWR calculation, VOLTAGE value
     int ex_power;
     double v1;
 
     fwd_power=alex_forward_power;
     rev_power=alex_reverse_power;
+    fwd_average=alex_forward_power_average;
+    rev_average=alex_reverse_power_average;
     if(device==DEVICE_HERMES_LITE || device==DEVICE_HERMES_LITE2) {
       ex_power=0;
     } else {
@@ -520,7 +524,7 @@ static gboolean update_display(gpointer data) {
           case DEVICE_ORION2:
             constant1=5.0;
             constant2=0.08;
-            fwd_cal_offset=18;  // On Anan-7000 I measured 36
+            fwd_cal_offset=18;
             break;
           case DEVICE_HERMES_LITE:
           case DEVICE_HERMES_LITE2:
@@ -528,6 +532,8 @@ static gboolean update_display(gpointer data) {
             if(rev_power>fwd_power) {
               fwd_power=alex_reverse_power;
               rev_power=alex_forward_power;
+              fwd_average=alex_reverse_power_average;
+              rev_average=alex_forward_power_average;
             }
             constant1=3.3;
             constant2=1.4;
@@ -539,7 +545,6 @@ static gboolean update_display(gpointer data) {
           fwd_power=ex_power;
         }
         fwd_power=fwd_power-fwd_cal_offset;
-        // should be applied to rev_power as well
         v1=((double)fwd_power/4095.0)*constant1;
         tx->fwd=(v1*v1)/constant2;
 
@@ -556,6 +561,15 @@ static gboolean update_display(gpointer data) {
           v1=((double)rev_power/4095.0)*constant1;
           tx->rev=(v1*v1)/constant2;
         }
+
+        //
+        // we apply the offset but no further calculation
+        // since only the ratio of rev_average and fwd_average is needed
+        //
+        fwd_average=fwd_average-fwd_cal_offset;
+        rev_average=rev_average-fwd_cal_offset;
+        if (rev_average < 0) rev_average=0;
+
         break;
       case NEW_PROTOCOL:
         switch(device) {
@@ -597,7 +611,6 @@ static gboolean update_display(gpointer data) {
           fwd_power=exciter_power;
         }
         fwd_power=fwd_power-fwd_cal_offset;
-        // should be applied to rev_power as well
         v1=((double)fwd_power/4095.0)*constant1;
         tx->fwd=(v1*v1)/constant2;
 
@@ -612,6 +625,15 @@ static gboolean update_display(gpointer data) {
           v1=((double)rev_power/4095.0)*constant1;
           tx->rev=(v1*v1)/constant2;
         }
+
+        //
+        // we apply the offset but no further calculation
+        // since only the ratio of rev_average and fwd_average is needed
+        //
+        fwd_average=fwd_average-fwd_cal_offset;
+        rev_average=rev_average-fwd_cal_offset;
+        if (rev_average < 0) rev_average=0;
+
         break;
 
 #ifdef SOAPYSDR
@@ -619,6 +641,8 @@ static gboolean update_display(gpointer data) {
         tx->fwd=0.0;
         tx->exciter=0.0;
         tx->rev=0.0;
+        fwd_average=0;
+        rev_average=0;
         break;
 #endif
     }
@@ -637,20 +661,21 @@ static gboolean update_display(gpointer data) {
     tx->rev=rev;
 
     //
-    // Calculate SWR here such that it is available in DUPLEX mode
+    // Calculate SWR and store as tx->swr.
     // tx->swr can be used in other parts of the program to
     // implement SWR protection etc.
+    // The SWR is calculated from the (time-averaged) forward and reverse voltages.
     //
-    if (tx->fwd > 0.01 && tx->fwd > 1.01*tx->rev) {
+    if (tx->fwd > 0.1) {
         //
         // SWR means VSWR (voltage based) but we have the forward and
         // reflected power, so correct for that
         //
-        double gamma=sqrt(tx->rev/tx->fwd);
+        double gamma=(double) rev_average / (double) fwd_average;
         tx->swr=0.7*(1+gamma)/(1-gamma) + 0.3*tx->swr;
     } else {
         //
-        // This value may be used for auto SWR protection, so move towards 1.0
+        // During RX, move towards 1.0
         //
         tx->swr = 0.7 + 0.3*tx->swr;
     }
@@ -906,6 +931,14 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%d iq_output_buf
           tx->mic_dsp_rate,
           tx->iq_output_rate);
 
+  //
+  // Experimental: set last parameter "bfo" to 1
+  // this should eliminate the "fexchange0: error=-2" messages sometimes seen
+  // BUT this means that wdsp "waits" in fexchange0 for data to become ready.
+  // perhaps this requires moving the fexchange0 call to a separate thread:
+  // add_mic_sample produces that data and sends a signal to the TX thread
+  // that a buffer needs processing.
+  //
   OpenChannel(tx->id,
               tx->buffer_size,
               2048, // tx->fft_size,
@@ -914,7 +947,7 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%d iq_output_buf
               tx->iq_output_rate,
               1, // transmit
               0, // run
-              0.010, 0.025, 0.0, 0.010, 0);
+              0.010, 0.025, 0.0, 0.010, 1);
 
   TXASetNC(tx->id, tx->fft_size);
   TXASetMP(tx->id, tx->low_latency);
