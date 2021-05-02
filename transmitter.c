@@ -520,7 +520,7 @@ static gboolean update_display(gpointer data) {
           case DEVICE_ORION2:
             constant1=5.0;
             constant2=0.08;
-            fwd_cal_offset=18;
+            fwd_cal_offset=18;  // On Anan-7000 I measured 36
             break;
           case DEVICE_HERMES_LITE:
           case DEVICE_HERMES_LITE2:
@@ -539,6 +539,7 @@ static gboolean update_display(gpointer data) {
           fwd_power=ex_power;
         }
         fwd_power=fwd_power-fwd_cal_offset;
+        // should be applied to rev_power as well
         v1=((double)fwd_power/4095.0)*constant1;
         tx->fwd=(v1*v1)/constant2;
 
@@ -596,6 +597,7 @@ static gboolean update_display(gpointer data) {
           fwd_power=exciter_power;
         }
         fwd_power=fwd_power-fwd_cal_offset;
+        // should be applied to rev_power as well
         v1=((double)fwd_power/4095.0)*constant1;
         tx->fwd=(v1*v1)/constant2;
 
