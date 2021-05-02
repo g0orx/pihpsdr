@@ -1,0 +1,5 @@
+.gitignore
+*.o
+pihpsdr
+hpsdrsim
+*.props
