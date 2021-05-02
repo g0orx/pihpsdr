@@ -33,6 +33,7 @@ MIDI_INCLUDE=MIDI
 #DEBUG_OPTION=-D DEBUG
 
 CFLAGS?= -O -Wno-deprecated-declarations
+PKG_CONFIG = pkg-config
 
 ifeq ($(CONTROLLER2_V2_INCLUDE),CONTROLLER2_V2)
 CONTROLLER2_OPTIONS=-D CONTROLLER2_V2
@@ -112,17 +113,17 @@ endif
 #
 ifeq ($(STEMLAB_DISCOVERY), STEMLAB_DISCOVERY)
 STEMLAB_OPTIONS=-D STEMLAB_DISCOVERY \
-  `pkg-config --cflags avahi-gobject` \
-  `pkg-config --cflags libcurl`
-STEMLAB_LIBS=`pkg-config --libs avahi-gobject` `pkg-config --libs libcurl`
+  $(shell $(PKG_CONFIG) --cflags avahi-gobject) \
+  $(shell $(PKG_CONFIG) --cflags libcurl)
+STEMLAB_LIBS=$(shell $(PKG_CONFIG) --libs avahi-gobject --libs libcurl)
 STEMLAB_SOURCES=stemlab_discovery.c
 STEMLAB_HEADERS=stemlab_discovery.h
 STEMLAB_OBJS=stemlab_discovery.o
 endif
 
 ifeq ($(STEMLAB_DISCOVERY), STEMLAB_DISCOVERY_NOAVAHI)
-STEMLAB_OPTIONS=-D STEMLAB_DISCOVERY -D NO_AVAHI `pkg-config --cflags libcurl`
-STEMLAB_LIBS=`pkg-config --libs libcurl`
+STEMLAB_OPTIONS=-D STEMLAB_DISCOVERY -D NO_AVAHI $(shell $(PKG_CONFIG) --cflags libcurl)
+STEMLAB_LIBS=$(shell $(PKG_CONFIG) --libs libcurl)
 STEMLAB_SOURCES=stemlab_discovery.c
 STEMLAB_HEADERS=stemlab_discovery.h
 STEMLAB_OBJS=stemlab_discovery.o
@@ -138,8 +139,8 @@ SERVER_OBJS= \
 hpsdr_server.o
 endif
 
-GTKINCLUDES=`pkg-config --cflags gtk+-3.0`
-GTKLIBS=`pkg-config --libs gtk+-3.0`
+GTKINCLUDES=$(shell $(PKG_CONFIG) --cflags gtk+-3.0)
+GTKLIBS=$(shell $(PKG_CONFIG) --libs gtk+-3.0)
 
 AUDIO_OPTIONS=-DPORTAUDIO
 AUDIO_LIBS=-lportaudio
@@ -148,10 +149,10 @@ MAC_LIBS=-framework IOKit
 OPTIONS=$(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) \
 	$(SOAPYSDR_OPTIONS) $(LOCALCW_OPTIONS) \
 	$(STEMLAB_OPTIONS) \
-        $(CONTROLLER2_OPTIONS) $(AUDIO_OPTIONS) \
+	$(CONTROLLER2_OPTIONS) $(AUDIO_OPTIONS) \
 	-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION)
 
-LIBS=     -lm -lwdsp -lpthread $(MAC_LIBS) $(AUDIO_LIBS) $(USBOZY_LIBS) $(GTKLIBS) \
+LIBS=	-lm -lwdsp -lpthread $(MAC_LIBS) $(AUDIO_LIBS) $(USBOZY_LIBS) $(GTKLIBS) \
 		$(SOAPYSDRLIBS) $(STEMLAB_LIBS) $(MIDI_LIBS)
 INCLUDES=$(GTKINCLUDES)
 
