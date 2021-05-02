@@ -243,7 +243,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   }
 
   // plot frequency markers
-  long long half= duplex ? 3000LL : 12000LL; //(long long)(tx->output_rate/2);
+  long long half= tx->dialog ? 3000LL : 12000LL; //(long long)(tx->output_rate/2);
   long long frequency;
   if(vfo[txvfo].ctun) {
     frequency=vfo[txvfo].ctun_frequency;
@@ -353,7 +353,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   cairo_stroke(cr);
 
 #ifdef GPIO
-  if(controller==CONTROLLER1 && !duplex) {
+  if(controller==CONTROLLER1 && tx->dialog == NULL) {
     char text[64];
 
     cairo_set_source_rgb(cr,1.0,1.0,0.0);
@@ -398,7 +398,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   }
 #endif
 
-  if(duplex) {
+  if(tx->dialog) {
     char text[64];
     cairo_set_source_rgb(cr,1.0,0.2,0.0);
     cairo_set_font_size(cr, DISPLAY_FONT_SIZE3);
@@ -406,7 +406,14 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     if(transmitter->fwd<0.0001) {
       sprintf(text,"FWD %0.3f W",transmitter->exciter);
     } else {
-      sprintf(text,"FWD %0.1f W",transmitter->fwd);
+      static int max_count=0;
+      static double max_level=0.0;
+      if(transmitter->fwd > max_level || max_count==10) {
+          max_level=transmitter->fwd;
+          max_count=0;
+      }
+      max_count++;
+      sprintf(text,"FWD %0.1f W",max_level);
     }
     cairo_move_to(cr,10,15);
     cairo_show_text(cr, text);
