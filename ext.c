@@ -252,32 +252,48 @@ int ext_vfo_step(void *data) {
 }
 
 int ext_vfo_id_step(void *data) {
-  int *ip=(int *) data;
-  int id=ip[0];
-  int step=ip[1];
+  //
+  // the two integer input arguments (VFO id and Step in Hz)
+  // are encoded in a single integer-type number:
+  // input = 10000*vfo_id + (step+1000);
+  //
+  // Normally vfo_id is a small number (0 or 1)
+  // and the step is in the range -100 - 100 (in units of the VFO step size)
+  //
+  int val = GPOINTER_TO_INT(data);
+  int id = val / 10000;
+  int step = (val % 10000) - 1000;
   vfo_id_step(id,step);
-  free(data);
   return 0;
 }
 
 int ext_set_mic_gain(void * data) {
-  double d=*(double *)data;
+  //
+  // mic gain is (input value - 1000), normally between -12 and 50
+  //
+  int val = GPOINTER_TO_INT(data);
+  double d = val - 1000;
   set_mic_gain(d);
-  free(data);
   return 0;
 }
 
 int ext_set_agc_gain(void *data) {
-  double d=*(double *)data;
+  //
+  // AGC is (input value - 1000), normally between -20 and +120
+  //
+  int val=GPOINTER_TO_INT(data);
+  double d=  val - 1000;
   set_agc_gain(active_receiver->id,d);
-  free(data);
   return 0;
 }
  
 int ext_set_drive(void *data) {
-  double d=*(double *)data;
+  //
+  // Drive is input value, normally between 0 and 100
+  //
+  int val=GPOINTER_TO_INT(data);
+  double d=(double) val;
   set_drive(d);
-  free(data);
   return 0;
 }
 
@@ -315,9 +331,13 @@ int ext_set_alex_attenuation(void *data) {
 }
 
 int ext_set_attenuation_value(void *data) {
-  double d=*(double *)data;
+  //
+  // Att valus is (input -1000), normally between 0 and 31
+  // but HermesLite-II and others have the range -12 to 48.
+  //
+  int val=GPOINTER_TO_INT(data);
+  double d = val - 1000;
   set_attenuation_value(d);
-  free(data);
   return 0;
 }
 
@@ -618,16 +638,22 @@ int ext_diversity_update(void *data) {
 }
 
 int ext_diversity_change_gain(void *data) {
-  double *dp = (double *) data;
-  update_diversity_gain(*dp);
-  free(dp);
+  //
+  // value = (input-10000) * 0.1
+  //
+  int val=GPOINTER_TO_INT(data);
+  double d = (val - 10000) * 0.1;
+  update_diversity_gain(d);
   return 0;
 }
 
 int ext_diversity_change_phase(void *data) {
-  double *dp = (double *) data;
-  update_diversity_phase(*dp);
-  free(dp);
+  //
+  // value = (input-10000) * 0.1
+  //
+  int val=GPOINTER_TO_INT(data);
+  double d = (val - 10000) * 0.1;
+  update_diversity_phase(d);
   return 0;
 }
 
