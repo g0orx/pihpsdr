@@ -177,7 +177,6 @@ int ext_vox_changed(void *data) {
 
 int ext_update_agc_gain(void *data) {
   update_agc_gain(GPOINTER_TO_INT(data));
-  free(data);
   return 0;
 }
 
