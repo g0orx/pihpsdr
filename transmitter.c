@@ -647,18 +647,15 @@ static gboolean update_display(gpointer data) {
 #endif
     }
 
-    //
-    // compute_power applies the interpolation table
-    // that corrects the power meter if it has been
-    // calibrated
-    //
-    double fwd=compute_power(tx->fwd);
-    double rev=compute_power(tx->rev);
+//g_print("transmitter: meter_update: fwd:%f->%f rev:%f->%f ex_fwd=%d alex_fwd=%d alex_rev=%d\n",tx->fwd,compute_power(tx->fwd),tx->rev,compute_power(tx->rev),exciter_power,alex_forward_power,alex_reverse_power);
 
-//g_print("transmitter: meter_update: fwd:%f->%f rev:%f->%f ex_fwd=%d alex_fwd=%d alex_rev=%d\n",tx->fwd,fwd,tx->rev,rev,exciter_power,alex_forward_power,alex_reverse_power);
-
-    tx->fwd=fwd;
-    tx->rev=rev;
+    //
+    // compute_power does an interpolation is user-supplied pairs of
+    // data points (measured by radio, measured by external watt meter)
+    // are available.
+    //
+    tx->fwd=compute_power(tx->fwd);
+    tx->rev=compute_power(tx->rev);
 
     //
     // Calculate SWR and store as tx->swr.
@@ -687,9 +684,7 @@ static gboolean update_display(gpointer data) {
 //  set the drive slider to zero. Do not do this while tuning
 //
     if (tx->swr_protection && !getTune() && tx->swr >= tx->swr_alarm) {
-      double *dp = malloc(sizeof(double));
-      *dp = 0.0;
-      g_idle_add(ext_set_drive, (gpointer) dp);
+      g_idle_add(ext_set_drive, GINT_TO_POINTER(0));
       display_swr_protection = TRUE;
     }
 
