@@ -76,21 +76,21 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	case MIDI_ACTION_AGC: // knob or wheel supported
 	    switch (type) {
 	      case MIDI_TYPE_KNOB:
-		dnew = -20.0 + 1.4*val;
+		new = -20 + (140*val)/100;
 		break;
 	      case MIDI_TYPE_WHEEL:
-		dnew=active_receiver->agc_gain + val;
-		if (dnew < -20.0) dnew=-20.0; if (dnew > 120.0) dnew=120.0;
+		new=active_receiver->agc_gain + val;
+		if (new < -20) new = -20;
+                if (new > 120) new = 120;
 		break;
 	      default:
 		// do not change value
 		// we should not come here anyway
-		dnew=active_receiver->agc_gain;
+		new=active_receiver->agc_gain;
 		break;
 	    }
-	    dp=malloc(sizeof(double));
-	    *dp=dnew;
-	    g_idle_add(ext_set_agc_gain, (gpointer) dp);
+            val = new + 1000;
+	    g_idle_add(ext_set_agc_gain, GINT_TO_POINTER(val));
 	    break;
 	/////////////////////////////////////////////////////////// "ANF"
 	case MIDI_ACTION_ANF:	// only key supported
@@ -111,31 +111,30 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 		break;
 	      case MIDI_TYPE_WHEEL:
 		new=adc_attenuation[active_receiver->adc] + val;
-		dp=malloc(sizeof(double));
-		*dp=(double) new;
                 if(have_rx_gain) {
-                  if(*dp<-12.0) {
-                    *dp=-12.0;
-                  } else if(*dp>48.0) {
-                    *dp=48.0;
+                  if(new < -12) {
+                    new = -12;
+                  } else if(new > 48) {
+                    new=48;
                   }
                 } else {
-                  if(*dp<0.0) {
-                    *dp=0.0;
-                  } else if (*dp>31.0) {
-                    *dp=31.0;
+                  if (new < 0) {
+                    new = 0;
+                  } else if (new > 31) {
+                    new = 31;
                   }
                 }
-		g_idle_add(ext_set_attenuation_value,(gpointer) dp);
+                val =  new+1000;
+                g_idle_add(ext_set_attenuation_value,GINT_TO_POINTER(val));
 		break;
 	      case MIDI_TYPE_KNOB:
-		dp=malloc(sizeof(double));
                 if (have_rx_gain) {
-		  *dp=-12.0 + 0.6*(double) val;
+		  new = -12 + (60 * val) / 100;
                 } else {
-                  *dp = 0.31 * (double) val;
+                  dnew  = (31*val)/100;
                 }
-		g_idle_add(ext_set_attenuation_value,(gpointer) dp);
+                val =  new+1000;
+                g_idle_add(ext_set_attenuation_value,GINT_TO_POINTER(val));
 		break;
 	      default:
 		// do nothing
@@ -312,10 +311,11 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 		dnew = 0.0;
                 break;
             }
-	    // dnew is the delta times 10
-	    dp=malloc(sizeof(double));
-	    *dp=dnew;
-            g_idle_add(ext_diversity_change_gain, dp);
+	    // dnew is the delta times 10, it is in the range -250 - 250 in steps of 0.1
+            if (dnew < -250.0) dnew = -250.0;
+            if (dnew >  250.0) dnew =  250.0;
+            val = (int) (dnew * 10.0 + 10000.5);
+            g_idle_add(ext_diversity_change_gain, GINT_TO_POINTER(val));
             break;
         /////////////////////////////////////////////////////////// "DIVPHASE"
         case MIDI_ACTION_DIV_COARSEPHASE:   // knob or wheel supported
@@ -349,10 +349,11 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
                 dnew = 0.0;
                 break;
             }
-            // dnew is the delta
-            dp=malloc(sizeof(double));
-            *dp=dnew;
-            g_idle_add(ext_diversity_change_phase, dp);
+            // dnew is the delta, the range is -250.0 - 250.0 in steps of 0.1
+            if (dnew < -250.0) dnew = -250.0;
+            if (dnew >  250.0) dnew =  250.0;
+            val = (int) (dnew * 10.0 + 10000.5);
+            g_idle_add(ext_diversity_change_phase, GINT_TO_POINTER(val));
             break;
         /////////////////////////////////////////////////////////// "DIVTOGGLE"
         case MIDI_ACTION_DIV_TOGGLE:   // only key supported
@@ -413,21 +414,21 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    // TODO: possibly adjust linein value if that is effective
 	    switch (type) {
 	      case MIDI_TYPE_KNOB:
-		dnew=-10.0 + 0.6*val;
+		new = -10 + (60*val)/100;
 		break;
 	      case MIDI_TYPE_WHEEL:
-		dnew = mic_gain + val;
-		if (dnew < -10.0) dnew=-10.0; if (dnew > 50.0) dnew=50.0;
+		new = mic_gain + val;
+		if (new < -10) new = -10;
+                if (new >  50) new =  50;
 		break;
 	      default:
 		// do not change mic gain
 		// we should not come here anyway
-		dnew = mic_gain;
+		new = mic_gain;
 		break;
 	    }
-	    dp=malloc(sizeof(double));
-	    *dp=dnew;
-	    g_idle_add(ext_set_mic_gain, (gpointer) dp);
+            val = new + 1000;
+	    g_idle_add(ext_set_mic_gain, GINT_TO_POINTER(val));
 	    break;
 	/////////////////////////////////////////////////////////// "MODEDOWN"
 	/////////////////////////////////////////////////////////// "MODEUP"
@@ -667,9 +668,8 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 		dnew=transmitter->drive;
 		break;
 	    }
-	    dp=malloc(sizeof(double));
-	    *dp=dnew;
-	    g_idle_add(ext_set_drive, (gpointer) dp);
+	    val=(int) (dnew + 0.5);
+	    g_idle_add(ext_set_drive, GINT_TO_POINTER(val));
 	    break;
 	/////////////////////////////////////////////////////////// "RITCLEAR"
 	case MIDI_ACTION_RIT_CLEAR:	  // only key supported
@@ -718,8 +718,8 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 		// This changes the RIT value incrementally,
 	  	// but we restrict the change to +/ 9.999 kHz
 		new = vfo[active_receiver->id].rit + val*rit_increment;
-		if (new >  9999) new= 9999;
-		if (new < -9999) new=-9999;
+		if (new >  9999) new=  9999;
+		if (new < -9999) new= -9999;
 		vfo[active_receiver->id].rit = new;
 		break;
 	      case MIDI_TYPE_KNOB:
@@ -808,10 +808,9 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	case MIDI_ACTION_VFOA: // only wheel supported
 	case MIDI_ACTION_VFOB: // only wheel supported
 	    if (type == MIDI_TYPE_WHEEL && !locked) {
-	        ip=malloc(2*sizeof(int));
-		*ip = (action == MIDI_ACTION_VFOA) ? 0 : 1;
-		*(ip+1)=val;
-		g_idle_add(ext_vfo_id_step, ip);
+		new = (action == MIDI_ACTION_VFOA) ? 0 : 10000;
+                new += (val+1000);
+		g_idle_add(ext_vfo_id_step, GINT_TO_POINTER(new));
 	    }
 	    break;
 	/////////////////////////////////////////////////////////// "VFOSTEPDOWN"
@@ -880,8 +879,8 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
                   // This changes the XIT value incrementally,
                   // but we restrict the change to +/ 9.999 kHz
                   new = transmitter->xit + val*rit_increment;
-                  if (new >  9999) new= 9999;
-                  if (new < -9999) new=-9999;
+                  if (new >  9999) new =  9999;
+                  if (new < -9999) new = -9999;
                   transmitter->xit = new;
                   break;
                 case MIDI_TYPE_KNOB:
