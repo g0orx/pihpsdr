@@ -128,97 +128,103 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
  */
 
 static struct {
-  enum MIDIaction action;
-  const char *str;
+  enum MIDIaction action;    // the MIDI action
+  const char *str;           // the key word in the midi.props file
+  int   onoff;               // =1 if action both on press + release
 } ActionTable[] = {
-	{ MIDI_ACTION_VFO_A2B,		"A2B"},
-        { MIDI_ACTION_AF_GAIN,      	"AFGAIN"},
-	{ MIDI_ACTION_AGCATTACK,   	"AGCATTACK"},
-        { MIDI_ACTION_AGC,     		"AGCVAL"},
-        { MIDI_ACTION_ANF,     		"ANF"},
-        { MIDI_ACTION_ATT,          	"ATT"},
-	{ MIDI_ACTION_VFO_B2A,		"B2A"},
-        { MIDI_ACTION_BAND_DOWN,    	"BANDDOWN"},
-        { MIDI_ACTION_BAND_UP,      	"BANDUP"},
-        { MIDI_ACTION_COMPRESS,     	"COMPRESS"},
-	{ MIDI_ACTION_CTUN,  		"CTUN"},
-	{ MIDI_ACTION_VFO,		"CURRVFO"},
-	{ MIDI_ACTION_CWKEY,		"CWKEY"},
-	{ MIDI_ACTION_CWL,		"CWL"},
-	{ MIDI_ACTION_CWR,		"CWR"},
-	{ MIDI_ACTION_CWSPEED,		"CWSPEED"},
-	{ MIDI_ACTION_DIV_COARSEGAIN,	"DIVCOARSEGAIN"},
-	{ MIDI_ACTION_DIV_COARSEPHASE,	"DIVCOARSEPHASE"},
-	{ MIDI_ACTION_DIV_FINEGAIN,	"DIVFINEGAIN"},
-	{ MIDI_ACTION_DIV_FINEPHASE,	"DIVFINEPHASE"},
-	{ MIDI_ACTION_DIV_GAIN,		"DIVGAIN"},
-	{ MIDI_ACTION_DIV_PHASE,	"DIVPHASE"},
-	{ MIDI_ACTION_DIV_TOGGLE,	"DIVTOGGLE"},
-	{ MIDI_ACTION_DUP,  		"DUP"},
-        { MIDI_ACTION_FILTER_DOWN,  	"FILTERDOWN"},
-        { MIDI_ACTION_FILTER_UP,    	"FILTERUP"},
-	{ MIDI_ACTION_LOCK,    		"LOCK"},
-        { MIDI_ACTION_MIC_VOLUME,   	"MICGAIN"},
-	{ MIDI_ACTION_MODE_DOWN,	"MODEDOWN"},
-	{ MIDI_ACTION_MODE_UP,		"MODEUP"},
-        { MIDI_ACTION_MOX,     		"MOX"},
-	{ MIDI_ACTION_MUTE,		"MUTE"},
-	{ MIDI_ACTION_NB,    		"NOISEBLANKER"},
-	{ MIDI_ACTION_NR,    		"NOISEREDUCTION"},
-        { MIDI_ACTION_PAN,		"PAN"},
-        { MIDI_ACTION_PAN_HIGH,     	"PANHIGH"},
-        { MIDI_ACTION_PAN_LOW,      	"PANLOW"},
-        { MIDI_ACTION_PRE,          	"PREAMP"},
-	{ MIDI_ACTION_PTTONOFF,		"PTT"},
-	{ MIDI_ACTION_PS,    		"PURESIGNAL"},
-        { MIDI_ACTION_MEM_RECALL_M0,	"RECALLM0"},
-        { MIDI_ACTION_MEM_RECALL_M1,	"RECALLM1"},
-        { MIDI_ACTION_MEM_RECALL_M2,	"RECALLM2"},
-        { MIDI_ACTION_MEM_RECALL_M3,	"RECALLM3"},
-        { MIDI_ACTION_MEM_RECALL_M4,	"RECALLM4"},
-	{ MIDI_ACTION_RF_GAIN, 		"RFGAIN"},
-        { MIDI_ACTION_TX_DRIVE,     	"RFPOWER"},
-	{ MIDI_ACTION_RIT_CLEAR,	"RITCLEAR"},
-	{ MIDI_ACTION_RIT_STEP, 	"RITSTEP"},
-        { MIDI_ACTION_RIT_TOGGLE,   	"RITTOGGLE"},
-        { MIDI_ACTION_RIT_VAL,      	"RITVAL"},
-        { MIDI_ACTION_SAT,     		"SAT"},
-        { MIDI_ACTION_SNB, 		"SNB"},
-	{ MIDI_ACTION_SPLIT,  		"SPLIT"},
-        { MIDI_ACTION_MEM_STORE_M0,     "STOREM0"},
-        { MIDI_ACTION_MEM_STORE_M1,     "STOREM1"},
-        { MIDI_ACTION_MEM_STORE_M2,     "STOREM2"},
-        { MIDI_ACTION_MEM_STORE_M3,     "STOREM3"},
-        { MIDI_ACTION_MEM_STORE_M4,     "STOREM4"},
-	{ MIDI_ACTION_SWAP_RX,		"SWAPRX"},
-	{ MIDI_ACTION_SWAP_VFO,		"SWAPVFO"},
-        { MIDI_ACTION_TUNE,    		"TUNE"},
-        { MIDI_ACTION_VFOA,         	"VFOA"},
-        { MIDI_ACTION_VFOB,         	"VFOB"},
-	{ MIDI_ACTION_VFO_STEP_UP,  	"VFOSTEPUP"},
-	{ MIDI_ACTION_VFO_STEP_DOWN,	"VFOSTEPDOWN"},
-	{ MIDI_ACTION_VOX,   		"VOX"},
-	{ MIDI_ACTION_VOXLEVEL,   	"VOXLEVEL"},
-	{ MIDI_ACTION_XIT_CLEAR,  	"XITCLEAR"},
-	{ MIDI_ACTION_XIT_VAL,  	"XITVAL"},
-	{ MIDI_ACTION_ZOOM,		"ZOOM"},
-	{ MIDI_ACTION_ZOOM_UP,		"ZOOMUP"},
-	{ MIDI_ACTION_ZOOM_DOWN,	"ZOOMDOWN"},
-        { MIDI_ACTION_NONE,  		"NONE"}
+	{ MIDI_ACTION_VFO_A2B,		"A2B",                 0},
+        { MIDI_ACTION_AF_GAIN,      	"AFGAIN",              0},
+	{ MIDI_ACTION_AGCATTACK,   	"AGCATTACK",           0},
+        { MIDI_ACTION_AGC,     		"AGCVAL",              0},
+        { MIDI_ACTION_ANF,     		"ANF",                 0},
+        { MIDI_ACTION_ATT,          	"ATT",                 0},
+	{ MIDI_ACTION_VFO_B2A,		"B2A",                 0},
+        { MIDI_ACTION_BAND_DOWN,    	"BANDDOWN",            0},
+        { MIDI_ACTION_BAND_UP,      	"BANDUP",              0},
+        { MIDI_ACTION_COMPRESS,     	"COMPRESS",            0},
+	{ MIDI_ACTION_CTUN,  		"CTUN",                0},
+	{ MIDI_ACTION_VFO,		"CURRVFO",             0},
+	{ MIDI_ACTION_CWKEY,		"CWKEY",               1},
+	{ MIDI_ACTION_CWL,		"CWL",                 1},
+	{ MIDI_ACTION_CWR,		"CWR",                 1},
+	{ MIDI_ACTION_CWSPEED,		"CWSPEED",             0},
+	{ MIDI_ACTION_DIV_COARSEGAIN,	"DIVCOARSEGAIN",       0},
+	{ MIDI_ACTION_DIV_COARSEPHASE,	"DIVCOARSEPHASE",      0},
+	{ MIDI_ACTION_DIV_FINEGAIN,	"DIVFINEGAIN",         0},
+	{ MIDI_ACTION_DIV_FINEPHASE,	"DIVFINEPHASE",        0},
+	{ MIDI_ACTION_DIV_GAIN,		"DIVGAIN",             0},
+	{ MIDI_ACTION_DIV_PHASE,	"DIVPHASE",            0},
+	{ MIDI_ACTION_DIV_TOGGLE,	"DIVTOGGLE",           0},
+	{ MIDI_ACTION_DUP,  		"DUP",                 0},
+        { MIDI_ACTION_FILTER_DOWN,  	"FILTERDOWN",          0},
+        { MIDI_ACTION_FILTER_UP,    	"FILTERUP",            0},
+	{ MIDI_ACTION_LOCK,    		"LOCK",                0},
+        { MIDI_ACTION_MIC_VOLUME,   	"MICGAIN",             0},
+	{ MIDI_ACTION_MODE_DOWN,	"MODEDOWN",            0},
+	{ MIDI_ACTION_MODE_UP,		"MODEUP",              0},
+        { MIDI_ACTION_MOX,     		"MOX",                 0},
+	{ MIDI_ACTION_MUTE,		"MUTE",                0},
+	{ MIDI_ACTION_NB,    		"NOISEBLANKER",        0},
+	{ MIDI_ACTION_NR,    		"NOISEREDUCTION",      0},
+        { MIDI_ACTION_PAN,		"PAN",                 0},
+        { MIDI_ACTION_PAN_HIGH,     	"PANHIGH",             0},
+        { MIDI_ACTION_PAN_LOW,      	"PANLOW",              0},
+        { MIDI_ACTION_PRE,          	"PREAMP",              0},
+	{ MIDI_ACTION_PTTONOFF,		"PTT",                 1},
+	{ MIDI_ACTION_PS,    		"PURESIGNAL",          0},
+        { MIDI_ACTION_MEM_RECALL_M0,	"RECALLM0",            0},
+        { MIDI_ACTION_MEM_RECALL_M1,	"RECALLM1",            0},
+        { MIDI_ACTION_MEM_RECALL_M2,	"RECALLM2",            0},
+        { MIDI_ACTION_MEM_RECALL_M3,	"RECALLM3",            0},
+        { MIDI_ACTION_MEM_RECALL_M4,	"RECALLM4",            0},
+	{ MIDI_ACTION_RF_GAIN, 		"RFGAIN",              0},
+        { MIDI_ACTION_TX_DRIVE,     	"RFPOWER",             0},
+	{ MIDI_ACTION_RIT_CLEAR,	"RITCLEAR",            0},
+	{ MIDI_ACTION_RIT_STEP, 	"RITSTEP",             0},
+        { MIDI_ACTION_RIT_TOGGLE,   	"RITTOGGLE",           0},
+        { MIDI_ACTION_RIT_VAL,      	"RITVAL",              0},
+        { MIDI_ACTION_SAT,     		"SAT",                 0},
+        { MIDI_ACTION_SNB, 		"SNB",                 0},
+	{ MIDI_ACTION_SPLIT,  		"SPLIT",               0},
+        { MIDI_ACTION_MEM_STORE_M0,     "STOREM0",             0},
+        { MIDI_ACTION_MEM_STORE_M1,     "STOREM1",             0},
+        { MIDI_ACTION_MEM_STORE_M2,     "STOREM2",             0},
+        { MIDI_ACTION_MEM_STORE_M3,     "STOREM3",             0},
+        { MIDI_ACTION_MEM_STORE_M4,     "STOREM4",             0},
+	{ MIDI_ACTION_SWAP_RX,		"SWAPRX",              0},
+	{ MIDI_ACTION_SWAP_VFO,		"SWAPVFO",             0},
+        { MIDI_ACTION_TUNE,    		"TUNE",                0},
+        { MIDI_ACTION_VFOA,         	"VFOA",                0},
+        { MIDI_ACTION_VFOB,         	"VFOB",                0},
+	{ MIDI_ACTION_VFO_STEP_UP,  	"VFOSTEPUP",           0},
+	{ MIDI_ACTION_VFO_STEP_DOWN,	"VFOSTEPDOWN",         0},
+	{ MIDI_ACTION_VOX,   		"VOX",                 0},
+	{ MIDI_ACTION_VOXLEVEL,   	"VOXLEVEL",            0},
+	{ MIDI_ACTION_XIT_CLEAR,  	"XITCLEAR",            0},
+	{ MIDI_ACTION_XIT_VAL,  	"XITVAL",              0},
+	{ MIDI_ACTION_ZOOM,		"ZOOM",                0},
+	{ MIDI_ACTION_ZOOM_UP,		"ZOOMUP",              0},
+	{ MIDI_ACTION_ZOOM_DOWN,	"ZOOMDOWN",            0},
+        { MIDI_ACTION_NONE,  		"NONE",                0}
 };
 
 /*
  * Translation from keyword in midi.props file to MIDIaction
  */
 
-static enum MIDIaction keyword2action(char *s) {
+static void keyword2action(char *s, enum MIDIaction *action, int *onoff) {
     int i=0;
 
     for (i=0; i< (sizeof(ActionTable) / sizeof(ActionTable[0])); i++) {
-	if (!strcmp(s, ActionTable[i].str)) return ActionTable[i].action;
+	if (!strcmp(s, ActionTable[i].str)) {
+          *action = ActionTable[i].action;
+          *onoff  = ActionTable[i].onoff;
+          return;
+        }
     }
     fprintf(stderr,"MIDI: action keyword %s NOT FOUND.\n", s);
-    return MIDI_ACTION_NONE;
+    *action = MIDI_ACTION_NONE;
+    *onoff  = 0;
 }
 
 /*
@@ -290,11 +296,11 @@ void MIDIstartup() {
       chan=-1;  // default: any channel
       t1=t3=t5=t7= t9=t11=128;  // range that never occurs
       t2=t4=t6=t8=t10=t12=-1;   // range that never occurs
-      onoff=0;
       event=MIDI_EVENT_NONE;
       type=MIDI_TYPE_NONE;
       key=0;
       delay=0;
+      onoff=0;
 
       //
       // The KEY=, CTRL=, and PITCH= cases are mutually exclusive
@@ -343,10 +349,6 @@ void MIDIstartup() {
         type=MIDI_TYPE_WHEEL;
 //fprintf(stderr,"MIDI:WHEEL\n");
       }
-      if ((cp = strstr(zeile, "ONOFF"))) {
-        onoff=1;
-//fprintf(stderr,"MIDI:ONOFF\n");
-      }
       if ((cp = strstr(zeile, "DELAY="))) {
         sscanf(cp+6, "%d", &delay);
 //fprintf(stderr,"MIDI:DELAY:%d\n",delay);
@@ -361,8 +363,8 @@ void MIDIstartup() {
         cq=cp+7;
         while (*cq != 0 && *cq != '\n' && *cq != ' ' && *cq != '\t') cq++;
 	*cq=0;
-        action=keyword2action(cp+7);
-//fprintf(stderr,"MIDI:ACTION:%s (%d)\n",cp+7, action);
+        keyword2action(cp+7, &action, &onoff);
+//fprintf(stderr,"MIDI:ACTION:%s (%d), onoff=%d\n",cp+7, action, onoff);
       }
       //
       // All data for a descriptor has been read. Construct it!
