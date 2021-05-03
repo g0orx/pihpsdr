@@ -931,14 +931,6 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%d iq_output_buf
           tx->mic_dsp_rate,
           tx->iq_output_rate);
 
-  //
-  // Experimental: set last parameter "bfo" to 1
-  // this should eliminate the "fexchange0: error=-2" messages sometimes seen
-  // BUT this means that wdsp "waits" in fexchange0 for data to become ready.
-  // perhaps this requires moving the fexchange0 call to a separate thread:
-  // add_mic_sample produces that data and sends a signal to the TX thread
-  // that a buffer needs processing.
-  //
   OpenChannel(tx->id,
               tx->buffer_size,
               2048, // tx->fft_size,
@@ -947,7 +939,7 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%d iq_output_buf
               tx->iq_output_rate,
               1, // transmit
               0, // run
-              0.010, 0.025, 0.0, 0.010, 1);
+              0.010, 0.025, 0.0, 0.010, 0);
 
   TXASetNC(tx->id, tx->fft_size);
   TXASetMP(tx->id, tx->low_latency);
