@@ -179,6 +179,9 @@ void receiver_save_state(RECEIVER *rx) {
   sprintf(name,"receiver.%d.audio_channel",rx->id);
   sprintf(value,"%d",rx->audio_channel);
   setProperty(name,value);
+  sprintf(name,"receiver.%d.remote_audio",rx->id);
+  sprintf(value,"%d",rx->remote_audio);
+  setProperty(name,value);
   sprintf(name,"receiver.%d.local_audio",rx->id);
   sprintf(value,"%d",rx->local_audio);
   setProperty(name,value);
@@ -349,6 +352,9 @@ fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
   sprintf(name,"receiver.%d.audio_channel",rx->id);
   value=getProperty(name);
   if(value) rx->audio_channel=atoi(value);
+  sprintf(name,"receiver.%d.remote_audio",rx->id);
+  value=getProperty(name);
+  if(value) rx->remote_audio=atoi(value);
   sprintf(name,"receiver.%d.local_audio",rx->id);
   value=getProperty(name);
   if(value) rx->local_audio=atoi(value);
@@ -907,6 +913,7 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
   rx->audio_channel=STEREO;
   rx->audio_device=-1;
   rx->mute_radio=0;
+  rx->remote_audio=1;
 
   rx->low_latency=0;
 
@@ -1040,6 +1047,7 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
   rx->mute_when_not_active=0;
   rx->audio_channel=STEREO;
   rx->audio_device=-1;
+  rx->remote_audio=1;
 
   rx->low_latency=0;
 
@@ -1068,7 +1076,7 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
   rx->pixel_samples=g_new(float,rx->pixels);
 
 
-fprintf(stderr,"create_receiver (after restore): rx=%p id=%d audio_buffer_size=%d local_audio=%d\n",rx,rx->id,rx->audio_buffer_size,rx->local_audio);
+fprintf(stderr,"create_receiver (after restore): rx=%p id=%d audio_buffer_size=%d local_audio=%d remote_audio=%d\n",rx,rx->id,rx->audio_buffer_size,rx->local_audio,rx->remote_audio);
   //rx->audio_buffer=g_new(guchar,rx->audio_buffer_size);
   int scale=rx->sample_rate/48000;
   rx->output_samples=rx->buffer_size/scale;
@@ -1356,7 +1364,7 @@ static void process_rx_buffer(RECEIVER *rx) {
           if(rx->mute_radio) {
             old_protocol_audio_samples(rx,(short)0,(short)0);
           } else {
-            old_protocol_audio_samples(rx,left_audio_sample,right_audio_sample);
+            old_protocol_audio_samples(rx, rx->remote_audio ? left_audio_sample : (short)0, rx->remote_audio ? right_audio_sample : (short)0);
           }
           break;
         case NEW_PROTOCOL:
@@ -1364,7 +1372,7 @@ static void process_rx_buffer(RECEIVER *rx) {
             if(rx->mute_radio) {
               new_protocol_audio_samples(rx,(short)0,(short)0);
             } else {
-              new_protocol_audio_samples(rx,left_audio_sample,right_audio_sample);
+              new_protocol_audio_samples(rx, rx->remote_audio ? left_audio_sample : (short)0, rx->remote_audio ? right_audio_sample : (short)0);
             }
           }
           break;

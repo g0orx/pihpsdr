@@ -128,6 +128,8 @@ typedef struct _receiver {
   void *local_audio_buffer;
   GMutex local_audio_mutex;
 
+  gboolean remote_audio;
+
   gint low_latency;
 
   gint squelch_enable;
