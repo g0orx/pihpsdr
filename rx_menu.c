@@ -39,6 +39,7 @@ static GtkWidget *menu_b=NULL;
 static GtkWidget *dialog=NULL;
 static GtkWidget *local_audio_b=NULL;
 static GtkWidget *output=NULL;
+static GtkWidget *remote_audio_b=NULL;
 
 static void cleanup() {
   if(dialog!=NULL) {
@@ -125,6 +126,11 @@ fprintf(stderr,"local_audio_cb: audio_open_output failed\n");
     }
   }
 fprintf(stderr,"local_audio_cb: local_audio=%d\n",active_receiver->local_audio);
+}
+
+static void remote_audio_cb(GtkWidget *widget, gpointer data) {
+  fprintf(stderr,"remote_audio_cb: rx=%d\n",active_receiver->id);
+  active_receiver->remote_audio=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
 }
 
 static void mute_audio_cb(GtkWidget *widget, gpointer data) {
@@ -353,8 +359,18 @@ void rx_menu(GtkWidget *parent) {
     x++;
   }
 
-
   int row=0;
+
+  // radio that don't have remote audio codec
+  // should not visualize the option
+  if (radio->device != DEVICE_HERMES_LITE2) {
+    remote_audio_b=gtk_check_button_new_with_label("Remote Audio Output");
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (remote_audio_b), active_receiver->remote_audio);
+    gtk_widget_show(remote_audio_b);
+    gtk_grid_attach(GTK_GRID(grid),remote_audio_b,x,++row,1,1);
+    g_signal_connect(remote_audio_b,"toggled",G_CALLBACK(remote_audio_cb),NULL);
+  }
+
   if(n_output_devices>0) {
     local_audio_b=gtk_check_button_new_with_label("Local Audio Output");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (local_audio_b), active_receiver->local_audio);
