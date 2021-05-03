@@ -1,0 +1,10 @@
+GNUmakefile
+*.o
+pihpsdr
+pihpsdr.app
+hpsdrsim
+wdspWisdom00
+*.props
+ip.addr
+hpsdr.png
+.DS_Store
