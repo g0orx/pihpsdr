@@ -1370,7 +1370,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
             send_resp(client->fd,reply) ;
           } else if(command[15]==';') {
             long long f=atoll(&command[4]);
-            local_set_frequency(VFO_A,f);
+            set_frequency(VFO_A,f);
             vfo_update();
           }
           break;
@@ -1385,7 +1385,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
             send_resp(client->fd,reply) ;
           } else if(command[15]==';') {
             long long f=atoll(&command[4]);
-            local_set_frequency(VFO_B,f);
+            set_frequency(VFO_B,f);
             vfo_update();
           }
           break;
@@ -2128,7 +2128,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
             send_resp(client->fd,reply) ;
           } else if(command[5]==';') {
 	    int val=atoi(&command[4]);
-	    ext_set_split(GINT_TO_POINTER(val));
+            set_split(val);
           }
           break;
         case 'R': //ZZSR
@@ -2153,7 +2153,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
             send_resp(client->fd,reply) ;
           } else if(command[5]==';') {
             int val=atoi(&command[4]);
-            ext_set_split(GINT_TO_POINTER(val));
+            set_split(val);
           }
           break;
         case 'Y': //ZZSY
@@ -2761,7 +2761,7 @@ int parse_cmd(void *data) {
             send_resp(client->fd,reply) ;
           } else if(command[13]==';') {
             long long f=atoll(&command[2]);
-            local_set_frequency(VFO_A,f);
+            set_frequency(VFO_A,f);
             vfo_update();
           }
           break;
@@ -2776,7 +2776,7 @@ int parse_cmd(void *data) {
             send_resp(client->fd,reply) ;
           } else if(command[13]==';') {
             long long f=atoll(&command[2]);
-            local_set_frequency(VFO_B,f);
+            set_frequency(VFO_B,f);
             vfo_update();
           }
           break;
@@ -2823,7 +2823,7 @@ int parse_cmd(void *data) {
             send_resp(client->fd,reply) ;
           } else if(command[3]==';') {
             int val=atoi(&command[2]);
-            ext_set_split(GINT_TO_POINTER(val));
+            set_split(val);
           }
           break;
         case 'W': //FW
