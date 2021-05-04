@@ -83,7 +83,6 @@ extern void vfo_move(long long hz,int round);
 extern void vfo_id_move(int id,long long hz,int round);
 extern void vfo_move_to(long long hz);
 extern void vfo_update();
-extern void set_frequency();
 
 extern void vfo_save_state();
 extern void vfo_restore_state();

@@ -159,7 +159,7 @@ static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
         //fp->vfo=v;
         //fp->frequency = f;
         //g_idle_add(ext_set_frequency, fp);
-        local_set_frequency(v, f);
+        set_frequency(v, f);
 #ifdef CLIENT_SERVER
       }
 #endif
