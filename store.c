@@ -118,7 +118,7 @@ void recall_memory_slot(int index) {
     // Step c) will not only change the filter but also store the new setting
     // with that mode.
     //
-    local_set_frequency(active_receiver->id, new_freq);
+    set_frequency(active_receiver->id, new_freq);
     vfo_mode_changed(mem[index].mode);
     vfo_filter_changed(mem[index].filter);
     g_idle_add(ext_vfo_update,NULL);
