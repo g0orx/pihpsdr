@@ -157,13 +157,13 @@ STEMLAB_OBJS=stemlab_discovery.o
 endif
 
 ifeq ($(SERVER_INCLUDE), SERVER)
-SERVER_OPTIONS=-D SERVER
+SERVER_OPTIONS=-D CLIENT_SERVER
 SERVER_SOURCES= \
-hpsdr_server.c
+client_server.c server_menu.c
 SERVER_HEADERS= \
-hpsdr_server.h
+client_server.h
 SERVER_OBJS= \
-hpsdr_server.o
+client_server.o server_menu.o
 endif
 
 GTKINCLUDES=`pkg-config --cflags gtk+-3.0`

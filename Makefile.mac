@@ -21,7 +21,7 @@ PURESIGNAL_INCLUDE=PURESIGNAL
 #STEMLAB_DISCOVERY=STEMLAB_DISCOVERY
 
 # uncomment the line below to include support for STEMlab discovery (WITHOUT AVAHI)
-STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_NOAVAHI
+#STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_NOAVAHI
 
 # uncomment the line below to include MIDI support
 MIDI_INCLUDE=MIDI
@@ -130,25 +130,25 @@ STEMLAB_OBJS=stemlab_discovery.o
 endif
 
 ifeq ($(SERVER_INCLUDE), SERVER)
-SERVER_OPTIONS=-D SERVER
+SERVER_OPTIONS=-D CLIENT_SERVER
 SERVER_SOURCES= \
-hpsdr_server.c
+client_server.c server_menu.c
 SERVER_HEADERS= \
-hpsdr_server.h
+client_server.h
 SERVER_OBJS= \
-hpsdr_server.o
+client_server.o server_menu.o
 endif
 
 GTKINCLUDES=$(shell $(PKG_CONFIG) --cflags gtk+-3.0)
 GTKLIBS=$(shell $(PKG_CONFIG) --libs gtk+-3.0)
 
-AUDIO_OPTIONS=-DPORTAUDIO
-AUDIO_LIBS=-lportaudio
+AUDIO_OPTIONS=-DPORTAUDIO $(shell $(PKG_CONFIG) --cflags portaudio-2.0)
+AUDIO_LIBS=$(shell $(PKG_CONFIG) --libs portaudio-2.0)
 MAC_LIBS=-framework IOKit
 
 OPTIONS=$(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) \
 	$(SOAPYSDR_OPTIONS) $(LOCALCW_OPTIONS) \
-	$(STEMLAB_OPTIONS) \
+	$(STEMLAB_OPTIONS) $(SERVER_OPTIONS) \
 	$(CONTROLLER2_OPTIONS) $(AUDIO_OPTIONS) \
 	-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION)
 
@@ -377,15 +377,15 @@ protocols.o
 
 $(PROGRAM):  $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) \
 		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
-		$(MIDI_OBJS) $(STEMLAB_OBJS)
+		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS)
 	$(CC) -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) \
 		$(SOAPYSDR_OBJS) $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
-		$(MIDI_OBJS) $(STEMLAB_OBJS) $(LIBS) $(LDFLAGS)
+		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS) $(LIBS) $(LDFLAGS)
 
 all:	prebuild  $(PROGRAM) $(HEADERS) $(REMOTE_HEADERS) $(USBOZY_HEADERS) $(SOAPYSDR_HEADERS) \
-	$(LOCALCW_HEADERS) \
+	$(LOCALCW_HEADERS) $(SERVER_HEADERS) \
 	$(PURESIGNAL_HEADERS) $(MIDI_HEADERS) $(STEMLAB_HEADERS) $(SOURCES) $(REMOTE_SOURCES) \
-	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) \
+	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(SERVER_SOURCES) \
 	$(PURESIGNAL_SOURCES) $(MIDI_SOURCES) $(STEMLAB_SOURCES) $(LOCALCW_SOURCES)
 
 prebuild:
@@ -403,7 +403,7 @@ CPPINCLUDES:=$(shell echo $(INCLUDES) | sed -e "s/-pthread / /" )
 .PHONY:	cppcheck
 cppcheck:
 	cppcheck $(CPPOPTIONS) $(OPTIONS) $(CPPINCLUDES) $(SOURCES) $(REMOTE_SOURCES) \
-	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) \
+	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(SERVER_SOURCES) \
 	$(PURESIGNAL_SOURCES) $(MIDI_SOURCES) $(STEMLAB_SOURCES) $(LOCALCW_SOURCES)
 
 clean:
@@ -424,13 +424,13 @@ install: $(PROGRAM)
 #############################################################################
 
 hpsdrsim.o:     hpsdrsim.c  hpsdrsim.h
-	$(CC) -c -O -DPORTAUDIO hpsdrsim.c
+	$(CC) -c -O $(AUDIO_OPTIONS) hpsdrsim.c
         
 newhpsdrsim.o:	newhpsdrsim.c hpsdrsim.h
 	$(CC) -c -O newhpsdrsim.c
 
 hpsdrsim:       hpsdrsim.o newhpsdrsim.o
-	$(CC) -o hpsdrsim hpsdrsim.o newhpsdrsim.o -lportaudio -lm -lpthread
+	$(CC) -o hpsdrsim $(AUDIO_LIBS) hpsdrsim.o newhpsdrsim.o -lportaudio -lm -lpthread
 
 #############################################################################
 #
@@ -449,13 +449,14 @@ hpsdrsim:       hpsdrsim.o newhpsdrsim.o
 #############################################################################
 
 .PHONY: app
-app:	$(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) \
-		$(LOCALCW_OBJS) \
-		$(PURESIGNAL_OBJS) $(MIDI_OBJS) $(SOAPYSDR_OBJS) $(STEMLAB_OBJS)
+app:	$(OBJS) $(REMOTE_OBJS) \
+		$(USBOZY_OBJS)  $(SOAPYSDR_OBJS) \
+		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
+		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS)
 	$(CC)   -headerpad_max_install_names -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) \
 		$(USBOZY_OBJS)  $(SOAPYSDR_OBJS) \
 		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
-		$(MIDI_OBJS) $(STEMLAB_OBJS) $(LIBS) $(LDFLAGS)
+		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS) $(LIBS) $(LDFLAGS)
 	@rm -rf pihpsdr.app
 	@mkdir -p pihpsdr.app/Contents/MacOS
 	@mkdir -p pihpsdr.app/Contents/Frameworks
