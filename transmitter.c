@@ -50,6 +50,7 @@
 #endif
 #include "audio.h"
 #include "ext.h"
+#include "sliders.h"
 
 double getNextSideToneSample();
 double getNextInternalSideToneSample();
@@ -684,7 +685,7 @@ static gboolean update_display(gpointer data) {
 //  set the drive slider to zero. Do not do this while tuning
 //
     if (tx->swr_protection && !getTune() && tx->swr >= tx->swr_alarm) {
-      g_idle_add(ext_set_drive, GINT_TO_POINTER(0));
+      set_drive(0.0);
       display_swr_protection = TRUE;
     }
 
