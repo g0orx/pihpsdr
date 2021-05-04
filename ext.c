@@ -53,21 +53,32 @@
 #include "store.h"
 
 
-// The following calls functions can be called usig g_idle_add
+//
+// Re-structuring of the rigctl, MIDI, and gpio code
+// eliminates the need for many "ext" functions
+// defined here. For the time being, they are
+// moved to the end of the file, and the whole block is
+// deactivated with #if0/#endif
+//
 
-int ext_vfo_mode_changed(void * data)
-{
-  int mode=GPOINTER_TO_INT(data);
-  vfo_mode_changed(mode);
-  return 0;
-}
+//
+// Furthermore, some "helper" functions defined here
+// are moved to the top of the file, since they
+// eventually are moved elsewhere.
+//
 
-int ext_discovery(void *data) {
-  discovery();
-  return 0;
-}
+//
+// 'Helper' functions:
+// -------------------
+//
+// - set_frequency(int id, long long f)   // Set the frequency of VFO #v
+// - band_plus(int id)                    // Move VFO #id to next higher band
+// - band_minus(int id)                   // Move VFO #id to next lower band
+// - ctun_update(int id, int state)       // set CTUN state of VFO #id
+// - set_split(int state)                 // Set split mode to state
+//
 
-void local_set_frequency(int v,long long f) {
+void set_frequency(int v,long long f) {
   int b=get_band_from_frequency(f);
   if(active_receiver->id==v) {
     if (b != vfo[v].band) {
@@ -84,18 +95,85 @@ void local_set_frequency(int v,long long f) {
   }
 }
 
-int ext_set_frequency(void *data) {
-  //
-  // If new frequency is outside of current band,
-  // behave as if the user had chosen the new band
-  // via the menu prior to changing the frequency
-  //
-  SET_FREQUENCY *set_frequency=(SET_FREQUENCY *)data;
-g_print("ext_set_frequency: vfo=%d freq=%lld\n",set_frequency->vfo,set_frequency->frequency);
-  local_set_frequency(set_frequency->vfo,set_frequency->frequency);
-  free(data);
+void band_plus(int id) {
+  long long frequency_min=radio->frequency_min;
+  long long frequency_max=radio->frequency_max;
+  int b=vfo[id].band;
+  BAND *band;
+  int found=0;
+  while(!found) {
+    b++;
+    if(b>=BANDS+XVTRS) b=0;
+    band=(BAND*)band_get_band(b);
+    if(strlen(band->title)>0) {
+      if(b<BANDS) {
+        if(!(band->frequencyMin==0.0 && band->frequencyMax==0.0)) {
+          if(band->frequencyMin<frequency_min || band->frequencyMax>frequency_max) {
+            continue;
+          }
+        }
+      }
+      vfo_band_changed(id,b);
+      found=1;
+    }
+  }
+}
+
+void band_minus(int id) {
+  long long frequency_min=radio->frequency_min;
+  long long frequency_max=radio->frequency_max;
+  int b=vfo[id].band;
+  BAND *band;
+  int found=0;
+  while(!found) {
+    b--;
+    if(b<0) b=BANDS+XVTRS-1;
+    band=(BAND*)band_get_band(b);
+    if(strlen(band->title)>0) {
+      if(b<BANDS) {
+        if(band->frequencyMin<frequency_min || band->frequencyMax>frequency_max) {
+          continue;
+        }
+      }
+      vfo_band_changed(id,b);
+      found=1;
+    }
+  }
+}
+
+void ctun_update(int id,int state) {
+  vfo[id].ctun=state;
+  if(!vfo[id].ctun) {
+    vfo[id].offset=0;
+  }
+  vfo[id].ctun_frequency=vfo[id].frequency;
+  set_offset(receiver[id],vfo[id].offset);
+}
+
+void set_split(int val) {
+  if (can_transmit) {
+    split=val;
+    tx_set_mode(transmitter,get_tx_mode());
+    set_alex_tx_antenna();
+    calcDriveLevel();
+    g_idle_add(ext_vfo_update, NULL);
+  }
+}
+
+//
+// Functions to be invoked through the GTK idle queue,
+// still in use
+//
+
+int ext_discovery(void *data) {
+  discovery();
   return 0;
 }
+
+//
+// ext_vfo_update includes a limitation to how often
+// the VFO bar is actually re-drawn (every 100 msec)
+//
 
 static guint vfo_timeout=0;
 
@@ -113,11 +191,6 @@ int ext_vfo_update(void *data) {
   if (vfo_timeout ==0) {
     vfo_timeout=g_timeout_add(100, vfo_timeout_cb, NULL);
   }
-  return 0;
-}
-
-int ext_vfo_filter_changed(void *data) {
-  vfo_filter_changed(GPOINTER_TO_INT(data));
   return 0;
 }
 
@@ -155,11 +228,6 @@ int ext_memory_update(void *data) {
   return 0;
 }
 
-int ext_noise_update(void *data) {
-  start_noise();
-  return 0;
-}
-
 int ext_mox_update(void *data) {
   mox_update(GPOINTER_TO_INT(data));
   return 0;
@@ -172,37 +240,6 @@ int ext_tune_update(void *data) {
 
 int ext_vox_changed(void *data) {
   vox_changed(GPOINTER_TO_INT(data));
-  return 0;
-}
-
-int ext_update_agc_gain(void *data) {
-  update_agc_gain(GPOINTER_TO_INT(data));
-  return 0;
-}
-
-int ext_update_af_gain(void *data) {
-  update_af_gain();
-  return 0;
-}
-
-int ext_calc_drive_level(void *data) {
-  calcDriveLevel();
-  return 0;
-}
-
-int ext_vfo_band_changed(void *data) {
-  int b=GPOINTER_TO_INT(data);
-  vfo_band_changed(active_receiver->id,b);
-  return 0;
-}
-
-int ext_radio_change_sample_rate(void *data) {
-  radio_change_sample_rate(GPOINTER_TO_INT(data));
-  return 0;
-}
-
-int ext_update_squelch(void *data) {
-  set_squelch();
   return 0;
 }
 
@@ -221,89 +258,6 @@ int ext_tx_set_ps(void *data) {
 }
 #endif
 
-int ext_update_vfo_step(void *data) {
-  int direction=GPOINTER_TO_INT(data);
-  int i=0;
-  while(steps[i]!=step && steps[i]!=0) {
-    i++;
-  }
-
-  if(steps[i]!=0) {
-    if(direction>0) {
-      i++;
-      if(steps[i]!=0) {
-        step=steps[i];
-      }
-    } else {
-      i--;
-      if(i>=0) {
-        step=steps[i];
-      }
-    }
-  }
-  g_idle_add(ext_vfo_update, NULL);
-  return 0;
-}
-
-int ext_vfo_step(void *data) {
-  int step=GPOINTER_TO_INT(data);
-  vfo_step(step);
-  return 0;
-}
-
-int ext_vfo_id_step(void *data) {
-  //
-  // the two integer input arguments (VFO id and Step in Hz)
-  // are encoded in a single integer-type number:
-  // input = 10000*vfo_id + (step+1000);
-  //
-  // Normally vfo_id is a small number (0 or 1)
-  // and the step is in the range -100 - 100 (in units of the VFO step size)
-  //
-  int val = GPOINTER_TO_INT(data);
-  int id = val / 10000;
-  int step = (val % 10000) - 1000;
-  vfo_id_step(id,step);
-  return 0;
-}
-
-int ext_set_mic_gain(void * data) {
-  //
-  // mic gain is (input value - 1000), normally between -12 and 50
-  //
-  int val = GPOINTER_TO_INT(data);
-  double d = val - 1000;
-  set_mic_gain(d);
-  return 0;
-}
-
-int ext_set_agc_gain(void *data) {
-  //
-  // AGC is (input value - 1000), normally between -20 and +120
-  //
-  int val=GPOINTER_TO_INT(data);
-  double d=  val - 1000;
-  set_agc_gain(active_receiver->id,d);
-  return 0;
-}
- 
-int ext_set_drive(void *data) {
-  //
-  // Drive is input value, normally between 0 and 100
-  //
-  int val=GPOINTER_TO_INT(data);
-  double d=(double) val;
-  set_drive(d);
-  return 0;
-}
-
-int ext_set_compression(void *data) {
-  if(can_transmit) {
-    set_compression(transmitter);
-  }
-  return 0;
-}
-
 int ext_vfo_a_swap_b(void *data) {
   vfo_a_swap_b();
   return 0;
@@ -318,29 +272,6 @@ int ext_vfo_b_to_a(void *data) {
   vfo_b_to_a();
   return 0;
 }
-
-int ext_update_att_preamp(void *data) {
-  update_att_preamp();
-  return 0;
-}
-
-int ext_set_alex_attenuation(void *data) {
-  int val=GPOINTER_TO_INT(data);
-  set_alex_attenuation(val);
-  return 0;
-}
-
-int ext_set_attenuation_value(void *data) {
-  //
-  // Att valus is (input -1000), normally between 0 and 31
-  // but HermesLite-II and others have the range -12 to 48.
-  //
-  int val=GPOINTER_TO_INT(data);
-  double d = val - 1000;
-  set_attenuation_value(d);
-  return 0;
-}
-
 
 #ifdef PURESIGNAL
 int ext_ps_update(void *data) {
@@ -417,56 +348,9 @@ int ext_snb_update(void *data) {
   return 0;
 }
 
-void band_plus(int id) {
-  long long frequency_min=radio->frequency_min;
-  long long frequency_max=radio->frequency_max;
-  int b=vfo[id].band;
-  BAND *band;
-  int found=0;
-  while(!found) {
-    b++;
-    if(b>=BANDS+XVTRS) b=0;
-    band=(BAND*)band_get_band(b);
-    if(strlen(band->title)>0) {
-      if(b<BANDS) {
-        if(!(band->frequencyMin==0.0 && band->frequencyMax==0.0)) {
-          if(band->frequencyMin<frequency_min || band->frequencyMax>frequency_max) {
-            continue;
-          }
-        }
-      }
-      vfo_band_changed(id,b);
-      found=1;
-    }
-  }
-}
-
 int ext_band_plus(void *data) {
   band_plus(active_receiver->id);
   return 0;
-}
-
-
-void band_minus(int id) {
-  long long frequency_min=radio->frequency_min;
-  long long frequency_max=radio->frequency_max;
-  int b=vfo[id].band;
-  BAND *band;
-  int found=0;
-  while(!found) {
-    b--;
-    if(b<0) b=BANDS+XVTRS-1;
-    band=(BAND*)band_get_band(b);
-    if(strlen(band->title)>0) {
-      if(b<BANDS) {
-        if(band->frequencyMin<frequency_min || band->frequencyMax>frequency_max) {
-          continue;
-        }
-      }
-      vfo_band_changed(id,b);
-      found=1;
-    }
-  }
 }
 
 int ext_band_minus(void *data) {
@@ -565,15 +449,6 @@ int ext_mode_minus(void *data) {
   return 0;
 }
 
-void ctun_update(int id,int state) {
-  vfo[id].ctun=state;
-  if(!vfo[id].ctun) {
-    vfo[id].offset=0;
-  }
-  vfo[id].ctun_frequency=vfo[id].frequency;
-  set_offset(receiver[id],vfo[id].offset);
-}
-
 int ext_ctun_update(void *data) {
   ctun_update(active_receiver->id,vfo[active_receiver->id].ctun==1?0:1);
   g_idle_add(ext_vfo_update, NULL);
@@ -590,25 +465,9 @@ int ext_agc_update(void *data) {
   return 0;
 }
 
-int ext_set_split(void *data) {
-  if(can_transmit) {
-    split=GPOINTER_TO_INT(data),
-    tx_set_mode(transmitter,get_tx_mode());
-    set_alex_tx_antenna();
-    calcDriveLevel();
-    g_idle_add(ext_vfo_update, NULL);
-  }
-  return 0;
-}
-
 int ext_split_toggle(void *data) {
-  if(can_transmit) {
-    split=split==1?0:1;
-    tx_set_mode(transmitter,get_tx_mode());
-    set_alex_tx_antenna();
-    calcDriveLevel();
-    g_idle_add(ext_vfo_update, NULL);
-  }
+  int val = split ? 0 : 1;
+  set_split(val);
   return 0;
 }
 
@@ -634,26 +493,6 @@ int ext_diversity_update(void *data) {
     }
     g_idle_add(ext_vfo_update, NULL);
   }
-  return 0;
-}
-
-int ext_diversity_change_gain(void *data) {
-  //
-  // value = (input-10000) * 0.1
-  //
-  int val=GPOINTER_TO_INT(data);
-  double d = (val - 10000) * 0.1;
-  update_diversity_gain(d);
-  return 0;
-}
-
-int ext_diversity_change_phase(void *data) {
-  //
-  // value = (input-10000) * 0.1
-  //
-  int val=GPOINTER_TO_INT(data);
-  double d = (val - 10000) * 0.1;
-  update_diversity_phase(d);
   return 0;
 }
 
@@ -690,19 +529,6 @@ int ext_function_update(void *data) {
   return 0;
 }
 
-int ext_set_rf_gain(void *data) {
-  int pos=GPOINTER_TO_INT(data);
-  double value;
-  value=(double)pos;
-  if(value<-12.0) {
-    value=-12.0;
-  } else if(value>48.0) {
-    value=48.0;
-  }
-  set_rf_gain(active_receiver->id,value);
-  return 0;
-}
-
 int ext_update_noise(void *data) {
   update_noise();
   return 0;
@@ -730,7 +556,7 @@ int ext_remote_command(void *data) {
       temp=active_receiver->pan;
       int vfo=freq_command->id;
       long long f=ntohll(freq_command->hz);
-      local_set_frequency(vfo,f);
+      set_frequency(vfo,f);
       vfo_update();
       send_vfo_data(client,VFO_A);
       send_vfo_data(client,VFO_B);
@@ -1115,19 +941,6 @@ int ext_receiver_remote_update_display(void *data) {
 }
 #endif
 
-int ext_anf_update(void *data) {
-  if(active_receiver->anf==0) {
-    active_receiver->anf=1;
-    mode_settings[vfo[active_receiver->id].mode].anf=1;
-  } else {
-    active_receiver->snb=0;
-    mode_settings[vfo[active_receiver->id].mode].anf=0;
-  }
-  SetRXAANFRun(active_receiver->id, active_receiver->anf);
-  g_idle_add(ext_vfo_update, NULL);
-  return 0;
-}
-
 int ext_mute_update(void *data) {
   active_receiver->mute_radio=!active_receiver->mute_radio;
   return 0;
@@ -1138,26 +951,8 @@ int ext_zoom_update(void *data) {
   return 0;
 }
 
-int ext_zoom_set(void *data) {
-  int pos=GPOINTER_TO_INT(data);
-  double zoom=((double)pos/(100.0/7.0))+1.0;
-  if((int)zoom!=active_receiver->zoom) {
-    set_zoom(active_receiver->id,(double)zoom);
-  }
-  return 0;
-}
-
 int ext_pan_update(void *data) {
   update_pan((double)GPOINTER_TO_INT(data));
-  return 0;
-}
-
-int ext_pan_set(void *data) {
-  if(active_receiver->zoom>1) {
-    int pos=GPOINTER_TO_INT(data);
-    double pan=(double)((active_receiver->zoom-1)*active_receiver->width)*((double)pos/100.0);
-    set_pan(active_receiver->id,(double)pan);
-  }
   return 0;
 }
 
@@ -1180,12 +975,253 @@ int ext_set_title(void *data) {
   return 0;
 }
 
-int ext_store_memory_slot(void *data) {
-  store_memory_slot(GPOINTER_TO_INT(data));
-  return 0;
-}
-
+//
+// Functions no longer used
+//
+#if 0
 int ext_recall_memory_slot(void *data) {
   recall_memory_slot(GPOINTER_TO_INT(data));
   return 0;
 }
+
+int ext_vfo_mode_changed(void * data)
+{
+  int mode=GPOINTER_TO_INT(data);
+  vfo_mode_changed(mode);
+  return 0;
+}
+
+int ext_set_frequency(void *data) {
+  //
+  // If new frequency is outside of current band,
+  // behave as if the user had chosen the new band
+  // via the menu prior to changing the frequency
+  //
+  SET_FREQUENCY *set_frequency=(SET_FREQUENCY *)data;
+g_print("ext_set_frequency: vfo=%d freq=%lld\n",set_frequency->vfo,set_frequency->frequency);
+  set_frequency(set_frequency->vfo,set_frequency->frequency);
+  free(data);
+  return 0;
+}
+
+int ext_vfo_filter_changed(void *data) {
+  vfo_filter_changed(GPOINTER_TO_INT(data));
+  return 0;
+}
+
+int ext_noise_update(void *data) {
+  start_noise();
+  return 0;
+}
+
+int ext_update_agc_gain(void *data) {
+  update_agc_gain(GPOINTER_TO_INT(data));
+  return 0;
+}
+
+int ext_update_af_gain(void *data) {
+  update_af_gain();
+  return 0;
+}
+
+int ext_calc_drive_level(void *data) {
+  calcDriveLevel();
+  return 0;
+}
+
+int ext_vfo_band_changed(void *data) {
+  int b=GPOINTER_TO_INT(data);
+  vfo_band_changed(active_receiver->id,b);
+  return 0;
+}
+
+int ext_radio_change_sample_rate(void *data) {
+  radio_change_sample_rate(GPOINTER_TO_INT(data));
+  return 0;
+}
+
+int ext_update_squelch(void *data) {
+  set_squelch();
+  return 0;
+}
+
+int ext_update_vfo_step(void *data) {
+  int direction=GPOINTER_TO_INT(data);
+  int i=0;
+  while(steps[i]!=step && steps[i]!=0) {
+    i++;
+  }
+
+  if(steps[i]!=0) {
+    if(direction>0) {
+      i++;
+      if(steps[i]!=0) {
+        step=steps[i];
+      }
+    } else {
+      i--;
+      if(i>=0) {
+        step=steps[i];
+      }
+    }
+  }
+  g_idle_add(ext_vfo_update, NULL);
+  return 0;
+}
+
+int ext_vfo_step(void *data) {
+  int step=GPOINTER_TO_INT(data);
+  vfo_step(step);
+  return 0;
+}
+
+int ext_vfo_id_step(void *data) {
+  //
+  // the two integer input arguments (VFO id and Step in Hz)
+  // are encoded in a single integer-type number:
+  // input = 10000*vfo_id + (step+1000);
+  //
+  // Normally vfo_id is a small number (0 or 1)
+  // and the step is in the range -100 - 100 (in units of the VFO step size)
+  //
+  int val = GPOINTER_TO_INT(data);
+  int id = val / 10000;
+  int step = (val % 10000) - 1000;
+  vfo_id_step(id,step);
+  return 0;
+}
+
+int ext_set_mic_gain(void * data) {
+  //
+  // mic gain is (input value - 1000), normally between -12 and 50
+  //
+  int val = GPOINTER_TO_INT(data);
+  double d = val - 1000;
+  set_mic_gain(d);
+  return 0;
+}
+
+int ext_set_agc_gain(void *data) {
+  //
+  // AGC is (input value - 1000), normally between -20 and +120
+  //
+  int val=GPOINTER_TO_INT(data);
+  double d=  val - 1000;
+  set_agc_gain(active_receiver->id,d);
+  return 0;
+}
+
+int ext_set_drive(void *data) {
+  //
+  // Drive is input value, normally between 0 and 100
+  //
+  int val=GPOINTER_TO_INT(data);
+  double d=(double) val;
+  set_drive(d);
+  return 0;
+}
+
+int ext_set_compression(void *data) {
+  if(can_transmit) {
+    set_compression(transmitter);
+  }
+  return 0;
+}
+
+int ext_update_att_preamp(void *data) {
+  update_att_preamp();
+  return 0;
+}
+
+int ext_set_alex_attenuation(void *data) {
+  int val=GPOINTER_TO_INT(data);
+  set_alex_attenuation(val);
+  return 0;
+}
+
+int ext_set_attenuation_value(void *data) {
+  //
+  // Att valus is (input -1000), normally between 0 and 31
+  // but HermesLite-II and others have the range -12 to 48.
+  //
+  int val=GPOINTER_TO_INT(data);
+  double d = val - 1000;
+  set_attenuation_value(d);
+  return 0;
+}
+
+int ext_set_split(void *data) {
+  val=GPOINTER_TO_INT(data),
+  set_split(val);
+  return 0;
+}
+
+int ext_diversity_change_gain(void *data) {
+  //
+  // value = (input-10000) * 0.1
+  //
+  int val=GPOINTER_TO_INT(data);
+  double d = (val - 10000) * 0.1;
+  update_diversity_gain(d);
+  return 0;
+}
+
+int ext_diversity_change_phase(void *data) {
+  //
+  // value = (input-10000) * 0.1
+  //
+  int val=GPOINTER_TO_INT(data);
+  double d = (val - 10000) * 0.1;
+  update_diversity_phase(d);
+  return 0;
+}
+
+int ext_set_rf_gain(void *data) {
+  int pos=GPOINTER_TO_INT(data);
+  double value;
+  value=(double)pos;
+  if(value<-12.0) {
+    value=-12.0;
+  } else if(value>48.0) {
+    value=48.0;
+  }
+  set_rf_gain(active_receiver->id,value);
+  return 0;
+}
+
+int ext_anf_update(void *data) {
+  if(active_receiver->anf==0) {
+    active_receiver->anf=1;
+    mode_settings[vfo[active_receiver->id].mode].anf=1;
+  } else {
+    active_receiver->snb=0;
+    mode_settings[vfo[active_receiver->id].mode].anf=0;
+  }
+  SetRXAANFRun(active_receiver->id, active_receiver->anf);
+  g_idle_add(ext_vfo_update, NULL);
+  return 0;
+}
+
+int ext_zoom_set(void *data) {
+  int pos=GPOINTER_TO_INT(data);
+  double zoom=((double)pos/(100.0/7.0))+1.0;
+  if((int)zoom!=active_receiver->zoom) {
+    set_zoom(active_receiver->id,(double)zoom);
+  }
+  return 0;
+}
+
+int ext_pan_set(void *data) {
+  if(active_receiver->zoom>1) {
+    int pos=GPOINTER_TO_INT(data);
+    double pan=(double)((active_receiver->zoom-1)*active_receiver->width)*((double)pos/100.0);
+    set_pan(active_receiver->id,(double)pan);
+  }
+  return 0;
+}
+
+int ext_store_memory_slot(void *data) {
+  store_memory_slot(GPOINTER_TO_INT(data));
+  return 0;
+}
+#endif
