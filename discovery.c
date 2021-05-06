@@ -27,10 +27,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#ifdef MIDI
-#include <sys/stat.h>
-#include <fcntl.h>
-#endif
 
 #include "discovered.h"
 #include "old_discovery.h"
@@ -119,103 +115,6 @@ static gboolean start_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
   start_radio();
   return TRUE;
 }
-
-#ifdef MIDI
-//
-// This is a file open dialog. If we choose a readable file here, it is just copied
-// to file "midi.props" in the local directory
-//
-static gboolean midi_cb(GtkWidget *widget, GdkEventButton *event, gpointer data) {
-    GtkWidget *opfile,*message;
-    GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_OPEN;
-    gint res;
-    int fdin, fdout;
-    size_t len,bytes_read,bytes_written;
-
-    opfile = gtk_file_chooser_dialog_new ("Import MIDI description",
-                                      GTK_WINDOW(top_window),
-                                      action,
-                                      "Cancel",
-                                      GTK_RESPONSE_CANCEL,
-                                      "Open",
-                                      GTK_RESPONSE_ACCEPT,
-                                      NULL);
-
-    res = gtk_dialog_run (GTK_DIALOG (opfile));
-    if (res == GTK_RESPONSE_ACCEPT) {
-      char *filename, *cp;
-      struct stat statbuf;
-      GtkFileChooser *chooser = GTK_FILE_CHOOSER (opfile);
-      char *contents = NULL;
-      filename = gtk_file_chooser_get_filename (chooser);
-      fdin =open(filename, O_RDONLY);
-      bytes_read = bytes_written = 0;
-      if (fdin >= 0) {
-        fstat(fdin, &statbuf);
-        len=statbuf.st_size;
-        //
-        // Now first read the whole contents of the file, and then write it out.
-        // This is for new-bees trying to import the midi.props in the working dir
-        //
-        contents=g_new(char, len);
-        bytes_read = bytes_written = 0;
-        if (contents) {
-          bytes_read=read(fdin, contents, len);
-        }
-        close(fdin);
-      }
-      fdout=0;
-      if (contents && bytes_read == len) {
-	// should this file exist as a link or symlink, or should it
-	// be read-only, remove it first
-	unlink("midi.props");
-        fdout=open("midi.props", O_WRONLY | O_CREAT, 0644);
-        if (fdout >= 0) {
-          bytes_written=write(fdout, contents, len);
-          close(fdout);
-          g_free(contents);
-        }
-      }
-      if (fdin < 0 || bytes_read < len) {
-        message = gtk_message_dialog_new (GTK_WINDOW(top_window),
-		GTK_DIALOG_DESTROY_WITH_PARENT,
-		GTK_MESSAGE_ERROR,
-		GTK_BUTTONS_CLOSE,
-		"Cannot read input file!\n");
-        gtk_dialog_run (GTK_DIALOG (message));
-        gtk_widget_destroy(message);
-      } else if (fdout < 0 || bytes_written < len) {
-        message = gtk_message_dialog_new (GTK_WINDOW(top_window),
-		GTK_DIALOG_DESTROY_WITH_PARENT,
-		GTK_MESSAGE_ERROR,
-		GTK_BUTTONS_CLOSE,
-		"Cannot write MIDI settings!\n");
-        gtk_dialog_run (GTK_DIALOG (message));
-        gtk_widget_destroy(message);
-      } else {
-	// only show basename in the message
-	cp = filename + strlen(filename);
-        while (cp >= filename) {
-	  if (*cp == '/') {
-	    cp++;
-	    break;
-	  }
-	  cp--;
-	}
-        message = gtk_message_dialog_new (GTK_WINDOW(top_window),
-		GTK_DIALOG_DESTROY_WITH_PARENT,
-		GTK_MESSAGE_ERROR,
-		GTK_BUTTONS_CLOSE,
-		"MIDI import: %ld Bytes read from file %s\n",len,cp);
-        gtk_dialog_run (GTK_DIALOG (message));
-        gtk_widget_destroy(message);
-      }
-      g_free(filename);
-    }
-    gtk_widget_destroy (opfile);
-    return TRUE;
-}
-#endif
 
 static gboolean protocols_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   configure_protocols(discovery_dialog);
@@ -598,12 +497,6 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
     GtkWidget *protocols_b=gtk_button_new_with_label("Protocols");
     g_signal_connect (protocols_b, "button-press-event", G_CALLBACK(protocols_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),protocols_b,2,row,1,1);
-
-#ifdef MIDI
-    GtkWidget *midi_b=gtk_button_new_with_label("ImportMIDI");
-    g_signal_connect (midi_b, "button-press-event", G_CALLBACK(midi_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),midi_b,3,row,1,1);
-#endif
 
     row++;
 
