@@ -73,6 +73,7 @@
 #endif
 #include "rigctl_menu.h"
 #ifdef MIDI
+#include "midi.h"
 #include "alsa_midi.h"
 #include "midi_menu.h"
 #endif
@@ -1304,13 +1305,14 @@ void start_radio() {
   // running. So this is the last thing we do when starting the radio.
   //
 #ifdef MIDI
-  g_print("%s: midi_enabled=%d midi_device_name=%s\n",__FUNCTION__,midi_enabled,midi_device_name);
-  if(midi_enabled && (midi_device_name!=NULL)) {
-    if(register_midi_device(midi_device_name)<0) {
-      midi_enabled=FALSE;
+  g_print("%s: midi_enabled=%d \n",__FUNCTION__,midi_enabled);
+  if(midi_enabled) {
+    for (i=0; i<n_midi_devices; i++) {
+      if (midi_devices[i].active) {
+        g_print("%s: MIDI device %s (index=%d) registered\n", __FUNCTION__, midi_devices[i].name, i);
+        register_midi_device(i);
+      }
     }
-  } else {
-    midi_enabled=FALSE;
   }
 #endif
 

@@ -75,9 +75,11 @@ static GtkWidget *newMin;
 static GtkWidget *newMax;
 static GtkWidget *newAction;
 static GtkWidget *configure_b;
+static GtkWidget *any_b;
 static GtkWidget *add_b;
 static GtkWidget *update_b;
 static GtkWidget *delete_b;
+static GtkWidget *device_b[MAX_MIDI_DEVICES];
 
 static enum MIDIevent thisEvent=MIDI_EVENT_NONE;
 static int thisChannel;
@@ -88,8 +90,7 @@ static int thisMax;
 static enum MIDItype thisType;
 static enum MIDIaction thisAction;
 
-gchar *midi_device_name=NULL;
-static gint device_index=-1;
+static gboolean accept_any=FALSE;
 
 enum {
   UPDATE_NEW,
@@ -121,38 +122,50 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 }
 
 static gboolean midi_enable_cb(GtkWidget *widget,gpointer data) {
+  int i;
   if(midi_enabled) {
-    close_midi_device();
+    for (i=0; i<n_midi_devices; i++) {
+      if (midi_devices[i].active) {
+        close_midi_device(i);
+      }
+    }
   }
   midi_enabled=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON (widget));
   if(midi_enabled) {
-    if(register_midi_device(midi_device_name)<0) {
-      midi_enabled=FALSE;
-      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON (widget), midi_enabled);
+    for (i=0; i<n_midi_devices; i++) {
+      if (midi_devices[i].active) {
+        register_midi_device(i);
+      }
     }
   }
   return TRUE;
 }
 
+static void device_cb(GtkWidget *widget, gpointer data) {
+  int index=GPOINTER_TO_INT(data);
+  int val=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+  g_print("DEVICE =%d STATUS=%d\n", index, val);
+  midi_devices[index].active=val;
+  if (val == 1) {
+    register_midi_device(index);
+  } else {
+    close_midi_device(index);
+  }
+}
+
 static void configure_cb(GtkWidget *widget, gpointer data) {
   gboolean conf=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON (widget));
   configure_midi_device(conf);
+  if (conf) {
+    gtk_widget_show(any_b);
+  } else {
+    gtk_widget_hide(any_b);
+  }
 }
 
-static void device_changed_cb(GtkWidget *widget, gpointer data) {
-  device_index = gtk_combo_box_get_active(GTK_COMBO_BOX(widget));
-  if(midi_device_name!=NULL) {
-    g_free(midi_device_name);
-  }
-  midi_device_name=g_new(gchar,strlen(midi_devices[device_index].name)+1);
-  strcpy(midi_device_name,midi_devices[device_index].name);
-  if(midi_enabled) {
-    close_midi_device();
-    if(register_midi_device(midi_device_name)) {
-      midi_enabled=FALSE;
-      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(midi_enable_b), midi_enabled);
-    }
-  }
+static void any_cb(GtkWidget *widget, gpointer data) {
+  gboolean conf=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON (widget));
+  accept_any = conf;
 }
 
 static void type_changed_cb(GtkWidget *widget, gpointer data) {
@@ -242,7 +255,11 @@ static void tree_selection_changed_cb (GtkTreeSelection *selection, gpointer dat
         } else {
           thisEvent=MIDI_EVENT_NONE;
         }
-        thisChannel=atoi(str_channel);
+        if (!strncmp(str_channel,"Any", 3)) {
+          thisChannel=-1;
+        } else {
+          thisChannel=atoi(str_channel);
+        }
         thisNote=atoi(str_note);
         thisVal=0;
         thisMin=0;
@@ -276,7 +293,7 @@ static void find_current_cmd() {
   g_print("%s:\n",__FUNCTION__);
   cmd=MidiCommandsTable[thisNote];
   while(cmd!=NULL) {
-    if((cmd->channel==thisChannel || cmd->channel==-1) && cmd->type==thisType && cmd->action==thisAction) {
+    if((cmd->channel==thisChannel) && cmd->type==thisType && cmd->action==thisAction) {
       g_print("%s: found cmd %p\n",__FUNCTION__,cmd);
       break;
     }
@@ -313,13 +330,8 @@ static void save_cb(GtkWidget *widget,gpointer user_data) {
                                       NULL);
   chooser = GTK_FILE_CHOOSER (save_dialog);
   gtk_file_chooser_set_do_overwrite_confirmation (chooser, TRUE);
-  if(midi_device_name==NULL) {
-    filename=g_new(gchar,10);
-    sprintf(filename,"midi.midi");
-  } else {
-    filename=g_new(gchar,strlen(midi_device_name)+6);
-    sprintf(filename,"%s.midi",midi_device_name);
-  }
+  filename=g_new(gchar,10);
+  sprintf(filename,"midi.midi");
   gtk_file_chooser_set_current_name(chooser,filename);
   res = gtk_dialog_run (GTK_DIALOG (save_dialog));
   if(res==GTK_RESPONSE_ACCEPT) {
@@ -350,13 +362,8 @@ static void load_cb(GtkWidget *widget,gpointer user_data) {
                                       GTK_RESPONSE_ACCEPT,
                                       NULL);
   chooser = GTK_FILE_CHOOSER (load_dialog);
-  if(midi_device_name==NULL) {
-    filename=g_new(gchar,10);
-    sprintf(filename,"midi.midi");
-  } else {
-    filename=g_new(gchar,strlen(midi_device_name)+6);
-    sprintf(filename,"%s.midi",midi_device_name);
-  }
+  filename=g_new(gchar,10);
+  sprintf(filename,"midi.midi");
   gtk_file_chooser_set_current_name(chooser,filename);
   res = gtk_dialog_run (GTK_DIALOG (load_dialog));
   if(res==GTK_RESPONSE_ACCEPT) {
@@ -389,13 +396,8 @@ static void load_original_cb(GtkWidget *widget,gpointer user_data) {
                                       GTK_RESPONSE_ACCEPT,
                                       NULL);
   chooser = GTK_FILE_CHOOSER (load_dialog);
-  if(midi_device_name==NULL) {
-    filename=g_new(gchar,10);
-    sprintf(filename,"midi.midi");
-  } else {
-    filename=g_new(gchar,strlen(midi_device_name)+6);
-    sprintf(filename,"%s.midi",midi_device_name);
-  }
+  filename=g_new(gchar,10);
+  sprintf(filename,"midi.midi");
   gtk_file_chooser_set_current_name(chooser,filename);
   res = gtk_dialog_run (GTK_DIALOG (load_dialog));
   if(res==GTK_RESPONSE_ACCEPT) {
@@ -674,6 +676,10 @@ void midi_menu(GtkWidget *parent) {
   int row=0;
   GtkCellRenderer *renderer;
 
+  g_print("MENU: ndev=%d\n", n_midi_devices);
+  for (i=0; i<n_midi_devices; i++) {
+    g_print("Name=%s Active=%d\n", midi_devices[i].name, midi_devices[i].active);
+  }
   dialog=gtk_dialog_new();
   gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent_window));
   char title[64];
@@ -696,35 +702,55 @@ void midi_menu(GtkWidget *parent) {
   row=0;
   col=0;
 
-  get_midi_devices();
-  if(n_midi_devices>0) {
-    GtkWidget *devices_label=gtk_label_new("Select MIDI device: ");
-    gtk_grid_attach(GTK_GRID(grid),devices_label,col,row,3,1);
-    col+=3;
-
-    GtkWidget *devices=gtk_combo_box_text_new();
-    for(int i=0;i<n_midi_devices;i++) {
-      gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(devices),NULL,midi_devices[i].name);
-      if(midi_device_name!=NULL) {
-        if(strcmp(midi_device_name,midi_devices[i].name)==0) {
-          device_index=i;
-        }
+  //get_midi_devices();
+  if (n_midi_devices > 0) {
+    GtkWidget *devices_label=gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(devices_label), "<b>Select MIDI device(s)</b>");
+    gtk_label_set_justify(GTK_LABEL(devices_label),GTK_JUSTIFY_LEFT);
+    gtk_grid_attach(GTK_GRID(grid),devices_label,row,col,2,1);
+    col +=2;
+    for (i=0; i<n_midi_devices; i++) {
+      device_b[i] = gtk_check_button_new_with_label(midi_devices[i].name);
+      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(device_b[i]), midi_devices[i].active);
+      gtk_grid_attach(GTK_GRID(grid),device_b[i],col,row,2,1);
+      col +=2;
+      if (col == 8) {
+        col=2;
+        row++;
       }
+      g_signal_connect(device_b[i], "toggled", G_CALLBACK(device_cb), GINT_TO_POINTER(i));
+      gtk_widget_show(device_b[i]);
     }
-    gtk_grid_attach(GTK_GRID(grid),devices,col,row,6,1);
-    gtk_combo_box_set_active(GTK_COMBO_BOX(devices),device_index);
-    g_signal_connect(devices,"changed",G_CALLBACK(device_changed_cb),NULL);
+    if (col > 0) {
+      col=0;
+      row++;
+    }
   } else {
-    GtkWidget *message=gtk_label_new("No MIDI devices found!");
-    gtk_grid_attach(GTK_GRID(grid),message,col,row,1,1);
+    GtkWidget *devices_label=gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(devices_label), "<b>No MIDI devices found!</b>");
+    gtk_label_set_justify(GTK_LABEL(devices_label),GTK_JUSTIFY_LEFT);
+    gtk_grid_attach(GTK_GRID(grid),devices_label,col,row,3,1);
+    row=1;
+    col=0;
   }
-  row++;
-  col=0;
+
 
   midi_enable_b=gtk_check_button_new_with_label("MIDI Enable");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (midi_enable_b), midi_enabled);
-  gtk_grid_attach(GTK_GRID(grid),midi_enable_b,col,row,3,1);
+  gtk_grid_attach(GTK_GRID(grid),midi_enable_b,col,row,2,1);
   g_signal_connect(midi_enable_b,"toggled",G_CALLBACK(midi_enable_cb),NULL);
+
+  col+=2;
+  configure_b=gtk_check_button_new_with_label("MIDI Configure");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (configure_b), FALSE);
+  gtk_grid_attach(GTK_GRID(grid),configure_b,col,row,2,1);
+  g_signal_connect(configure_b,"toggled",G_CALLBACK(configure_cb),NULL);
+
+  col+=2;
+  any_b=gtk_check_button_new_with_label("Configure for any channel");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (any_b), FALSE);
+  gtk_grid_attach(GTK_GRID(grid),any_b,col,row,6,1);
+  g_signal_connect(any_b,"toggled",G_CALLBACK(any_cb),NULL);
 
   row++;
   col=0;
@@ -748,15 +774,6 @@ void midi_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),load_original_b,col,row,1,1);
   g_signal_connect(load_original_b,"clicked",G_CALLBACK(load_original_cb),NULL);
   col++;
-
-  row++;
-  col=0;
-
-  configure_b=gtk_check_button_new_with_label("MIDI Configure");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (configure_b), FALSE);
-  gtk_grid_attach(GTK_GRID(grid),configure_b,col,row,3,1);
-  g_signal_connect(configure_b,"toggled",G_CALLBACK(configure_cb),NULL);
-
 
   row++;
   col=0;
@@ -859,6 +876,7 @@ void midi_menu(GtkWidget *parent) {
   gtk_container_add(GTK_CONTAINER(content),grid);
   sub_menu=dialog;
   gtk_widget_show_all(dialog);
+  gtk_widget_hide(any_b);
 }
 
 static int update(void *data) {
@@ -884,7 +902,11 @@ static int update(void *data) {
           gtk_label_set_text(GTK_LABEL(newEvent),"PITCH");
           break;
       }
-      sprintf(text,"%d",thisChannel);
+      if (thisChannel >= 0) {
+        sprintf(text,"%d",thisChannel);
+      } else {
+        strcpy(text,"Any");
+      }
       gtk_label_set_text(GTK_LABEL(newChannel),text);
       sprintf(text,"%d",thisNote);
       gtk_label_set_text(GTK_LABEL(newNote),text);
@@ -1037,6 +1059,7 @@ void NewMidiConfigureEvent(enum MIDIevent event, int channel, int note, int val)
     //g_print("%s: new or existing event\n",__FUNCTION__);
     thisEvent=event;
     thisChannel=channel;
+    if (accept_any) thisChannel=-1;
     thisNote=note;
     thisVal=val;
     thisMin=val;
@@ -1065,10 +1088,14 @@ void NewMidiConfigureEvent(enum MIDIevent event, int channel, int note, int val)
         } else {
           tree_event=MIDI_EVENT_NONE;
         }
-        tree_channel=atoi(str_channel);
+        if (!strncmp(str_channel,"Any", 3)) {
+	  tree_channel=-1;
+        } else {
+          tree_channel=atoi(str_channel);
+        }
         tree_note=atoi(str_note);
 
-	if(thisEvent==tree_event && (thisChannel==tree_channel || tree_channel==-1) && thisNote==tree_note) {
+	if(thisEvent==tree_event && thisChannel==tree_channel && thisNote==tree_note) {
           thisVal=0;
           thisMin=0;
           thisMax=0;
@@ -1109,8 +1136,15 @@ void midi_save_state() {
   struct desc *cmd;
   gint index;
 
-  if(device_index!=-1) {
-    setProperty("midi_device",midi_devices[device_index].name);
+  index=0;
+  for (int i=0; i<n_midi_devices; i++) {
+    if (midi_devices[i].active) {
+      sprintf(name,"mididevice[%d].name",index);
+      setProperty(name, midi_devices[i].name);
+      index++;
+    }
+  }
+
     // the value i=128 is for the PitchBend
     for(int i=0;i<129;i++) {
       index=0;
@@ -1123,14 +1157,18 @@ void midi_save_state() {
         // These must not share the same key in the property database so the "running index" must be part of the key
         //
 
-        sprintf(name,"midi[%d].channel[%d].index[%d].event",i,cmd->channel,index);
+        sprintf(name,"midi[%d].index[%d].event",i,index);
         setProperty(name,midi_events[cmd->event]);
 
-        sprintf(name,"midi[%d].channel[%d].index[%d].type",i,cmd->channel,index);
+        sprintf(name,"midi[%d].index[%d].type",i,index);
         setProperty(name,midi_types[cmd->type]);
 
-        sprintf(name,"midi[%d].channel[%d].index[%d].action",i,cmd->channel,index);
+        sprintf(name,"midi[%d].index[%d].action",i,index);
         setProperty(name,(char *) ActionTable[cmd->action].str);
+
+        sprintf(name,"midi[%d].index[%d].channel",i,index);
+        sprintf(value,"%d",cmd->channel);
+        setProperty(name, value);
 
         cmd=cmd->next;
 	index++;
@@ -1143,7 +1181,6 @@ void midi_save_state() {
       }
 
     }
-  }
 }
 
 void midi_restore_state() {
@@ -1162,18 +1199,18 @@ void midi_restore_state() {
   MidiReleaseCommands();
 
   //g_print("%s\n",__FUNCTION__);
-  value=getProperty("midi_device");
-  if(value) {
-    //g_print("%s: device=%s\n",__FUNCTION__,value);
-    midi_device_name=g_new(gchar,strlen(value)+1);
-    strcpy(midi_device_name,value);
 
     
-    for(int i=0;i<n_midi_devices;i++) {
-      if(strcmp(midi_devices[i].name,value)==0) {
-        device_index=i;
-        g_print("%s: found device at %d\n",__FUNCTION__,i);
-        break;
+  for(int i=0; i<MAX_MIDI_DEVICES; i++) {
+    midi_devices[i].active=0;
+    sprintf(name,"mididevice[%d].name",i);
+    value=getProperty(name);
+    if (value) {
+      for (int j=0; j<n_midi_devices; j++) {
+        if(strcmp(midi_devices[j].name,value)==0) {
+          midi_devices[j].active=1;
+          g_print("%s: mark device %s at %d as active\n",__FUNCTION__,value,j);
+        }
       }
     }
   }
@@ -1185,7 +1222,7 @@ void midi_restore_state() {
     if(value) {
       indices=atoi(value);
       for(int index=0; index<indices; index++) {
-        sprintf(name,"midi[%d].channel[%d].index[%d].event",i,channel,index);
+        sprintf(name,"midi[%d].index[%d].event",i,index);
         value=getProperty(name);
 	event=MIDI_EVENT_NONE;
         if(value) {
@@ -1196,7 +1233,7 @@ void midi_restore_state() {
             }
           }
 	}
-        sprintf(name,"midi[%d].channel[%d].index[%d],type",i,channel,index);
+        sprintf(name,"midi[%d].index[%d].type",i,index);
         value=getProperty(name);
 	type=MIDI_TYPE_NONE;
         if(value) {
@@ -1207,7 +1244,7 @@ void midi_restore_state() {
             }
           }
 	}
-        sprintf(name,"midi[%d].channel[%d].index[%d].action",i,channel,index);
+        sprintf(name,"midi[%d].index[%d].action",i,index);
         value=getProperty(name);
 	action=MIDI_ACTION_NONE;
         if(value) {
@@ -1220,6 +1257,14 @@ void midi_restore_state() {
 	    j++;
 	  }
 	}
+        sprintf(name,"midi[%d].index[%d].channel",i,index);
+        onoff=ActionTable[action].onoff;
+        value=getProperty(name);
+        channel=-1;
+        if (value) {
+          channel=atoi(value);
+          if (channel < -2 || channel > 15) channel=0;
+        }
 
 	struct desc *desc;
         desc = (struct desc *) malloc(sizeof(struct desc));
@@ -1227,7 +1272,7 @@ void midi_restore_state() {
         desc->action = action; // MIDIaction
         desc->type = type; // MIDItype
         desc->event = event; // MIDevent
-        desc->onoff = ActionTable[action].onoff;
+        desc->onoff = onoff;
         desc->delay = 0;
         desc->vfl1  = -1;
         desc->vfl2  = -1;
@@ -1243,7 +1288,7 @@ void midi_restore_state() {
         desc->vfr2  = 128;
         desc->channel  = channel;
 
-        g_print("DESK INIT Note=%d Action=%d Type=%d Event=%d OnOff=%d Chan=%d\n", i, action, type, event, onoff, channel);
+        //g_print("DESC INIT Note=%d Action=%d Type=%d Event=%d OnOff=%d Chan=%d\n", i, action, type, event, onoff, channel);
 
         MidiAddCommand(i, desc);
       } // index

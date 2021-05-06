@@ -37,19 +37,9 @@
 #include "radio.h"
 #include "midi.h"
 #include "midi_menu.h"
+#include "alsa_midi.h"
 
 #ifdef __APPLE__
-
-typedef struct _midi_device {
-  char *name;
-  char *port;
-} MIDI_DEVICE;
-
-#define MAX_MIDI_DEVICES 10
-
-MIDI_DEVICE midi_devices[MAX_MIDI_DEVICES];
-int n_midi_devices;
-
 
 /*
  * For MacOS, things are easy:
@@ -188,50 +178,43 @@ static void ReadMIDIdevice(const MIDIPacketList *pktlist, void *refCon, void *co
     } // j-loop through the list of packets
 }
 
-void close_midi_device() {
-    fprintf(stderr,"%s\n",__FUNCTION__);
+//
+// store the ports and clients locally such that we
+// can properly close a MIDI connection
+//
+static MIDIPortRef myMIDIports[MAX_MIDI_DEVICES];
+static MIDIClientRef myClients[MAX_MIDI_DEVICES];
+
+void close_midi_device(index) {
+    fprintf(stderr,"%s index=\n",__FUNCTION__);
+    if (index < 0 || index > n_midi_devices) return;
+    //
+    // This should release the resources associated with the pending connection
+    //
+    MIDIPortDisconnectSource(myMIDIports[index], MIDIGetSource(index));
+    MIDIPortDispose(myMIDIports[index]);
+    MIDIClientDispose(myClients[index]);
+    myMIDIports[index]=0;
+    myClients[index]=0;
 }
 
-int register_midi_device(char *myname) {
-    int i;
-    CFStringRef pname;
-    char name[100];
-    int FoundMIDIref=-1;
-    int mylen;
+int register_midi_device(int index) {
     int ret;
 
-    configure=false;
-    if (myname == NULL) {
-      g_print("%s: myname is NULL\n", __FUNCTION__);
-      return -1;
-    }
-    mylen=strlen(myname);
+    g_print("%s: index=%d\n",__FUNCTION__,index);
 
-    g_print("%s: %s\n",__FUNCTION__,myname);
-//
-// Go through the list of MIDI devices and
-// look whether the one we are looking for is there
-//
-    for (i=0; i<n_midi_devices; i++) {
-        if(!strncmp(midi_devices[i].name, myname, mylen)) {
-	    FoundMIDIref=i;
-	    fprintf(stderr,"MIDI device found and selected: >>>%s<<<\n", midi_devices[i].name);
-	} else {
-	    fprintf(stderr,"MIDI device found BUT NOT SELECTED: >>>%s<<<\n", midi_devices[i].name);
-	}
-    }
 
 //
-// If we found "our" device, register a callback routine
+//  Register a callback routine for the device
 //
 
-    if (FoundMIDIref >= 0) {
-        MIDIClientRef client = 0;
-        MIDIPortRef myMIDIport = 0;
-        //Create client
-        MIDIClientCreate(CFSTR("piHPSDR"),NULL,NULL, &client);
-        MIDIInputPortCreate(client, CFSTR("FromMIDI"), ReadMIDIdevice, NULL, &myMIDIport);
-        MIDIPortConnectSource(myMIDIport,MIDIGetSource(FoundMIDIref), NULL);
+    if (index >= 0 && index < n_midi_devices) {
+        myClients[index]=0;
+        myMIDIports[index] = 0;
+        //Create client and port, and connect
+        MIDIClientCreate(CFSTR("piHPSDR"),NULL,NULL, &myClients[index]);
+        MIDIInputPortCreate(myClients[index], CFSTR("FromMIDI"), ReadMIDIdevice, NULL, &myMIDIports[index]);
+        MIDIPortConnectSource(myMIDIports[index] ,MIDIGetSource(index), NULL);
         ret=0;
     } else {
         ret=-1;
@@ -262,6 +245,9 @@ void get_midi_devices() {
             //
             if (strlen(name) == 0) strcpy(name,"NoPort");
             g_print("%s: %s\n",__FUNCTION__,name);
+            if (midi_devices[n_midi_devices].name != NULL) {
+              g_free(midi_devices[n_midi_devices].name);
+            }
             midi_devices[n_midi_devices].name=g_new(gchar,strlen(name)+1);
             strcpy(midi_devices[n_midi_devices].name,name);
             n_midi_devices++;

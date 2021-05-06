@@ -25,9 +25,7 @@
 #include "radio.h"
 #include "main.h"
 #include "midi.h"
-
-static double midi_startup_time;
-static int    midi_wait_startup=0;
+#include "alsa_midi.h"
 
 struct desc *MidiCommandsTable[129];
 
@@ -46,20 +44,6 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
 //now=ts.tv_sec + 1E-9*ts.tv_nsec;
 //g_print("%s:%12.3f:EVENT=%d CHAN=%d NOTE=%d VAL=%d\n",__FUNCTION__,now,event,channel,note,val);
 
-    //
-    // the midi_wait_startup/midi_startup_time mechanism takes care that in the first
-    // second after registering a MIDI device, all incoming MIDI messages are just discarded.
-    // This has been introduced since sometimes "old" MIDI messages are lingering around in the
-    // the system and get delivered immediately after registering the MIDI device.
-    // The midi_wait_startup variable takes care that we do not check the clock again and again
-    // after the first second.
-    //
-    if (midi_wait_startup) {
-      clock_gettime(CLOCK_MONOTONIC, &ts);
-      now=ts.tv_sec + 1E-9*ts.tv_nsec;
-      if (now < midi_startup_time + 1.0) return;
-      midi_wait_startup=0;
-    }
     if (event == MIDI_EVENT_PITCH) {
 	desc=MidiCommandsTable[128];
     } else {
@@ -278,7 +262,11 @@ static void keyword2action(char *s, enum MIDIaction *action, int *onoff) {
 
 int MIDIstop() {
   midi_enabled=FALSE;
-  close_midi_device();
+  for (int i=0; i<n_midi_devices; i++) {
+    if (midi_devices[i].active) {
+      close_midi_device(i);
+    }
+  }
   return 0;
 }
 
@@ -347,7 +335,6 @@ int MIDIstartup(char *filename) {
     enum MIDIevent event;
     int i;
     char c;
-    struct timespec ts;
 
     MidiReleaseCommands();
 
@@ -385,20 +372,6 @@ int MIDIstartup(char *filename) {
       
 g_print("\n%s:INP:%s\n",__FUNCTION__,zeile);
 
-      if ((cp = strstr(zeile, "DEVICE="))) {
-        // Delete comments and trailing blanks
-	cq=cp+7;
-	while (*cq != 0 && *cq != '#') cq++;
-	*cq--=0;
-	while (cq > cp+7 && (*cq == ' ' || *cq == '\t')) cq--;
-	*(cq+1)=0;
-//fprintf(stderr,"MIDI:REG:>>>%s<<<\n",cp+7);
-        midi_wait_startup=1;
-        clock_gettime(CLOCK_MONOTONIC, &ts);
-        midi_startup_time=ts.tv_sec + 1E-9*ts.tv_nsec;
-	int result=register_midi_device(cp+7);
-        continue; // nothing more in this line
-      }
       chan=-1;  // default: any channel
       t1=t3=t5=t7= t9=t11=128;  // range that never occurs
       t2=t4=t6=t8=t10=t12=-1;   // range that never occurs

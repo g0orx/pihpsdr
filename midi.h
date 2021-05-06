@@ -269,8 +269,8 @@ extern int midi_debug;
 // that have been defined. This is called upon startup by
 // Layer-2 through the function MIDIstartup.
 //
-int register_midi_device(char *name);
-void close_midi_device();
+int register_midi_device(int index);
+void close_midi_device(int index);
 void configure_midi_device(gboolean state);
 
 //

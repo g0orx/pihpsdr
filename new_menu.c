@@ -64,6 +64,7 @@
 #include "server_menu.h"
 #endif
 #ifdef MIDI
+#include "midi.h"
 #include "midi_menu.h"
 #endif
 
