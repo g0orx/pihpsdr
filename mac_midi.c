@@ -27,9 +27,29 @@
  *
  */
 
+#include <gtk/gtk.h>
+#include "discovered.h"
+#include "receiver.h"
+#include "transmitter.h"
+#include "receiver.h"
+#include "adc.h"
+#include "dac.h"
+#include "radio.h"
 #include "midi.h"
+#include "midi_menu.h"
 
 #ifdef __APPLE__
+
+typedef struct _midi_device {
+  char *name;
+  char *port;
+} MIDI_DEVICE;
+
+#define MAX_MIDI_DEVICES 10
+
+MIDI_DEVICE midi_devices[MAX_MIDI_DEVICES];
+int n_midi_devices;
+
 
 /*
  * For MacOS, things are easy:
@@ -42,6 +62,10 @@
 #include <CoreMIDI/MIDIServices.h>
 #include <CoreAudio/HostTime.h>
 #include <CoreAudio/CoreAudio.h>
+
+MIDI_DEVICE midi_devices[MAX_MIDI_DEVICES];
+int n_midi_devices;
+int running;
 
 //
 // MIDI callback function
@@ -68,6 +92,8 @@ static enum {
         CMD_CTRL,
         CMD_PITCH,
 } command;
+
+static gboolean configure=FALSE;
 
 static void ReadMIDIdevice(const MIDIPacketList *pktlist, void *refCon, void *connRefCon) {
     int i,j,byte,chan,arg1,arg2;
@@ -119,19 +145,39 @@ static void ReadMIDIdevice(const MIDIPacketList *pktlist, void *refCon, void *co
                            // messages with velocity == 0 when releasing
                            // a push-button.
                            if (arg2 == 0) {
-                             NewMidiEvent(MIDI_EVENT_NOTE, chan, arg1, 0);
+                             if(configure) {
+                               NewMidiConfigureEvent(MIDI_EVENT_NOTE, chan, arg1, 0);
+                             } else {
+                               NewMidiEvent(MIDI_EVENT_NOTE, chan, arg1, 0);
+                             }
                            } else {
-                             NewMidiEvent(MIDI_EVENT_NOTE, chan, arg1, 1);
+                             if(configure) {
+                               NewMidiConfigureEvent(MIDI_EVENT_NOTE, chan, arg1, 1);
+                             } else {
+                               NewMidiEvent(MIDI_EVENT_NOTE, chan, arg1, 1);
+                             }
                            }
                            break;
                         case CMD_NOTEOFF:
-                           NewMidiEvent(MIDI_EVENT_NOTE, chan, arg1, 0);
+                           if(configure) {
+                             NewMidiConfigureEvent(MIDI_EVENT_NOTE, chan, arg1, 0);
+                           } else {
+                             NewMidiEvent(MIDI_EVENT_NOTE, chan, arg1, 0);
+                           }
                            break;
                         case CMD_CTRL:
-                           NewMidiEvent(MIDI_EVENT_CTRL, chan, arg1, arg2);
+                           if(configure) {
+                             NewMidiConfigureEvent(MIDI_EVENT_CTRL, chan, arg1, arg2);
+                           } else {
+                             NewMidiEvent(MIDI_EVENT_CTRL, chan, arg1, arg2);
+                           }
                            break;
                         case CMD_PITCH:
-                           NewMidiEvent(MIDI_EVENT_PITCH, chan, 0, arg1+128*arg2);
+                           if(configure) {
+                             NewMidiConfigureEvent(MIDI_EVENT_PITCH, chan, 0, arg1+128*arg2);
+                           } else {
+                             NewMidiEvent(MIDI_EVENT_PITCH, chan, 0, arg1+128*arg2);
+                           }
                            break;
                     }
                     state=STATE_SKIP;
@@ -142,40 +188,36 @@ static void ReadMIDIdevice(const MIDIPacketList *pktlist, void *refCon, void *co
     } // j-loop through the list of packets
 }
 
+void close_midi_device() {
+    fprintf(stderr,"%s\n",__FUNCTION__);
+}
 
-void register_midi_device(char *myname) {
-    unsigned long nDevices;
+int register_midi_device(char *myname) {
     int i;
     CFStringRef pname;
     char name[100];
     int FoundMIDIref=-1;
-    int mylen=strlen(myname);
+    int mylen;
+    int ret;
 
+    configure=false;
+    if (myname == NULL) {
+      g_print("%s: myname is NULL\n", __FUNCTION__);
+      return -1;
+    }
+    mylen=strlen(myname);
 
+    g_print("%s: %s\n",__FUNCTION__,myname);
 //
 // Go through the list of MIDI devices and
 // look whether the one we are looking for is there
 //
-
-    nDevices=MIDIGetNumberOfSources();
-    for (i=0; i<nDevices; i++) {
-	MIDIEndpointRef dev = MIDIGetSource(i);
-	if (dev != 0) {
-	    MIDIObjectGetStringProperty(dev, kMIDIPropertyName, &pname);
-	    CFStringGetCString(pname, name, sizeof(name), 0);
-	    CFRelease(pname);
-            //
-            // Some users have reported that MacOS reports a string of length zero
-            // for some MIDI devices. In this case, we replace the name by
-            // "NoPort"
-            //
-            if (strlen(name) == 0) strcpy(name,"NoPort");
-	    if (!strncmp(name, myname, mylen)) {
-		FoundMIDIref=i;
-		fprintf(stderr,"MIDI: registering device >%s<\n", name);
-	    } else {
-		fprintf(stderr,"MIDI: looking for >%s< so >%s< does not match\n", myname,name);
-	    }
+    for (i=0; i<n_midi_devices; i++) {
+        if(!strncmp(midi_devices[i].name, myname, mylen)) {
+	    FoundMIDIref=i;
+	    fprintf(stderr,"MIDI device found and selected: >>>%s<<<\n", midi_devices[i].name);
+	} else {
+	    fprintf(stderr,"MIDI device found BUT NOT SELECTED: >>>%s<<<\n", midi_devices[i].name);
 	}
     }
 
@@ -190,6 +232,46 @@ void register_midi_device(char *myname) {
         MIDIClientCreate(CFSTR("piHPSDR"),NULL,NULL, &client);
         MIDIInputPortCreate(client, CFSTR("FromMIDI"), ReadMIDIdevice, NULL, &myMIDIport);
         MIDIPortConnectSource(myMIDIport,MIDIGetSource(FoundMIDIref), NULL);
+        ret=0;
+    } else {
+        ret=-1;
     }
+
+    return ret;
 }
+
+void get_midi_devices() {
+    int n;
+    int i;
+    CFStringRef pname;
+    char name[100];
+    int FoundMIDIref=-1;
+
+    n=MIDIGetNumberOfSources();
+    n_midi_devices=0;
+    for (i=0; i<n; i++) {
+        MIDIEndpointRef dev = MIDIGetSource(i);
+        if (dev != 0) {
+            MIDIObjectGetStringProperty(dev, kMIDIPropertyName, &pname);
+            CFStringGetCString(pname, name, sizeof(name), 0);
+            CFRelease(pname);
+            //
+            // Some users have reported that MacOS reports a string of length zero
+            // for some MIDI devices. In this case, we replace the name by
+            // "NoPort"
+            //
+            if (strlen(name) == 0) strcpy(name,"NoPort");
+            g_print("%s: %s\n",__FUNCTION__,name);
+            midi_devices[n_midi_devices].name=g_new(gchar,strlen(name)+1);
+            strcpy(midi_devices[n_midi_devices].name,name);
+            n_midi_devices++;
+        }
+    }
+    g_print("%s: devices=%d\n",__FUNCTION__,n_midi_devices);
+}
+
+void configure_midi_device(gboolean state) {
+  configure=state;
+}
+
 #endif

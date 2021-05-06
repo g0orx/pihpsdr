@@ -39,7 +39,7 @@
 // code below, one can queue the "big switch statement" into the GTK
 // idle queue and exectue all GUI functions directly.
 //
-// However, this is not wanted for CWKEY, CWL and CWR since
+// However, this is not wanted for CWKEYER, CWLEFT and CWRIGHT since
 // these have to be processed with minimal delay (and do not call GUI functions).
 //
 // Therefore, these three cases are already handled in the MIDI callback
@@ -61,7 +61,8 @@ typedef struct _MIDIcmd MIDIcmd;
 static int DoTheRestOfTheMIDI(void *data);
 
 void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
-    if (action == MIDI_ACTION_CWKEY) {
+    g_print("%s: ACTION=%d TYPE=%d VAL=%d\n", __FUNCTION__, action, type, val);
+    if (action == MIDI_ACTION_CWKEYER) {
           //
           // This is a CW key-up/down which uses functions from the keyer
           // that by-pass the interrupt-driven standard action.
@@ -85,11 +86,11 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
           return;
     }
 #ifdef LOCALCW
-    if (action == MIDI_ACTION_CWL) {
+    if (action == MIDI_ACTION_CWLEFT) {
          keyer_event(1, val);
          return;
     }
-    if (action == MIDI_ACTION_CWR) {
+    if (action == MIDI_ACTION_CWRIGHT) {
          keyer_event(0, val);
          return;
     }
@@ -511,7 +512,7 @@ int DoTheRestOfTheMIDI(void *data) {
 	/////////////////////////////////////////////////////////// "MOX"
 	case MIDI_ACTION_MOX: // only key supported
 	    // Note this toggles the PTT state without knowing the
-            // actual state. See MIDI_ACTION_PTTONOFF for actually
+            // actual state. See MIDI_ACTION_PTTKEYER for actually
             // *setting* PTT
 	    if (type == MIDI_TYPE_KEY && can_transmit) {
 	        new = !mox;
@@ -666,8 +667,8 @@ int DoTheRestOfTheMIDI(void *data) {
                 update_att_preamp();
 	    }
 	    break;
-	/////////////////////////////////////////////////////////// "PTTONOFF"
-        case MIDI_ACTION_PTTONOFF:  // key only
+	/////////////////////////////////////////////////////////// "PTT(Keyer)"
+        case MIDI_ACTION_PTTKEYER:  // key only
             // always use with "ONOFF"
 	    if (type == MIDI_TYPE_KEY && can_transmit) {
                 mox_update(val);

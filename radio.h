@@ -105,6 +105,9 @@ extern RECEIVER *active_receiver;
 
 extern TRANSMITTER *transmitter;
 
+#ifdef MIDI
+extern gboolean midi_enabled;
+#endif
 
 #define PA_DISABLED 0
 #define PA_ENABLED 1

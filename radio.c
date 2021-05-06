@@ -73,10 +73,8 @@
 #endif
 #include "rigctl_menu.h"
 #ifdef MIDI
-// rather than including MIDI.h with all its internal stuff
-// (e.g. enum components) we just declare the single bit thereof
-// we need here to make a strict compiler happy.
-void MIDIstartup();
+#include "alsa_midi.h"
+#include "midi_menu.h"
 #endif
 #ifdef CLIENT_SERVER
 #include "client_server.h"
@@ -96,6 +94,10 @@ void MIDIstartup();
 #define SLIDERS_HEIGHT (100)
 #define TOOLBAR_HEIGHT (30)
 #define WATERFALL_HEIGHT (105)
+
+#ifdef MIDI
+gboolean midi_enabled = false;
+#endif
 
 GtkWidget *fixed;
 static GtkWidget *vfo_panel;
@@ -1302,7 +1304,14 @@ void start_radio() {
   // running. So this is the last thing we do when starting the radio.
   //
 #ifdef MIDI
-  MIDIstartup();
+  g_print("%s: midi_enabled=%d midi_device_name=%s\n",__FUNCTION__,midi_enabled,midi_device_name);
+  if(midi_enabled && (midi_device_name!=NULL)) {
+    if(register_midi_device(midi_device_name)<0) {
+      midi_enabled=FALSE;
+    }
+  } else {
+    midi_enabled=FALSE;
+  }
 #endif
 
 #ifdef CLIENT_SERVER
@@ -2131,6 +2140,12 @@ g_print("radioRestoreState: %s\n",property_path);
     }
 #endif
 
+#ifdef MIDI
+    midi_restore_state();
+    value=getProperty("radio.midi_enabled");
+    if(value) midi_enabled=atoi(value);
+#endif
+
     value=getProperty("radio.display_sequence_errors");
     if(value!=NULL) display_sequence_errors=atoi(value);
 
@@ -2457,6 +2472,12 @@ g_print("radioSaveState: %s\n",property_path);
   }
 #endif
 
+#ifdef MIDI
+  sprintf(value,"%d",midi_enabled);
+  setProperty("radio.midi_enabled",value);
+  midi_save_state();
+#endif
+
   saveProperties(property_path);
   g_mutex_unlock(&property_mutex);
 }
@@ -2564,9 +2585,6 @@ int remote_start(void *data) {
   reconfigure_radio();
   g_idle_add(ext_vfo_update,(gpointer)NULL);
   gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_ARROW));
-#ifdef MIDI
-  MIDIstartup();
-#endif
   for(int i=0;i<receivers;i++) {
     gint timer_id=gdk_threads_add_timeout_full(G_PRIORITY_DEFAULT_IDLE,100, start_spectrum, receiver[i], NULL);
   }
