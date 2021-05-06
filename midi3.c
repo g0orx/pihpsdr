@@ -61,7 +61,6 @@ typedef struct _MIDIcmd MIDIcmd;
 static int DoTheRestOfTheMIDI(void *data);
 
 void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
-    g_print("%s: ACTION=%d TYPE=%d VAL=%d\n", __FUNCTION__, action, type, val);
     if (action == MIDI_ACTION_CWKEYER) {
           //
           // This is a CW key-up/down which uses functions from the keyer
@@ -71,7 +70,8 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
           // MIDI using this command.
           //
           // NO BREAK-IN! The keyer has to take care of sending MIDI PTT
-          // on/off messages at appropriate times.
+          // on/off messages at appropriate times, or the operator has to
+          // manually engage/disengage PTT
           //
           // Since this if for immediate key-down, it does not rely on LOCALCW
           //
