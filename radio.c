@@ -96,10 +96,6 @@
 #define TOOLBAR_HEIGHT (30)
 #define WATERFALL_HEIGHT (105)
 
-#ifdef MIDI
-gboolean midi_enabled = false;
-#endif
-
 GtkWidget *fixed;
 static GtkWidget *vfo_panel;
 static GtkWidget *meter;
@@ -1299,18 +1295,23 @@ void start_radio() {
 
   gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_ARROW));
 
-  //
-  // MIDIstartup must not be called before the radio is completely set up, since
-  // then MIDI can asynchronously trigger actions which require the radio already
-  // running. So this is the last thing we do when starting the radio.
-  //
 #ifdef MIDI
-  g_print("%s: midi_enabled=%d \n",__FUNCTION__,midi_enabled);
-  if(midi_enabled) {
-    for (i=0; i<n_midi_devices; i++) {
-      if (midi_devices[i].active) {
+  //
+  // The MIDI devices could not be opened in midi_restore_state() since MIDI events
+  // must not fly in before the radio is fully configured. Therefore midi_restore_state()
+  // simply marks the devices to be opened here by hi-jacking the "active" flag. Note that
+  // apart from this (ab)use, this flag is updated ONLY in register_midi_device() and
+  // close_midi_device().
+  //
+  for (i=0; i<n_midi_devices; i++) {
+    if (midi_devices[i].active) {
+      //
+      // If device was marked "active" in the props file, open (register) it
+      //
+      if (register_midi_device(i) == 0) {
         g_print("%s: MIDI device %s (index=%d) registered\n", __FUNCTION__, midi_devices[i].name, i);
-        register_midi_device(i);
+      } else {
+        g_print("%s: MIDI device %s (index=%d) could not be opened\n", __FUNCTION__, midi_devices[i].name, i);
       }
     }
   }
@@ -2144,8 +2145,6 @@ g_print("radioRestoreState: %s\n",property_path);
 
 #ifdef MIDI
     midi_restore_state();
-    value=getProperty("radio.midi_enabled");
-    if(value) midi_enabled=atoi(value);
 #endif
 
     value=getProperty("radio.display_sequence_errors");
@@ -2475,8 +2474,6 @@ g_print("radioSaveState: %s\n",property_path);
 #endif
 
 #ifdef MIDI
-  sprintf(value,"%d",midi_enabled);
-  setProperty("radio.midi_enabled",value);
   midi_save_state();
 #endif
 

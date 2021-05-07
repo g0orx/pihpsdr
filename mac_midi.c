@@ -180,13 +180,15 @@ static void ReadMIDIdevice(const MIDIPacketList *pktlist, void *refCon, void *co
 
 //
 // store the ports and clients locally such that we
-// can properly close a MIDI connection
+// can properly close a MIDI connection.
+// This can be local static data, no one outside this file
+// needs it.
 //
 static MIDIPortRef myMIDIports[MAX_MIDI_DEVICES];
 static MIDIClientRef myClients[MAX_MIDI_DEVICES];
 
 void close_midi_device(index) {
-    fprintf(stderr,"%s index=\n",__FUNCTION__);
+    fprintf(stderr,"%s index=%d\n",__FUNCTION__, index);
     if (index < 0 || index > n_midi_devices) return;
     //
     // This should release the resources associated with the pending connection
@@ -196,64 +198,145 @@ void close_midi_device(index) {
     MIDIClientDispose(myClients[index]);
     myMIDIports[index]=0;
     myClients[index]=0;
+    midi_devices[index].active=0;
 }
 
 int register_midi_device(int index) {
-    int ret;
+    OSStatus osret;
 
     g_print("%s: index=%d\n",__FUNCTION__,index);
-
-
 //
 //  Register a callback routine for the device
 //
+    if (index < 0 || index > MAX_MIDI_DEVICES) return -1;
 
-    if (index >= 0 && index < n_midi_devices) {
+     myClients[index]=0;
+     myMIDIports[index] = 0;
+     //Create client and port, and connect
+     osret=MIDIClientCreate(CFSTR("piHPSDR"),NULL,NULL, &myClients[index]);
+     if (osret !=0) {
+       g_print("%s: MIDIClientCreate failed with ret=%d\n", __FUNCTION__, (int) osret);
+       return -1;
+     }
+     osret=MIDIInputPortCreate(myClients[index], CFSTR("FromMIDI"), ReadMIDIdevice, NULL, &myMIDIports[index]);
+     if (osret !=0) {
+        g_print("%s: MIDIInputPortCreate failed with ret=%d\n", __FUNCTION__, (int) osret);
+        MIDIClientDispose(myClients[index]);
         myClients[index]=0;
-        myMIDIports[index] = 0;
-        //Create client and port, and connect
-        MIDIClientCreate(CFSTR("piHPSDR"),NULL,NULL, &myClients[index]);
-        MIDIInputPortCreate(myClients[index], CFSTR("FromMIDI"), ReadMIDIdevice, NULL, &myMIDIports[index]);
-        MIDIPortConnectSource(myMIDIports[index] ,MIDIGetSource(index), NULL);
-        ret=0;
-    } else {
-        ret=-1;
-    }
-
-    return ret;
+        return -1;
+     }
+     osret=MIDIPortConnectSource(myMIDIports[index] ,MIDIGetSource(index), NULL);
+     if (osret != 0) {
+        g_print("%s: MIDIPortConnectSource failed with ret=%d\n", __FUNCTION__, (int) osret);
+        MIDIClientDispose(myClients[index]);
+        myClients[index]=0;
+        MIDIPortDispose(myMIDIports[index]);
+        myMIDIports[index]=0;
+        return -1;
+     }
+     //
+     // Now we have successfully opened the device.
+     //
+     midi_devices[index].active=1;
+     return 0;
 }
 
 void get_midi_devices() {
     int n;
     int i;
-    CFStringRef pname;
-    char name[100];
-    int FoundMIDIref=-1;
+    CFStringRef pname;   // MacOS name of the device
+    char name[100];      // C name of the device
+    OSStatus osret;
+    static int first=1;
 
+    if (first) {
+      //
+      // perhaps not necessary in C, but good programming practise:
+      // initialize the table upon the first call
+      //
+      first=0;
+      for (i=0; i<MAX_MIDI_DEVICES; i++) {
+        midi_devices[i].name=NULL;
+        midi_devices[i].active=0;
+      }
+    }
+
+//
+//  This is called at startup (via midi_restore) and each time
+//  the MIDI menu is opened. So we have to take care that this
+//  function is essentially a no-op if the device list has not
+//  changed.
+//  If the device list has changed because of hot-plugging etc.
+//  close any MIDI device which changed position and mark
+//  it as inactive. Note that upon a hot-plug, MIDI devices that were
+//  there before may change its position in the device list and will then
+//  be closed.
+//
     n=MIDIGetNumberOfSources();
     n_midi_devices=0;
     for (i=0; i<n; i++) {
         MIDIEndpointRef dev = MIDIGetSource(i);
         if (dev != 0) {
-            MIDIObjectGetStringProperty(dev, kMIDIPropertyName, &pname);
+            osret=MIDIObjectGetStringProperty(dev, kMIDIPropertyName, &pname);
+            if (osret !=0) break; // in this case pname is invalid
             CFStringGetCString(pname, name, sizeof(name), 0);
             CFRelease(pname);
             //
             // Some users have reported that MacOS reports a string of length zero
             // for some MIDI devices. In this case, we replace the name by
-            // "NoPort"
+            // "NoPort<n>"
             //
-            if (strlen(name) == 0) strcpy(name,"NoPort");
+            if (strlen(name) == 0) sprintf(name,"NoPort%d",n_midi_devices);
             g_print("%s: %s\n",__FUNCTION__,name);
             if (midi_devices[n_midi_devices].name != NULL) {
-              g_free(midi_devices[n_midi_devices].name);
+              if (strncmp(name, midi_devices[n_midi_devices].name,sizeof(name))) {
+                //
+                // This slot was occupied and the names do not match:
+                // Close device (if active), insert new name
+                //
+                if (midi_devices[n_midi_devices].active) {
+                  close_midi_device(n_midi_devices);
+                }
+                g_free(midi_devices[n_midi_devices].name);
+                midi_devices[n_midi_devices].name=g_new(gchar,strlen(name)+1);
+                strcpy(midi_devices[n_midi_devices].name, name);
+              } else {
+                //
+                // This slot was occupied and the names match: do nothing!
+                // If there was no hot-plug or hot-unplug, we should always
+                // arrive here!
+                //
+              }
+            } else {
+	      //
+              // This slot was unoccupied. Insert name and mark inactive
+              //
+              midi_devices[n_midi_devices].name=g_new(gchar,strlen(name)+1);
+              strcpy(midi_devices[n_midi_devices].name, name);
+              midi_devices[n_midi_devices].active=0;
             }
-            midi_devices[n_midi_devices].name=g_new(gchar,strlen(name)+1);
-            strcpy(midi_devices[n_midi_devices].name,name);
             n_midi_devices++;
         }
+        //
+        // If there are more devices than we have slots in our Table
+        // just stop processing.
+        //
+        if (n_midi_devices >= MAX_MIDI_DEVICES) break;
     }
-    g_print("%s: devices=%d\n",__FUNCTION__,n_midi_devices);
+    g_print("%s: number of devices=%d\n",__FUNCTION__,n_midi_devices);
+    //
+    // Get rid of all devices lingering around above the high-water mark
+    // (this happens in the case of hot-unplugging)
+    //
+    for (i=n_midi_devices; i<MAX_MIDI_DEVICES; i++) {
+      if (midi_devices[i].active) {
+        close_midi_device(i);
+      }
+      if (midi_devices[i].name != NULL) {
+        g_free(midi_devices[i].name);
+        midi_devices[i].name=NULL;
+      }
+    }
 }
 
 void configure_midi_device(gboolean state) {

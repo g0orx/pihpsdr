@@ -121,33 +121,16 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
   return FALSE;
 }
 
-static gboolean midi_enable_cb(GtkWidget *widget,gpointer data) {
-  int i;
-  if(midi_enabled) {
-    for (i=0; i<n_midi_devices; i++) {
-      if (midi_devices[i].active) {
-        close_midi_device(i);
-      }
-    }
-  }
-  midi_enabled=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON (widget));
-  if(midi_enabled) {
-    for (i=0; i<n_midi_devices; i++) {
-      if (midi_devices[i].active) {
-        register_midi_device(i);
-      }
-    }
-  }
-  return TRUE;
-}
-
 static void device_cb(GtkWidget *widget, gpointer data) {
   int index=GPOINTER_TO_INT(data);
   int val=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-  g_print("DEVICE =%d STATUS=%d\n", index, val);
-  midi_devices[index].active=val;
   if (val == 1) {
-    register_midi_device(index);
+    if (register_midi_device(index) != 0) {
+      //
+      // If the open fails, set button inactive again
+      //
+      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget), 0);
+    }
   } else {
     close_midi_device(index);
   }
@@ -330,9 +313,7 @@ static void save_cb(GtkWidget *widget,gpointer user_data) {
                                       NULL);
   chooser = GTK_FILE_CHOOSER (save_dialog);
   gtk_file_chooser_set_do_overwrite_confirmation (chooser, TRUE);
-  filename=g_new(gchar,10);
-  sprintf(filename,"midi.midi");
-  gtk_file_chooser_set_current_name(chooser,filename);
+  gtk_file_chooser_set_current_name(chooser,"midi.midi");
   res = gtk_dialog_run (GTK_DIALOG (save_dialog));
   if(res==GTK_RESPONSE_ACCEPT) {
     char *savefilename=gtk_file_chooser_get_filename(chooser);
@@ -342,7 +323,6 @@ static void save_cb(GtkWidget *widget,gpointer user_data) {
     g_free(savefilename);
   }
   gtk_widget_destroy(save_dialog);
-  g_free(filename);
 }
 
 static void load_cb(GtkWidget *widget,gpointer user_data) {
@@ -362,9 +342,7 @@ static void load_cb(GtkWidget *widget,gpointer user_data) {
                                       GTK_RESPONSE_ACCEPT,
                                       NULL);
   chooser = GTK_FILE_CHOOSER (load_dialog);
-  filename=g_new(gchar,10);
-  sprintf(filename,"midi.midi");
-  gtk_file_chooser_set_current_name(chooser,filename);
+  gtk_file_chooser_set_current_name(chooser,"midi.midi");
   res = gtk_dialog_run (GTK_DIALOG (load_dialog));
   if(res==GTK_RESPONSE_ACCEPT) {
     char *loadfilename=gtk_file_chooser_get_filename(chooser);
@@ -376,7 +354,6 @@ static void load_cb(GtkWidget *widget,gpointer user_data) {
     g_free(loadfilename);
   }
   gtk_widget_destroy(load_dialog);
-  g_free(filename);
 }
 
 static void load_original_cb(GtkWidget *widget,gpointer user_data) {
@@ -396,9 +373,7 @@ static void load_original_cb(GtkWidget *widget,gpointer user_data) {
                                       GTK_RESPONSE_ACCEPT,
                                       NULL);
   chooser = GTK_FILE_CHOOSER (load_dialog);
-  filename=g_new(gchar,10);
-  sprintf(filename,"midi.midi");
-  gtk_file_chooser_set_current_name(chooser,filename);
+  gtk_file_chooser_set_current_name(chooser,"midi.midi");
   res = gtk_dialog_run (GTK_DIALOG (load_dialog));
   if(res==GTK_RESPONSE_ACCEPT) {
     char *loadfilename=gtk_file_chooser_get_filename(chooser);
@@ -408,7 +383,6 @@ static void load_original_cb(GtkWidget *widget,gpointer user_data) {
     g_free(loadfilename);
   }
   gtk_widget_destroy(load_dialog);
-  g_free(filename);
 }
 
 static void add_store(int key,struct desc *cmd) {
@@ -455,7 +429,7 @@ static void add_store(int key,struct desc *cmd) {
   }
   strcpy(str_action,ActionTable[cmd->action].str);
   
-  g_print("%s: Event=%s Channel=%s Note=%s Type=%s Action=%s\n", __FUNCTION__, str_event, str_channel, str_note, str_type, str_action);
+  //g_print("%s: Event=%s Channel=%s Note=%s Type=%s Action=%s\n", __FUNCTION__, str_event, str_channel, str_note, str_type, str_action);
   gtk_list_store_prepend(store,&iter);
   gtk_list_store_set(store,&iter,
       EVENT_COLUMN,str_event,
@@ -647,6 +621,7 @@ static void delete_cb(GtkButton *widget,gpointer user_data) {
     g_print("%s: remove first\n",__FUNCTION__);
     MidiCommandsTable[thisNote]=current_cmd->next;
     g_free(current_cmd);
+    current_cmd=NULL;
   } else {
     previous_cmd=MidiCommandsTable[thisNote];
     while(previous_cmd->next!=NULL) {
@@ -655,6 +630,7 @@ static void delete_cb(GtkButton *widget,gpointer user_data) {
         g_print("%s: remove next\n",__FUNCTION__);
 	previous_cmd->next=next_cmd->next;
 	g_free(next_cmd);
+        current_cmd=NULL;  // note next_cmd == current_cmd
 	break;
       }
       previous_cmd=next_cmd;
@@ -676,10 +652,6 @@ void midi_menu(GtkWidget *parent) {
   int row=0;
   GtkCellRenderer *renderer;
 
-  g_print("MENU: ndev=%d\n", n_midi_devices);
-  for (i=0; i<n_midi_devices; i++) {
-    g_print("Name=%s Active=%d\n", midi_devices[i].name, midi_devices[i].active);
-  }
   dialog=gtk_dialog_new();
   gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent_window));
   char title[64];
@@ -702,7 +674,7 @@ void midi_menu(GtkWidget *parent) {
   row=0;
   col=0;
 
-  //get_midi_devices();
+  get_midi_devices();
   if (n_midi_devices > 0) {
     GtkWidget *devices_label=gtk_label_new(NULL);
     gtk_label_set_markup(GTK_LABEL(devices_label), "<b>Select MIDI device(s)</b>");
@@ -734,13 +706,6 @@ void midi_menu(GtkWidget *parent) {
     col=0;
   }
 
-
-  midi_enable_b=gtk_check_button_new_with_label("MIDI Enable");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (midi_enable_b), midi_enabled);
-  gtk_grid_attach(GTK_GRID(grid),midi_enable_b,col,row,2,1);
-  g_signal_connect(midi_enable_b,"toggled",G_CALLBACK(midi_enable_cb),NULL);
-
-  col+=2;
   configure_b=gtk_check_button_new_with_label("MIDI Configure");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (configure_b), FALSE);
   gtk_grid_attach(GTK_GRID(grid),configure_b,col,row,2,1);
@@ -1150,7 +1115,7 @@ void midi_save_state() {
       index=0;
       cmd=MidiCommandsTable[i];
       while(cmd!=NULL) {
-        g_print("%s:  channel=%d key=%d event=%s onoff=%d type=%s action=%s\n",__FUNCTION__,cmd->channel,i,midi_events[cmd->event],cmd->onoff,midi_types[cmd->type],ActionTable[cmd->action].str);
+        //g_print("%s:  channel=%d key=%d event=%s onoff=%d type=%s action=%s\n",__FUNCTION__,cmd->channel,i,midi_events[cmd->event],cmd->onoff,midi_types[cmd->type],ActionTable[cmd->action].str);
 
         //
         // There might be events that share the channel and the note value (one NOTE and one CTRL, for example)
@@ -1200,9 +1165,14 @@ void midi_restore_state() {
 
   //g_print("%s\n",__FUNCTION__);
 
+  //
+  // Note this is too early to open the MIDI devices, since the
+  // radio has not yet fully been configured. Therefore, only
+  // set the "active" flag, and the devices will be opened in
+  // radio.c when it is appropriate
+  //
     
   for(int i=0; i<MAX_MIDI_DEVICES; i++) {
-    midi_devices[i].active=0;
     sprintf(name,"mididevice[%d].name",i);
     value=getProperty(name);
     if (value) {

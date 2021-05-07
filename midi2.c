@@ -261,7 +261,6 @@ static void keyword2action(char *s, enum MIDIaction *action, int *onoff) {
 }
 
 int MIDIstop() {
-  midi_enabled=FALSE;
   for (int i=0; i<n_midi_devices; i++) {
     if (midi_devices[i].active) {
       close_midi_device(i);
