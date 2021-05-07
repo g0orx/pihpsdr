@@ -194,10 +194,6 @@ void close_midi_device(index) {
     // This should release the resources associated with the pending connection
     //
     MIDIPortDisconnectSource(myMIDIports[index], MIDIGetSource(index));
-    MIDIPortDispose(myMIDIports[index]);
-    MIDIClientDispose(myClients[index]);
-    myMIDIports[index]=0;
-    myClients[index]=0;
     midi_devices[index].active=0;
 }
 
@@ -221,17 +217,11 @@ int register_midi_device(int index) {
      osret=MIDIInputPortCreate(myClients[index], CFSTR("FromMIDI"), ReadMIDIdevice, NULL, &myMIDIports[index]);
      if (osret !=0) {
         g_print("%s: MIDIInputPortCreate failed with ret=%d\n", __FUNCTION__, (int) osret);
-        MIDIClientDispose(myClients[index]);
-        myClients[index]=0;
         return -1;
      }
      osret=MIDIPortConnectSource(myMIDIports[index] ,MIDIGetSource(index), NULL);
      if (osret != 0) {
         g_print("%s: MIDIPortConnectSource failed with ret=%d\n", __FUNCTION__, (int) osret);
-        MIDIClientDispose(myClients[index]);
-        myClients[index]=0;
-        MIDIPortDispose(myMIDIports[index]);
-        myMIDIports[index]=0;
         return -1;
      }
      //
