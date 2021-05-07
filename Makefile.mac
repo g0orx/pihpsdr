@@ -44,9 +44,9 @@ endif
 
 ifeq ($(MIDI_INCLUDE),MIDI)
 MIDI_OPTIONS=-D MIDI
-MIDI_SOURCES= mac_midi.c midi2.c midi3.c
-MIDI_HEADERS= midi.h
-MIDI_OBJS= mac_midi.o midi2.o midi3.o
+MIDI_SOURCES= mac_midi.c midi2.c midi3.c midi_menu.c
+MIDI_HEADERS= midi.h midi_menu.h alsa_midi.h
+MIDI_OBJS= mac_midi.o midi2.o midi3.o midi_menu.o
 MIDI_LIBS= -framework CoreMIDI -framework Foundation
 endif
 
