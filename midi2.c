@@ -73,17 +73,14 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
 			  if (delta < desc->delay) break;
 			  last_wheel_tp = tp;
 			}
-			// translate value to direction
+			// translate value to direction/speed
 			new=0;
-			new=val-64;   // FIXME: allow for different speed
-                        /*
-			if ((val >= desc->vfl1) && (val <= desc->vfl2)) new=-100;
-			if ((val >= desc-> fl1) && (val <= desc-> fl2)) new=-10;
+			if ((val >= desc->vfl1) && (val <= desc->vfl2)) new=-16;
+			if ((val >= desc-> fl1) && (val <= desc-> fl2)) new=-4;
 			if ((val >= desc->lft1) && (val <= desc->lft2)) new=-1;
 			if ((val >= desc->rgt1) && (val <= desc->rgt2)) new= 1;
-			if ((val >= desc-> fr1) && (val <= desc-> fr2)) new= 10;
-			if ((val >= desc->vfr1) && (val <= desc->vfr2)) new= 100;
-                        */
+			if ((val >= desc-> fr1) && (val <= desc-> fr2)) new= 4;
+			if ((val >= desc->vfr1) && (val <= desc->vfr2)) new= 16;
 //			g_print("WHEEL: val=%d new=%d thrs=%d/%d, %d/%d, %d/%d, %d/%d, %d/%d, %d/%d\n",
 //                               val, new, desc->vfl1, desc->vfl2, desc->fl1, desc->fl2, desc->lft1, desc->lft2,
 //				 desc->rgt1, desc->rgt2, desc->fr1, desc->fr2, desc->vfr1, desc->vfr2);
