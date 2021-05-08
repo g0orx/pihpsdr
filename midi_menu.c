@@ -87,6 +87,7 @@ static int thisNote;
 static int thisVal;
 static int thisMin;
 static int thisMax;
+static int thisOnOff;
 static enum MIDItype thisType;
 static enum MIDIaction thisAction;
 
@@ -261,6 +262,7 @@ static void tree_selection_changed_cb (GtkTreeSelection *selection, gpointer dat
         while(ActionTable[i].action!=MIDI_ACTION_NONE) {
           if(strcmp(ActionTable[i].str,str_action)==0) {
             thisAction=ActionTable[i].action;
+            thisOnOff=ActionTable[i].onoff;
             break;
           }
           i++;
@@ -338,11 +340,10 @@ static void load_cb(GtkWidget *widget,gpointer user_data) {
                                       action,
                                       "_Cancel",
                                       GTK_RESPONSE_CANCEL,
-                                      "_Save",
+                                      "_Load",
                                       GTK_RESPONSE_ACCEPT,
                                       NULL);
   chooser = GTK_FILE_CHOOSER (load_dialog);
-  gtk_file_chooser_set_current_name(chooser,"midi.midi");
   res = gtk_dialog_run (GTK_DIALOG (load_dialog));
   if(res==GTK_RESPONSE_ACCEPT) {
     char *loadfilename=gtk_file_chooser_get_filename(chooser);
@@ -350,7 +351,9 @@ static void load_cb(GtkWidget *widget,gpointer user_data) {
     clearProperties();
     loadProperties(loadfilename);
     midi_restore_state();
+    g_signal_handler_block(G_OBJECT(selection), selection_signal_id);
     load_store();
+    g_signal_handler_unblock(G_OBJECT(selection), selection_signal_id);
     g_free(loadfilename);
   }
   gtk_widget_destroy(load_dialog);
@@ -364,12 +367,12 @@ static void load_original_cb(GtkWidget *widget,gpointer user_data) {
   gint res;
   struct desc *cmd;
 
-  load_dialog = gtk_file_chooser_dialog_new ("Open ORIGINAL MIDI File",
+  load_dialog = gtk_file_chooser_dialog_new ("Open LEGACY MIDI File",
                                       GTK_WINDOW(dialog),
                                       action,
                                       "_Cancel",
                                       GTK_RESPONSE_CANCEL,
-                                      "_Save",
+                                      "_Load",
                                       GTK_RESPONSE_ACCEPT,
                                       NULL);
   chooser = GTK_FILE_CHOOSER (load_dialog);
@@ -379,8 +382,10 @@ static void load_original_cb(GtkWidget *widget,gpointer user_data) {
     char *loadfilename=gtk_file_chooser_get_filename(chooser);
     clear_cb(NULL,NULL);
     MIDIstartup(loadfilename);
-    load_store();
     g_free(loadfilename);
+    g_signal_handler_block(G_OBJECT(selection), selection_signal_id);
+    load_store();
+    g_signal_handler_unblock(G_OBJECT(selection), selection_signal_id);
   }
   gtk_widget_destroy(load_dialog);
 }
@@ -505,18 +510,18 @@ static void add_cb(GtkButton *widget,gpointer user_data) {
   desc->type = type; // MIDItype
   desc->event = thisEvent; // MIDevent
   desc->onoff = onoff;
-  desc->delay = 0;
-  desc->vfl1  = -1;
-  desc->vfl2  = -1;
-  desc->fl1   = -1;
-  desc->fl2   = -1;
-  desc->lft1  = -1;
-  desc->lft2  = 63;
-  desc->rgt1  = 64;
-  desc->rgt2  = 128;
-  desc->fr1   = 128;
+  desc->delay =   0;     // default: no delay
+  desc->vfl1  =  -1;     // default: "very fast left"  does not occur
+  desc->vfl2  =  -1;
+  desc->fl1   =  -1;     // default: "fast left"       does not occur
+  desc->fl2   =  -1;
+  desc->lft1  =   0;     // default: "normal left"     reports values from 0 to 63
+  desc->lft2  =  63;
+  desc->rgt1  =  65;     // default: "normal right"    reports values from 65 to 127
+  desc->rgt2  = 127;
+  desc->fr1   = 128;     // default: "fast right"      does not occur
   desc->fr2   = 128;
-  desc->vfr1  = 128;
+  desc->vfr1  = 128;     // default: "very fast right" does not occur
   desc->vfr2  = 128;
   desc->channel  = thisChannel;
 
@@ -565,6 +570,7 @@ static void update_cb(GtkButton *widget,gpointer user_data) {
   while(ActionTable[i].action!=MIDI_ACTION_NONE) {
     if(strcmp(ActionTable[i].str,str_action)==0) {
       thisAction=ActionTable[i].action;
+      thisOnOff=ActionTable[i].onoff;
       break;
     }
     i++;
@@ -573,6 +579,7 @@ static void update_cb(GtkButton *widget,gpointer user_data) {
   current_cmd->channel=thisChannel;
   current_cmd->type=thisType;
   current_cmd->action=thisAction;
+  current_cmd->onoff=thisOnOff;
 
   switch(current_cmd->event) {
     case MIDI_EVENT_NONE:
@@ -652,11 +659,11 @@ void midi_menu(GtkWidget *parent) {
   int row=0;
   GtkCellRenderer *renderer;
 
+  parent_window=parent;
+
   dialog=gtk_dialog_new();
   gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent_window));
-  char title[64];
-  sprintf(title,"piHPSDR - MIDI");
-  gtk_window_set_title(GTK_WINDOW(dialog),title);
+  gtk_window_set_title(GTK_WINDOW(dialog),"piHPSDR - MIDI");
   g_signal_connect (dialog, "delete_event", G_CALLBACK (delete_event), NULL);
 
   GdkRGBA color;
@@ -735,7 +742,7 @@ void midi_menu(GtkWidget *parent) {
   g_signal_connect(load_b,"clicked",G_CALLBACK(load_cb),NULL);
   col++;
 
-  GtkWidget *load_original_b=gtk_button_new_with_label("Load Original");
+  GtkWidget *load_original_b=gtk_button_new_with_label("Load Legacy");
   gtk_grid_attach(GTK_GRID(grid),load_original_b,col,row,1,1);
   g_signal_connect(load_original_b,"clicked",G_CALLBACK(load_original_cb),NULL);
   col++;
@@ -1078,6 +1085,7 @@ void NewMidiConfigureEvent(enum MIDIevent event, int channel, int note, int val)
           while(ActionTable[i].action!=MIDI_ACTION_NONE) {
             if(strcmp(ActionTable[i].str,str_action)==0) {
               thisAction=ActionTable[i].action;
+              thisOnOff=ActionTable[i].onoff;
               break;
             }
             i++;
@@ -1091,6 +1099,13 @@ void NewMidiConfigureEvent(enum MIDIevent event, int channel, int note, int val)
       valid=gtk_tree_model_iter_next(model,&iter);
     }
     
+    //
+    // It is not guaranteed that update() will be executed before
+    // thisAction & friends are overwritten by the next incoming MIDI
+    // message. Therefore, we should allocate a data structure with
+    // all information therein that is needed by update() and pass
+    // a pointer.
+    //
     g_idle_add(update,GINT_TO_POINTER(UPDATE_NEW));
   }
 }
@@ -1135,6 +1150,66 @@ void midi_save_state() {
         sprintf(value,"%d",cmd->channel);
         setProperty(name, value);
 
+        //
+        // For wheels, also store the additional parameters,
+        // but do so only if they deviate from the default values.
+        //
+        if (cmd->type == MIDI_TYPE_WHEEL) {
+          if (cmd->delay > 0) {
+            sprintf(name,"midi[%d].index[%d].delay",i,index);
+            sprintf(value,"%d",cmd->delay);
+            setProperty(name, value);
+          }
+          if (cmd->vfl1 != -1 || cmd->vfl2 != -1) {
+            sprintf(name,"midi[%d].index[%d].vfl1",i,index);
+            sprintf(value,"%d",cmd->vfl1);
+            setProperty(name, value);
+            sprintf(name,"midi[%d].index[%d].vfl2",i,index);
+            sprintf(value,"%d",cmd->vfl2);
+            setProperty(name, value);
+          }
+          if (cmd->fl1 != -1 || cmd->fl2 != -1) {
+            sprintf(name,"midi[%d].index[%d].fl1",i,index);
+            sprintf(value,"%d",cmd->fl1);
+            setProperty(name, value);
+            sprintf(name,"midi[%d].index[%d].fl2",i,index);
+            sprintf(value,"%d",cmd->fl2);
+            setProperty(name, value);
+          }
+          if (cmd->lft1 != 0  || cmd->lft2 != 63) {
+            sprintf(name,"midi[%d].index[%d].lft1",i,index);
+            sprintf(value,"%d",cmd->lft1);
+            setProperty(name, value);
+            sprintf(name,"midi[%d].index[%d].lft2",i,index);
+            sprintf(value,"%d",cmd->lft2);
+            setProperty(name, value);
+          }
+          if (cmd->rgt1 != 65 || cmd->rgt2 != 127) {
+            sprintf(name,"midi[%d].index[%d].rgt1",i,index);
+            sprintf(value,"%d",cmd->rgt1);
+            setProperty(name, value);
+            sprintf(name,"midi[%d].index[%d].rgt2",i,index);
+            sprintf(value,"%d",cmd->rgt2);
+            setProperty(name, value);
+          }
+          if (cmd->fr1 != -1 || cmd->fr2 != -1) {
+            sprintf(name,"midi[%d].index[%d].fr1",i,index);
+            sprintf(value,"%d",cmd->fr1);
+            setProperty(name, value);
+            sprintf(name,"midi[%d].index[%d].fr2",i,index);
+            sprintf(value,"%d",cmd->fr2);
+            setProperty(name, value);
+          }
+          if (cmd->vfr1 != -1 || cmd->vfr2 != -1) {
+            sprintf(name,"midi[%d].index[%d].vfr1",i,index);
+            sprintf(value,"%d",cmd->vfr1);
+            setProperty(name, value);
+            sprintf(name,"midi[%d].index[%d].vfr2",i,index);
+            sprintf(value,"%d",cmd->vfr2);
+            setProperty(name, value);
+          }
+        }
+
         cmd=cmd->next;
 	index++;
       }
@@ -1157,8 +1232,13 @@ void midi_restore_state() {
   gint onoff;
   gint type;
   gint action;
-
-  struct desc *cmd, *loop;
+  gint delay;
+  gint vfl1, vfl2;
+  gint fl1, fl2;
+  gint lft1, lft2;
+  gint rgt1, rgt2;
+  gint fr1, fr2;
+  gint vfr1, vfr2;
 
   get_midi_devices();
   MidiReleaseCommands();
@@ -1228,7 +1308,6 @@ void midi_restore_state() {
 	  }
 	}
         sprintf(name,"midi[%d].index[%d].channel",i,index);
-        onoff=ActionTable[action].onoff;
         value=getProperty(name);
         channel=-1;
         if (value) {
@@ -1236,33 +1315,96 @@ void midi_restore_state() {
           if (channel < -2 || channel > 15) channel=0;
         }
 
-	struct desc *desc;
-        desc = (struct desc *) malloc(sizeof(struct desc));
-        desc->next = NULL;
-        desc->action = action; // MIDIaction
-        desc->type = type; // MIDItype
-        desc->event = event; // MIDevent
-        desc->onoff = onoff;
-        desc->delay = 0;
-        desc->vfl1  = -1;
-        desc->vfl2  = -1;
-        desc->fl1   = -1;
-        desc->fl2   = -1;
-        desc->lft1  = -1;
-        desc->lft2  = 63;
-        desc->rgt1  = 64;
-        desc->rgt2  = 128;
-        desc->fr1   = 128;
-        desc->fr2   = 128;
-        desc->vfr1  = 128;
-        desc->vfr2  = 128;
+        sprintf(name,"midi[%d].index[%d].delay",i,index);
+        value=getProperty(name);
+        delay=0;
+        if (value) delay=atoi(value);
+
+        sprintf(name,"midi[%d].index[%d].vfl1",i,index);
+        value=getProperty(name);
+        vfl1=-1;
+        if (value) vfl1=atoi(value);
+        sprintf(name,"midi[%d].index[%d].vfl2",i,index);
+        value=getProperty(name);
+        vfl2=-1;
+        if (value) vfl2=atoi(value);
+
+        sprintf(name,"midi[%d].index[%d].fl1",i,index);
+        value=getProperty(name);
+        fl1=-1;
+        if (value) fl1=atoi(value);
+        sprintf(name,"midi[%d].index[%d].fl2",i,index);
+        value=getProperty(name);
+        fl2=-1;
+        if (value) fl2=atoi(value);
+
+        sprintf(name,"midi[%d].index[%d].lft1",i,index);
+        value=getProperty(name);
+        lft1=0;
+        if (value) lft1=atoi(value);
+        sprintf(name,"midi[%d].index[%d].lft2",i,index);
+        value=getProperty(name);
+        lft2=63;
+        if (value) lft2=atoi(value);
+
+        sprintf(name,"midi[%d].index[%d].rgt1",i,index);
+        value=getProperty(name);
+        rgt1=65;
+        if (value) rgt1=atoi(value);
+        sprintf(name,"midi[%d].index[%d].rgt2",i,index);
+        value=getProperty(name);
+        rgt2=127;
+        if (value) rgt2=atoi(value);
+
+        sprintf(name,"midi[%d].index[%d].fr1",i,index);
+        value=getProperty(name);
+        fr1=-1;
+        if (value) fr1=atoi(value);
+        sprintf(name,"midi[%d].index[%d].fr2",i,index);
+        value=getProperty(name);
+        fr2=-1;
+        if (value) fr2=atoi(value);
+
+        sprintf(name,"midi[%d].index[%d].vfr1",i,index);
+        value=getProperty(name);
+        vfr1=-1;
+        if (value) vfr1=atoi(value);
+        sprintf(name,"midi[%d].index[%d].vfr2",i,index);
+        value=getProperty(name);
+        vfr2=-1;
+        if (value) vfr2=atoi(value);
+
+        onoff=ActionTable[action].onoff;  // this is fixed now
+
+	struct desc *desc = (struct desc *) malloc(sizeof(struct desc));
+
+        desc->next     = NULL;
+        desc->action   = action; // MIDIaction
+        desc->type     = type;   // MIDItype
+        desc->event    = event;  // MIDevent
+        desc->onoff    = onoff;
+        desc->delay    = delay;
+        desc->vfl1     = vfl1;
+        desc->vfl2     = vfl2;
+        desc->fl1      = fl1;
+        desc->fl2      = fl2;
+        desc->lft1     = lft1;
+        desc->lft2     = lft2;
+        desc->rgt1     = rgt1;
+        desc->rgt2     = rgt2;
+        desc->fr1      = fr1;
+        desc->fr2      = fr2;
+        desc->vfr1     = vfr1;
+        desc->vfr2     = vfr2;
         desc->channel  = channel;
 
-        //g_print("DESC INIT Note=%d Action=%d Type=%d Event=%d OnOff=%d Chan=%d\n", i, action, type, event, onoff, channel);
+        //g_print("DESC INIT Note=%3d Action=%3d Type=%3d Event=%3d OnOff=%3d Chan=%3d Delay=%3d THR=%3d %3d %3d %3d %3d %3d %3d %3d %3d %3d %3d %3d\n",
+        //        i, action, type, event, onoff, channel, delay,
+        //        vfl1, vfl2, fl1, fl2, lft1, lft2, rgt1, rgt2, fr1, fr2, vfr1, vfr2);
 
         MidiAddCommand(i, desc);
-      } // index
-    }   // if (value)
-  }     // for (int i)
+      }
+    }
+  }
 }
 
