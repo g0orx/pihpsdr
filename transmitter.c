@@ -670,6 +670,11 @@ static gboolean update_display(gpointer data) {
         // reflected power, so correct for that
         //
         double gamma=(double) rev_average / (double) fwd_average;
+        //
+        // this prevents SWR going to infinity, from which the
+        // moving average cannot recover
+        //
+        if (gamma > 0.95) gamma=0.95;
         tx->swr=0.7*(1+gamma)/(1-gamma) + 0.3*tx->swr;
     } else {
         //
