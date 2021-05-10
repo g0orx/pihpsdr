@@ -384,9 +384,7 @@ void tx_menu(GtkWidget *parent) {
 
   GtkWidget *label=gtk_label_new(NULL);
   gtk_label_set_markup(GTK_LABEL(label), "<b>TX Filter: </b>");
-#ifdef GTK316
-  gtk_label_set_xalign(GTK_LABEL(label),0);
-#endif
+  gtk_widget_set_halign(label, GTK_ALIGN_START);
   gtk_grid_attach(GTK_GRID(grid),label,col,row,1,1);
 
   col++;
@@ -414,9 +412,7 @@ void tx_menu(GtkWidget *parent) {
 
   GtkWidget *panadapter_high_label=gtk_label_new(NULL);
   gtk_label_set_markup(GTK_LABEL(panadapter_high_label), "<b>Panadapter High: </b>");
-#ifdef GTK316
-  gtk_label_set_xalign(GTK_LABEL(panadapter_high_label),0);
-#endif
+  gtk_widget_set_halign(panadapter_high_label, GTK_ALIGN_START);
   gtk_widget_show(panadapter_high_label);
   gtk_grid_attach(GTK_GRID(grid),panadapter_high_label,col,row,1,1);
 
@@ -424,9 +420,7 @@ void tx_menu(GtkWidget *parent) {
 
   GtkWidget *panadapter_low_label=gtk_label_new(NULL);
   gtk_label_set_markup(GTK_LABEL(panadapter_low_label), "<b>Panadapter Low: </b>");
-#ifdef GTK316
-  gtk_label_set_xalign(GTK_LABEL(panadapter_low_label),0);
-#endif
+  gtk_widget_set_halign(panadapter_low_label, GTK_ALIGN_START);
   gtk_widget_show(panadapter_low_label);
   gtk_grid_attach(GTK_GRID(grid),panadapter_low_label,col,row,1,1);
 
@@ -434,9 +428,7 @@ void tx_menu(GtkWidget *parent) {
 
   GtkWidget *panadapter_step_label=gtk_label_new(NULL);
   gtk_label_set_markup(GTK_LABEL(panadapter_step_label), "<b>Panadapter Step: </b>");
-#ifdef GTK316
-  gtk_label_set_xalign(GTK_LABEL(panadapter_step_label),0);
-#endif
+  gtk_widget_set_halign(panadapter_step_label, GTK_ALIGN_START);
   gtk_widget_show(panadapter_step_label);
   gtk_grid_attach(GTK_GRID(grid),panadapter_step_label,col,row,1,1);
 
@@ -470,9 +462,7 @@ void tx_menu(GtkWidget *parent) {
 
   GtkWidget *am_carrier_level_label=gtk_label_new(NULL);
   gtk_label_set_markup(GTK_LABEL(am_carrier_level_label), "<b>AM Carrier Level:</b>");
-#ifdef GTK316
-  gtk_label_set_xalign(GTK_LABEL(am_carrier_level_label),0);
-#endif
+  gtk_widget_set_halign(am_carrier_level_label, GTK_ALIGN_START);
   gtk_widget_show(am_carrier_level_label);
   gtk_grid_attach(GTK_GRID(grid),am_carrier_level_label,col,row,1,1);
 
@@ -535,9 +525,7 @@ void tx_menu(GtkWidget *parent) {
   
   GtkWidget *tune_percent_label=gtk_label_new(NULL);
   gtk_label_set_markup(GTK_LABEL(tune_percent_label), "<b>Tune Percent:</b>");
-#ifdef GTK316
-  gtk_label_set_xalign(GTK_LABEL(tune_percent_label),0);
-#endif
+  gtk_widget_set_halign(tune_percent_label, GTK_ALIGN_START);
   gtk_widget_show(tune_percent_label);
   gtk_grid_attach(GTK_GRID(grid),tune_percent_label,col,row,1,1);
 
@@ -560,9 +548,7 @@ void tx_menu(GtkWidget *parent) {
 
   GtkWidget *swr_alarm_label=gtk_label_new(NULL);
   gtk_label_set_markup(GTK_LABEL(swr_alarm_label), "<b>SWR alarm at:</b>");
-#ifdef GTK316
-  gtk_label_set_xalign(GTK_LABEL(swr_alarm_label),0);
-#endif
+  gtk_widget_set_halign(swr_alarm_label, GTK_ALIGN_START);
   gtk_widget_show(swr_alarm_label);
   gtk_grid_attach(GTK_GRID(grid),swr_alarm_label,col,row,1,1);
 
