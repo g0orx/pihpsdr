@@ -52,6 +52,7 @@ enum {
 static GtkWidget *parent_window=NULL;
 static GtkWidget *menu_b=NULL;
 static GtkWidget *dialog=NULL;
+static GtkWidget *wheeldialog=NULL;
 
 static GtkWidget *midi_enable_b;
 
@@ -88,6 +89,23 @@ static int thisVal;
 static int thisMin;
 static int thisMax;
 static int thisOnOff;
+static int thisDelay;
+static int thisVfl1, thisVfl2;
+static int thisFl1,  thisFl2;
+static int thisLft1, thisLft2;
+static int thisRgt1, thisRgt2;
+static int thisFr1,  thisFr2;
+static int thisVfr1, thisVfr2;
+
+static int wheel_params_present=0;
+static GtkWidget *set_delay;
+static GtkWidget *set_vfl1, *set_vfl2;
+static GtkWidget *set_fl1,  *set_fl2;
+static GtkWidget *set_lft1, *set_lft2;
+static GtkWidget *set_rgt1, *set_rgt2;
+static GtkWidget *set_fr1,  *set_fr2;
+static GtkWidget *set_vfr1, *set_vfr2;
+
 static enum MIDItype thisType;
 static enum MIDIaction thisAction;
 
@@ -103,6 +121,16 @@ static int update(void *data);
 static void load_store();
 static void add_store(int key,struct desc *cmd);
 
+static void wheelcleanup() {
+  g_print("wheel cleanup WD=%p\n",wheeldialog);
+  wheel_params_present=0;
+  if (wheeldialog != NULL) {
+    g_print("wheel destroy\n");
+    gtk_widget_destroy(wheeldialog);
+    wheeldialog=NULL;
+  }
+}
+
 static void cleanup() {
   configure_midi_device(FALSE);
   if(dialog!=NULL) {
@@ -110,6 +138,16 @@ static void cleanup() {
     dialog=NULL;
     sub_menu=NULL;
   }
+}
+
+static gboolean wheelclose_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  wheelcleanup();
+  return TRUE;
+}
+
+static gboolean wheeldelete_event(GtkWidget *widget, GdkEvent *event, gpointer user_data) {
+  wheelcleanup();
+  return FALSE;
 }
 
 static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
@@ -285,6 +323,382 @@ static void find_current_cmd() {
     cmd=cmd->next;
   }
   current_cmd=cmd;  // NULL if not found
+}
+
+static void update_wheelparams(gpointer user_data) {
+  char text[32];
+  //
+  // Task: insert current wheel param values into the text boxes
+  //
+  // This is a no-op if the "wheel params" dialog is not open
+  // If the actual command does not specify a wheel, insert blanks
+  // 
+  if (wheel_params_present) {
+    if (thisType==MIDI_TYPE_WHEEL) {
+      sprintf(text,"%d",thisDelay);   gtk_entry_set_text(GTK_ENTRY(set_delay), text);
+      sprintf(text,"%d",thisVfl1 );   gtk_entry_set_text(GTK_ENTRY(set_vfl1 ), text);
+      sprintf(text,"%d",thisVfl2 );   gtk_entry_set_text(GTK_ENTRY(set_vfl2 ), text);
+      sprintf(text,"%d",thisFl1  );   gtk_entry_set_text(GTK_ENTRY(set_fl1  ), text);
+      sprintf(text,"%d",thisFl2  );   gtk_entry_set_text(GTK_ENTRY(set_fl2  ), text);
+      sprintf(text,"%d",thisLft1 );   gtk_entry_set_text(GTK_ENTRY(set_lft1 ), text);
+      sprintf(text,"%d",thisLft2 );   gtk_entry_set_text(GTK_ENTRY(set_lft2 ), text);
+      sprintf(text,"%d",thisRgt1 );   gtk_entry_set_text(GTK_ENTRY(set_rgt1 ), text);
+      sprintf(text,"%d",thisRgt2 );   gtk_entry_set_text(GTK_ENTRY(set_rgt2 ), text);
+      sprintf(text,"%d",thisFr1  );   gtk_entry_set_text(GTK_ENTRY(set_fr1  ), text);
+      sprintf(text,"%d",thisFr2  );   gtk_entry_set_text(GTK_ENTRY(set_fr2  ), text);
+      sprintf(text,"%d",thisVfr1 );   gtk_entry_set_text(GTK_ENTRY(set_vfr1 ), text);
+      sprintf(text,"%d",thisVfr2 );   gtk_entry_set_text(GTK_ENTRY(set_vfr2 ), text);
+    } else {
+      sprintf(text,"");
+      gtk_entry_set_text(GTK_ENTRY(set_delay), text);
+      gtk_entry_set_text(GTK_ENTRY(set_vfl1 ), text);
+      gtk_entry_set_text(GTK_ENTRY(set_vfl2 ), text);
+      gtk_entry_set_text(GTK_ENTRY(set_fl1  ), text);
+      gtk_entry_set_text(GTK_ENTRY(set_fl2  ), text);
+      gtk_entry_set_text(GTK_ENTRY(set_lft1 ), text);
+      gtk_entry_set_text(GTK_ENTRY(set_lft2 ), text);
+      gtk_entry_set_text(GTK_ENTRY(set_rgt1 ), text);
+      gtk_entry_set_text(GTK_ENTRY(set_rgt2 ), text);
+      gtk_entry_set_text(GTK_ENTRY(set_fr1  ), text);
+      gtk_entry_set_text(GTK_ENTRY(set_fr2  ), text);
+      gtk_entry_set_text(GTK_ENTRY(set_vfr1 ), text);
+      gtk_entry_set_text(GTK_ENTRY(set_vfr2 ), text);
+    }
+  }
+}
+
+static void wheelparam_cb(GtkWidget *widget, gpointer user_data) {
+  int what = GPOINTER_TO_INT(user_data);
+  const gchar *text=gtk_entry_get_text(GTK_ENTRY(widget));
+  char newtext[32];
+  int val;
+  if (thisType != MIDI_TYPE_WHEEL) {
+    sprintf(newtext,"%s","");
+  } else {
+    if (sscanf(text,"%d", &val) != 1) {
+      val = -1;
+    }
+    if (what == 1) {
+      if (val < 0) val=0;
+      if (val > 1000) val=1000;
+    } else {
+      if (val < -1) val=-1;
+      if (val > 127) val=127;
+    }
+    switch (what) {
+      case 1:  // Delay
+        thisDelay=val;
+        break;
+     case 2:  // Very fast Left 1
+        thisVfl1=val; g_print("SET VFL1=%d\n", thisVfl1);
+        break;
+     case 3:  // Very fast Left 2
+        thisVfl2=val;
+        break;
+     case 4:  // Fast Left 1
+        thisFl1=val;
+        break;
+     case 5:  // Fast Left 2
+        thisFl2=val;
+        break;
+     case 6:  // Left 1
+        thisLft1=val;
+        break;
+     case 7:  // Left 2
+        thisLft2=val;
+        break;
+     case 8:  // Right 1
+        thisRgt1=val;
+        break;
+     case 9:  // Right 2
+        thisRgt2=val;
+        break;
+     case 10:  // Fast Right 1
+        thisFr1=val;
+        break;
+     case 11:  // Fast Right2 
+        thisFr2=val;
+        break;
+     case 12:  // Very fast Right 1
+        thisVfr1=val;
+        break;
+     case 13:  // Very fast Right 2
+        thisVfr2=val;
+        break;
+     }
+    sprintf(newtext,"%d",val);
+  }
+  gtk_entry_set_text(GTK_ENTRY(widget), newtext);
+}
+
+static void wheel_cb(GtkWidget *widget, gpointer user_data)  {
+  g_print("Wheel CB\n");
+  int row, col;
+  char text[64];
+  GtkWidget *lbl;
+
+  wheeldialog = gtk_dialog_new();
+  gtk_window_set_transient_for(GTK_WINDOW(wheeldialog),GTK_WINDOW(dialog));
+  gtk_window_set_title(GTK_WINDOW(wheeldialog),"Set special parameters for WHEELs");
+  g_signal_connect (wheeldialog, "delete_event", G_CALLBACK (wheeldelete_event), NULL);
+
+  GdkRGBA color;
+  color.red = 1.0;
+  color.green = 1.0;
+  color.blue = 1.0;
+  color.alpha = 1.0;
+  gtk_widget_override_background_color(dialog,GTK_STATE_FLAG_NORMAL,&color);
+
+  GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(wheeldialog));
+
+  GtkWidget *grid=gtk_grid_new();
+  gtk_grid_set_column_spacing (GTK_GRID(grid),2);
+
+  row=0;
+  col=0;
+
+  lbl=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(lbl), "<b>Special WHEEL parameter</b>"),
+  gtk_widget_set_halign(lbl, GTK_ALIGN_START);
+  gtk_grid_attach(GTK_GRID(grid), lbl, col, row, 1, 1);
+  col+=2;
+
+  lbl=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(lbl), "<b>Value</b>"),
+  gtk_widget_set_halign(lbl, GTK_ALIGN_CENTER);
+  gtk_grid_attach(GTK_GRID(grid), lbl, col, row, 1, 1);
+  col+=2;
+
+  lbl=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(lbl), "<b>Value</b>"),
+  gtk_widget_set_halign(lbl, GTK_ALIGN_CENTER);
+  gtk_grid_attach(GTK_GRID(grid), lbl, col, row, 1, 1);
+  col++;
+
+  row++;
+  col=0;
+ 
+  lbl=gtk_label_new("Delay (msec):");
+  gtk_widget_set_halign(lbl, GTK_ALIGN_START);
+  gtk_grid_attach(GTK_GRID(grid), lbl, col, row, 1, 1);
+  col+=2;
+
+  set_delay = gtk_entry_new();
+  sprintf(text,"%d",thisDelay);
+  gtk_entry_set_text(GTK_ENTRY(set_delay),text);
+  gtk_grid_attach(GTK_GRID(grid), set_delay, col, row, 1, 1);
+  gtk_entry_set_width_chars(GTK_ENTRY(set_delay), 8);
+  g_signal_connect(set_delay, "activate", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(1));
+  row++;
+  col=0;
+ 
+  lbl=gtk_label_new("Range of values for VeryFastLeft:");
+  gtk_widget_set_halign(lbl, GTK_ALIGN_START);
+  gtk_grid_attach(GTK_GRID(grid), lbl, col, row, 1, 1);
+  col++;
+
+  lbl=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(lbl), "<b> from </b>"),
+  gtk_widget_set_halign(lbl, GTK_ALIGN_START);
+  gtk_grid_attach(GTK_GRID(grid), lbl, col, row, 1, 1);
+  col++;
+
+  set_vfl1 = gtk_entry_new();
+  sprintf(text,"%d",thisVfl1);
+  gtk_entry_set_text(GTK_ENTRY(set_vfl1),text);
+  gtk_grid_attach(GTK_GRID(grid), set_vfl1, col, row, 1, 1);
+  gtk_entry_set_width_chars(GTK_ENTRY(set_vfl1), 8);
+  g_signal_connect(set_vfl1, "activate", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(2));
+  col++;
+
+  lbl=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(lbl), "<b> to </b>"),
+  gtk_widget_set_halign(lbl, GTK_ALIGN_START);
+  gtk_grid_attach(GTK_GRID(grid), lbl, col, row, 1, 1);
+  col++;
+
+  set_vfl2 = gtk_entry_new();
+  sprintf(text,"%d",thisVfl2);
+  gtk_entry_set_text(GTK_ENTRY(set_vfl2),text);
+  gtk_grid_attach(GTK_GRID(grid), set_vfl2, col, row, 1, 1);
+  gtk_entry_set_width_chars(GTK_ENTRY(set_vfl2), 8);
+  g_signal_connect(set_vfl2, "activate", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(3));
+  row++;
+  col=0;
+
+  lbl=gtk_label_new("Range of values for VeryLeft:");
+  gtk_widget_set_halign(lbl, GTK_ALIGN_START);
+  gtk_grid_attach(GTK_GRID(grid), lbl, col, row, 1, 1);
+  col++;
+
+  lbl=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(lbl), "<b> from </b>"),
+  gtk_widget_set_halign(lbl, GTK_ALIGN_START);
+  gtk_grid_attach(GTK_GRID(grid), lbl, col, row, 1, 1);
+  col++;
+
+  set_fl1 = gtk_entry_new();
+  sprintf(text,"%d",thisFl1);
+  gtk_entry_set_text(GTK_ENTRY(set_fl1),text);
+  gtk_grid_attach(GTK_GRID(grid), set_fl1, col, row, 1, 1);
+  gtk_entry_set_width_chars(GTK_ENTRY(set_fl1), 8);
+  g_signal_connect(set_fl1, "activate", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(4));
+  col++;
+
+  lbl=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(lbl), "<b> to </b>"),
+  gtk_widget_set_halign(lbl, GTK_ALIGN_START);
+  gtk_grid_attach(GTK_GRID(grid), lbl, col, row, 1, 1);
+  col++;
+
+  set_fl2 = gtk_entry_new();
+  sprintf(text,"%d",thisFl2);
+  gtk_entry_set_text(GTK_ENTRY(set_fl2),text);
+  gtk_grid_attach(GTK_GRID(grid), set_fl2, col, row, 1, 1);
+  gtk_entry_set_width_chars(GTK_ENTRY(set_fl2), 8);
+  g_signal_connect(set_fl2, "activate", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(5));
+  row++;
+  col=0;
+
+  lbl=gtk_label_new("Range of values for NormalLeft:");
+  gtk_widget_set_halign(lbl, GTK_ALIGN_START);
+  gtk_grid_attach(GTK_GRID(grid), lbl, col, row, 1, 1);
+  col++;
+
+  lbl=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(lbl), "<b> from </b>"),
+  gtk_widget_set_halign(lbl, GTK_ALIGN_START);
+  gtk_grid_attach(GTK_GRID(grid), lbl, col, row, 1, 1);
+  col++;
+
+  set_lft1 = gtk_entry_new();
+  sprintf(text,"%d",thisLft1);
+  gtk_entry_set_text(GTK_ENTRY(set_lft1),text);
+  gtk_grid_attach(GTK_GRID(grid), set_lft1, col, row, 1, 1);
+  gtk_entry_set_width_chars(GTK_ENTRY(set_lft1), 8);
+  g_signal_connect(set_lft1, "activate", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(6));
+  col++;
+
+  lbl=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(lbl), "<b> to </b>"),
+  gtk_widget_set_halign(lbl, GTK_ALIGN_START);
+  gtk_grid_attach(GTK_GRID(grid), lbl, col, row, 1, 1);
+  col++;
+
+  set_lft2 = gtk_entry_new();
+  sprintf(text,"%d",thisLft2);
+  gtk_entry_set_text(GTK_ENTRY(set_lft2),text);
+  gtk_grid_attach(GTK_GRID(grid), set_lft2, col, row, 1, 1);
+  gtk_entry_set_width_chars(GTK_ENTRY(set_lft2), 8);
+  g_signal_connect(set_lft2, "activate", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(7));
+  row++;
+  col=0;
+
+  lbl=gtk_label_new("Range of values for NormalRight:");
+  gtk_widget_set_halign(lbl, GTK_ALIGN_START);
+  gtk_grid_attach(GTK_GRID(grid), lbl, col, row, 1, 1);
+  col++;
+
+  lbl=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(lbl), "<b> from </b>"),
+  gtk_widget_set_halign(lbl, GTK_ALIGN_START);
+  gtk_grid_attach(GTK_GRID(grid), lbl, col, row, 1, 1);
+  col++;
+
+  set_rgt1 = gtk_entry_new();
+  sprintf(text,"%d",thisRgt1);
+  gtk_entry_set_text(GTK_ENTRY(set_rgt1),text);
+  gtk_grid_attach(GTK_GRID(grid), set_rgt1, col, row, 1, 1);
+  gtk_entry_set_width_chars(GTK_ENTRY(set_rgt1), 8);
+  g_signal_connect(set_rgt1, "activate", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(8));
+  col++;
+
+  lbl=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(lbl), "<b> to </b>"),
+  gtk_widget_set_halign(lbl, GTK_ALIGN_START);
+  gtk_grid_attach(GTK_GRID(grid), lbl, col, row, 1, 1);
+  col++;
+
+  set_rgt2 = gtk_entry_new();
+  sprintf(text,"%d",thisRgt2);
+  gtk_entry_set_text(GTK_ENTRY(set_rgt2),text);
+  gtk_grid_attach(GTK_GRID(grid), set_rgt2, col, row, 1, 1);
+  gtk_entry_set_width_chars(GTK_ENTRY(set_rgt2), 8);
+  g_signal_connect(set_rgt2, "activate", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(9));
+  row++;
+  col=0;
+
+  lbl=gtk_label_new("Range of values for FastRight:");
+  gtk_widget_set_halign(lbl, GTK_ALIGN_START);
+  gtk_grid_attach(GTK_GRID(grid), lbl, col, row, 1, 1);
+  col++;
+
+  lbl=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(lbl), "<b> from </b>"),
+  gtk_widget_set_halign(lbl, GTK_ALIGN_START);
+  gtk_grid_attach(GTK_GRID(grid), lbl, col, row, 1, 1);
+  col++;
+
+  set_fr1 = gtk_entry_new();
+  sprintf(text,"%d",thisFr1);
+  gtk_entry_set_text(GTK_ENTRY(set_fr1),text);
+  gtk_grid_attach(GTK_GRID(grid), set_fr1, col, row, 1, 1);
+  gtk_entry_set_width_chars(GTK_ENTRY(set_fr1), 8);
+  g_signal_connect(set_fr1, "activate", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(10));
+  col++;
+
+  lbl=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(lbl), "<b> to </b>"),
+  gtk_widget_set_halign(lbl, GTK_ALIGN_START);
+  gtk_grid_attach(GTK_GRID(grid), lbl, col, row, 1, 1);
+  col++;
+
+  set_fr2 = gtk_entry_new();
+  sprintf(text,"%d",thisFr2);
+  gtk_entry_set_text(GTK_ENTRY(set_fr2),text);
+  gtk_grid_attach(GTK_GRID(grid), set_fr2, col, row, 1, 1);
+  gtk_entry_set_width_chars(GTK_ENTRY(set_fr2), 8);
+  g_signal_connect(set_fr2, "activate", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(11));
+  row++;
+  col=0;
+
+  lbl=gtk_label_new("Range of values for VeryFastRight:");
+  gtk_widget_set_halign(lbl, GTK_ALIGN_START);
+  gtk_grid_attach(GTK_GRID(grid), lbl, col, row, 1, 1);
+  col++;
+
+  lbl=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(lbl), "<b> from </b>"),
+  gtk_widget_set_halign(lbl, GTK_ALIGN_START);
+  gtk_grid_attach(GTK_GRID(grid), lbl, col, row, 1, 1);
+  col++;
+
+  set_vfr1 = gtk_entry_new();
+  sprintf(text,"%d",thisVfr1);
+  gtk_entry_set_text(GTK_ENTRY(set_vfr1),text);
+  gtk_grid_attach(GTK_GRID(grid), set_vfr1, col, row, 1, 1);
+  gtk_entry_set_width_chars(GTK_ENTRY(set_vfr1), 8);
+  g_signal_connect(set_vfr1, "activate", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(12));
+  col++;
+
+  lbl=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(lbl), "<b> to </b>"),
+  gtk_widget_set_halign(lbl, GTK_ALIGN_START);
+  gtk_grid_attach(GTK_GRID(grid), lbl, col, row, 1, 1);
+  col++;
+
+  set_vfr2 = gtk_entry_new();
+  sprintf(text,"%d",thisVfr2);
+  gtk_entry_set_text(GTK_ENTRY(set_vfr2),text);
+  gtk_grid_attach(GTK_GRID(grid), set_vfr2, col, row, 1, 1);
+  gtk_entry_set_width_chars(GTK_ENTRY(set_vfr2), 8);
+  g_signal_connect(set_vfr2, "activate", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(13));
+  col++;
+
+
+  gtk_container_add(GTK_CONTAINER(content),grid);
+  gtk_widget_show_all(wheeldialog);
+  wheel_params_present=1;
 }
 
 static void clear_cb(GtkWidget *widget,gpointer user_data) {
@@ -510,19 +924,19 @@ static void add_cb(GtkButton *widget,gpointer user_data) {
   desc->type = type; // MIDItype
   desc->event = thisEvent; // MIDevent
   desc->onoff = onoff;
-  desc->delay =   0;     // default: no delay
-  desc->vfl1  =  -1;     // default: "very fast left"  does not occur
-  desc->vfl2  =  -1;
-  desc->fl1   =  -1;     // default: "fast left"       does not occur
-  desc->fl2   =  -1;
-  desc->lft1  =   0;     // default: "normal left"     reports values from 0 to 63
-  desc->lft2  =  63;
-  desc->rgt1  =  65;     // default: "normal right"    reports values from 65 to 127
-  desc->rgt2  = 127;
-  desc->fr1   = 128;     // default: "fast right"      does not occur
-  desc->fr2   = 128;
-  desc->vfr1  = 128;     // default: "very fast right" does not occur
-  desc->vfr2  = 128;
+  desc->delay = thisDelay;
+  desc->vfl1  = thisVfl1;
+  desc->vfl2  = thisVfl2;
+  desc->fl1   = thisFl1;
+  desc->fl2   = thisFl2;
+  desc->lft1  = thisLft1;
+  desc->lft2  = thisLft2;
+  desc->rgt1  = thisRgt1;
+  desc->rgt2  = thisRgt2;
+  desc->fr1   = thisFr1;
+  desc->fr2   = thisFr2;
+  desc->vfr1  = thisVfr1;
+  desc->vfr2  = thisVfr2;
   desc->channel  = thisChannel;
 
   gint key=thisNote;
@@ -577,9 +991,32 @@ static void update_cb(GtkButton *widget,gpointer user_data) {
   }
 
   current_cmd->channel=thisChannel;
-  current_cmd->type=thisType;
-  current_cmd->action=thisAction;
-  current_cmd->onoff=thisOnOff;
+  current_cmd->type   =thisType;
+  current_cmd->action =thisAction;
+  current_cmd->onoff =thisOnOff;
+  current_cmd->delay =thisDelay;
+  //
+  // consolidate the interval
+  //
+  if (thisVfl2 < thisVfl1) thisVfl2=thisVfl1;
+  if (thisFl2  < thisFl1)  thisFl2 =thisFl1;
+  if (thisLft2 < thisLft1) thisLft2=thisLft1;
+  if (thisRgt2 < thisRgt1) thisRgt2=thisRgt1;
+  if (thisFr2  < thisFr1)  thisFr2 =thisFr1;
+  if (thisVfr2 < thisVfr1) thisVfr2=thisVfr1;
+
+  current_cmd->vfl1  =thisVfl1;
+  current_cmd->vfl2  =thisVfl2;
+  current_cmd->fl1   =thisFl1;
+  current_cmd->fl2   =thisFl2;
+  current_cmd->lft1  =thisLft1;
+  current_cmd->lft2  =thisLft2;
+  current_cmd->rgt1  =thisRgt1;
+  current_cmd->rgt2  =thisRgt2;
+  current_cmd->fr1   =thisFr1;
+  current_cmd->fr1   =thisFr2;
+  current_cmd->vfr1  =thisVfr1;
+  current_cmd->vfr1  =thisVfr1;
 
   switch(current_cmd->event) {
     case MIDI_EVENT_NONE:
@@ -678,6 +1115,12 @@ void midi_menu(GtkWidget *parent) {
   GtkWidget *grid=gtk_grid_new();
   gtk_grid_set_column_spacing (GTK_GRID(grid),2);
 
+  //
+  // If we get destroyed (by new_menu, for example), destroy
+  // the Wheel config dialog should it be open
+  //
+  g_signal_connect(G_OBJECT(dialog), "destroy", G_CALLBACK(wheelcleanup), NULL);
+
   row=0;
   col=0;
 
@@ -687,15 +1130,22 @@ void midi_menu(GtkWidget *parent) {
     gtk_label_set_markup(GTK_LABEL(devices_label), "<b>Select MIDI device(s)</b>");
     gtk_label_set_justify(GTK_LABEL(devices_label),GTK_JUSTIFY_LEFT);
     gtk_grid_attach(GTK_GRID(grid),devices_label,row,col,2,1);
-    col +=2;
+    col=2;
     for (i=0; i<n_midi_devices; i++) {
       device_b[i] = gtk_check_button_new_with_label(midi_devices[i].name);
       gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(device_b[i]), midi_devices[i].active);
       gtk_grid_attach(GTK_GRID(grid),device_b[i],col,row,2,1);
-      col +=2;
-      if (col == 8) {
-        col=2;
-        row++;
+      switch (col) {
+	case 2:
+	  col=4;
+	  break;
+	case 4:
+	  col=8;
+	  break;
+        case 8:
+          col=2;
+          row++;
+          break;
       }
       g_signal_connect(device_b[i], "toggled", G_CALLBACK(device_cb), GINT_TO_POINTER(i));
       gtk_widget_show(device_b[i]);
@@ -747,6 +1197,23 @@ void midi_menu(GtkWidget *parent) {
   g_signal_connect(load_original_b,"clicked",G_CALLBACK(load_original_cb),NULL);
   col++;
 
+  add_b=gtk_button_new_with_label("Add");
+  g_signal_connect(add_b, "pressed", G_CALLBACK(add_cb),NULL);
+  gtk_grid_attach(GTK_GRID(grid),add_b,col,row,3,1);
+  gtk_widget_set_sensitive(add_b,FALSE);
+  col+=3;
+
+  update_b=gtk_button_new_with_label("Update");
+  g_signal_connect(update_b, "pressed", G_CALLBACK(update_cb),NULL);
+  gtk_grid_attach(GTK_GRID(grid),update_b,col,row,1,1);
+  gtk_widget_set_sensitive(update_b,FALSE);
+  col++;
+
+  delete_b=gtk_button_new_with_label("Delete");
+  g_signal_connect(delete_b, "pressed", G_CALLBACK(delete_cb),NULL);
+  gtk_grid_attach(GTK_GRID(grid),delete_b,col,row,1,1);
+  gtk_widget_set_sensitive(delete_b,FALSE);
+
   row++;
   col=0;
   GtkWidget *label=gtk_label_new("Evt");
@@ -788,21 +1255,10 @@ void midi_menu(GtkWidget *parent) {
   gtk_combo_box_set_wrap_width(GTK_COMBO_BOX(newAction),5);
   gtk_grid_attach(GTK_GRID(grid),newAction,col++,row,1,1);
 
-  add_b=gtk_button_new_with_label("Add");
-  g_signal_connect(add_b, "pressed", G_CALLBACK(add_cb),NULL);
-  gtk_grid_attach(GTK_GRID(grid),add_b,col++,row,1,1);
-  gtk_widget_set_sensitive(add_b,FALSE);
+  GtkWidget *wheel_b=gtk_button_new_with_label("Config Wheel");
+  gtk_grid_attach(GTK_GRID(grid),wheel_b,col++,row,1,1);
+  g_signal_connect(wheel_b,"clicked",G_CALLBACK(wheel_cb),NULL);
 
-
-  update_b=gtk_button_new_with_label("Update");
-  g_signal_connect(update_b, "pressed", G_CALLBACK(update_cb),NULL);
-  gtk_grid_attach(GTK_GRID(grid),update_b,col++,row,1,1);
-  gtk_widget_set_sensitive(update_b,FALSE);
-
-  delete_b=gtk_button_new_with_label("Delete");
-  g_signal_connect(delete_b, "pressed", G_CALLBACK(delete_cb),NULL);
-  gtk_grid_attach(GTK_GRID(grid),delete_b,col++,row,1,1);
-  gtk_widget_set_sensitive(delete_b,FALSE);
   row++;
   col=0;
 
@@ -996,6 +1452,23 @@ static int update(void *data) {
       find_current_cmd();
       g_print("%s: current_cmd %p\n",__FUNCTION__,current_cmd);
 
+      if (current_cmd != NULL) {
+        thisDelay = current_cmd->delay;
+        thisVfl1  = current_cmd->vfl1;
+        thisVfl2  = current_cmd->vfl2;
+        thisFl1   = current_cmd->fl1;
+        thisFl2   = current_cmd->fl2;
+        thisLft1  = current_cmd->lft1;
+        thisLft2  = current_cmd->lft2;
+        thisRgt1  = current_cmd->rgt1;
+        thisRgt2  = current_cmd->rgt2;
+        thisFr1   = current_cmd->fr1;
+        thisFr1   = current_cmd->fr2;
+        thisVfr1  = current_cmd->vfr1;
+        thisVfr2  = current_cmd->vfr2;
+      }
+      // no need for g_idle_add since this is called in the idle queue
+      update_wheelparams(NULL);
       gtk_widget_set_sensitive(add_b,FALSE);
       gtk_widget_set_sensitive(update_b,TRUE);
       gtk_widget_set_sensitive(delete_b,TRUE);
@@ -1038,6 +1511,22 @@ void NewMidiConfigureEvent(enum MIDIevent event, int channel, int note, int val)
     thisMax=val;
     thisType=MIDI_TYPE_NONE;
     thisAction=MIDI_ACTION_NONE;
+    //
+    // set default values for wheel parameters
+    //
+    thisDelay =  0;
+    thisVfl1  = -1;
+    thisVfl2  = -1;
+    thisFl1   = -1;
+    thisFl2   = -1;
+    thisLft1  =  0;
+    thisLft2  = 63;
+    thisRgt1  = 65;
+    thisRgt2  =127;
+    thisFr1   = -1;
+    thisFr2   = -1;
+    thisVfr1  = -1;
+    thisVfr2  = -1;
 
     // search tree to see if it is existing event
     valid=gtk_tree_model_get_iter_first(model,&iter);
