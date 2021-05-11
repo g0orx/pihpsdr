@@ -158,6 +158,7 @@ enum MIDIaction {
   MIDI_ACTION_ZOOM,		// ZOOM:		change zoom factor
   MIDI_ACTION_ZOOM_UP,		// ZOOMUP:		change zoom factor
   MIDI_ACTION_ZOOM_DOWN,	// ZOOMDOWN:		change zoom factor
+  MIDI_ACTION_LAST,             // flag for end of list
 };
 
 //
