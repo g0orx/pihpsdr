@@ -178,27 +178,25 @@ static void any_cb(GtkWidget *widget, gpointer data) {
 }
 
 static void update_wheelparams(gpointer user_data) {
-  char text[32];
   //
-  // Task: insert current wheel param values into the text boxes
+  // Task: show or hide WheelContainer depending on whether
+  //       thre current type is a wheel. If it is a wheel,
+  //       set spin buttons to current values.
   //
-  // This is a no-op if the "wheel params" dialog is not open
-  // If the actual command does not specify a wheel, insert blanks
-  // 
   if (thisType==MIDI_TYPE_WHEEL) {
-    sprintf(text,"%d",thisDelay);   gtk_entry_set_text(GTK_ENTRY(set_delay), text);
-    sprintf(text,"%d",thisVfl1 );   gtk_entry_set_text(GTK_ENTRY(set_vfl1 ), text);
-    sprintf(text,"%d",thisVfl2 );   gtk_entry_set_text(GTK_ENTRY(set_vfl2 ), text);
-    sprintf(text,"%d",thisFl1  );   gtk_entry_set_text(GTK_ENTRY(set_fl1  ), text);
-    sprintf(text,"%d",thisFl2  );   gtk_entry_set_text(GTK_ENTRY(set_fl2  ), text);
-    sprintf(text,"%d",thisLft1 );   gtk_entry_set_text(GTK_ENTRY(set_lft1 ), text);
-    sprintf(text,"%d",thisLft2 );   gtk_entry_set_text(GTK_ENTRY(set_lft2 ), text);
-    sprintf(text,"%d",thisRgt1 );   gtk_entry_set_text(GTK_ENTRY(set_rgt1 ), text);
-    sprintf(text,"%d",thisRgt2 );   gtk_entry_set_text(GTK_ENTRY(set_rgt2 ), text);
-    sprintf(text,"%d",thisFr1  );   gtk_entry_set_text(GTK_ENTRY(set_fr1  ), text);
-    sprintf(text,"%d",thisFr2  );   gtk_entry_set_text(GTK_ENTRY(set_fr2  ), text);
-    sprintf(text,"%d",thisVfr1 );   gtk_entry_set_text(GTK_ENTRY(set_vfr1 ), text);
-    sprintf(text,"%d",thisVfr2 );   gtk_entry_set_text(GTK_ENTRY(set_vfr2 ), text);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(set_delay),(double) thisDelay);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(set_vfl1 ),(double) thisVfl1 );
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(set_vfl2 ),(double) thisVfl2 );
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(set_fl1  ),(double) thisFl1  );
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(set_fl2  ),(double) thisFl2  );
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(set_lft1 ),(double) thisLft1 );
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(set_lft2 ),(double) thisLft2 );
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(set_rgt1 ),(double) thisRgt1 );
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(set_rgt2 ),(double) thisRgt2 );
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(set_fr1  ),(double) thisFr1  );
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(set_fr2  ),(double) thisFr2  );
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(set_vfr1 ),(double) thisVfr1 );
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(set_vfr2 ),(double) thisVfr2 );
     gtk_widget_show(WheelContainer);
   } else {
     gtk_widget_hide(WheelContainer);
@@ -350,66 +348,72 @@ static void find_current_cmd() {
 
 static void wheelparam_cb(GtkWidget *widget, gpointer user_data) {
   int what = GPOINTER_TO_INT(user_data);
-  const gchar *text=gtk_entry_get_text(GTK_ENTRY(widget));
-  char newtext[32];
-  int val;
+  int val=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+  int newval=val;
+  g_print("WHEEL CB what=%d newval=%d\n", what, newval);
+
   if (thisType != MIDI_TYPE_WHEEL) {
-    sprintf(newtext,"%s","");
-  } else {
-    if (sscanf(text,"%d", &val) != 1) {
-      val = -1;
-    }
-    if (what == 1) {
-      if (val < 0) val=0;
-      if (val > 1000) val=1000;
-    } else {
-      if (val < -1) val=-1;
-      if (val > 127) val=127;
-    }
-    switch (what) {
+    // we should never arrive here
+    return;
+  }
+  switch (what) {
       case 1:  // Delay
-        thisDelay=val;
+        thisDelay=newval;
         break;
      case 2:  // Very fast Left 1
-        thisVfl1=val; g_print("SET VFL1=%d\n", thisVfl1);
+        if (newval > thisVfl2) newval=thisVfl2;
+        thisVfl1=newval;
         break;
      case 3:  // Very fast Left 2
-        thisVfl2=val;
+        if (newval < thisVfl1) newval=thisVfl1;
+        thisVfl2=newval;
         break;
      case 4:  // Fast Left 1
-        thisFl1=val;
+        if (newval > thisFl2) newval=thisFl2;
+        thisFl1=newval;
         break;
      case 5:  // Fast Left 2
-        thisFl2=val;
+        if (newval < thisFl1) newval=thisFl1;
+        thisFl2=newval;
         break;
      case 6:  // Left 1
-        thisLft1=val;
+        if (newval > thisLft2) newval=thisLft2;
+        thisLft1=newval;
         break;
      case 7:  // Left 2
-        thisLft2=val;
+        if (newval < thisLft1) newval=thisLft1;
+        thisLft2=newval;
         break;
      case 8:  // Right 1
-        thisRgt1=val;
+        if (newval > thisRgt2) newval=thisRgt2;
+        thisRgt1=newval;
         break;
      case 9:  // Right 2
-        thisRgt2=val;
+        if (newval < thisRgt1) newval=thisRgt1;
+        thisRgt2=newval;
         break;
      case 10:  // Fast Right 1
-        thisFr1=val;
+        if (newval > thisFr2) newval=thisFr2;
+        thisFr1=newval;
         break;
      case 11:  // Fast Right2 
-        thisFr2=val;
+        if (newval < thisFr1) newval=thisFr1;
+        thisFr2=newval;
         break;
      case 12:  // Very fast Right 1
-        thisVfr1=val;
+        if (newval > thisVfr2) newval=thisVfr2;
+        thisVfr1=newval;
         break;
      case 13:  // Very fast Right 2
-        thisVfr2=val;
+        if (newval < thisVfr1) newval=thisVfr1;
+        thisVfr2=newval;
         break;
-     }
-    sprintf(newtext,"%d",val);
   }
-  gtk_entry_set_text(GTK_ENTRY(widget), newtext);
+  //
+  // If we have changed the value because we kept thisVfl2 >= thisVfl1 etc,
+  // update the spin button
+  //
+  gtk_spin_button_set_value(GTK_SPIN_BUTTON(widget),(double) newval);
 }
 
 static void clear_cb(GtkWidget *widget,gpointer user_data) {
@@ -843,26 +847,26 @@ void midi_menu(GtkWidget *parent) {
     gtk_label_set_justify(GTK_LABEL(devices_label),GTK_JUSTIFY_LEFT);
     gtk_grid_attach(GTK_GRID(grid),devices_label,col,row,2,1);
     //
-    // Now put the device checkboxes in columns 3 (width: 2), 5 (width: 3), 8 (width: 2)
+    // Now put the device checkboxes in columns 3 (width: 1), 4 (width: 3), 7 (width: 1)
     // and make as many rows as necessary
     col=3;
-    int width = 2;
+    int width = 1;
     for (i=0; i<n_midi_devices; i++) {
       device_b[i] = gtk_check_button_new_with_label(midi_devices[i].name);
       gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(device_b[i]), midi_devices[i].active);
       gtk_grid_attach(GTK_GRID(grid),device_b[i],col,row,width,1);
       switch (col) {
 	case 3:
-	  col=5;
+	  col=4;
           width=3;
 	  break;
-        case 5:
-	  col=8;
-          width=2;
+        case 4:
+	  col=7;
+          width=1;
           break;
-	case 8:
+	case 7:
 	  col=3;
-          width=2;
+          width=1;
           row++;
 	  break;
       }
@@ -958,7 +962,7 @@ void midi_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),newMax,col++,row,1,1);
   newAction=gtk_combo_box_text_new();
   gtk_combo_box_set_wrap_width(GTK_COMBO_BOX(newAction),4);
-  gtk_grid_attach(GTK_GRID(grid),newAction,col++,row,1,1);
+  gtk_grid_attach(GTK_GRID(grid),newAction,col++,row,3,1);
 
 //
 // Load Action button with all actions, such that it
@@ -1039,142 +1043,148 @@ void midi_menu(GtkWidget *parent) {
   // Place a fixed container to hold the wheel parameters
   // and create sub-grid
   //
-  col=6;
-  WheelContainer=gtk_frame_new(NULL);
-  gtk_widget_set_size_request(WheelContainer,250,300-15*((n_midi_devices+1)/3));
-  gtk_grid_attach(GTK_GRID(grid), WheelContainer, col, row, 3, 10);
+  col=5;
+  WheelContainer=gtk_fixed_new();
+  gtk_widget_set_size_request(WheelContainer,300,300-15*((n_midi_devices+1)/3));
+  gtk_grid_attach(GTK_GRID(grid), WheelContainer, col, row, 6, 10);
+  //
+  // Showing/hiding the container may resize-the columns of the main grid,
+  // and causing other elements to move around. Therefore create a further
+  // "dummy" frame that is always shown. The dummy must have the same width
+  // and a small height.
+  //
+  GtkWidget *DummyContainer=gtk_fixed_new();
+  gtk_widget_set_size_request(DummyContainer,300,1);
+  gtk_grid_attach(GTK_GRID(grid), DummyContainer, col, row, 6, 1);
+
+  col=0;
+  row=0;
   lbl=gtk_label_new(NULL);
   gtk_label_set_markup(GTK_LABEL(lbl), "<b>Configure special WHEEL parameters</b>");
   gtk_widget_set_halign(lbl, GTK_ALIGN_CENTER);
-  gtk_frame_set_label_widget(GTK_FRAME(WheelContainer), lbl);
 
   GtkWidget *WheelGrid=gtk_grid_new();
   gtk_grid_set_column_spacing (GTK_GRID(WheelGrid),2);
+  gtk_grid_attach(GTK_GRID(WheelGrid), lbl, col, row, 3, 1);
 
   //
   // Finally, put wheel config elements into the wheel grid
   //
   col=0;
-  row=0;
+  row++;
 
-  lbl=gtk_label_new("Delay (msec):");
+  lbl=gtk_label_new("Delay");
   gtk_widget_set_halign(lbl, GTK_ALIGN_START);
   gtk_grid_attach(GTK_GRID(WheelGrid), lbl, col, row, 1, 1);
   col++;
 
-  set_delay = gtk_entry_new();
+  set_delay = gtk_spin_button_new_with_range(0.0, 500.0, 10.0);
   gtk_grid_attach(GTK_GRID(WheelGrid), set_delay, col, row, 1, 1);
-  gtk_entry_set_width_chars(GTK_ENTRY(set_delay), 4);
-  g_signal_connect(set_delay, "activate", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(1));
+  g_signal_connect(set_delay, "value-changed", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(1));
   col++;
 
   row++;
   col=0;
-  lbl=gtk_label_new("Range for VeryFastLeft:");
+  lbl=gtk_label_new("Left <<<:");
   gtk_widget_set_halign(lbl, GTK_ALIGN_START);
   gtk_grid_attach(GTK_GRID(WheelGrid), lbl, col, row, 1, 1);
   col++;
 
-  set_vfl1 = gtk_entry_new();
+  set_vfl1 = gtk_spin_button_new_with_range(-1.0, 127.0, 1.0);
   gtk_grid_attach(GTK_GRID(WheelGrid), set_vfl1, col, row, 1, 1);
-  gtk_entry_set_width_chars(GTK_ENTRY(set_vfl1), 4);
-  g_signal_connect(set_vfl1, "activate", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(2));
+  g_signal_connect(set_vfl1, "value-changed", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(2));
   col++;
 
-  set_vfl2 = gtk_entry_new();
+  set_vfl2 = gtk_spin_button_new_with_range(-1.0, 127.0, 1.0);
   gtk_grid_attach(GTK_GRID(WheelGrid), set_vfl2, col, row, 1, 1);
-  gtk_entry_set_width_chars(GTK_ENTRY(set_vfl2), 4);
-  g_signal_connect(set_vfl2, "activate", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(3));
+  g_signal_connect(set_vfl2, "value-changed", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(3));
+  col++;
 
   row++;
   col=0;
-  lbl=gtk_label_new("Range for FastLeft:");
+
+  lbl=gtk_label_new("Left <<");
   gtk_widget_set_halign(lbl, GTK_ALIGN_START);
   gtk_grid_attach(GTK_GRID(WheelGrid), lbl, col, row, 1, 1);
   col++;
  
-  set_fl1 = gtk_entry_new();
+  set_fl1 = gtk_spin_button_new_with_range(-1.0, 127.0, 1.0);
   gtk_grid_attach(GTK_GRID(WheelGrid), set_fl1, col, row, 1, 1);
-  gtk_entry_set_width_chars(GTK_ENTRY(set_fl1), 4);
-  g_signal_connect(set_fl1, "activate", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(4));
+  g_signal_connect(set_fl1, "value-changed", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(4));
   col++;
 
-  set_fl2 = gtk_entry_new();
+  set_fl2 = gtk_spin_button_new_with_range(-1.0, 127.0, 1.0);
   gtk_grid_attach(GTK_GRID(WheelGrid), set_fl2, col, row, 1, 1);
-  gtk_entry_set_width_chars(GTK_ENTRY(set_fl2), 4);
-  g_signal_connect(set_fl2, "activate", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(5));
+  g_signal_connect(set_vfl2, "value-changed", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(5));
+  col++;
 
   row++;
   col=0;
-  lbl=gtk_label_new("Range for NormalLeft:");
+  lbl=gtk_label_new("Left <");
   gtk_widget_set_halign(lbl, GTK_ALIGN_START);
   gtk_grid_attach(GTK_GRID(WheelGrid), lbl, col, row, 1, 1);
   col++;
 
-  set_lft1 = gtk_entry_new();
+  set_lft1 = gtk_spin_button_new_with_range(-1.0, 127.0, 1.0);
   gtk_grid_attach(GTK_GRID(WheelGrid), set_lft1, col, row, 1, 1);
-  gtk_entry_set_width_chars(GTK_ENTRY(set_lft1), 4);
-  g_signal_connect(set_lft1, "activate", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(6));
+  g_signal_connect(set_lft1, "value-changed", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(6));
   col++;
 
-  set_lft2 = gtk_entry_new();
+  set_lft2 = gtk_spin_button_new_with_range(-1.0, 127.0, 1.0);
   gtk_grid_attach(GTK_GRID(WheelGrid), set_lft2, col, row, 1, 1);
-  gtk_entry_set_width_chars(GTK_ENTRY(set_lft2), 4);
-  g_signal_connect(set_lft2, "activate", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(7));
+  g_signal_connect(set_lft2, "value-changed", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(7));
+  col++;
 
   row++;
   col=0;
-  lbl=gtk_label_new("Range for NormalRight:");
+  lbl=gtk_label_new("Right >");
   gtk_widget_set_halign(lbl, GTK_ALIGN_START);
   gtk_grid_attach(GTK_GRID(WheelGrid), lbl, col, row, 1, 1);
   col++;
 
-  set_rgt1 = gtk_entry_new();
+  set_rgt1 = gtk_spin_button_new_with_range(-1.0, 127.0, 1.0);
   gtk_grid_attach(GTK_GRID(WheelGrid), set_rgt1, col, row, 1, 1);
-  gtk_entry_set_width_chars(GTK_ENTRY(set_rgt1), 4);
-  g_signal_connect(set_rgt1, "activate", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(8));
+  g_signal_connect(set_rgt1, "value-changed", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(8));
   col++;
 
-  set_rgt2 = gtk_entry_new();
+  set_rgt2 = gtk_spin_button_new_with_range(-1.0, 127.0, 1.0);
   gtk_grid_attach(GTK_GRID(WheelGrid), set_rgt2, col, row, 1, 1);
-  gtk_entry_set_width_chars(GTK_ENTRY(set_rgt2), 4);
-  g_signal_connect(set_lft2, "activate", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(9));
+  g_signal_connect(set_rgt2, "value-changed", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(9));
+  col++;
 
   row++;
   col=0;
-  lbl=gtk_label_new("Range for FastRight:");
+  lbl=gtk_label_new("Right >>");
   gtk_widget_set_halign(lbl, GTK_ALIGN_START);
   gtk_grid_attach(GTK_GRID(WheelGrid), lbl, col, row, 1, 1);
   col++;
 
-  set_fr1 = gtk_entry_new();
+  set_fr1 = gtk_spin_button_new_with_range(-1.0, 127.0, 1.0);
   gtk_grid_attach(GTK_GRID(WheelGrid), set_fr1, col, row, 1, 1);
-  gtk_entry_set_width_chars(GTK_ENTRY(set_fr1), 4);
-  g_signal_connect(set_fr1, "activate", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(10));
+  g_signal_connect(set_fr1, "value-changed", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(10));
   col++;
 
-  set_fr2 = gtk_entry_new();
+  set_fr2 = gtk_spin_button_new_with_range(-1.0, 127.0, 1.0);
   gtk_grid_attach(GTK_GRID(WheelGrid), set_fr2, col, row, 1, 1);
-  gtk_entry_set_width_chars(GTK_ENTRY(set_fr2), 4);
-  g_signal_connect(set_fr2, "activate", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(11));
+  g_signal_connect(set_fr2, "value-changed", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(11));
+  col++;
 
   row++;
   col=0;
-  lbl=gtk_label_new("Range for VeryFastRight:");
+  lbl=gtk_label_new("Right >>>");
   gtk_widget_set_halign(lbl, GTK_ALIGN_START);
   gtk_grid_attach(GTK_GRID(WheelGrid), lbl, col, row, 1, 1);
   col++;
 
-  set_vfr1 = gtk_entry_new();
+  set_vfr1 = gtk_spin_button_new_with_range(-1.0, 127.0, 1.0);
   gtk_grid_attach(GTK_GRID(WheelGrid), set_vfr1, col, row, 1, 1);
-  gtk_entry_set_width_chars(GTK_ENTRY(set_vfr1), 4);
-  g_signal_connect(set_vfr1, "activate", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(12));
+  g_signal_connect(set_vfr1, "value-changed", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(12));
   col++;
 
-  set_vfr2 = gtk_entry_new();
+  set_vfr2 = gtk_spin_button_new_with_range(-1.0, 127.0, 1.0);
   gtk_grid_attach(GTK_GRID(WheelGrid), set_vfr2, col, row, 1, 1);
-  gtk_entry_set_width_chars(GTK_ENTRY(set_vfr2), 4);
-  g_signal_connect(set_vfr2, "activate", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(13));
+  g_signal_connect(set_vfr2, "value-changed", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(13));
+  col++;
 
   gtk_container_add(GTK_CONTAINER(content),grid);
   gtk_container_add(GTK_CONTAINER(WheelContainer), WheelGrid);
