@@ -1085,7 +1085,7 @@ void midi_menu(GtkWidget *parent) {
 
   row++;
   col=0;
-  lbl=gtk_label_new("Left <<<:");
+  lbl=gtk_label_new("Left <<<");
   gtk_widget_set_halign(lbl, GTK_ALIGN_START);
   gtk_grid_attach(GTK_GRID(WheelGrid), lbl, col, row, 1, 1);
   col++;
