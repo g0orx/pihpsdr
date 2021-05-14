@@ -87,7 +87,6 @@ static int thisNote;
 static int thisVal;
 static int thisMin;
 static int thisMax;
-static int thisOnOff;
 static int thisDelay;
 static int thisVfl1, thisVfl2;
 static int thisFl1,  thisFl2;
@@ -143,15 +142,12 @@ static void device_cb(GtkWidget *widget, gpointer data) {
   int index=GPOINTER_TO_INT(data);
   int val=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
   if (val == 1) {
-    if (register_midi_device(index) != 0) {
-      //
-      // If the open fails, set button inactive again
-      //
-      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget), 0);
-    }
+    register_midi_device(index);
   } else {
     close_midi_device(index);
   }
+  // take care button remains un-checked if opening failed
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget), midi_devices[index].active);
 }
 
 static void configure_cb(GtkWidget *widget, gpointer data) {
@@ -313,7 +309,6 @@ static void tree_selection_changed_cb (GtkTreeSelection *selection, gpointer dat
         while(ActionTable[i].action!=MIDI_ACTION_LAST) {
           if(strcmp(ActionTable[i].str,str_action)==0) {
             thisAction=ActionTable[i].action;
-            thisOnOff=ActionTable[i].onoff;
             break;
           }
           i++;
@@ -408,8 +403,6 @@ static void wheelparam_cb(GtkWidget *widget, gpointer user_data) {
 }
 
 static void clear_cb(GtkWidget *widget,gpointer user_data) {
-  struct desc *cmd;
-  struct desc *next;
 
   g_signal_handler_block(G_OBJECT(selection), selection_signal_id);
   gtk_list_store_clear(store);
@@ -551,6 +544,7 @@ static void add_store(int key,struct desc *cmd) {
       strcpy(str_type,"WHEEL");
       break;
   }
+  // ATTENTION: this assumes ActionTable is sorted by action enum
   strcpy(str_action,ActionTable[cmd->action].str);
   
   //g_print("%s: Event=%s Channel=%s Note=%s Type=%s Action=%s\n", __FUNCTION__, str_event, str_channel, str_note, str_type, str_action);
@@ -664,6 +658,7 @@ static void update_cb(GtkButton *widget,gpointer user_data) {
   char str_channel[16];
   char str_note[16];
   int i;
+  int onoff;
 
   if (current_cmd == NULL) {
     g_print("%s: current_cmd is NULL!\n", __FUNCTION__);
@@ -690,7 +685,7 @@ static void update_cb(GtkButton *widget,gpointer user_data) {
   while(ActionTable[i].action!=MIDI_ACTION_LAST) {
     if(strcmp(ActionTable[i].str,str_action)==0) {
       thisAction=ActionTable[i].action;
-      thisOnOff=ActionTable[i].onoff;
+      onoff=ActionTable[i].onoff;
       break;
     }
     i++;
@@ -699,7 +694,7 @@ static void update_cb(GtkButton *widget,gpointer user_data) {
   current_cmd->channel=thisChannel;
   current_cmd->type   =thisType;
   current_cmd->action =thisAction;
-  current_cmd->onoff =thisOnOff;
+  current_cmd->onoff =onoff;
   current_cmd->delay =thisDelay;
   //
   // consolidate the interval
@@ -1458,7 +1453,6 @@ void NewMidiConfigureEvent(enum MIDIevent event, int channel, int note, int val)
           while(ActionTable[i].action!=MIDI_ACTION_LAST) {
             if(strcmp(ActionTable[i].str,str_action)==0) {
               thisAction=ActionTable[i].action;
-              thisOnOff=ActionTable[i].onoff;
               break;
             }
             i++;
@@ -1503,7 +1497,8 @@ void midi_save_state() {
       index=0;
       cmd=MidiCommandsTable[i];
       while(cmd!=NULL) {
-        //g_print("%s:  channel=%d key=%d event=%s onoff=%d type=%s action=%s\n",__FUNCTION__,cmd->channel,i,midi_events[cmd->event],cmd->onoff,midi_types[cmd->type],ActionTable[cmd->action].str);
+	//ATTENTION: g_print assumes ActionTable is sorted by action enum
+        //g_print("%s:  channel=%d key=%d event=%s type=%s action=%s\n",__FUNCTION__,cmd->channel,i,midi_events[cmd->event],midi_types[cmd->type],ActionTable[cmd->action].str);
 
         //
         // There might be events that share the channel and the note value (one NOTE and one CTRL, for example)
@@ -1516,6 +1511,7 @@ void midi_save_state() {
         sprintf(name,"midi[%d].index[%d].type",i,index);
         setProperty(name,midi_types[cmd->type]);
 
+	//ATTENTION: assumes ActionTable is sorted by action enum
         sprintf(name,"midi[%d].index[%d].action",i,index);
         setProperty(name,(char *) ActionTable[cmd->action].str);
 
@@ -1747,7 +1743,8 @@ void midi_restore_state() {
         vfr2=-1;
         if (value) vfr2=atoi(value);
 
-        onoff=ActionTable[action].onoff;  // this is fixed now
+	// ATTENTION: this assumes ActionTable is sorted by Action enums
+        onoff=ActionTable[action].onoff;
 
 	struct desc *desc = (struct desc *) malloc(sizeof(struct desc));
 

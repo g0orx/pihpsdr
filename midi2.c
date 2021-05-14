@@ -272,12 +272,13 @@ int MIDIstop() {
 
 void MidiReleaseCommands() {
   int i;
-  struct desc *loop;
+  struct desc *loop, *new;
   for (i=0; i<129; i++) {
     loop = MidiCommandsTable[i];
     while (loop != NULL) {
+      new=loop->next;
       free(loop);
-      loop = loop->next;
+      loop = new;
     }
     MidiCommandsTable[i]=NULL;
   }
