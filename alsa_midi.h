@@ -1,6 +1,5 @@
 typedef struct _midi_device {
   char *name;
-  char *port;
   int  active;
 } MIDI_DEVICE;
 

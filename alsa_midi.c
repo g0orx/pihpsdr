@@ -31,6 +31,14 @@
 MIDI_DEVICE midi_devices[MAX_MIDI_DEVICES];
 int n_midi_devices;
 
+//
+// The following must not reside in midi_devices since it
+// needs special #includes
+//
+static pthread_t midi_thread_id[MAX_MIDI_DEVICES];
+static char *midi_port[MAX_MIDI_DEVICES];
+static snd_rawmidi_t *midi_input[MAX_MIDI_DEVICES];
+
 static void* midi_thread(void *);
 
 static enum {
@@ -48,15 +56,16 @@ static enum {
 
 static gboolean configure=FALSE;
 
-static snd_rawmidi_t *input;
-
 void configure_midi_device(gboolean state) {
   configure=state;
 }
 
 static void *midi_thread(void *arg) {
+    int index = (int) arg;
+    snd_rawmidi_t *input=midi_input[index];
+    char *port=midi_port[index];
+
     int ret;
-    MIDI_DEVICE *midi_device=(MIDI_DEVICE *)arg;
     int npfds;
     struct pollfd *pfds;
     unsigned char buf[32];
@@ -64,20 +73,15 @@ static void *midi_thread(void *arg) {
     unsigned short revents;
     int i;
     int chan,arg1,arg2;
-    snd_rawmidi_t *input;
-
-    if ((ret = snd_rawmidi_open(&input, NULL, midi_device->port, SND_RAWMIDI_NONBLOCK)) < 0) {
-        fprintf(stderr,"cannot open port \"%s\": %s\n", midi_device->port, snd_strerror(ret));
-        return NULL;
-    }
-    snd_rawmidi_read(input, NULL, 0); /* trigger reading */
+    
+    
 
     npfds = snd_rawmidi_poll_descriptors_count(input);
     pfds = alloca(npfds * sizeof(struct pollfd));
     snd_rawmidi_poll_descriptors(input, pfds, npfds);
     for (;;) {
 	ret = poll(pfds, npfds, 250);
-        if (!midi_device->active) break;
+        if (!midi_devices[index].active) break;
 	if (ret < 0) {
             fprintf(stderr,"poll failed: %s\n", strerror(errno));
 	    // Do not give up, but also do not fire too rapidly
@@ -92,9 +96,10 @@ static void *midi_thread(void *arg) {
         if (!(revents & POLLIN)) continue;
 	// something has arrived
 	ret = snd_rawmidi_read(input, buf, 64);
+	g_print("%s: raw read returned %d\n", __FUNCTION__,ret);
         if (ret == 0) continue;
         if (ret < 0) {
-            fprintf(stderr,"cannot read from port \"%s\": %s\n", midi_device->port, snd_strerror(ret));
+            fprintf(stderr,"cannot read from port \"%s\": %s\n", port, snd_strerror(ret));
             continue;
         }
         // process bytes in buffer. Since they no not necessarily form complete messages
@@ -182,32 +187,61 @@ static void *midi_thread(void *arg) {
 	    }
         }
     }
-    // no longer active: close and quit
-    if((ret = snd_rawmidi_close(input)) < 0) {
-       g_print("%s: cannot close port: %s\n",__FUNCTION__, snd_strerror(ret));
-    }
+    return NULL;
 }
 
-int register_midi_device(int index) {
+void register_midi_device(int index) {
     int i;
     int ret=0;
-    pthread_t midi_thread_id;
 
-    if (index < 0 || index > MAX_MIDI_DEVICES) return -1;;
+    if (index < 0 || index > MAX_MIDI_DEVICES) return;
 
-    ret = pthread_create(&midi_thread_id, NULL, midi_thread, &midi_devices[index]);
+    g_print("%s: open MIDI device %d\n", __FUNCTION__, index);
+
+    if ((ret = snd_rawmidi_open(&midi_input[index], NULL, midi_port[index], SND_RAWMIDI_NONBLOCK)) < 0) {
+        fprintf(stderr,"cannot open port \"%s\": %s\n", midi_port[index], snd_strerror(ret));
+        return;
+    }
+    snd_rawmidi_read(midi_input[index], NULL, 0); /* trigger reading */
+
+
+    ret = pthread_create(&midi_thead_id[index], NULL, midi_thread, (void *) index);
     if (ret < 0) {
       g_print("%s: Failed to create MIDI read thread\n",__FUNCTION__);
-      return -1;
+      if((ret = snd_rawmidi_close(midi_input[index])) < 0) {
+       g_print("%s: cannot close port: %s\n",__FUNCTION__, snd_strerror(ret));
+      }
+      return;
     }
     midi_devices[index].active=1;
-    return 0;
+    return;
 }
 
 void close_midi_device(int index) {
-  g_print("%s\n",__FUNCTION__);
+  int ret;
+
+  if (index < 0 || index > MAX_MIDI_DEVICES) return;
+  if (midi_devices[index].active == 0) return;
+
+  //
+  // Note that if this is called from get_midi_devices(),
+  // the port and device names do exist but may be wrong.
+  //
+  // Tell thread to stop
+  //
   midi_devices[index].active=0;
-  usleep(500000L);  // make sure the reading thread has noticed 
+  //
+  // wait for thread to complete
+  //
+  ret=pthread_join(midi_devices[index].midi_thread_id, NULL);
+  if (ret  != 0)  {
+    g_print("%s: cannot join: %s\n", __FUNCTION__, strerror(ret));
+  }     
+  //
+  // Close MIDI device
+  if((ret = snd_rawmidi_close(midi_input[index])) < 0) {
+   g_print("%s: cannot close port: %s\n",__FUNCTION__, snd_strerror(ret));
+  }
 }
 
 void get_midi_devices() {
@@ -276,17 +310,41 @@ void get_midi_devices() {
                     devnam=subnam;
                 }
 
-                if (midi_devices[n_midi_devices].name != NULL) {
-                  g_free(midi_devices[n_midi_devices].name);
+                //
+                // If the name was already present at the same position, just keep
+                // it and do nothing.
+                // If the names do not match and the slot is occupied by a opened device,
+                // close it first
+                //
+                int match = 1;
+                if (midi_devices[n_midi_devices].name == NULL) {
+                  midi_devices[n_midi_devices].name=g_new(gchar,strlen(devnam)+1);
+                  match = 0;
+                } else {
+                  if (strcmp(devnam, midi_devices[n_midi_devices].name) {
+                    g_free(midi_devices[n_midi_devices].name);
+                    midi_devices[n_midi_devices].name=g_new(gchar,strlen(devnam)+1);
+                    match = 0;
+                  }
                 }
-                midi_devices[n_midi_devices].name=g_new(gchar,strlen(devnam)+1);
-                strcpy(midi_devices[n_midi_devices].name,devnam);
-
-                if (midi_devices[n_midi_devices].port != NULL) {
-                  g_free(midi_devices[n_midi_devices].port);
+                if (midi_port[n_midi_devices] == NULL) {
+                  midi_port[n_midi_devices]=g_new(gchar,strlen(portname)+1);
+                  match = 0;
+                } else {
+                  if (strcmp(midi_port[n_midi_devices], portname) {
+                    g_free(midi_port[n_midi_devices]);
+                    midi_port[n_midi_devices]=g_new(gchar,strlen(portname)+1);
+                    match = 0;
+                  }
                 }
-                midi_devices[n_midi_devices].port=g_new(gchar,strlen(portname)+1);
-                strcpy(midi_devices[n_midi_devices].port,portname);
+                //
+                // Close MIDI device if it was open, except if the device is
+                // the same as before. In this case, just let the thread
+                // proceed
+                //
+                if (match == 0 && midi_index[n_midi_devices].active) {
+                  close_midi_device(n_midi_devices);
+                }
                 n_midi_devices++;
             }
         }

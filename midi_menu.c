@@ -129,14 +129,6 @@ static void cleanup() {
   }
 }
 
-static gboolean wheelclose_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  return TRUE;
-}
-
-static gboolean wheeldelete_event(GtkWidget *widget, GdkEvent *event, gpointer user_data) {
-  return FALSE;
-}
-
 static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   cleanup();
   return TRUE;
@@ -350,7 +342,6 @@ static void wheelparam_cb(GtkWidget *widget, gpointer user_data) {
   int what = GPOINTER_TO_INT(user_data);
   int val=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
   int newval=val;
-  g_print("WHEEL CB what=%d newval=%d\n", what, newval);
 
   if (thisType != MIDI_TYPE_WHEEL) {
     // we should never arrive here
@@ -505,7 +496,6 @@ static void load_original_cb(GtkWidget *widget,gpointer user_data) {
                                       GTK_RESPONSE_ACCEPT,
                                       NULL);
   chooser = GTK_FILE_CHOOSER (load_dialog);
-  gtk_file_chooser_set_current_name(chooser,"midi.midi");
   res = gtk_dialog_run (GTK_DIALOG (load_dialog));
   if(res==GTK_RESPONSE_ACCEPT) {
     char *loadfilename=gtk_file_chooser_get_filename(chooser);
@@ -1115,7 +1105,7 @@ void midi_menu(GtkWidget *parent) {
 
   set_fl2 = gtk_spin_button_new_with_range(-1.0, 127.0, 1.0);
   gtk_grid_attach(GTK_GRID(WheelGrid), set_fl2, col, row, 1, 1);
-  g_signal_connect(set_vfl2, "value-changed", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(5));
+  g_signal_connect(set_fl2, "value-changed", G_CALLBACK(wheelparam_cb), GINT_TO_POINTER(5));
   col++;
 
   row++;
