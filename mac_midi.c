@@ -197,14 +197,14 @@ void close_midi_device(index) {
     midi_devices[index].active=0;
 }
 
-int register_midi_device(int index) {
+void register_midi_device(int index) {
     OSStatus osret;
 
     g_print("%s: index=%d\n",__FUNCTION__,index);
 //
 //  Register a callback routine for the device
 //
-    if (index < 0 || index > MAX_MIDI_DEVICES) return -1;
+    if (index < 0 || index > MAX_MIDI_DEVICES) return;
 
      myClients[index]=0;
      myMIDIports[index] = 0;
@@ -212,23 +212,23 @@ int register_midi_device(int index) {
      osret=MIDIClientCreate(CFSTR("piHPSDR"),NULL,NULL, &myClients[index]);
      if (osret !=0) {
        g_print("%s: MIDIClientCreate failed with ret=%d\n", __FUNCTION__, (int) osret);
-       return -1;
+       return;
      }
      osret=MIDIInputPortCreate(myClients[index], CFSTR("FromMIDI"), ReadMIDIdevice, NULL, &myMIDIports[index]);
      if (osret !=0) {
         g_print("%s: MIDIInputPortCreate failed with ret=%d\n", __FUNCTION__, (int) osret);
-        return -1;
+        return;
      }
      osret=MIDIPortConnectSource(myMIDIports[index] ,MIDIGetSource(index), NULL);
      if (osret != 0) {
         g_print("%s: MIDIPortConnectSource failed with ret=%d\n", __FUNCTION__, (int) osret);
-        return -1;
+        return;
      }
      //
      // Now we have successfully opened the device.
      //
      midi_devices[index].active=1;
-     return 0;
+     return;
 }
 
 void get_midi_devices() {

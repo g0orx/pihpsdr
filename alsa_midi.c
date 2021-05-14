@@ -96,7 +96,6 @@ static void *midi_thread(void *arg) {
         if (!(revents & POLLIN)) continue;
 	// something has arrived
 	ret = snd_rawmidi_read(input, buf, 64);
-	g_print("%s: raw read returned %d\n", __FUNCTION__,ret);
         if (ret == 0) continue;
         if (ret < 0) {
             fprintf(stderr,"cannot read from port \"%s\": %s\n", port, snd_strerror(ret));
@@ -205,7 +204,7 @@ void register_midi_device(int index) {
     snd_rawmidi_read(midi_input[index], NULL, 0); /* trigger reading */
 
 
-    ret = pthread_create(&midi_thead_id[index], NULL, midi_thread, (void *) index);
+    ret = pthread_create(&midi_thread_id[index], NULL, midi_thread, (void *) index);
     if (ret < 0) {
       g_print("%s: Failed to create MIDI read thread\n",__FUNCTION__);
       if((ret = snd_rawmidi_close(midi_input[index])) < 0) {
@@ -233,7 +232,7 @@ void close_midi_device(int index) {
   //
   // wait for thread to complete
   //
-  ret=pthread_join(midi_devices[index].midi_thread_id, NULL);
+  ret=pthread_join(midi_thread_id[index], NULL);
   if (ret  != 0)  {
     g_print("%s: cannot join: %s\n", __FUNCTION__, strerror(ret));
   }     
@@ -309,7 +308,6 @@ void get_midi_devices() {
                     sprintf(portname,"hw:%d,%d,%d", card, device, sub);
                     devnam=subnam;
                 }
-
                 //
                 // If the name was already present at the same position, just keep
                 // it and do nothing.
@@ -319,21 +317,25 @@ void get_midi_devices() {
                 int match = 1;
                 if (midi_devices[n_midi_devices].name == NULL) {
                   midi_devices[n_midi_devices].name=g_new(gchar,strlen(devnam)+1);
+		  strcpy(midi_devices[n_midi_devices].name, devnam);
                   match = 0;
                 } else {
-                  if (strcmp(devnam, midi_devices[n_midi_devices].name) {
+                  if (strcmp(devnam, midi_devices[n_midi_devices].name)) {
                     g_free(midi_devices[n_midi_devices].name);
                     midi_devices[n_midi_devices].name=g_new(gchar,strlen(devnam)+1);
+		    strcpy(midi_devices[n_midi_devices].name, devnam);
                     match = 0;
                   }
                 }
                 if (midi_port[n_midi_devices] == NULL) {
                   midi_port[n_midi_devices]=g_new(gchar,strlen(portname)+1);
+		  strcpy(midi_port[n_midi_devices], portname);
                   match = 0;
                 } else {
-                  if (strcmp(midi_port[n_midi_devices], portname) {
+                  if (strcmp(midi_port[n_midi_devices], portname)) {
                     g_free(midi_port[n_midi_devices]);
                     midi_port[n_midi_devices]=g_new(gchar,strlen(portname)+1);
+		    strcpy(midi_port[n_midi_devices], portname);
                     match = 0;
                   }
                 }
@@ -342,7 +344,7 @@ void get_midi_devices() {
                 // the same as before. In this case, just let the thread
                 // proceed
                 //
-                if (match == 0 && midi_index[n_midi_devices].active) {
+                if (match == 0 && midi_devices[n_midi_devices].active) {
                   close_midi_device(n_midi_devices);
                 }
                 n_midi_devices++;
@@ -357,7 +359,7 @@ void get_midi_devices() {
     }
 
     for(int i=0;i<n_midi_devices;i++) {
-        g_print("%s: %d: %s %s\n",__FUNCTION__,i,midi_devices[i].name,midi_devices[i].port);
+        g_print("%s: %d: %s %s\n",__FUNCTION__,i,midi_devices[i].name,midi_port[i]);
     }
 }
 #endif

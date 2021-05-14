@@ -1307,12 +1307,11 @@ void start_radio() {
     if (midi_devices[i].active) {
       //
       // If device was marked "active" in the props file, open (register) it
+      // Note this flag is hi-jacked, so clear it before opening. It will be set
+      // if the MIDI device has been opened successfully
       //
-      if (register_midi_device(i) == 0) {
-        g_print("%s: MIDI device %s (index=%d) registered\n", __FUNCTION__, midi_devices[i].name, i);
-      } else {
-        g_print("%s: MIDI device %s (index=%d) could not be opened\n", __FUNCTION__, midi_devices[i].name, i);
-      }
+      midi_devices[i].active=0;
+      register_midi_device(i);
     }
   }
 #endif
