@@ -696,15 +696,6 @@ static void update_cb(GtkButton *widget,gpointer user_data) {
   current_cmd->action =thisAction;
   current_cmd->onoff =onoff;
   current_cmd->delay =thisDelay;
-  //
-  // consolidate the interval
-  //
-  if (thisVfl2 < thisVfl1) thisVfl2=thisVfl1;
-  if (thisFl2  < thisFl1)  thisFl2 =thisFl1;
-  if (thisLft2 < thisLft1) thisLft2=thisLft1;
-  if (thisRgt2 < thisRgt1) thisRgt2=thisRgt1;
-  if (thisFr2  < thisFr1)  thisFr2 =thisFr1;
-  if (thisVfr2 < thisVfr1) thisVfr2=thisVfr1;
 
   current_cmd->vfl1  =thisVfl1;
   current_cmd->vfl2  =thisVfl2;
@@ -715,9 +706,9 @@ static void update_cb(GtkButton *widget,gpointer user_data) {
   current_cmd->rgt1  =thisRgt1;
   current_cmd->rgt2  =thisRgt2;
   current_cmd->fr1   =thisFr1;
-  current_cmd->fr1   =thisFr2;
+  current_cmd->fr2   =thisFr2;
   current_cmd->vfr1  =thisVfr1;
-  current_cmd->vfr1  =thisVfr1;
+  current_cmd->vfr2  =thisVfr2;
 
   switch(current_cmd->event) {
     case MIDI_EVENT_NONE:
@@ -733,7 +724,11 @@ static void update_cb(GtkButton *widget,gpointer user_data) {
       strcpy(str_event,"PITCH");
       break;
   }
-  sprintf(str_channel,"%d",current_cmd->channel);
+  if (current_cmd->channel >= 0) {
+    sprintf(str_channel,"%d",current_cmd->channel);
+  } else {
+    sprintf(str_channel,"%s","Any");
+  }
   sprintf(str_note,"%d",thisNote);
 
   g_print("%s: event=%s channel=%s note=%s type=%s action=%s\n",
@@ -1042,14 +1037,18 @@ void midi_menu(GtkWidget *parent) {
   gtk_widget_set_size_request(DummyContainer,300,1);
   gtk_grid_attach(GTK_GRID(grid), DummyContainer, col, row, 6, 1);
 
-  col=0;
-  row=0;
-  lbl=gtk_label_new(NULL);
-  gtk_label_set_markup(GTK_LABEL(lbl), "<b>Configure special WHEEL parameters</b>");
-  gtk_widget_set_halign(lbl, GTK_ALIGN_CENTER);
-
   GtkWidget *WheelGrid=gtk_grid_new();
   gtk_grid_set_column_spacing (GTK_GRID(WheelGrid),2);
+
+  col=0;
+  row=0;
+
+  lbl=gtk_label_new(NULL);
+  // the new-line in the label get some space between the text and the spin buttons
+  gtk_label_set_markup(GTK_LABEL(lbl), "<b>Configure special WHEEL parameters\n</b>");
+  gtk_widget_set_size_request(lbl,300,30);
+  gtk_widget_set_halign(lbl, GTK_ALIGN_CENTER);
+
   gtk_grid_attach(GTK_GRID(WheelGrid), lbl, col, row, 3, 1);
 
   //
@@ -1290,7 +1289,11 @@ static int update(void *data) {
           gtk_label_set_text(GTK_LABEL(newEvent),"PITCH");
           break;
       }
-      sprintf(text,"%d",thisChannel);
+      if (thisChannel >= 0) {
+        sprintf(text,"%d",thisChannel);
+      } else {
+        sprintf(text,"%s","Any");
+      }
       gtk_label_set_text(GTK_LABEL(newChannel),text);
       sprintf(text,"%d",thisNote);
       gtk_label_set_text(GTK_LABEL(newNote),text);
@@ -1342,7 +1345,7 @@ static int update(void *data) {
         thisRgt1  = current_cmd->rgt1;
         thisRgt2  = current_cmd->rgt2;
         thisFr1   = current_cmd->fr1;
-        thisFr1   = current_cmd->fr2;
+        thisFr2   = current_cmd->fr2;
         thisVfr1  = current_cmd->vfr1;
         thisVfr2  = current_cmd->vfr2;
       }
@@ -1768,10 +1771,9 @@ void midi_restore_state() {
         desc->vfr2     = vfr2;
         desc->channel  = channel;
 
-        //g_print("DESC INIT Note=%3d Action=%3d Type=%3d Event=%3d OnOff=%3d Chan=%3d Delay=%3d THR=%3d %3d %3d %3d %3d %3d %3d %3d %3d %3d %3d %3d\n",
-        //        i, action, type, event, onoff, channel, delay,
-        //        vfl1, vfl2, fl1, fl2, lft1, lft2, rgt1, rgt2, fr1, fr2, vfr1, vfr2);
-
+//g_print("DESC INIT Note=%3d Action=%3d Type=%3d Event=%3d OnOff=%3d Chan=%3d Delay=%3d THR=%3d %3d %3d %3d %3d %3d %3d %3d %3d %3d %3d %3d\n",
+//        i, action, type, event, onoff, channel, delay,
+//        vfl1, vfl2, fl1, fl2, lft1, lft2, rgt1, rgt2, fr1, fr2, vfr1, vfr2);
         MidiAddCommand(i, desc);
       }
     }
