@@ -120,25 +120,21 @@ PTT_OPTIONS=-D PTT
 endif
 
 ifeq ($(GPIO_INCLUDE),GPIO)
-GPIOD_VERSION=$(shell $(PKG_CONFIG) --modversion libgpiod)
-ifeq ($(GPIOD_VERSION),1.2)
-GPIOD_OPTIONS=-D OLD_GPIOD
-endif
-GPIO_OPTIONS=-D GPIO
-GPIO_LIBS=-lgpiod -li2c
-GPIO_SOURCES= \
+  GPIO_OPTIONS=-D GPIO
+  GPIO_LIBS=-lwiringPi
+  GPIO_SOURCES= \
   configure.c \
   i2c.c \
   gpio.c \
   encoder_menu.c \
   switch_menu.c
-GPIO_HEADERS= \
+  GPIO_HEADERS= \
   configure.h \
   i2c.h \
   gpio.h \
   encoder_menu.h \
   switch_menu.h
-GPIO_OBJS= \
+  GPIO_OBJS= \
   configure.o \
   i2c.o \
   gpio.o \
@@ -293,13 +289,7 @@ led.c \
 ext.c \
 error_handler.c \
 cwramp.c \
-protocols.c \
-css.c \
-actions.c \
-i2c.c \
-gpio.c \
-encoder_menu.c \
-switch_menu.c
+protocols.c
 
 
 HEADERS= \
@@ -368,14 +358,7 @@ memory.h \
 led.h \
 ext.h \
 error_handler.h \
-protocols.h \
-css.h \
-actions.h \
-configure.h \
-i2c.h \
-gpio.h \
-encoder_menu.h \
-switch_menu.h
+protocols.h
 
 
 OBJS= \
@@ -443,14 +426,7 @@ led.o \
 ext.o \
 error_handler.o \
 cwramp.o \
-protocols.o \
-css.o \
-actions.o \
-configure.o \
-i2c.o \
-gpio.o \
-encoder_menu.o \
-switch_menu.o
+protocols.o
 
 $(PROGRAM):  $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) \
 		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \

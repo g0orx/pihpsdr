@@ -110,6 +110,7 @@ int DoTheRestOfTheMIDI(void *data) {
     MIDIcmd *cmd = (MIDIcmd *)data;
    
     int new;
+    int id, c25;
     double dnew;
 
     enum MIDIaction action = cmd->action;
@@ -124,9 +125,7 @@ int DoTheRestOfTheMIDI(void *data) {
     switch (action) {
 	/////////////////////////////////////////////////////////// "A2B"
 	case MIDI_ACTION_VFO_A2B: // only key supported
-	    if (type == MIDI_TYPE_KEY) {
-              vfo_a_to_b();
-	    }
+            vfo_a_to_b();
 	    break;
 	/////////////////////////////////////////////////////////// "AFGAIN"
 	case MIDI_ACTION_AF_GAIN: // knob or wheel supported
@@ -149,12 +148,10 @@ int DoTheRestOfTheMIDI(void *data) {
 	/////////////////////////////////////////////////////////// "AGCATTACK"
 	case MIDI_ACTION_AGCATTACK: // only key supported
 	    // cycle through fast/med/slow AGC attack
-	    if (type == MIDI_TYPE_KEY) {
-	      new=active_receiver->agc + 1;
-	      if (new > AGC_FAST) new=0;
-	      active_receiver->agc=new;
-              vfo_update();
-	    }
+	    new=active_receiver->agc + 1;
+	    if (new > AGC_FAST) new=0;
+	    active_receiver->agc=new;
+            vfo_update();
 	    break;
 	/////////////////////////////////////////////////////////// "AGCVAL"
 	case MIDI_ACTION_AGC: // knob or wheel supported
@@ -177,17 +174,15 @@ int DoTheRestOfTheMIDI(void *data) {
 	    break;
 	/////////////////////////////////////////////////////////// "ANF"
 	case MIDI_ACTION_ANF:	// only key supported
-	    if (type == MIDI_TYPE_KEY) {
-              if (active_receiver->anf==0) {
-                active_receiver->anf=1;
-                mode_settings[vfo[active_receiver->id].mode].anf=1;
-              } else {
-                active_receiver->snb=0;
-                mode_settings[vfo[active_receiver->id].mode].anf=0;
-              }
-              SetRXAANFRun(active_receiver->id, active_receiver->anf);
-              vfo_update();
-	    }
+            if (active_receiver->anf==0) {
+              active_receiver->anf=1;
+              mode_settings[vfo[active_receiver->id].mode].anf=1;
+            } else {
+              active_receiver->snb=0;
+              mode_settings[vfo[active_receiver->id].mode].anf=0;
+            }
+            SetRXAANFRun(active_receiver->id, active_receiver->anf);
+            vfo_update();
 	    break;
 	/////////////////////////////////////////////////////////// "ATT"
 	case MIDI_ACTION_ATT:	// Key for ALEX attenuator, wheel or knob for slider
@@ -233,10 +228,87 @@ int DoTheRestOfTheMIDI(void *data) {
 	    break;
 	/////////////////////////////////////////////////////////// "B2A"
 	case MIDI_ACTION_VFO_B2A: // only key supported
-	    if (type == MIDI_TYPE_KEY) {
-              vfo_b_to_a();
-	    }
+            vfo_b_to_a();
 	    break;
+        /////////////////////////////////////////////////////////// "BANDxxx"
+        case MIDI_ACTION_BAND_10:
+            vfo_band_changed(active_receiver->id, band10);
+            break;
+        case MIDI_ACTION_BAND_12:
+            vfo_band_changed(active_receiver->id, band12);
+            break;
+#ifdef SOAPYSDR
+        case MIDI_ACTION_BAND_1240:
+            vfo_band_changed(active_receiver->id, band1240);
+            break;
+        case MIDI_ACTION_BAND_144:
+            vfo_band_changed(active_receiver->id, band144);
+            break;
+#endif
+        case MIDI_ACTION_BAND_15:
+            vfo_band_changed(active_receiver->id, band15);
+            break;
+        case MIDI_ACTION_BAND_160:
+            vfo_band_changed(active_receiver->id, band160);
+            break;
+        case MIDI_ACTION_BAND_17:
+            vfo_band_changed(active_receiver->id, band17);
+            break;
+        case MIDI_ACTION_BAND_20:
+            vfo_band_changed(active_receiver->id, band20);
+            break;
+#ifdef SOAPYSDR
+        case MIDI_ACTION_BAND_220:
+            vfo_band_changed(active_receiver->id, band220);
+            break;
+        case MIDI_ACTION_BAND_2300:
+            vfo_band_changed(active_receiver->id, band2300);
+            break;
+#endif
+        case MIDI_ACTION_BAND_30:
+            vfo_band_changed(active_receiver->id, band30);
+            break;
+#ifdef SOAPYSDR
+        case MIDI_ACTION_BAND_3400:
+            vfo_band_changed(active_receiver->id, band3400);
+            break;
+#endif
+        case MIDI_ACTION_BAND_40:
+            vfo_band_changed(active_receiver->id, band40);
+            break;
+#ifdef SOAPYSDR
+        case MIDI_ACTION_BAND_430:
+            vfo_band_changed(active_receiver->id, band430);
+            break;
+#endif
+        case MIDI_ACTION_BAND_6:
+            vfo_band_changed(active_receiver->id, band6);
+            break;
+        case MIDI_ACTION_BAND_60:
+            vfo_band_changed(active_receiver->id, band60);
+            break;
+#ifdef SOAPYSDR
+        case MIDI_ACTION_BAND_70:
+            vfo_band_changed(active_receiver->id, band70);
+            break;
+#endif
+        case MIDI_ACTION_BAND_80:
+            vfo_band_changed(active_receiver->id, band80);
+            break;
+#ifdef SOAPYSDR
+        case MIDI_ACTION_BAND_902:
+            vfo_band_changed(active_receiver->id, band902);
+            break;
+        case MIDI_ACTION_BAND_AIR:
+            vfo_band_changed(active_receiver->id, bandAIR);
+            break;
+#endif
+        case MIDI_ACTION_BAND_GEN:
+            vfo_band_changed(active_receiver->id, bandGen);
+            break;
+        case MIDI_ACTION_BAND_WWV:
+            vfo_band_changed(active_receiver->id, bandWWV);
+            break;
 	/////////////////////////////////////////////////////////// "BANDDOWN"
 	/////////////////////////////////////////////////////////// "BANDUP"
 	case MIDI_ACTION_BAND_DOWN:
@@ -297,21 +369,17 @@ int DoTheRestOfTheMIDI(void *data) {
 	/////////////////////////////////////////////////////////// "CTUN"
 	case MIDI_ACTION_CTUN: // only key supported
 	    // toggle CTUN
-	    if (type == MIDI_TYPE_KEY) {
-              int id=active_receiver->id;
-              vfo[id].ctun=vfo[id].ctun==1?0:1;
-              if(!vfo[id].ctun) {
-                vfo[id].offset=0;
-              }
-              vfo[id].ctun_frequency=vfo[id].frequency;
-              set_offset(receiver[id],vfo[id].offset);
-	    }
+            id=active_receiver->id;
+            vfo[id].ctun=vfo[id].ctun==1?0:1;
+            if(!vfo[id].ctun) {
+              vfo[id].offset=0;
+            }
+            vfo[id].ctun_frequency=vfo[id].frequency;
+            set_offset(receiver[id],vfo[id].offset);
 	    break;
 	/////////////////////////////////////////////////////////// "CURRVFO"
 	case MIDI_ACTION_VFO: // only wheel supported
-	    if (type == MIDI_TYPE_WHEEL && !locked) {
-                vfo_step(val);
-	    }
+            vfo_step(val);
 	    break;
 	/////////////////////////////////////////////////////////// "CWSPEED"
 	case MIDI_ACTION_CWSPEED: // knob or wheel
@@ -409,11 +477,9 @@ int DoTheRestOfTheMIDI(void *data) {
             break;
         /////////////////////////////////////////////////////////// "DIVTOGGLE"
         case MIDI_ACTION_DIV_TOGGLE:   // only key supported
-            if (type == MIDI_TYPE_KEY) {
-                // enable/disable DIVERSITY
-                diversity_enabled = diversity_enabled ? 0 : 1;
-                vfo_update();
-            }
+            // enable/disable DIVERSITY
+            diversity_enabled = diversity_enabled ? 0 : 1;
+            vfo_update();
             break;
 	/////////////////////////////////////////////////////////// "DUP"
         case MIDI_ACTION_DUP:
@@ -454,12 +520,18 @@ int DoTheRestOfTheMIDI(void *data) {
               vfo_filter_changed(new);
 	    }
 	    break;
+        /////////////////////////////////////////////////////////// "MENU_FILTER"
+        case MIDI_ACTION_MENU_FILTER:
+            start_filter();
+            break;
+        /////////////////////////////////////////////////////////// "MENU_MODE"
+        case MIDI_ACTION_MENU_MODE:
+            start_mode();
+            break;
 	/////////////////////////////////////////////////////////// "LOCK"
 	case MIDI_ACTION_LOCK: // only key supported
-	    if (type == MIDI_TYPE_KEY) {
-	      locked=!locked;
-              vfo_update();
-	    }
+	    locked=!locked;
+            vfo_update();
 	    break;
 	/////////////////////////////////////////////////////////// "MICGAIN"
 	case MIDI_ACTION_MIC_VOLUME: // knob or wheel supported
@@ -514,52 +586,84 @@ int DoTheRestOfTheMIDI(void *data) {
 	    // Note this toggles the PTT state without knowing the
             // actual state. See MIDI_ACTION_PTTKEYER for actually
             // *setting* PTT
-	    if (type == MIDI_TYPE_KEY && can_transmit) {
+	    if (can_transmit) {
 	        new = !mox;
                 mox_update(new);
 	    }
 	    break;    
         /////////////////////////////////////////////////////////// "MUTE"
         case MIDI_ACTION_MUTE:
-            if (type == MIDI_TYPE_KEY) {
-              active_receiver->mute_radio=!active_receiver->mute_radio;
-	    }
+            active_receiver->mute_radio=!active_receiver->mute_radio;
             break;
 	/////////////////////////////////////////////////////////// "NOISEBLANKER"
 	case MIDI_ACTION_NB: // only key supported
 	    // cycle through NoiseBlanker settings: OFF, NB, NB2
-            if (type == MIDI_TYPE_KEY) {
-	      if (active_receiver->nb) {
-		active_receiver->nb = 0;
-		active_receiver->nb2= 1;
-	      } else if (active_receiver->nb2) {
-		active_receiver->nb = 0;
-		active_receiver->nb2= 0;
-	      } else {
-		active_receiver->nb = 1;
-		active_receiver->nb2= 0;
-	      }
-              vfo_update();
+	    if (active_receiver->nb) {
+	      active_receiver->nb = 0;
+	      active_receiver->nb2= 1;
+	    } else if (active_receiver->nb2) {
+	      active_receiver->nb = 0;
+	      active_receiver->nb2= 0;
+	    } else {
+	      active_receiver->nb = 1;
+	      active_receiver->nb2= 0;
 	    }
+	    update_noise();
+            vfo_update();
 	    break;
 	/////////////////////////////////////////////////////////// "NOISEREDUCTION"
 	case MIDI_ACTION_NR: // only key supported
 	    // cycle through NoiseReduction settings: OFF, NR1, NR2
-	    if (type == MIDI_TYPE_KEY) {
-	      if (active_receiver->nr) {
-		active_receiver->nr = 0;
-		active_receiver->nr2= 1;
-	      } else if (active_receiver->nr2) {
-		active_receiver->nr = 0;
-		active_receiver->nr2= 0;
-	      } else {
-		active_receiver->nr = 1;
-		active_receiver->nr2= 0;
-	      }
-              update_noise();
-              vfo_update();
+	    if (active_receiver->nr) {
+	      active_receiver->nr = 0;
+	      active_receiver->nr2= 1;
+	    } else if (active_receiver->nr2) {
+	      active_receiver->nr = 0;
+	      active_receiver->nr2= 0;
+	    } else {
+	      active_receiver->nr = 1;
+	      active_receiver->nr2= 0;
 	    }
+            update_noise();
+            vfo_update();
 	    break;
+        /////////////////////////////////////////////////////////// "NUMPADxx"
+        case MIDI_ACTION_NUMPAD_0:
+            num_pad(0);
+            break;
+        case MIDI_ACTION_NUMPAD_1:
+            num_pad(1);
+            break;
+        case MIDI_ACTION_NUMPAD_2:
+            num_pad(2);
+            break;
+        case MIDI_ACTION_NUMPAD_3:
+            num_pad(3);
+            break;
+        case MIDI_ACTION_NUMPAD_4:
+            num_pad(4);
+            break;
+        case MIDI_ACTION_NUMPAD_5:
+            num_pad(5);
+            break;
+        case MIDI_ACTION_NUMPAD_6:
+            num_pad(6);
+            break;
+        case MIDI_ACTION_NUMPAD_7:
+            num_pad(7);
+            break;
+        case MIDI_ACTION_NUMPAD_8:
+            num_pad(9);
+            break;
+        case MIDI_ACTION_NUMPAD_9:
+            num_pad(9);
+            break;
+        case MIDI_ACTION_NUMPAD_CL:
+            num_pad(-1);
+            break;
+        case MIDI_ACTION_NUMPAD_ENTER:
+            num_pad(-2);
+            break;
 	/////////////////////////////////////////////////////////// "PAN"
         case MIDI_ACTION_PAN:  // wheel and knob
 	    switch (type) {
@@ -636,41 +740,39 @@ int DoTheRestOfTheMIDI(void *data) {
 	    break;
 	/////////////////////////////////////////////////////////// "PREAMP"
 	case MIDI_ACTION_PRE:	// only key supported
-	    if (type == MIDI_TYPE_KEY) {
-		//
-		// Normally on/off, but for CHARLY25, cycle through three
-		// possible states. Current HPSDR hardware does no have
-		// switch'able preamps.
-		//
-		int c25= (filter_board == CHARLY25);
-		new = active_receiver->preamp + active_receiver->dither;
-		new++;
-		if (c25) {
-		  if (new >2) new=0;
-		} else {
-		  if (new >1) new=0;
-		}
-		switch (new) {
-		    case 0:
-			active_receiver->preamp=0;
-			if (c25) active_receiver->dither=0;
-			break;
-		    case 1:
-			active_receiver->preamp=1;
-			if (c25) active_receiver->dither=0;
-			break;
-		    case 2:
-			active_receiver->preamp=1;
-			if (c25) active_receiver->dither=1;
-			break;
-		}
-                update_att_preamp();
+	    //
+	    // Normally on/off, but for CHARLY25, cycle through three
+	    // possible states. Current HPSDR hardware does no have
+	    // switch'able preamps.
+	    //
+	    c25= (filter_board == CHARLY25);
+	    new = active_receiver->preamp + active_receiver->dither;
+	    new++;
+	    if (c25) {
+	      if (new >2) new=0;
+	    } else {
+	      if (new >1) new=0;
 	    }
+	    switch (new) {
+	      case 0:
+		active_receiver->preamp=0;
+		if (c25) active_receiver->dither=0;
+		break;
+	      case 1:
+		active_receiver->preamp=1;
+		if (c25) active_receiver->dither=0;
+		break;
+	      case 2:
+		active_receiver->preamp=1;
+		if (c25) active_receiver->dither=1;
+		break;
+	    }
+            update_att_preamp();
 	    break;
 	/////////////////////////////////////////////////////////// "PTT(Keyer)"
         case MIDI_ACTION_PTTKEYER:  // key only
             // always use with "ONOFF"
-	    if (type == MIDI_TYPE_KEY && can_transmit) {
+	    if (can_transmit) {
                 mox_update(val);
 	    }
 	    break;    
@@ -678,27 +780,27 @@ int DoTheRestOfTheMIDI(void *data) {
 	case MIDI_ACTION_PS: // only key supported
 #ifdef PURESIGNAL
 	    // toggle PURESIGNAL
-	    if (type == MIDI_TYPE_KEY) {
-              if (can_transmit) {
-	        new=!(transmitter->puresignal);
-                tx_set_ps(transmitter, new);
-              }
-	    }
+            if (can_transmit) {
+	      new=!(transmitter->puresignal);
+              tx_set_ps(transmitter, new);
+            }
 #endif
 	    break;
-	/////////////////////////////////////////////////////////// "RECALLM[0-4]"
+	/////////////////////////////////////////////////////////// "RECALLMx"
 	case MIDI_ACTION_MEM_RECALL_M0:
+            recall_memory_slot(0);
+            break;
 	case MIDI_ACTION_MEM_RECALL_M1:
+            recall_memory_slot(1);
+            break;
 	case MIDI_ACTION_MEM_RECALL_M2:
+            recall_memory_slot(2);
+            break;
 	case MIDI_ACTION_MEM_RECALL_M3:
+            recall_memory_slot(3);
+            break;
 	case MIDI_ACTION_MEM_RECALL_M4:
-            //
-	    // only key supported
-            //
-            if (type == MIDI_TYPE_KEY) {
-                new = action - MIDI_ACTION_MEM_RECALL_M0;
-                recall_memory_slot(new);
-	    }
+            recall_memory_slot(4);
             break;
 	/////////////////////////////////////////////////////////// "RFGAIN"
         case MIDI_ACTION_RF_GAIN: // knob or wheel supported
@@ -731,11 +833,10 @@ int DoTheRestOfTheMIDI(void *data) {
 	    break;
 	/////////////////////////////////////////////////////////// "RITCLEAR"
 	case MIDI_ACTION_RIT_CLEAR:	  // only key supported
-	    if (type == MIDI_TYPE_KEY) {
-	      // clear RIT value
-	      vfo[active_receiver->id].rit = new;
-              vfo_update();
-	    }
+	    // clear RIT value
+	    vfo[active_receiver->id].rit = new;
+            vfo_update();
+	    break;
 	/////////////////////////////////////////////////////////// "RITSTEP"
         case MIDI_ACTION_RIT_STEP: // key or wheel supported
             // This cycles between RIT increments 1, 10, 100, 1, 10, 100, ...
@@ -762,12 +863,10 @@ int DoTheRestOfTheMIDI(void *data) {
             break;
 	/////////////////////////////////////////////////////////// "RITTOGGLE"
 	case MIDI_ACTION_RIT_TOGGLE:  // only key supported
-	    if (type == MIDI_TYPE_KEY) {
-		// enable/disable RIT
-		new=vfo[active_receiver->id].rit_enabled;
-		vfo[active_receiver->id].rit_enabled = new ? 0 : 1;
-                vfo_update();
-	    }
+	    // enable/disable RIT
+	    new=vfo[active_receiver->id].rit_enabled;
+	    vfo[active_receiver->id].rit_enabled = new ? 0 : 1;
+            vfo_update();
 	    break;
 	/////////////////////////////////////////////////////////// "RITVAL"
 	case MIDI_ACTION_RIT_VAL:	// wheel or knob
@@ -812,42 +911,40 @@ int DoTheRestOfTheMIDI(void *data) {
             break;
 	/////////////////////////////////////////////////////////// "SNB"
 	case MIDI_ACTION_SNB:	// only key supported
-	    if (type == MIDI_TYPE_KEY) {
-              if(active_receiver->snb==0) {
-                active_receiver->snb=1;
-                mode_settings[vfo[active_receiver->id].mode].snb=1;
-              } else {
-                active_receiver->snb=0;
-                mode_settings[vfo[active_receiver->id].mode].snb=0;
-              }
-              update_noise();
-	    }
+            if(active_receiver->snb==0) {
+              active_receiver->snb=1;
+              mode_settings[vfo[active_receiver->id].mode].snb=1;
+            } else {
+              active_receiver->snb=0;
+              mode_settings[vfo[active_receiver->id].mode].snb=0;
+            }
+            update_noise();
 	    break;
 	/////////////////////////////////////////////////////////// "SPLIT"
 	case MIDI_ACTION_SPLIT: // only key supported
 	    // toggle split mode
-	    if (type == MIDI_TYPE_KEY) {
-              new= split ? 0:1;
-              set_split(new);
-	    }
+            new= split ? 0:1;
+            set_split(new);
 	    break;
-	/////////////////////////////////////////////////////////// "STOREM[0-4]"
+	/////////////////////////////////////////////////////////// "STOREMx"
 	case MIDI_ACTION_MEM_STORE_M0:
+            store_memory_slot(0);
+	    break;
 	case MIDI_ACTION_MEM_STORE_M1:
+            store_memory_slot(1);
+	    break;
 	case MIDI_ACTION_MEM_STORE_M2:
+            store_memory_slot(2);
+	    break;
 	case MIDI_ACTION_MEM_STORE_M3:
+            store_memory_slot(3);
+	    break;
 	case MIDI_ACTION_MEM_STORE_M4:
-            //
-	    // only key supported
-            //
-            if (type == MIDI_TYPE_KEY) {
-                new = action - MIDI_ACTION_MEM_STORE_M0;
-                store_memory_slot(new);
-	    }
-            break;
+            store_memory_slot(4);
+	    break;
 	/////////////////////////////////////////////////////////// "SWAPRX"
 	case MIDI_ACTION_SWAP_RX:	// only key supported
-	    if (type == MIDI_TYPE_KEY && receivers == 2) {
+	    if (receivers == 2) {
 		new=active_receiver->id;	// 0 or 1
 		new= (new == 1) ? 0 : 1;	// id of currently inactive receiver
 		active_receiver=receiver[new];
@@ -858,13 +955,11 @@ int DoTheRestOfTheMIDI(void *data) {
 	    break;    
 	/////////////////////////////////////////////////////////// "SWAPVFO"
 	case MIDI_ACTION_SWAP_VFO:	// only key supported
-	    if (type == MIDI_TYPE_KEY) {
-                vfo_a_swap_b();
-	    }
+            vfo_a_swap_b();
 	    break;    
 	/////////////////////////////////////////////////////////// "TUNE"
 	case MIDI_ACTION_TUNE: // only key supported
-	    if (type == MIDI_TYPE_KEY && can_transmit) {
+	    if (can_transmit) {
 	        new = !tune;
                 tune_update(new);
 	    }
@@ -873,7 +968,7 @@ int DoTheRestOfTheMIDI(void *data) {
 	/////////////////////////////////////////////////////////// "VFOB"
 	case MIDI_ACTION_VFOA: // only wheel supported
 	case MIDI_ACTION_VFOB: // only wheel supported
-	    if (type == MIDI_TYPE_WHEEL && !locked) {
+	    if (!locked) {
 		new = (action == MIDI_ACTION_VFOA) ? 0 : 1;
                 vfo_id_step(new, val);
 	    }
@@ -885,50 +980,25 @@ int DoTheRestOfTheMIDI(void *data) {
 	    switch (type) {
 	      case MIDI_TYPE_KEY:
 		new =  (action == MIDI_ACTION_VFO_STEP_UP) ? 1 : -1;
+                update_vfo_step(new);
 		break;
 	      case MIDI_TYPE_WHEEL:
 		new = (val > 0) ? 1 : -1;
+                update_vfo_step(new);
 		break;
 	      default:
 		// do nothing
 		// we should not come here anyway
-                new = 0;
-		break;
+                break;
 	    }
-            if (new != 0) {
-              //
-              // locate where the current step size is located in our table
-              //
-              int i=0;
-              while(steps[i]!=step && steps[i]!=0) {
-                i++;
-              }
-              if(steps[i]!=0) {
-                // found. current step size is at position #i
-                if (new>0) {
-                  // next higher step size, if not yet at end of list
-                  i++;
-                  if(steps[i]!=0) {
-                    step=steps[i];
-                  }
-                } else {
-                  // next lower step size, if not yet at end of list
-                  i--;
-                  if(i>=0) {
-                    step=steps[i];
-                  }
-                }
-              }
-              vfo_update();
-            }
             break;
 	/////////////////////////////////////////////////////////// "VOX"
 	case MIDI_ACTION_VOX: // only key supported
 	    // toggle VOX
-	    if (type == MIDI_TYPE_KEY) {
+            if (can_transmit) {
 	      vox_enabled = !vox_enabled;
               vfo_update();
-	    }
+            }
 	    break;
 	/////////////////////////////////////////////////////////// "VOXLEVEL"
 	case MIDI_ACTION_VOXLEVEL: // knob or wheel supported
@@ -952,13 +1022,11 @@ int DoTheRestOfTheMIDI(void *data) {
 	    break;
 	/////////////////////////////////////////////////////////// "XITCLEAR"
         case MIDI_ACTION_XIT_CLEAR:  // only key supported
-            if (type == MIDI_TYPE_KEY) {
-                // this clears the XIT value and disables XIT
-                if(can_transmit) {
-                  transmitter->xit = 0;
-                  transmitter->xit_enabled = 0;
-                  vfo_update();
-                }
+            // this clears the XIT value and disables XIT
+            if(can_transmit) {
+              transmitter->xit = 0;
+              transmitter->xit_enabled = 0;
+              vfo_update();
             }
             break;
 	/////////////////////////////////////////////////////////// "XITVAL"
