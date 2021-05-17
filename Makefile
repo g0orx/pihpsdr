@@ -1,18 +1,32 @@
+# get the OS Name
+UNAME_S := $(shell uname -s)
+
 # Get git commit version and date
 GIT_DATE := $(firstword $(shell git --no-pager show --date=short --format="%ai" --name-only))
 GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 
-# uncomment the line below to include GPIO (For original piHPSDR Controller and Controller2 with i2c)
-GPIO_INCLUDE=GPIO
+# uncomment the following line to force 480x320 screen
+#SMALL_SCREEN_OPTIONS=-D SMALL_SCREEN
 
-# uncomment the line below to include USB Ozy support
-# USBOZY_INCLUDE=USBOZY
+# uncomment the line below to include GPIO
+# For support of:
+#    CONTROLLER1 (Original Controller)
+#    CONTROLLER2_V1 single encoders with MCP23017 switches
+#    CONTROLLER2_V2 dual encoders with MCP23017 switches
+#
+#GPIO_INCLUDE=GPIO
 
 # uncomment the line below to include Pure Signal support
 PURESIGNAL_INCLUDE=PURESIGNAL
 
+# uncomment the line below to include MIDI support
+MIDI_INCLUDE=MIDI
+
+# uncomment the line below to include USB Ozy support
+# USBOZY_INCLUDE=USBOZY
+
 # uncomment the line to below include support local CW keyer
-#LOCALCW_INCLUDE=LOCALCW
+LOCALCW_INCLUDE=LOCALCW
 
 # uncomment the line below for SoapySDR
 #SOAPYSDR_INCLUDE=SOAPYSDR
@@ -26,8 +40,6 @@ PURESIGNAL_INCLUDE=PURESIGNAL
 # uncomment the line below to include support for STEMlab discovery (WITHOUT AVAHI)
 #STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_NOAVAHI
 
-# uncomment the line below to include MIDI support
-#MIDI_INCLUDE=MIDI
 
 # uncomment the line below for various debug facilities
 #DEBUG_OPTION=-D DEBUG
@@ -37,15 +49,22 @@ PURESIGNAL_INCLUDE=PURESIGNAL
 # very early code not included yet
 #SERVER_INCLUDE=SERVER
 
-CC=gcc
-LINK=gcc
+CFLAGS?= -O -Wno-deprecated-declarations
+PKG_CONFIG = pkg-config
 
 ifeq ($(MIDI_INCLUDE),MIDI)
 MIDI_OPTIONS=-D MIDI
-MIDI_SOURCES= alsa_midi.c midi2.c midi3.c
-MIDI_HEADERS= midi.h
-MIDI_OBJS= alsa_midi.o midi2.o midi3.o
+MIDI_HEADERS= midi.h midi_menu.h alsa_midi.h
+ifeq ($(UNAME_S), Darwin)
+MIDI_SOURCES= mac_midi.c midi2.c midi3.c midi_menu.c
+MIDI_OBJS= mac_midi.o midi2.o midi3.o midi_menu.o
+MIDI_LIBS= -framework CoreMIDI -framework Foundation
+endif
+ifeq ($(UNAME_S), Linux)
+MIDI_SOURCES= alsa_midi.c midi2.c midi3.c midi_menu.c
+MIDI_OBJS= alsa_midi.o midi2.o midi3.o midi_menu.o
 MIDI_LIBS= -lasound
+endif
 endif
 
 ifeq ($(PURESIGNAL_INCLUDE),PURESIGNAL)
@@ -82,7 +101,6 @@ USBOZY_OBJS= \
 ozyio.o
 endif
 
-
 ifeq ($(SOAPYSDR_INCLUDE),SOAPYSDR)
 SOAPYSDR_OPTIONS=-D SOAPYSDR
 SOAPYSDRLIBS=-lSoapySDR
@@ -97,39 +115,42 @@ soapy_discovery.o \
 soapy_protocol.o
 endif
 
+ifeq ($(PTT_INCLUDE),PTT)
+PTT_OPTIONS=-D PTT
+endif
+
+ifeq ($(GPIO_INCLUDE),GPIO)
+GPIOD_VERSION=$(shell $(PKG_CONFIG) --modversion libgpiod)
+ifeq ($(GPIOD_VERSION),1.2)
+GPIOD_OPTIONS=-D OLD_GPIOD
+endif
+GPIO_OPTIONS=-D GPIO
+GPIO_LIBS=-lgpiod -li2c
+GPIO_SOURCES= \
+  configure.c \
+  i2c.c \
+  gpio.c \
+  encoder_menu.c \
+  switch_menu.c
+GPIO_HEADERS= \
+  configure.h \
+  i2c.h \
+  gpio.h \
+  encoder_menu.h \
+  switch_menu.h
+GPIO_OBJS= \
+  configure.o \
+  i2c.o \
+  gpio.o \
+  encoder_menu.o \
+  switch_menu.o
+endif
 
 ifeq ($(LOCALCW_INCLUDE),LOCALCW)
 LOCALCW_OPTIONS=-D LOCALCW
 LOCALCW_SOURCES= iambic.c
 LOCALCW_HEADERS= iambic.h
 LOCALCW_OBJS   = iambic.o
-endif
-
-ifeq ($(PTT_INCLUDE),PTT)
-PTT_OPTIONS=-D PTT
-endif
-
-ifeq ($(GPIO_INCLUDE),GPIO)
-  GPIO_OPTIONS=-D GPIO
-  GPIO_LIBS=-lwiringPi
-  GPIO_SOURCES= \
-  configure.c \
-  i2c.c \
-  gpio.c \
-  encoder_menu.c \
-  switch_menu.c
-  GPIO_HEADERS= \
-  configure.h \
-  i2c.h \
-  gpio.h \
-  encoder_menu.h \
-  switch_menu.h
-  GPIO_OBJS= \
-  configure.o \
-  i2c.o \
-  gpio.o \
-  encoder_menu.o \
-  switch_menu.o
 endif
 
 #
@@ -140,17 +161,17 @@ endif
 #
 ifeq ($(STEMLAB_DISCOVERY), STEMLAB_DISCOVERY)
 STEMLAB_OPTIONS=-D STEMLAB_DISCOVERY \
-  `pkg-config --cflags avahi-gobject` \
-  `pkg-config --cflags libcurl`
-STEMLAB_LIBS=`pkg-config --libs avahi-gobject` `pkg-config --libs libcurl`
+  $(shell $(PKG_CONFIG) --cflags avahi-gobject) \
+  $(shell $(PKG_CONFIG) --cflags libcurl)
+STEMLAB_LIBS=$(shell $(PKG_CONFIG) --libs avahi-gobject --libs libcurl)
 STEMLAB_SOURCES=stemlab_discovery.c
 STEMLAB_HEADERS=stemlab_discovery.h
 STEMLAB_OBJS=stemlab_discovery.o
 endif
 
 ifeq ($(STEMLAB_DISCOVERY), STEMLAB_DISCOVERY_NOAVAHI)
-STEMLAB_OPTIONS=-D STEMLAB_DISCOVERY -D NO_AVAHI `pkg-config --cflags libcurl`
-STEMLAB_LIBS=`pkg-config --libs libcurl`
+STEMLAB_OPTIONS=-D STEMLAB_DISCOVERY -D NO_AVAHI $(shell $(PKG_CONFIG) --cflags libcurl)
+STEMLAB_LIBS=$(shell $(PKG_CONFIG) --libs libcurl)
 STEMLAB_SOURCES=stemlab_discovery.c
 STEMLAB_HEADERS=stemlab_discovery.h
 STEMLAB_OBJS=stemlab_discovery.o
@@ -166,21 +187,38 @@ SERVER_OBJS= \
 client_server.o server_menu.o
 endif
 
-GTKINCLUDES=`pkg-config --cflags gtk+-3.0`
-GTKLIBS=`pkg-config --libs gtk+-3.0`
+GTKINCLUDES=$(shell $(PKG_CONFIG) --cflags gtk+-3.0)
+GTKLIBS=$(shell $(PKG_CONFIG) --libs gtk+-3.0)
 
-AUDIO_LIBS=-lasound
-#AUDIO_LIBS=-lsoundio
+ifeq ($(UNAME_S), Linux)
+#AUDIO_LIBS=-lpulse-simple -lpulse -lpulse-mainloop-glib
+#AUDIO_SOURCES=pulseaudio.c
+#AUDIO_OBJS=pulseaudio.o
+AUDIO_LIBS=
+AUDIO_SOURCES=audio.c
+AUDIO_OBJS=audio.o
+endif
+ifeq ($(UNAME_S), Darwin)
+AUDIO_OPTIONS=-DPORTAUDIO $(shell $(PKG_CONFIG) --cflags portaudio-2.0)
+AUDIO_LIBS=$(shell $(PKG_CONFIG) --libs portaudio-2.0)
+AUDIO_SOURCES=portaudio.c
+AUDIO_OBJS=portaudio.o
+endif
 
-CFLAGS=	-g -Wno-deprecated-declarations -O3
-OPTIONS=$(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) \
-	$(GPIO_OPTIONS) $(SOAPYSDR_OPTIONS) $(LOCALCW_OPTIONS) \
-	$(STEMLAB_OPTIONS) \
-        $(PTT_OPTIONS) \
-	$(SERVER_OPTIONS) \
+ifeq ($(UNAME_S), Linux)
+SYSLIBS=-lrt
+endif
+ifeq ($(UNAME_S), Darwin)
+SYSLIBS=-framework IOkit
+endif
+
+OPTIONS=$(SMALL_SCREEN_OPTIONS) $(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) \
+	$(GPIO_OPTIONS) $(GPIOD_OPTIONS)  $(SOAPYSDR_OPTIONS) $(LOCALCW_OPTIONS) \
+	$(STEMLAB_OPTIONS) $(PTT_OPTIONES) $(SERVER_OPTIONS) $(AUDIO_OPTIONS) \
 	-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION)
 
-LIBS=-lrt -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(STEMLAB_LIBS) $(MIDI_LIBS)
+LIBS=	-lm -lwdsp -lpthread $(SYSLIBS) $(AUDIO_LIBS) $(USBOZY_LIBS) $(GTKLIBS) \
+		$(GPIO_LIBS) $(SOAPYSDRLIBS) $(STEMLAB_LIBS) $(MIDI_LIBS)
 INCLUDES=$(GTKINCLUDES)
 
 COMPILE=$(CC) $(CFLAGS) $(OPTIONS) $(INCLUDES)
@@ -191,7 +229,7 @@ COMPILE=$(CC) $(CFLAGS) $(OPTIONS) $(INCLUDES)
 PROGRAM=pihpsdr
 
 SOURCES= \
-audio.c \
+MacOS.c \
 band.c \
 discovered.c \
 discovery.c \
@@ -255,11 +293,17 @@ led.c \
 ext.c \
 error_handler.c \
 cwramp.c \
-protocols.c
+protocols.c \
+css.c \
+actions.c \
+i2c.c \
+gpio.c \
+encoder_menu.c \
+switch_menu.c
 
 
 HEADERS= \
-audio.h \
+MacOS.h \
 agc.h \
 alex.h \
 band.h \
@@ -324,11 +368,18 @@ memory.h \
 led.h \
 ext.h \
 error_handler.h \
-protocols.h
+protocols.h \
+css.h \
+actions.h \
+configure.h \
+i2c.h \
+gpio.h \
+encoder_menu.h \
+switch_menu.h
 
 
 OBJS= \
-audio.o \
+MacOS.o \
 band.o \
 discovered.o \
 discovery.o \
@@ -392,24 +443,31 @@ led.o \
 ext.o \
 error_handler.o \
 cwramp.o \
-protocols.o
+protocols.o \
+css.o \
+actions.o \
+configure.o \
+i2c.o \
+gpio.o \
+encoder_menu.o \
+switch_menu.o
 
-$(PROGRAM):  $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) \
-		$(LOCALCW_OBJS) $(GPIO_OBJS) $(PURESIGNAL_OBJS) \
+$(PROGRAM):  $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) \
+		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS)
-	$(LINK) -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(GPIO_OBJS) \
+	$(CC) -o $(PROGRAM) $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) \
 		$(SOAPYSDR_OBJS) $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
-		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS) $(LIBS)
+		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS) $(LIBS) $(LDFLAGS)
 
-.PHONY:	all
-all:	prebuild  $(PROGRAM) $(HEADERS) $(USBOZY_HEADERS) $(SOAPYSDR_HEADERS) \
-	$(LOCALCW_HEADERS) $(GPIO_HEADERS) \
-	$(PURESIGNAL_HEADERS) $(MIDI_HEADERS) $(STEMLAB_HEADERS) $(SERVER_HEADERS)\
-	$(SOURCES) \
-	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(LOCALCW_SOURCE) $(GPIO_SOURCES) \
+.PHONY: all
+all:    prebuild  $(PROGRAM) $(HEADERS) $(AUDIO_HEADERS) $(USBOZY_HEADERS) $(SOAPYSDR_HEADERS) \
+	$(LOCALCW_HEADERS) \
+	$(PURESIGNAL_HEADERS) $(MIDI_HEADERS) $(STEMLAB_HEADERS) $(SERVER_HEADERS) \
+	$(AUDIO_SOURCES) $(SOURCES) \
+	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(LOCALCW_SOURCE) \
 	$(PURESIGNAL_SOURCES) $(MIDI_SOURCES) $(STEMLAB_SOURCES) $(SERVER_SOURCES)
 
-.PHONY:	prebuild
+.PHONY: prebuild
 prebuild:
 	rm -f version.o
 
@@ -419,47 +477,47 @@ prebuild:
 # Therefore, correct this here. Furthermore, we can add additional options to CPP
 # in the variable CPPOPTIONS
 #
-CPPOPTIONS= --enable=all --suppress=shadowVariable --suppress=variableScope
+CPPOPTIONS= --enable=all --suppress=shadowVariable --suppress=variableScope -D__APPLE__
 CPPINCLUDES:=$(shell echo $(INCLUDES) | sed -e "s/-pthread / /" )
 
 .PHONY:	cppcheck
 cppcheck:
 	cppcheck $(CPPOPTIONS) $(OPTIONS) $(CPPINCLUDES) $(SOURCES) $(REMOTE_SOURCES) \
-	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(GPIO_SOURCES) \
-	$(PURESIGNAL_SOURCES) $(MIDI_SOURCES) $(STEMLAB_SOURCES) $(LOCALCW_SOURCES) \
-	$(SERVER_SOURCES)
+	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(SERVER_SOURCES) \
+	$(PURESIGNAL_SOURCES) $(MIDI_SOURCES) $(STEMLAB_SOURCES) $(LOCALCW_SOURCES)
 
-.PHONY:	clean
+.PHONY: clean
 clean:
 	-rm -f *.o
 	-rm -f $(PROGRAM) hpsdrsim
+	-rm -rf $(PROGRAM).app
 
-.PHONY:	install
+.PHONY: install
 install: $(PROGRAM)
-	cp $(PROGRAM) /usr/local/bin
+	cp $(PROGRAM) $(DESTDIR)/usr/local/bin
 
-.PHONY:	release
+.PHONY: release
 release: $(PROGRAM)
 	cp $(PROGRAM) release/pihpsdr
 	cd release; tar cvf pihpsdr.tar pihpsdr
 	cd release; tar cvf pihpsdr-$(GIT_VERSION).tar pihpsdr
 
-.PHONY:	nocontroller
+.PHONY: nocontroller
 nocontroller: clean controller1 $(PROGRAM)
 	cp $(PROGRAM) release/pihpsdr
 	cd release; tar cvf pihpsdr-nocontroller.$(GIT_VERSION).tar pihpsdr
 
-.PHONY:	controller1
+.PHONY: controller1
 controller1: clean $(PROGRAM)
 	cp $(PROGRAM) release/pihpsdr
 	cd release; tar cvf pihpsdr-controller1.$(GIT_VERSION).tar pihpsdr
 
-.PHONY:	controller2v1
+.PHONY: controller2v1
 controller2v1: clean $(PROGRAM)
 	cp $(PROGRAM) release/pihpsdr
 	cd release; tar cvf pihpsdr-controller2-v1.$(GIT_VERSION).tar pihpsdr
 
-.PHONY:	controller2v2
+.PHONY: controller2v2
 controller2v2: clean $(PROGRAM)
 	cp $(PROGRAM) release/pihpsdr
 	cd release; tar cvf pihpsdr-controller2-v2.$(GIT_VERSION).tar pihpsdr
@@ -474,15 +532,14 @@ controller2v2: clean $(PROGRAM)
 #
 #############################################################################
 
-hpsdrsim.o:	hpsdrsim.c hpsdrsim.h
-	$(CC) -c -O -DALSASOUND hpsdrsim.c
-
+hpsdrsim.o:     hpsdrsim.c  hpsdrsim.h
+	$(CC) -c -O $(AUDIO_OPTIONS) hpsdrsim.c
+	
 newhpsdrsim.o:	newhpsdrsim.c hpsdrsim.h
 	$(CC) -c -O newhpsdrsim.c
 
-hpsdrsim:	hpsdrsim.o newhpsdrsim.o
-	$(LINK) -o hpsdrsim hpsdrsim.o newhpsdrsim.o -lasound -lm -lpthread
-
+hpsdrsim:       hpsdrsim.o newhpsdrsim.o
+	$(CC) -o hpsdrsim $(AUDIO_LIBS) hpsdrsim.o newhpsdrsim.o -lportaudio -lm -lpthread
 
 debian:
 	cp $(PROGRAM) pkg/pihpsdr/usr/local/bin
@@ -492,3 +549,48 @@ debian:
 	cp release/pihpsdr/pihpsdr.desktop pkg/pihpsdr/usr/share/applications
 	cd pkg; dpkg-deb --build pihpsdr
 
+#############################################################################
+#
+# This is for MacOS "app" creation ONLY
+#
+#       The piHPSDR working directory is
+#	$HOME -> Application Support -> piHPSDR
+#
+#       That is the directory where the WDSP wisdom file (created upon first
+#       start of piHPSDR) but also the radio settings and the midi.props file
+#       are stored.
+#
+#       ONLY the wdsp library is bundled with the app, all others, including
+#       the SoapySDR support modules, must be installed separatedly.
+#
+#############################################################################
+
+.PHONY: app
+app:	$(OBJS) $(REMOTE_OBJS) \
+		$(USBOZY_OBJS)  $(SOAPYSDR_OBJS) \
+		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
+		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS)
+	$(CC)   -headerpad_max_install_names -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) \
+		$(USBOZY_OBJS)  $(SOAPYSDR_OBJS) \
+		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
+		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS) $(LIBS) $(LDFLAGS)
+	@rm -rf pihpsdr.app
+	@mkdir -p pihpsdr.app/Contents/MacOS
+	@mkdir -p pihpsdr.app/Contents/Frameworks
+	@mkdir -p pihpsdr.app/Contents/Resources
+	@cp pihpsdr pihpsdr.app/Contents/MacOS/pihpsdr
+	@cp MacOS/PkgInfo pihpsdr.app/Contents
+	@cp MacOS/Info.plist pihpsdr.app/Contents
+	@cp MacOS/hpsdr.icns pihpsdr.app/Contents/Resources/hpsdr.icns
+	@cp MacOS/hpsdr.png pihpsdr.app/Contents/Resources
+#
+#	Copy the WDSP library into the executable
+#
+	@lib=`otool -L pihpsdr.app/Contents/MacOS/pihpsdr | grep libwdsp | sed -e "s/ (.*//" | sed -e 's/	//'`; \
+	 libfn=`basename $$lib`; \
+	 cp "$$lib" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
+	 chmod u+w "pihpsdr.app/Contents/Frameworks/$$libfn"; \
+	 install_name_tool -id "@executable_path/../Frameworks/$$libfn" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
+	 install_name_tool -change "$$lib" "@executable_path/../Frameworks/$$libfn" pihpsdr.app/Contents/MacOS/pihpsdr
+#
+#############################################################################
