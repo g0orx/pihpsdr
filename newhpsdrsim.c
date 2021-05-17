@@ -1177,14 +1177,7 @@ void *audio_thread(void *data) {
      if (seqnum != 0 &&seqnum != seqold+1 ) {
        fprintf(stderr,"Audio thread: SEQ ERROR, old=%lu new=%lu\n", seqold, seqnum);
      }
-     p=buffer+4;
-     for (i=0; i<64; i++) {
-       lsample  = ((signed char) *p++) << 8;	
-       lsample |= (*p++ & 0xff); 
-       rsample  = ((signed char) *p++) << 8;	
-       rsample |= (*p++ & 0xff); 
-       audio_write(lsample,rsample);
-    }
+     // just skip the audio samples
   }
   close (sock);
   return NULL;

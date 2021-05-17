@@ -83,7 +83,9 @@ static gint rit_minus_timer=-1;
 static gint xit_plus_timer=-1;
 static gint xit_minus_timer=-1;
 
+#ifdef GPIO
 SWITCH *toolbar_switches=switches_controller1[0];
+#endif
 
 static gboolean rit_timer_cb(gpointer data) {
   int i=GPOINTER_TO_INT(data);

@@ -2085,7 +2085,9 @@ g_print("radioRestoreState: %s\n",property_path);
     memRestoreState();
     vfo_restore_state();
     modesettings_restore_state();
+#ifdef GPIO
     gpio_restore_actions();
+#endif
     value=getProperty("rigctl_enable");
     if(value) rigctl_enable=atoi(value);
     value=getProperty("rigctl_port_base");

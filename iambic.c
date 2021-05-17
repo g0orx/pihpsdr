@@ -249,11 +249,15 @@ static void keyer_straight_key(int state) {
     cw_key_down=960000;  // max. 20 sec to protect hardware
     cw_key_up=0;
     cw_key_hit=1;
+#ifdef GPIO
     gpio_cw_sidetone_set(1);
+#endif
   } else {
     cw_key_down=0;
     cw_key_up=0;
+#ifdef GPIO
     gpio_cw_sidetone_set(0);
+#endif
   }
 }
 
@@ -361,10 +365,12 @@ static void* keyer_thread(void *arg) {
 	// If using GPIO side tone information, mute CW side tone
 	// as long as the keyer thread is active
 	//
+#ifdef GPIO
 	if (gpio_cw_sidetone_enabled()) {
 	  old_volume=cw_keyer_sidetone_volume;
 	  cw_keyer_sidetone_volume=0;
 	}
+#endif
 
 	//
 	// Normally the keyer will be used in "break-in" mode, that is, we switch to TX
@@ -481,7 +487,9 @@ static void* keyer_thread(void *arg) {
                 dash_held = *kdash;
                 cw_key_down=dot_samples;
                 cw_key_up=dot_samples;
+#ifdef GPIO
                 gpio_cw_sidetone_set(1);
+#endif
                 key_state=SENDDOT;
                 break;
 
@@ -490,7 +498,9 @@ static void* keyer_thread(void *arg) {
                 // wait for dot being complete
                 //
                 if (cw_key_down == 0) {
+#ifdef GPIO
                   gpio_cw_sidetone_set(0);
+#endif
                   key_state=DOTDELAY;
                 }
                 break;
@@ -536,7 +546,9 @@ static void* keyer_thread(void *arg) {
 		dot_held = *kdot;  // remember if dot is still held at beginning of the dash
                 cw_key_down=dash_samples;
                 cw_key_up=dot_samples;
+#ifdef GPIO
                 gpio_cw_sidetone_set(1);
+#endif
                 key_state=SENDDASH;
                 break;
 
@@ -545,7 +557,9 @@ static void* keyer_thread(void *arg) {
                 // wait for dot being complete
                 //
                 if (cw_key_down == 0) {
+#ifdef GPIO
                   gpio_cw_sidetone_set(0);
+#endif
                   key_state=DASHDELAY;
                 }
                 break;
@@ -605,9 +619,11 @@ static void* keyer_thread(void *arg) {
 	//
 	// If we have reduced the side tone volume, restore it!
 	//
+#ifdef GPIO
 	if (gpio_cw_sidetone_enabled()) {
 	  cw_keyer_sidetone_volume = old_volume;
 	}
+#endif
 
     }
     fprintf(stderr,"keyer_thread: EXIT\n");

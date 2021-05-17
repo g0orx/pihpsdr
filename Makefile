@@ -131,19 +131,22 @@ GPIO_SOURCES= \
   i2c.c \
   gpio.c \
   encoder_menu.c \
-  switch_menu.c
+  switch_menu.c \
+  actions.c
 GPIO_HEADERS= \
   configure.h \
   i2c.h \
   gpio.h \
   encoder_menu.h \
-  switch_menu.h
+  switch_menu.h \
+  actions.h
 GPIO_OBJS= \
   configure.o \
   i2c.o \
   gpio.o \
   encoder_menu.o \
-  switch_menu.o
+  switch_menu.o \
+  actions.o
 endif
 
 ifeq ($(LOCALCW_INCLUDE),LOCALCW)
@@ -294,12 +297,7 @@ ext.c \
 error_handler.c \
 cwramp.c \
 protocols.c \
-css.c \
-actions.c \
-i2c.c \
-gpio.c \
-encoder_menu.c \
-switch_menu.c
+css.c
 
 
 HEADERS= \
@@ -369,13 +367,7 @@ led.h \
 ext.h \
 error_handler.h \
 protocols.h \
-css.h \
-actions.h \
-configure.h \
-i2c.h \
-gpio.h \
-encoder_menu.h \
-switch_menu.h
+css.h
 
 
 OBJS= \
@@ -444,13 +436,7 @@ ext.o \
 error_handler.o \
 cwramp.o \
 protocols.o \
-css.o \
-actions.o \
-configure.o \
-i2c.o \
-gpio.o \
-encoder_menu.o \
-switch_menu.o
+css.o
 
 $(PROGRAM):  $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) \
 		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
@@ -533,13 +519,13 @@ controller2v2: clean $(PROGRAM)
 #############################################################################
 
 hpsdrsim.o:     hpsdrsim.c  hpsdrsim.h
-	$(CC) -c -O $(AUDIO_OPTIONS) hpsdrsim.c
+	$(CC) -c -O hpsdrsim.c
 	
 newhpsdrsim.o:	newhpsdrsim.c hpsdrsim.h
 	$(CC) -c -O newhpsdrsim.c
 
 hpsdrsim:       hpsdrsim.o newhpsdrsim.o
-	$(CC) -o hpsdrsim $(AUDIO_LIBS) hpsdrsim.o newhpsdrsim.o -lportaudio -lm -lpthread
+	$(CC) -o hpsdrsim hpsdrsim.o newhpsdrsim.o -lm -lpthread
 
 debian:
 	cp $(PROGRAM) pkg/pihpsdr/usr/local/bin
@@ -566,13 +552,11 @@ debian:
 #############################################################################
 
 .PHONY: app
-app:	$(OBJS) $(REMOTE_OBJS) \
-		$(USBOZY_OBJS)  $(SOAPYSDR_OBJS) \
+app:	$(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS)  $(SOAPYSDR_OBJS) \
 		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS)
-	$(CC)   -headerpad_max_install_names -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) \
-		$(USBOZY_OBJS)  $(SOAPYSDR_OBJS) \
-		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
+	$(CC)   -headerpad_max_install_names -o $(PROGRAM) $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS)  $(USBOZY_OBJS)  \
+		$(SOAPYSDR_OBJS) $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS) $(LIBS) $(LDFLAGS)
 	@rm -rf pihpsdr.app
 	@mkdir -p pihpsdr.app/Contents/MacOS
