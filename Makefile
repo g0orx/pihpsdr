@@ -509,13 +509,13 @@ controller2v2: clean $(PROGRAM)
 #############################################################################
 
 hpsdrsim.o:     hpsdrsim.c  hpsdrsim.h
-	$(CC) -c -O $(AUDIO_OPTIONS) hpsdrsim.c
+	$(CC) -c -O hpsdrsim.c
 	
 newhpsdrsim.o:	newhpsdrsim.c hpsdrsim.h
 	$(CC) -c -O newhpsdrsim.c
 
 hpsdrsim:       hpsdrsim.o newhpsdrsim.o
-	$(CC) -o hpsdrsim $(AUDIO_LIBS) hpsdrsim.o newhpsdrsim.o -lportaudio -lm -lpthread
+	$(CC) -o hpsdrsim hpsdrsim.o newhpsdrsim.o -lportaudio -lm -lpthread
 
 debian:
 	cp $(PROGRAM) pkg/pihpsdr/usr/local/bin
