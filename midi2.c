@@ -8,6 +8,7 @@
  */
 
 #include <gtk/gtk.h>
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -16,12 +17,17 @@
 #include "MacOS.h"  // emulate clock_gettime on old MacOS systems
 #endif
 
+#include "receiver.h"
+#include "discovered.h"
+#include "adc.h"
+#include "dac.h"
+#include "transmitter.h"
+#include "radio.h"
+#include "main.h"
 #include "midi.h"
+#include "alsa_midi.h"
 
-static double midi_startup_time;
-static int    midi_wait_startup=0;
-
-struct cmdtable MidiCommandsTable;
+struct desc *MidiCommandsTable[129];
 
 void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
 
@@ -38,28 +44,14 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
 //now=ts.tv_sec + 1E-9*ts.tv_nsec;
 //g_print("%s:%12.3f:EVENT=%d CHAN=%d NOTE=%d VAL=%d\n",__FUNCTION__,now,event,channel,note,val);
 
-    //
-    // the midi_wait_startup/midi_startup_time mechanism takes care that in the first
-    // second after registering a MIDI device, all incoming MIDI messages are just discarded.
-    // This has been introduced since sometimes "old" MIDI messages are lingering around in the
-    // the system and get delivered immediately after registering the MIDI device.
-    // The midi_wait_startup variable takes care that we do not check the clock again and again
-    // after the first second.
-    //
-    if (midi_wait_startup) {
-      clock_gettime(CLOCK_MONOTONIC, &ts);
-      now=ts.tv_sec + 1E-9*ts.tv_nsec;
-      if (now < midi_startup_time + 1.0) return;
-      midi_wait_startup=0;
-    }
     if (event == MIDI_EVENT_PITCH) {
-	desc=MidiCommandsTable.pitch;
+	desc=MidiCommandsTable[128];
     } else {
-	desc=MidiCommandsTable.desc[note];
+	desc=MidiCommandsTable[note];
     }
-//fprintf(stderr,"MIDI:init DESC=%p\n",desc);
+//g_print("MIDI:init DESC=%p\n",desc);
     while (desc) {
-//fprintf(stderr,"DESC=%p next=%p CHAN=%d EVENT=%d\n", desc,desc->next,desc->channel,desc->event);
+//g_print("DESC=%p next=%p CHAN=%d EVENT=%d\n", desc,desc->next,desc->channel,desc->event);
 	if ((desc->channel == channel || desc->channel == -1) && (desc->event == event)) {
 	    // Found matching entry
 	    switch (desc->event) {
@@ -81,17 +73,17 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
 			  if (delta < desc->delay) break;
 			  last_wheel_tp = tp;
 			}
-			// translate value to direction
+			// translate value to direction/speed
 			new=0;
-			if ((val >= desc->vfl1) && (val <= desc->vfl2)) new=-100;
-			if ((val >= desc-> fl1) && (val <= desc-> fl2)) new=-10;
+			if ((val >= desc->vfl1) && (val <= desc->vfl2)) new=-16;
+			if ((val >= desc-> fl1) && (val <= desc-> fl2)) new=-4;
 			if ((val >= desc->lft1) && (val <= desc->lft2)) new=-1;
 			if ((val >= desc->rgt1) && (val <= desc->rgt2)) new= 1;
-			if ((val >= desc-> fr1) && (val <= desc-> fr2)) new= 10;
-			if ((val >= desc->vfr1) && (val <= desc->vfr2)) new= 100;
-//			fprintf(stderr,"WHEEL: val=%d new=%d thrs=%d/%d, %d/%d, %d/%d, %d/%d, %d/%d, %d/%d\n",
-//                                  val, new, desc->vfl1, desc->vfl2, desc->fl1, desc->fl2, desc->lft1, desc->lft2,
-//				          desc->rgt1, desc->rgt2, desc->fr1, desc->fr2, desc->vfr1, desc->vfr2);
+			if ((val >= desc-> fr1) && (val <= desc-> fr2)) new= 4;
+			if ((val >= desc->vfr1) && (val <= desc->vfr2)) new= 16;
+//			g_print("WHEEL: val=%d new=%d thrs=%d/%d, %d/%d, %d/%d, %d/%d, %d/%d, %d/%d\n",
+//                               val, new, desc->vfl1, desc->vfl2, desc->fl1, desc->fl2, desc->lft1, desc->lft2,
+//				 desc->rgt1, desc->rgt2, desc->fr1, desc->fr2, desc->vfr1, desc->vfr2);
 			if (new != 0) DoTheMidi(desc->action, desc->type, new);
 			last_wheel_action=desc->action;
 		    }
@@ -113,100 +105,138 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
     }
     if (!desc) {
       // Nothing found. This is nothing to worry about, but log the key to stderr
-      if (event == MIDI_EVENT_PITCH) fprintf(stderr, "Unassigned PitchBend Value=%d\n", val);
-      if (event == MIDI_EVENT_NOTE ) fprintf(stderr, "Unassigned Key Note=%d Val=%d\n", note, val);
-      if (event == MIDI_EVENT_CTRL ) fprintf(stderr, "Unassigned Controller Ctl=%d Val=%d\n", note, val);
+      if (event == MIDI_EVENT_PITCH) g_print("Unassigned PitchBend Value=%d\n", val);
+      if (event == MIDI_EVENT_NOTE ) g_print("Unassigned Key Note=%d Val=%d\n", note, val);
+      if (event == MIDI_EVENT_CTRL ) g_print("Unassigned Controller Ctl=%d Val=%d\n", note, val);
     }
 }
+
+gchar *midi_types[] = {"NONE","KEY","KNOB/SLIDER","*INVALID*","WHEEL"};
+gchar *midi_events[] = {"NONE","NOTE","CTRL","PITCH"};
 
 /*
  * This data structre connects names as used in the midi.props file with
  * our MIDIaction enum values.
- * Take care that no key word is contained in another one!
- * Example: use "CURRVFO" not "VFO" otherwise there is possibly
- * a match for "VFO" when the key word is "VFOA".
+ *
+ * At some places in the code, it is assumes that ActionTable[i].action == i
+ * so keep the entries strictly in the order the enum is defined, and
+ * add one entry with ACTION_NONE at the end.
  */
 
-static struct {
-  enum MIDIaction action;    // the MIDI action
-  const char *str;           // the key word in the midi.props file
-  int   onoff;               // =1 if action both on press + release
-} ActionTable[] = {
-	{ MIDI_ACTION_VFO_A2B,		"A2B",                 0},
-        { MIDI_ACTION_AF_GAIN,      	"AFGAIN",              0},
-	{ MIDI_ACTION_AGCATTACK,   	"AGCATTACK",           0},
-        { MIDI_ACTION_AGC,     		"AGCVAL",              0},
-        { MIDI_ACTION_ANF,     		"ANF",                 0},
-        { MIDI_ACTION_ATT,          	"ATT",                 0},
-	{ MIDI_ACTION_VFO_B2A,		"B2A",                 0},
-        { MIDI_ACTION_BAND_DOWN,    	"BANDDOWN",            0},
-        { MIDI_ACTION_BAND_UP,      	"BANDUP",              0},
-        { MIDI_ACTION_COMPRESS,     	"COMPRESS",            0},
-	{ MIDI_ACTION_CTUN,  		"CTUN",                0},
-	{ MIDI_ACTION_VFO,		"CURRVFO",             0},
-	{ MIDI_ACTION_CWKEY,		"CWKEY",               1},
-	{ MIDI_ACTION_CWL,		"CWL",                 1},
-	{ MIDI_ACTION_CWR,		"CWR",                 1},
-	{ MIDI_ACTION_CWSPEED,		"CWSPEED",             0},
-	{ MIDI_ACTION_DIV_COARSEGAIN,	"DIVCOARSEGAIN",       0},
-	{ MIDI_ACTION_DIV_COARSEPHASE,	"DIVCOARSEPHASE",      0},
-	{ MIDI_ACTION_DIV_FINEGAIN,	"DIVFINEGAIN",         0},
-	{ MIDI_ACTION_DIV_FINEPHASE,	"DIVFINEPHASE",        0},
-	{ MIDI_ACTION_DIV_GAIN,		"DIVGAIN",             0},
-	{ MIDI_ACTION_DIV_PHASE,	"DIVPHASE",            0},
-	{ MIDI_ACTION_DIV_TOGGLE,	"DIVTOGGLE",           0},
-	{ MIDI_ACTION_DUP,  		"DUP",                 0},
-        { MIDI_ACTION_FILTER_DOWN,  	"FILTERDOWN",          0},
-        { MIDI_ACTION_FILTER_UP,    	"FILTERUP",            0},
-	{ MIDI_ACTION_LOCK,    		"LOCK",                0},
-        { MIDI_ACTION_MIC_VOLUME,   	"MICGAIN",             0},
-	{ MIDI_ACTION_MODE_DOWN,	"MODEDOWN",            0},
-	{ MIDI_ACTION_MODE_UP,		"MODEUP",              0},
-        { MIDI_ACTION_MOX,     		"MOX",                 0},
-	{ MIDI_ACTION_MUTE,		"MUTE",                0},
-	{ MIDI_ACTION_NB,    		"NOISEBLANKER",        0},
-	{ MIDI_ACTION_NR,    		"NOISEREDUCTION",      0},
-        { MIDI_ACTION_PAN,		"PAN",                 0},
-        { MIDI_ACTION_PAN_HIGH,     	"PANHIGH",             0},
-        { MIDI_ACTION_PAN_LOW,      	"PANLOW",              0},
-        { MIDI_ACTION_PRE,          	"PREAMP",              0},
-	{ MIDI_ACTION_PTTONOFF,		"PTT",                 1},
-	{ MIDI_ACTION_PS,    		"PURESIGNAL",          0},
-        { MIDI_ACTION_MEM_RECALL_M0,	"RECALLM0",            0},
-        { MIDI_ACTION_MEM_RECALL_M1,	"RECALLM1",            0},
-        { MIDI_ACTION_MEM_RECALL_M2,	"RECALLM2",            0},
-        { MIDI_ACTION_MEM_RECALL_M3,	"RECALLM3",            0},
-        { MIDI_ACTION_MEM_RECALL_M4,	"RECALLM4",            0},
-	{ MIDI_ACTION_RF_GAIN, 		"RFGAIN",              0},
-        { MIDI_ACTION_TX_DRIVE,     	"RFPOWER",             0},
-	{ MIDI_ACTION_RIT_CLEAR,	"RITCLEAR",            0},
-	{ MIDI_ACTION_RIT_STEP, 	"RITSTEP",             0},
-        { MIDI_ACTION_RIT_TOGGLE,   	"RITTOGGLE",           0},
-        { MIDI_ACTION_RIT_VAL,      	"RITVAL",              0},
-        { MIDI_ACTION_SAT,     		"SAT",                 0},
-        { MIDI_ACTION_SNB, 		"SNB",                 0},
-	{ MIDI_ACTION_SPLIT,  		"SPLIT",               0},
-        { MIDI_ACTION_MEM_STORE_M0,     "STOREM0",             0},
-        { MIDI_ACTION_MEM_STORE_M1,     "STOREM1",             0},
-        { MIDI_ACTION_MEM_STORE_M2,     "STOREM2",             0},
-        { MIDI_ACTION_MEM_STORE_M3,     "STOREM3",             0},
-        { MIDI_ACTION_MEM_STORE_M4,     "STOREM4",             0},
-	{ MIDI_ACTION_SWAP_RX,		"SWAPRX",              0},
-	{ MIDI_ACTION_SWAP_VFO,		"SWAPVFO",             0},
-        { MIDI_ACTION_TUNE,    		"TUNE",                0},
-        { MIDI_ACTION_VFOA,         	"VFOA",                0},
-        { MIDI_ACTION_VFOB,         	"VFOB",                0},
-	{ MIDI_ACTION_VFO_STEP_UP,  	"VFOSTEPUP",           0},
-	{ MIDI_ACTION_VFO_STEP_DOWN,	"VFOSTEPDOWN",         0},
-	{ MIDI_ACTION_VOX,   		"VOX",                 0},
-	{ MIDI_ACTION_VOXLEVEL,   	"VOXLEVEL",            0},
-	{ MIDI_ACTION_XIT_CLEAR,  	"XITCLEAR",            0},
-	{ MIDI_ACTION_XIT_VAL,  	"XITVAL",              0},
-	{ MIDI_ACTION_ZOOM,		"ZOOM",                0},
-	{ MIDI_ACTION_ZOOM_UP,		"ZOOMUP",              0},
-	{ MIDI_ACTION_ZOOM_DOWN,	"ZOOMDOWN",            0},
-        { MIDI_ACTION_NONE,  		"NONE",                0}
+ACTION_TABLE ActionTable[] = {
+        { MIDI_ACTION_NONE,     	"NONE",         	MIDI_TYPE_KEY|MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,   0},
+        { MIDI_ACTION_VFO_A2B,         	"A2B",          	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_AF_GAIN,         	"AFGAIN",       	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
+        { MIDI_ACTION_AGCATTACK,       	"AGCATTACK",    	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_AGC,             	"AGCVAL",       	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
+	{ MIDI_ACTION_ANF,             	"ANF",          	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_ATT,             	"ATT",          	MIDI_TYPE_KEY|MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,   0},
+        { MIDI_ACTION_VFO_B2A,        	"B2A",          	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_BAND_10,         	"BAND10",       	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_BAND_12,         	"BAND12",       	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_BAND_1240,       	"BAND1240",     	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_BAND_144,        	"BAND144",      	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_BAND_15,         	"BAND15",       	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_BAND_160,        	"BAND160",      	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_BAND_17,         	"BAND17",       	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_BAND_20,         	"BAND20",       	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_BAND_220,        	"BAND220",      	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_BAND_2300,       	"BAND2300",     	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_BAND_30,         	"BAND30",       	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_BAND_3400,       	"BAND3400",     	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_BAND_40,         	"BAND40",       	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_BAND_430,        	"BAND430",      	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_BAND_6,          	"BAND6",        	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_BAND_60,         	"BAND60",       	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_BAND_70,         	"BAND70",       	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_BAND_80,         	"BAND80",       	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_BAND_902,        	"BAND902",      	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_BAND_AIR,        	"BANDAIR",      	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_BAND_DOWN,	"BANDDOWN",     	MIDI_TYPE_KEY|MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,	0},
+        { MIDI_ACTION_BAND_GEN,      	"BANDGEN",      	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_BAND_UP,         	"BANDUP",       	MIDI_TYPE_KEY|MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,	0},
+        { MIDI_ACTION_BAND_WWV,        	"BANDWWV",      	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_COMPRESS,        	"COMPRESS",     	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
+        { MIDI_ACTION_CTUN,            	"CTUN",         	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_VFO,             	"CURRVFO",      	MIDI_TYPE_WHEEL,				0},
+        { MIDI_ACTION_CWKEYER,         	"CW(Keyer)",        	MIDI_TYPE_KEY,					1},
+        { MIDI_ACTION_CWLEFT,         	"CWLEFT",          	MIDI_TYPE_KEY,					1},
+        { MIDI_ACTION_CWRIGHT,         	"CWRIGHT",          	MIDI_TYPE_KEY,					1},
+        { MIDI_ACTION_CWSPEED,         	"CWSPEED",      	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
+        { MIDI_ACTION_DIV_COARSEGAIN,  	"DIVCOARSEGAIN",        MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
+        { MIDI_ACTION_DIV_COARSEPHASE,  "DIVCOARSEPHASE",       MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
+        { MIDI_ACTION_DIV_FINEGAIN,     "DIVFINEGAIN",  	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
+        { MIDI_ACTION_DIV_FINEPHASE,    "DIVFINEPHASE", 	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
+        { MIDI_ACTION_DIV_GAIN,         "DIVGAIN",      	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
+        { MIDI_ACTION_DIV_PHASE,        "DIVPHASE",     	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
+        { MIDI_ACTION_DIV_TOGGLE,       "DIVTOGGLE",    	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_DUP,             	"DUP",          	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_FILTER_DOWN,      "FILTERDOWN",   	MIDI_TYPE_KEY|MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,	0},
+        { MIDI_ACTION_FILTER_UP,        "FILTERUP",     	MIDI_TYPE_KEY|MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,	0},
+        { MIDI_ACTION_LOCK,            	"LOCK",         	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_MEM_RECALL_M0,    "RECALLM0",  		MIDI_TYPE_KEY,          			0},
+        { MIDI_ACTION_MEM_RECALL_M1,    "RECALLM1",  		MIDI_TYPE_KEY,          			0},
+        { MIDI_ACTION_MEM_RECALL_M2,    "RECALLM2",  		MIDI_TYPE_KEY,          			0},
+        { MIDI_ACTION_MEM_RECALL_M3,    "RECALLM3",  		MIDI_TYPE_KEY,          			0},
+        { MIDI_ACTION_MEM_RECALL_M4,    "RECALLM4",  		MIDI_TYPE_KEY,          			0},
+        { MIDI_ACTION_MENU_FILTER,      "MENU_FILTER",  	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_MENU_MODE,        "MENU_MODE",    	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_MIC_VOLUME,       "MICGAIN",      	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
+        { MIDI_ACTION_MODE_DOWN,        "MODEDOWN",     	MIDI_TYPE_KEY|MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,	0},
+        { MIDI_ACTION_MODE_UP,          "MODEUP",       	MIDI_TYPE_KEY|MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,	0},
+        { MIDI_ACTION_MOX,             	"MOX",  		MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_MUTE,            	"MUTE", 		MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_NB,             	"NOISEBLANKER", 	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_NR,              	"NOISEREDUCTION",       MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_NUMPAD_0,        	"NUMPAD0",      	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_NUMPAD_1,        	"NUMPAD1",      	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_NUMPAD_2,        	"NUMPAD2",      	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_NUMPAD_3,        	"NUMPAD3",      	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_NUMPAD_4,        	"NUMPAD4",      	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_NUMPAD_5,        	"NUMPAD5",      	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_NUMPAD_6,        	"NUMPAD6",      	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_NUMPAD_7,        	"NUMPAD7",      	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_NUMPAD_8,        	"NUMPAD8",      	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_NUMPAD_9,        	"NUMPAD9",      	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_NUMPAD_CL,       	"NUMPADCL",     	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_NUMPAD_ENTER,    	"NUMPADENTER",  	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_PAN,             	"PAN",  		MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
+        { MIDI_ACTION_PAN_HIGH,        	"PANHIGH",      	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
+        { MIDI_ACTION_PAN_LOW,         	"PANLOW",       	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
+        { MIDI_ACTION_PRE,             	"PREAMP",       	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_PTTKEYER,        	"PTT(Keyer)",     	MIDI_TYPE_KEY,					1},
+        { MIDI_ACTION_PS,               "PURESIGNAL",   	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_RF_GAIN,         	"RFGAIN",       	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
+        { MIDI_ACTION_TX_DRIVE,         "RFPOWER",      	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
+        { MIDI_ACTION_RIT_CLEAR,       	"RITCLEAR",     	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_RIT_STEP,         "RITSTEP",      	MIDI_TYPE_KEY|MIDI_TYPE_WHEEL,			0},
+        { MIDI_ACTION_RIT_TOGGLE,       "RITTOGGLE",    	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_RIT_VAL,          "RITVAL",       	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
+        { MIDI_ACTION_SAT,             	"SAT",  		MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_SNB,              "SNB",  		MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_SPLIT,           	"SPLIT",        	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_MEM_STORE_M0,     "STOREM0",             	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_MEM_STORE_M1,     "STOREM1",             	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_MEM_STORE_M2,     "STOREM2",             	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_MEM_STORE_M3,     "STOREM3",              MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_MEM_STORE_M4,     "STOREM4",              MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_SWAP_RX,          "SWAPRX",       	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_SWAP_VFO,         "SWAPVFO",      	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_TUNE,            	"TUNE", 		MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_VFOA,             "VFOA", 		MIDI_TYPE_WHEEL,				0},
+        { MIDI_ACTION_VFOB,             "VFOB", 		MIDI_TYPE_WHEEL,				0},
+        { MIDI_ACTION_VFO_STEP_UP,      "VFOSTEPUP",    	MIDI_TYPE_KEY|MIDI_TYPE_WHEEL,			0},
+        { MIDI_ACTION_VFO_STEP_DOWN,    "VFOSTEPDOWN",  	MIDI_TYPE_KEY|MIDI_TYPE_WHEEL,			0},
+        { MIDI_ACTION_VOX,              "VOX",  		MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_VOXLEVEL,         "VOXLEVEL",     	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
+        { MIDI_ACTION_XIT_CLEAR,       	"XITCLEAR",     	MIDI_TYPE_KEY,					0},
+        { MIDI_ACTION_XIT_VAL,          "XITVAL",       	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
+        { MIDI_ACTION_ZOOM,            	"ZOOM", 		MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
+        { MIDI_ACTION_ZOOM_UP,          "ZOOMUP",       	MIDI_TYPE_KEY|MIDI_TYPE_WHEEL,			0},
+        { MIDI_ACTION_ZOOM_DOWN,        "ZOOMDOWN",     	MIDI_TYPE_KEY|MIDI_TYPE_WHEEL,			0},
+        { MIDI_ACTION_LAST,		"NONE", 		MIDI_TYPE_NONE,					0},
 };
+
 
 /*
  * Translation from keyword in midi.props file to MIDIaction
@@ -227,12 +257,68 @@ static void keyword2action(char *s, enum MIDIaction *action, int *onoff) {
     *onoff  = 0;
 }
 
+int MIDIstop() {
+  for (int i=0; i<n_midi_devices; i++) {
+    if (midi_devices[i].active) {
+      close_midi_device(i);
+    }
+  }
+  return 0;
+}
+
 /*
- * Here we read in a MIDI description file "midi.def" and fill the MidiCommandsTable
+ * Release data from MidiCommandsTable
+ */
+
+void MidiReleaseCommands() {
+  int i;
+  struct desc *loop, *new;
+  for (i=0; i<129; i++) {
+    loop = MidiCommandsTable[i];
+    while (loop != NULL) {
+      new=loop->next;
+      free(loop);
+      loop = new;
+    }
+    MidiCommandsTable[i]=NULL;
+  }
+}
+
+/*
+ * Add a command to MidiCommandsTable
+ */
+
+void MidiAddCommand(int note, struct desc *desc) {
+  struct desc *loop;
+
+  if (note < 0 || note > 128) return;
+
+  //
+  // Actions with channel == -1 (ANY) must go to the end of the list
+  //
+  if (MidiCommandsTable[note] == NULL) {
+    // initialize linked list
+    MidiCommandsTable[note]=desc;
+  } else if (desc->channel >= 0) {
+    // add to top of the list
+    desc->next = MidiCommandsTable[note];
+    MidiCommandsTable[note]=desc;
+  } else {
+    // add to tail of the list
+    loop = MidiCommandsTable[note];
+    while (loop->next != NULL) {
+      loop = loop->next;
+    }
+    loop->next=desc;
+  }
+}
+
+/*
+ * Here we read in a MIDI description file and fill the MidiCommandsTable
  * data structure
  */
 
-void MIDIstartup() {
+int MIDIstartup(char *filename) {
     FILE *fpin;
     char zeile[255];
     char *cp,*cq;
@@ -246,13 +332,17 @@ void MIDIstartup() {
     enum MIDIevent event;
     int i;
     char c;
-    struct timespec ts;
 
-    for (i=0; i<128; i++) MidiCommandsTable.desc[i]=NULL;
-    MidiCommandsTable.pitch=NULL;
+    MidiReleaseCommands();
 
-    fpin=fopen("midi.props", "r");
-    if (!fpin) return;
+    g_print("%s: %s\n",__FUNCTION__,filename);
+    fpin=fopen(filename, "r");
+
+    g_print("%s: fpin=%p\n",__FUNCTION__,fpin);
+    if (!fpin) {
+      g_print("%s: failed to open MIDI device\n",__FUNCTION__);
+      return -1;
+    }
 
     for (;;) {
       if (fgets(zeile, 255, fpin) == NULL) break;
@@ -277,30 +367,16 @@ void MIDIstartup() {
 	cp++;
       }
       
-//fprintf(stderr,"\nMIDI:INP:%s\n",zeile);
+g_print("\n%s:INP:%s\n",__FUNCTION__,zeile);
 
-      if ((cp = strstr(zeile, "DEVICE="))) {
-        // Delete comments and trailing blanks
-	cq=cp+7;
-	while (*cq != 0 && *cq != '#') cq++;
-	*cq--=0;
-	while (cq > cp+7 && (*cq == ' ' || *cq == '\t')) cq--;
-	*(cq+1)=0;
-//fprintf(stderr,"MIDI:REG:>>>%s<<<\n",cp+7);
-        midi_wait_startup=1;
-        clock_gettime(CLOCK_MONOTONIC, &ts);
-        midi_startup_time=ts.tv_sec + 1E-9*ts.tv_nsec;
-	register_midi_device(cp+7);
-        continue; // nothing more in this line
-      }
       chan=-1;  // default: any channel
       t1=t3=t5=t7= t9=t11=128;  // range that never occurs
       t2=t4=t6=t8=t10=t12=-1;   // range that never occurs
+      onoff=0;
       event=MIDI_EVENT_NONE;
       type=MIDI_TYPE_NONE;
       key=0;
       delay=0;
-      onoff=0;
 
       //
       // The KEY=, CTRL=, and PITCH= cases are mutually exclusive
@@ -311,18 +387,18 @@ void MIDIstartup() {
         sscanf(cp+4, "%d", &key);
         event=MIDI_EVENT_NOTE;
 	type=MIDI_TYPE_KEY;
-//fprintf(stderr,"MIDI:KEY:%d\n", key);
+g_print("%s: MIDI:KEY:%d\n",__FUNCTION__, key);
       }
       if ((cp = strstr(zeile, "CTRL="))) {
         sscanf(cp+5, "%d", &key);
 	event=MIDI_EVENT_CTRL;
 	type=MIDI_TYPE_KNOB;
-//fprintf(stderr,"MIDI:CTL:%d\n", key);
+g_print("%s: MIDI:CTL:%d\n",__FUNCTION__, key);
       }
       if ((cp = strstr(zeile, "PITCH "))) {
         event=MIDI_EVENT_PITCH;
 	type=MIDI_TYPE_KNOB;
-//fprintf(stderr,"MIDI:PITCH\n");
+g_print("%s: MIDI:PITCH\n",__FUNCTION__);
       }
       //
       // If event is still undefined, skip line
@@ -342,16 +418,16 @@ void MIDIstartup() {
         sscanf(cp+5, "%d", &chan);
 	chan--;
         if (chan<0 || chan>15) chan=-1;
-//fprintf(stderr,"MIDI:CHA:%d\n",chan);
+g_print("%s:CHAN:%d\n",__FUNCTION__,chan);
       }
       if ((cp = strstr(zeile, "WHEEL")) && (type == MIDI_TYPE_KNOB)) {
 	// change type from MIDI_TYPE_KNOB to MIDI_TYPE_WHEEL
         type=MIDI_TYPE_WHEEL;
-//fprintf(stderr,"MIDI:WHEEL\n");
+g_print("%s:WHEEL\n",__FUNCTION__);
       }
       if ((cp = strstr(zeile, "DELAY="))) {
         sscanf(cp+6, "%d", &delay);
-//fprintf(stderr,"MIDI:DELAY:%d\n",delay);
+g_print("%s:DELAY:%d\n",__FUNCTION__,delay);
       }
       if ((cp = strstr(zeile, "THR="))) {
         sscanf(cp+4, "%d %d %d %d %d %d %d %d %d %d %d %d",
@@ -364,7 +440,7 @@ void MIDIstartup() {
         while (*cq != 0 && *cq != '\n' && *cq != ' ' && *cq != '\t') cq++;
 	*cq=0;
         keyword2action(cp+7, &action, &onoff);
-//fprintf(stderr,"MIDI:ACTION:%s (%d), onoff=%d\n",cp+7, action, onoff);
+g_print("MIDI:ACTION:%s (%d), onoff=%d\n",cp+7, action, onoff);
       }
       //
       // All data for a descriptor has been read. Construct it!
@@ -395,23 +471,12 @@ void MIDIstartup() {
       //
       if (event == MIDI_EVENT_PITCH) {
 //fprintf(stderr,"MIDI:TAB:Insert desc=%p in PITCH table\n",desc);
-	dp = MidiCommandsTable.pitch;
-	if (dp == NULL) {
-	  MidiCommandsTable.pitch = desc;
-	} else {
-	  while (dp->next != NULL) dp=dp->next;
-	  dp->next=desc;
-	}
+        MidiAddCommand(129, desc);
       }
       if (event == MIDI_EVENT_NOTE || event == MIDI_EVENT_CTRL) {
-//fprintf(stderr,"MIDI:TAB:Insert desc=%p in CMDS[%d] table\n",desc,key);
-	dp = MidiCommandsTable.desc[key];
-	if (dp == NULL) {
-	  MidiCommandsTable.desc[key]=desc;
-	} else {
-	  while (dp->next != NULL) dp=dp->next;
-	  dp->next=desc;
-	}
+g_print("%s:TAB:Insert desc=%p in CMDS[%d] table\n",__FUNCTION__,desc,key);
+        MidiAddCommand(key, desc);
       }
     }
+    return 0;
 }

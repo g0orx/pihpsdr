@@ -1078,6 +1078,13 @@ void vfo_update() {
         long long af = vfo[0].ctun ? vfo[0].ctun_frequency : vfo[0].frequency;
         long long bf = vfo[1].ctun ? vfo[1].ctun_frequency : vfo[1].frequency;
 
+        if(vfo[0].entering_frequency) {
+            af=vfo[0].entered_frequency;
+        }
+        if(vfo[1].entering_frequency) {
+            bf=vfo[1].entered_frequency;
+        }
+
 #if 0
 //
 // DL1YCF: code still here but deactivated:
@@ -1115,7 +1122,9 @@ void vfo_update() {
             if (oob) sprintf(temp_text,"VFO A: Out of band");
             cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
         } else {
-            if(id==0) {
+            if(vfo[0].entering_frequency) {
+              cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
+            } else if(id==0) {
               cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
             } else {
               cairo_set_source_rgb(cr, 0.0, 0.65, 0.0);
@@ -1130,7 +1139,9 @@ void vfo_update() {
             if (oob) sprintf(temp_text,"VFO B: Out of band");
             cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
         } else {
-            if(id==1) {
+            if(vfo[1].entering_frequency) {
+              cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
+            } else if(id==1) {
               cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
             } else {
               cairo_set_source_rgb(cr, 0.0, 0.65, 0.0);

@@ -44,6 +44,8 @@ struct _vfo {
   long long lo;
   long long offset;
 
+  gboolean entering_frequency;
+  long long entered_frequency;
 };
 
 extern struct _vfo vfo[MAX_VFOS];
@@ -73,6 +75,7 @@ typedef struct _set_frequency {
   long long frequency;
 } SET_FREQUENCY;
 
+#define STEPS 15
 extern int steps[];
 extern char *step_labels[];
 

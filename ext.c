@@ -76,6 +76,8 @@
 // - band_minus(int id)                   // Move VFO #id to next lower band
 // - ctun_update(int id, int state)       // set CTUN state of VFO #id
 // - set_split(int state)                 // Set split mode to state
+// - num_pad(int val)                     // enter VFO frequency
+// - update_vfo_step(int direction)       // cycle throught VFO step sizes
 //
 
 void set_frequency(int v,long long f) {
@@ -158,6 +160,60 @@ void set_split(int val) {
     calcDriveLevel();
     g_idle_add(ext_vfo_update, NULL);
   }
+}
+
+void num_pad(int val) {
+  RECEIVER *rx=active_receiver;
+  if(!vfo[rx->id].entering_frequency) {
+    vfo[rx->id].entered_frequency=0;
+    vfo[rx->id].entering_frequency=TRUE;
+  }
+  switch(val) {
+    case -1: // clear
+      vfo[rx->id].entered_frequency=0;
+      vfo[rx->id].entering_frequency=FALSE;
+      break;
+    case -2: // enter
+      if(vfo[rx->id].entered_frequency!=0) {
+        vfo[rx->id].frequency=vfo[rx->id].entered_frequency;
+        if(vfo[rx->id].ctun) {
+          vfo[rx->id].ctun=FALSE;
+          vfo[rx->id].offset=0;
+          vfo[rx->id].ctun_frequency=vfo[rx->id].frequency;
+        }
+      }
+      vfo[rx->id].entering_frequency=FALSE;
+      break;
+    default:
+      vfo[rx->id].entered_frequency=(vfo[rx->id].entered_frequency*10)+val;
+      break;
+  }
+  vfo_update();
+}
+
+void update_vfo_step(int direction) {
+  int i=0;
+  while(steps[i]!=step && steps[i]!=0) {
+    i++;
+  }
+
+  if(steps[i]!=0) {
+    // current step size is in slot #i.
+    if(direction>0) {
+      // move to next slot (if it exists)
+      i++;
+      if(steps[i]!=0) {
+        step=steps[i];
+      }
+    } else {
+      // move to previous slot (if it exists)
+      i--;
+      if(i>=0) {
+        step=steps[i];
+      }
+    }
+  }
+  vfo_update();
 }
 
 //

@@ -83,6 +83,8 @@ static gint rit_minus_timer=-1;
 static gint xit_plus_timer=-1;
 static gint xit_minus_timer=-1;
 
+SWITCH *toolbar_switches=switches_controller1[0];
+
 static gboolean rit_timer_cb(gpointer data) {
   int i=GPOINTER_TO_INT(data);
   vfo_rit(active_receiver->id,i);

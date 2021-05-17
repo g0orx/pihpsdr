@@ -1,5 +1,5 @@
 /* Copyright (C)
-* 2018 - John Melton, G0ORX/N6LYT
+* 2021 - John Melton, G0ORX/N6LYT
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License
@@ -17,12 +17,8 @@
 *
 */
 
-#ifndef DAC_H
-#define DAC_H
+extern void midi_menu(GtkWidget *parent);
+extern void NewMidiConfigureEvent(enum MIDIevent event, int channel, int note, int val);
+extern void midi_save_state();
+extern void midi_restore_state();
 
-typedef struct _dac {
-  gint antenna;
-  gdouble gain;
-} DAC;
-
-#endif

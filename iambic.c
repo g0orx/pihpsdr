@@ -177,6 +177,7 @@
  **************************************************************************************************************
  */
 
+#include <gtk/gtk.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -191,7 +192,7 @@
 #include <time.h>
 #include <sys/mman.h>
 
-#ifdef GPIO
+#ifdef LOCALCW
 #include "gpio.h"
 #endif
 #include "radio.h"
@@ -238,14 +239,6 @@ static sem_t cw_event;
 extern int clock_nanosleep(clockid_t __clock_id, int __flags,
       __const struct timespec *__req,
       struct timespec *__rem);
-#endif
-
-#ifndef GPIO
-//
-// Dummy functions if compiled without GPIO
-//
-int gpio_cw_sidetone_enabled() { return 0; }
-void gpio_cw_sidetone_set(int level) {}
 #endif
 
 static void keyer_straight_key(int state) {

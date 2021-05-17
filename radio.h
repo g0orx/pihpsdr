@@ -67,6 +67,8 @@ enum {
   PA_500W
 };
 
+extern gint controller;
+
 extern DISCOVERED *radio;
 #ifdef CLIENT_SERVER
 extern gboolean radio_is_remote;
@@ -104,7 +106,6 @@ extern RECEIVER *receiver[];
 extern RECEIVER *active_receiver;
 
 extern TRANSMITTER *transmitter;
-
 
 #define PA_DISABLED 0
 #define PA_ENABLED 1

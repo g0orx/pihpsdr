@@ -389,26 +389,33 @@ void set_af_gain(int rx,double value) {
 
 static void rf_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
     active_receiver->rf_gain=gtk_range_get_value(GTK_RANGE(af_gain_scale));
+    switch(protocol) {
 #ifdef SOAPYSDR
-    if(protocol==SOAPYSDR_PROTOCOL) {
-      soapy_protocol_set_gain(active_receiver,active_receiver->rf_gain);
-    }
+      case SOAPYSDR_PROTOCOL:
+        soapy_protocol_set_gain(active_receiver);
+        break;
 #endif
+      default:
+        break;
+    }
 }
 
 void update_rf_gain() {
-  set_rf_gain(active_receiver->id,active_receiver->rf_gain);
+  //set_rf_gain(active_receiver->id,active_receiver->rf_gain);
+  set_rf_gain(active_receiver->id,adc[active_receiver->id].gain);
 }
 
 void set_rf_gain(int rx,double value) {
-  receiver[rx]->rf_gain=value;
+  g_print("%s\n",__FUNCTION__);
+  adc[receiver[rx]->id].gain=value;
 #ifdef SOAPYSDR
   if(protocol==SOAPYSDR_PROTOCOL) {
-    soapy_protocol_set_gain(active_receiver,active_receiver->rf_gain);
+    soapy_protocol_set_gain(receiver[rx]);
   }
 #endif
   if(display_sliders) {
-    gtk_range_set_value (GTK_RANGE(attenuation_scale),receiver[rx]->rf_gain);
+    //gtk_range_set_value (GTK_RANGE(attenuation_scale),receiver[rx]->rf_gain);
+    gtk_range_set_value (GTK_RANGE(rf_gain_scale),adc[receiver[rx]->id].gain);
   } else {
     if(scale_status!=RF_GAIN || scale_rx!=rx) {
       if(scale_status!=NO_FUNCTION) {
@@ -426,7 +433,8 @@ void set_rf_gain(int rx,double value) {
       GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
       rf_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.00);
       gtk_widget_set_size_request (rf_gain_scale, 400, 30);
-      gtk_range_set_value (GTK_RANGE(rf_gain_scale),receiver[rx]->rf_gain);
+      //gtk_range_set_value (GTK_RANGE(rf_gain_scale),receiver[rx]->rf_gain);
+      gtk_range_set_value (GTK_RANGE(rf_gain_scale),adc[receiver[rx]->id].gain);
       gtk_widget_show(rf_gain_scale);
       gtk_container_add(GTK_CONTAINER(content),rf_gain_scale);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
@@ -434,7 +442,8 @@ void set_rf_gain(int rx,double value) {
       gtk_dialog_run(GTK_DIALOG(scale_dialog));
     } else {
       g_source_remove(scale_timer);
-      gtk_range_set_value (GTK_RANGE(rf_gain_scale),receiver[rx]->rf_gain);
+      //gtk_range_set_value (GTK_RANGE(rf_gain_scale),receiver[rx]->rf_gain);
+      gtk_range_set_value (GTK_RANGE(rf_gain_scale),adc[receiver[rx]->id].gain);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
     }
   }

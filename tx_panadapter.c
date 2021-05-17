@@ -35,6 +35,7 @@
 #include "tx_panadapter.h"
 #include "vfo.h"
 #include "mode.h"
+#include "actions.h"
 #ifdef GPIO
 #include "gpio.h"
 #endif
@@ -352,6 +353,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   cairo_set_line_width(cr, 1.0);
   cairo_stroke(cr);
 
+/*
 #ifdef GPIO
   if(controller==CONTROLLER1 && tx->dialog == NULL) {
     char text[64];
@@ -377,7 +379,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     }
   }
 #endif
-
+*/
 
 #ifdef PURESIGNAL
   if(tx->puresignal) {
@@ -404,7 +406,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     cairo_set_font_size(cr, DISPLAY_FONT_SIZE3);
 
     if(transmitter->fwd<0.0001) {
-      sprintf(text,"FWD %0.3f W",transmitter->exciter);
+      sprintf(text,"FWD %0.3f",transmitter->exciter);
     } else {
       static int max_count=0;
       static double max_level=0.0;
@@ -417,7 +419,6 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     }
     cairo_move_to(cr,10,15);
     cairo_show_text(cr, text);
-
     //
     // Since colour is already red, no special
     // action for "high SWR" warning
@@ -426,7 +427,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     cairo_move_to(cr,10,30);
     cairo_show_text(cr, text);
 
-    sprintf(text,"ALC %2.1f dB",transmitter->alc);
+    sprintf(text,"ALC %2.1f",transmitter->alc);
     cairo_move_to(cr,10,45);
     cairo_show_text(cr, text);
 
@@ -440,7 +441,6 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     cairo_show_text(cr, text);
 */
   }
-
   //
   // If the SWR protection has been triggered, display message for three seconds
   //
@@ -474,6 +474,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     sprintf(text,"%0.0fmA",c);
     cairo_move_to(cr, 160.0, 30.0);
     cairo_show_text(cr, text);
+
 
     if (tx_fifo_overrun || tx_fifo_underrun) {
       cairo_set_source_rgb(cr,1.0,0.0,0.0);

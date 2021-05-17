@@ -63,6 +63,10 @@
 #ifdef CLIENT_SERVER
 #include "server_menu.h"
 #endif
+#ifdef MIDI
+#include "midi.h"
+#include "midi_menu.h"
+#endif
 
 
 static GtkWidget *menu_b=NULL;
@@ -466,6 +470,18 @@ static gboolean server_cb (GtkWidget *widget, GdkEventButton *event, gpointer da
 }
 #endif
 
+#ifdef MIDI
+void start_midi() {
+  cleanup();
+  midi_menu(top_window);
+}
+
+static gboolean midi_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  start_midi();
+  return TRUE;
+}
+#endif
+
 void new_menu()
 {
   int i;
@@ -623,6 +639,13 @@ void new_menu()
       gtk_grid_attach(GTK_GRID(grid),switches_b,(i%5),i/5,1,1);
       i++;
     }
+#endif
+
+#ifdef MIDI
+    GtkWidget *midi_b=gtk_button_new_with_label("MIDI");
+    g_signal_connect (midi_b, "button-press-event", G_CALLBACK(midi_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),midi_b,(i%5),i/5,1,1);
+    i++;
 #endif
 
 //
