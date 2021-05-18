@@ -49,9 +49,8 @@ STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_NOAVAHI
 # very early code not included yet
 #SERVER_INCLUDE=SERVER
 
-#
-# specify audio module. MacOS always uses PORTAUDIO, but Linux can use PULSEAUDIO (default), PORTAUDIO, or ALSA
-#AUDIO_MODULE=PULSEAUDIO
+# uncomment to get ALSA audio module on Linux
+#AUDIO_MODULE=ALSA
 
 CFLAGS?= -O -Wno-deprecated-declarations
 PKG_CONFIG = pkg-config
@@ -196,10 +195,12 @@ ifeq ($(UNAME_S), Darwin)
 endif
 
 #
-# default audio for LINUX is PULSEAUDIO
+# default audio for LINUX is PULSEAUDIO but we can also use ALSA
 #
 ifeq ($(UNAME_S), Linux)
-  ifeq ($(AUDIO_MODULE) ,)
+  ifeq ($(AUDIO_MODULE) , ALSA)
+    AUDIO_MODULE=ALSA
+  else
     AUDIO_MODULE=PULSEAUDIO
   endif
 endif
