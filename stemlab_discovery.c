@@ -41,6 +41,7 @@
 #include <gdk/gdk.h>
 #include <glib.h>
 #include <errno.h>
+#include <ifaddrs.h>
 #include <stdint.h>
 #include <string.h>
 

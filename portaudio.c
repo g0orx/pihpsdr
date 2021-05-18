@@ -577,8 +577,7 @@ int audio_write (RECEIVER *rx, float left, float right)
 //
 // Thus we have an active latency management.
 //
-int cw_audio_write(float sample) {
-  RECEIVER *rx = active_receiver;
+int cw_audio_write(RECEIVER *rx, float sample) {
   float *buffer = rx->local_audio_buffer;
   int oldpt, newpt;
   static int count=0;

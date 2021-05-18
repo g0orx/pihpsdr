@@ -1655,7 +1655,7 @@ void ozy_send_buffer() {
 	  // is stored in rx_gain_slider. The firmware uses bit 6
 	  // of C4 to determine this case.
 	  //
-          int rxgain = adc_attenuation[active_receiver->adc]+12; // -12..48 to 0..60
+          int rxgain = adc[active_receiver->adc].gain+12; // -12..48 to 0..60
           if (rxgain <  0) rxgain=0;
           if (rxgain > 60) rxgain=60;
 	  // encode all 6 bits of RXgain in ATT value and set bit6
@@ -1685,7 +1685,7 @@ void ozy_send_buffer() {
           if (isTransmitting()) {
             output_buffer[C4]=0x20 | (transmitter->attenuation & 0x1F);
           } else {
-            output_buffer[C4]=0x20 | (adc_attenuation[0] & 0x1F);
+            output_buffer[C4]=0x20 | (adc[0].attenuation & 0x1F);
           } 
         }
         command=5;
@@ -1703,9 +1703,9 @@ void ozy_send_buffer() {
           } else {
 	    // if diversity is enabled, use RX1 att value for RX2
             if (diversity_enabled) {
-              output_buffer[C1]=0x20 | (adc_attenuation[receiver[0]->adc] & 0x1F);
+              output_buffer[C1]=0x20 | (adc[receiver[0]->adc].attenuation & 0x1F);
 	    } else {
-              output_buffer[C1]=0x20 | (adc_attenuation[receiver[1]->adc] & 0x1F);
+              output_buffer[C1]=0x20 | (adc[receiver[1]->adc].attenuation & 0x1F);
 	    }
           }
         }

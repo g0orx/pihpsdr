@@ -77,8 +77,8 @@
 #define RXACTION_PS     2    // deliver 2*119 samples to PS engine
 #define RXACTION_DIV    3    // take 2*119 samples, mix them, deliver to a receiver
 
-static int rxcase[MAX_DDC];
-static int rxid  [MAX_DDC];
+static int rxcase[7/*MAX_DDC*/];
+static int rxid  [7/*MAX_DDC*/];
 
 int data_socket=-1;
 
@@ -111,8 +111,8 @@ static int audio_addr_length;
 static struct sockaddr_in iq_addr;
 static int iq_addr_length;
 
-static struct sockaddr_in data_addr[MAX_DDC];
-static int data_addr_length[MAX_DDC];
+static struct sockaddr_in data_addr[7/*MAX_DDC*/];
+static int data_addr_length[7/*MAX_DDC*/];
 
 static GThread *new_protocol_thread_id;
 static GThread *new_protocol_timer_thread_id;
@@ -121,7 +121,7 @@ static long high_priority_sequence = 0;
 static long general_sequence = 0;
 static long rx_specific_sequence = 0;
 static long tx_specific_sequence = 0;
-static long ddc_sequence[MAX_DDC];
+static long ddc_sequence[7/*MAX_DDC*/];
 
 //static int buffer_size=BUFFER_SIZE;
 //static int fft_size=4096;
@@ -177,13 +177,13 @@ static sem_t mic_line_sem_buffer;
 #endif
 static GThread *mic_line_thread_id;
 #ifdef __APPLE__
-static sem_t *iq_sem_ready[MAX_DDC];
-static sem_t *iq_sem_buffer[MAX_DDC];
+static sem_t *iq_sem_ready[7/*MAX_DDC*/];
+static sem_t *iq_sem_buffer[7/*MAX_DDC*/];
 #else
-static sem_t iq_sem_ready[MAX_DDC];
-static sem_t iq_sem_buffer[MAX_DDC];
+static sem_t iq_sem_ready[7/*MAX_DDC*/];
+static sem_t iq_sem_buffer[7/*MAX_DDC*/];
 #endif
-static GThread *iq_thread_id[MAX_DDC];
+static GThread *iq_thread_id[7/*MAX_DDC*/];
 
 #ifdef INCLUDED
 static int outputsamples;
@@ -243,7 +243,7 @@ static mybuffer *buflist = NULL;
 //
 // The buffers used by new_protocol_thread
 //
-static mybuffer *iq_buffer[MAX_DDC];
+static mybuffer *iq_buffer[7/*MAX_DDC*/];
 static mybuffer *command_response_buffer;
 static mybuffer *high_priority_buffer;
 static mybuffer *mic_line_buffer;
@@ -267,7 +267,7 @@ static pthread_mutex_t rx_spec_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t tx_spec_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t hi_prio_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t general_mutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t audio_mutex   = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t p2_audio_mutex  = PTHREAD_MUTEX_INITIALIZER;
 
 static int local_ptt=0;
 
@@ -477,13 +477,6 @@ void new_protocol_init(int pixels) {
     outputsamples=buffer_size;
 #endif
     micoutputsamples=buffer_size*4;
-
-//  if(local_audio) {
-//   if(audio_open_output()!=0) {
-//     g_print("audio_open_output failed\n");
-//     local_audio=0;
-//   }
-//  }
 
     if(transmitter->local_microphone) {
       if(audio_open_input()!=0) {
@@ -1192,11 +1185,11 @@ static void new_protocol_high_priority() {
       high_priority_buffer_to_radio[1443]=transmitter->attenuation;
       high_priority_buffer_to_radio[1442]=31;
     } else {
-      high_priority_buffer_to_radio[1443]=adc_attenuation[0];	
+      high_priority_buffer_to_radio[1443]=adc[0].attenuation;	
       if (diversity_enabled) {
-        high_priority_buffer_to_radio[1442]=adc_attenuation[0];  // DIVERSITY: ADC0 att value for ADC1 as well
+        high_priority_buffer_to_radio[1442]=adc[0].attenuation;  // DIVERSITY: ADC0 att value for ADC1 as well
       } else {
-        high_priority_buffer_to_radio[1442]=adc_attenuation[1];
+        high_priority_buffer_to_radio[1442]=adc[1].attenuation;
       }
     }
 
@@ -2002,7 +1995,7 @@ void new_protocol_cw_audio_samples(short left_audio_sample,short right_audio_sam
     //
     // Only process samples if transmitting in CW
     //
-    pthread_mutex_lock(&audio_mutex);
+    pthread_mutex_lock(&p2_audio_mutex);
     // insert the samples
     audiobuffer[audioindex++]=left_audio_sample>>8;
     audiobuffer[audioindex++]=left_audio_sample;
@@ -2024,7 +2017,7 @@ void new_protocol_cw_audio_samples(short left_audio_sample,short right_audio_sam
       audioindex=4;
       audiosequence++;
     }
-    pthread_mutex_unlock(&audio_mutex);
+    pthread_mutex_unlock(&p2_audio_mutex);
   }
 }
 
@@ -2037,7 +2030,7 @@ void new_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right
   //
   if (isTransmitting() && (txmode==modeCWU || txmode==modeCWL)) return;
 
-  pthread_mutex_lock(&audio_mutex);
+  pthread_mutex_lock(&p2_audio_mutex);
   // insert the samples
   audiobuffer[audioindex++]=left_audio_sample>>8;
   audiobuffer[audioindex++]=left_audio_sample;
@@ -2061,7 +2054,7 @@ void new_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right
     audioindex=4;
     audiosequence++;
   }
-  pthread_mutex_unlock(&audio_mutex);
+  pthread_mutex_unlock(&p2_audio_mutex);
 }
 
 void new_protocol_flush_iq_samples() {

@@ -58,6 +58,8 @@
 #endif
 #include <math.h>
 
+#define NEW_PARSER
+
 // IP stuff below
 #include <sys/socket.h>
 #include <arpa/inet.h> //inet_addr
@@ -3290,10 +3292,10 @@ int parse_cmd(void *data) {
           if(command[2]==';') {
             int att=0;
             if(have_rx_gain) {
-              att=(int)(adc_attenuation[active_receiver->adc]+12);
+              att=(int)(adc[active_receiver->adc].attenuation+12);
               att=(int)(((double)att/60.0)*99.0);
             } else {
-              att=(int)(adc_attenuation[active_receiver->adc]);
+              att=(int)(adc[active_receiver->adc].attenuation);
               att=(int)(((double)att/31.0)*99.0);
             }
             sprintf(reply,"RA%02d00;",att);

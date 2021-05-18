@@ -33,6 +33,7 @@
 #include "soapy_protocol.h"
 #endif
 #ifdef GPIO
+#include "actions.h"
 #include "gpio.h"
 #endif
 

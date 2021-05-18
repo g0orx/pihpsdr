@@ -133,7 +133,7 @@ struct _DISCOVERED {
         SoapySDRRange *tx_range;
         size_t tx_antennas;
         char **tx_antenna;
-        size_t sensors;
+	size_t sensors;
         char **sensor;
         gboolean has_temp;
         char address[64];

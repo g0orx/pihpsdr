@@ -241,26 +241,6 @@ extern int clock_nanosleep(clockid_t __clock_id, int __flags,
       struct timespec *__rem);
 #endif
 
-static void keyer_straight_key(int state) {
-  //
-  // Interface for simple key-down action e.g. from a MIDI message
-  //
-  if (state != 0) {
-    cw_key_down=960000;  // max. 20 sec to protect hardware
-    cw_key_up=0;
-    cw_key_hit=1;
-#ifdef GPIO
-    gpio_cw_sidetone_set(1);
-#endif
-  } else {
-    cw_key_down=0;
-    cw_key_up=0;
-#ifdef GPIO
-    gpio_cw_sidetone_set(0);
-#endif
-  }
-}
-
 void keyer_update() {
     //
     // This function will take notice of changes in the following variables
@@ -456,7 +436,12 @@ static void* keyer_thread(void *arg) {
                     // If both paddles are pressed (should not happen), then
                     // the dash paddle wins.
                     if (*kdash) {                  // send manual dashes
-                      keyer_straight_key(1);       // do key down
+                      cw_key_down=960000;  // max. 20 sec to protect hardware
+                      cw_key_up=0;
+                      cw_key_hit=1;
+#ifdef GPIO
+                      gpio_cw_sidetone_set(1);
+#endif
                       key_state=STRAIGHT;
                     }
                 } else {
@@ -474,7 +459,11 @@ static void* keyer_thread(void *arg) {
 		// Wait for dash paddle being released in "straight key" mode.
                 //
                 if (! *kdash) {
-                  keyer_straight_key(0);   // key-up
+                  cw_key_down=0;
+                  cw_key_up=0;
+#ifdef GPIO
+                  gpio_cw_sidetone_set(0);
+#endif
                   key_state=CHECK;
                 }
                 break;

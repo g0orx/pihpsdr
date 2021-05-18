@@ -55,6 +55,7 @@
 #include "soapy_protocol.h"
 #endif
 #ifdef GPIO
+##include "actions.h"
 #include "gpio.h"
 #endif
 #include "vfo.h"
@@ -134,9 +135,19 @@ gboolean radio_is_remote=FALSE;
 char property_path[128];
 GMutex property_mutex;
 
-RECEIVER *receiver[MAX_RECEIVERS];
+RECEIVER *receiver[7];
 RECEIVER *active_receiver;
 TRANSMITTER *transmitter;
+
+int RECEIVERS;
+int MAX_RECEIVERS;
+int MAX_DDC;
+#ifdef PURESIGNAL
+int PS_TX_FEEDBACK;
+int PS_RX_FEEDBACK;
+#endif
+
+
 
 int buffer_size=1024; // 64, 128, 256, 512, 1024, 2048
 int fft_size=2048; // 1024, 2048, 4096, 8192, 16384
@@ -169,7 +180,7 @@ int panadapter_high=-40;
 int panadapter_low=-140;
 
 int display_filled=1;
-int display_gradient=0;
+int display_gradient=1;
 int display_detector_mode=DETECTOR_MODE_AVERAGE;
 int display_average_mode=AVERAGE_MODE_LOG_RECURSIVE;
 double display_average_time=120.0;
@@ -203,11 +214,11 @@ int mic_ptt_tip_bias_ring=0;
 //int drive_level=0;
 //int tune_drive_level=0;
 
-int receivers=RECEIVERS;
+int receivers;
 
 ADC adc[2];
 DAC dac[2];
-int adc_attenuation[2];
+//int adc_attenuation[2];
 
 int locked=0;
 
@@ -561,27 +572,29 @@ if(!radio_is_remote) {
     calcDriveLevel();
 
 #ifdef PURESIGNAL
-    tx_set_ps_sample_rate(transmitter,protocol==NEW_PROTOCOL?192000:active_receiver->sample_rate);
-    receiver[PS_TX_FEEDBACK]=create_pure_signal_receiver(PS_TX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
-    receiver[PS_RX_FEEDBACK]=create_pure_signal_receiver(PS_RX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
-    switch (protocol) {
-      case NEW_PROTOCOL:
-        pk = 0.2899;
-        break;
-      case ORIGINAL_PROTOCOL:
-        switch (device) {
-          case DEVICE_HERMES_LITE2:
-            pk = 0.2300;
-            break;
-          default:
-            pk = 0.4067;
-            break;
-        }
+    if(protocol==NEW_PROTOCOL || protocol==ORIGINAL_PROTOCOL) {
+      tx_set_ps_sample_rate(transmitter,protocol==NEW_PROTOCOL?192000:active_receiver->sample_rate);
+      receiver[PS_TX_FEEDBACK]=create_pure_signal_receiver(PS_TX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
+      receiver[PS_RX_FEEDBACK]=create_pure_signal_receiver(PS_RX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
+      switch (protocol) {
+        case NEW_PROTOCOL:
+          pk = 0.2899;
+          break;
+        case ORIGINAL_PROTOCOL:
+          switch (device) {
+            case DEVICE_HERMES_LITE2:
+              pk = 0.2300;
+              break;
+            default:
+              pk = 0.4067;
+              break;
+          }
+      }
+      SetPSHWPeak(transmitter->id, pk);
     }
-    SetPSHWPeak(transmitter->id, pk);
 #endif
-
   }
+
 #ifdef CLIENT_SERVER
 }
 #endif
@@ -1104,6 +1117,7 @@ void start_radio() {
   }
 #endif
 
+  /*
   adc_attenuation[0]=0;
   adc_attenuation[1]=0;
 
@@ -1111,6 +1125,7 @@ void start_radio() {
     adc_attenuation[0]=14;
     adc_attenuation[1]=14;
   }
+  */
 
   adc[0].antenna=ANTENNA_1;
   adc[0].filters=AUTOMATIC;
@@ -1119,7 +1134,11 @@ void start_radio() {
   adc[0].dither=FALSE;
   adc[0].random=FALSE;
   adc[0].preamp=FALSE;
-  adc[0].attenuation=0;
+  if(have_rx_gain) {
+    adc[0].attenuation=14;
+  } else {
+    adc[0].attenuation=0;
+  }
 #ifdef SOAPYSDR
   adc[0].antenna=0;
   if(device==SOAPYSDR_USB_DEVICE) {
@@ -1144,7 +1163,11 @@ void start_radio() {
   adc[1].dither=FALSE;
   adc[1].random=FALSE;
   adc[1].preamp=FALSE;
-  adc[1].attenuation=0;
+  if(have_rx_gain) {
+    adc[0].attenuation=14;
+  } else {
+    adc[1].attenuation=0;
+  }
 #ifdef SOAPYSDR
   adc[1].antenna=0;
   if(device==SOAPYSDR_USB_DEVICE) {
@@ -1169,16 +1192,16 @@ void start_radio() {
 
 #ifdef GPIO
   switch(controller) {
+    case NO_CONTROLLER:
+      display_zoompan=1;
+      display_sliders=1;
+      display_toolbar=1;
+      break;
     case CONTROLLER2_V1:
     case CONTROLLER2_V2:
       display_zoompan=1;
       display_sliders=0;
       display_toolbar=0;
-      break;
-    default:
-      display_zoompan=1;
-      display_sliders=1;
-      display_toolbar=1;
       break;
   }
 #else
@@ -1197,6 +1220,36 @@ void start_radio() {
   n_current=0;
 
   display_sequence_errors=TRUE;
+
+  g_print("%s: setup RECEIVERS protocol=%d\n",__FUNCTION__,protocol);
+  switch(protocol) {
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
+  g_print("%s: setup RECEIVERS SOAPYSDR\n",__FUNCTION__);
+      RECEIVERS=1;
+      MAX_RECEIVERS=RECEIVERS;
+#ifdef PURESIGNAL
+      PS_TX_FEEDBACK=0;
+      PS_RX_FEEDBACK=0;
+#endif
+      MAX_DDC=1;
+      break;
+#endif
+    default:
+  g_print("%s: setup RECEIVERS default\n",__FUNCTION__);
+      RECEIVERS=2;
+#ifdef PURESIGNAL
+      MAX_RECEIVERS=(RECEIVERS+2);
+      PS_TX_FEEDBACK=(RECEIVERS);
+      PS_RX_FEEDBACK=(RECEIVERS+1);
+#else
+      MAX_RECEIVERS=RECEIVERS;
+#endif
+      MAX_DDC=(RECEIVERS+2);
+      break;
+  }
+
+  receivers=RECEIVERS;
 
   radioRestoreState();
 
@@ -1484,6 +1537,7 @@ static void rxtx(int state) {
 
 void setMox(int state) {
   if(!can_transmit) return;
+  // SOAPY and no local mic: continue! e.g. for doing CW.
   vox_cancel();  // remove time-out
   if(mox!=state) {
     if (state && vox) {
@@ -1808,6 +1862,12 @@ void setSquelch(RECEIVER *rx) {
   SetRXAFMSQRun(rx->id, rx->squelch_enable);
 }
 
+void radio_set_rf_gain(RECEIVER *rx) {
+#ifdef SOAPYSDR
+  soapy_protocol_set_gain_element(rx,radio->info.soapy.rx_gain[rx->adc],(int)adc[rx->adc].gain);
+#endif
+}
+
 void set_attenuation(int value) {
     switch(protocol) {
       case NEW_PROTOCOL:
@@ -1815,8 +1875,8 @@ void set_attenuation(int value) {
         break;
 #ifdef SOAPYSDR
       case SOAPYSDR_PROTOCOL:
-        soapy_protocol_set_gain_element(active_receiver,radio->info.soapy.rx_gain[0],(int)adc[0].gain);
-        break;
+       soapy_protocol_set_gain_element(active_receiver,radio->info.soapy.rx_gain[0],(int)adc[0].gain);
+       break;
 #endif
     }
 }
@@ -1839,6 +1899,7 @@ void set_alex_rx_antenna() {
         schedule_high_priority();
         break;
       }
+      // This function is NOT called for SOAPY devices
 }
 
 //
@@ -1902,6 +1963,8 @@ g_print("radioRestoreState: %s\n",property_path);
 #endif
   } else {
 #endif
+    value=getProperty("radio_sample_rate");
+    if (value) radio_sample_rate=atoi(value);
     value=getProperty("diversity_enabled");
     if (value) diversity_enabled=atoi(value);
     value=getProperty("diversity_gain");
@@ -2226,9 +2289,7 @@ g_print("radioSaveState: %s\n",property_path);
   g_mutex_lock(&property_mutex);
   clearProperties();
 #ifdef GPIO
-  if(controller!=NO_CONTROLLER) {
-    gpio_save_actions();
-  }
+  gpio_save_actions();
 #endif
   sprintf(value,"%d",receivers);
   setProperty("receivers",value);
@@ -2461,6 +2522,11 @@ g_print("radioSaveState: %s\n",property_path);
       setProperty("radio.adc[0].agc",value);
     }
 #endif
+
+   sprintf(value,"%d", dac[0].antenna);
+   setProperty("radio.dac[0].antenna",value);
+   sprintf(value,"%f", dac[0].gain);
+   setProperty("radio.dac[0].gain",value);
 
    if(receivers>1) {
       sprintf(value,"%d", adc[1].filters);

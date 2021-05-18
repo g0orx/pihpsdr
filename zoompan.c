@@ -96,7 +96,7 @@ g_print("zoom_value_changed_cb\n");
 }
 
 void set_zoom(int rx,double value) {
-g_print("set_zoom: %f\n",value);
+//g_print("set_zoom: %f\n",value);
   receiver[rx]->zoom=value;
   if(display_zoompan) {
     gtk_range_set_value (GTK_RANGE(zoom_scale),receiver[rx]->zoom);
@@ -145,7 +145,7 @@ g_print("remote_set_zoom: EXIT\n");
 }
 
 void update_zoom(double zoom) {
-g_print("update_zoom: %f\n",zoom);
+//g_print("update_zoom: %f\n",zoom);
   int z=active_receiver->zoom+(int)zoom;
   if(z>MAX_ZOOM) z=MAX_ZOOM;
   if(z<1) z=1;
@@ -236,7 +236,7 @@ fprintf(stderr,"zoompan_init: width=%d height=%d\n", width,height);
   gtk_grid_set_row_homogeneous(GTK_GRID(zoompan), FALSE);
   gtk_grid_set_column_homogeneous(GTK_GRID(zoompan),TRUE);
 
-  zoom_label=gtk_label_new("Zoom:");
+  zoom_label=gtk_label_new("Zoom");
   gtk_widget_override_font(zoom_label, pango_font_description_from_string(SLIDERS_FONT));
   gtk_widget_show(zoom_label);
   gtk_grid_attach(GTK_GRID(zoompan),zoom_label,0,0,1,1);

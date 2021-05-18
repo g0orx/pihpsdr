@@ -195,13 +195,13 @@ if(analog_meter) {
     case SMETER:
       {
       if(have_rx_gain) {
-        level=value+rx_gain_calibration-adc_attenuation[rx->adc];
+        level=value+rx_gain_calibration-adc[rx->adc].attenuation;
       } else {
-        level=value+(double)adc_attenuation[rx->adc];
+        level=value+(double)adc[rx->adc].attenuation;
       }
 #ifdef SOAPYSDR
       if(protocol==SOAPYSDR_PROTOCOL) {
-       level-=rx->rf_gain;
+       level-=adc[rx->id].gain;
       }
 #endif
       if (filter_board == CHARLY25) {
@@ -563,13 +563,13 @@ if(analog_meter) {
       text_location=10;
       offset=5.0;
       if(have_rx_gain) {
-        level=value+rx_gain_calibration-adc_attenuation[rx->adc];
+        level=value+rx_gain_calibration-adc[rx->adc].attenuation;
       } else {
-        level=value+(double)adc_attenuation[rx->adc];
+        level=value+(double)adc[rx->adc].attenuation;
       }
 #ifdef SOAPYSDR
       if(protocol==SOAPYSDR_PROTOCOL) {
-       level-=rx->rf_gain;
+       level-=adc[rx->id].gain;
       }
 #endif
       if (filter_board == CHARLY25) {

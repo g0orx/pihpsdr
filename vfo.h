@@ -45,7 +45,8 @@ struct _vfo {
   long long offset;
 
   gboolean entering_frequency;
-  long long entered_frequency;
+  gint64 entered_frequency;
+
 };
 
 extern struct _vfo vfo[MAX_VFOS];
