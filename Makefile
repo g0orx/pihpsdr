@@ -49,6 +49,10 @@ STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_NOAVAHI
 # very early code not included yet
 #SERVER_INCLUDE=SERVER
 
+#
+# specify audio module. MacOS always uses PORTAUDIO, but Linux can use PULSEAUDIO (default), PORTAUDIO, or ALSA
+#AUDIO_MODULE=PULSEAUDIO
+
 CFLAGS?= -O -Wno-deprecated-declarations
 PKG_CONFIG = pkg-config
 
@@ -129,24 +133,15 @@ GPIO_LIBS=-lgpiod -li2c
 GPIO_SOURCES= \
   configure.c \
   i2c.c \
-  gpio.c \
-  encoder_menu.c \
-  switch_menu.c \
-  actions.c
+  encoder_menu.c
 GPIO_HEADERS= \
   configure.h \
   i2c.h \
-  gpio.h \
-  encoder_menu.h \
-  switch_menu.h \
-  actions.h
+  encoder_menu.h
 GPIO_OBJS= \
   configure.o \
   i2c.o \
-  gpio.o \
-  encoder_menu.o \
-  switch_menu.o \
-  actions.o
+  encoder_menu.o
 endif
 
 ifeq ($(LOCALCW_INCLUDE),LOCALCW)
@@ -193,15 +188,37 @@ endif
 GTKINCLUDES=$(shell $(PKG_CONFIG) --cflags gtk+-3.0)
 GTKLIBS=$(shell $(PKG_CONFIG) --libs gtk+-3.0)
 
+#
+# MacOS: only PORTAUDIO
+#
+ifeq ($(UNAME_S), Darwin)
+    AUDIO_MODULE=PORTAUDIO
+endif
+
+#
+# default audio for LINUX is PULSEAUDIO
+#
 ifeq ($(UNAME_S), Linux)
-#AUDIO_LIBS=-lpulse-simple -lpulse -lpulse-mainloop-glib
-#AUDIO_SOURCES=pulseaudio.c
-#AUDIO_OBJS=pulseaudio.o
-AUDIO_LIBS=
+  ifeq ($(AUDIO_MODULE) ,)
+    AUDIO_MODULE=PULSEAUDIO
+  endif
+endif
+
+ifeq ($(AUDIO_MODULE), PULSEAUDIO)
+AUDIO_OPTIONS=-DPULSEAUDIO
+AUDIO_LIBS=-lpulse-simple -lpulse -lpulse-mainloop-glib
+AUDIO_SOURCES=pulseaudio.c
+AUDIO_OBJS=pulseaudio.o
+endif
+
+ifeq ($(AUDIO_MODULE), ALSA)
+AUDIO_OPTIONS=-DALSA
+AUDIO_LIBS=-lasound
 AUDIO_SOURCES=audio.c
 AUDIO_OBJS=audio.o
 endif
-ifeq ($(UNAME_S), Darwin)
+
+ifeq ($(AUDIO_MODULE), PORTAUDIO)
 AUDIO_OPTIONS=-DPORTAUDIO $(shell $(PKG_CONFIG) --cflags portaudio-2.0)
 AUDIO_LIBS=$(shell $(PKG_CONFIG) --libs portaudio-2.0)
 AUDIO_SOURCES=portaudio.c
@@ -297,7 +314,10 @@ ext.c \
 error_handler.c \
 cwramp.c \
 protocols.c \
-css.c
+css.c \
+actions.c \
+switch_menu.c \
+gpio.c
 
 
 HEADERS= \
@@ -367,7 +387,10 @@ led.h \
 ext.h \
 error_handler.h \
 protocols.h \
-css.h
+css.h \
+actions.h \
+switch_menu.h \
+gpio.h
 
 
 OBJS= \
@@ -436,7 +459,10 @@ ext.o \
 error_handler.o \
 cwramp.o \
 protocols.o \
-css.o
+css.o \
+actions.o \
+switch_menu.o \
+gpio.o
 
 $(PROGRAM):  $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) \
 		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
