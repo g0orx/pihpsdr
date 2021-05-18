@@ -1229,8 +1229,14 @@ void start_radio() {
       RECEIVERS=1;
       MAX_RECEIVERS=RECEIVERS;
 #ifdef PURESIGNAL
-      PS_TX_FEEDBACK=0;
-      PS_RX_FEEDBACK=0;
+      //
+      // we cannot use the same receiver for normal RX and PS feedback
+      // so we must have two additional receivers, should we compile
+      // SOAPY with PURESIGNAL
+      // 
+      MAX_RECEIVERS=(RECEIVERS+2);
+      PS_TX_FEEDBACK=RECEIVERS;
+      PS_RX_FEEDBACK=RECEIVERS+1;
 #endif
       MAX_DDC=1;
       break;
