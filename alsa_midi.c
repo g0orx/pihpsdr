@@ -220,6 +220,7 @@ void register_midi_device(int index) {
 void close_midi_device(int index) {
   int ret;
 
+  g_print("%s: index=%d\n", __FUNCTION__, index);
   if (index < 0 || index > MAX_MIDI_DEVICES) return;
   if (midi_devices[index].active == 0) return;
 
