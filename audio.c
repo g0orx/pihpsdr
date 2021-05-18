@@ -320,7 +320,7 @@ g_print("audio_close_input: free mic buffer\n");
 // Note that when sending the buffer, delay "jumps" by the buffer size
 //
 
-int cw_audio_write(float sample){
+int cw_audio_write(RECEIVER *rx, float sample){
   snd_pcm_sframes_t delay;
   long rc;
   float *float_buffer;
@@ -329,8 +329,6 @@ int cw_audio_write(float sample){
   static int count=0;
   int    short_audio_buffer_size;
 	
-  RECEIVER *rx = active_receiver;
- 
   g_mutex_lock(&rx->local_audio_mutex);
   if(rx->playback_handle!=NULL && rx->local_audio_buffer!=NULL) {
 
