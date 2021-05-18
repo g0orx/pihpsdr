@@ -23,7 +23,7 @@
 #ifdef PORTAUDIO
 #include "portaudio.h"
 #endif
-#ifdef ALSAAUDIO
+#ifdef ALSA
 #include <alsa/asoundlib.h>
 #endif
 #ifdef PULSEAUDIO
@@ -124,19 +124,21 @@ typedef struct _receiver {
   PaStream *playback_handle;
   gint local_audio_buffer_inpt;    // pointer in audio ring-buffer
   gint local_audio_buffer_outpt;   // pointer in audio ring-buffer
+  float *local_audio_buffer;
 #endif
-#ifdef ALSAAUDIO
+#ifdef ALSA
   snd_pcm_t *playback_handle;
   snd_pcm_format_t local_audio_format;
+  void *local_audio_buffer;    // different formats possible
 #endif
 #ifdef PULSEAUDIO
   pa_simple *playstream;
   gboolean output_started;
+  float *local_audio_buffer;
 #endif
   gint local_audio_cw;             // flag for latency switching
   gint local_audio_buffer_size;
   gint local_audio_buffer_offset;
-  void *local_audio_buffer;
   GMutex local_audio_mutex;
 
   gint low_latency;
