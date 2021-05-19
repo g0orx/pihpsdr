@@ -89,7 +89,13 @@ void soapy_protocol_set_mic_sample_rate(int rate) {
 
 void soapy_protocol_change_sample_rate(RECEIVER *rx) {
 // rx->mutex already locked
-  if(rx->sample_rate==radio_sample_rate) {
+  if(strcmp(radio->name,"sdrplay")==0) {
+    g_print("%s: setting samplerate=%f\n",__FUNCTION__,(double)rx->sample_rate);
+    rc=SoapySDRDevice_setSampleRate(soapy_device,SOAPY_SDR_RX,rx->adc,(double)rx->sample_rate);
+    if(rc!=0) {
+      g_print("%s: SoapySDRDevice_setSampleRate(%f) failed: %s\n",__FUNCTION__,(double)rx->sample_rate,SoapySDR_errToStr(rc));
+    }
+  } else if(rx->sample_rate==radio_sample_rate) {
     if(rx->resample_buffer!=NULL) {
       g_free(rx->resample_buffer);
       rx->resample_buffer=NULL;
@@ -258,10 +264,11 @@ void soapy_protocol_init(int rx,gboolean hf) {
   int rc;
   int i;
 
-fprintf(stderr,"soapy_protocol_init: rx=%d hf=%d\n",rx,hf);
+  SoapySDR_setLogLevel(SOAPY_SDR_TRACE);
+
+g_print("%s: hf=%d driver=%s\n",__FUNCTION__,hf,radio->name);
 
   // initialize the radio
-fprintf(stderr,"soapy_protocol_init: SoapySDRDevice_make\n");
   SoapySDRKwargs_set(&args, "driver", radio->name);
   if(strcmp(radio->name,"rtlsdr")==0) {
     char id[16];
@@ -273,7 +280,17 @@ fprintf(stderr,"soapy_protocol_init: SoapySDRDevice_make\n");
     } else {
       SoapySDRKwargs_set(&args, "direct_samp", "0");
     }
+  } else if(strcmp(radio->name,"sdrplay")==0) {
+    sprintf(temp,"SDRplay Dev%d",radio->info.soapy.sdrplay_count);
+    g_print("%s: label=%s\n",__FUNCTION__,temp);
+    SoapySDRKwargs_set(&args, "label", temp);
   }
+  soapy_device=SoapySDRDevice_make(&args);
+  if(soapy_device==NULL) {
+    g_print("%s: SoapySDRDevice_make failed: %s\n",__FUNCTION__,SoapySDRDevice_lastError());
+    _exit(-1);
+  }
+
   soapy_device=SoapySDRDevice_make(&args);
   if(soapy_device==NULL) {
     fprintf(stderr,"soapy_protocol: SoapySDRDevice_make failed: %s\n",SoapySDRDevice_lastError());

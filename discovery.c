@@ -335,8 +335,9 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
             break;
 #ifdef SOAPYSDR
           case SOAPYSDR_PROTOCOL:
-            sprintf(text,"%s (Protocol SOAPY_SDR %s) via Soapy lib",d->name,d->info.soapy.version);
+            sprintf(text,"%s (Protocol SOAPY_SDR %s) on %s",d->name,d->info.soapy.version,d->info.soapy.address);
             break;
+
 #endif
 #ifdef STEMLAB_DISCOVERY
           case STEMLAB_PROTOCOL:
