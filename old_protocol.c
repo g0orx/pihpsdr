@@ -1703,9 +1703,9 @@ void ozy_send_buffer() {
           } else {
 	    // if diversity is enabled, use RX1 att value for RX2
             if (diversity_enabled) {
-              output_buffer[C1]=0x20 | (adc[receiver[0]->adc].attenuation & 0x1F);
+              output_buffer[C1]=0x20 | (adc[0].attenuation & 0x1F);
 	    } else {
-              output_buffer[C1]=0x20 | (adc[receiver[1]->adc].attenuation & 0x1F);
+              output_buffer[C1]=0x20 | (adc[1].attenuation & 0x1F);
 	    }
           }
         }
