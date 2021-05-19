@@ -532,7 +532,7 @@ int main(int argc, char *argv[])
                                   bp=buffer+16;  // skip 8 header and 8 SYNC/C&C bytes
 				  sum=0.0;
                                   for (j=0; j<126; j++) {
-					bp +=4;  / skip audio samples
+					bp +=4;  // skip audio samples
 					sample  = (int)((signed char) *bp++)<<8;
 					sample |= (int) ((signed char) *bp++ & 0xFF);
 					disample=(double) sample * 0.000030517578125;  // division by 32768
