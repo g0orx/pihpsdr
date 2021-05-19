@@ -515,7 +515,7 @@ newhpsdrsim.o:	newhpsdrsim.c hpsdrsim.h
 	$(CC) -c -O newhpsdrsim.c
 
 hpsdrsim:       hpsdrsim.o newhpsdrsim.o
-	$(CC) -o hpsdrsim hpsdrsim.o newhpsdrsim.o -lportaudio -lm -lpthread
+	$(CC) -o hpsdrsim hpsdrsim.o newhpsdrsim.o -lm -lpthread
 
 debian:
 	cp $(PROGRAM) pkg/pihpsdr/usr/local/bin
