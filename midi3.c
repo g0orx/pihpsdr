@@ -196,7 +196,7 @@ int DoTheRestOfTheMIDI(void *data) {
 		}
 		break;
 	      case MIDI_TYPE_WHEEL:
-		dnew=adc_attenuation[active_receiver->adc] + val;
+		dnew=adc[active_receiver->adc].attenuation + val;
                 if(have_rx_gain) {
                   if(dnew < -12.0) {
                     dnew = -12.0;
@@ -807,7 +807,7 @@ int DoTheRestOfTheMIDI(void *data) {
             if (type == MIDI_TYPE_KNOB) {
                 dnew=-12.0 + 0.6*val;
             } else  if (type == MIDI_TYPE_WHEEL) {
-                dnew=active_receiver->rf_gain+val;
+                dnew=adc[active_receiver->adc].gain+val;
             }
             if (dnew < -12.0) dnew = -12.0;
             if (dnew >  48.0) dnew =  48.0;

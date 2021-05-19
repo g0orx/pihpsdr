@@ -43,7 +43,6 @@ typedef struct _receiver {
   gint adc;
 
   gdouble volume;
-  gdouble rf_gain;
 
   gint agc;
   gdouble agc_gain;

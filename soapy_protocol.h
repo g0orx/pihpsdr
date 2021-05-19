@@ -32,7 +32,7 @@ void soapy_protocol_stop();
 void soapy_protocol_set_rx_frequency(RECEIVER *rx,int v);
 void soapy_protocol_set_rx_antenna(RECEIVER *rx,int ant);
 void soapy_protocol_set_lna_gain(RECEIVER *rx,int gain);
-void soapy_protocol_set_gain(RECEIVER *rx,double gain);
+void soapy_protocol_set_gain(RECEIVER *rx);
 void soapy_protocol_set_gain_element(RECEIVER *rx,char *name,int gain);
 int soapy_protocol_get_gain_element(RECEIVER *rx,char *name);
 void soapy_protocol_change_sample_rate(RECEIVER *rx);

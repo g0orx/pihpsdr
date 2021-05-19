@@ -277,9 +277,9 @@ void receiver_save_state(RECEIVER *rx) {
     sprintf(name,"receiver.%d.volume",rx->id);
     sprintf(value,"%f",rx->volume);
     setProperty(name,value);
-    sprintf(name,"receiver.%d.rf_gain",rx->id);
-    sprintf(value,"%f",rx->rf_gain);
-    setProperty(name,value);
+    //sprintf(name,"receiver.%d.rf_gain",rx->id);
+    //sprintf(value,"%f",rx->rf_gain);
+    //setProperty(name,value);
     sprintf(name,"receiver.%d.agc",rx->id);
     sprintf(value,"%d",rx->agc);
     setProperty(name,value);
@@ -471,9 +471,9 @@ fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
     sprintf(name,"receiver.%d.volume",rx->id);
     value=getProperty(name);
     if(value) rx->volume=atof(value);
-    sprintf(name,"receiver.%d.rf_gain",rx->id);
-    value=getProperty(name);
-    if(value) rx->rf_gain=atof(value);
+    //sprintf(name,"receiver.%d.rf_gain",rx->id);
+    //value=getProperty(name);
+    //if(value) rx->rf_gain=atof(value);
     sprintf(name,"receiver.%d.agc",rx->id);
     value=getProperty(name);
     if(value) rx->agc=atoi(value);
@@ -896,7 +896,6 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
   rx->panadapter_step=20;
 
   rx->volume=5.0;
-  rx->rf_gain=50.0;
 
   rx->squelch_enable=0;
   rx->squelch=0;
@@ -1032,7 +1031,6 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
   rx->waterfall_automatic=1;
 
   rx->volume=0.1;
-  rx->rf_gain=50.0;
 
   rx->dither=0;
   rx->random=0;
@@ -1209,13 +1207,6 @@ void receiver_change_adc(RECEIVER *rx,int adc) {
 
 void receiver_change_sample_rate(RECEIVER *rx,int sample_rate) {
 
-//
-// For  the PS_RX_FEEDBACK receiver we have to change
-// the number of pixels in the display (needed for
-// conversion from higher sample rates to 48K such
-// that the central part can be displayed in the TX panadapter
-//
-
   g_mutex_lock(&rx->mutex);
 
   rx->sample_rate=sample_rate;
@@ -1224,20 +1215,22 @@ void receiver_change_sample_rate(RECEIVER *rx,int sample_rate) {
   rx->hz_per_pixel=(double)rx->sample_rate/(double)rx->width;
 
 g_print("receiver_change_sample_rate: id=%d rate=%d scale=%d buffer_size=%d output_samples=%d\n",rx->id,sample_rate,scale,rx->buffer_size,rx->output_samples);
+
 #ifdef PURESIGNAL
-  if (rx->id == PS_RX_FEEDBACK) {
-    if (protocol == ORIGINAL_PROTOCOL) {
-      rx->pixels = 2* scale * rx->width;
-    } else {
-      // We should never arrive here, since the sample rate of the
-      // PS feedback receiver is fixed.
-      rx->pixels = 8 * rx->width;
-    }
+  //
+  // In the old protocol, the RX_FEEDBACK sample rate is tied
+  // to the radio's sample rate and therefore may vary.
+  // Since there is no downstream WDSP receiver her, the only thing
+  // we have to do here is to adapt the spectrum display of the 
+  // feedback and must then return (rx->id is not a WDSP channel!)
+  // 
+  if (rx->id == PS_RX_FEEDBACK && protocol == ORIGINAL_PROTOCOL) {
+    rx->pixels = 2* scale * rx->width;
     g_free(rx->pixel_samples);
     rx->pixel_samples=g_new(float,rx->pixels);
     init_analyzer(rx);
-    fprintf(stderr,"PS FEEDBACK change sample rate:id=%d rate=%d buffer_size=%d output_samples=%d\n",
-                   rx->id, rx->sample_rate, rx->buffer_size, rx->output_samples);
+    g_print("%s: PS FEEDBACK: id=%d rate=%d buffer_size=%d output_samples=%d\n",
+            __FUNCTION__,rx->id, rx->sample_rate, rx->buffer_size, rx->output_samples);
     g_mutex_unlock(&rx->mutex);
     return;
   }

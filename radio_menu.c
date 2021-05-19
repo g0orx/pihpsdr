@@ -81,10 +81,10 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 #ifdef SOAPYSDR
 static void rf_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
   ADC *adc=(ADC *)data;
-  active_receiver->rf_gain=gtk_spin_button_get_value(GTK_SPIN_BUTTON(widget));
+  adc->gain=gtk_spin_button_get_value(GTK_SPIN_BUTTON(widget));
   
   if(radio->device==SOAPYSDR_USB_DEVICE) {
-    soapy_protocol_set_gain(receiver[0],active_receiver->rf_gain);
+    soapy_protocol_set_gain(receiver[0]);
   }
 
 /*
@@ -881,7 +881,7 @@ void radio_menu(GtkWidget *parent) {
       max=73.0;
     }
     GtkWidget *rf_gain_b=gtk_spin_button_new_with_range(0.0,max,1.0);
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(rf_gain_b),active_receiver->rf_gain);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(rf_gain_b),adc[active_receiver->id].gain);
     gtk_grid_attach(GTK_GRID(grid),rf_gain_b,col,row,1,1);
     g_signal_connect(rf_gain_b,"value_changed",G_CALLBACK(rf_gain_value_changed_cb),&adc[0]);
 

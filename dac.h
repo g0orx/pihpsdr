@@ -22,7 +22,7 @@
 
 typedef struct _dac {
   gint antenna;
-  gint *tx_gain;
+  double gain;
 } DAC;
 
 #endif

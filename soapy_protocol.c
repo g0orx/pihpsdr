@@ -466,10 +466,10 @@ void soapy_protocol_set_tx_antenna(TRANSMITTER *tx,int ant) {
   }
 }
 
-void soapy_protocol_set_gain(RECEIVER *rx,double gain) {
+void soapy_protocol_set_gain(RECEIVER *rx) {
   int rc;
 //fprintf(stderr,"soapy_protocol_set_gain: adc=%d gain=%f\n",gain);
-  rc=SoapySDRDevice_setGain(soapy_device,SOAPY_SDR_RX,rx->adc,gain);
+  rc=SoapySDRDevice_setGain(soapy_device,SOAPY_SDR_RX,rx->adc,adc[rx->adc].gain);
   if(rc!=0) {
     fprintf(stderr,"soapy_protocol: SoapySDRDevice_setGain failed: %s\n",SoapySDR_errToStr(rc));
   }

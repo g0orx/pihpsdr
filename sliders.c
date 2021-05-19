@@ -123,7 +123,7 @@ int sliders_active_receiver_changed(void *data) {
     if (filter_board == CHARLY25) {
       update_att_preamp();
     } else {
-      gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc_attenuation[active_receiver->adc]);
+      gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc[active_receiver->adc].attenuation);
     }
     char title[64];
     if (have_rx_gain) {
@@ -144,26 +144,26 @@ int scale_timeout_cb(gpointer data) {
 }
 
 static void attenuation_value_changed_cb(GtkWidget *widget, gpointer data) {
-  adc_attenuation[active_receiver->adc]=(int)gtk_range_get_value(GTK_RANGE(attenuation_scale));
+  adc[active_receiver->adc].attenuation=(int)gtk_range_get_value(GTK_RANGE(attenuation_scale));
 #ifdef CLIENT_SERVER
   if(radio_is_remote) {
-    send_attenuation(client_socket,active_receiver->id,(int)adc_attenuation[active_receiver->adc]);
+    send_attenuation(client_socket,active_receiver->id,(int)adc[active_receiver->adc].attenuation);
   } else {
 #endif
-    set_attenuation(adc_attenuation[active_receiver->adc]);
+    set_attenuation(adc[active_receiver->adc].attenuation);
 #ifdef CLIENT_SERVER
   }
 #endif
 }
 
 void set_attenuation_value(double value) {
-  adc_attenuation[active_receiver->adc]=(int)value;
-  set_attenuation(adc_attenuation[active_receiver->adc]);
+  adc[active_receiver->adc].attenuation=(int)value;
+  set_attenuation(adc[active_receiver->adc].attenuation);
   if(display_sliders) {
     if (have_rx_gain) {
-	gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc_attenuation[active_receiver->adc]);
+	gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc[active_receiver->adc].attenuation);
     } else {
-        gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc_attenuation[active_receiver->adc]);
+        gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc[active_receiver->adc].attenuation);
     }
   } else {
     if(scale_status!=ATTENUATION) {
@@ -189,7 +189,7 @@ void set_attenuation_value(double value) {
         attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 31.0, 1.00);
       }
       gtk_widget_set_size_request (attenuation_scale, 400, 30);
-      gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc_attenuation[active_receiver->adc]);
+      gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc[active_receiver->adc].attenuation);
       gtk_widget_show(attenuation_scale);
       gtk_container_add(GTK_CONTAINER(content),attenuation_scale);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
@@ -197,7 +197,7 @@ void set_attenuation_value(double value) {
       gtk_dialog_run(GTK_DIALOG(scale_dialog));
     } else {
       g_source_remove(scale_timer);
-      gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc_attenuation[active_receiver->adc]);
+      gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc[active_receiver->adc].attenuation);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
     }
   }
@@ -212,10 +212,10 @@ void update_att_preamp(void) {
       active_receiver->alex_attenuation=0;
       active_receiver->preamp=0;
       active_receiver->dither=0;
-      adc_attenuation[active_receiver->adc] = 0;
+      adc[active_receiver->adc].attenuation = 0;
     }
     sprintf(id, "%d", active_receiver->alex_attenuation);
-    adc_attenuation[active_receiver->adc] = 12*active_receiver->alex_attenuation;
+    adc[active_receiver->adc].attenuation = 12*active_receiver->alex_attenuation;
     gtk_combo_box_set_active_id(GTK_COMBO_BOX(c25_att_combobox), id);
     sprintf(id, "%d", active_receiver->preamp + active_receiver->dither);
     gtk_combo_box_set_active_id(GTK_COMBO_BOX(c25_preamp_combobox), id);
@@ -249,7 +249,7 @@ static void c25_att_combobox_changed(GtkWidget *widget, gpointer data) {
   if (active_receiver->adc == 0) {
     // this button is only valid for the first receiver
     // store attenuation, such that in meter.c the correct level is displayed
-    adc_attenuation[active_receiver->adc] = 12*val;
+    adc[active_receiver->adc].attenuation = 12*val;
     set_alex_attenuation(val);
   } else {
     // always show "0 dB" on the button if the second RX is active
@@ -388,27 +388,27 @@ void set_af_gain(int rx,double value) {
 }
 
 static void rf_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
-    active_receiver->rf_gain=gtk_range_get_value(GTK_RANGE(af_gain_scale));
+    adc[active_receiver->adc].gain=gtk_range_get_value(GTK_RANGE(af_gain_scale));
 #ifdef SOAPYSDR
     if(protocol==SOAPYSDR_PROTOCOL) {
-      soapy_protocol_set_gain(active_receiver,active_receiver->rf_gain);
+      soapy_protocol_set_gain(active_receiver);
     }
 #endif
 }
 
 void update_rf_gain() {
-  set_rf_gain(active_receiver->id,active_receiver->rf_gain);
+  set_rf_gain(active_receiver->id,adc[active_receiver->id].gain);
 }
 
 void set_rf_gain(int rx,double value) {
-  receiver[rx]->rf_gain=value;
+  adc[receiver[rx]->adc].gain=value;
 #ifdef SOAPYSDR
   if(protocol==SOAPYSDR_PROTOCOL) {
-    soapy_protocol_set_gain(active_receiver,active_receiver->rf_gain);
+    soapy_protocol_set_gain(active_receiver);
   }
 #endif
   if(display_sliders) {
-    gtk_range_set_value (GTK_RANGE(attenuation_scale),receiver[rx]->rf_gain);
+    gtk_range_set_value (GTK_RANGE(rf_gain_scale),adc[receiver[rx]->id].gain);
   } else {
     if(scale_status!=RF_GAIN || scale_rx!=rx) {
       if(scale_status!=NO_FUNCTION) {
@@ -426,7 +426,7 @@ void set_rf_gain(int rx,double value) {
       GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
       rf_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.00);
       gtk_widget_set_size_request (rf_gain_scale, 400, 30);
-      gtk_range_set_value (GTK_RANGE(rf_gain_scale),receiver[rx]->rf_gain);
+      gtk_range_set_value (GTK_RANGE(rf_gain_scale),adc[receiver[rx]->id].gain);
       gtk_widget_show(rf_gain_scale);
       gtk_container_add(GTK_CONTAINER(content),rf_gain_scale);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
@@ -434,7 +434,7 @@ void set_rf_gain(int rx,double value) {
       gtk_dialog_run(GTK_DIALOG(scale_dialog));
     } else {
       g_source_remove(scale_timer);
-      gtk_range_set_value (GTK_RANGE(rf_gain_scale),receiver[rx]->rf_gain);
+      gtk_range_set_value (GTK_RANGE(rf_gain_scale),adc[receiver[rx]->id].gain);
       scale_timer=g_timeout_add(2000,scale_timeout_cb,NULL);
     }
   }
@@ -844,10 +844,10 @@ fprintf(stderr,"sliders_init: width=%d height=%d\n", width,height);
 
   if (have_rx_gain) {
 	attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-12.0, 48.0, 1.0);
-	gtk_range_set_value (GTK_RANGE(attenuation_scale),adc_attenuation[active_receiver->adc]);
+	gtk_range_set_value (GTK_RANGE(attenuation_scale),adc[active_receiver->adc].attenuation);
   } else {
 	attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 31.0, 1.0);
-	gtk_range_set_value (GTK_RANGE(attenuation_scale),adc_attenuation[active_receiver->adc]);
+	gtk_range_set_value (GTK_RANGE(attenuation_scale),adc[active_receiver->adc].attenuation);
   }
   gtk_range_set_increments (GTK_RANGE(attenuation_scale),1.0,1.0);
  
