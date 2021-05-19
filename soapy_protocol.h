@@ -27,7 +27,7 @@ SoapySDRDevice *get_soapy_device();
 void soapy_protocol_create_receiver(RECEIVER *rx);
 void soapy_protocol_start_receiver(RECEIVER *rx);
 
-void soapy_protocol_init(int rx,gboolean hf);
+void soapy_protocol_init(gboolean hf);
 void soapy_protocol_stop();
 void soapy_protocol_set_rx_frequency(RECEIVER *rx,int v);
 void soapy_protocol_set_rx_antenna(RECEIVER *rx,int ant);

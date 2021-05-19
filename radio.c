@@ -626,7 +626,7 @@ if(!radio_is_remote) {
       break;
 #ifdef SOAPYSDR
     case SOAPYSDR_PROTOCOL:
-      soapy_protocol_init(0,false);
+      soapy_protocol_init(false);
       break;
 #endif
   }
