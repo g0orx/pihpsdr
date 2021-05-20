@@ -518,7 +518,7 @@ static void process_edge(int offset,int value) {
       keyer_event(1, CW_ACTIVE_LOW ? (value==PRESSED) : value);
       found=TRUE;
     } else if(offset==CWR_BUTTON) {
-      keyer_event(1, CW_ACTIVE_LOW ? (value==PRESSED) : value);
+      keyer_event(2, CW_ACTIVE_LOW ? (value==PRESSED) : value);
       found=TRUE;
     }
   }
@@ -1084,19 +1084,11 @@ void gpio_cw_sidetone_set(int level) {
   int rc;
 #ifdef GPIO
   if (ENABLE_GPIO_SIDETONE) {
-    if((rc=gpiod_ctxless_set_value_ext(gpio_device,SIDETONE_GPIO,level,FALSE,consumer,NULL,NULL,0))<0) {
+    if((rc=gpiod_ctxless_set_value(gpio_device,SIDETONE_GPIO,level,FALSE,consumer,NULL,NULL))<0) {
       g_print("%s: err=%d\n",__FUNCTION__,rc);
     }
   }
 #endif
-}
-
-int  gpio_left_cw_key() {
-  return 0;
-}
-
-int  gpio_right_cw_key() {
-  return 0;
 }
 
 int  gpio_cw_sidetone_enabled() {
