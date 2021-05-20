@@ -54,10 +54,8 @@
 #ifdef SOAPYSDR
 #include "soapy_protocol.h"
 #endif
-#ifdef GPIO
-##include "actions.h"
+#include "actions.h"
 #include "gpio.h"
-#endif
 #include "vfo.h"
 #include "vox.h"
 #include "meter.h"
