@@ -591,8 +591,8 @@ if(!radio_is_remote) {
       SetPSHWPeak(transmitter->id, pk);
     }
 #endif
-  }
 
+  }
 #ifdef CLIENT_SERVER
 }
 #endif
@@ -1123,8 +1123,7 @@ void start_radio() {
     adc_attenuation[0]=14;
     adc_attenuation[1]=14;
   }
-  */
-
+*/
   adc[0].antenna=ANTENNA_1;
   adc[0].filters=AUTOMATIC;
   adc[0].hpf=HPF_13;
@@ -1227,14 +1226,8 @@ void start_radio() {
       RECEIVERS=1;
       MAX_RECEIVERS=RECEIVERS;
 #ifdef PURESIGNAL
-      //
-      // we cannot use the same receiver for normal RX and PS feedback
-      // so we must have two additional receivers, should we compile
-      // SOAPY with PURESIGNAL
-      // 
-      MAX_RECEIVERS=(RECEIVERS+2);
-      PS_TX_FEEDBACK=RECEIVERS;
-      PS_RX_FEEDBACK=RECEIVERS+1;
+      PS_TX_FEEDBACK=0;
+      PS_RX_FEEDBACK=0;
 #endif
       MAX_DDC=1;
       break;
@@ -1879,8 +1872,8 @@ void set_attenuation(int value) {
         break;
 #ifdef SOAPYSDR
       case SOAPYSDR_PROTOCOL:
-       soapy_protocol_set_gain_element(active_receiver,radio->info.soapy.rx_gain[0],(int)adc[0].gain);
-       break;
+	soapy_protocol_set_gain_element(active_receiver,radio->info.soapy.rx_gain[0],(int)adc[0].gain);
+	break;
 #endif
     }
 }
@@ -1967,6 +1960,7 @@ g_print("radioRestoreState: %s\n",property_path);
 #endif
   } else {
 #endif
+
     value=getProperty("radio_sample_rate");
     if (value) radio_sample_rate=atoi(value);
     value=getProperty("diversity_enabled");
@@ -2152,9 +2146,10 @@ g_print("radioRestoreState: %s\n",property_path);
     memRestoreState();
     vfo_restore_state();
     modesettings_restore_state();
-#ifdef GPIO
+//#ifdef GPIO
+//    gpio_restore_actions();
+//#endif
     gpio_restore_actions();
-#endif
     value=getProperty("rigctl_enable");
     if(value) rigctl_enable=atoi(value);
     value=getProperty("rigctl_port_base");
@@ -2207,12 +2202,15 @@ g_print("radioRestoreState: %s\n",property_path);
     value=getProperty("radio.adc[0].max_gain");
     if(value) adc[0].max_gain=atof(value);
 
+
 #ifdef  SOAPYSDR
     if(device==SOAPYSDR_USB_DEVICE) {
       value=getProperty("radio.adc[0].agc");
-      if(value) adc[0].agc=atoi(value);
+      if (value) adc[0].agc=atoi(value);
+      //if(value) soapy_protocol_set_automatic_gain(atoi(value));
     }
 #endif
+
     value=getProperty("radio.dac[0].antenna");
     if(value) dac[0].antenna=atoi(value);
     value=getProperty("radio.dac[0].gain");
@@ -2248,7 +2246,8 @@ g_print("radioRestoreState: %s\n",property_path);
 #ifdef  SOAPYSDR
       if(device==SOAPYSDR_USB_DEVICE) {
         value=getProperty("radio.adc[1].agc");
-        if(value) adc[1].agc=atoi(value);
+        if (value) adc[1].agc=atoi(value);
+        //if(value) soapy_protocol_set_automatic_gain(atoi(value));
       }
 #endif
 
@@ -2292,9 +2291,12 @@ g_print("radioSaveState: %s\n",property_path);
   
   g_mutex_lock(&property_mutex);
   clearProperties();
-#ifdef GPIO
+//#ifdef GPIO
+//  if(controller!=NO_CONTROLLER) {
+//    gpio_save_actions();
+//  }
+//#endif
   gpio_save_actions();
-#endif
   sprintf(value,"%d",receivers);
   setProperty("receivers",value);
   for(i=0;i<receivers;i++) {
@@ -2324,6 +2326,8 @@ g_print("radioSaveState: %s\n",property_path);
 #ifdef CLIENT_SERVER
   if(!radio_is_remote) {
 #endif
+    sprintf(value,"%d",radio_sample_rate);
+    setProperty("radio_sample_rate",value);
     sprintf(value,"%d",diversity_enabled);
     setProperty("diversity_enabled",value);
     sprintf(value,"%f",div_gain);
@@ -2527,12 +2531,12 @@ g_print("radioSaveState: %s\n",property_path);
     }
 #endif
 
-   sprintf(value,"%d", dac[0].antenna);
-   setProperty("radio.dac[0].antenna",value);
-   sprintf(value,"%f", dac[0].gain);
-   setProperty("radio.dac[0].gain",value);
+    sprintf(value,"%d", dac[0].antenna);
+    setProperty("radio.dac[0].antenna",value);
+    sprintf(value,"%f", dac[0].gain);
+    setProperty("radio.dac[0].gain",value);
 
-   if(receivers>1) {
+    if(receivers>1) {
       sprintf(value,"%d", adc[1].filters);
       setProperty("radio.adc[1].filters",value);
       sprintf(value,"%d", adc[1].hpf);
@@ -2721,7 +2725,9 @@ int remote_start(void *data) {
   for(int i=0;i<receivers;i++) {
     receiver_restore_state(receiver[i]);
     if(receiver[i]->local_audio) {
-      if (audio_open_output(receiver[i]) < 0) receiver[i]->local_audio=0;
+      if(audio_open_output(receiver[i])) {
+        receiver[i]->local_audio=0;
+      }
     }
   }
   reconfigure_radio();
