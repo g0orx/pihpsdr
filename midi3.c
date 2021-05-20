@@ -805,12 +805,12 @@ int DoTheRestOfTheMIDI(void *data) {
 	/////////////////////////////////////////////////////////// "RFGAIN"
         case MIDI_ACTION_RF_GAIN: // knob or wheel supported
             if (type == MIDI_TYPE_KNOB) {
-                dnew=-12.0 + 0.6*val;
+                dnew=val;
             } else  if (type == MIDI_TYPE_WHEEL) {
-                dnew=adc[active_receiver->adc].gain+val;
+                dnew=adc[active_receiver->id].gain+val;
             }
-            if (dnew < -12.0) dnew = -12.0;
-            if (dnew >  48.0) dnew =  48.0;
+            if (dnew <   0.0) dnew =   0.0;
+            if (dnew > 100.0) dnew = 100.0;
             set_rf_gain(active_receiver->id, dnew);
 	    break;
 	/////////////////////////////////////////////////////////// "RFPOWER"
