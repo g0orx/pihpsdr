@@ -56,6 +56,7 @@ void configure_gpio(GtkWidget *parent) {
   gint row=0;
   gint col=0;
   GtkWidget *widget;
+  GtkWidget *grid;
   int i;
 
   gpio_restore_state();
@@ -85,7 +86,9 @@ void configure_gpio(GtkWidget *parent) {
       break;
   }
 
-  GtkWidget *grid=gtk_grid_new();
+  if (max_encoders > 0) {
+
+  grid=gtk_grid_new();
   gtk_grid_set_column_homogeneous(GTK_GRID(grid),FALSE);
   gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
   gtk_grid_set_column_spacing (GTK_GRID(grid),2);
@@ -199,26 +202,27 @@ void configure_gpio(GtkWidget *parent) {
     col=0;
   }
   gtk_notebook_append_page(GTK_NOTEBOOK(notebook),grid,gtk_label_new("Encoders"));
+  }
 
 
   // switches
-  if(controller==CONTROLLER1) {
-    gint max_switches=MAX_SWITCHES;
-    switch(controller) {
-      case NO_CONTROLLER:
-        max_switches=0;
-        break;
-      case CONTROLLER1:
-        max_switches=8;
-        break;
-      case CONTROLLER2_V1:
-        max_switches=0;
-        break;
-      case CONTROLLER2_V2:
-        max_switches=0;
-        break;
-    }
+  gint max_switches=MAX_SWITCHES;
+  switch(controller) {
+    case NO_CONTROLLER:
+      max_switches=0;
+      break;
+    case CONTROLLER1:
+      max_switches=8;
+      break;
+    case CONTROLLER2_V1:
+      max_switches=0;
+      break;
+    case CONTROLLER2_V2:
+      max_switches=0;
+      break;
+  }
   
+  if (max_switches > 0) {
     grid=gtk_grid_new();
     gtk_grid_set_column_homogeneous(GTK_GRID(grid),FALSE);
     gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
@@ -267,19 +271,16 @@ void configure_gpio(GtkWidget *parent) {
   }
 
   if(controller==CONTROLLER2_V1 || controller==CONTROLLER2_V2) {
+    char text[16];
     grid=gtk_grid_new();
     gtk_grid_set_column_homogeneous(GTK_GRID(grid),FALSE);
     gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
-    gtk_grid_set_column_spacing (GTK_GRID(grid),2);
+    gtk_grid_set_column_spacing (GTK_GRID(grid),10);
     gtk_grid_set_row_spacing (GTK_GRID(grid),2);
 
     row=0;
     col=0;
  
-    char text[16];
-    grid=gtk_grid_new();
-    gtk_grid_set_column_spacing (GTK_GRID(grid),10);
-
     widget=gtk_label_new(NULL);
     gtk_label_set_markup(GTK_LABEL(widget),"<b>I2C Device</b>");
     gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
@@ -331,6 +332,83 @@ void configure_gpio(GtkWidget *parent) {
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook),grid,gtk_label_new("i2c"));
   }
 
+#ifdef LOCALCW
+  //
+  // C2V2 uses *all* available GPIO lines, therefore we cannot do
+  // CW there. The special switch_address -1 means "do not use"
+  //
+  if(controller !=CONTROLLER2_V2) {
+    char text[64];
+    grid=gtk_grid_new();
+    gtk_grid_set_column_homogeneous(GTK_GRID(grid),FALSE);
+    gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
+    gtk_grid_set_column_spacing (GTK_GRID(grid),10);
+    gtk_grid_set_row_spacing (GTK_GRID(grid),2);
+
+    row=0;
+    col=0;
+ 
+    widget=gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(widget),"<b>CW function</b>");
+    gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
+    col++;
+
+    widget=gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(widget),"<b>Gpio</b>");
+    gtk_widget_show(widget);
+    gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
+    col++;
+
+    row++;
+    col=0;
+
+    widget=gtk_label_new(NULL);
+    g_sprintf(text,"<b>Left Paddle</b>",i);
+    gtk_label_set_markup (GTK_LABEL(widget), text);
+    gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
+    col++;
+  
+    widget=gtk_spin_button_new_with_range (-1.0,28.0,1.0);
+    gtk_spin_button_set_value (GTK_SPIN_BUTTON(widget), switches_cw[0].switch_address);
+    gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
+
+    row++;
+    col=0;
+
+    widget=gtk_label_new(NULL);
+    g_sprintf(text,"<b>Right Paddle</b>",i);
+    gtk_label_set_markup (GTK_LABEL(widget), text);
+    gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
+    col++;
+  
+    widget=gtk_spin_button_new_with_range (-1.0,28.0,1.0);
+    gtk_spin_button_set_value (GTK_SPIN_BUTTON(widget), switches_cw[1].switch_address);
+    gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
+    
+    row++;
+    col=0;
+
+    widget=gtk_label_new(NULL);
+    g_sprintf(text,"<b>Sidetone output</b>",i);
+    gtk_label_set_markup (GTK_LABEL(widget), text);
+    gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
+    col++;
+  
+    widget=gtk_spin_button_new_with_range (-1.0,28.0,1.0);
+    gtk_spin_button_set_value (GTK_SPIN_BUTTON(widget), switches_cw[2].switch_address);
+    gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
+
+    row++;
+    col=0;
+
+    widget=gtk_label_new(NULL);
+    g_sprintf(text,"<b>Set GPIO number to -1 if unused.</b>",i);
+    gtk_label_set_markup (GTK_LABEL(widget), text);
+    gtk_grid_attach(GTK_GRID(grid),widget,col,row,2,1);
+
+    gtk_notebook_append_page(GTK_NOTEBOOK(notebook),grid,gtk_label_new("CW"));
+  }
+#endif
   gtk_container_add(GTK_CONTAINER(content),notebook);
 
   gtk_widget_show_all(dialog);

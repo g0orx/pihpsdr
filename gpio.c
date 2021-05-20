@@ -182,6 +182,15 @@ ENCODER encoders_controller2_v2[MAX_ENCODERS]={
 
 ENCODER *encoders=encoders_no_controller;
 
+//
+// in switches_cw,only the switch address will be used
+//
+SWITCH switches_cw[3]={
+  {FALSE,FALSE, 9,NO_ACTION,0L},
+  {FALSE,FALSE,11,NO_ACTION,0L},
+  {FALSE,FALSE,10,NO_ACTION,0L}
+};
+
 SWITCH switches_no_controller[MAX_SWITCHES]={
   {FALSE,FALSE,0,NO_ACTION,0L},
   {FALSE,FALSE,0,NO_ACTION,0L},
