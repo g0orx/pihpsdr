@@ -73,7 +73,9 @@ static GtkWidget *newVal;
 static GtkWidget *newType;
 static GtkWidget *newMin;
 static GtkWidget *newMax;
-static GtkWidget *newAction;
+static GtkWidget *newAction_key;
+static GtkWidget *newAction_knob;
+static GtkWidget *newAction_wheel;
 static GtkWidget *configure_b;
 static GtkWidget *any_b;
 static GtkWidget *add_b;
@@ -109,6 +111,10 @@ static enum MIDIaction thisAction;
 
 static gboolean accept_any=FALSE;
 
+static int *key_list;
+static int *knob_list;
+static int *wheel_list;
+
 enum {
   UPDATE_NEW,
   UPDATE_CURRENT,
@@ -125,6 +131,12 @@ static void cleanup() {
     gtk_widget_destroy(dialog);
     dialog=NULL;
     sub_menu=NULL;
+    if (key_list   != NULL) g_free(key_list);
+    if (knob_list  != NULL) g_free(knob_list);
+    if (wheel_list != NULL) g_free(wheel_list);
+    key_list=NULL;
+    knob_list=NULL;
+    wheel_list=NULL;
   }
 }
 
@@ -198,55 +210,34 @@ static void type_changed_cb(GtkWidget *widget, gpointer data) {
   // update actions available for the type
   gchar *type=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(widget));
 
+  if (type == NULL) {
+    //
+    // This happens if the combo-box is cleared in update()
+    //
+    return;
+  }
   g_print("%s: type=%s action=%d\n",__FUNCTION__,type,thisAction);
-  gtk_combo_box_text_remove_all(GTK_COMBO_BOX_TEXT(newAction));
-  if(type==NULL) {
-    // leave empty
-    gtk_combo_box_set_active (GTK_COMBO_BOX(newAction),0);
-  } else  if (strcmp(type,"NONE")==0) {
+  //
+  // Show the correct "Action" combo-box for the current type,
+  // and select the action
+  //
+  gtk_widget_hide(newAction_key);
+  gtk_widget_hide(newAction_knob);
+  gtk_widget_hide(newAction_wheel);
+  if (strcmp(type,"NONE")==0) {
     thisType=MIDI_TYPE_NONE;
-    gtk_combo_box_set_active (GTK_COMBO_BOX(newAction),0);
   } else if(strcmp(type,"KEY")==0) {
     thisType=MIDI_TYPE_KEY;
-    // add all the Key actions
-    i=0;
-    j=0;
-    while(ActionTable[i].action!=MIDI_ACTION_LAST) {
-      if(ActionTable[i].type&MIDI_TYPE_KEY) {
-        gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newAction),NULL,ActionTable[i].str);
-	if(ActionTable[i].action==thisAction) {
-          gtk_combo_box_set_active(GTK_COMBO_BOX(newAction),j);
-	}
-	j++;
-      }
-      i++;
-    }
+    gtk_widget_show(newAction_key);
+    gtk_combo_box_set_active(GTK_COMBO_BOX(newAction_key),key_list[thisAction]);
   } else if(strcmp(type,"KNOB/SLIDER")==0) {
     thisType=MIDI_TYPE_KNOB;
-    // add all the Knob actions
-    while(ActionTable[i].action!=MIDI_ACTION_LAST) {
-      if(ActionTable[i].type&MIDI_TYPE_KNOB) {
-        gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newAction),NULL,ActionTable[i].str);
-	if(ActionTable[i].action==thisAction) {
-          gtk_combo_box_set_active (GTK_COMBO_BOX(newAction),j);
-	}
-	j++;
-      }
-      i++;
-    }
+    gtk_widget_show(newAction_knob);
+    gtk_combo_box_set_active(GTK_COMBO_BOX(newAction_knob),knob_list[thisAction]);
   } else if(strcmp(type,"WHEEL")==0) {
     thisType=MIDI_TYPE_WHEEL;
-    // add all the Wheel actions
-    while(ActionTable[i].action!=MIDI_ACTION_LAST) {
-      if(ActionTable[i].type&MIDI_TYPE_WHEEL || ActionTable[i].type&MIDI_TYPE_KNOB) {
-        gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newAction),NULL,ActionTable[i].str);
-	if(ActionTable[i].action==thisAction) {
-          gtk_combo_box_set_active (GTK_COMBO_BOX(newAction),j);
-	}
-	j++;
-      }
-      i++;
-    }
+    gtk_widget_show(newAction_wheel);
+    gtk_combo_box_set_active(GTK_COMBO_BOX(newAction_wheel),wheel_list[thisAction]);
   }
   update_wheelparams(NULL);
 }
@@ -321,16 +312,16 @@ static void tree_selection_changed_cb (GtkTreeSelection *selection, gpointer dat
 
 static void find_current_cmd() {
   struct desc *cmd;
-  g_print("%s: Note=%d Chan=%d Type=%d Action=%d\n",__FUNCTION__, thisNote, thisChannel, thisType, thisAction);
   cmd=MidiCommandsTable[thisNote];
   while(cmd!=NULL) {
     if((cmd->channel==thisChannel) && cmd->type==thisType && cmd->action==thisAction) {
-      g_print("%s: found cmd %p\n",__FUNCTION__,cmd);
       break;
     }
     cmd=cmd->next;
   }
   current_cmd=cmd;  // NULL if not found
+  g_print("%s: Note=%d Chan=%d Type=%d Action=%d Cmd=%p\n",__FUNCTION__,
+		  thisNote, thisChannel, thisType, thisAction, current_cmd);
 }
 
 static void wheelparam_cb(GtkWidget *widget, gpointer user_data) {
@@ -581,8 +572,7 @@ static void load_store() {
 static void add_cb(GtkButton *widget,gpointer user_data) {
 
   gchar *str_type=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newType));
-  gchar *str_action=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newAction));
-;
+  gchar *str_action;
 
   gint i;
   gint type;
@@ -595,12 +585,16 @@ static void add_cb(GtkButton *widget,gpointer user_data) {
 
   if(strcmp(str_type,"KEY")==0) {
     type=MIDI_TYPE_KEY;
+    str_action=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newAction_key));
   } else if(strcmp(str_type,"KNOB/SLIDER")==0) {
     type=MIDI_TYPE_KNOB;
+    str_action=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newAction_knob));
   } else if(strcmp(str_type,"WHEEL")==0) {
     type=MIDI_TYPE_WHEEL;
+    str_action=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newAction_wheel));
   } else {
     type=MIDI_TYPE_NONE;
+    str_action="NONE";
   }
 
   action=MIDI_ACTION_NONE;
@@ -646,6 +640,7 @@ static void add_cb(GtkButton *widget,gpointer user_data) {
 
   MidiAddCommand(key, desc);
   add_store(key,desc);
+  current_cmd=desc;
 
   gtk_widget_set_sensitive(add_b,FALSE);
   gtk_widget_set_sensitive(update_b,TRUE);
@@ -666,19 +661,22 @@ static void update_cb(GtkButton *widget,gpointer user_data) {
   }
 
   gchar *str_type=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newType));
-  gchar *str_action=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newAction));
-;
-  //g_print("%s: type=%s action=%s\n",__FUNCTION__,str_type,str_action);
+  gchar *str_action;
 
   if(strcmp(str_type,"KEY")==0) {
     thisType=MIDI_TYPE_KEY;
+    str_action=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newAction_key));
   } else if(strcmp(str_type,"KNOB/SLIDER")==0) {
     thisType=MIDI_TYPE_KNOB;
+    str_action=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newAction_knob));
   } else if(strcmp(str_type,"WHEEL")==0) {
     thisType=MIDI_TYPE_WHEEL;
+    str_action=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newAction_wheel));
   } else {
     thisType=MIDI_TYPE_NONE;
+    str_action="NONE";
   }
+  //g_print("%s: type=%s action=%s\n",__FUNCTION__,str_type,str_action);
 
   thisAction=MIDI_ACTION_NONE;
   i=0;
@@ -787,7 +785,7 @@ static void delete_cb(GtkButton *widget,gpointer user_data) {
 }
 
 void midi_menu(GtkWidget *parent) {
-  int i;
+  int i,jkey,jknob,jwheel;
   int col=0;
   int row=0;
   GtkCellRenderer *renderer;
@@ -940,21 +938,56 @@ void midi_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),newMin,col++,row,1,1);
   newMax=gtk_label_new("");
   gtk_grid_attach(GTK_GRID(grid),newMax,col++,row,1,1);
-  newAction=gtk_combo_box_text_new();
-  gtk_combo_box_set_wrap_width(GTK_COMBO_BOX(newAction),4);
-  gtk_grid_attach(GTK_GRID(grid),newAction,col++,row,3,1);
 
-//
-// Load Action button with all actions, such that it
-// *now* assumes the maximum width
-//
-   i=0;
-   while(ActionTable[i].action!=MIDI_ACTION_LAST) {
-     gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newAction),NULL,ActionTable[i].str);
-     i++;
-   }
-   gtk_combo_box_set_active(GTK_COMBO_BOX(newAction),0);
+  //
+  // Create three instances of the "Action" combo-box,
+  // valid for the different types (KEY, KNOB, WHEEL)
+  newAction_key=gtk_combo_box_text_new();
+  gtk_combo_box_set_wrap_width(GTK_COMBO_BOX(newAction_key),4);
+  gtk_grid_attach(GTK_GRID(grid),newAction_key,col,row,3,1);
+  newAction_knob=gtk_combo_box_text_new();
+  gtk_combo_box_set_wrap_width(GTK_COMBO_BOX(newAction_knob),4);
+  gtk_grid_attach(GTK_GRID(grid),newAction_knob,col,row,3,1);
+  newAction_wheel=gtk_combo_box_text_new();
+  gtk_combo_box_set_wrap_width(GTK_COMBO_BOX(newAction_wheel),4);
+  gtk_grid_attach(GTK_GRID(grid),newAction_wheel,col,row,3,1);
 
+  // Determint number of actions
+  i=0;
+  while(ActionTable[i].action!=MIDI_ACTION_LAST) {
+    i++;
+  }
+  key_list   = (int *) g_new(int, i);
+  knob_list  = (int *) g_new(int, i);
+  wheel_list = (int *) g_new(int, i);
+
+  // Load Action box with "Key" actions
+  i=0;
+  jkey=0;
+  jknob;
+  jwheel;
+  //
+  // the lists note the position of the action #i in the newAction_<type> combo-box
+  // an action can appear in more than one combo-box.
+  //
+  while(ActionTable[i].action!=MIDI_ACTION_LAST) {
+    key_list[i]=0;
+    knob_list[i]=0;
+    wheel_list[i]=0;
+    if(ActionTable[i].type&MIDI_TYPE_KEY) {
+      gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newAction_key),NULL,ActionTable[i].str);
+      key_list[i]=jkey++;
+    }
+    if(ActionTable[i].type&MIDI_TYPE_KNOB) {
+      gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newAction_knob),NULL,ActionTable[i].str);
+      knob_list[i]=jknob++;
+    }
+    if(ActionTable[i].type&MIDI_TYPE_WHEEL) {
+      gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newAction_wheel),NULL,ActionTable[i].str);
+      wheel_list[i]=jwheel++;
+    }
+    i++;
+  }
   row++;
   col=0;
 
@@ -1178,8 +1211,9 @@ void midi_menu(GtkWidget *parent) {
   //
   // Clear Action box (we filled it just to set its width)
   //
-  gtk_combo_box_text_remove_all(GTK_COMBO_BOX_TEXT(newAction));
-  gtk_combo_box_set_active (GTK_COMBO_BOX(newAction),0);
+  gtk_widget_hide(newAction_key);
+  gtk_widget_hide(newAction_knob);
+  gtk_widget_hide(newAction_wheel);
   //
   // Hide "accept from any source" checkbox
   // (made visible only if config is checked)
@@ -1235,22 +1269,7 @@ static int update(void *data) {
           gtk_combo_box_set_active (GTK_COMBO_BOX(newType),0);
           break;
       }
-      gtk_combo_box_text_remove_all(GTK_COMBO_BOX_TEXT(newAction));
-      if(thisEvent==MIDI_EVENT_PITCH || thisEvent==MIDI_EVENT_NOTE) {
-	i=0;
-	j=0;
-	while(ActionTable[i].action!=MIDI_ACTION_LAST) {
-          if(ActionTable[i].type&MIDI_TYPE_KEY) {
-            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newAction),NULL,ActionTable[i].str);
-            if(ActionTable[i].action==thisAction) {
-              gtk_combo_box_set_active(GTK_COMBO_BOX(newAction),j);
-            }
-            j++;
-          }
-          i++;
-        }
 
-      }
       sprintf(text,"%d",thisVal);
       gtk_label_set_text(GTK_LABEL(newVal),text);
       sprintf(text,"%d",thisMin);
