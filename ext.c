@@ -190,27 +190,20 @@ void num_pad(int val) {
 }
 
 void update_vfo_step(int direction) {
-  int i=0;
-  while(steps[i]!=step && steps[i]!=0) {
-    i++;
+  int i;
+  for (i=0; i<STEPS; i++) {
+    if (steps[i] == step) break;
   }
+  if (i >= STEPS) i=0;
 
-  if(steps[i]!=0) {
-    // current step size is in slot #i.
-    if(direction>0) {
-      // move to next slot (if it exists)
-      i++;
-      if(steps[i]!=0) {
-        step=steps[i];
-      }
-    } else {
-      // move to previous slot (if it exists)
-      i--;
-      if(i>=0) {
-        step=steps[i];
-      }
-    }
+  if (direction > 0) {
+    i++;
+  } else {
+    i--;
   }
+  if (i >= STEPS) i=STEPS;
+  if (i < 0     ) i=0;
+
   vfo_update();
 }
 
