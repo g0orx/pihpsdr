@@ -579,7 +579,7 @@ static void add_cb(GtkButton *widget,gpointer user_data) {
   gint action;
   gint onoff;
 
-  if(str_type==NULL || str_action==NULL) {
+  if(str_type==NULL) {
     return;
   }
 
@@ -964,8 +964,8 @@ void midi_menu(GtkWidget *parent) {
   // Load Action box with "Key" actions
   i=0;
   jkey=0;
-  jknob;
-  jwheel;
+  jknob=0;
+  jwheel=0;
   //
   // the lists note the position of the action #i in the newAction_<type> combo-box
   // an action can appear in more than one combo-box.
