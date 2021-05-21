@@ -75,7 +75,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
           //
           // Since this if for immediate key-down, it does not rely on LOCALCW
           //
-          if (val != 0) {
+          if (val != 0 && cw_keyer_internal == 0) {
             cw_key_down=960000;  // max. 20 sec to protect hardware
             cw_key_up=0;
             cw_key_hit=1;
