@@ -1,4 +1,4 @@
- Copyright (C)
+/* Copyright (C)
 * 2016 - John Melton, G0ORX/N6LYT
 *
 * This program is free software; you can redistribute it and/or
