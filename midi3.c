@@ -61,7 +61,7 @@ typedef struct _MIDIcmd MIDIcmd;
 static int DoTheRestOfTheMIDI(void *data);
 
 void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
-    if (action == MIDI_ACTION_CWKEYER && cw_keyer_internal == 0) {
+    if (action == MIDI_ACTION_CWKEYER) {
           //
           // This is a CW key-up/down which uses functions from the keyer
           // that by-pass the interrupt-driven standard action.
@@ -75,7 +75,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
           //
           // Since this if for immediate key-down, it does not rely on LOCALCW
           //
-          if (val != 0) {
+          if (val != 0 && cw_keyer_internal == 0) {
             cw_key_down=960000;  // max. 20 sec to protect hardware
             cw_key_up=0;
             cw_key_hit=1;
