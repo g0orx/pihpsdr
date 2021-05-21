@@ -579,7 +579,7 @@ static void add_cb(GtkButton *widget,gpointer user_data) {
   gint action;
   gint onoff;
 
-  if(str_type==NULL || str_action==NULL) {
+  if(str_type==NULL) {
     return;
   }
 
