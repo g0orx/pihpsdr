@@ -579,7 +579,6 @@ void rx_panadapter_update(RECEIVER *rx) {
     //
     cairo_set_line_width(cr, 1.0);
   }
-  cairo_set_line_width(cr, LINE_WIDTH);
   cairo_stroke(cr);
 
   if(gradient) {
