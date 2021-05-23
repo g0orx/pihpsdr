@@ -22,8 +22,13 @@
 #include <gtk/gtk.h>
 #ifdef PORTAUDIO
 #include "portaudio.h"
-#else
+#endif
+#ifdef ALSA
 #include <alsa/asoundlib.h>
+#endif
+#ifdef PULSEAUDIO
+#include <pulse/pulseaudio.h>
+#include <pulse/simple.h>
 #endif
 
 enum _audio_t {
@@ -120,14 +125,22 @@ typedef struct _receiver {
   PaStream *playback_handle;
   gint local_audio_buffer_inpt;    // pointer in audio ring-buffer
   gint local_audio_buffer_outpt;   // pointer in audio ring-buffer
-#else
+  float *local_audio_buffer;
+  gint local_audio_cw;             // flag for latency switching
+#endif
+#ifdef ALSA
   snd_pcm_t *playback_handle;
   snd_pcm_format_t local_audio_format;
-#endif
+  void *local_audio_buffer;        // different formats possible, so void*
   gint local_audio_cw;             // flag for latency switching
+#endif
+#ifdef PULSEAUDIO
+  pa_simple *playstream;
+  gboolean output_started;
+  float *local_audio_buffer;
+#endif
   gint local_audio_buffer_size;
   gint local_audio_buffer_offset;
-  void *local_audio_buffer;
   GMutex local_audio_mutex;
 
   gint low_latency;
