@@ -1950,7 +1950,7 @@ static void encoder_changed(int action,int pos) {
       set_af_gain(1,value);
       break;
     case ENCODER_RF_GAIN:
-      value=active_receiver->rf_gain;
+      value=adc[active_receiver->adc].gain;
       value+=(double)pos;
       if(value<0.0) {
         value=0.0;
@@ -1960,7 +1960,7 @@ static void encoder_changed(int action,int pos) {
       set_rf_gain(active_receiver->id,value);
       break;
     case ENCODER_RF_GAIN_RX1:
-      value=receiver[0]->rf_gain;
+      value=adc[receiver[0]->adc].gain;
       value+=(double)pos;
       if(value<0.0) {
         value=0.0;
@@ -1970,7 +1970,7 @@ static void encoder_changed(int action,int pos) {
       set_rf_gain(0,value);
       break;
     case ENCODER_RF_GAIN_RX2:
-      value=receiver[1]->rf_gain;
+      value=adc[receiver[1]->adc].gain;
       value+=(double)pos;
       if(value<0.0) {
         value=0.0;
@@ -2028,7 +2028,7 @@ static void encoder_changed(int action,int pos) {
       filter_shift_changed(1,pos);
       break;
     case ENCODER_ATTENUATION:
-      value=(double)adc_attenuation[active_receiver->adc];
+      value=(double)adc[active_receiver->adc].attenuation;
       value+=(double)pos;
       if(have_rx_gain) {
         if(value<-12.0) {
