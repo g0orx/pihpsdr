@@ -45,7 +45,8 @@
 #include "client_server.h"
 #endif
 
-#define LINE_WIDTH 0.5
+#define LINE_THIN  0.5
+#define LINE_THICK 1.0
 
 //static float panadapter_max=-60.0;
 //static float panadapter_min=-160.0;
@@ -138,7 +139,7 @@ void rx_panadapter_update(RECEIVER *rx) {
   //clear_panadater_surface();
   cairo_t *cr;
   cr = cairo_create (rx->panadapter_surface);
-  cairo_set_line_width(cr, LINE_WIDTH);
+  cairo_set_line_width(cr, LINE_THIN);
   cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
   cairo_rectangle(cr,0,0,display_width,display_height);
   cairo_fill(cr);
@@ -221,6 +222,7 @@ void rx_panadapter_update(RECEIVER *rx) {
     cw_frequency=filter_left+((filter_right-filter_left)/2.0);
     cairo_move_to(cr,cw_frequency,10.0);
     cairo_line_to(cr,cw_frequency,(double)display_height);
+    cairo_set_line_width(cr, LINE_THICK);
     cairo_stroke(cr);
   }
 
@@ -232,7 +234,7 @@ void rx_panadapter_update(RECEIVER *rx) {
   }
 
   double dbm_per_line=(double)display_height/((double)rx->panadapter_high-(double)rx->panadapter_low);
-  cairo_set_line_width(cr, LINE_WIDTH);
+  cairo_set_line_width(cr, LINE_THIN);
   cairo_select_font_face(cr, DISPLAY_FONT, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
   cairo_set_font_size(cr, DISPLAY_FONT_SIZE2);
   char v[32];
@@ -249,6 +251,7 @@ void rx_panadapter_update(RECEIVER *rx) {
       cairo_show_text(cr, v);
     }
   }
+  cairo_set_line_width(cr, LINE_THIN);
   cairo_stroke(cr);
 
   // plot frequency markers
@@ -380,23 +383,26 @@ void rx_panadapter_update(RECEIVER *rx) {
     cairo_show_text(cr, v);
     f+=divisor;
   }
+  cairo_set_line_width(cr, LINE_THIN);
   cairo_stroke(cr);
 
   if(vfoband!=band60) {
     // band edges
     if(band->frequencyMin!=0LL) {
       cairo_set_source_rgb (cr, 1.0, 0.0, 0.0);
-      cairo_set_line_width(cr, LINE_WIDTH);
+      cairo_set_line_width(cr, LINE_THICK);
       if((min_display<band->frequencyMin)&&(max_display>band->frequencyMin)) {
         i=(band->frequencyMin-min_display)/(long long)HzPerPixel;
         cairo_move_to(cr,(double)i,0.0);
         cairo_line_to(cr,(double)i,(double)display_height);
+        cairo_set_line_width(cr, LINE_THICK);
         cairo_stroke(cr);
       }
       if((min_display<band->frequencyMax)&&(max_display>band->frequencyMax)) {
         i=(band->frequencyMax-min_display)/(long long)HzPerPixel;
         cairo_move_to(cr,(double)i,0.0);
         cairo_line_to(cr,(double)i,(double)display_height);
+        cairo_set_line_width(cr, LINE_THICK);
         cairo_stroke(cr);
       }
     }
@@ -419,6 +425,7 @@ void rx_panadapter_update(RECEIVER *rx) {
 
   // agc
   if(rx->agc!=AGC_OFF) {
+    cairo_set_line_width(cr, LINE_THICK);
     double knee_y=rx->agc_thresh+(double)adc[rx->adc].attenuation;
     if (filter_board == ALEX && rx->adc == 0) knee_y += (double)(10*rx->alex_attenuation);
     knee_y = floor((rx->panadapter_high - knee_y)
@@ -442,6 +449,7 @@ void rx_panadapter_update(RECEIVER *rx) {
       cairo_fill(cr);
       cairo_move_to(cr,40.0,hang_y);
       cairo_line_to(cr,(double)display_width-40.0,hang_y);
+      cairo_set_line_width(cr, LINE_THICK);
       cairo_stroke(cr);
       cairo_move_to(cr,48.0,hang_y);
       cairo_show_text(cr, "-H");
@@ -457,6 +465,7 @@ void rx_panadapter_update(RECEIVER *rx) {
     cairo_fill(cr);
     cairo_move_to(cr,40.0,knee_y);
     cairo_line_to(cr,(double)display_width-40.0,knee_y);
+    cairo_set_line_width(cr, LINE_THICK);
     cairo_stroke(cr);
     cairo_move_to(cr,48.0,knee_y);
     cairo_show_text(cr, "-G");
@@ -469,9 +478,9 @@ void rx_panadapter_update(RECEIVER *rx) {
   } else {
     cairo_set_source_rgb (cr, 0.5, 0.0, 0.0);
   }
-  cairo_set_line_width(cr, LINE_WIDTH);
   cairo_move_to(cr,vfofreq+(offset/HzPerPixel),0.0);
   cairo_line_to(cr,vfofreq+(offset/HzPerPixel),(double)display_height);
+  cairo_set_line_width(cr, LINE_THIN);
   cairo_stroke(cr);
 
   // signal
@@ -569,12 +578,12 @@ void rx_panadapter_update(RECEIVER *rx) {
   if(display_filled) {
     cairo_close_path (cr);
     cairo_fill_preserve (cr);
-    cairo_set_line_width(cr, LINE_WIDTH);
+    cairo_set_line_width(cr, LINE_THIN);
   } else {
     //
-    // if not filling, use a full pixel's width
+    // if not filling, use thicker line
     //
-    cairo_set_line_width(cr, 1.0);
+    cairo_set_line_width(cr, LINE_THICK);
   }
   cairo_stroke(cr);
 
