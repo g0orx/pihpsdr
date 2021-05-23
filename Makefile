@@ -14,7 +14,7 @@ GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 #    CONTROLLER2_V1 single encoders with MCP23017 switches
 #    CONTROLLER2_V2 dual encoders with MCP23017 switches
 #
-#GPIO_INCLUDE=GPIO
+GPIO_INCLUDE=GPIO
 
 # uncomment the line below to include Pure Signal support
 PURESIGNAL_INCLUDE=PURESIGNAL
@@ -26,7 +26,7 @@ MIDI_INCLUDE=MIDI
 # USBOZY_INCLUDE=USBOZY
 
 # uncomment the line to below include support local CW keyer
-LOCALCW_INCLUDE=LOCALCW
+#LOCALCW_INCLUDE=LOCALCW
 
 # uncomment the line below for SoapySDR
 #SOAPYSDR_INCLUDE=SOAPYSDR
@@ -39,6 +39,9 @@ LOCALCW_INCLUDE=LOCALCW
 
 # uncomment the line below to include support for STEMlab discovery (WITHOUT AVAHI)
 #STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_NOAVAHI
+
+# uncomment to get ALSA audio module on Linux (default is now to use pulseaudio)
+#AUDIO_MODULE=ALSA
 
 
 # uncomment the line below for various debug facilities
@@ -186,15 +189,39 @@ endif
 GTKINCLUDES=$(shell $(PKG_CONFIG) --cflags gtk+-3.0)
 GTKLIBS=$(shell $(PKG_CONFIG) --libs gtk+-3.0)
 
+#
+# MacOS: only PORTAUDIO
+#
+ifeq ($(UNAME_S), Darwin)
+    AUDIO_MODULE=PORTAUDIO
+endif
+
+#
+# default audio for LINUX is PULSEAUDIO but we can also use ALSA
+#
 ifeq ($(UNAME_S), Linux)
-#AUDIO_LIBS=-lpulse-simple -lpulse -lpulse-mainloop-glib
-#AUDIO_SOURCES=pulseaudio.c
-#AUDIO_OBJS=pulseaudio.o
-AUDIO_LIBS=
+  ifeq ($(AUDIO_MODULE) , ALSA)
+    AUDIO_MODULE=ALSA
+  else
+    AUDIO_MODULE=PULSEAUDIO
+  endif
+endif
+
+ifeq ($(AUDIO_MODULE), PULSEAUDIO)
+AUDIO_OPTIONS=-DPULSEAUDIO
+AUDIO_LIBS=-lpulse-simple -lpulse -lpulse-mainloop-glib
+AUDIO_SOURCES=pulseaudio.c
+AUDIO_OBJS=pulseaudio.o
+endif
+
+ifeq ($(AUDIO_MODULE), ALSA)
+AUDIO_OPTIONS=-DALSA
+AUDIO_LIBS=-lasound
 AUDIO_SOURCES=audio.c
 AUDIO_OBJS=audio.o
 endif
-ifeq ($(UNAME_S), Darwin)
+
+ifeq ($(AUDIO_MODULE), PORTAUDIO)
 AUDIO_OPTIONS=-DPORTAUDIO $(shell $(PKG_CONFIG) --cflags portaudio-2.0)
 AUDIO_LIBS=$(shell $(PKG_CONFIG) --libs portaudio-2.0)
 AUDIO_SOURCES=portaudio.c
@@ -542,7 +569,7 @@ debian:
 #############################################################################
 
 .PHONY: app
-app:	$(OBJS) $(REMOTE_OBJS) \
+app:	$(OBJS) $(REMOTE_OBJS) $(AUDIO_OBJS) \
 		$(USBOZY_OBJS)  $(SOAPYSDR_OBJS) \
 		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS)
