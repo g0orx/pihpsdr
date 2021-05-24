@@ -99,13 +99,6 @@ EXTERN struct sockaddr_in addr_old;
 EXTERN double c1,c2;
 
 //
-// Forward declarations for the audio functions
-//
-void audio_get_cards(void);
-void audio_open_output();
-void audio_write(int16_t, int16_t);
-
-//
 // Forward declarations for new protocol stuff
 //
 void   new_protocol_general_packet(unsigned char *buffer);
