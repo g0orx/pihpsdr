@@ -135,7 +135,7 @@ typedef struct _receiver {
   gint local_audio_cw;             // flag for latency switching
 #endif
 #ifdef PULSEAUDIO
-  pa_simple *playstream;
+  pa_simple *playback_handle;
   gboolean output_started;
   float *local_audio_buffer;
 #endif

@@ -39,11 +39,13 @@
 
 static PaStream *record_handle=NULL;
 
+
 int n_input_devices;
 AUDIO_DEVICE input_devices[MAX_AUDIO_DEVICES];
 int n_output_devices;
 AUDIO_DEVICE output_devices[MAX_AUDIO_DEVICES];
 
+GMutex audio_mutex;
 int n_input_devices=0;
 int n_output_devices=0;
 
@@ -99,6 +101,7 @@ void audio_get_cards()
 
   PaError err;
 
+  g_mutex_init(&audio_mutex);
   err = Pa_Initialize();
   if( err != paNoError )
   {
@@ -176,6 +179,7 @@ int audio_open_input()
   //
   // Look up device name and determine device ID
   //
+  g_mutex_lock(&audio_mutex);
   padev=-1;
   for (i=0; i<n_input_devices; i++) {
     if (!strcmp(transmitter->microphone_name, input_devices[i].name)) {
@@ -188,6 +192,7 @@ int audio_open_input()
   // Should not occur, but possibly device name not found
   //
   if (padev < 0) {
+    g_mutex_unlock(&audio_mutex);
     return -1;
   }
 
@@ -203,20 +208,27 @@ int audio_open_input()
                       paNoFlag, pa_mic_cb, NULL);
   if (err != paNoError) {
     fprintf(stderr, "PORTAUDIO ERROR: AOI open stream: %s\n",Pa_GetErrorText(err));
+    record_handle=NULL;
+    g_mutex_unlock(&audio_mutex);
     return -1;
   }
 
   mic_ring_buffer=(float *) g_new(float,MY_RING_BUFFER_SIZE);
   mic_ring_outpt = mic_ring_inpt=0;
   if (mic_ring_buffer == NULL) {
+    g_mutex_unlock(&audio_mutex);
+    audio_close_input();
     return -1;
   }
 
   err = Pa_StartStream(record_handle);
   if (err != paNoError) {
     fprintf(stderr, "PORTAUDIO ERROR: AOI start stream:%s\n",Pa_GetErrorText(err));
+    g_mutex_unlock(&audio_mutex);
+    audio_close_input();
     return -1;
   }
+  g_mutex_unlock(&audio_mutex);
   return 0;
 }
 //
@@ -275,6 +287,7 @@ int pa_mic_cb(const void *inputBuffer, void *outputBuffer, unsigned long framesP
   //
   // send the samples in the buffer
   //
+  g_mutex_lock(&audio_mutex);
   for (i=0; i<framesPerBuffer; i++) {
     sample=in[i];
     switch(protocol) {
@@ -287,8 +300,6 @@ int pa_mic_cb(const void *inputBuffer, void *outputBuffer, unsigned long framesP
 	// put sample into ring buffer
 	//
 	if (mic_ring_buffer != NULL) {
-          // the "existence" of the ring buffer is now guaranteed for 1 msec,
-          // see audio_close_input(),
 	  newpt=mic_ring_inpt +1;
 	  if (newpt == MY_RING_BUFFER_SIZE) newpt=0;
 	  if (newpt != mic_ring_outpt) {
@@ -303,6 +314,7 @@ int pa_mic_cb(const void *inputBuffer, void *outputBuffer, unsigned long framesP
 	break;
     }
   }
+  g_mutex_unlock(&audio_mutex);
   return paContinue;
 }
 
@@ -313,18 +325,18 @@ int pa_mic_cb(const void *inputBuffer, void *outputBuffer, unsigned long framesP
 float audio_get_next_mic_sample() {
   int newpt;
   float sample;
+  g_mutex_lock(&audio_mutex);
   if ((mic_ring_buffer == NULL) || (mic_ring_outpt == mic_ring_inpt)) {
     // no buffer, or nothing in buffer: insert silence
     sample=0.0;
   } else {
-    // the "existence" of the ring buffer is now guaranteed for 1 msec,
-    // see audio_close_input(),
     newpt = mic_ring_outpt+1;
     if (newpt == MY_RING_BUFFER_SIZE) newpt=0;
     sample=mic_ring_buffer[mic_ring_outpt];
     // atomic update of read pointer
     mic_ring_outpt=newpt;
   }
+  g_mutex_unlock(&audio_mutex);
   return sample;
 }
 
@@ -644,7 +656,7 @@ int cw_audio_write(RECEIVER *rx, float sample) {
       case 2:
         //
         // buffer becomes too full, and we just saw
-        // 16 samples of silence: just skip it
+        // 16 samples of silence: just skip the last "silent" sample
         //
         break;
     }

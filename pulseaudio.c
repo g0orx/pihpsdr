@@ -35,7 +35,7 @@ static pa_operation *op;
 static pa_context *pa_ctx;
 static pa_simple* microphone_stream;
 static gint local_microphone_buffer_offset;
-static float *local_microphone_buffer;
+static float *local_microphone_buffer=NULL;
 static GThread *mic_read_thread_id;
 static gboolean running;
 
@@ -144,7 +144,7 @@ int audio_open_output(RECEIVER *rx) {
     char stream_id[16];
     sprintf(stream_id,"RX-%d",rx->id);
 
-    rx->playstream=pa_simple_new(NULL,               // Use the default server.
+    rx->playback_handle=pa_simple_new(NULL,               // Use the default server.
                     "piHPSDR",           // Our application's name.
                     PA_STREAM_PLAYBACK,
                     rx->audio_name,
@@ -155,7 +155,7 @@ int audio_open_output(RECEIVER *rx) {
                     &err               // error code if returns NULL
                     );
 
-    if(rx->playstream!=NULL) {
+    if(rx->playback_handle!=NULL) {
       rx->local_audio_buffer_offset=0;
       rx->local_audio_buffer=g_new0(float,2*rx->local_audio_buffer_size);
       g_print("%s: allocated local_audio_buffer %p size %ld bytes\n",__FUNCTION__,rx->local_audio_buffer,2*rx->local_audio_buffer_size*sizeof(float));
@@ -175,50 +175,34 @@ static void *mic_read_thread(gpointer arg) {
 
   g_print("%s: running=%d\n",__FUNCTION__,running);
   while(running) {
-    g_mutex_lock(&audio_mutex);
-    if(local_microphone_buffer==NULL) {
-      running=0;
-    } else {
-      rc=pa_simple_read(microphone_stream,
+    //
+    // It is guaranteed that local_microphone_buffer, mic_ring_buffer, and microphone_stream
+    // will not be destroyes until this thread has terminated (and waited for via pthread_join)
+    //
+    rc=pa_simple_read(microphone_stream,
             local_microphone_buffer,
             local_microphone_buffer_size*sizeof(float),
             &err);
-      if(rc<0) {
-        running=0;
-        g_print("%s: returned %d error=%d (%s)\n",__FUNCTION__,rc,err,pa_strerror(err));
-      } else {
-	gint newpt;
-	for(gint i=0;i<local_microphone_buffer_size;i++) {
-          gfloat sample=local_microphone_buffer[i];
-          switch(protocol) {
-            case ORIGINAL_PROTOCOL:
-            case NEW_PROTOCOL:
-#ifdef SOAPYSDR
-            case SOAPYSDR_PROTOCOL:
-#endif
-              //
-              // put sample into ring buffer
-              //
-              if (mic_ring_buffer != NULL) {
-                // the "existence" of the ring buffer is now guaranteed for 1 msec,
-                // see audio_close_input().
-                newpt=mic_ring_write_pt +1;
-                if (newpt == MICRINGLEN) newpt=0;
-                if (newpt != mic_ring_read_pt) {
-                  // buffer space available, do the write
-                  mic_ring_buffer[mic_ring_write_pt]=sample;
-                  // atomic update of mic_ring_write_pt
-                  mic_ring_write_pt=newpt;
-                }
-              }
-              break;
-            default:
-              break;
-          }
+    if(rc<0) {
+      running=FALSE;
+      g_print("%s: returned %d error=%d (%s)\n",__FUNCTION__,rc,err,pa_strerror(err));
+    } else {
+      int newpt;
+      for(gint i=0;i<local_microphone_buffer_size;i++) {
+        gfloat sample=local_microphone_buffer[i];
+        //
+        // put sample into ring buffer
+        //
+        newpt=mic_ring_write_pt +1;
+        if (newpt == MICRINGLEN) newpt=0;
+        if (newpt != mic_ring_read_pt) {
+          // buffer space available, do the write
+          mic_ring_buffer[mic_ring_write_pt]=sample;
+          // atomic update of mic_ring_write_pt
+          mic_ring_write_pt=newpt;
         }
       }
     }
-    g_mutex_unlock(&audio_mutex);
   }
   g_print("%s: exit\n",__FUNCTION__);
 }
@@ -267,6 +251,7 @@ int audio_open_input() {
     mic_ring_buffer=(float *) g_new(float,MICRINGLEN);
     mic_ring_read_pt = mic_ring_write_pt=0;
     if (mic_ring_buffer == NULL) {
+      g_mutex_unlock(&audio_mutex);
       audio_close_input();
       return -1;
     }
@@ -291,9 +276,9 @@ int audio_open_input() {
 
 void audio_close_output(RECEIVER *rx) {
   g_mutex_lock(&rx->local_audio_mutex);
-  if(rx->playstream!=NULL) {
-    pa_simple_free(rx->playstream);
-    rx->playstream=NULL;
+  if(rx->playback_handle!=NULL) {
+    pa_simple_free(rx->playback_handle);
+    rx->playback_handle=NULL;
   }
   if(rx->local_audio_buffer!=NULL) {
     g_free(rx->local_audio_buffer);
@@ -303,12 +288,23 @@ void audio_close_output(RECEIVER *rx) {
 }
 
 void audio_close_input() {
+  running=FALSE;
+  if(mic_read_thread_id!=NULL) {
+g_print("audio_close_input: wait for thread to complete\n");
+    g_thread_join(mic_read_thread_id);
+    mic_read_thread_id=NULL;
+  }
   g_mutex_lock(&audio_mutex);
   if(microphone_stream!=NULL) {
     pa_simple_free(microphone_stream);
     microphone_stream=NULL;
+  }
+  if (local_microphone_buffer != NULL) {
     g_free(local_microphone_buffer);
     local_microphone_buffer=NULL;
+  }
+  if (mic_ring_buffer != NULL) {
+    g_free(mic_ring_buffer);
   }
   g_mutex_unlock(&audio_mutex);
 }
@@ -320,20 +316,18 @@ void audio_close_input() {
 float audio_get_next_mic_sample() {
   int newpt;
   float sample;
-
+  g_mutex_lock(&audio_mutex);
   if ((mic_ring_buffer == NULL) || (mic_ring_read_pt == mic_ring_write_pt)) {
     // no buffer, or nothing in buffer: insert silence
-    g_print("%s: no samples\n",__FUNCTION__);
     sample=0.0;
   } else {
-    // the "existence" of the ring buffer is now guaranteed for 1 msec,
-    // see audio_close_input(),
     newpt = mic_ring_read_pt+1;
     if (newpt == MICRINGLEN) newpt=0;
     sample=mic_ring_buffer[mic_ring_read_pt];
     // atomic update of read pointer
     mic_ring_read_pt=newpt;
   }
+  g_mutex_unlock(&audio_mutex);
   return sample;
 }
 
@@ -343,23 +337,25 @@ int cw_audio_write(RECEIVER *rx,float sample) {
   int err;
 
   g_mutex_lock(&rx->local_audio_mutex);
-  if(rx->local_audio_buffer==NULL) {
-    rx->local_audio_buffer_offset=0;
-    rx->local_audio_buffer=g_new0(float,2*rx->local_audio_buffer_size);
-  }
-
-  rx->local_audio_buffer[rx->local_audio_buffer_offset*2]=sample;
-  rx->local_audio_buffer[(rx->local_audio_buffer_offset*2)+1]=sample;
-  rx->local_audio_buffer_offset++;
-  if(rx->local_audio_buffer_offset>=rx->local_audio_buffer_size) {
-    rc=pa_simple_write(rx->playstream,
-                       rx->local_audio_buffer,
-                       rx->local_audio_buffer_size*sizeof(float)*2,
-                       &err);
-    if(rc!=0) {
-      fprintf(stderr,"audio_write failed err=%d\n",err);
+  if (rx->playback_handle != NULL) {  // Note this test must be done "mutex-protected"
+    if(rx->local_audio_buffer==NULL) {
+      rx->local_audio_buffer_offset=0;
+      rx->local_audio_buffer=g_new0(float,2*rx->local_audio_buffer_size);
     }
-    rx->local_audio_buffer_offset=0;
+
+    rx->local_audio_buffer[rx->local_audio_buffer_offset*2]=sample;
+    rx->local_audio_buffer[(rx->local_audio_buffer_offset*2)+1]=sample;
+    rx->local_audio_buffer_offset++;
+    if(rx->local_audio_buffer_offset>=rx->local_audio_buffer_size) {
+      rc=pa_simple_write(rx->playback_handle,
+                         rx->local_audio_buffer,
+                         rx->local_audio_buffer_size*sizeof(float)*2,
+                         &err);
+      if(rc!=0) {
+        fprintf(stderr,"cw_audio_write failed err=%d\n",err);
+      }
+      rx->local_audio_buffer_offset=0;
+    }
   }
   g_mutex_unlock(&rx->local_audio_mutex);
 
@@ -372,23 +368,25 @@ int audio_write(RECEIVER *rx,float left_sample,float right_sample) {
   int err;
 
   g_mutex_lock(&rx->local_audio_mutex);
-  if(rx->local_audio_buffer==NULL) {
-    rx->local_audio_buffer_offset=0;
-    rx->local_audio_buffer=g_new0(float,2*rx->local_audio_buffer_size);
-  }
-
-  rx->local_audio_buffer[rx->local_audio_buffer_offset*2]=left_sample;
-  rx->local_audio_buffer[(rx->local_audio_buffer_offset*2)+1]=right_sample;
-  rx->local_audio_buffer_offset++;
-  if(rx->local_audio_buffer_offset>=rx->local_audio_buffer_size) {
-    rc=pa_simple_write(rx->playstream,
-                       rx->local_audio_buffer,
-                       rx->local_audio_buffer_size*sizeof(float)*2,
-                       &err);
-    if(rc!=0) {
-      fprintf(stderr,"audio_write failed err=%d\n",err);
+  if (rx->playback_handle != NULL) {  // Note this test must be done "mutex-protected"
+    if(rx->local_audio_buffer==NULL) {
+      rx->local_audio_buffer_offset=0;
+      rx->local_audio_buffer=g_new0(float,2*rx->local_audio_buffer_size);
     }
-    rx->local_audio_buffer_offset=0;
+
+    rx->local_audio_buffer[rx->local_audio_buffer_offset*2]=left_sample;
+    rx->local_audio_buffer[(rx->local_audio_buffer_offset*2)+1]=right_sample;
+    rx->local_audio_buffer_offset++;
+    if(rx->local_audio_buffer_offset>=rx->local_audio_buffer_size) {
+      rc=pa_simple_write(rx->playback_handle,
+                         rx->local_audio_buffer,
+                         rx->local_audio_buffer_size*sizeof(float)*2,
+                         &err);
+      if(rc!=0) {
+        fprintf(stderr,"audio_write failed err=%d\n",err);
+      }
+      rx->local_audio_buffer_offset=0;
+    }
   }
   g_mutex_unlock(&rx->local_audio_mutex);
 
