@@ -591,6 +591,7 @@ void rx_panadapter_update(RECEIVER *rx) {
     cairo_pattern_destroy(gradient);
   }
 
+/*
 #ifdef GPIO
   if(rx->id==0 && controller==CONTROLLER1) {
 
@@ -615,6 +616,7 @@ void rx_panadapter_update(RECEIVER *rx) {
     }
   }
 #endif
+*/
 
   if(display_sequence_errors) {
     if(sequence_errors!=0) {
