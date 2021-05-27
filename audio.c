@@ -50,7 +50,7 @@
 
 int audio = 0;
 int mic_buffer_size = 720; // samples (both left and right)
-GMutex audio_mutex;
+static GMutex audio_mutex;
 
 static snd_pcm_t *record_handle=NULL;
 static snd_pcm_format_t record_audio_format;
