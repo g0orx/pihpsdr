@@ -54,9 +54,7 @@
 #ifdef SOAPYSDR
 #include "soapy_protocol.h"
 #endif
-#ifdef GPIO
 #include "gpio.h"
-#endif
 #include "vfo.h"
 #include "vox.h"
 #include "meter.h"
@@ -96,6 +94,8 @@
 #define TOOLBAR_HEIGHT (30)
 #define WATERFALL_HEIGHT (105)
 
+gint controller=NO_CONTROLLER;
+
 GtkWidget *fixed;
 static GtkWidget *vfo_panel;
 static GtkWidget *meter;
@@ -107,28 +107,30 @@ static GtkWidget *panadapter;
 static GtkWidget *waterfall;
 static GtkWidget *audio_waterfall;
 
+/*
 #ifdef GPIO
 static GtkWidget *encoders;
 static cairo_surface_t *encoders_surface = NULL;
 #endif
-	gint sat_mode;
+*/
+gint sat_mode;
 
-	int region=REGION_OTHER;
+int region=REGION_OTHER;
 
-	int echo=0;
+int echo=0;
 
-	int radio_sample_rate;
-	gboolean iqswap;
+int radio_sample_rate;
+gboolean iqswap;
 
-	static gint save_timer_id;
+static gint save_timer_id;
 
-	DISCOVERED *radio=NULL;
+DISCOVERED *radio=NULL;
 #ifdef CLIENT_SERVER
-	gboolean radio_is_remote=FALSE;
+gboolean radio_is_remote=FALSE;
 #endif
 
-	char property_path[128];
-        GMutex property_mutex;
+char property_path[128];
+GMutex property_mutex;
 
 RECEIVER *receiver[MAX_RECEIVERS];
 RECEIVER *active_receiver;
@@ -165,7 +167,7 @@ int panadapter_high=-40;
 int panadapter_low=-140;
 
 int display_filled=1;
-int display_gradient=0;
+int display_gradient=1;
 int display_detector_mode=DETECTOR_MODE_AVERAGE;
 int display_average_mode=AVERAGE_MODE_LOG_RECURSIVE;
 double display_average_time=120.0;
@@ -203,7 +205,7 @@ int receivers=RECEIVERS;
 
 ADC adc[2];
 DAC dac[2];
-int adc_attenuation[2];
+//int adc_attenuation[2];
 
 int locked=0;
 
@@ -557,24 +559,26 @@ if(!radio_is_remote) {
     calcDriveLevel();
 
 #ifdef PURESIGNAL
-    tx_set_ps_sample_rate(transmitter,protocol==NEW_PROTOCOL?192000:active_receiver->sample_rate);
-    receiver[PS_TX_FEEDBACK]=create_pure_signal_receiver(PS_TX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
-    receiver[PS_RX_FEEDBACK]=create_pure_signal_receiver(PS_RX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
-    switch (protocol) {
-      case NEW_PROTOCOL:
-        pk = 0.2899;
-        break;
-      case ORIGINAL_PROTOCOL:
-        switch (device) {
-          case DEVICE_HERMES_LITE2:
-            pk = 0.2300;
-            break;
-          default:
-            pk = 0.4067;
-            break;
-        }
+    if(protocol==NEW_PROTOCOL || protocol==ORIGINAL_PROTOCOL) {
+      tx_set_ps_sample_rate(transmitter,protocol==NEW_PROTOCOL?192000:active_receiver->sample_rate);
+      receiver[PS_TX_FEEDBACK]=create_pure_signal_receiver(PS_TX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
+      receiver[PS_RX_FEEDBACK]=create_pure_signal_receiver(PS_RX_FEEDBACK, buffer_size,protocol==ORIGINAL_PROTOCOL?active_receiver->sample_rate:192000,display_width);
+      switch (protocol) {
+        case NEW_PROTOCOL:
+          pk = 0.2899;
+          break;
+        case ORIGINAL_PROTOCOL:
+          switch (device) {
+            case DEVICE_HERMES_LITE2:
+              pk = 0.2300;
+              break;
+            default:
+              pk = 0.4067;
+              break;
+          }
+      }
+      SetPSHWPeak(transmitter->id, pk);
     }
-    SetPSHWPeak(transmitter->id, pk);
 #endif
 
   }
@@ -626,7 +630,7 @@ if(!radio_is_remote) {
       break;
 #ifdef SOAPYSDR
     case SOAPYSDR_PROTOCOL:
-      soapy_protocol_init(false);
+      soapy_protocol_init(FALSE);
       break;
 #endif
   }
@@ -1166,16 +1170,16 @@ void start_radio() {
 
 #ifdef GPIO
   switch(controller) {
+    case NO_CONTROLLER:
+      display_zoompan=1;
+      display_sliders=1;
+      display_toolbar=1;
+      break;
     case CONTROLLER2_V1:
     case CONTROLLER2_V2:
       display_zoompan=1;
       display_sliders=0;
       display_toolbar=0;
-      break;
-    default:
-      display_zoompan=1;
-      display_sliders=1;
-      display_toolbar=1;
       break;
   }
 #else
@@ -1269,6 +1273,7 @@ void start_radio() {
     soapy_protocol_set_rx_antenna(rx,adc[0].antenna);
     soapy_protocol_set_rx_frequency(rx,VFO_A);
     soapy_protocol_set_automatic_gain(rx,adc[0].agc);
+    soapy_protocol_set_gain(rx);
 
     if(vfo[0].ctun) {
       setFrequency(vfo[0].ctun_frequency);
@@ -1804,6 +1809,12 @@ void setSquelch(RECEIVER *rx) {
   SetRXAFMSQRun(rx->id, rx->squelch_enable);
 }
 
+void radio_set_rf_gain(RECEIVER *rx) {
+#ifdef SOAPYSDR
+  soapy_protocol_set_gain_element(rx,radio->info.soapy.rx_gain[rx->adc],(int)adc[rx->adc].gain);
+#endif
+}
+
 void set_attenuation(int value) {
     switch(protocol) {
       case NEW_PROTOCOL:
@@ -1811,8 +1822,8 @@ void set_attenuation(int value) {
         break;
 #ifdef SOAPYSDR
       case SOAPYSDR_PROTOCOL:
-        soapy_protocol_set_gain_element(active_receiver,radio->info.soapy.rx_gain[0],(int)adc[0].gain);
-        break;
+	soapy_protocol_set_gain_element(active_receiver,radio->info.soapy.rx_gain[0],(int)adc[0].gain);
+	break;
 #endif
     }
 }
@@ -1898,6 +1909,9 @@ g_print("radioRestoreState: %s\n",property_path);
 #endif
   } else {
 #endif
+
+    value=getProperty("radio_sample_rate");
+    if (value) radio_sample_rate=atoi(value);
     value=getProperty("diversity_enabled");
     if (value) diversity_enabled=atoi(value);
     value=getProperty("diversity_gain");
@@ -2095,10 +2109,12 @@ g_print("radioRestoreState: %s\n",property_path);
     value=getProperty("rigctl_serial_port");
     if (value) strcpy(ser_port,value);
 
+    /*
     value=getProperty("adc_0_attenuation");
     if(value) adc_attenuation[0]=atoi(value);
     value=getProperty("adc_1_attenuation");
     if(value) adc_attenuation[1]=atoi(value);
+    */
 	
     value=getProperty("split");
     if(value) split=atoi(value);
@@ -2134,12 +2150,14 @@ g_print("radioRestoreState: %s\n",property_path);
     value=getProperty("radio.adc[0].max_gain");
     if(value) adc[0].max_gain=atof(value);
 
+
 #ifdef  SOAPYSDR
     if(device==SOAPYSDR_USB_DEVICE) {
       value=getProperty("radio.adc[0].agc");
-      if(value) adc[0].agc=atoi(value);
+      if (value) adc[0].agc=atoi(value);
     }
 #endif
+
     value=getProperty("radio.dac[0].antenna");
     if(value) dac[0].antenna=atoi(value);
     value=getProperty("radio.dac[0].gain");
@@ -2175,9 +2193,10 @@ g_print("radioRestoreState: %s\n",property_path);
 #ifdef  SOAPYSDR
       if(device==SOAPYSDR_USB_DEVICE) {
         value=getProperty("radio.adc[1].agc");
-        if(value) adc[1].agc=atoi(value);
+        if (value) adc[1].agc=atoi(value);
       }
 #endif
+
       value=getProperty("radio.dac[1].antenna");
       if(value) dac[1].antenna=atoi(value);
       value=getProperty("radio.dac[1].gain");
@@ -2252,6 +2271,8 @@ g_print("radioSaveState: %s\n",property_path);
 #ifdef CLIENT_SERVER
   if(!radio_is_remote) {
 #endif
+    sprintf(value,"%d",radio_sample_rate);
+    setProperty("radio_sample_rate",value);
     sprintf(value,"%d",diversity_enabled);
     setProperty("diversity_enabled",value);
     sprintf(value,"%f",div_gain);
@@ -2412,10 +2433,12 @@ g_print("radioSaveState: %s\n",property_path);
     sprintf(value,"%f",tone_level);
     setProperty("tone_level",value);
 
+    /*
     sprintf(value,"%d",adc_attenuation[0]);
     setProperty("adc_0_attenuation",value);
     sprintf(value,"%d",adc_attenuation[1]);
     setProperty("adc_1_attenuation",value);
+    */
 	
     sprintf(value,"%d",rx_gain_calibration);
     setProperty("rx_gain_calibration",value);
@@ -2445,6 +2468,7 @@ g_print("radioSaveState: %s\n",property_path);
     sprintf(value,"%f", adc[0].max_gain);
     setProperty("radio.adc[0].max_gain",value);
 
+
 #ifdef  SOAPYSDR
     if(device==SOAPYSDR_USB_DEVICE) {
       sprintf(value,"%d", soapy_protocol_get_automatic_gain(receiver[0]));
@@ -2452,12 +2476,12 @@ g_print("radioSaveState: %s\n",property_path);
     }
 #endif
 
-   sprintf(value,"%d", dac[0].antenna);
-   setProperty("radio.dac[0].antenna",value);
-   sprintf(value,"%f", dac[0].gain);
-   setProperty("radio.dac[0].gain",value);
+    sprintf(value,"%d", dac[0].antenna);
+    setProperty("radio.dac[0].antenna",value);
+    sprintf(value,"%f", dac[0].gain);
+    setProperty("radio.dac[0].gain",value);
 
-   if(receivers>1) {
+    if(receivers>1) {
       sprintf(value,"%d", adc[1].filters);
       setProperty("radio.adc[1].filters",value);
       sprintf(value,"%d", adc[1].hpf);
@@ -2646,7 +2670,9 @@ int remote_start(void *data) {
   for(int i=0;i<receivers;i++) {
     receiver_restore_state(receiver[i]);
     if(receiver[i]->local_audio) {
-      if (audio_open_output(receiver[i]) < 0) receiver[i]->local_audio=0;
+      if(audio_open_output(receiver[i])) {
+        receiver[i]->local_audio=0;
+      }
     }
   }
   reconfigure_radio();
