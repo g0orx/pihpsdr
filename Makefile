@@ -43,7 +43,6 @@ MIDI_INCLUDE=MIDI
 # uncomment to get ALSA audio module on Linux (default is now to use pulseaudio)
 #AUDIO_MODULE=ALSA
 
-
 # uncomment the line below for various debug facilities
 #DEBUG_OPTION=-D DEBUG
 
@@ -466,7 +465,7 @@ $(PROGRAM):  $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS
 all:    prebuild  $(PROGRAM) $(HEADERS) $(AUDIO_HEADERS) $(USBOZY_HEADERS) $(SOAPYSDR_HEADERS) \
 	$(LOCALCW_HEADERS) $(GPIO_HEADERS) \
 	$(PURESIGNAL_HEADERS) $(MIDI_HEADERS) $(STEMLAB_HEADERS) $(SERVER_HEADERS) \
-	$(AUDIO_SOURCES) $(GPIO_SOURCES) $(SOURCES) \
+	$(AUDIO_SOURCES) $(SOURCES) $(GPIO_SOURCES) \
 	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(LOCALCW_SOURCE) \
 	$(PURESIGNAL_SOURCES) $(MIDI_SOURCES) $(STEMLAB_SOURCES) $(SERVER_SOURCES)
 
@@ -569,13 +568,11 @@ debian:
 #############################################################################
 
 .PHONY: app
-app:	$(OBJS) $(REMOTE_OBJS) $(AUDIO_OBJS) $(GPIO_OBJS) \
-		$(USBOZY_OBJS)  $(SOAPYSDR_OBJS) \
-		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
+app:	$(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS)  $(SOAPYSDR_OBJS) \
+		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) $(GPIO_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS)
-	$(CC)   -headerpad_max_install_names -o $(PROGRAM) \
-		$(OBJS) $(AUDIO_OBJS) $(GPIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) \
-		$(SOAPYSDR_OBJS) $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
+	$(CC)   -headerpad_max_install_names -o $(PROGRAM) $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS)  $(USBOZY_OBJS)  \
+		$(SOAPYSDR_OBJS) $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) $(GPIO_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS) $(LIBS) $(LDFLAGS)
 	@rm -rf pihpsdr.app
 	@mkdir -p pihpsdr.app/Contents/MacOS

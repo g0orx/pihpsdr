@@ -59,9 +59,7 @@
 #include "toolbar.h"
 #include "vox.h"
 #include "ext.h"
-#ifdef LOCALCW
 #include "iambic.h"
-#endif
 
 #define min(x,y) (x<y?x:y)
 
@@ -477,13 +475,6 @@ void new_protocol_init(int pixels) {
     outputsamples=buffer_size;
 #endif
     micoutputsamples=buffer_size*4;
-
-//  if(local_audio) {
-//   if(audio_open_output()!=0) {
-//     g_print("audio_open_output failed\n");
-//     local_audio=0;
-//   }
-//  }
 
     if(transmitter->local_microphone) {
       if(audio_open_input()!=0) {
