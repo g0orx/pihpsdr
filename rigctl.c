@@ -766,7 +766,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           if(command[4]==';') {
             // read the step size
             int i=0;
-            for(i=0;i<=14;i++) {
+            for(i=0;i<STEPS;i++) {
               if(steps[i]==step) break;
             }
             if(i<=14) {
@@ -777,7 +777,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           } else if(command[6]==';') {
             // set the step size
             int i=atoi(&command[4]) ;
-            if(i>=0 && i<=14) {
+            if(i>=0 && i<STEPS) {
               step=steps[i];
               vfo_update();
             }
@@ -789,7 +789,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           if(command[6]==';') {
             int step_index=atoi(&command[4]);
             long long hz=0;
-            if(step_index>=0 && step_index<=14) {
+            if(step_index>=0 && step_index<STEPS) {
               hz=(long long)steps[step_index];
             }
             if(hz!=0LL) {
@@ -862,7 +862,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           if(command[6]==';') {
             int step_index=atoi(&command[4]);
             long long hz=0;
-            if(step_index>=0 && step_index<=14) {
+            if(step_index>=0 && step_index<STEPS) {
               hz=(long long)steps[step_index];
             }
             if(hz!=0LL) {
@@ -926,7 +926,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           if(command[6]==';') {
             int step_index=atoi(&command[4]);
             long long hz=0;
-            if(step_index>=0 && step_index<=14) {
+            if(step_index>=0 && step_index<STEPS) {
               hz=(long long)steps[step_index];
             }
             if(hz!=0LL) {
@@ -941,7 +941,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           if(command[6]==';') {
             int step_index=atoi(&command[4]);
             long long hz=0;
-            if(step_index>=0 && step_index<=14) {
+            if(step_index>=0 && step_index<STEPS) {
               hz=(long long)steps[step_index];
             }
             if(hz!=0LL) {
@@ -3250,10 +3250,10 @@ int parse_cmd(void *data) {
           if(command[2]==';') {
             int att=0;
             if(have_rx_gain) {
-              att=(int)(adc_attenuation[active_receiver->adc]+12);
+              att=(int)(adc[active_receiver->adc].attenuation+12);
               att=(int)(((double)att/60.0)*99.0);
             } else {
-              att=(int)(adc_attenuation[active_receiver->adc]);
+              att=(int)(adc[active_receiver->adc].attenuation);
               att=(int)(((double)att/31.0)*99.0);
             }
             sprintf(reply,"RA%02d00;",att);

@@ -109,7 +109,7 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 		}
 		break;
 	      case MIDI_WHEEL:
-		new=adc_attenuation[active_receiver->adc] + val;
+		new=adc[active_receiver->adc].attenuation + val;
 		dp=malloc(sizeof(double));
 		*dp=(double) new;
                 if(have_rx_gain) {
@@ -148,6 +148,166 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	      g_idle_add(ext_vfo_b_to_a, NULL);
 	    }
 	    break;
+	/////////////////////////////////////////////////////////// "NUMPADxx"
+	case NUMPAD_0:
+	    g_idle_add(ext_num_pad,GINT_TO_POINTER(0));
+            break;
+	case NUMPAD_1:
+	    g_idle_add(ext_num_pad,GINT_TO_POINTER(1));
+            break;
+	case NUMPAD_2:
+	    g_idle_add(ext_num_pad,GINT_TO_POINTER(2));
+            break;
+	case NUMPAD_3:
+	    g_idle_add(ext_num_pad,GINT_TO_POINTER(3));
+            break;
+	case NUMPAD_4:
+	    g_idle_add(ext_num_pad,GINT_TO_POINTER(4));
+            break;
+	case NUMPAD_5:
+	    g_idle_add(ext_num_pad,GINT_TO_POINTER(5));
+            break;
+	case NUMPAD_6:
+	    g_idle_add(ext_num_pad,GINT_TO_POINTER(6));
+            break;
+	case NUMPAD_7:
+	    g_idle_add(ext_num_pad,GINT_TO_POINTER(7));
+            break;
+	case NUMPAD_8:
+	    g_idle_add(ext_num_pad,GINT_TO_POINTER(8));
+            break;
+	case NUMPAD_9:
+	    g_idle_add(ext_num_pad,GINT_TO_POINTER(9));
+            break;
+	case NUMPAD_CL:
+	    g_idle_add(ext_num_pad,GINT_TO_POINTER(-1));
+            break;
+	case NUMPAD_ENTER:
+	    g_idle_add(ext_num_pad,GINT_TO_POINTER(-2));
+            break;
+	    break;
+
+	/////////////////////////////////////////////////////////// "BANDxxx"
+        case MIDI_BAND_10:
+            if (type == MIDI_KEY) {
+              g_idle_add(ext_band_select, GINT_TO_POINTER(band10));
+            }
+            break;
+        case MIDI_BAND_12:
+            if (type == MIDI_KEY) {
+              g_idle_add(ext_band_select, GINT_TO_POINTER(band12));
+            }
+            break;
+#ifdef SOAPYSDR
+        case MIDI_BAND_1240:
+            if (type == MIDI_KEY) {
+              g_idle_add(ext_band_select, GINT_TO_POINTER(band1240));
+            }
+            break;
+        case MIDI_BAND_144:
+            if (type == MIDI_KEY) {
+              g_idle_add(ext_band_select, GINT_TO_POINTER(band144));
+            }
+            break;
+#endif
+        case MIDI_BAND_15:
+            if (type == MIDI_KEY) {
+              g_idle_add(ext_band_select, GINT_TO_POINTER(band15));
+            }
+            break;
+        case MIDI_BAND_160:
+            if (type == MIDI_KEY) {
+              g_idle_add(ext_band_select, GINT_TO_POINTER(band160));
+            }
+            break;
+        case MIDI_BAND_17:
+            if (type == MIDI_KEY) {
+              g_idle_add(ext_band_select, GINT_TO_POINTER(band17));
+            }
+            break;
+        case MIDI_BAND_20:
+            if (type == MIDI_KEY) {
+              g_idle_add(ext_band_select, GINT_TO_POINTER(band20));
+            }
+            break;
+#ifdef SOAPYSDR
+        case MIDI_BAND_220:
+            if (type == MIDI_KEY) {
+              g_idle_add(ext_band_select, GINT_TO_POINTER(band220));
+            }
+            break;
+        case MIDI_BAND_2300:
+            if (type == MIDI_KEY) {
+              g_idle_add(ext_band_select, GINT_TO_POINTER(band2300));
+            }
+            break;
+#endif
+        case MIDI_BAND_30:
+            if (type == MIDI_KEY) {
+              g_idle_add(ext_band_select, GINT_TO_POINTER(band30));
+            }
+            break;
+#ifdef SOAPYSDR
+        case MIDI_BAND_3400:
+            if (type == MIDI_KEY) {
+              g_idle_add(ext_band_select, GINT_TO_POINTER(band3400));
+            }
+            break;
+        case MIDI_BAND_70:
+            if (type == MIDI_KEY) {
+              g_idle_add(ext_band_select, GINT_TO_POINTER(band70));
+            }
+            break;
+#endif
+        case MIDI_BAND_40:
+            if (type == MIDI_KEY) {
+              g_idle_add(ext_band_select, GINT_TO_POINTER(band40));
+            }
+            break;
+#ifdef SOAPYSDR
+        case MIDI_BAND_430:
+            if (type == MIDI_KEY) {
+              g_idle_add(ext_band_select, GINT_TO_POINTER(band430));
+            }
+            break;
+#endif
+        case MIDI_BAND_6:
+            if (type == MIDI_KEY) {
+              g_idle_add(ext_band_select, GINT_TO_POINTER(band6));
+            }
+            break;
+        case MIDI_BAND_60:
+            if (type == MIDI_KEY) {
+              g_idle_add(ext_band_select, GINT_TO_POINTER(band60));
+            }
+            break;
+        case MIDI_BAND_80:
+            if (type == MIDI_KEY) {
+              g_idle_add(ext_band_select, GINT_TO_POINTER(band80));
+            }
+            break;
+#ifdef SOAPYSDR
+        case MIDI_BAND_902:
+            if (type == MIDI_KEY) {
+              g_idle_add(ext_band_select, GINT_TO_POINTER(band902));
+            }
+            break;
+        case MIDI_BAND_AIR:
+            if (type == MIDI_KEY) {
+              g_idle_add(ext_band_select, GINT_TO_POINTER(bandAIR));
+            }
+            break;
+#endif
+        case MIDI_BAND_GEN:
+            if (type == MIDI_KEY) {
+              g_idle_add(ext_band_select, GINT_TO_POINTER(bandGen));
+            }
+            break;
+        case MIDI_BAND_WWV:
+            if (type == MIDI_KEY) {
+              g_idle_add(ext_band_select, GINT_TO_POINTER(bandWWV));
+            }
+            break;
 	/////////////////////////////////////////////////////////// "BANDDOWN"
 	/////////////////////////////////////////////////////////// "BANDUP"
 	case BAND_DOWN:
@@ -218,15 +378,15 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	    break;
 	/////////////////////////////////////////////////////////// "CWL"
 	/////////////////////////////////////////////////////////// "CWR"
-	case CWL: // only key
-	case CWR: // only key
+	case CWLEFT: // only key
+	case CWRIGHT: // only key
 #ifdef LOCALCW
 	    if (type == MIDI_KEY) {
-		new=(action == CWL);
+		new=(action == CWLEFT);
 		keyer_event(new,val);
 	    }
 #else
-	    g_print("%s: %s:%d\n",__FUNCTION__,action==CWL?"CWL":"CWR",val);
+	    g_print("%s: %s:%d\n",__FUNCTION__,action==CWLEFT?"CWL":"CWR",val);
 
 #endif
 	    break;
@@ -374,6 +534,14 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
 	      if (new <0) new=FILTERS-1;
 	      g_idle_add(ext_vfo_filter_changed, GINT_TO_POINTER(new));
 	    }
+	    break;
+	/////////////////////////////////////////////////////////// "MENU_FILTFILTERER"
+	case MENU_FILTER:
+	    g_idle_add(ext_menu_filter, NULL);
+	    break;
+	/////////////////////////////////////////////////////////// "MENU_MODE"
+	case MENU_MODE:
+	    g_idle_add(ext_menu_mode, NULL);
 	    break;
 	/////////////////////////////////////////////////////////// "LOCK"
 	case MIDI_LOCK: // only key supported
@@ -597,7 +765,8 @@ void DoTheMidi(enum MIDIaction action, enum MIDItype type, int val) {
             if (type == MIDI_KNOB) {
                 new=val;
             } else  if (type == MIDI_WHEEL) {
-                new=(int)active_receiver->rf_gain+val;
+                //new=(int)active_receiver->rf_gain+val;
+                new=(int)adc[active_receiver->id].gain+val;
             }
             g_idle_add(ext_set_rf_gain, GINT_TO_POINTER((int)new));
 	    break;

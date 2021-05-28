@@ -64,8 +64,8 @@ static int my_height;
 static GtkWidget *vfo_panel;
 static cairo_surface_t *vfo_surface = NULL;
 
-int steps[]={1,10,25,50,100,250,500,1000,5000,9000,10000,100000,250000,500000,1000000,0};
-char *step_labels[]={"1Hz","10Hz","25Hz","50Hz","100Hz","250Hz","500Hz","1kHz","5kHz","9kHz","10kHz","100kHz","250KHz","500KHz","1MHz",0};
+int steps[]={1,10,25,50,100,250,500,1000,5000,9000,10000,100000,250000,500000,1000000};
+char *step_labels[]={"1Hz","10Hz","25Hz","50Hz","100Hz","250Hz","500Hz","1kHz","5kHz","9kHz","10kHz","100kHz","250KHz","500KHz","1MHz"};
 
 static GtkWidget* menu=NULL;
 static GtkWidget* band_menu=NULL;
@@ -270,7 +270,6 @@ void vfo_xvtr_changed() {
 
 void vfo_band_changed(int id,int b) {
   BANDSTACK *bandstack;
-  int m;
 
 #ifdef CLIENT_SERVER
   if(radio_is_remote) {
@@ -302,22 +301,6 @@ void vfo_band_changed(int id,int b) {
   vfo[id].mode=entry->mode;
   vfo[id].filter=entry->filter;
   vfo[id].lo=band->frequencyLO+band->errorLO;
-
-  //
-  // Change to the filter/NR combination stored for this mode
-  //
-  m=vfo[id].mode;
-
-  vfo[id].filter      =mode_settings[m].filter;
-  active_receiver->nr =mode_settings[m].nr;
-  active_receiver->nr2=mode_settings[m].nr2;
-  active_receiver->nb =mode_settings[m].nb;
-  active_receiver->nb2=mode_settings[m].nb2;
-  active_receiver->anf=mode_settings[m].anf;
-  active_receiver->snb=mode_settings[m].snb;
-
-  // make changes effective
-  g_idle_add(ext_update_noise, NULL);
 
   // turn off ctun
   vfo[id].ctun=0;
@@ -497,12 +480,10 @@ void vfo_a_to_b() {
   vfo[VFO_B].frequency=vfo[VFO_A].frequency;
   vfo[VFO_B].mode=vfo[VFO_A].mode;
   vfo[VFO_B].filter=vfo[VFO_A].filter;
-  vfo[VFO_B].ctun=vfo[VFO_A].ctun;
-  vfo[VFO_B].ctun_frequency=vfo[VFO_A].ctun_frequency;
-  vfo[VFO_B].rit_enabled=vfo[VFO_A].rit_enabled;
-  vfo[VFO_B].rit=vfo[VFO_A].rit;
   vfo[VFO_B].lo=vfo[VFO_A].lo;
   vfo[VFO_B].offset=vfo[VFO_A].offset;
+  vfo[VFO_B].rit_enabled=vfo[VFO_A].rit_enabled;
+  vfo[VFO_B].rit=vfo[VFO_A].rit;
 
   if(receivers==2) {
     receiver_vfo_changed(receiver[1]);
@@ -519,13 +500,10 @@ void vfo_b_to_a() {
   vfo[VFO_A].frequency=vfo[VFO_B].frequency;
   vfo[VFO_A].mode=vfo[VFO_B].mode;
   vfo[VFO_A].filter=vfo[VFO_B].filter;
-  vfo[VFO_A].ctun=vfo[VFO_B].ctun;
-  vfo[VFO_A].ctun_frequency=vfo[VFO_B].ctun_frequency;
-  vfo[VFO_A].rit_enabled=vfo[VFO_B].rit_enabled;
-  vfo[VFO_A].rit=vfo[VFO_B].rit;
   vfo[VFO_A].lo=vfo[VFO_B].lo;
   vfo[VFO_A].offset=vfo[VFO_B].offset;
-
+  vfo[VFO_A].rit_enabled=vfo[VFO_B].rit_enabled;
+  vfo[VFO_A].rit=vfo[VFO_B].rit;
   receiver_vfo_changed(receiver[0]);
   if(can_transmit) {
     tx_set_mode(transmitter,get_tx_mode());
@@ -539,48 +517,40 @@ void vfo_a_swap_b() {
   long long temp_frequency;
   int temp_mode;
   int temp_filter;
-  int temp_ctun;
-  long long temp_ctun_frequency;
+  int temp_lo;
+  int temp_offset;
   int temp_rit_enabled;
-  long long temp_rit;
-  long long temp_lo;
-  long long temp_offset;
+  int temp_rit;
 
   temp_band=vfo[VFO_A].band;
   temp_bandstack=vfo[VFO_A].bandstack;
   temp_frequency=vfo[VFO_A].frequency;
   temp_mode=vfo[VFO_A].mode;
   temp_filter=vfo[VFO_A].filter;
-  temp_ctun=vfo[VFO_A].ctun;
-  temp_ctun_frequency=vfo[VFO_A].ctun_frequency;
-  temp_rit_enabled=vfo[VFO_A].rit_enabled;
-  temp_rit=vfo[VFO_A].rit;
   temp_lo=vfo[VFO_A].lo;
   temp_offset=vfo[VFO_A].offset;
+  temp_rit_enabled=vfo[VFO_A].rit_enabled;
+  temp_rit=vfo[VFO_A].rit;
 
   vfo[VFO_A].band=vfo[VFO_B].band;
   vfo[VFO_A].bandstack=vfo[VFO_B].bandstack;
   vfo[VFO_A].frequency=vfo[VFO_B].frequency;
   vfo[VFO_A].mode=vfo[VFO_B].mode;
   vfo[VFO_A].filter=vfo[VFO_B].filter;
-  vfo[VFO_A].ctun=vfo[VFO_B].ctun;
-  vfo[VFO_A].ctun_frequency=vfo[VFO_B].ctun_frequency;
-  vfo[VFO_A].rit_enabled=vfo[VFO_B].rit_enabled;
-  vfo[VFO_A].rit=vfo[VFO_B].rit;
   vfo[VFO_A].lo=vfo[VFO_B].lo;
   vfo[VFO_A].offset=vfo[VFO_B].offset;
+  vfo[VFO_A].rit_enabled=vfo[VFO_B].rit_enabled;
+  vfo[VFO_A].rit=vfo[VFO_B].rit;
 
   vfo[VFO_B].band=temp_band;
   vfo[VFO_B].bandstack=temp_bandstack;
   vfo[VFO_B].frequency=temp_frequency;
   vfo[VFO_B].mode=temp_mode;
   vfo[VFO_B].filter=temp_filter;
-  vfo[VFO_B].ctun=temp_ctun;
-  vfo[VFO_B].ctun_frequency=temp_ctun_frequency;
-  vfo[VFO_B].rit_enabled=temp_rit_enabled;
-  vfo[VFO_B].rit=temp_rit;
   vfo[VFO_B].lo=temp_lo;
   vfo[VFO_B].offset=temp_offset;
+  vfo[VFO_B].rit_enabled=temp_rit_enabled;
+  vfo[VFO_B].rit=temp_rit;
 
   receiver_vfo_changed(receiver[0]);
   if(receivers==2) {
@@ -600,7 +570,6 @@ void vfo_step(int steps) {
 
 #ifdef CLIENT_SERVER
   if(radio_is_remote) {
-    //send_vfo_step(client_socket,id,steps);
     update_vfo_step(id,steps);
     return;
   }
@@ -941,7 +910,7 @@ void vfo_update() {
         cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
         cairo_paint (cr);
 
-        cairo_select_font_face(cr, "FreeMono",
+        cairo_select_font_face(cr, "FreeSans",
             CAIRO_FONT_SLANT_NORMAL,
             CAIRO_FONT_WEIGHT_BOLD);
 
@@ -983,14 +952,23 @@ void vfo_update() {
         long long af = vfo[0].ctun ? vfo[0].ctun_frequency : vfo[0].frequency;
         long long bf = vfo[1].ctun ? vfo[1].ctun_frequency : vfo[1].frequency;
 
+	if(vfo[0].entering_frequency) {
+	    af=vfo[0].entered_frequency;
+	}
+	if(vfo[1].entering_frequency) {
+	    bf=vfo[1].entered_frequency;
+	}
         int oob=0;
         if (can_transmit) oob=transmitter->out_of_band;
+
         sprintf(temp_text,"VFO A: %0lld.%06lld",af/(long long)1000000,af%(long long)1000000);
         if(txvfo == 0 && (isTransmitting() || oob)) {
             if (oob) sprintf(temp_text,"VFO A: Out of band");
             cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
         } else {
-            if(id==0) {
+            if(vfo[0].entering_frequency) {
+              cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
+            } else if(id==0) {
               cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
             } else {
               cairo_set_source_rgb(cr, 0.0, 0.65, 0.0);
@@ -1005,7 +983,9 @@ void vfo_update() {
             if (oob) sprintf(temp_text,"VFO B: Out of band");
             cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
         } else {
-            if(id==1) {
+            if(vfo[1].entering_frequency) {
+              cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
+	    } else if(id==1) {
               cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
             } else {
               cairo_set_source_rgb(cr, 0.0, 0.65, 0.0);
@@ -1135,7 +1115,7 @@ void vfo_update() {
         if(can_transmit) {
           cairo_move_to(cr, 330, 50);  
   	  if (transmitter->compressor) {
-              sprintf(temp_text,"CMPR %d",(int) transmitter->compressor_level);
+  	      sprintf(temp_text,"CMPR %d dB",(int) transmitter->compressor_level);
               cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
               cairo_show_text(cr, temp_text);
 	  } else {
@@ -1143,16 +1123,6 @@ void vfo_update() {
               cairo_show_text(cr, "CMPR OFF");
 	  }
         }
-        //
-        // Indicate whether an equalizer is active
-        //
-        cairo_move_to(cr, 400, 50);
-        if ((isTransmitting() && enable_tx_equalizer) || (!isTransmitting() && enable_rx_equalizer)) {
-          cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
-        } else {
-          cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
-        }
-        cairo_show_text(cr, "EQ");
 
         cairo_move_to(cr, 500, 50);  
         if(diversity_enabled) {
@@ -1162,10 +1132,12 @@ void vfo_update() {
         }
         cairo_show_text(cr, "DIV");
 
-        int s=0;
-        while(steps[s]!=step && steps[s]!=0) {
-          s++;
+	int s;
+	for(s=0;s<STEPS;s++) {
+          if(steps[s]==step) break;
         }
+	if(s>=STEPS) s=0;
+
         sprintf(temp_text,"Step %s",step_labels[s]);
         cairo_move_to(cr, 400, 15);
         cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
@@ -1211,7 +1183,7 @@ void vfo_update() {
         } else {
           cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
         }
-        cairo_show_text(cr, "Split");
+        cairo_show_text(cr, "SPLIT");
 
         cairo_move_to(cr, 260, 28);
         if(sat_mode!=SAT_NONE) {
@@ -1242,16 +1214,6 @@ void vfo_update() {
 fprintf(stderr,"vfo_update: no surface!\n");
     }
 }
-
-/*
-static gboolean
-vfo_step_select_cb (GtkWidget *widget,
-               gpointer        data)
-{
-  step=steps[(int)data];
-  g_idle_add(ext_vfo_update,NULL);
-}
-*/
 
 static gboolean
 vfo_press_event_cb (GtkWidget *widget,

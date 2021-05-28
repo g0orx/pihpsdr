@@ -366,7 +366,7 @@ void rx_menu(GtkWidget *parent) {
 
     output=gtk_combo_box_text_new();
     for(i=0;i<n_output_devices;i++) {
-      gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(output),NULL,output_devices[i].name);
+      gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(output),NULL,output_devices[i].description);
       if(active_receiver->audio_name!=NULL) {
         if(strcmp(active_receiver->audio_name,output_devices[i].name)==0) {
           gtk_combo_box_set_active(GTK_COMBO_BOX(output),i);

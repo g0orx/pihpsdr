@@ -454,8 +454,7 @@ int audio_write (RECEIVER *rx, float left, float right)
   return 0;
 }
 
-int cw_audio_write(float sample) {
-  RECEIVER *rx = active_receiver;
+int cw_audio_write(RECEIVER *rx,float sample) {
   float *buffer = rx->local_audio_buffer;
 
   if (rx->playback_handle != NULL && rx->local_audio_buffer != NULL) {

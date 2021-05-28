@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "main.h"
 #include "new_menu.h"
 #include "display_menu.h"
 #include "channel.h"

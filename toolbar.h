@@ -20,10 +20,12 @@
 #ifndef _TOOLBAR_H
 #define _TOOLBAR_H
 
+#include "gpio.h"
 #define MAX_FUNCTION 5
 
 extern int function;
 
+extern SWITCH *toolbar_switches;
 
 void update_toolbar_labels();
 void ptt_update(int state);

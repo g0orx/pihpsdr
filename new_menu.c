@@ -57,11 +57,15 @@
 #include "vfo_menu.h"
 #include "fft_menu.h"
 #include "main.h"
+#include "actions.h"
 #include "gpio.h"
 #include "old_protocol.h"
 #include "new_protocol.h"
 #ifdef CLIENT_SERVER
 #include "server_menu.h"
+#endif
+#ifdef MIDI
+#include "midi_menu.h"
 #endif
 
 
@@ -184,11 +188,13 @@ static gboolean rigctl_cb (GtkWidget *widget, GdkEventButton *event, gpointer da
   return TRUE;
 }
 
+#ifdef GPIO
 static gboolean encoder_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   cleanup();
   encoder_menu(top_window);
   return TRUE;
 }
+#endif
 
 static gboolean switch_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   cleanup();
@@ -405,47 +411,6 @@ static gboolean ps_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) 
 }
 #endif
 
-#ifdef GPIO
-/*
-void start_encoder(int encoder) {
-  int old_menu=active_menu;
-  cleanup();
-  switch(encoder) {
-    case 2:
-      if(old_menu!=E2_MENU) {
-        encoder_menu(top_window,encoder);
-        active_menu=E2_MENU;
-      }
-      break;
-    case 3:
-      if(old_menu!=E3_MENU) {
-        encoder_menu(top_window,encoder);
-        active_menu=E3_MENU;
-      }
-      break;
-    case 4:
-      if(old_menu!=E4_MENU) {
-        encoder_menu(top_window,encoder);
-        active_menu=E4_MENU;
-      }
-      break;
-    case 5:
-      if(old_menu!=E5_MENU) {
-        encoder_menu(top_window,encoder);
-        active_menu=E5_MENU;
-      }
-      break;
-  }
-}
-
-static gboolean encoder_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  int encoder=(int)data;
-  start_encoder(encoder);
-  return TRUE;
-}
-*/
-#endif
-
 void start_test() {
   cleanup();
   test_menu(top_window);
@@ -464,6 +429,18 @@ void start_server() {
 
 static gboolean server_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   start_server();
+  return TRUE;
+}
+#endif
+
+#ifdef MIDI
+void start_midi() {
+  cleanup();
+  midi_menu(top_window);
+}
+
+static gboolean midi_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  start_midi();
   return TRUE;
 }
 #endif
@@ -615,18 +592,38 @@ void new_menu()
     gtk_grid_attach(GTK_GRID(grid),rigctl_b,(i%5),i/5,1,1);
     i++;
 
+    switch(controller) {
+      case NO_CONTROLLER:
+	{
+        GtkWidget *switches_b=gtk_button_new_with_label("Switches");
+        g_signal_connect (switches_b, "button-press-event", G_CALLBACK(switch_cb), NULL);
+        gtk_grid_attach(GTK_GRID(grid),switches_b,(i%5),i/5,1,1);
+        i++;
+        }
+        break;
+      case CONTROLLER1:
+      case CONTROLLER2_V1:
+      case CONTROLLER2_V2:
+        {
 #ifdef GPIO
-    GtkWidget *encoders_b=gtk_button_new_with_label("Encoders");
-    g_signal_connect (encoders_b, "button-press-event", G_CALLBACK(encoder_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),encoders_b,(i%5),i/5,1,1);
-    i++;
-
-    if(controller==CONTROLLER2_V1 || controller==CONTROLLER2_V2) {
-      GtkWidget *switches_b=gtk_button_new_with_label("Switches");
-      g_signal_connect (switches_b, "button-press-event", G_CALLBACK(switch_cb), NULL);
-      gtk_grid_attach(GTK_GRID(grid),switches_b,(i%5),i/5,1,1);
-      i++;
+        GtkWidget *encoders_b=gtk_button_new_with_label("Encoders");
+        g_signal_connect (encoders_b, "button-press-event", G_CALLBACK(encoder_cb), NULL);
+        gtk_grid_attach(GTK_GRID(grid),encoders_b,(i%5),i/5,1,1);
+        i++;
+#endif
+        GtkWidget *switches_b=gtk_button_new_with_label("Switches");
+        g_signal_connect (switches_b, "button-press-event", G_CALLBACK(switch_cb), NULL);
+        gtk_grid_attach(GTK_GRID(grid),switches_b,(i%5),i/5,1,1);
+        i++;
+        }
+        break;
     }
+
+#ifdef MIDI
+    GtkWidget *midi_b=gtk_button_new_with_label("MIDI");
+    g_signal_connect (midi_b, "button-press-event", G_CALLBACK(midi_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),midi_b,(i%5),i/5,1,1);
+    i++;
 #endif
 
 //
