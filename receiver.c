@@ -834,7 +834,7 @@ g_print("%s: panadapter height=%d y=%d %p\n",__FUNCTION__,height,y,rx->panadapte
 
   if(rx->display_waterfall) {
     waterfall_init(rx,rx->width,height);
-g_print("%ss: waterfall height=%d y=%d %p\n",__FUNCTION__,height,y,rx->waterfall);
+g_print("%s: waterfall height=%d y=%d %p\n",__FUNCTION__,height,y,rx->waterfall);
     g_object_weak_ref(G_OBJECT(rx->waterfall),receiver_weak_notify,(gpointer)rx);
     gtk_fixed_put(GTK_FIXED(rx->panel),rx->waterfall,0,y);
   }
@@ -899,7 +899,6 @@ g_print("%s: id=%d buffer_size=%d\n",__FUNCTION__,id,buffer_size);
   rx->panadapter_step=20;
 
   rx->volume=5.0;
-  //rx->rf_gain=50.0;
 
   rx->squelch_enable=0;
   rx->squelch=0;
@@ -928,12 +927,6 @@ g_print("%s: id=%d buffer_size=%d\n",__FUNCTION__,id,buffer_size);
   rx->agc_slope=35.0;
   rx->agc_hang_threshold=0.0;
   
-#if defined(ALSA) || defined(PORTAUDIO)
-  rx->playback_handle=NULL;
-#endif
-#ifdef PULSEAUDIO
-  rx->playstream=NULL;
-#endif
   rx->local_audio_buffer=NULL;
   rx->local_audio_buffer_size=2048;
   rx->local_audio=0;
@@ -1041,7 +1034,6 @@ g_print("%s: id=%d sample_rate=%d\n",__FUNCTION__,rx->id, rx->sample_rate);
   rx->waterfall_automatic=1;
 
   rx->volume=0.1;
-  //rx->rf_gain=50.0;
 
   rx->dither=0;
   rx->random=0;
@@ -1068,7 +1060,6 @@ g_print("%s: id=%d sample_rate=%d\n",__FUNCTION__,rx->id, rx->sample_rate);
   rx->agc_slope=35.0;
   rx->agc_hang_threshold=0.0;
   
-  //rx->playback_handle=NULL;
   rx->local_audio=0;
   g_mutex_init(&rx->local_audio_mutex);
   rx->local_audio_buffer=NULL;

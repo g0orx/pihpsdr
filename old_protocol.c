@@ -50,9 +50,7 @@
 #include "toolbar.h"
 #include "vfo.h"
 #include "ext.h"
-#ifdef LOCALCW
 #include "iambic.h"
-#endif
 #include "error_handler.h"
 
 #define min(x,y) (x<y?x:y)

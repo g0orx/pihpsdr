@@ -59,9 +59,7 @@
 #include "toolbar.h"
 #include "vox.h"
 #include "ext.h"
-#ifdef LOCALCW
 #include "iambic.h"
-#endif
 
 #define min(x,y) (x<y?x:y)
 
@@ -267,7 +265,7 @@ static pthread_mutex_t rx_spec_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t tx_spec_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t hi_prio_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t general_mutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t p2_audio_mutex  = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t audio_mutex   = PTHREAD_MUTEX_INITIALIZER;
 
 static int local_ptt=0;
 
@@ -1995,7 +1993,7 @@ void new_protocol_cw_audio_samples(short left_audio_sample,short right_audio_sam
     //
     // Only process samples if transmitting in CW
     //
-    pthread_mutex_lock(&p2_audio_mutex);
+    pthread_mutex_lock(&audio_mutex);
     // insert the samples
     audiobuffer[audioindex++]=left_audio_sample>>8;
     audiobuffer[audioindex++]=left_audio_sample;
@@ -2017,7 +2015,7 @@ void new_protocol_cw_audio_samples(short left_audio_sample,short right_audio_sam
       audioindex=4;
       audiosequence++;
     }
-    pthread_mutex_unlock(&p2_audio_mutex);
+    pthread_mutex_unlock(&audio_mutex);
   }
 }
 
@@ -2030,7 +2028,7 @@ void new_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right
   //
   if (isTransmitting() && (txmode==modeCWU || txmode==modeCWL)) return;
 
-  pthread_mutex_lock(&p2_audio_mutex);
+  pthread_mutex_lock(&audio_mutex);
   // insert the samples
   audiobuffer[audioindex++]=left_audio_sample>>8;
   audiobuffer[audioindex++]=left_audio_sample;
@@ -2054,7 +2052,7 @@ void new_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right
     audioindex=4;
     audiosequence++;
   }
-  pthread_mutex_unlock(&p2_audio_mutex);
+  pthread_mutex_unlock(&audio_mutex);
 }
 
 void new_protocol_flush_iq_samples() {

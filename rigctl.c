@@ -53,9 +53,7 @@
 #include "rigctl_menu.h"
 #include "noise_menu.h"
 #include "new_protocol.h"
-#ifdef LOCALCW
 #include "iambic.h"              // declare keyer_update()
-#endif
 #include <math.h>
 
 #define NEW_PARSER
@@ -801,7 +799,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           if(command[4]==';') {
             // read the step size
             int i=0;
-            for(i=0;i<=14;i++) {
+            for(i=0;i<STEPS;i++) {
               if(steps[i]==step) break;
             }
             if(i<=14) {
@@ -812,7 +810,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           } else if(command[6]==';') {
             // set the step size
             int i=atoi(&command[4]) ;
-            if(i>=0 && i<=14) {
+            if(i>=0 && i<STEPS) {
               step=steps[i];
               vfo_update();
             }
@@ -824,7 +822,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           if(command[6]==';') {
             int step_index=atoi(&command[4]);
             long long hz=0;
-            if(step_index>=0 && step_index<=14) {
+            if(step_index>=0 && step_index<STEPS) {
               hz=(long long)steps[step_index];
             }
             if(hz!=0LL) {
@@ -897,7 +895,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           if(command[6]==';') {
             int step_index=atoi(&command[4]);
             long long hz=0;
-            if(step_index>=0 && step_index<=14) {
+            if(step_index>=0 && step_index<STEPS) {
               hz=(long long)steps[step_index];
             }
             if(hz!=0LL) {
@@ -961,7 +959,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           if(command[6]==';') {
             int step_index=atoi(&command[4]);
             long long hz=0;
-            if(step_index>=0 && step_index<=14) {
+            if(step_index>=0 && step_index<STEPS) {
               hz=(long long)steps[step_index];
             }
             if(hz!=0LL) {
@@ -976,7 +974,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           if(command[6]==';') {
             int step_index=atoi(&command[4]);
             long long hz=0;
-            if(step_index>=0 && step_index<=14) {
+            if(step_index>=0 && step_index<STEPS) {
               hz=(long long)steps[step_index];
             }
             if(hz!=0LL) {

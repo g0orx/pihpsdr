@@ -26,10 +26,10 @@ MIDI_INCLUDE=MIDI
 # USBOZY_INCLUDE=USBOZY
 
 # uncomment the line to below include support local CW keyer
-LOCALCW_INCLUDE=LOCALCW
+#LOCALCW_INCLUDE=LOCALCW
 
 # uncomment the line below for SoapySDR
-SOAPYSDR_INCLUDE=SOAPYSDR
+#SOAPYSDR_INCLUDE=SOAPYSDR
 
 # uncomment the line to below include support for sx1509 i2c expander
 #SX1509_INCLUDE=sx1509
@@ -38,8 +38,10 @@ SOAPYSDR_INCLUDE=SOAPYSDR
 #STEMLAB_DISCOVERY=STEMLAB_DISCOVERY
 
 # uncomment the line below to include support for STEMlab discovery (WITHOUT AVAHI)
-STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_NOAVAHI
+#STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_NOAVAHI
 
+# uncomment to get ALSA audio module on Linux (default is now to use pulseaudio)
+#AUDIO_MODULE=ALSA
 
 # uncomment the line below for various debug facilities
 #DEBUG_OPTION=-D DEBUG
@@ -48,9 +50,6 @@ STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_NOAVAHI
 
 # very early code not included yet
 #SERVER_INCLUDE=SERVER
-
-# uncomment to get ALSA audio module on Linux
-#AUDIO_MODULE=ALSA
 
 CFLAGS?= -O -Wno-deprecated-declarations
 PKG_CONFIG = pkg-config
@@ -230,12 +229,12 @@ ifeq ($(UNAME_S), Linux)
 SYSLIBS=-lrt
 endif
 ifeq ($(UNAME_S), Darwin)
-SYSLIBS=-framework IOkit
+SYSLIBS=-framework IOKit
 endif
 
 OPTIONS=$(SMALL_SCREEN_OPTIONS) $(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) \
 	$(GPIO_OPTIONS) $(GPIOD_OPTIONS)  $(SOAPYSDR_OPTIONS) $(LOCALCW_OPTIONS) \
-	$(STEMLAB_OPTIONS) $(PTT_OPTIONES) $(SERVER_OPTIONS) $(AUDIO_OPTIONS) \
+	$(STEMLAB_OPTIONS) $(PTT_OPTIONES) $(SERVER_OPTIONS) $(AUDIO_OPTIONS) $(GPIO_OPTIONS) \
 	-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION)
 
 LIBS=	-lm -lwdsp -lpthread $(SYSLIBS) $(AUDIO_LIBS) $(USBOZY_LIBS) $(GTKLIBS) \

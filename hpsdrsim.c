@@ -1095,9 +1095,10 @@ void process_ep2(uint8_t *frame)
 	     // for a combined attenuator/preamplifier with the AD9866 chip.
 	     // The value is between 0 and 60 and formally correspondes to
 	     // to an RX gain of -12 to +48 dB. However, we set here that
-             // a value of +16 (that is, 28 on the 0-60 scale) corresponds to
+             // a value of +14 (that is, 26 on the 0-60 scale) corresponds to
              // "zero attenuation"
-	     chk_data(37 -(frame[4] & 0x3F) , rx_att[0], "RX1 HL ATT/GAIN");
+	     // This means that the nominal value of "RX gain calibration" is 14.
+	     chk_data(26 -(frame[4] & 0x3F) , rx_att[0], "RX1 HL ATT/GAIN");
            } else {
              chk_data((frame[4] & 0x1F) >> 0, rx_att[0], "RX1 ATT");
              chk_data((frame[4] & 0x20) >> 5, rx1_attE, "RX1 ATT enable");

@@ -50,10 +50,7 @@ enum {
 };
 
 static GtkWidget *parent_window=NULL;
-static GtkWidget *menu_b=NULL;
 static GtkWidget *dialog=NULL;
-
-static GtkWidget *midi_enable_b;
 
 static GtkListStore *store;
 static GtkWidget *view;
@@ -63,8 +60,6 @@ GtkTreeSelection *selection;
 static GtkTreeModel *model;
 static GtkTreeIter iter;
 struct desc *current_cmd;
-
-static GtkWidget *filename;
 
 static GtkWidget *newEvent;
 static GtkWidget *newChannel;
@@ -204,8 +199,6 @@ static void update_wheelparams(gpointer user_data) {
 }
 
 static void type_changed_cb(GtkWidget *widget, gpointer data) {
-  int i=0;
-  int j=0;
 
   // update actions available for the type
   gchar *type=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(widget));
@@ -405,9 +398,7 @@ static void save_cb(GtkWidget *widget,gpointer user_data) {
   GtkWidget *save_dialog;
   GtkFileChooser *chooser;
   GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_SAVE;
-  gchar *filename;
   gint res;
-  struct desc *cmd;
 
   save_dialog = gtk_file_chooser_dialog_new ("Save File",
                                       GTK_WINDOW(dialog),
@@ -435,9 +426,7 @@ static void load_cb(GtkWidget *widget,gpointer user_data) {
   GtkWidget *load_dialog;
   GtkFileChooser *chooser;
   GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_OPEN;
-  gchar *filename;
   gint res;
-  struct desc *cmd;
 
   load_dialog = gtk_file_chooser_dialog_new ("Open MIDI File",
                                       GTK_WINDOW(dialog),
@@ -467,9 +456,7 @@ static void load_original_cb(GtkWidget *widget,gpointer user_data) {
   GtkWidget *load_dialog;
   GtkFileChooser *chooser;
   GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_OPEN;
-  gchar *filename;
   gint res;
-  struct desc *cmd;
 
   load_dialog = gtk_file_chooser_dialog_new ("Open LEGACY MIDI File",
                                       GTK_WINDOW(dialog),
@@ -679,6 +666,7 @@ static void update_cb(GtkButton *widget,gpointer user_data) {
   //g_print("%s: type=%s action=%s\n",__FUNCTION__,str_type,str_action);
 
   thisAction=MIDI_ACTION_NONE;
+  onoff=0;
   i=0;
   while(ActionTable[i].action!=MIDI_ACTION_LAST) {
     if(strcmp(ActionTable[i].str,str_action)==0) {
@@ -1224,8 +1212,6 @@ void midi_menu(GtkWidget *parent) {
 static int update(void *data) {
   int state=GPOINTER_TO_INT(data);
   gchar text[32];
-  gint i=1;
-  gint j;
 
   switch(state) {
     case UPDATE_NEW:

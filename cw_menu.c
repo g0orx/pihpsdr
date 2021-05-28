@@ -33,9 +33,7 @@
 #include "receiver.h"
 #include "new_protocol.h"
 #include "old_protocol.h"
-#ifdef LOCALCW
 #include "iambic.h"
-#endif
 #include "ext.h"
 
 static GtkWidget *parent_window=NULL;

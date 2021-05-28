@@ -50,6 +50,7 @@
 
 int audio = 0;
 int mic_buffer_size = 720; // samples (both left and right)
+static GMutex audio_mutex;
 
 static snd_pcm_t *record_handle=NULL;
 static snd_pcm_format_t record_audio_format;
@@ -193,10 +194,13 @@ g_print("audio_open_input: %s\n",transmitter->microphone_name);
   g_print("audio_open_input: hw=%s\n",hw);
 
   for(i=0;i<FORMATS;i++) {
+    g_mutex_lock(&audio_mutex);
     if ((err = snd_pcm_open (&record_handle, hw, SND_PCM_STREAM_CAPTURE, SND_PCM_ASYNC)) < 0) {
       g_print("audio_open_input: cannot open audio device %s (%s)\n",
               hw,
               snd_strerror (err));
+      record_handle=NULL;
+      g_mutex_unlock(&audio_mutex);
       return err;
     }
 g_print("audio_open_input: handle=%p\n",record_handle);
@@ -204,6 +208,7 @@ g_print("audio_open_input: handle=%p\n",record_handle);
 g_print("audio_open_input: trying format %s (%s)\n",snd_pcm_format_name(formats[i]),snd_pcm_format_description(formats[i]));
     if ((err = snd_pcm_set_params (record_handle,formats[i],SND_PCM_ACCESS_RW_INTERLEAVED,channels,rate,soft_resample,latency)) < 0) {
       g_print("audio_open_input: snd_pcm_set_params failed: %s\n",snd_strerror(err));
+      g_mutex_unlock(&audio_mutex);
       audio_close_input();
       continue;
     } else {
@@ -215,6 +220,7 @@ g_print("audio_open_input: using format %s (%s)\n",snd_pcm_format_name(formats[i
 
   if(i>=FORMATS) {
     g_print("audio_open_input: cannot find usable format\n");
+    g_mutex_unlock(&audio_mutex);
     audio_close_input();
     return err;
   }
@@ -240,6 +246,7 @@ g_print("audio_open_input: allocating ring buffer\n");
   mic_ring_buffer=(float *) g_new(float,MICRINGLEN);
   mic_ring_read_pt = mic_ring_write_pt=0;
   if (mic_ring_buffer == NULL) {
+    g_mutex_unlock(&audio_mutex);
     audio_close_input();
     return -1;
   }
@@ -249,10 +256,12 @@ g_print("audio_open_input: creating mic_read_thread\n");
   mic_read_thread_id = g_thread_try_new("microphone",mic_read_thread,NULL,&error);
   if(!mic_read_thread_id ) {
     g_print("g_thread_new failed on mic_read_thread: %s\n",error->message);
+    g_mutex_unlock(&audio_mutex);
     audio_close_input();
     return -1;
   }
 
+  g_mutex_unlock(&audio_mutex);
   return 0;
 }
 
@@ -271,14 +280,15 @@ g_print("audio_close_output: rx=%d handle=%p buffer=%p\n",rx->id,rx->playback_ha
 }
 
 void audio_close_input() {
-  void *p;
 g_print("audio_close_input\n");
   running=FALSE;
+  g_mutex_lock(&audio_mutex);
   if(mic_read_thread_id!=NULL) {
 g_print("audio_close_input: wait for thread to complete\n");
     g_thread_join(mic_read_thread_id);
     mic_read_thread_id=NULL;
   }
+  g_mutex_lock(&audio_mutex);
   if(record_handle!=NULL) {
 g_print("audio_close_input: snd_pcm_close\n");
     snd_pcm_close (record_handle);
@@ -289,19 +299,10 @@ g_print("audio_close_input: free mic buffer\n");
     g_free(mic_buffer);
     mic_buffer=NULL;
   }
-  //
-  // We do not want to do a mutex lock/unlock for every single mic sample
-  // accessed. Since only the ring buffer is maintained by the functions
-  // audio_get_next_mic_sample() and in the "mic read thread",
-  // it is more than enough to wait 2 msec after setting mic_ring_buffer to NULL
-  // before actually releasing the storage.
-  //
   if (mic_ring_buffer != NULL) {
-    p=mic_ring_buffer;
-    mic_ring_buffer=NULL;
-    usleep(2);
-    g_free(p);
+    g_free(mic_ring_buffer);
   }
+  g_mutex_unlock(&audio_mutex);
 }
 
 //
@@ -641,18 +642,18 @@ g_print("mic_read_thread: exiting\n");
 float audio_get_next_mic_sample() {
   int newpt;
   float sample;
+  g_mutex_lock(&audio_mutex);
   if ((mic_ring_buffer == NULL) || (mic_ring_read_pt == mic_ring_write_pt)) {
     // no buffer, or nothing in buffer: insert silence
     sample=0.0;
   } else {
-    // the "existence" of the ring buffer is now guaranteed for 1 msec,
-    // see audio_close_input(),
     newpt = mic_ring_read_pt+1;
     if (newpt == MICRINGLEN) newpt=0;
     sample=mic_ring_buffer[mic_ring_read_pt];
     // atomic update of read pointer
     mic_ring_read_pt=newpt;
   }
+  g_mutex_unlock(&audio_mutex);
   return sample;
 }
 
@@ -667,6 +668,7 @@ void audio_get_cards() {
 
 g_print("audio_get_cards\n");
 
+  g_mutex_init(&audio_mutex);
   n_input_devices=0;
   n_output_devices=0;
 

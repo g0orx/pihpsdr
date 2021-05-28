@@ -39,11 +39,13 @@
 
 static PaStream *record_handle=NULL;
 
+
 int n_input_devices;
 AUDIO_DEVICE input_devices[MAX_AUDIO_DEVICES];
 int n_output_devices;
 AUDIO_DEVICE output_devices[MAX_AUDIO_DEVICES];
 
+static GMutex audio_mutex;
 int n_input_devices=0;
 int n_output_devices=0;
 
@@ -99,10 +101,11 @@ void audio_get_cards()
 
   PaError err;
 
+  g_mutex_init(&audio_mutex);
   err = Pa_Initialize();
   if( err != paNoError )
   {
-	fprintf(stderr, "PORTAUDIO ERROR: Pa_Initialize: %s\n", Pa_GetErrorText(err));
+	g_print("%s: init error %s\n", __FUNCTION__,Pa_GetErrorText(err));
 	return;
   }
   numDevices = Pa_GetDeviceCount();
@@ -132,7 +135,7 @@ void audio_get_cards()
             input_devices[n_input_devices].index=i;
             n_input_devices++;
           }
-          fprintf(stderr,"PORTAUDIO INPUT DEVICE, No=%d, Name=%s\n", i, deviceInfo->name);
+          g_print("%s: INPUT DEVICE, No=%d, Name=%s\n", __FUNCTION__, i, deviceInfo->name);
 	}
 
 	outputParameters.device = i;
@@ -147,7 +150,7 @@ void audio_get_cards()
             output_devices[n_output_devices].index=i;
             n_output_devices++;
           }
-          fprintf(stderr,"PORTAUDIO OUTPUT DEVICE, No=%d, Name=%s\n", i, deviceInfo->name);
+          g_print("%s: OUTPUT DEVICE, No=%d, Name=%s\n", __FUNCTION__, i, deviceInfo->name);
         }
   }
 }
@@ -183,13 +186,15 @@ int audio_open_input()
 	break;
     }
   }
-  fprintf(stderr,"audio_open_input: name=%s PADEV=%d\n",transmitter->microphone_name,padev);
+  g_print("%s: name=%s PADEV=%d\n", __FUNCTION__, transmitter->microphone_name, padev);
   //
-  // Should not occur, but possibly device name not found
+  // Device name possibly came from props file and device is no longer there
   //
   if (padev < 0) {
     return -1;
   }
+
+  g_mutex_lock(&audio_mutex);
 
   bzero( &inputParameters, sizeof( inputParameters ) ); //not necessary if you are filling in all the fields
   inputParameters.channelCount = 1;   // MONO
@@ -202,23 +207,41 @@ int audio_open_input()
   err = Pa_OpenStream(&record_handle, &inputParameters, NULL, 48000.0, (unsigned long) MY_AUDIO_BUFFER_SIZE,
                       paNoFlag, pa_mic_cb, NULL);
   if (err != paNoError) {
-    fprintf(stderr, "PORTAUDIO ERROR: AOI open stream: %s\n",Pa_GetErrorText(err));
+    g_print("%s: open stream error %s\n", __FUNCTION__, Pa_GetErrorText(err));
+    record_handle=NULL;
+    g_mutex_unlock(&audio_mutex);
     return -1;
   }
 
   mic_ring_buffer=(float *) g_new(float,MY_RING_BUFFER_SIZE);
   mic_ring_outpt = mic_ring_inpt=0;
+
   if (mic_ring_buffer == NULL) {
+    Pa_CloseStream(record_handle);
+    record_handle=NULL;
+    g_print("%s: alloc buffer failed.\n", __FUNCTION__);
+    g_mutex_unlock(&audio_mutex);
     return -1;
   }
 
   err = Pa_StartStream(record_handle);
   if (err != paNoError) {
-    fprintf(stderr, "PORTAUDIO ERROR: AOI start stream:%s\n",Pa_GetErrorText(err));
+    g_print("%s: start stream error %s\n", __FUNCTION__, Pa_GetErrorText(err));
+    Pa_CloseStream(record_handle);
+    record_handle=NULL;
+    g_free(mic_ring_buffer);
+    mic_ring_buffer=NULL;
+    g_mutex_unlock(&audio_mutex);
     return -1;
   }
+
+  //
+  // Finished!
+  //
+  g_mutex_unlock(&audio_mutex);
   return 0;
 }
+
 //
 // PortAudio call-back function for Audio output
 //
@@ -230,28 +253,34 @@ int pa_out_cb(const void *inputBuffer, void *outputBuffer, unsigned long framesP
   float *out = (float *)outputBuffer;
   RECEIVER *rx = (RECEIVER *)userdata;
   int i, newpt;
-  float *buffer=rx->local_audio_buffer;
   int avail;  // only used for debug
 
   if (out == NULL) {
-    fprintf(stderr,"PortAudio error: bogus audio buffer in callback\n");
+    g_print("%s: bogus audio buffer in callback\n", __FUNCTION__);
     return paContinue;
   }
-  // DEBUG: report water mark
-  //avail = rx->local_audio_buffer_inpt - rx->local_audio_buffer_outpt;
-  //if (avail < 0) avail += MY_RING_BUFFER_SIZE;
-  //fprintf(stderr,"AVAIL=%d\n", avail);
-  newpt=rx->local_audio_buffer_outpt;
-  for (i=0; i< framesPerBuffer; i++) {
-    if (rx->local_audio_buffer_inpt == newpt) {
-      // Ring buffer empty, send zero sample
-      *out++ = 0.0;
-    } else {
-      *out++ = buffer[newpt++];
-      if (newpt >= MY_RING_BUFFER_SIZE) newpt=0;
-      rx->local_audio_buffer_outpt=newpt;
+  g_mutex_lock(&rx->local_audio_mutex);
+  if (rx->local_audio_buffer != NULL) {
+    //
+    // Mutex protection: if the buffer is non-NULL it cannot vanish
+    // util callback is completed
+    // DEBUG: report water mark
+    //avail = rx->local_audio_buffer_inpt - rx->local_audio_buffer_outpt;
+    //if (avail < 0) avail += MY_RING_BUFFER_SIZE;
+    //g_print("%s: AVAIL=%d\n", __FUNCTION__, avail);
+    newpt=rx->local_audio_buffer_outpt;
+    for (i=0; i< framesPerBuffer; i++) {
+      if (rx->local_audio_buffer_inpt == newpt) {
+        // Ring buffer empty, send zero sample
+        *out++ = 0.0;
+      } else {
+        *out++ = rx->local_audio_buffer[newpt++];
+        if (newpt >= MY_RING_BUFFER_SIZE) newpt=0;
+        rx->local_audio_buffer_outpt=newpt;
+      }
     }
   }
+  g_mutex_unlock(&rx->local_audio_mutex);
   return paContinue;
 }
 
@@ -265,44 +294,32 @@ int pa_mic_cb(const void *inputBuffer, void *outputBuffer, unsigned long framesP
 {
   float *in = (float *)inputBuffer;
   int i, newpt;
-  float sample;
 
   if (in == NULL) {
     // This should not happen, so we do not send silence etc.
-    fprintf(stderr,"PortAudio error: bogus audio buffer in callback\n");
+    g_print("%s: bogus audio buffer in callback\n", __FUNCTION__);
     return paContinue;
   }
-  //
-  // send the samples in the buffer
-  //
-  for (i=0; i<framesPerBuffer; i++) {
-    sample=in[i];
-    switch(protocol) {
-      case ORIGINAL_PROTOCOL:
-      case NEW_PROTOCOL:
-#ifdef SOAPYSDR
-      case SOAPYSDR_PROTOCOL:
-#endif
-	//
-	// put sample into ring buffer
-	//
-	if (mic_ring_buffer != NULL) {
-          // the "existence" of the ring buffer is now guaranteed for 1 msec,
-          // see audio_close_input(),
-	  newpt=mic_ring_inpt +1;
-	  if (newpt == MY_RING_BUFFER_SIZE) newpt=0;
-	  if (newpt != mic_ring_outpt) {
-	    // buffer space available, do the write
-	    mic_ring_buffer[mic_ring_inpt]=sample;
-	    // atomic update of mic_ring_inpt
-	    mic_ring_inpt=newpt;
-	  }
-	}
-	break;
-      default:
-	break;
+  g_mutex_lock(&audio_mutex);
+  if (mic_ring_buffer != NULL) {
+    //
+    // mutex protected: ring buffer cannot vanish
+    //
+    for (i=0; i<framesPerBuffer; i++) {
+      //
+      // put sample into ring buffer
+      //
+      newpt=mic_ring_inpt +1;
+      if (newpt == MY_RING_BUFFER_SIZE) newpt=0;
+      if (newpt != mic_ring_outpt) {
+        // buffer space available, do the write
+        mic_ring_buffer[mic_ring_inpt]=in[i];
+        // atomic update of mic_ring_inpt
+        mic_ring_inpt=newpt;
+      }
     }
   }
+  g_mutex_unlock(&audio_mutex);
   return paContinue;
 }
 
@@ -313,18 +330,22 @@ int pa_mic_cb(const void *inputBuffer, void *outputBuffer, unsigned long framesP
 float audio_get_next_mic_sample() {
   int newpt;
   float sample;
+  g_mutex_lock(&audio_mutex);
+  //
+  // mutex protected (for every single sample!):
+  // ring buffer cannot vanish while being processed here
+  //
   if ((mic_ring_buffer == NULL) || (mic_ring_outpt == mic_ring_inpt)) {
     // no buffer, or nothing in buffer: insert silence
     sample=0.0;
   } else {
-    // the "existence" of the ring buffer is now guaranteed for 1 msec,
-    // see audio_close_input(),
     newpt = mic_ring_outpt+1;
     if (newpt == MY_RING_BUFFER_SIZE) newpt=0;
     sample=mic_ring_buffer[mic_ring_outpt];
     // atomic update of read pointer
     mic_ring_outpt=newpt;
   }
+  g_mutex_unlock(&audio_mutex);
   return sample;
 }
 
@@ -354,15 +375,16 @@ int audio_open_output(RECEIVER *rx)
         break;
     }
   }
-  fprintf(stderr,"audio_open_output: name=%s PADEV=%d\n",rx->audio_name,padev);
+  g_print("%s: name=%s PADEV=%d\n", __FUNCTION__, rx->audio_name, padev); 
   //
-  // Should not occur, but possibly device name not found
+  // Device name possibly came from props file and device is no longer there
   //
   if (padev < 0) {
     return -1;
   }
 
   g_mutex_lock(&rx->local_audio_mutex);
+
   bzero( &outputParameters, sizeof( outputParameters ) ); //not necessary if you are filling in all the fields
   outputParameters.channelCount = 1;   // Always MONO
   outputParameters.device = padev;
@@ -372,6 +394,15 @@ int audio_open_output(RECEIVER *rx)
   outputParameters.suggestedLatency = 0.0; //Pa_GetDeviceInfo(padev)->defaultLowOutputLatency ;
   outputParameters.hostApiSpecificStreamInfo = NULL; //See you specific host's API docs for info on using this field
 
+  err = Pa_OpenStream(&(rx->playstream), NULL, &outputParameters, 48000.0, (unsigned long) MY_AUDIO_BUFFER_SIZE,
+                      paNoFlag, pa_out_cb, rx);
+  if (err != paNoError) {
+    g_print("%s: open stream error %s\n", __FUNCTION__, Pa_GetErrorText(err));
+    rx->playstream = NULL;
+    g_mutex_unlock(&rx->local_audio_mutex);
+    return -1;
+  }
+
   //
   // This is now a ring buffer much larger than a single audio buffer
   //
@@ -380,26 +411,27 @@ int audio_open_output(RECEIVER *rx)
   rx->local_audio_buffer_outpt=0;
   rx->local_audio_cw=0;
 
-  err = Pa_OpenStream(&(rx->playback_handle), NULL, &outputParameters, 48000.0, (unsigned long) MY_AUDIO_BUFFER_SIZE,
-                      paNoFlag, pa_out_cb, rx);
-  if (err != paNoError || rx->local_audio_buffer == NULL) {
-    fprintf(stderr,"PORTAUDIO ERROR: out open stream: %s\n",Pa_GetErrorText(err));
-    rx->playback_handle = NULL;
-    if (rx->local_audio_buffer) g_free(rx->local_audio_buffer);
-    rx->local_audio_buffer = NULL;
+  if (rx->local_audio_buffer == NULL) {
+    g_print("%s: allocate buffer failed\n", __FUNCTION__);
+    Pa_CloseStream(rx->playstream);
+    rx->playstream=NULL;
     g_mutex_unlock(&rx->local_audio_mutex);
     return -1;
   }
 
-  err = Pa_StartStream(rx->playback_handle);
+  err = Pa_StartStream(rx->playstream);
   if (err != paNoError) {
-    fprintf(stderr,"PORTAUDIO ERROR: out start stream:%s\n",Pa_GetErrorText(err));
-    rx->playback_handle=NULL;
-    if (rx->local_audio_buffer) g_free(rx->local_audio_buffer);
+    g_print("%s: error starting stream:%s\n",__FUNCTION__,Pa_GetErrorText(err));
+    Pa_CloseStream(rx->playstream);
+    rx->playstream=NULL;
+    g_free(rx->local_audio_buffer);
     rx->local_audio_buffer = NULL;
     g_mutex_unlock(&rx->local_audio_mutex);
     return -1;
   }
+  //
+  // Finished!
+  //
   g_mutex_unlock(&rx->local_audio_mutex);
   return 0;
 }
@@ -412,34 +444,25 @@ int audio_open_output(RECEIVER *rx)
 void audio_close_input()
 {
   PaError err;
-  void *p;
 
-  fprintf(stderr,"AudioCloseInput: %s\n", transmitter->microphone_name);
+  g_print("%s: micname=%s\n", __FUNCTION__,transmitter->microphone_name);
 
+  g_mutex_lock(&audio_mutex);
   if(record_handle!=NULL) {
     err = Pa_StopStream(record_handle);
     if (err != paNoError) {
-      fprintf(stderr,"PORTAUDIO ERROR: in stop stream: %s\n",Pa_GetErrorText(err));
+      g_print("%s: error stopping stream: %s\n",__FUNCTION__,Pa_GetErrorText(err));
     }
     err = Pa_CloseStream(record_handle);
     if (err != paNoError) {
-      fprintf(stderr,"PORTAUDIO ERROR: in close stream: %s\n",Pa_GetErrorText(err));
+      g_print("%s: %s\n",__FUNCTION__,Pa_GetErrorText(err));
     }
     record_handle=NULL;
   }
-  //
-  // We do not want to do a mutex lock/unlock for every single mic sample
-  // accessed. Since only the ring buffer is maintained by the functions
-  // audio_get_next_mic_sample() and in the "mic callback" function,
-  // it is more than enough to wait 2 msec after setting mic_ring_buffer to NULL
-  // before actually releasing the storage.
-  //
   if (mic_ring_buffer != NULL) {
-    p=mic_ring_buffer;
-    mic_ring_buffer=NULL;
-    usleep(2);
-    g_free(p);
+    g_free(mic_ring_buffer);
   }
+  g_mutex_unlock(&audio_mutex);
 }
 
 //
@@ -450,7 +473,7 @@ void audio_close_input()
 void audio_close_output(RECEIVER *rx) {
   PaError err;
 
-  fprintf(stderr,"AudioCloseOutput: %s\n", rx->audio_name);
+  g_print("%s: device=%sn", __FUNCTION__,rx->audio_name);
 
   g_mutex_lock(&rx->local_audio_mutex);
   if(rx->local_audio_buffer!=NULL) {
@@ -458,16 +481,16 @@ void audio_close_output(RECEIVER *rx) {
     rx->local_audio_buffer=NULL;
   }
 
-  if(rx->playback_handle!=NULL) {
-    err = Pa_StopStream(rx->playback_handle);
+  if(rx->playstream!=NULL) {
+    err = Pa_StopStream(rx->playstream);
     if (err != paNoError) {
-      fprintf(stderr,"PORTAUDIO ERROR: out stop stream: %s\n",Pa_GetErrorText(err));
+      g_print("%s: stop stream error %s\n", __FUNCTION__, Pa_GetErrorText(err));
     }
-    err = Pa_CloseStream(rx->playback_handle);
+    err = Pa_CloseStream(rx->playstream);
     if (err != paNoError) {
-      fprintf(stderr,"PORTAUDIO ERROR: out close stream: %s\n",Pa_GetErrorText(err));
+      g_print("%s: close stream error %s\n",__FUNCTION__,Pa_GetErrorText(err));
     }
-    rx->playback_handle=NULL;
+    rx->playstream=NULL;
   }
   g_mutex_unlock(&rx->local_audio_mutex);
 }
@@ -504,7 +527,7 @@ int audio_write (RECEIVER *rx, float left, float right)
   }
 
   g_mutex_lock(&rx->local_audio_mutex);
-  if (rx->playback_handle != NULL && buffer != NULL) {
+  if (rx->playstream != NULL && buffer != NULL) {
     if (rx->local_audio_cw == 1) {
       //
       // We come from a TX->RX transition:
@@ -578,21 +601,20 @@ int audio_write (RECEIVER *rx, float left, float right)
 // Thus we have an active latency management.
 //
 int cw_audio_write(RECEIVER *rx, float sample) {
-  float *buffer = rx->local_audio_buffer;
   int oldpt, newpt;
   static int count=0;
   int avail;
   int adjust;
 
   g_mutex_lock(&rx->local_audio_mutex);
-  if (rx->playback_handle != NULL && buffer != NULL) {
+  if (rx->playstream != NULL && rx->local_audio_buffer != NULL) {
     if (rx->local_audio_cw == 0 && cw_keyer_sidetone_volume > 0) {
       //
       // First time producing CW audio after RX/TX transition:
       // empty audio buffer and insert 512 samples of silence
       //
       rx->local_audio_cw=1;
-      bzero(buffer, 512*sizeof(float));
+      bzero(rx->local_audio_buffer, 512*sizeof(float));
       rx->local_audio_buffer_inpt=512;
       rx->local_audio_buffer_outpt=0;
       count=0;
@@ -625,7 +647,7 @@ int cw_audio_write(RECEIVER *rx, float sample) {
           //
           // buffer space available
           //
-          buffer[oldpt] = sample;
+          rx->local_audio_buffer[oldpt] = sample;
           rx->local_audio_buffer_inpt=newpt;
         }
         break;
@@ -635,16 +657,16 @@ int cw_audio_write(RECEIVER *rx, float sample) {
         // insert two samples of silence. No check on "buffer full" needed
         //
         oldpt=rx->local_audio_buffer_inpt;
-        buffer[oldpt++]=0.0;
+        rx->local_audio_buffer[oldpt++]=0.0;
         if (oldpt == MY_RING_BUFFER_SIZE) oldpt=0;
-        buffer[oldpt++]=0.0;
+        rx->local_audio_buffer[oldpt++]=0.0;
         if (oldpt == MY_RING_BUFFER_SIZE) oldpt=0;
         rx->local_audio_buffer_inpt=oldpt;
         break;
       case 2:
         //
         // buffer becomes too full, and we just saw
-        // 16 samples of silence: just skip it
+        // 16 samples of silence: just skip the last "silent" sample
         //
         break;
     }

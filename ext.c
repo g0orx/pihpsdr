@@ -194,7 +194,12 @@ void update_vfo_step(int direction) {
   for (i=0; i<STEPS; i++) {
     if (steps[i] == step) break;
   }
-  if (i >= STEPS) i=0;
+  //
+  // This should not happen (step size not found). If it happens,
+  // take the seond-smallest one such that the step size remains
+  // small after changing it.
+  //
+  if (i >= STEPS) i=1;
 
   if (direction > 0) {
     i++;
@@ -203,6 +208,7 @@ void update_vfo_step(int direction) {
   }
   if (i >= STEPS) i=STEPS;
   if (i < 0     ) i=0;
+  step=steps[i];
 
   vfo_update();
 }
@@ -787,7 +793,7 @@ int ext_remote_command(void *data) {
       temp=active_receiver->pan;
       int vfo=freq_command->id;
       long long f=ntohll(freq_command->hz);
-      local_set_frequency(vfo,f);
+      set_frequency(vfo,f);
       vfo_update();
       send_vfo_data(client,VFO_A);
       send_vfo_data(client,VFO_B);

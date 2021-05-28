@@ -121,7 +121,7 @@ typedef struct _receiver {
   gint audio_device;
   gchar *audio_name;
 #ifdef PORTAUDIO
-  PaStream *playback_handle;
+  PaStream *playstream;
   gint local_audio_buffer_inpt;    // pointer in audio ring-buffer
   gint local_audio_buffer_outpt;   // pointer in audio ring-buffer
   float *local_audio_buffer;
