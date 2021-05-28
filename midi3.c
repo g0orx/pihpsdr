@@ -444,6 +444,7 @@ int DoTheRestOfTheMIDI(void *data) {
         case MIDI_ACTION_DIV_COARSEPHASE:   // knob or wheel supported
         case MIDI_ACTION_DIV_FINEPHASE:     // knob or wheel supported
 	case MIDI_ACTION_DIV_PHASE:		// knob or wheel supported
+            dnew=0.0;
             switch (type) {
               case MIDI_TYPE_KNOB:
 		// coarse: change phase from -180 to 180
@@ -467,9 +468,7 @@ int DoTheRestOfTheMIDI(void *data) {
 		}
                 break;
               default:
-                // do not change
-                // we should not come here anyway
-                dnew = 0.0;
+                // do nothing
                 break;
             }
             // dnew is the delta
@@ -834,7 +833,8 @@ int DoTheRestOfTheMIDI(void *data) {
 	/////////////////////////////////////////////////////////// "RITCLEAR"
 	case MIDI_ACTION_RIT_CLEAR:	  // only key supported
 	    // clear RIT value
-	    vfo[active_receiver->id].rit = new;
+	    vfo[active_receiver->id].rit = 0;
+	    vfo[active_receiver->id].rit_enabled = 0;
             vfo_update();
 	    break;
 	/////////////////////////////////////////////////////////// "RITSTEP"
