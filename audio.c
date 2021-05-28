@@ -288,7 +288,6 @@ g_print("audio_close_input: wait for thread to complete\n");
     g_thread_join(mic_read_thread_id);
     mic_read_thread_id=NULL;
   }
-  g_mutex_lock(&audio_mutex);
   if(record_handle!=NULL) {
 g_print("audio_close_input: snd_pcm_close\n");
     snd_pcm_close (record_handle);
