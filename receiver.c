@@ -1373,7 +1373,7 @@ static void process_rx_buffer(RECEIVER *rx) {
     }
 
     if(rx->local_audio) {
-      if((rx!=active_receiver && rx->mute_when_not_active) || rx->mute_radio) {
+      if((rx!=active_receiver && rx->mute_when_not_active)) {
         left_sample=0.0;
         right_sample=0.0;
       } else {
