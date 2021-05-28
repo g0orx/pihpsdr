@@ -232,7 +232,7 @@ ifeq ($(UNAME_S), Linux)
 SYSLIBS=-lrt
 endif
 ifeq ($(UNAME_S), Darwin)
-SYSLIBS=-framework IOkit
+SYSLIBS=-framework IOKit
 endif
 
 OPTIONS=$(SMALL_SCREEN_OPTIONS) $(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) \
