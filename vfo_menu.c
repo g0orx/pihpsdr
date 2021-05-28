@@ -154,6 +154,7 @@ static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
         send_vfo_frequency(client_socket,active_receiver->id,f);
       } else {
 #endif
+        //This is inside a callback so we do not need g_idle_add
         //fp=g_new(SET_FREQUENCY,1);
         //fp->vfo=v;
         //fp->frequency = f;
@@ -287,13 +288,11 @@ void vfo_menu(GtkWidget *parent,int vfo) {
   gtk_grid_attach(GTK_GRID(grid),vfo_label,3,3,1,1);
 
   GtkWidget *vfo_b=gtk_combo_box_text_new();
-  i=0;
-  while(steps[i]!=0) {
+  for (i=0; i<STEPS; i++) {
     gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(vfo_b),NULL,step_labels[i]);
     if(steps[i]==step) {
       gtk_combo_box_set_active (GTK_COMBO_BOX(vfo_b), i);
     }
-    i++;
   }
   g_signal_connect(vfo_b,"changed",G_CALLBACK(vfo_cb),NULL);
   gtk_grid_attach(GTK_GRID(grid),vfo_b,4,3,1,1);
