@@ -84,7 +84,6 @@ static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
   double  mult;
   long long f;
   static int set = 0;
-  SET_FREQUENCY *fp;
 
   // Instead of messing with LOCALE settings,
   // we print a "0.0" and look what the decimal
@@ -210,8 +209,6 @@ static void lock_cb(GtkWidget *widget, gpointer data) {
   g_idle_add(ext_vfo_update,NULL);
 }
 
-static GtkWidget *last_mode;
-
 void vfo_menu(GtkWidget *parent,int vfo) {
   int i;
 
@@ -256,7 +253,6 @@ void vfo_menu(GtkWidget *parent,int vfo) {
   gtk_misc_set_alignment (GTK_MISC (label), 1, .5);
   gtk_grid_attach(GTK_GRID(grid),label,0,1,3,1);
 
-  GtkWidget *step_rb=NULL;
   for (i=0; i<16; i++) {
     btn[i]=gtk_button_new_with_label(btn_labels[i]);
     set_button_text_color(btn[i],"black");

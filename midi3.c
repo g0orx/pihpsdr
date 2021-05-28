@@ -803,10 +803,17 @@ int DoTheRestOfTheMIDI(void *data) {
             break;
 	/////////////////////////////////////////////////////////// "RFGAIN"
         case MIDI_ACTION_RF_GAIN: // knob or wheel supported
-            if (type == MIDI_TYPE_KNOB) {
+            switch (type) {
+              case MIDI_TYPE_KNOB:
                 dnew=val;
-            } else  if (type == MIDI_TYPE_WHEEL) {
+                break;
+              case MIDI_TYPE_WHEEL:
                 dnew=adc[active_receiver->id].gain+val;
+                break;
+              default:
+                // Arriving here means there is an error somewhere else
+                dnew=0.0;
+                break;
             }
             if (dnew <   0.0) dnew =   0.0;
             if (dnew > 100.0) dnew = 100.0;

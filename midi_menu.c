@@ -1,4 +1,4 @@
-/* cOpyright (C)
+/* Copyright (C)
 * 2020 - John Melton, G0ORX/N6LYT
 *
 * This program is free software; you can redistribute it and/or
@@ -399,7 +399,6 @@ static void save_cb(GtkWidget *widget,gpointer user_data) {
   GtkFileChooser *chooser;
   GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_SAVE;
   gint res;
-  struct desc *cmd;
 
   save_dialog = gtk_file_chooser_dialog_new ("Save File",
                                       GTK_WINDOW(dialog),
@@ -427,7 +426,6 @@ static void load_cb(GtkWidget *widget,gpointer user_data) {
   GtkWidget *load_dialog;
   GtkFileChooser *chooser;
   GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_OPEN;
-  gchar *filename;
   gint res;
 
   load_dialog = gtk_file_chooser_dialog_new ("Open MIDI File",
@@ -1214,8 +1212,6 @@ void midi_menu(GtkWidget *parent) {
 static int update(void *data) {
   int state=GPOINTER_TO_INT(data);
   gchar text[32];
-  gint i=1;
-  gint j;
 
   switch(state) {
     case UPDATE_NEW:
