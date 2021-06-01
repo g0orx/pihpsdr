@@ -236,7 +236,7 @@ fprintf(stderr,"zoompan_init: width=%d height=%d\n", width,height);
   gtk_grid_set_row_homogeneous(GTK_GRID(zoompan), FALSE);
   gtk_grid_set_column_homogeneous(GTK_GRID(zoompan),TRUE);
 
-  zoom_label=gtk_label_new("Zoom");
+  zoom_label=gtk_label_new("Zoom:");
   gtk_widget_override_font(zoom_label, pango_font_description_from_string(SLIDERS_FONT));
   gtk_widget_show(zoom_label);
   gtk_grid_attach(GTK_GRID(zoompan),zoom_label,0,0,1,1);
