@@ -315,7 +315,9 @@ led.c \
 ext.c \
 error_handler.c \
 cwramp.c \
-protocols.c
+protocols.c \
+switch_menu.c \
+gpio.c
 
 
 HEADERS= \
@@ -384,7 +386,9 @@ memory.h \
 led.h \
 ext.h \
 error_handler.h \
-protocols.h
+protocols.h \
+switch_menu.h \
+gpio.h
 
 
 OBJS= \
@@ -452,7 +456,9 @@ led.o \
 ext.o \
 error_handler.o \
 cwramp.o \
-protocols.o
+protocols.o \
+switch_menu.o \
+gpio.o
 
 $(PROGRAM):  $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) \
 		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) $(GPIO_OBJS) \
