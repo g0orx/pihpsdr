@@ -132,9 +132,19 @@ gboolean radio_is_remote=FALSE;
 char property_path[128];
 GMutex property_mutex;
 
-RECEIVER *receiver[MAX_RECEIVERS];
+RECEIVER *receiver[8];
 RECEIVER *active_receiver;
 TRANSMITTER *transmitter;
+
+int RECEIVERS;
+int MAX_RECEIVERS;
+int MAX_DDC;
+#ifdef PURESIGNAL
+int PS_TX_FEEDBACK;
+int PS_RX_FEEDBACK;
+#endif
+
+
 
 int buffer_size=1024; // 64, 128, 256, 512, 1024, 2048
 int fft_size=2048; // 1024, 2048, 4096, 8192, 16384
@@ -201,7 +211,7 @@ int mic_ptt_tip_bias_ring=0;
 //int drive_level=0;
 //int tune_drive_level=0;
 
-int receivers=RECEIVERS;
+int receivers;
 
 ADC adc[2];
 DAC dac[2];
@@ -273,7 +283,7 @@ int tune=0;
 int memory_tune=0;
 int full_tune=0;
 int have_rx_gain=0;
-int rx_gain_calibration=14;
+int rx_gain_calibration=0;
 
 //long long displayFrequency=14250000;
 //long long ddsFrequency=14250000;
@@ -841,6 +851,7 @@ void start_radio() {
 #endif
     default:
 	have_rx_gain=0;
+	rx_gain_calibration=0;
 	break;
   }
 
@@ -1104,6 +1115,15 @@ void start_radio() {
   }
 #endif
 
+  /*
+  adc_attenuation[0]=0;
+  adc_attenuation[1]=0;
+
+  if(have_rx_gain) {
+    adc_attenuation[0]=14;
+    adc_attenuation[1]=14;
+  }
+*/
   adc[0].antenna=ANTENNA_1;
   adc[0].filters=AUTOMATIC;
   adc[0].hpf=HPF_13;
@@ -1132,7 +1152,6 @@ void start_radio() {
     dac[0].gain=0;
   }
 #endif
-
 
   adc[1].antenna=ANTENNA_1;
   adc[1].filters=AUTOMATIC;
@@ -1198,6 +1217,36 @@ void start_radio() {
   n_current=0;
 
   display_sequence_errors=TRUE;
+
+  g_print("%s: setup RECEIVERS protocol=%d\n",__FUNCTION__,protocol);
+  switch(protocol) {
+#ifdef SOAPYSDR
+    case SOAPYSDR_PROTOCOL:
+  g_print("%s: setup RECEIVERS SOAPYSDR\n",__FUNCTION__);
+      RECEIVERS=1;
+      MAX_RECEIVERS=RECEIVERS;
+#ifdef PURESIGNAL
+      PS_TX_FEEDBACK=0;
+      PS_RX_FEEDBACK=0;
+#endif
+      MAX_DDC=1;
+      break;
+#endif
+    default:
+  g_print("%s: setup RECEIVERS default\n",__FUNCTION__);
+      RECEIVERS=2;
+#ifdef PURESIGNAL
+      MAX_RECEIVERS=(RECEIVERS+2);
+      PS_TX_FEEDBACK=(RECEIVERS);
+      PS_RX_FEEDBACK=(RECEIVERS+1);
+#else
+      MAX_RECEIVERS=RECEIVERS;
+#endif
+      MAX_DDC=(RECEIVERS+2);
+      break;
+  }
+
+  receivers=RECEIVERS;
 
   radioRestoreState();
 
@@ -1485,6 +1534,7 @@ static void rxtx(int state) {
 
 void setMox(int state) {
   if(!can_transmit) return;
+  // SOAPY and no local mic: continue! e.g. for doing CW.
   vox_cancel();  // remove time-out
   if(mox!=state) {
     if (state && vox) {
@@ -1846,6 +1896,7 @@ void set_alex_rx_antenna() {
         schedule_high_priority();
         break;
       }
+      // This function is NOT called for SOAPY devices
 }
 
 //
@@ -1871,6 +1922,7 @@ void set_alex_tx_antenna() {
         schedule_high_priority();
 	break;
     }
+    // This function is NOT called for SOAPY devices
 }
 
 //
@@ -2086,8 +2138,10 @@ g_print("radioRestoreState: %s\n",property_path);
     value=getProperty("iqswap");
     if(value) iqswap=atoi(value);
 
-    value=getProperty("rx_gain_calibration");
-    if(value) rx_gain_calibration=atoi(value);
+    if (have_rx_gain) {
+      value=getProperty("rx_gain_calibration");
+      if(value) rx_gain_calibration=atoi(value);
+    }
 
 
     filterRestoreState();
@@ -2095,9 +2149,10 @@ g_print("radioRestoreState: %s\n",property_path);
     memRestoreState();
     vfo_restore_state();
     modesettings_restore_state();
-#ifdef GPIO
+//#ifdef GPIO
+//    gpio_restore_actions();
+//#endif
     gpio_restore_actions();
-#endif
     value=getProperty("rigctl_enable");
     if(value) rigctl_enable=atoi(value);
     value=getProperty("rigctl_port_base");
@@ -2155,6 +2210,7 @@ g_print("radioRestoreState: %s\n",property_path);
     if(device==SOAPYSDR_USB_DEVICE) {
       value=getProperty("radio.adc[0].agc");
       if (value) adc[0].agc=atoi(value);
+      //if(value) soapy_protocol_set_automatic_gain(atoi(value));
     }
 #endif
 
@@ -2194,6 +2250,7 @@ g_print("radioRestoreState: %s\n",property_path);
       if(device==SOAPYSDR_USB_DEVICE) {
         value=getProperty("radio.adc[1].agc");
         if (value) adc[1].agc=atoi(value);
+        //if(value) soapy_protocol_set_automatic_gain(atoi(value));
       }
 #endif
 
@@ -2237,11 +2294,12 @@ g_print("radioSaveState: %s\n",property_path);
   
   g_mutex_lock(&property_mutex);
   clearProperties();
-#ifdef GPIO
-  if(controller!=NO_CONTROLLER) {
-    gpio_save_actions();
-  }
-#endif
+//#ifdef GPIO
+//  if(controller!=NO_CONTROLLER) {
+//    gpio_save_actions();
+//  }
+//#endif
+  gpio_save_actions();
   sprintf(value,"%d",receivers);
   setProperty("receivers",value);
   for(i=0;i<receivers;i++) {
@@ -2440,8 +2498,10 @@ g_print("radioSaveState: %s\n",property_path);
     setProperty("adc_1_attenuation",value);
     */
 	
-    sprintf(value,"%d",rx_gain_calibration);
-    setProperty("rx_gain_calibration",value);
+    if (have_rx_gain) {
+      sprintf(value,"%d",rx_gain_calibration);
+      setProperty("rx_gain_calibration",value);
+    }
 
     sprintf(value,"%d", adc[0].filters);
     setProperty("radio.adc[0].filters",value);
