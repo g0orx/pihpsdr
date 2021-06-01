@@ -135,6 +135,8 @@ void switch_menu(GtkWidget *parent) {
 
   switch(controller) {
     default:
+      break;
+    case CONTROLLER1:
       {
       GtkWidget *sw7_title=gtk_label_new("SW7: ");
       gtk_grid_attach(GTK_GRID(grid),sw7_title,col,row,1,1);
