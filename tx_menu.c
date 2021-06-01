@@ -219,9 +219,11 @@ static gboolean emp_cb (GtkWidget *widget, gpointer data) {
   return FALSE;
 }
 
+/*
 static void tune_value_changed_cb(GtkWidget *widget, gpointer data) {
   setTuneDrive(gtk_range_get_value(GTK_RANGE(tune_scale)));
 }
+*/
 
 void tx_menu(GtkWidget *parent) {
   int i;
@@ -271,7 +273,7 @@ void tx_menu(GtkWidget *parent) {
 
     input=gtk_combo_box_text_new();
     for(i=0;i<n_input_devices;i++) {
-      gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(input),NULL,input_devices[i].name);
+      gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(input),NULL,input_devices[i].description);
       if(transmitter->microphone_name!=NULL) {
         if(strcmp(transmitter->microphone_name,input_devices[i].name)==0) {
           gtk_combo_box_set_active(GTK_COMBO_BOX(input),i);

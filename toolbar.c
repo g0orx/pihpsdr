@@ -91,6 +91,10 @@ static gboolean rit_timer_cb(gpointer data) {
 
 static gboolean xit_timer_cb(gpointer data) {
   int i=GPOINTER_TO_INT(data);
+  //
+  // In most operations, one want to move XIT faster than RIT
+  // therefore take 10 times the RIT value for XIT
+  //
   transmitter->xit+=(10*i*rit_increment);
   if(transmitter->xit>10000) transmitter->xit=10000;
   if(transmitter->xit<-10000) transmitter->xit=-10000;

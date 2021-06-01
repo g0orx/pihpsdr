@@ -64,8 +64,8 @@ static int my_height;
 static GtkWidget *vfo_panel;
 static cairo_surface_t *vfo_surface = NULL;
 
-int steps[]={1,10,25,50,100,250,500,1000,5000,9000,10000,100000,250000,500000,1000000,0};
-char *step_labels[]={"1Hz","10Hz","25Hz","50Hz","100Hz","250Hz","500Hz","1kHz","5kHz","9kHz","10kHz","100kHz","250KHz","500KHz","1MHz",0};
+int steps[]={1,10,25,50,100,250,500,1000,5000,9000,10000,100000,250000,500000,1000000};
+char *step_labels[]={"1Hz","10Hz","25Hz","50Hz","100Hz","250Hz","500Hz","1kHz","5kHz","9kHz","10kHz","100kHz","250KHz","500KHz","1MHz"};
 
 static GtkWidget* menu=NULL;
 static GtkWidget* band_menu=NULL;
@@ -692,7 +692,6 @@ void vfo_step(int steps) {
 
 #ifdef CLIENT_SERVER
   if(radio_is_remote) {
-    //send_vfo_step(client_socket,id,steps);
     update_vfo_step(id,steps);
     return;
   }
@@ -1078,12 +1077,12 @@ void vfo_update() {
         long long af = vfo[0].ctun ? vfo[0].ctun_frequency : vfo[0].frequency;
         long long bf = vfo[1].ctun ? vfo[1].ctun_frequency : vfo[1].frequency;
 
-        if(vfo[0].entering_frequency) {
-            af=vfo[0].entered_frequency;
-        }
-        if(vfo[1].entering_frequency) {
-            bf=vfo[1].entered_frequency;
-        }
+	if(vfo[0].entering_frequency) {
+	    af=vfo[0].entered_frequency;
+	}
+	if(vfo[1].entering_frequency) {
+	    bf=vfo[1].entered_frequency;
+	}
 
 #if 0
 //
@@ -1117,6 +1116,7 @@ void vfo_update() {
 
         int oob=0;
         if (can_transmit) oob=transmitter->out_of_band;
+
         sprintf(temp_text,"VFO A: %0lld.%06lld",af/(long long)1000000,af%(long long)1000000);
         if(txvfo == 0 && (isTransmitting() || oob)) {
             if (oob) sprintf(temp_text,"VFO A: Out of band");
@@ -1298,10 +1298,12 @@ void vfo_update() {
         }
         cairo_show_text(cr, "DIV");
 
-        int s=0;
-        while(steps[s]!=step && steps[s]!=0) {
-          s++;
-        }
+	int s;
+	for(s=0;s<STEPS;s++) {
+	  if(steps[s]==step) break;
+	}
+	if(s>=STEPS) s=0;
+
         sprintf(temp_text,"Step %s",step_labels[s]);
         cairo_move_to(cr, 400, 15);
         cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
@@ -1378,16 +1380,6 @@ void vfo_update() {
 fprintf(stderr,"vfo_update: no surface!\n");
     }
 }
-
-/*
-static gboolean
-vfo_step_select_cb (GtkWidget *widget,
-               gpointer        data)
-{
-  step=steps[(int)data];
-  g_idle_add(ext_vfo_update,NULL);
-}
-*/
 
 static gboolean
 vfo_press_event_cb (GtkWidget *widget,

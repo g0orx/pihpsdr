@@ -352,6 +352,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   cairo_set_line_width(cr, 1.0);
   cairo_stroke(cr);
 
+/*
 #ifdef GPIO
   if(controller==CONTROLLER1 && tx->dialog == NULL) {
     char text[64];
@@ -377,7 +378,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     }
   }
 #endif
-
+*/
 
 #ifdef PURESIGNAL
   if(tx->puresignal) {
@@ -417,7 +418,6 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     }
     cairo_move_to(cr,10,15);
     cairo_show_text(cr, text);
-
     //
     // Since colour is already red, no special
     // action for "high SWR" warning
@@ -440,7 +440,6 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     cairo_show_text(cr, text);
 */
   }
-
   //
   // If the SWR protection has been triggered, display message for three seconds
   //
