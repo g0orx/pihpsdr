@@ -89,7 +89,7 @@ static void serial_enable_cb(GtkWidget *widget, gpointer data) {
   serial_enable=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
   if(serial_enable) {
      if(launch_serial() == 0) {
-        gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON(widget),FALSE)	     ;
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget),FALSE)	     ;
      }	      
   } else {
      disable_serial();
