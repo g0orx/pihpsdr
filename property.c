@@ -48,7 +48,7 @@ g_print("clearProperties\n");
 * @param filename
 */
 void loadProperties(char* filename) {
-    char string[256];  // pulseaudio names can be VERY long
+    char string[256];
     char* name;
     char* value;
     FILE* f=fopen(filename,"r");

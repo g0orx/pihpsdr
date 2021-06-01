@@ -47,6 +47,7 @@ static void cleanup() {
     gtk_widget_destroy(dialog);
     dialog=NULL;
     sub_menu=NULL;
+    active_menu=NO_MENU;
   }
 }
 

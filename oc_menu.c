@@ -224,7 +224,7 @@ g_print("oc_menu: parent=%p\n",parent);
     BAND *band=band_get_band(i);
     if(strlen(band->title)>0) {
       GtkWidget *band_label=gtk_label_new(NULL);
-      char band_text[24];
+      char band_text[32];
       sprintf(band_text,"<b>%s</b>",band->title);
       gtk_label_set_markup(GTK_LABEL(band_label), band_text);
       //gtk_widget_override_font(band_label, pango_font_description_from_string("Arial 18"));

@@ -82,36 +82,26 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 static void rf_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
   ADC *adc=(ADC *)data;
   adc->gain=gtk_spin_button_get_value(GTK_SPIN_BUTTON(widget));
-  
+
   if(radio->device==SOAPYSDR_USB_DEVICE) {
     soapy_protocol_set_gain(receiver[0]);
   }
-
-/*
-  for(int i=0;i<radio->info.soapy.rx_gains;i++) {
-    int value=soapy_protocol_get_gain_element(active_receiver,radio->info.soapy.rx_gain[i]);
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(rx_gains[i]),(double)value);
-  }
-*/
-
 }
 
 static void rx_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
   ADC *adc=(ADC *)data;
-  int gain;
   if(radio->device==SOAPYSDR_USB_DEVICE) {
-    gain=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
-    soapy_protocol_set_gain_element(receiver[0],(char *)gtk_widget_get_name(widget),gain);
-
+    adc->gain=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+    soapy_protocol_set_gain_element(receiver[0],(char *)gtk_widget_get_name(widget),adc->gain);
 /*
     for(int i=0;i<radio->info.soapy.rx_gains;i++) {
       if(strcmp(radio->info.soapy.rx_gain[i],(char *)gtk_widget_get_name(widget))==0) {
         adc[0].rx_gain[i]=gain;
+        soapy_protocol_set_gain_element(receiver[0],(char *)gtk_widget_get_name(widget),gain);
         break;
       }
     }
 */
-
   }
 }
 
@@ -150,7 +140,10 @@ static void tx_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
 static void agc_changed_cb(GtkWidget *widget, gpointer data) {
   ADC *adc=(ADC *)data;
   gboolean agc=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-  soapy_protocol_set_automatic_gain(receiver[0],agc);
+  soapy_protocol_set_automatic_gain(active_receiver,agc);
+  if(!agc) {
+    soapy_protocol_set_gain(active_receiver);
+  }
 }
 
 /*
@@ -179,9 +172,11 @@ static void vfo_divisor_value_changed_cb(GtkWidget *widget, gpointer data) {
   vfo_encoder_divisor=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
 }
 
+#ifdef GPIO
 static void gpio_settle_value_changed_cb(GtkWidget *widget, gpointer data) {
   settle_time=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
 }
+#endif
 
 /*
 static void toolbar_dialog_buttons_cb(GtkWidget *widget, gpointer data) {
@@ -675,23 +670,23 @@ void radio_menu(GtkWidget *parent) {
   row=1;
 
   GtkWidget *rit_label=gtk_label_new(NULL);
-  gtk_label_set_markup(GTK_LABEL(rit_label), "<b>RIT(XIT) step (Hz):</b>");
+  gtk_label_set_markup(GTK_LABEL(rit_label), "<b>RIT/XIT step (Hz):</b>");
   gtk_grid_attach(GTK_GRID(grid),rit_label,col,row,1,1);
   row++;
 
-  GtkWidget *rit_1=gtk_radio_button_new_with_label(NULL,"1(10)");
+  GtkWidget *rit_1=gtk_radio_button_new_with_label(NULL,"1/10");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rit_1), rit_increment==1);
   gtk_grid_attach(GTK_GRID(grid),rit_1,col,row,1,1);
   g_signal_connect(rit_1,"pressed",G_CALLBACK(rit_cb),(gpointer *)1);
   row++;
 
-  GtkWidget *rit_10=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(rit_1),"10(100)");
+  GtkWidget *rit_10=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(rit_1),"10/100");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rit_10), rit_increment==10);
   gtk_grid_attach(GTK_GRID(grid),rit_10,col,row,1,1);
   g_signal_connect(rit_10,"pressed",G_CALLBACK(rit_cb),(gpointer *)10);
   row++;
 
-  GtkWidget *rit_100=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(rit_10),"100(1000)");
+  GtkWidget *rit_100=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(rit_10),"100/1000");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rit_100), rit_increment==100);
   gtk_grid_attach(GTK_GRID(grid),rit_100,col,row,1,1);
   g_signal_connect(rit_100,"pressed",G_CALLBACK(rit_cb),(gpointer *)100);
