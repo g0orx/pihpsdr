@@ -75,8 +75,8 @@
 #define RXACTION_PS     2    // deliver 2*119 samples to PS engine
 #define RXACTION_DIV    3    // take 2*119 samples, mix them, deliver to a receiver
 
-static int rxcase[7/*MAX_DDC*/];
-static int rxid  [7/*MAX_DDC*/];
+static int rxcase[8];
+static int rxid  [8];
 
 int data_socket=-1;
 
@@ -109,8 +109,8 @@ static int audio_addr_length;
 static struct sockaddr_in iq_addr;
 static int iq_addr_length;
 
-static struct sockaddr_in data_addr[7/*MAX_DDC*/];
-static int data_addr_length[7/*MAX_DDC*/];
+static struct sockaddr_in data_addr[8];
+static int data_addr_length[8];
 
 static GThread *new_protocol_thread_id;
 static GThread *new_protocol_timer_thread_id;
@@ -119,7 +119,7 @@ static long high_priority_sequence = 0;
 static long general_sequence = 0;
 static long rx_specific_sequence = 0;
 static long tx_specific_sequence = 0;
-static long ddc_sequence[7/*MAX_DDC*/];
+static long ddc_sequence[8];
 
 //static int buffer_size=BUFFER_SIZE;
 //static int fft_size=4096;
@@ -175,13 +175,13 @@ static sem_t mic_line_sem_buffer;
 #endif
 static GThread *mic_line_thread_id;
 #ifdef __APPLE__
-static sem_t *iq_sem_ready[7/*MAX_DDC*/];
-static sem_t *iq_sem_buffer[7/*MAX_DDC*/];
+static sem_t *iq_sem_ready[8];
+static sem_t *iq_sem_buffer[8];
 #else
-static sem_t iq_sem_ready[7/*MAX_DDC*/];
-static sem_t iq_sem_buffer[7/*MAX_DDC*/];
+static sem_t iq_sem_ready[8];
+static sem_t iq_sem_buffer[8];
 #endif
-static GThread *iq_thread_id[7/*MAX_DDC*/];
+static GThread *iq_thread_id[8];
 
 #ifdef INCLUDED
 static int outputsamples;
@@ -241,7 +241,7 @@ static mybuffer *buflist = NULL;
 //
 // The buffers used by new_protocol_thread
 //
-static mybuffer *iq_buffer[7/*MAX_DDC*/];
+static mybuffer *iq_buffer[8];
 static mybuffer *command_response_buffer;
 static mybuffer *high_priority_buffer;
 static mybuffer *mic_line_buffer;
@@ -464,11 +464,18 @@ void new_protocol_init(int pixels) {
     int rc;
     spectrumWIDTH=pixels;
 
-    g_print("new_protocol_init: MIC_SAMPLES=%d\n",MIC_SAMPLES);
+    //
+    // This is the hard (compile-time) limit on the number of DDCs
+    //
+    if (MAX_DDC > 7) {
+      g_print("%s: MAX_DDC exceeds allowed range\n", __FUNCTION__);
+      exit(-1);
+    }
+    g_print("%s: MIC_SAMPLES=%d\n", __FUNCTION__, MIC_SAMPLES);
 
-    memset(rxcase      , 0, MAX_DDC*sizeof(int));
-    memset(rxid        , 0, MAX_DDC*sizeof(int));
-    memset(ddc_sequence, 0, MAX_DDC*sizeof(long));
+    memset(rxcase      , 0, sizeof(rxcase));
+    memset(rxid        , 0, sizeof(rxid));
+    memset(ddc_sequence, 0, sizeof(ddc_sequence));
     update_action_table();
 
 #ifdef INCLUDED
@@ -1470,9 +1477,9 @@ void new_protocol_restart() {
   micsamples_sequence=0;
   audiosequence=0;
   tx_iq_sequence=0;
-  memset(rxcase      , 0, MAX_DDC*sizeof(int));
-  memset(rxid        , 0, MAX_DDC*sizeof(int));
-  memset(ddc_sequence, 0, MAX_DDC*sizeof(long));
+  memset(rxcase      , 0, sizeof(rxcase));
+  memset(rxid        , 0, sizeof(rxid));
+  memset(ddc_sequence, 0, sizeof(ddc_sequence));
   update_action_table();
   // running is set to 1 at the top of new_protocol_thread,
   // but this may lead to race conditions. So out of paranoia,
