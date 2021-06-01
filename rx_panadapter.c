@@ -426,14 +426,22 @@ void rx_panadapter_update(RECEIVER *rx) {
   // agc
   if(rx->agc!=AGC_OFF) {
     cairo_set_line_width(cr, LINE_THICK);
-    double knee_y=rx->agc_thresh+(double)adc[rx->adc].attenuation;
+    double knee_y=rx->agc_thresh + (double)rx_gain_calibration + (double)adc[rx->adc].attenuation - adc[rx->adc].gain;
     if (filter_board == ALEX && rx->adc == 0) knee_y += (double)(10*rx->alex_attenuation);
+    if (filter_board == CHARLY25) {
+      if (rx->preamp) knee_y -= 18.0;
+      if (rx->dither) knee_y -= 18.0;
+    }
     knee_y = floor((rx->panadapter_high - knee_y)
                         * (double) display_height
                         / (rx->panadapter_high - rx->panadapter_low));
 
-    double hang_y=rx->agc_hang+(double)adc[rx->adc].attenuation;
+    double hang_y=rx->agc_hang + (double)rx_gain_calibration + (double)adc[rx->adc].attenuation - adc[rx->adc].gain;
     if (filter_board == ALEX && rx->adc == 0) hang_y += (double)(10*rx->alex_attenuation);
+    if (filter_board == CHARLY25) {
+      if (rx->preamp) hang_y -= 18.0;
+      if (rx->dither) hang_y -= 18.0;
+    }
     hang_y = floor((rx->panadapter_high - hang_y)
                         * (double) display_height
                         / (rx->panadapter_high - rx->panadapter_low));
@@ -495,43 +503,28 @@ void rx_panadapter_update(RECEIVER *rx) {
 
   samples[pan]=-200.0;
   samples[display_width-1+pan]=-200.0;
-  if(have_rx_gain) {
-    s1=(double)samples[pan]+rx_gain_calibration-adc[rx->adc].attenuation;
-  } else {
-    s1=(double)samples[pan]+(double)adc[rx->adc].attenuation;
-  }
+  //
+  // most HPSDR only have attenuation (no gain), while HermesLite-II and SOAPY use gain (no attenuation)
+  //
+  s1=(double)samples[pan] + (double)rx_gain_calibration + (double)adc[rx->adc].attenuation - adc[rx->adc].gain;
   cairo_move_to(cr, 0.0, s1);
   if (filter_board == ALEX && rx->adc == 0) s1 += (double)(10*rx->alex_attenuation);
   if (filter_board == CHARLY25) {
     if (rx->preamp) s1 -= 18.0;
     if (rx->dither) s1 -= 18.0;
   }
-#ifdef SOAPYSDR
-  if(protocol==SOAPYSDR_PROTOCOL) {
-    s1-=adc[rx->adc].gain;
-  }
-#endif
 
   s1 = floor((rx->panadapter_high - s1)
                         * (double) display_height
                         / (rx->panadapter_high - rx->panadapter_low));
   cairo_move_to(cr, 0.0, s1);
   for(i=1;i<display_width;i++) {
-    if(have_rx_gain) {
-      s2=(double)samples[i+pan]+rx_gain_calibration-adc[rx->adc].attenuation;
-    } else {
-      s2=(double)samples[i+pan]+(double)adc[rx->adc].attenuation;
-    }
+    s2=(double)samples[i+pan] + (double)rx_gain_calibration + (double)adc[rx->adc].attenuation - adc[rx->adc].gain;
     if (filter_board == ALEX && rx->adc == 0) s2 += (double)(10*rx->alex_attenuation);
     if (filter_board == CHARLY25) {
       if (rx->preamp) s2 -= 18.0;
       if (rx->dither) s2 -= 18.0;
     }
-#ifdef SOAPYSDR
-    if(protocol==SOAPYSDR_PROTOCOL) {
-      s2-=adc[rx->adc].gain;
-    }
-#endif
     s2 = floor((rx->panadapter_high - s2)
                             * (double) display_height
                             / (rx->panadapter_high - rx->panadapter_low));

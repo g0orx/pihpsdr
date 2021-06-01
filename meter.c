@@ -194,16 +194,7 @@ if(analog_meter) {
   switch(meter_type) {
     case SMETER:
       {
-      if(have_rx_gain) {
-        level=value+rx_gain_calibration-adc[rx->adc].attenuation;
-      } else {
-        level=value+(double)adc[rx->adc].attenuation;
-      }
-#ifdef SOAPYSDR
-      if(protocol==SOAPYSDR_PROTOCOL) {
-       level-=adc[rx->id].gain;
-      }
-#endif
+      level=value + (double)rx_gain_calibration + (double)adc[rx->adc].attenuation - adc[rx->adc].gain;
       if (filter_board == CHARLY25) {
 	// preamp/dither encodes the preamp level
         if (rx->preamp) level -= 18.0;
@@ -562,22 +553,12 @@ if(analog_meter) {
       // value is dBm
       text_location=10;
       offset=5.0;
-      if(have_rx_gain) {
-        level=value+rx_gain_calibration-adc[rx->adc].attenuation;
-      } else {
-        level=value+(double)adc[rx->adc].attenuation;
-      }
-#ifdef SOAPYSDR
-      if(protocol==SOAPYSDR_PROTOCOL) {
-       level-=adc[rx->id].gain;
-      }
-#endif
+      level=value + (double)rx_gain_calibration + (double)adc[rx->adc].attenuation - adc[rx->adc].gain;
       if (filter_board == CHARLY25) {
 	// preamp/dither encodes the preamp level
         if (rx->preamp) level -= 18.0;
         if (rx->dither) level -= 18.0;
       }
-
       //
       // Assume that alex_attenuation is set correctly if we have an ALEX board
       //
