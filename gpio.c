@@ -28,7 +28,9 @@
 #include <fcntl.h>
 #include <poll.h>
 #include <sched.h>
+#ifdef GPIO
 #include <wiringPi.h>
+#endif
 #include <semaphore.h>
 
 #include "band.h"
@@ -536,6 +538,7 @@ g_print("e_function_pressed: %d\n",action);
   return 0;
 }
 
+#ifdef GPIO
 static unsigned long e2debounce=0;
 
 static void e2FunctionAlert() {
@@ -885,6 +888,7 @@ static void pttAlert() {
     }
 }
 #endif
+#endif  // GPIO
 
 void gpio_set_defaults(int ctrlr) {
 g_print("gpio_set_defaults: %d\n",ctrlr);
@@ -1316,6 +1320,7 @@ void gpio_restore_state() {
   if(value) PTT_ACTIVE_LOW=atoi(value);		
 #endif
 
+#ifdef GPIO
   if(controller!=CONTROLLER1) {
     value=getProperty("i2c_device");
     if(value) {
@@ -1329,6 +1334,7 @@ void gpio_restore_state() {
     }
  
   }
+#endif
 
 #ifdef LOCALCW
   if(controller==CONTROLLER2_V2) {
@@ -1505,6 +1511,7 @@ void gpio_save_state() {
   sprintf(value,"%d",E5_FUNCTION);
   setProperty("E5_FUNCTION",value);
 
+#ifdef GPIO
   if(controller!=CONTROLLER1) {
     setProperty("i2c_device",i2c_device);		
     sprintf(value,"%ud",i2c_address_1);
@@ -1514,8 +1521,8 @@ void gpio_save_state() {
       sprintf(value,"%ud",i2c_sw[i]);
       setProperty(name,value);		
     }
-
   }
+#endif
 
 #ifdef LOCALCW		
   sprintf(value,"%d",ENABLE_CW_BUTTONS);		
@@ -1544,6 +1551,7 @@ void gpio_save_state() {
 
 }
 
+#ifdef GPIO
 static void setup_pin(int pin, int up_down, void(*pAlert)(void)) {
   int rc;
 g_print("setup_pin: pin=%d up_down=%d\n",pin,up_down);
@@ -1605,32 +1613,8 @@ static void cwAlert_right() {
     //fprintf(stderr,"cwr button : level=%d \n",level);
      keyer_event(0, CW_ACTIVE_LOW ? (level==0) : level);
 }
-
-//
-// The following functions are an interface for
-// other parts to access CW gpio functions
-// (query left and right paddle, set sidetone output)
-//
-int gpio_left_cw_key() {
-  int val=digitalRead(CWL_BUTTON);
-  return CW_ACTIVE_LOW? (val==0) : val;
-}
-
-int gpio_right_cw_key() {
-  int val=digitalRead(CWR_BUTTON);
-  return CW_ACTIVE_LOW? (val==0) : val;
-}
-
-int gpio_cw_sidetone_enabled() {
-  return ENABLE_GPIO_SIDETONE;
-}
-
-void gpio_cw_sidetone_set(int level) {
-  if (ENABLE_GPIO_SIDETONE) {
-    digitalWrite(SIDETONE_GPIO, level);
-  }
-}
 #endif
+#endif  // GPIO
 
 int gpio_init() {
 
@@ -1638,6 +1622,7 @@ int gpio_init() {
 
   gpio_restore_state();
 
+#ifdef GPIO
   wiringPiSetup(); // use WiringPi pin numbers
 
   if(ENABLE_VFO_ENCODER) {
@@ -1787,6 +1772,7 @@ g_print("PTT Enabled: setup pin %d active_low=%d\n",PTT_GPIO,PTT_ACTIVE_LOW);
   }
 #endif
 
+#endif
   return 0;
 }
 

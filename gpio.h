@@ -21,15 +21,6 @@
 #define _GPIO_H
 
 enum {
-  NO_CONTROLLER=0,
-  CONTROLLER1,
-  CONTROLLER2_V1,
-  CONTROLLER2_V2,
-};
-
-extern int controller;
-  
-enum {
   ENCODER_NO_ACTION=0,
   ENCODER_AF_GAIN,
   ENCODER_AF_GAIN_RX1,
