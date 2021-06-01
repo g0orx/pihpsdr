@@ -100,7 +100,7 @@ static void serial_enable_cb(GtkWidget *widget, gpointer data) {
   //
   if (!rigctl_enable) {
     serial_enable=0;
-    gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON(widget),0);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget),0);
     return;
   }
   strcpy(ser_port,gtk_entry_get_text(GTK_ENTRY(serial_port_entry)));
