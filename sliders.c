@@ -137,8 +137,7 @@ int scale_timeout_cb(gpointer data) {
 }
 
 static void attenuation_value_changed_cb(GtkWidget *widget, gpointer data) {
-  adc[active_receiver->adc].gain=gtk_range_get_value(GTK_RANGE(attenuation_scale));
-  adc[active_receiver->adc].attenuation=(int)adc[active_receiver->adc].gain;
+  adc[active_receiver->adc].attenuation=gtk_range_get_value(GTK_RANGE(attenuation_scale));
 #ifdef CLIENT_SERVER
   if(radio_is_remote) {
     send_attenuation(client_socket,active_receiver->id,(int)adc[active_receiver->adc].attenuation);
@@ -405,7 +404,7 @@ void update_rf_gain() {
 
 void set_rf_gain(int rx,double value) {
   g_print("%s\n",__FUNCTION__);
-  adc[receiver[rx]->id].gain=value;
+  adc[receiver[rx]->adc].gain=value;
 #ifdef SOAPYSDR
   if(protocol==SOAPYSDR_PROTOCOL) {
     soapy_protocol_set_gain(receiver[rx]);
