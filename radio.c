@@ -54,7 +54,6 @@
 #ifdef SOAPYSDR
 #include "soapy_protocol.h"
 #endif
-#include "actions.h"
 #include "gpio.h"
 #include "vfo.h"
 #include "vox.h"
@@ -284,7 +283,7 @@ int tune=0;
 int memory_tune=0;
 int full_tune=0;
 int have_rx_gain=0;
-int rx_gain_calibration=14;
+int rx_gain_calibration=0;
 
 //long long displayFrequency=14250000;
 //long long ddsFrequency=14250000;
@@ -483,14 +482,14 @@ static void create_visual() {
 
 
   GtkWidget *minimize_b=gtk_button_new_with_label("Hide");
-  gtk_widget_override_font(minimize_b, pango_font_description_from_string("FreeSans Bold 10"));
+  gtk_widget_override_font(minimize_b, pango_font_description_from_string(SLIDERS_FONT));
   gtk_widget_set_size_request (minimize_b, MENU_WIDTH, MENU_HEIGHT);
   g_signal_connect (minimize_b, "button-press-event", G_CALLBACK(minimize_cb), NULL) ;
   gtk_fixed_put(GTK_FIXED(fixed),minimize_b,VFO_WIDTH+METER_WIDTH,y);
   y+=MENU_HEIGHT;
 
   GtkWidget *menu_b=gtk_button_new_with_label("Menu");
-  gtk_widget_override_font(menu_b, pango_font_description_from_string("FreeSans Bold 10"));
+  gtk_widget_override_font(menu_b, pango_font_description_from_string(SLIDERS_FONT));
   gtk_widget_set_size_request (menu_b, MENU_WIDTH, MENU_HEIGHT);
   g_signal_connect (menu_b, "button-press-event", G_CALLBACK(menu_cb), NULL) ;
   gtk_fixed_put(GTK_FIXED(fixed),menu_b,VFO_WIDTH+METER_WIDTH,y);
@@ -852,6 +851,7 @@ void start_radio() {
 #endif
     default:
 	have_rx_gain=0;
+	rx_gain_calibration=0;
 	break;
   }
 
@@ -1922,6 +1922,7 @@ void set_alex_tx_antenna() {
         schedule_high_priority();
 	break;
     }
+    // This function is NOT called for SOAPY devices
 }
 
 //
@@ -2137,8 +2138,10 @@ g_print("radioRestoreState: %s\n",property_path);
     value=getProperty("iqswap");
     if(value) iqswap=atoi(value);
 
-    value=getProperty("rx_gain_calibration");
-    if(value) rx_gain_calibration=atoi(value);
+    if (have_rx_gain) {
+      value=getProperty("rx_gain_calibration");
+      if(value) rx_gain_calibration=atoi(value);
+    }
 
 
     filterRestoreState();
@@ -2495,8 +2498,10 @@ g_print("radioSaveState: %s\n",property_path);
     setProperty("adc_1_attenuation",value);
     */
 	
-    sprintf(value,"%d",rx_gain_calibration);
-    setProperty("rx_gain_calibration",value);
+    if (have_rx_gain) {
+      sprintf(value,"%d",rx_gain_calibration);
+      setProperty("rx_gain_calibration",value);
+    }
 
     sprintf(value,"%d", adc[0].filters);
     setProperty("radio.adc[0].filters",value);
