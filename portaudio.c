@@ -76,8 +76,11 @@ int n_output_devices=0;
 
 #define MY_AUDIO_BUFFER_SIZE 256
 #define MY_RING_BUFFER_SIZE  9600
-#define MY_RING_LOW_WATER    800
-#define MY_RING_HIGH_WATER   8800
+#define MY_RING_LOW_WATER    1000
+#define MY_RING_HIGH_WATER   8600
+#define MY_CW_LOW_WATER      512
+#define MY_CW_HIGH_WATER     768
+#define MY_CW_MID_WATER      640
 
 //
 // Ring buffer for "local microphone" samples stored locally here.
@@ -409,7 +412,6 @@ int audio_open_output(RECEIVER *rx)
   rx->local_audio_buffer=g_new(float,MY_RING_BUFFER_SIZE);
   rx->local_audio_buffer_inpt=0;
   rx->local_audio_buffer_outpt=0;
-  rx->local_audio_cw=0;
 
   if (rx->local_audio_buffer == NULL) {
     g_print("%s: allocate buffer failed\n", __FUNCTION__);
@@ -528,16 +530,6 @@ int audio_write (RECEIVER *rx, float left, float right)
 
   g_mutex_lock(&rx->local_audio_mutex);
   if (rx->playstream != NULL && buffer != NULL) {
-    if (rx->local_audio_cw == 1) {
-      //
-      // We come from a TX->RX transition:
-      // Clear buffer and insert half a buffer length of silence
-      // 
-      rx->local_audio_cw=0;
-      bzero(buffer, sizeof(float)*(MY_RING_BUFFER_SIZE/2));
-      rx->local_audio_buffer_inpt=MY_RING_BUFFER_SIZE/2;
-      rx->local_audio_buffer_outpt=0;
-    }
     avail = rx->local_audio_buffer_inpt - rx->local_audio_buffer_outpt;
     if (avail < 0) avail += MY_RING_BUFFER_SIZE;
     if (avail <  MY_RING_LOW_WATER) {
@@ -552,7 +544,7 @@ int audio_write (RECEIVER *rx, float left, float right)
       // *always* be quite empty.
       //
       oldpt=rx->local_audio_buffer_inpt;
-      for (i=0; i< MY_RING_BUFFER_SIZE/2; i++) {
+      for (i=0; i< MY_RING_BUFFER_SIZE/2 -avail; i++) {
         buffer[oldpt++]=0.0;
         if (oldpt >= MY_RING_BUFFER_SIZE) oldpt=0;
       }
@@ -608,33 +600,30 @@ int cw_audio_write(RECEIVER *rx, float sample) {
 
   g_mutex_lock(&rx->local_audio_mutex);
   if (rx->playstream != NULL && rx->local_audio_buffer != NULL) {
-    if (rx->local_audio_cw == 0 && cw_keyer_sidetone_volume > 0) {
+    avail = rx->local_audio_buffer_inpt - rx->local_audio_buffer_outpt;
+    if (avail < 0) avail += MY_RING_BUFFER_SIZE;
+    if (avail >  MY_RING_LOW_WATER) {
       //
       // First time producing CW audio after RX/TX transition:
-      // empty audio buffer and insert 512 samples of silence
+      // empty audio buffer and insert *a little bit of* silence
       //
-      rx->local_audio_cw=1;
-      bzero(rx->local_audio_buffer, 512*sizeof(float));
-      rx->local_audio_buffer_inpt=512;
+      bzero(rx->local_audio_buffer, MY_CW_MID_WATER*sizeof(float));
+      rx->local_audio_buffer_inpt=MY_CW_MID_WATER;
       rx->local_audio_buffer_outpt=0;
+      avail=MY_CW_MID_WATER;
       count=0;
     }
     adjust=0;
-    if (rx->local_audio_cw) {
-      count++;
-      if (sample != 0.0) count=0;
-      if (count >= 16) {
-        count=0;
-        //
-        // We arrive here if we have seen 16 zero samples in a row.
-        // First look how many samples there are in the ring buffer
-        //
-        avail = rx->local_audio_buffer_inpt - rx->local_audio_buffer_outpt;
-        if (avail < 0) avail += MY_RING_BUFFER_SIZE;
-        if (avail > 768) adjust=2;  // too full: skip one sample
-        if (avail < 512) adjust=1;  // too empty: insert one sample
-      }
-    }  
+    if (sample != 0.0) count=0;
+    if (++count >= 16) {
+      count=0;
+      //
+      // We arrive here if we have seen 16 zero samples in a row.
+      // First look how many samples there are in the ring buffer
+      //
+      if (avail > MY_CW_HIGH_WATER) adjust=2;  // too full: skip one sample
+      if (avail < MY_CW_LOW_WATER ) adjust=1;  // too empty: insert one sample
+    }
     switch (adjust) {
       case 0:
         // 
