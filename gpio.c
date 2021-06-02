@@ -2353,3 +2353,18 @@ static gpointer rotary_encoder_thread(gpointer data) {
     }
     return NULL;
 }
+
+#ifdef LOCALCW
+void gpio_cw_sidetone_set(int level) {
+#ifdef GPIO
+  if (ENABLE_GPIO_SIDETONE) {
+    digitalWrite(SIDETONE_GPIO, level);
+  }
+#endif
+}
+
+int  gpio_cw_sidetone_enabled() {
+  return ENABLE_GPIO_SIDETONE;
+}
+#endif
+
