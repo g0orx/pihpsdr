@@ -10,6 +10,7 @@
 #include "mode.h"
 #include "new_protocol.h"
 #include "old_protocol.h"
+#include "vfo.h"
 #ifdef SOAPYSDR
 #include "soapy_protocol.h"
 #endif
@@ -368,6 +369,11 @@ int audio_write(RECEIVER *rx,float left_sample,float right_sample) {
   int result=0;
   int rc;
   int err;
+  int txmode=get_tx_mode();
+
+  if (rx == active_receiver && isTransmitting() && (txmode==modeCWU || txmode==modeCWL)) {
+    return 0;
+  }
 
   g_mutex_lock(&rx->local_audio_mutex);
 

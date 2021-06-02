@@ -132,7 +132,7 @@ gboolean radio_is_remote=FALSE;
 char property_path[128];
 GMutex property_mutex;
 
-RECEIVER *receiver[7];
+RECEIVER *receiver[8];
 RECEIVER *active_receiver;
 TRANSMITTER *transmitter;
 

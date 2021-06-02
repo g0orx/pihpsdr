@@ -62,18 +62,8 @@
  * Sep/Oct/Nov 2018, by DL1YCF Christoph van Wullen
  ***************************************************************************************************************
  *
- * a) SOME MINOR TECHNICAL ISSUES:
- * ===============================
- *
- * -keyer_close was actually unused. It is now called when local CW is no longer used
- *      and "joins" (terminates) the keyer thread.
- *
- * - GPIO pin names are no longer used in iambic.c
- *
- * - cw_keyer_spacing can now be set/un-set in the CW menu (cw_menu.c)
- *
- * b) SIDE TONE GENERATION
- * =======================
+ * SIDE TONE GENERATION
+ * ====================
  *
  * Getting a delay-free side tone is absolutely necessary at elevated CW speed (say, > 20 wpm).
  * The LINUX sound system produces a delay of up to 50 msec which is more than a dot length.
@@ -88,8 +78,8 @@
  * The volume of the CW side tone in the standard audio channel is reduced to zero while
  * using the "GPIO side tone" feature.
  *
- * c) CW VOX
- * =========
+ * CW VOX
+ * ======
  *
  * Suppose you hit the paddle while in RX mode. In this case, the SDR automatically switches
  * to TX, and remains so until a certain time (actually cw_keyer_hang_time, can be set in
@@ -99,8 +89,8 @@
  *
  * - during a dot or dash the keyer thread simply waits and does no busy spinning.
  *
- * d) DOT/DASH MEMORY
- * ==================
+ * DOT/DASH MEMORY
+ * ===============
  *
  * For reasons explained below, it is necessary to have TWO such memories for both dot and dash,
  * they are called dot_memory/dot_held and dash_memory/dash_held. Everything explained here and below
@@ -117,8 +107,8 @@
  * dot_memory because only dot_held (but not dot_memory) is cleared in iambic mode A when both
  * paddles are released.
  *
- * e) IAMBIC MODES A AND B, AND SINGLE-LEVER PADDLES
- * =================================================
+ * IAMBIC MODES A AND B, AND SINGLE-LEVER PADDLES
+ * ==============================================
  *
  * It seems that there are lively discussions about what is what, so I distilled out the
  * following and added one clarification that becomes important when using this mode
@@ -192,9 +182,7 @@
 #include <time.h>
 #include <sys/mman.h>
 
-#ifdef LOCALCW
 #include "gpio.h"
-#endif
 #include "radio.h"
 #include "new_protocol.h"
 #include "iambic.h"
@@ -345,12 +333,10 @@ static void* keyer_thread(void *arg) {
 	// If using GPIO side tone information, mute CW side tone
 	// as long as the keyer thread is active
 	//
-#ifdef GPIO
 	if (gpio_cw_sidetone_enabled()) {
 	  old_volume=cw_keyer_sidetone_volume;
 	  cw_keyer_sidetone_volume=0;
 	}
-#endif
 
 	//
 	// Normally the keyer will be used in "break-in" mode, that is, we switch to TX
@@ -439,9 +425,7 @@ static void* keyer_thread(void *arg) {
                       cw_key_down=960000;  // max. 20 sec to protect hardware
                       cw_key_up=0;
                       cw_key_hit=1;
-#ifdef GPIO
                       gpio_cw_sidetone_set(1);
-#endif
                       key_state=STRAIGHT;
                     }
                 } else {
@@ -461,9 +445,7 @@ static void* keyer_thread(void *arg) {
                 if (! *kdash) {
                   cw_key_down=0;
                   cw_key_up=0;
-#ifdef GPIO
                   gpio_cw_sidetone_set(0);
-#endif
                   key_state=CHECK;
                 }
                 break;
@@ -476,9 +458,7 @@ static void* keyer_thread(void *arg) {
                 dash_held = *kdash;
                 cw_key_down=dot_samples;
                 cw_key_up=dot_samples;
-#ifdef GPIO
                 gpio_cw_sidetone_set(1);
-#endif
                 key_state=SENDDOT;
                 break;
 
@@ -487,9 +467,7 @@ static void* keyer_thread(void *arg) {
                 // wait for dot being complete
                 //
                 if (cw_key_down == 0) {
-#ifdef GPIO
                   gpio_cw_sidetone_set(0);
-#endif
                   key_state=DOTDELAY;
                 }
                 break;
@@ -535,9 +513,7 @@ static void* keyer_thread(void *arg) {
 		dot_held = *kdot;  // remember if dot is still held at beginning of the dash
                 cw_key_down=dash_samples;
                 cw_key_up=dot_samples;
-#ifdef GPIO
                 gpio_cw_sidetone_set(1);
-#endif
                 key_state=SENDDASH;
                 break;
 
@@ -546,9 +522,7 @@ static void* keyer_thread(void *arg) {
                 // wait for dot being complete
                 //
                 if (cw_key_down == 0) {
-#ifdef GPIO
                   gpio_cw_sidetone_set(0);
-#endif
                   key_state=DASHDELAY;
                 }
                 break;
@@ -608,11 +582,9 @@ static void* keyer_thread(void *arg) {
 	//
 	// If we have reduced the side tone volume, restore it!
 	//
-#ifdef GPIO
 	if (gpio_cw_sidetone_enabled()) {
 	  cw_keyer_sidetone_volume = old_volume;
 	}
-#endif
 
     }
     fprintf(stderr,"keyer_thread: EXIT\n");

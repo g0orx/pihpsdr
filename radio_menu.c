@@ -879,7 +879,7 @@ void radio_menu(GtkWidget *parent) {
         gtk_spin_button_set_value(GTK_SPIN_BUTTON(rx_gains[i]),(double)value);
         gtk_grid_attach(GTK_GRID(grid),rx_gains[i],col,row,1,1);
         g_signal_connect(rx_gains[i],"value_changed",G_CALLBACK(rx_gain_value_changed_cb),&adc[0]);
- 
+
         row++;
       }
     } else {
