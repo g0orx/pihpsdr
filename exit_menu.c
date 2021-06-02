@@ -32,6 +32,7 @@
 #ifdef SOAPYSDR
 #include "soapy_protocol.h"
 #endif
+#include "actions.h"
 #include "gpio.h"
 
 static GtkWidget *parent_window=NULL;

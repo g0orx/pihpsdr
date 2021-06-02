@@ -39,7 +39,10 @@
 #ifdef SOAPYSDR
 #include "soapy_protocol.h"
 #endif
+#ifdef GPIO
+#include "actions.h"
 #include "gpio.h"
+#endif
 #include "vfo.h"
 #include "ext.h"
 #ifdef CLIENT_SERVER

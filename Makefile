@@ -122,17 +122,21 @@ PTT_OPTIONS=-D PTT
 endif
 
 ifeq ($(GPIO_INCLUDE),GPIO)
-  GPIO_OPTIONS=-D GPIO
-  GPIO_LIBS=-lwiringPi
-  GPIO_SOURCES= \
+GPIOD_VERSION=$(shell pkg-config --modversion libgpiod)
+ifeq ($(GPIOD_VERSION),1.2)
+GPIOD_OPTIONS=-D OLD_GPIOD
+endif
+GPIO_OPTIONS=-D GPIO
+GPIO_LIBS=-lwiringPi
+GPIO_SOURCES= \
   configure.c \
   i2c.c \
   encoder_menu.c
-  GPIO_HEADERS= \
+GPIO_HEADERS= \
   configure.h \
   i2c.h \
   encoder_menu.h
-  GPIO_OBJS= \
+GPIO_OBJS= \
   configure.o \
   i2c.o \
   encoder_menu.o
@@ -310,6 +314,8 @@ ext.c \
 error_handler.c \
 cwramp.c \
 protocols.c \
+css.c \
+actions.c \
 switch_menu.c \
 gpio.c
 
@@ -381,6 +387,8 @@ led.h \
 ext.h \
 error_handler.h \
 protocols.h \
+css.h \
+actions.h \
 switch_menu.h \
 gpio.h
 
@@ -451,6 +459,8 @@ ext.o \
 error_handler.o \
 cwramp.o \
 protocols.o \
+css.o \
+actions.o \
 switch_menu.o \
 gpio.o
 

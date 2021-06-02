@@ -134,7 +134,13 @@ void switch_menu(GtkWidget *parent) {
   col=0;
 
   switch(controller) {
-    default:
+    case NO_CONTROLLER:
+      // Nothing to do in this pihpsdr version
+      {
+      GtkWidget *text_w=gtk_label_new("Nothing to do here with the  'No Controller' option!     ");
+      gtk_grid_attach(GTK_GRID(grid),text_w,1,1,3,1);
+      col++;
+      }
       break;
     case CONTROLLER1:
       {

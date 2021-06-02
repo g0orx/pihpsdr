@@ -24,7 +24,7 @@
 extern struct utsname unameData;
 
 enum {
-  NO_CONTROLLER=0,
+  NO_CONTROLLER,
   CONTROLLER1,
   CONTROLLER2_V1,
   CONTROLLER2_V2

@@ -35,6 +35,7 @@
 #include "tx_panadapter.h"
 #include "vfo.h"
 #include "mode.h"
+#include "actions.h"
 #ifdef GPIO
 #include "gpio.h"
 #endif
