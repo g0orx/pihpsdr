@@ -41,9 +41,9 @@
 #include "main.h"
 #include "channel.h"
 #include "discovered.h"
-#ifdef GPIO
-#include "actions.h"
 #include "configure.h"
+#include "actions.h"
+#ifdef GPIO
 #include "gpio.h"
 #endif
 #include "wdsp.h"
