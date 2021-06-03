@@ -26,16 +26,11 @@
 #include <sched.h>
 #include <semaphore.h>
 
-#include "new_protocol.h"
-#include "old_protocol.h"
 #include "radio.h"
 #include "receiver.h"
 #include "mode.h"
 #include "portaudio.h"
 #include "audio.h"
-#ifdef SOAPYSDR
-#include "soapy_protocol.h"
-#endif
 
 static PaStream *record_handle=NULL;
 
