@@ -206,7 +206,7 @@ void update_vfo_step(int direction) {
   } else {
     i--;
   }
-  if (i >= STEPS) i=STEPS;
+  if (i >= STEPS) i=STEPS-1;
   if (i < 0     ) i=0;
   step=steps[i];
 
