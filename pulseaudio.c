@@ -102,11 +102,9 @@ g_print("audio: state_cb: PA_CONTEXT_SETTING_NAME\n");
       break;
     case PA_CONTEXT_FAILED:
 g_print("audio: state_cb: PA_CONTEXT_FAILED\n");
-      g_mutex_unlock(&audio_mutex);
       break;
     case PA_CONTEXT_TERMINATED:
 g_print("audio: state_cb: PA_CONTEXT_TERMINATED\n");
-      g_mutex_unlock(&audio_mutex);
       break;
     case PA_CONTEXT_READY:
 g_print("audio: state_cb: PA_CONTEXT_READY\n");
