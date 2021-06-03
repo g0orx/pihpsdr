@@ -62,11 +62,6 @@ static const int cw_high_water = 1152;                // high water mark for CW
 #include "transmitter.h"
 #include "audio.h"
 #include "mode.h"
-#include "new_protocol.h"
-#include "old_protocol.h"
-#ifdef SOAPYSDR
-#include "soapy_protocol.h"
-#endif
 #include "vfo.h"
 
 int audio = 0;
@@ -601,30 +596,23 @@ g_print("%s: snd_pcm_start\n", __FUNCTION__);
             sample=float_buffer[i];
             break;
         }
-        switch(protocol) {
-          case ORIGINAL_PROTOCOL:
-          case NEW_PROTOCOL:
-#ifdef SOAPYSDR
-          case SOAPYSDR_PROTOCOL:
-#endif
-	    //
-	    // put sample into ring buffer
-	    //
-	    if (mic_ring_buffer != NULL) {
-              // the "existence" of the ring buffer is now guaranteed for 1 msec,
-	      // see audio_close_input().
-	      newpt=mic_ring_write_pt +1;
-	      if (newpt == MICRINGLEN) newpt=0;
-	      if (newpt != mic_ring_read_pt) {
-	        // buffer space available, do the write
-	        mic_ring_buffer[mic_ring_write_pt]=sample;
-	        // atomic update of mic_ring_write_pt
-	        mic_ring_write_pt=newpt;
-	      }
-            }
-            break;
-          default:
-            break;
+	//
+	// put sample into ring buffer
+	// Note check on the mic ring buffer is not necessary
+	// since audio_close_input() waits for this thread to
+	// complete.
+	//
+	if (mic_ring_buffer != NULL) {
+          // do not increase mic_ring_write_pt *here* since it must
+	  // not assume an illegal value at any time
+	  newpt=mic_ring_write_pt +1;
+	  if (newpt == MICRINGLEN) newpt=0;
+	  if (newpt != mic_ring_read_pt) {
+	    // buffer space available, do the write
+	    mic_ring_buffer[mic_ring_write_pt]=sample;
+	    // atomic update of mic_ring_write_pt
+	    mic_ring_write_pt=newpt;
+	  }
         }
       }
     }
