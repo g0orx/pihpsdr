@@ -281,7 +281,7 @@ int ext_update_vfo_step(void *data) {
   } else {
     i--;
   }
-  if (i >= STEPS) i=STEPS;
+  if (i >= STEPS) i=STEPS-1;
   if (i < 0     ) i=0;
   step=steps[i];
 
