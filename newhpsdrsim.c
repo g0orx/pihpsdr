@@ -1184,7 +1184,8 @@ void *audio_thread(void *data) {
 }
 
 //
-// The microphone thread just sends silence
+// The microphone thread just sends silence, that is
+// a "zeroed" mic frame every 1.333 msec
 //
 void *mic_thread(void *data) {
   int sock;
