@@ -267,10 +267,7 @@ int pa_out_cb(const void *inputBuffer, void *outputBuffer, unsigned long framesP
     //
     // Mutex protection: if the buffer is non-NULL it cannot vanish
     // util callback is completed
-    // DEBUG: report water mark
-    //avail = rx->local_audio_buffer_inpt - rx->local_audio_buffer_outpt;
-    //if (avail < 0) avail += MY_RING_BUFFER_SIZE;
-    //g_print("%s: AVAIL=%d\n", __FUNCTION__, avail);
+    //
     newpt=rx->local_audio_buffer_outpt;
     for (i=0; i< framesPerBuffer; i++) {
       if (rx->local_audio_buffer_inpt == newpt) {
@@ -538,10 +535,14 @@ int audio_write (RECEIVER *rx, float left, float right)
       // and with audio hardware whose "48000 Hz" are a little fasterthan the "48000 Hz" of
       // the SDR will very slowly drain the buffer. We recover from this by brutally
       // inserting half a buffer's length of silence.
-      // Note that this also happens the first time we arrive here, and after a TX/RX
-      // transition if RX audio has been shut down during TX.
-      // When coming from a TX/RX transition while in CW mode, the buffer will
-      // *always* be quite empty.
+      //
+      // This is not always an "error" to be reported and necessarily happens in three cases:
+      //  a) we come here for the first time
+      //  b) we come from a TX/RX transition in non-CW mode, and no duplex
+      //  c) we come from a TX/RX transition in CW mode 
+      //
+      // In case a) and b) the buffer will be empty, in c) the buffer will contain "few" samples
+      // because of the "CW audio low latency" strategy.
       //
       oldpt=rx->local_audio_buffer_inpt;
       for (i=0; i< MY_RING_BUFFER_SIZE/2 -avail; i++) {
@@ -549,7 +550,7 @@ int audio_write (RECEIVER *rx, float left, float right)
         if (oldpt >= MY_RING_BUFFER_SIZE) oldpt=0;
       }
       rx->local_audio_buffer_inpt=oldpt;
-      //g_print("audio_write: buffer was nearly empty, inserted silence\n");
+      //g_print("%s: buffer was nearly empty, inserted silence.\n", __FUNCTION__);
     }
     if (avail > MY_RING_HIGH_WATER) {
       //
@@ -560,10 +561,10 @@ int audio_write (RECEIVER *rx, float left, float right)
       // deleting half a buffer size of audio, such that the next overrun is in the distant
       // future.
       //
-      oldpt=rx->local_audio_buffer_inpt-MY_RING_BUFFER_SIZE/2;
+      oldpt=rx->local_audio_buffer_inpt -avail + MY_RING_BUFFER_SIZE/2;
       if (oldpt < 0) oldpt += MY_RING_BUFFER_SIZE;
       rx->local_audio_buffer_inpt=oldpt;
-      g_print("audio_write: buffer was nearly full, deleted audio\n");
+      g_print("%s: buffer was nearly full, deleted audio\n", __FUNCTION__);
     }
     //
     // put sample into ring buffer
@@ -643,7 +644,7 @@ int cw_audio_write(RECEIVER *rx, float sample) {
       case 1:
         //
         // buffer becomes too empty, and we just saw 16 samples of silence:
-        // insert two samples of silence. No check on "buffer full" needed
+        // insert two samples of silence. No check on "buffer full" necessary.
         //
         oldpt=rx->local_audio_buffer_inpt;
         rx->local_audio_buffer[oldpt++]=0.0;
