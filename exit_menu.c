@@ -33,7 +33,9 @@
 #include "soapy_protocol.h"
 #endif
 #include "actions.h"
+#ifdef GPIO
 #include "gpio.h"
+#endif
 
 static GtkWidget *parent_window=NULL;
 

@@ -57,10 +57,8 @@
 #include "vfo_menu.h"
 #include "fft_menu.h"
 #include "main.h"
-#ifdef GPIO
-#include "gpio.h"
 #include "actions.h"
-#endif
+#include "gpio.h"
 #include "old_protocol.h"
 #include "new_protocol.h"
 #ifdef CLIENT_SERVER
