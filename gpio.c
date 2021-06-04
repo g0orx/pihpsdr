@@ -66,8 +66,6 @@
 int settle_time=DEFAULT_SETTLE_TIME;
 static gint release_timer=-1;
 
-int controller;
-
 int I2C_INTERRUPT=16;
 
 // uses wiringpi pin numbers
