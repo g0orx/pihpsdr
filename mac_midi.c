@@ -189,7 +189,8 @@ static MIDIClientRef myClients[MAX_MIDI_DEVICES];
 
 void close_midi_device(index) {
     fprintf(stderr,"%s index=%d\n",__FUNCTION__, index);
-    if (index < 0 || index > n_midi_devices) return;
+    if (index < 0 || index >= MAX_MIDI_DEVICES) return;
+    if (midi_devices[index].active == 0) return;
     //
     // This should release the resources associated with the pending connection
     //
@@ -204,7 +205,7 @@ void register_midi_device(int index) {
 //
 //  Register a callback routine for the device
 //
-    if (index < 0 || index > MAX_MIDI_DEVICES) return;
+    if (index < 0 || index >= n_midi_devices) return;
 
      myClients[index]=0;
      myMIDIports[index] = 0;

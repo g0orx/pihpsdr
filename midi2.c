@@ -252,7 +252,7 @@ static void keyword2action(char *s, enum MIDIaction *action, int *onoff) {
           return;
         }
     }
-    fprintf(stderr,"MIDI: action keyword %s NOT FOUND.\n", s);
+    g_print("%s: action keyword %s NOT FOUND.\n", __FUNCITON__, s);
     *action = MIDI_ACTION_NONE;
     *onoff  = 0;
 }
@@ -337,7 +337,7 @@ int MIDIstartup(char *filename) {
     g_print("%s: %s\n",__FUNCTION__,filename);
     fpin=fopen(filename, "r");
 
-    g_print("%s: fpin=%p\n",__FUNCTION__,fpin);
+    //g_print("%s: fpin=%p\n",__FUNCTION__,fpin);
     if (!fpin) {
       g_print("%s: failed to open MIDI device\n",__FUNCTION__);
       return -1;
@@ -366,12 +366,14 @@ int MIDIstartup(char *filename) {
 	cp++;
       }
       
-g_print("\n%s:INP:%s\n",__FUNCTION__,zeile);
+//g_print("\n%s:INP:%s\n",__FUNCTION__,zeile);
 
-      chan=-1;  // default: any channel
-      t1=t3=t5=t7= t9=t11=128;  // range that never occurs
-      t2=t4=t6=t8=t10=t12=-1;   // range that never occurs
-      onoff=0;
+      chan=-1;                  // default: any channel
+      t1 = t2 = t3 = t4 = -1;   // default threshold values
+      t5= 0; t6= 63;
+      t7=65; t8=127;
+      t9 = t10 = t11 = t12 = -1;
+      onoff=0;                  // this will be set automatically
       event=MIDI_EVENT_NONE;
       type=MIDI_TYPE_NONE;
       key=0;
@@ -386,24 +388,24 @@ g_print("\n%s:INP:%s\n",__FUNCTION__,zeile);
         sscanf(cp+4, "%d", &key);
         event=MIDI_EVENT_NOTE;
 	type=MIDI_TYPE_KEY;
-g_print("%s: MIDI:KEY:%d\n",__FUNCTION__, key);
+//g_print("%s: MIDI:KEY:%d\n",__FUNCTION__, key);
       }
       if ((cp = strstr(zeile, "CTRL="))) {
         sscanf(cp+5, "%d", &key);
 	event=MIDI_EVENT_CTRL;
 	type=MIDI_TYPE_KNOB;
-g_print("%s: MIDI:CTL:%d\n",__FUNCTION__, key);
+//g_print("%s: MIDI:CTL:%d\n",__FUNCTION__, key);
       }
       if ((cp = strstr(zeile, "PITCH "))) {
         event=MIDI_EVENT_PITCH;
 	type=MIDI_TYPE_KNOB;
-g_print("%s: MIDI:PITCH\n",__FUNCTION__);
+//g_print("%s: MIDI:PITCH\n",__FUNCTION__);
       }
       //
       // If event is still undefined, skip line
       //
       if (event == MIDI_EVENT_NONE) {
-//fprintf(stderr,"MIDI:ERR:NO_EVENT\n");
+//g_print("%s: no event found: %s\n", __FUNCTION__, zeile);
 	continue;
       }
 
@@ -417,21 +419,21 @@ g_print("%s: MIDI:PITCH\n",__FUNCTION__);
         sscanf(cp+5, "%d", &chan);
 	chan--;
         if (chan<0 || chan>15) chan=-1;
-g_print("%s:CHAN:%d\n",__FUNCTION__,chan);
+//g_print("%s:CHAN:%d\n",__FUNCTION__,chan);
       }
       if ((cp = strstr(zeile, "WHEEL")) && (type == MIDI_TYPE_KNOB)) {
 	// change type from MIDI_TYPE_KNOB to MIDI_TYPE_WHEEL
         type=MIDI_TYPE_WHEEL;
-g_print("%s:WHEEL\n",__FUNCTION__);
+//g_print("%s:WHEEL\n",__FUNCTION__);
       }
       if ((cp = strstr(zeile, "DELAY="))) {
         sscanf(cp+6, "%d", &delay);
-g_print("%s:DELAY:%d\n",__FUNCTION__,delay);
+//g_print("%s:DELAY:%d\n",__FUNCTION__,delay);
       }
       if ((cp = strstr(zeile, "THR="))) {
         sscanf(cp+4, "%d %d %d %d %d %d %d %d %d %d %d %d",
                &t1,&t2,&t3,&t4,&t5,&t6,&t7,&t8,&t9,&t10,&t11,&t12);
-//fprintf(stderr,"MIDI:THR:%d/%d, %d/%d, %d/%d, %d/%d, %d/%d, %d/%d\n",t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12);
+//g_print("%s: THR:%d/%d, %d/%d, %d/%d, %d/%d, %d/%d, %d/%d\n",__FUNCITON__,t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12);
       }
       if ((cp = strstr(zeile, "ACTION="))) {
         // cut zeile at the first blank character following
@@ -439,7 +441,7 @@ g_print("%s:DELAY:%d\n",__FUNCTION__,delay);
         while (*cq != 0 && *cq != '\n' && *cq != ' ' && *cq != '\t') cq++;
 	*cq=0;
         keyword2action(cp+7, &action, &onoff);
-g_print("MIDI:ACTION:%s (%d), onoff=%d\n",cp+7, action, onoff);
+//g_print("MIDI:ACTION:%s (%d), onoff=%d\n",cp+7, action, onoff);
       }
       //
       // All data for a descriptor has been read. Construct it!
@@ -469,11 +471,11 @@ g_print("MIDI:ACTION:%s (%d), onoff=%d\n",cp+7, action, onoff);
       // We have a linked list for each key value to speed up searches
       //
       if (event == MIDI_EVENT_PITCH) {
-//fprintf(stderr,"MIDI:TAB:Insert desc=%p in PITCH table\n",desc);
-        MidiAddCommand(129, desc);
+//g_print("%s: Insert desc=%p in CMDS[128] table\n",__FUNCTION__,desc);
+        MidiAddCommand(128, desc);
       }
       if (event == MIDI_EVENT_NOTE || event == MIDI_EVENT_CTRL) {
-g_print("%s:TAB:Insert desc=%p in CMDS[%d] table\n",__FUNCTION__,desc,key);
+//g_print("%s: Insert desc=%p in CMDS[%d] table\n",__FUNCTION__,desc,key);
         MidiAddCommand(key, desc);
       }
     }

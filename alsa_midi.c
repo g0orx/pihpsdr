@@ -194,7 +194,7 @@ void register_midi_device(int index) {
     int i;
     int ret=0;
 
-    if (index < 0 || index > MAX_MIDI_DEVICES) return;
+    if (index < 0 || index >= n_midi_devices) return;
 
     g_print("%s: open MIDI device %d\n", __FUNCTION__, index);
 
@@ -221,7 +221,7 @@ void close_midi_device(int index) {
   int ret;
 
   g_print("%s: index=%d\n", __FUNCTION__, index);
-  if (index < 0 || index > MAX_MIDI_DEVICES) return;
+  if (index < 0 || index >= MAX_MIDI_DEVICES) return;
   if (midi_devices[index].active == 0) return;
 
   //
