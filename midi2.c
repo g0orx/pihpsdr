@@ -252,7 +252,7 @@ static void keyword2action(char *s, enum MIDIaction *action, int *onoff) {
           return;
         }
     }
-    g_print("%s: action keyword %s NOT FOUND.\n", __FUNCITON__, s);
+    g_print("%s: action keyword %s NOT FOUND.\n", __FUNCTION__, s);
     *action = MIDI_ACTION_NONE;
     *onoff  = 0;
 }
