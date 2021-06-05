@@ -973,7 +973,6 @@ static int rx1channel;
 static int rx2channel;
 
 static void process_ozy_byte(int b) {
-  int i,j;
   float fsample;
   switch(state) {
     case SYNC_0:

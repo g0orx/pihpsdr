@@ -387,7 +387,6 @@ led.h \
 ext.h \
 error_handler.h \
 protocols.h \
-css.h \
 actions.h \
 switch_menu.h \
 gpio.h
