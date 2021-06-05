@@ -433,7 +433,7 @@ int MIDIstartup(char *filename) {
       if ((cp = strstr(zeile, "THR="))) {
         sscanf(cp+4, "%d %d %d %d %d %d %d %d %d %d %d %d",
                &t1,&t2,&t3,&t4,&t5,&t6,&t7,&t8,&t9,&t10,&t11,&t12);
-//g_print("%s: THR:%d/%d, %d/%d, %d/%d, %d/%d, %d/%d, %d/%d\n",__FUNCITON__,t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12);
+//g_print("%s: THR:%d/%d, %d/%d, %d/%d, %d/%d, %d/%d, %d/%d\n",__FUNCTION__,t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12);
       }
       if ((cp = strstr(zeile, "ACTION="))) {
         // cut zeile at the first blank character following
