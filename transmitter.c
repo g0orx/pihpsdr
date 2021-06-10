@@ -570,6 +570,7 @@ static gboolean update_display(gpointer data) {
         fwd_average=fwd_average-fwd_cal_offset;
         rev_average=rev_average-fwd_cal_offset;
         if (rev_average < 0) rev_average=0;
+        if (fwd_average < 0) fwd_average=0;
 
         break;
       case NEW_PROTOCOL:
@@ -634,6 +635,7 @@ static gboolean update_display(gpointer data) {
         fwd_average=fwd_average-fwd_cal_offset;
         rev_average=rev_average-fwd_cal_offset;
         if (rev_average < 0) rev_average=0;
+        if (fwd_average < 0) fwd_average=0;
 
         break;
 
@@ -663,8 +665,10 @@ static gboolean update_display(gpointer data) {
     // tx->swr can be used in other parts of the program to
     // implement SWR protection etc.
     // The SWR is calculated from the (time-averaged) forward and reverse voltages.
+    // Take care that no division by zero can happen, since otherwise the moving
+    // exponential average cannot survive from a "nan".
     //
-    if (tx->fwd > 0.1) {
+    if (tx->fwd > 0.1 && fwd_average > 0.01) {
         //
         // SWR means VSWR (voltage based) but we have the forward and
         // reflected power, so correct for that
