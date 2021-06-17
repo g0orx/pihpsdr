@@ -245,7 +245,6 @@ void get_midi_devices() {
     snd_rawmidi_info_t *info;
     int card, device, subs, sub, ret;
     const char *devnam, *subnam;
-    int found=0;
     char name[64];
 
     n_midi_devices=0;
@@ -284,6 +283,7 @@ void get_midi_devices() {
 	    if (!subs) break;
 	    // subs: number of sub-devices to device on card
             for (sub = 0; sub < subs; ++sub) {
+		if (n_midi_devices >= MAX_MIDI_DEVICES) break;
                 snd_rawmidi_info_set_stream(info, SND_RAWMIDI_STREAM_INPUT);
                 snd_rawmidi_info_set_subdevice(info, sub);
                 ret = snd_ctl_rawmidi_info(ctl, info);
@@ -292,7 +292,6 @@ void get_midi_devices() {
                                    card, device, sub, snd_strerror(ret));
                     break;
                 }
-		if (found) break;
 		devnam = snd_rawmidi_info_get_name(info);
 		subnam = snd_rawmidi_info_get_subdevice_name(info);
 		// If there is only one sub-device and it has no name, we  use
@@ -302,7 +301,11 @@ void get_midi_devices() {
 		    sprintf(portname,"hw:%d,%d", card, device);
 		} else {
 		    sprintf(portname,"hw:%d,%d,%d", card, device, sub);
-		    devnam=subnam;
+		    if (subnam[0] == '\0') {
+			devnam = portname;
+		    } else {
+			devnam = subnam;
+		    }
 		}
 
 		midi_devices[n_midi_devices].name=g_new(gchar,strlen(devnam)+1);
