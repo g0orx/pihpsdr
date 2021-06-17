@@ -2153,7 +2153,6 @@ g_print("radioRestoreState: %s\n",property_path);
 #ifdef  SOAPYSDR
     if(device==SOAPYSDR_USB_DEVICE) {
       value=getProperty("radio.adc[0].agc");
-      if(value) soapy_protocol_set_automatic_gain(atoi(value));
     }
 #endif
 
@@ -2192,7 +2191,6 @@ g_print("radioRestoreState: %s\n",property_path);
 #ifdef  SOAPYSDR
       if(device==SOAPYSDR_USB_DEVICE) {
         value=getProperty("radio.adc[1].agc");
-        if(value) soapy_protocol_set_automatic_gain(atoi(value));
       }
 #endif
 

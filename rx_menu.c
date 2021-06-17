@@ -197,9 +197,6 @@ void rx_menu(GtkWidget *parent) {
 
   GtkWidget *grid=gtk_grid_new();
   gtk_grid_set_column_spacing (GTK_GRID(grid),10);
-  //gtk_grid_set_row_spacing (GTK_GRID(grid),10);
-  //gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
-  //gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
 
   GtkWidget *close_b=gtk_button_new_with_label("Close");
   g_signal_connect (close_b, "button_press_event", G_CALLBACK(close_cb), NULL);
@@ -382,8 +379,11 @@ void rx_menu(GtkWidget *parent) {
     gtk_grid_attach(GTK_GRID(grid),output,x,++row,1,1);
     g_signal_connect(output,"changed",G_CALLBACK(local_output_changed_cb),NULL);
 
+    /*
     row=0;
     x++;
+    */
+    row++;
 
     GtkWidget *stereo_b=gtk_radio_button_new_with_label(NULL,"Stereo");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (stereo_b), active_receiver->audio_channel==STEREO);

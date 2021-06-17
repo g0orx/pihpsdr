@@ -34,6 +34,7 @@
 #include "adc.h"
 #include "dac.h"
 #include "radio.h"
+#include "actions.h"
 #include "midi.h"
 #include "alsa_midi.h"
 #include "new_menu.h"
@@ -84,8 +85,8 @@ static int thisNote;
 static int thisVal;
 static int thisMin;
 static int thisMax;
-static enum MIDItype thisType;
-static enum MIDIaction thisAction;
+static enum ACTIONtype thisType;
+static int thisAction;
 
 gchar *midi_device_name=NULL;
 static gint device_index=-1;
@@ -167,7 +168,7 @@ static void type_changed_cb(GtkWidget *widget, gpointer data) {
     gtk_combo_box_set_active (GTK_COMBO_BOX(newAction),0);
   } else if(strcmp(type,"KEY")==0) {
     // add all the Key actions
-    while(ActionTable[i].action!=ACTION_NONE) {
+    for(i=1;i<ACTIONS;i++) {
       if(ActionTable[i].type&MIDI_KEY) {
         gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newAction),NULL,ActionTable[i].str);
 	if(ActionTable[i].action==thisAction) {
@@ -175,11 +176,10 @@ static void type_changed_cb(GtkWidget *widget, gpointer data) {
 	}
 	j++;
       }
-      i++;
     }
   } else if(strcmp(type,"KNOB/SLIDER")==0) {
     // add all the Knob actions
-    while(ActionTable[i].action!=ACTION_NONE) {
+    for(i=1;i<ACTIONS;i++) {
       if(ActionTable[i].type&MIDI_KNOB) {
         gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newAction),NULL,ActionTable[i].str);
 	if(ActionTable[i].action==thisAction) {
@@ -187,11 +187,10 @@ static void type_changed_cb(GtkWidget *widget, gpointer data) {
 	}
 	j++;
       }
-      i++;
     }
   } else if(strcmp(type,"WHEEL")==0) {
     // add all the Wheel actions
-    while(ActionTable[i].action!=ACTION_NONE) {
+    for(i=1;i<ACTIONS;i++) {
       if(ActionTable[i].type&MIDI_WHEEL || ActionTable[i].type&MIDI_KNOB) {
         gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newAction),NULL,ActionTable[i].str);
 	if(ActionTable[i].action==thisAction) {
@@ -199,7 +198,6 @@ static void type_changed_cb(GtkWidget *widget, gpointer data) {
 	}
 	j++;
       }
-      i++;
     }
   }
 }
@@ -253,9 +251,9 @@ static void tree_selection_changed_cb (GtkTreeSelection *selection, gpointer dat
         } else {
           thisType=TYPE_NONE;
         }
-        thisAction=ACTION_NONE;
+        thisAction=NO_ACTION;
         int i=1;
-        while(ActionTable[i].action!=ACTION_NONE) {
+        while(ActionTable[i].action!=NO_ACTION) {
           if(strcmp(ActionTable[i].str,str_action)==0) {
             thisAction=ActionTable[i].action;
             break;
@@ -499,9 +497,9 @@ static void add_cb(GtkButton *widget,gpointer user_data) {
     type=TYPE_NONE;
   }
 
-  action=ACTION_NONE;
+  action=NO_ACTION;
   i=1;
-  while(ActionTable[i].action!=ACTION_NONE) {
+  while(ActionTable[i].action!=NO_ACTION) {
     if(strcmp(ActionTable[i].str,str_action)==0) {
       action=ActionTable[i].action;
       break;
@@ -517,7 +515,7 @@ static void add_cb(GtkButton *widget,gpointer user_data) {
   desc->action = action; // MIDIaction
   desc->type = type; // MIDItype
   desc->event = thisEvent; // MIDevent
-  desc->onoff = action==CWLEFT || action==CWRIGHT;
+  desc->onoff = action==CW_LEFT || action==CW_RIGHT || PTT;
   desc->delay = 0;
   desc->vfl1  = -1;
   desc->vfl2  = -1;
@@ -573,9 +571,9 @@ static void update_cb(GtkButton *widget,gpointer user_data) {
     thisType=TYPE_NONE;
   }
 
-  thisAction=ACTION_NONE;
+  thisAction=NO_ACTION;
   i=1;
-  while(ActionTable[i].action!=ACTION_NONE) {
+  while(ActionTable[i].action!=NO_ACTION) {
     if(strcmp(ActionTable[i].str,str_action)==0) {
       thisAction=ActionTable[i].action;
       break;
@@ -750,7 +748,7 @@ void midi_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),label,col++,row,1,1);
   label=gtk_label_new("Note");
   gtk_grid_attach(GTK_GRID(grid),label,col++,row,1,1);
-  label=gtk_label_new("Type");
+  label=gtk_label_new("Type/Action");
   gtk_grid_attach(GTK_GRID(grid),label,col++,row,1,1);
   label=gtk_label_new("Value");
   gtk_grid_attach(GTK_GRID(grid),label,col++,row,1,1);
@@ -758,27 +756,38 @@ void midi_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),label,col++,row,1,1);
   label=gtk_label_new("Max");
   gtk_grid_attach(GTK_GRID(grid),label,col++,row,1,1);
-  label=gtk_label_new("Action");
-  gtk_grid_attach(GTK_GRID(grid),label,col++,row,1,1);
+  //label=gtk_label_new("Action");
+  //gtk_grid_attach(GTK_GRID(grid),label,col++,row,1,1);
 
 
   row++;
   col=0;
   newEvent=gtk_label_new("");
-  gtk_grid_attach(GTK_GRID(grid),newEvent,col++,row,1,1);
+  gtk_grid_attach(GTK_GRID(grid),newEvent,col,row,1,1);
+  col++;
   newChannel=gtk_label_new("");
-  gtk_grid_attach(GTK_GRID(grid),newChannel,col++,row,1,1);
+  gtk_grid_attach(GTK_GRID(grid),newChannel,col,row,1,1);
+  col++;
   newNote=gtk_label_new("");
-  gtk_grid_attach(GTK_GRID(grid),newNote,col++,row,1,1);
+  gtk_grid_attach(GTK_GRID(grid),newNote,col,row,1,1);
+  col++;
   newType=gtk_combo_box_text_new();
-  gtk_grid_attach(GTK_GRID(grid),newType,col++,row,1,1);
+  gtk_grid_attach(GTK_GRID(grid),newType,col,row,1,1);
+  col++;
   g_signal_connect(newType,"changed",G_CALLBACK(type_changed_cb),NULL);
   newVal=gtk_label_new("");
-  gtk_grid_attach(GTK_GRID(grid),newVal,col++,row,1,1);
+  col++;
+  gtk_grid_attach(GTK_GRID(grid),newVal,col,row,1,1);
   newMin=gtk_label_new("");
-  gtk_grid_attach(GTK_GRID(grid),newMin,col++,row,1,1);
+  col++;
+  gtk_grid_attach(GTK_GRID(grid),newMin,col,row,1,1);
   newMax=gtk_label_new("");
-  gtk_grid_attach(GTK_GRID(grid),newMax,col++,row,1,1);
+  col++;
+  gtk_grid_attach(GTK_GRID(grid),newMax,col,row,1,1);
+
+  row++;
+  col=col-4;
+
   newAction=gtk_combo_box_text_new();
   gtk_combo_box_set_wrap_width(GTK_COMBO_BOX(newAction),5);
   gtk_grid_attach(GTK_GRID(grid),newAction,col++,row,1,1);
@@ -895,7 +904,7 @@ static int update(void *data) {
       if(thisEvent==MIDI_PITCH || thisEvent==MIDI_NOTE) {
 	i=1;
 	j=0;
-	while(ActionTable[i].action!=ACTION_NONE) {
+	while(ActionTable[i].action!=NO_ACTION) {
           if(ActionTable[i].type&MIDI_KEY) {
             gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newAction),NULL,ActionTable[i].str);
             if(ActionTable[i].action==thisAction) {
@@ -1026,7 +1035,7 @@ void NewMidiConfigureEvent(enum MIDIevent event, int channel, int note, int val)
     thisMin=val;
     thisMax=val;
     thisType=TYPE_NONE;
-    thisAction=ACTION_NONE;
+    thisAction=NO_ACTION;
 
     // search tree to see if it is existing event
     valid=gtk_tree_model_get_iter_first(model,&iter);
@@ -1065,9 +1074,9 @@ void NewMidiConfigureEvent(enum MIDIevent event, int channel, int note, int val)
           } else {
             thisType=TYPE_NONE;
           }
-          thisAction=ACTION_NONE;
+          thisAction=NO_ACTION;
           int i=1;
-          while(ActionTable[i].action!=ACTION_NONE) {
+          while(ActionTable[i].action!=NO_ACTION) {
             if(strcmp(ActionTable[i].str,str_action)==0) {
               thisAction=ActionTable[i].action;
               break;
@@ -1196,10 +1205,10 @@ void midi_restore_state() {
 	  }
           sprintf(name,"midi[%d].channel[%d].action",i,channel);
           value=getProperty(name);
-	  action=ACTION_NONE;
+	  action=NO_ACTION;
           if(value) {
 	    int j=1;
-	    while(ActionTable[j].type!=ACTION_NONE) {
+	    while(ActionTable[j].type!=NO_ACTION) {
               if(strcmp(value,ActionTable[j].str)==0) {
                 action=ActionTable[j].action;
 		break;

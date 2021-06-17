@@ -296,6 +296,7 @@ void keyer_update() {
 static int enforce_cw_vox;
 
 void keyer_event(int left, int state) {
+  g_print("%s: running=%d left=%d state=%d\n",__FUNCTION__,running,left,state);
     if (!running) return;
     if (state) {
         // This is to remember whether the key stroke interrupts a running CAT CW 

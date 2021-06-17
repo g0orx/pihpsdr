@@ -70,17 +70,15 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 }
 
 void switch_page_cb(GtkNotebook *notebook,GtkWidget *page,guint page_num,gpointer user_data) {
-  g_print("%s: page %d\n",__FUNCTION__,page_num);
   temp_switches=switches_controller1[page_num];
 }
 
 static void switch_select_cb(GtkWidget *widget, gpointer data) {
   char text[128];
   CHOICE *choice=(CHOICE *)data;
-g_print("%s: temp_switches=%p\n",__FUNCTION__,temp_switches);
   temp_switches[choice->sw].switch_function=choice->action;
   GtkWidget *label=gtk_bin_get_child(GTK_BIN(choice->button));
-  sprintf(text,"<span size=\"smaller\">%s</span>",sw_string[choice->action]);
+  sprintf(text,"<span size=\"smaller\">%s</span>",ActionTable[choice->action].str);
   gtk_label_set_markup (GTK_LABEL(label), text);
   update_toolbar_labels();
 }
@@ -90,14 +88,16 @@ static gboolean switch_cb(GtkWidget *widget, GdkEvent *event, gpointer data) {
   int i;
 
   GtkWidget *menu=gtk_menu_new();
-  for(i=0;i<SWITCH_ACTIONS;i++) {
-    GtkWidget *menu_item=gtk_menu_item_new_with_label(sw_string[i]);
-    CHOICE *choice=g_new0(CHOICE,1);
-    choice->sw=sw;
-    choice->action=i;
-    choice->button=widget;
-    g_signal_connect(menu_item,"activate",G_CALLBACK(switch_select_cb),choice);
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu),menu_item);
+  for(i=0;i<ACTIONS;i++) {
+    if(ActionTable[i].type | CONTROLLER_SWITCH) {
+      GtkWidget *menu_item=gtk_menu_item_new_with_label(ActionTable[i].str);
+      CHOICE *choice=g_new0(CHOICE,1);
+      choice->sw=sw;
+      choice->action=i;
+      choice->button=widget;
+      g_signal_connect(menu_item,"activate",G_CALLBACK(switch_select_cb),choice);
+      gtk_menu_shell_append(GTK_MENU_SHELL(menu),menu_item);
+    }
   }
   gtk_widget_show_all(menu);
 #if GTK_CHECK_VERSION(3,22,0)
@@ -111,10 +111,6 @@ static gboolean switch_cb(GtkWidget *widget, GdkEvent *event, gpointer data) {
 }
 
 static void response_event(GtkWidget *dialog,gint id,gpointer user_data) {
-  g_print("%s: id=%d\n",__FUNCTION__,id);
-  if(id==GTK_RESPONSE_ACCEPT) {
-    g_print("%s: ACCEPT\n",__FUNCTION__);
-  }
   gtk_widget_destroy(dialog);
   dialog=NULL;
   active_menu=NO_MENU;
@@ -130,7 +126,6 @@ void switch_menu(GtkWidget *parent) {
   GtkWidget *widget;
   gint function=0;
 
-g_print("%s: switches_no_controller=%p switches_controller1=%p switches_controller2_v1=%p switches_controller2_v2=%p\n",__FUNCTION__,&switches_no_controller,&switches_controller1,&switches_controller2_v1,&switches_controller2_v2);
 
   dialog=gtk_dialog_new_with_buttons("piHPSDR - Switch Actions",GTK_WINDOW(parent),GTK_DIALOG_DESTROY_WITH_PARENT,("OK"),GTK_RESPONSE_ACCEPT,NULL);
   g_signal_connect (dialog, "response", G_CALLBACK (response_event), NULL);
@@ -146,8 +141,8 @@ g_print("%s: switches_no_controller=%p switches_controller1=%p switches_controll
 next_function_set:
 
   grid=gtk_grid_new();
-  gtk_grid_set_column_homogeneous(GTK_GRID(grid),FALSE);
-  gtk_grid_set_row_homogeneous(GTK_GRID(grid),FALSE);
+  gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
+  gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
   gtk_grid_set_column_spacing (GTK_GRID(grid),2);
   gtk_grid_set_row_spacing (GTK_GRID(grid),2);
 
@@ -175,81 +170,80 @@ next_function_set:
       break;
   }
 
-  g_print("%s: temp_switches=%p\n",temp_switches);
 
   int original_row=row;
 
   if(controller==CONTROLLER2_V1 || controller==CONTROLLER2_V2) {
     row=row+5;
     col=0;
-    widget=gtk_button_new_with_label(sw_string[temp_switches[0].switch_function]);
+    widget=gtk_button_new_with_label(ActionTable[temp_switches[0].switch_function].str);
     g_signal_connect(widget,"button_press_event",G_CALLBACK(switch_cb),GINT_TO_POINTER(0));
     gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
     col++;
-    widget=gtk_button_new_with_label(sw_string[temp_switches[1].switch_function]);
+    widget=gtk_button_new_with_label(ActionTable[temp_switches[1].switch_function].str);
     g_signal_connect(widget,"button_press_event",G_CALLBACK(switch_cb),GINT_TO_POINTER(1));
     gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
     col++;
-    widget=gtk_button_new_with_label(sw_string[temp_switches[2].switch_function]);
+    widget=gtk_button_new_with_label(ActionTable[temp_switches[2].switch_function].str);
     g_signal_connect(widget,"button_press_event",G_CALLBACK(switch_cb),GINT_TO_POINTER(2));
     gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
     col++;
-    widget=gtk_button_new_with_label(sw_string[temp_switches[3].switch_function]);
+    widget=gtk_button_new_with_label(ActionTable[temp_switches[3].switch_function].str);
     g_signal_connect(widget,"button_press_event",G_CALLBACK(switch_cb),GINT_TO_POINTER(3));
     gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
     col++;
-    widget=gtk_button_new_with_label(sw_string[temp_switches[4].switch_function]);
+    widget=gtk_button_new_with_label(ActionTable[temp_switches[4].switch_function].str);
     g_signal_connect(widget,"button_press_event",G_CALLBACK(switch_cb),GINT_TO_POINTER(4));
     gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
     col++;
-    widget=gtk_button_new_with_label(sw_string[temp_switches[5].switch_function]);
+    widget=gtk_button_new_with_label(ActionTable[temp_switches[5].switch_function].str);
     g_signal_connect(widget,"button_press_event",G_CALLBACK(switch_cb),GINT_TO_POINTER(5));
     gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
     col++;
-    widget=gtk_button_new_with_label(sw_string[temp_switches[6].switch_function]);
+    widget=gtk_button_new_with_label(ActionTable[temp_switches[6].switch_function].str);
     g_signal_connect(widget,"button_press_event",G_CALLBACK(switch_cb),GINT_TO_POINTER(6));
     gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
     col++;
 
     row=original_row;
     col=8;
-    widget=gtk_button_new_with_label(sw_string[temp_switches[7].switch_function]);
+    widget=gtk_button_new_with_label(ActionTable[temp_switches[7].switch_function].str);
     g_signal_connect(widget,"button_press_event",G_CALLBACK(switch_cb),GINT_TO_POINTER(7));
     gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
     row++;
     col=7;
-    widget=gtk_button_new_with_label(sw_string[temp_switches[8].switch_function]);
+    widget=gtk_button_new_with_label(ActionTable[temp_switches[8].switch_function].str);
     g_signal_connect(widget,"button_press_event",G_CALLBACK(switch_cb),GINT_TO_POINTER(8));
     gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
     col++;
-    widget=gtk_button_new_with_label(sw_string[temp_switches[9].switch_function]);
+    widget=gtk_button_new_with_label(ActionTable[temp_switches[9].switch_function].str);
     g_signal_connect(widget,"button_press_event",G_CALLBACK(switch_cb),GINT_TO_POINTER(9));
     gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
     row++;
     col=7;
-    widget=gtk_button_new_with_label(sw_string[temp_switches[10].switch_function]);
+    widget=gtk_button_new_with_label(ActionTable[temp_switches[10].switch_function].str);
     g_signal_connect(widget,"button_press_event",G_CALLBACK(switch_cb),GINT_TO_POINTER(10));
     gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
     col++;
-    widget=gtk_button_new_with_label(sw_string[temp_switches[11].switch_function]);
+    widget=gtk_button_new_with_label(ActionTable[temp_switches[11].switch_function].str);
     g_signal_connect(widget,"button_press_event",G_CALLBACK(switch_cb),GINT_TO_POINTER(11));
     gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
     row++;
     col=7;
-    widget=gtk_button_new_with_label(sw_string[temp_switches[12].switch_function]);
+    widget=gtk_button_new_with_label(ActionTable[temp_switches[12].switch_function].str);
     g_signal_connect(widget,"button_press_event",G_CALLBACK(switch_cb),GINT_TO_POINTER(12));
     gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
     col++;
-    widget=gtk_button_new_with_label(sw_string[temp_switches[13].switch_function]);
+    widget=gtk_button_new_with_label(ActionTable[temp_switches[13].switch_function].str);
     g_signal_connect(widget,"button_press_event",G_CALLBACK(switch_cb),GINT_TO_POINTER(13));
     gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
     row++;
     col=7;
-    widget=gtk_button_new_with_label(sw_string[temp_switches[14].switch_function]);
+    widget=gtk_button_new_with_label(ActionTable[temp_switches[14].switch_function].str);
     g_signal_connect(widget,"button_press_event",G_CALLBACK(switch_cb),GINT_TO_POINTER(14));
     gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
     col++;
-    widget=gtk_button_new_with_label(sw_string[temp_switches[15].switch_function]);
+    widget=gtk_button_new_with_label(ActionTable[temp_switches[15].switch_function].str);
     g_signal_connect(widget,"button_press_event",G_CALLBACK(switch_cb),GINT_TO_POINTER(15));
     gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
 
@@ -258,11 +252,12 @@ next_function_set:
     int start_row=row;
     for(int i=0;i<max_switches;i++) {
       if((controller==NO_CONTROLLER || controller==CONTROLLER1) && (temp_switches[i].switch_function==FUNCTION)) {
-        widget=gtk_label_new(NULL);
-        g_sprintf(label,"<b>%s</b>",sw_string[temp_switches[i].switch_function]);
-        gtk_label_set_markup (GTK_LABEL(widget), label);
+        widget=gtk_button_new_with_label(ActionTable[temp_switches[i].switch_function].str);
+        //widget=gtk_label_new(NULL);
+        //g_sprintf(label,"<b>%s</b>",ActionTable[temp_switches[i].switch_function].str);
+        //gtk_label_set_markup (GTK_LABEL(widget), label);
       } else {
-        widget=gtk_button_new_with_label(sw_string[temp_switches[i].switch_function]);
+        widget=gtk_button_new_with_label(ActionTable[temp_switches[i].switch_function].str);
         g_signal_connect(widget,"button_press_event",G_CALLBACK(switch_cb),GINT_TO_POINTER(i));
       }
       gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);

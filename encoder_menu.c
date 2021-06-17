@@ -68,19 +68,19 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 static void encoder_bottom_select_cb(GtkWidget *widget,gpointer data) {
   CHOICE *choice=(CHOICE *)data;
   encoders[choice->id].bottom_encoder_function=choice->action;
-  gtk_button_set_label(GTK_BUTTON(choice->button),encoder_string[choice->action]);
+  gtk_button_set_label(GTK_BUTTON(choice->button),ActionTable[choice->action].button_str);
 }
 
 static void encoder_top_select_cb(GtkWidget *widget,gpointer data) {
   CHOICE *choice=(CHOICE *)data;
   encoders[choice->id].top_encoder_function=choice->action;
-  gtk_button_set_label(GTK_BUTTON(choice->button),encoder_string[choice->action]);
+  gtk_button_set_label(GTK_BUTTON(choice->button),ActionTable[choice->action].button_str);
 }
 
 static void encoder_switch_select_cb(GtkWidget *widget,gpointer data) {
   CHOICE *choice=(CHOICE *)data;
   encoders[choice->id].switch_function=choice->action;
-  gtk_button_set_label(GTK_BUTTON(choice->button),sw_string[choice->action]);
+  gtk_button_set_label(GTK_BUTTON(choice->button),ActionTable[choice->action].button_str);
 }
 
 static gboolean encoder_bottom_cb(GtkWidget *widget, GdkEvent *event, gpointer data) {
@@ -88,14 +88,16 @@ static gboolean encoder_bottom_cb(GtkWidget *widget, GdkEvent *event, gpointer d
   int i;
 
   GtkWidget *menu=gtk_menu_new();
-  for(i=0;i<ENCODER_ACTIONS;i++) {
-    GtkWidget *menu_item=gtk_menu_item_new_with_label(encoder_string[i]);
-    CHOICE *choice=g_new0(CHOICE,1);
-    choice->id=encoder;
-    choice->action=i;
-    choice->button=widget;
-    g_signal_connect(menu_item,"activate",G_CALLBACK(encoder_bottom_select_cb),choice);
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu),menu_item);
+  for(i=0;i<ACTIONS;i++) {
+    if(ActionTable[i].type|CONTROLLER_ENCODER) {
+      GtkWidget *menu_item=gtk_menu_item_new_with_label(ActionTable[i].str);
+      CHOICE *choice=g_new0(CHOICE,1);
+      choice->id=encoder;
+      choice->action=i;
+      choice->button=widget;
+      g_signal_connect(menu_item,"activate",G_CALLBACK(encoder_bottom_select_cb),choice);
+      gtk_menu_shell_append(GTK_MENU_SHELL(menu),menu_item);
+    }
   }
   gtk_widget_show_all(menu);
 #if GTK_CHECK_VERSION(3,22,0)
@@ -113,14 +115,16 @@ static gboolean encoder_top_cb(GtkWidget *widget, GdkEvent *event, gpointer data
   int i;
 
   GtkWidget *menu=gtk_menu_new();
-  for(i=0;i<ENCODER_ACTIONS;i++) {
-    GtkWidget *menu_item=gtk_menu_item_new_with_label(encoder_string[i]);
-    CHOICE *choice=g_new0(CHOICE,1);
-    choice->id=encoder;
-    choice->action=i;
-    choice->button=widget;
-    g_signal_connect(menu_item,"activate",G_CALLBACK(encoder_top_select_cb),choice);
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu),menu_item);
+  for(i=0;i<ACTIONS;i++) {
+    if(ActionTable[i].type|CONTROLLER_ENCODER) {
+      GtkWidget *menu_item=gtk_menu_item_new_with_label(ActionTable[i].str);
+      CHOICE *choice=g_new0(CHOICE,1);
+      choice->id=encoder;
+      choice->action=i;
+      choice->button=widget;
+      g_signal_connect(menu_item,"activate",G_CALLBACK(encoder_top_select_cb),choice);
+      gtk_menu_shell_append(GTK_MENU_SHELL(menu),menu_item);
+    }
   }
   gtk_widget_show_all(menu);
 #if GTK_CHECK_VERSION(3,22,0)
@@ -138,14 +142,16 @@ static gboolean encoder_switch_cb(GtkWidget *widget, GdkEvent *event, gpointer d
   int i;
 
   GtkWidget *menu=gtk_menu_new();
-  for(i=0;i<SWITCH_ACTIONS;i++) {
-    GtkWidget *menu_item=gtk_menu_item_new_with_label(sw_string[i]);
-    CHOICE *choice=g_new0(CHOICE,1);
-    choice->id=encoder;
-    choice->action=i;
-    choice->button=widget;
-    g_signal_connect(menu_item,"activate",G_CALLBACK(encoder_switch_select_cb),choice);
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu),menu_item);
+  for(i=0;i<ACTIONS;i++) {
+    if(ActionTable[i].type|CONTROLLER_SWITCH) {
+      GtkWidget *menu_item=gtk_menu_item_new_with_label(ActionTable[i].str);
+      CHOICE *choice=g_new0(CHOICE,1);
+      choice->id=encoder;
+      choice->action=i;
+      choice->button=widget;
+      g_signal_connect(menu_item,"activate",G_CALLBACK(encoder_switch_select_cb),choice);
+      gtk_menu_shell_append(GTK_MENU_SHELL(menu),menu_item);
+    }
   }
   gtk_widget_show_all(menu);
 #if GTK_CHECK_VERSION(3,22,0)
@@ -233,24 +239,24 @@ void encoder_menu(GtkWidget *parent) {
 
     if(i==(max_encoders-1)) {
       widget=gtk_label_new(NULL);
-      g_sprintf(label,"<b>%s</b>",encoder_string[encoders[i].bottom_encoder_function]);
+      g_sprintf(label,"<b>%s</b>",ActionTable[encoders[i].bottom_encoder_function].str);
       gtk_label_set_markup (GTK_LABEL(widget), label);
     } else {
-      widget=gtk_button_new_with_label(encoder_string[encoders[i].bottom_encoder_function]);
+      widget=gtk_button_new_with_label(ActionTable[encoders[i].bottom_encoder_function].str);
       g_signal_connect(widget,"button_press_event",G_CALLBACK(encoder_bottom_cb),GINT_TO_POINTER(i));
     }
     gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
     col++;
 
     if(controller==CONTROLLER2_V2) {
-      widget=gtk_button_new_with_label(encoder_string[encoders[i].top_encoder_function]);
+      widget=gtk_button_new_with_label(ActionTable[encoders[i].top_encoder_function].str);
       g_signal_connect(widget,"button_press_event",G_CALLBACK(encoder_top_cb),GINT_TO_POINTER(i));
       gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
       col++;
     }
 
     if(i!=(max_encoders-1)) {
-      widget=gtk_button_new_with_label(sw_string[encoders[i].switch_function]);
+      widget=gtk_button_new_with_label(ActionTable[encoders[i].switch_function].str);
       g_signal_connect(widget,"button_press_event",G_CALLBACK(encoder_switch_cb),GINT_TO_POINTER(i));
       gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
       col++;

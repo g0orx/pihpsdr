@@ -48,6 +48,7 @@
 // MIDIaction encodes the "action" to be taken in Layer3
 // (sorted alphabetically by the keyword)
 //
+/*
 enum MIDIaction {
   ACTION_NONE=0,	// NONE:		No-Op (unassigned key)
   VFO_A2B,		// A2B:			VFO A -> B
@@ -148,6 +149,7 @@ enum MIDIaction {
   ZOOM_UP,		// ZOOMUP:		change zoom factor
   ZOOM_DOWN,		// ZOOMDOWN:		change zoom factor
 };
+*/
 
 //
 // MIDItype encodes the type of MIDI control. This info
@@ -172,13 +174,14 @@ enum MIDIaction {
 //  100 very fast going up
 //
 
+/*
 enum MIDItype {
  TYPE_NONE=0,
  MIDI_KEY=1,          // Button (press event)
  MIDI_KNOB=2,         // Knob   (value between 0 and 100)
  MIDI_WHEEL=4         // Wheel  (direction and speed)
 };
-
+*/
 extern gchar *midi_types[];
 extern gchar *midi_events[];
 
@@ -198,12 +201,11 @@ enum MIDIevent {
 //
 // Data structure for Layer-2
 //
-
-typedef struct _action_table {
-  enum MIDIaction action;
+typedef struct _old_action_table {
+  enum ACTION action;
   const char *str;
-  enum MIDItype type;
-} ACTION_TABLE;
+  enum ACTIONtype type;
+} OLD_ACTION_TABLE;
 
 extern ACTION_TABLE ActionTable[];
 
@@ -236,7 +238,7 @@ struct desc {
    int               channel;     // -1 for ANY channel
    enum MIDIevent    event;	  // type of event (NOTE on/off, Controller change, Pitch value)
    int               onoff;       // 1: generate upstream event both for Note-on and Note-off
-   enum MIDItype     type;        // Key, Knob, or Wheel
+   enum ACTIONtype   type;        // Key, Knob, or Wheel
    int               vfl1,vfl2;   // Wheel only: range of controller values for "very fast left"
    int               fl1,fl2;     // Wheel only: range of controller values for "fast left"
    int               lft1,lft2;   // Wheel only: range of controller values for "slow left"
@@ -244,7 +246,7 @@ struct desc {
    int               fr1,fr2;     // Wheel only: range of controller values for "fast right"
    int               rgt1,rgt2;   // Wheel only: range of controller values for "slow right"
    int		     delay;       // Wheel only: delay (msec) before next message is given upstream
-   enum MIDIaction   action;	  // SDR "action" to generate
+   int   action;	  // SDR "action" to generate
    struct desc       *next;       // Next defined action for a controller/key with that note value (NULL for end of list)
 };
 
@@ -287,5 +289,5 @@ int MIDIstop();
 // tons of invocations of g_idle_add with routines from ext.c
 //
 
-void DoTheMidi(enum MIDIaction code, enum MIDItype type, int val);
+void DoTheMidi(int code, enum ACTIONtype type, int val);
 #endif

@@ -93,10 +93,10 @@ g_print("%s: flags=%04X ints=%04X\n",__FUNCTION__,flags,ints);
         }
         if(i<16) {
 g_print("%s: switches=%p sw=%d action=%d\n",__FUNCTION__,switches,i,switches[i].switch_function);
-          SWITCH_ACTION *a=g_new(SWITCH_ACTION,1);
+          PROCESS_ACTION *a=g_new(PROCESS_ACTION,1);
           a->action=switches[i].switch_function;
-          a->state=PRESSED;
-          g_idle_add(switch_action,a);
+          a->mode=PRESSED;
+          g_idle_add(process_action,a);
         }
       }
     }

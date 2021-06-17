@@ -157,27 +157,27 @@ ENCODER encoders_no_controller[MAX_ENCODERS]={
   };
 
 ENCODER encoders_controller1[MAX_ENCODERS]={
-  {TRUE,TRUE,20,1,26,1,0,ENCODER_AF_GAIN,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,TRUE,TRUE,25,MENU_BAND,0L},
-  {TRUE,TRUE,16,1,19,1,0,ENCODER_AGC_GAIN,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,TRUE,TRUE,8,MENU_BANDSTACK,0L},
-  {TRUE,TRUE,4,1,21,1,0,ENCODER_DRIVE,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,TRUE,TRUE,7,MENU_MODE,0L},
-  {TRUE,TRUE,18,1,17,1,0,ENCODER_VFO,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,FALSE,TRUE,0,0,0L},
+  {TRUE,TRUE,20,1,26,1,0,AF_GAIN,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,TRUE,TRUE,25,MENU_BAND,0L},
+  {TRUE,TRUE,16,1,19,1,0,AGC_GAIN,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,TRUE,TRUE,8,MENU_BANDSTACK,0L},
+  {TRUE,TRUE,4,1,21,1,0,DRIVE,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,TRUE,TRUE,7,MENU_MODE,0L},
+  {TRUE,TRUE,18,1,17,1,0,VFO,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,FALSE,TRUE,0,0,0L},
   {FALSE,TRUE,0,1,0,0,1,0,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,FALSE,TRUE,0,0,0L},
   };
 
 ENCODER encoders_controller2_v1[MAX_ENCODERS]={
-  {TRUE,TRUE,20,1,26,1,0,ENCODER_AF_GAIN,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,TRUE,TRUE,22,MENU_BAND,0L},
-  {TRUE,TRUE,4,1,21,1,0,ENCODER_AGC_GAIN,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,TRUE,TRUE,27,MENU_BANDSTACK,0L},
-  {TRUE,TRUE,16,1,19,1,0,ENCODER_IF_WIDTH,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,TRUE,TRUE,23,MENU_MODE,0L},
-  {TRUE,TRUE,25,1,8,1,0,ENCODER_RIT,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,TRUE,TRUE,24,MENU_FREQUENCY,0L},
-  {TRUE,TRUE,18,1,17,1,0,ENCODER_VFO,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,FALSE,TRUE,0,0,0L},
+  {TRUE,TRUE,20,1,26,1,0,AF_GAIN,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,TRUE,TRUE,22,MENU_BAND,0L},
+  {TRUE,TRUE,4,1,21,1,0,AGC_GAIN,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,TRUE,TRUE,27,MENU_BANDSTACK,0L},
+  {TRUE,TRUE,16,1,19,1,0,IF_WIDTH,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,TRUE,TRUE,23,MENU_MODE,0L},
+  {TRUE,TRUE,25,1,8,1,0,RIT,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,TRUE,TRUE,24,MENU_FREQUENCY,0L},
+  {TRUE,TRUE,18,1,17,1,0,VFO,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,FALSE,TRUE,0,0,0L},
   };
 
 ENCODER encoders_controller2_v2[MAX_ENCODERS]={
-  {TRUE,TRUE,5,1,6,1,0,ENCODER_RF_GAIN,R_START,TRUE,TRUE,26,1,20,1,0,ENCODER_AF_GAIN,R_START,TRUE,TRUE,22,MENU_BAND,0L},
-  {TRUE,TRUE,9,1,7,1,0,ENCODER_ATTENUATION,R_START,TRUE,TRUE,21,1,4,1,0,ENCODER_AGC_GAIN,R_START,TRUE,TRUE,27,MENU_MODE,0L},
-  {TRUE,TRUE,11,1,10,1,0,ENCODER_IF_WIDTH,R_START,TRUE,TRUE,19,1,16,1,0,ENCODER_IF_SHIFT,R_START,TRUE,TRUE,23,MENU_FILTER,0L},
-  {TRUE,TRUE,13,1,12,1,0,ENCODER_XIT,R_START,TRUE,TRUE,8,1,25,1,0,ENCODER_RIT,R_START,TRUE,TRUE,24,MENU_FREQUENCY,0L},
-  {TRUE,TRUE,18,1,17,1,0,ENCODER_VFO,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,FALSE,TRUE,0,0,0L},
+  {TRUE,TRUE,5,1,6,1,0,RF_GAIN,R_START,TRUE,TRUE,26,1,20,1,0,AF_GAIN,R_START,TRUE,TRUE,22,MENU_BAND,0L},
+  {TRUE,TRUE,9,1,7,1,0,ATTENUATION,R_START,TRUE,TRUE,21,1,4,1,0,AGC_GAIN,R_START,TRUE,TRUE,27,MENU_MODE,0L},
+  {TRUE,TRUE,11,1,10,1,0,IF_WIDTH,R_START,TRUE,TRUE,19,1,16,1,0,IF_SHIFT,R_START,TRUE,TRUE,23,MENU_FILTER,0L},
+  {TRUE,TRUE,13,1,12,1,0,XIT,R_START,TRUE,TRUE,8,1,25,1,0,RIT,R_START,TRUE,TRUE,24,MENU_FREQUENCY,0L},
+  {TRUE,TRUE,18,1,17,1,0,VFO,R_START,FALSE,TRUE,0,0,0,0,0,0,R_START,FALSE,TRUE,0,0,0L},
   };
 
 ENCODER *encoders=encoders_no_controller;
@@ -207,8 +207,8 @@ SWITCH switches_controller1[MAX_FUNCTIONS][MAX_SWITCHES]={
    {TRUE,TRUE,12,MENU_BANDSTACK,0L},
    {TRUE,TRUE,6,MENU_MODE,0L},
    {TRUE,TRUE,5,MENU_FILTER,0L},
-   {TRUE,TRUE,24,NR,0L},
-   {TRUE,TRUE,23,AGC,0L},
+   {TRUE,TRUE,24,MENU_NOISE,0L},
+   {TRUE,TRUE,23,MENU_AGC,0L},
    {TRUE,TRUE,22,FUNCTION,0L},
    {FALSE,FALSE,0,NO_ACTION,0L},
    {FALSE,FALSE,0,NO_ACTION,0L},
@@ -363,7 +363,7 @@ static unsigned int millis () {
 }
 
 static gpointer rotary_encoder_thread(gpointer data) {
-  ENCODER_ACTION *a;
+  PROCESS_ACTION *a;
   int i;
 
   usleep(250000);
@@ -373,20 +373,20 @@ static gpointer rotary_encoder_thread(gpointer data) {
     for(i=0;i<MAX_ENCODERS;i++) {
       if(encoders[i].bottom_encoder_enabled && encoders[i].bottom_encoder_pos!=0) {
         //g_print("%s: BOTTOM encoder %d pos=%d\n",__FUNCTION__,i,encoders[i].bottom_encoder_pos);
-        a=g_new(ENCODER_ACTION,1);
+        a=g_new(PROCESS_ACTION,1);
         a->action=encoders[i].bottom_encoder_function;
         a->mode=RELATIVE;
         a->val=encoders[i].bottom_encoder_pos;
-        g_idle_add(encoder_action,a);
+        g_idle_add(process_action,a);
         encoders[i].bottom_encoder_pos=0;
       }
       if(encoders[i].top_encoder_enabled && encoders[i].top_encoder_pos!=0) {
         //g_print("%s: TOP encoder %d pos=%d\n",__FUNCTION__,i,encoders[i].top_encoder_pos);
-        a=g_new(ENCODER_ACTION,1);
+        a=g_new(PROCESS_ACTION,1);
         a->action=encoders[i].top_encoder_function;
         a->mode=RELATIVE;
         a->val=encoders[i].top_encoder_pos;
-        g_idle_add(encoder_action,a);
+        g_idle_add(process_action,a);
         encoders[i].top_encoder_pos=0;
       }
     }
@@ -548,10 +548,10 @@ static void process_edge(int offset,int value) {
       break;
     } else if(encoders[i].switch_enabled && encoders[i].switch_address==offset) {
       //g_print("%s: found %d encoder %d switch\n",__FUNCTION__,offset,i);
-      SWITCH_ACTION *a=g_new(SWITCH_ACTION,1);
+      PROCESS_ACTION *a=g_new(PROCESS_ACTION,1);
       a->action=encoders[i].switch_function;
-      a->state=value;
-      g_idle_add(switch_action,a);
+      a->mode=value?PRESSED:RELEASED;
+      g_idle_add(process_action,a);
       found=TRUE;
       break;
     }
@@ -575,12 +575,12 @@ static void process_edge(int offset,int value) {
         if(t<switches[i].switch_debounce) {
           return;
         }
-g_print("%s: switches=%p function=%d (%s)\n",__FUNCTION__,switches,switches[i].switch_function,sw_string[switches[i].switch_function]);
+//g_print("%s: switches=%p function=%d (%s)\n",__FUNCTION__,switches,switches[i].switch_function,sw_string[switches[i].switch_function]);
         switches[i].switch_debounce=t+settle_time;
-        SWITCH_ACTION *a=g_new(SWITCH_ACTION,1);
+        PROCESS_ACTION *a=g_new(PROCESS_ACTION,1);
         a->action=switches[i].switch_function;
-        a->state=value;
-        g_idle_add(switch_action,a);
+        a->mode=value?PRESSED:RELEASED;
+        g_idle_add(process_action,a);
         break;
       }
     }

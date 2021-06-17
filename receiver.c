@@ -1187,23 +1187,23 @@ void receiver_change_sample_rate(RECEIVER *rx,int sample_rate) {
 
 g_print("%s: id=%d rate=%d scale=%d buffer_size=%d output_samples=%d\n",__FUNCTION__,rx->id,sample_rate,scale,rx->buffer_size,rx->output_samples);
 #ifdef PURESIGNAL
-  if(can_transmit && transmitter->puresignal) {
-  if (rx->id == PS_RX_FEEDBACK) {
-    if (protocol == ORIGINAL_PROTOCOL) {
-      rx->pixels = 2* scale * rx->width;
-    } else {
-      // We should never arrive here, since the sample rate of the
-      // PS feedback receiver is fixed.
-      rx->pixels = 8 * rx->width;
+  if(can_transmit/* && transmitter->puresignal*/) {
+    if (rx->id == PS_RX_FEEDBACK) {
+      if (protocol == ORIGINAL_PROTOCOL) {
+        rx->pixels = 2* scale * rx->width;
+      } else {
+        // We should never arrive here, since the sample rate of the
+        // PS feedback receiver is fixed.
+        rx->pixels = 8 * rx->width;
+      }
+      g_free(rx->pixel_samples);
+      rx->pixel_samples=g_new(float,rx->pixels);
+      init_analyzer(rx);
+      g_print("%s: PS FEEDBACK: id=%d rate=%d buffer_size=%d output_samples=%d\n",
+                     __FUNCTION__,rx->id, rx->sample_rate, rx->buffer_size, rx->output_samples);
+      g_mutex_unlock(&rx->mutex);
+      return;
     }
-    g_free(rx->pixel_samples);
-    rx->pixel_samples=g_new(float,rx->pixels);
-    init_analyzer(rx);
-    g_print("%s: PS FEEDBACK: id=%d rate=%d buffer_size=%d output_samples=%d\n",
-                   __FUNCTION__,rx->id, rx->sample_rate, rx->buffer_size, rx->output_samples);
-    g_mutex_unlock(&rx->mutex);
-    return;
-  }
   }
 #endif
   if (rx->audio_output_buffer != NULL) {
