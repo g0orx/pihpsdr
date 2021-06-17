@@ -29,7 +29,7 @@ MIDI_INCLUDE=MIDI
 #LOCALCW_INCLUDE=LOCALCW
 
 # uncomment the line below for SoapySDR
-#SOAPYSDR_INCLUDE=SOAPYSDR
+SOAPYSDR_INCLUDE=SOAPYSDR
 
 # uncomment the line to below include support for sx1509 i2c expander
 #SX1509_INCLUDE=sx1509
