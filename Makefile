@@ -2,6 +2,9 @@
 GIT_DATE := $(firstword $(shell git --no-pager show --date=short --format="%ai" --name-only))
 GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 
+PREFIX=/usr/local
+BINDIR=$(DESTDIR)$(PREFIX)/bin
+
 # uncomment the line below to include GPIO (For original piHPSDR Controller and Controller2 with i2c)
 GPIO_INCLUDE=GPIO
 
@@ -397,7 +400,7 @@ protocols.o
 $(PROGRAM):  $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) \
 		$(LOCALCW_OBJS) $(GPIO_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS)
-	$(LINK) -o $(PROGRAM) $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(GPIO_OBJS) \
+	$(LINK) -o $(PROGRAM) $(LDFLAGS) $(OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(GPIO_OBJS) \
 		$(SOAPYSDR_OBJS) $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS) $(LIBS)
 
@@ -436,7 +439,8 @@ clean:
 
 .PHONY:	install
 install: $(PROGRAM)
-	cp $(PROGRAM) /usr/local/bin
+	mkdir -p $(BINDIR); \
+	cp -a $(PROGRAM) $(BINDIR)
 
 .PHONY:	release
 release: $(PROGRAM)
@@ -475,13 +479,13 @@ controller2v2: clean $(PROGRAM)
 #############################################################################
 
 hpsdrsim.o:	hpsdrsim.c hpsdrsim.h
-	$(CC) -c -O -DALSASOUND hpsdrsim.c
+	$(CC) $(CFLAGS) -c -O -DALSASOUND hpsdrsim.c
 
 newhpsdrsim.o:	newhpsdrsim.c hpsdrsim.h
-	$(CC) -c -O newhpsdrsim.c
+	$(CC) $(CFLAGS) -c -O newhpsdrsim.c
 
 hpsdrsim:	hpsdrsim.o newhpsdrsim.o
-	$(LINK) -o hpsdrsim hpsdrsim.o newhpsdrsim.o -lasound -lm -lpthread
+	$(LINK) $(LDFLAGS) -o hpsdrsim hpsdrsim.o newhpsdrsim.o -lasound -lm -lpthread
 
 
 debian:
