@@ -2099,9 +2099,6 @@ g_print("radioRestoreState: %s\n",property_path);
     memRestoreState();
     vfo_restore_state();
     modesettings_restore_state();
-//#ifdef GPIO
-//    gpio_restore_actions();
-//#endif
     gpio_restore_actions();
     value=getProperty("rigctl_enable");
     if(value) rigctl_enable=atoi(value);
@@ -2236,11 +2233,6 @@ g_print("radioSaveState: %s\n",property_path);
   
   g_mutex_lock(&property_mutex);
   clearProperties();
-//#ifdef GPIO
-//  if(controller!=NO_CONTROLLER) {
-//    gpio_save_actions();
-//  }
-//#endif
   gpio_save_actions();
   sprintf(value,"%d",receivers);
   setProperty("receivers",value);

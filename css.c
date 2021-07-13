@@ -1,10 +1,11 @@
 #include <gtk/gtk.h>
+#include "css.h"
 
 char *css=
-"  #small {\n"
+"  #small_button {\n"
 "    padding: 0;\n"
 "    font-family: Sans;\n"
-"    font-size: 12px;\n"
+"    font-size: 15px;\n"
 "    }\n"
 ;
 

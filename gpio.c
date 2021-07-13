@@ -410,7 +410,7 @@ static unsigned long switch_debounce;
 
 static void process_encoder(int e,int l,int addr,int val) {
   guchar pinstate;
-  //g_print("%s: encoder=%d level=%d addr=0x%02X val=%d\n",__FUNCTION__,e,l,addr,val);
+  g_print("%s: encoder=%d level=%d addr=0x%02X val=%d\n",__FUNCTION__,e,l,addr,val);
   g_mutex_lock(&encoder_mutex);
   switch(l) {
     case BOTTOM_ENCODER:
@@ -419,7 +419,7 @@ static void process_encoder(int e,int l,int addr,int val) {
           encoders[e].bottom_encoder_a_value=val;
           pinstate=(encoders[e].bottom_encoder_b_value<<1) | encoders[e].bottom_encoder_a_value;
           encoders[e].bottom_encoder_state=encoder_state_table[encoders[e].bottom_encoder_state&0xf][pinstate];
-          //g_print("%s: state=%02X\n",__FUNCTION__,encoders[e].bottom_encoder_state);
+          g_print("%s: state=%02X\n",__FUNCTION__,encoders[e].bottom_encoder_state);
           switch(encoders[e].bottom_encoder_state&0x30) {
             case DIR_NONE:
               break;
@@ -433,13 +433,13 @@ static void process_encoder(int e,int l,int addr,int val) {
               break;
           }
 
-          //g_print("%s: %s BOTTOM pos=%d\n",__FUNCTION__,encoder_string[encoders[e].bottom_encoder_function],encoders[e].bottom_encoder_pos);
+          g_print("%s: %d BOTTOM pos=%d\n",__FUNCTION__,e,encoders[e].bottom_encoder_pos);
           break;
         case B:
           encoders[e].bottom_encoder_b_value=val;
           pinstate=(encoders[e].bottom_encoder_b_value<<1) | encoders[e].bottom_encoder_a_value;
           encoders[e].bottom_encoder_state=encoder_state_table[encoders[e].bottom_encoder_state&0xf][pinstate];
-          //g_print("%s: state=%02X\n",__FUNCTION__,encoders[e].bottom_encoder_state);
+          g_print("%s: state=%02X\n",__FUNCTION__,encoders[e].bottom_encoder_state);
           switch(encoders[e].bottom_encoder_state&0x30) {
             case DIR_NONE:
               break;
@@ -453,7 +453,7 @@ static void process_encoder(int e,int l,int addr,int val) {
               break;
           }
 
-          //g_print("%s: %s BOTTOM pos=%d\n",__FUNCTION__,encoder_string[encoders[e].bottom_encoder_function],encoders[e].bottom_encoder_pos);
+          g_print("%s: %d BOTTOM pos=%d\n",__FUNCTION__,e,encoders[e].bottom_encoder_pos);
 
           break;
       }
@@ -464,7 +464,7 @@ static void process_encoder(int e,int l,int addr,int val) {
           encoders[e].top_encoder_a_value=val;
           pinstate=(encoders[e].top_encoder_b_value<<1) | encoders[e].top_encoder_a_value;
           encoders[e].top_encoder_state=encoder_state_table[encoders[e].top_encoder_state&0xf][pinstate];
-          //g_print("%s: state=%02X\n",__FUNCTION__,encoders[e].top_encoder_state);
+          g_print("%s: state=%02X\n",__FUNCTION__,encoders[e].top_encoder_state);
           switch(encoders[e].top_encoder_state&0x30) {
             case DIR_NONE:
               break;
@@ -477,13 +477,13 @@ static void process_encoder(int e,int l,int addr,int val) {
             default:
               break;
           }
-          //g_print("%s: %s TOP pos=%d\n",__FUNCTION__,encoder_string[encoders[e].top_encoder_function],encoders[e].top_encoder_pos);
+          g_print("%s: %d TOP pos=%d\n",__FUNCTION__,e,encoders[e].top_encoder_pos);
           break;
         case B:
           encoders[e].top_encoder_b_value=val;
           pinstate=(encoders[e].top_encoder_b_value<<1) | encoders[e].top_encoder_a_value;
           encoders[e].top_encoder_state=encoder_state_table[encoders[e].top_encoder_state&0xf][pinstate];
-          //g_print("%s: state=%02X\n",__FUNCTION__,encoders[e].top_encoder_state);
+          g_print("%s: state=%02X\n",__FUNCTION__,encoders[e].top_encoder_state);
           switch(encoders[e].top_encoder_state&0x30) {
             case DIR_NONE:
               break;
@@ -496,7 +496,7 @@ static void process_encoder(int e,int l,int addr,int val) {
             default:
               break;
           }
-          //g_print("%s: %s TOP pos=%d\n",__FUNCTION__,encoder_string[encoders[e].top_encoder_function],encoders[e].top_encoder_pos);
+          g_print("%s: %d TOP pos=%d\n",__FUNCTION__,e,encoders[e].top_encoder_pos);
 
           break;
       }
@@ -528,22 +528,22 @@ static void process_edge(int offset,int value) {
   for(i=0;i<MAX_ENCODERS;i++) {
     if(encoders[i].bottom_encoder_enabled && encoders[i].bottom_encoder_address_a==offset) {
       //g_print("%s: found %d encoder %d bottom A\n",__FUNCTION__,offset,i);
-      process_encoder(i,BOTTOM_ENCODER,A,value);
+      process_encoder(i,BOTTOM_ENCODER,A,value==PRESSED?1:0);
       found=TRUE;
       break;
     } else if(encoders[i].bottom_encoder_enabled && encoders[i].bottom_encoder_address_b==offset) {
       //g_print("%s: found %d encoder %d bottom B\n",__FUNCTION__,offset,i);
-      process_encoder(i,BOTTOM_ENCODER,B,value);
+      process_encoder(i,BOTTOM_ENCODER,B,value==PRESSED?1:0);
       found=TRUE;
       break;
     } else if(encoders[i].top_encoder_enabled && encoders[i].top_encoder_address_a==offset) {
       //g_print("%s: found %d encoder %d top A\n",__FUNCTION__,offset,i);
-      process_encoder(i,TOP_ENCODER,A,value);
+      process_encoder(i,TOP_ENCODER,A,value==PRESSED?1:0);
       found=TRUE;
       break;
     } else if(encoders[i].top_encoder_enabled && encoders[i].top_encoder_address_b==offset) {
       //g_print("%s: found %d encoder %d top B\n",__FUNCTION__,offset,i);
-      process_encoder(i,TOP_ENCODER,B,value);
+      process_encoder(i,TOP_ENCODER,B,value==PRESSED?1:0);
       found=TRUE;
       break;
     } else if(encoders[i].switch_enabled && encoders[i].switch_address==offset) {
@@ -641,7 +641,6 @@ void gpio_restore_state() {
 
   loadProperties("gpio.props");
  
-  controller=NO_CONTROLLER;
   value=getProperty("controller");
   if(value) controller=atoi(value);
   gpio_set_defaults(controller);
@@ -711,7 +710,6 @@ void gpio_restore_state() {
       if(value) switches[i].switch_address=atoi(value);
     }
   }
-
 }
 
 void gpio_save_state() {
@@ -798,6 +796,13 @@ void gpio_save_state() {
 void gpio_restore_actions() {
   char name[80];
   char *value;
+  int previous_controller=NO_CONTROLLER;
+  
+  value=getProperty("controller");
+  if(value) previous_controller=atoi(value);
+  gpio_set_defaults(controller);
+
+  if(controller==previous_controller) {
   if(controller!=NO_CONTROLLER) {
     for(int i=0;i<MAX_ENCODERS;i++) {
       sprintf(name,"encoders[%d].bottom_encoder_function",i);
@@ -826,11 +831,16 @@ void gpio_restore_actions() {
       if(value) switches[i].switch_function=atoi(value);
     }
   }
+  }
 }
 
 void gpio_save_actions() {
   char value[80];
   char name[80];
+
+  sprintf(value,"%d",controller);
+  setProperty("controller",value);
+
   if(controller!=NO_CONTROLLER) {
     for(int i=0;i<MAX_ENCODERS;i++) {
       sprintf(name,"encoders[%d].bottom_encoder_function",i);

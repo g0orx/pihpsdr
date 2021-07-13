@@ -39,6 +39,8 @@ void DoTheMidi(int action, enum ACTIONtype type, int val) {
     // Handle cases in alphabetical order of the key words in midi.props
     //
 
+    g_print("%s: action=%d type=%d val=%d\n",__FUNCTION__,action,type,val);
+
     switch(type) {
       case MIDI_KEY:
         a=g_new(PROCESS_ACTION,1);

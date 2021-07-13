@@ -465,7 +465,7 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
         gtk_widget_override_font(start_button, pango_font_description_from_string("Sans 16"));
         gtk_widget_show(start_button);
         gtk_grid_attach(GTK_GRID(grid),start_button,3,row,1,1);
-        g_signal_connect(start_button,"button_press_event",G_CALLBACK(start_cb),(gpointer)d);
+        g_signal_connect(start_button,"button-press-event",G_CALLBACK(start_cb),(gpointer)d);
 
         // if not available then cannot start it
         if(d->status!=STATE_AVAILABLE) {

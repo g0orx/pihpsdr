@@ -62,6 +62,7 @@
 #endif
 #include "ext.h"
 #include "vfo.h"
+#include "css.h"
 
 struct utsname unameData;
 
@@ -228,6 +229,8 @@ static void activate_pihpsdr(GtkApplication *app, gpointer data) {
   fprintf(stderr,"release: %s\n",unameData.release);
   fprintf(stderr,"version: %s\n",unameData.version);
   fprintf(stderr,"machine: %s\n",unameData.machine);
+
+  load_css();
 
   GdkScreen *screen=gdk_screen_get_default();
   if(screen==NULL) {

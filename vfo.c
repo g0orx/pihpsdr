@@ -1115,16 +1115,16 @@ void vfo_update() {
         if(can_transmit) {
           cairo_move_to(cr, 330, 50);  
   	  if (transmitter->compressor) {
-  	      sprintf(temp_text,"CMPR %d dB",(int) transmitter->compressor_level);
-              cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
-              cairo_show_text(cr, temp_text);
+  	    sprintf(temp_text,"CMPR %ddB",(int) transmitter->compressor_level);
+            cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
+            cairo_show_text(cr, temp_text);
 	  } else {
-              cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
-              cairo_show_text(cr, "CMPR OFF");
+            cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
+            cairo_show_text(cr, "CMPR");
 	  }
         }
 
-        cairo_move_to(cr, 500, 50);  
+        cairo_move_to(cr, 505, 50);  
         if(diversity_enabled) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         } else {
@@ -1143,7 +1143,7 @@ void vfo_update() {
         cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         cairo_show_text(cr, temp_text);
 
-        cairo_move_to(cr, 430, 50);  
+        cairo_move_to(cr, 405, 50);  
         if(vfo[id].ctun) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         } else {
@@ -1151,7 +1151,17 @@ void vfo_update() {
         }
         cairo_show_text(cr, "CTUN");
 
-        cairo_move_to(cr, 470, 50);  
+#ifdef MIDI
+        cairo_move_to(cr, 445, 50);  
+        if(midi_enabled) {
+          cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
+        } else {
+          cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
+        }
+        cairo_show_text(cr, "MIDI");
+#endif
+
+        cairo_move_to(cr, 475, 50);  
         if(cat_control>0) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         } else {
@@ -1160,7 +1170,7 @@ void vfo_update() {
         cairo_show_text(cr, "CAT");
 
         if(can_transmit) {
-          cairo_move_to(cr, 500, 15);  
+          cairo_move_to(cr, 505, 15);  
           if(vox_enabled) {
             cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
           } else {

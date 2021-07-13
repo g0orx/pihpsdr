@@ -20,7 +20,7 @@ GPIO_INCLUDE=GPIO
 PURESIGNAL_INCLUDE=PURESIGNAL
 
 # uncomment the line below to include MIDI support
-MIDI_INCLUDE=MIDI
+#MIDI_INCLUDE=MIDI
 
 # uncomment the line below to include USB Ozy support
 # USBOZY_INCLUDE=USBOZY
@@ -29,7 +29,7 @@ MIDI_INCLUDE=MIDI
 #LOCALCW_INCLUDE=LOCALCW
 
 # uncomment the line below for SoapySDR
-SOAPYSDR_INCLUDE=SOAPYSDR
+#SOAPYSDR_INCLUDE=SOAPYSDR
 
 # uncomment the line to below include support for sx1509 i2c expander
 #SX1509_INCLUDE=sx1509
@@ -296,11 +296,13 @@ cwramp.c \
 protocols.c \
 css.c \
 actions.c \
+action_dialog.c \
 configure.c \
 i2c.c \
 gpio.c \
 encoder_menu.c \
-switch_menu.c
+switch_menu.c \
+toolbar_menu.c
 
 
 
@@ -372,11 +374,13 @@ error_handler.h \
 protocols.h \
 css.h \
 actions.h \
+action_dialog.h \
 configure.h \
 i2c.h \
 gpio.h \
 encoder_menu.h \
-switch_menu.h
+switch_menu.h \
+toolbar_menu.h
 
 
 
@@ -447,11 +451,13 @@ cwramp.o \
 protocols.o \
 css.o \
 actions.o \
+action_dialog.o \
 configure.o \
 i2c.o \
 gpio.o \
 encoder_menu.o \
-switch_menu.o
+switch_menu.o \
+toolbar_menu.o
 
 $(PROGRAM):  $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) \
 		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \

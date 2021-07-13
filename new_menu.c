@@ -54,6 +54,7 @@
 #include "ps_menu.h"
 #include "encoder_menu.h"
 #include "switch_menu.h"
+#include "toolbar_menu.h"
 #include "vfo_menu.h"
 #include "fft_menu.h"
 #include "main.h"
@@ -194,11 +195,17 @@ static gboolean encoder_cb (GtkWidget *widget, GdkEventButton *event, gpointer d
   encoder_menu(top_window);
   return TRUE;
 }
-#endif
 
 static gboolean switch_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   cleanup();
   switch_menu(top_window);
+  return TRUE;
+}
+#endif
+
+static gboolean toolbar_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  cleanup();
+  toolbar_menu(top_window);
   return TRUE;
 }
 
@@ -594,14 +601,28 @@ void new_menu()
 
     switch(controller) {
       case NO_CONTROLLER:
-	{
+        {
+        GtkWidget *toolbar_b=gtk_button_new_with_label("Toolbar");
+        g_signal_connect (toolbar_b, "button-press-event", G_CALLBACK(toolbar_cb), NULL);
+        gtk_grid_attach(GTK_GRID(grid),toolbar_b,(i%5),i/5,1,1);
+        i++;
+        }
+        break;
+      case CONTROLLER1:
+#ifdef GPIO
+        {
+        GtkWidget *encoders_b=gtk_button_new_with_label("Encoders");
+        g_signal_connect (encoders_b, "button-press-event", G_CALLBACK(encoder_cb), NULL);
+        gtk_grid_attach(GTK_GRID(grid),encoders_b,(i%5),i/5,1,1);
+        i++;
+
         GtkWidget *switches_b=gtk_button_new_with_label("Switches");
         g_signal_connect (switches_b, "button-press-event", G_CALLBACK(switch_cb), NULL);
         gtk_grid_attach(GTK_GRID(grid),switches_b,(i%5),i/5,1,1);
         i++;
         }
+#endif
         break;
-      case CONTROLLER1:
       case CONTROLLER2_V1:
       case CONTROLLER2_V2:
         {
@@ -610,10 +631,15 @@ void new_menu()
         g_signal_connect (encoders_b, "button-press-event", G_CALLBACK(encoder_cb), NULL);
         gtk_grid_attach(GTK_GRID(grid),encoders_b,(i%5),i/5,1,1);
         i++;
-#endif
+
         GtkWidget *switches_b=gtk_button_new_with_label("Switches");
         g_signal_connect (switches_b, "button-press-event", G_CALLBACK(switch_cb), NULL);
         gtk_grid_attach(GTK_GRID(grid),switches_b,(i%5),i/5,1,1);
+        i++;
+#endif
+        GtkWidget *toolbar_b=gtk_button_new_with_label("Toolbar");
+        g_signal_connect (toolbar_b, "button-press-event", G_CALLBACK(toolbar_cb), NULL);
+        gtk_grid_attach(GTK_GRID(grid),toolbar_b,(i%5),i/5,1,1);
         i++;
         }
         break;
