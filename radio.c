@@ -2099,9 +2099,6 @@ g_print("radioRestoreState: %s\n",property_path);
     memRestoreState();
     vfo_restore_state();
     modesettings_restore_state();
-//#ifdef GPIO
-//    gpio_restore_actions();
-//#endif
     gpio_restore_actions();
     value=getProperty("rigctl_enable");
     if(value) rigctl_enable=atoi(value);
@@ -2154,7 +2151,6 @@ g_print("radioRestoreState: %s\n",property_path);
     if(device==SOAPYSDR_USB_DEVICE) {
       value=getProperty("radio.adc[0].agc");
       if (value) adc[0].agc=atoi(value);
-      //if(value) soapy_protocol_set_automatic_gain(atoi(value));
     }
 #endif
 
@@ -2194,7 +2190,6 @@ g_print("radioRestoreState: %s\n",property_path);
       if(device==SOAPYSDR_USB_DEVICE) {
         value=getProperty("radio.adc[1].agc");
         if (value) adc[1].agc=atoi(value);
-        //if(value) soapy_protocol_set_automatic_gain(atoi(value));
       }
 #endif
 
@@ -2240,11 +2235,6 @@ g_print("radioSaveState: %s\n",property_path);
   
   g_mutex_lock(&property_mutex);
   clearProperties();
-//#ifdef GPIO
-//  if(controller!=NO_CONTROLLER) {
-//    gpio_save_actions();
-//  }
-//#endif
   gpio_save_actions();
   sprintf(value,"%d",receivers);
   setProperty("receivers",value);

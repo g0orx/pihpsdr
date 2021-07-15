@@ -20,7 +20,7 @@ GPIO_INCLUDE=GPIO
 PURESIGNAL_INCLUDE=PURESIGNAL
 
 # uncomment the line below to include MIDI support
-MIDI_INCLUDE=MIDI
+#MIDI_INCLUDE=MIDI
 
 # uncomment the line below to include USB Ozy support
 # USBOZY_INCLUDE=USBOZY
@@ -138,15 +138,21 @@ GPIO_LIBS=-lgpiod -li2c
 GPIO_SOURCES= \
   configure.c \
   i2c.c \
-  encoder_menu.c
+  gpio.c \
+  encoder_menu.c \
+  switch_menu.c
 GPIO_HEADERS= \
   configure.h \
   i2c.h \
-  encoder_menu.h
+  gpio.h \
+  encoder_menu.h \
+  switch_menu.h
 GPIO_OBJS= \
   configure.o \
   i2c.o \
-  encoder_menu.o
+  gpio.o \
+  encoder_menu.o \
+  switch_menu.o
 endif
 
 #
@@ -290,8 +296,13 @@ cwramp.c \
 protocols.c \
 css.c \
 actions.c \
+action_dialog.c \
+configure.c \
+i2c.c \
+gpio.c \
+encoder_menu.c \
 switch_menu.c \
-gpio.c
+toolbar_menu.c
 
 
 
@@ -363,8 +374,13 @@ error_handler.h \
 protocols.h \
 css.h \
 actions.h \
+action_dialog.h \
+configure.h \
+i2c.h \
+gpio.h \
+encoder_menu.h \
 switch_menu.h \
-gpio.h
+toolbar_menu.h
 
 
 
@@ -435,8 +451,13 @@ cwramp.o \
 protocols.o \
 css.o \
 actions.o \
+action_dialog.o \
+configure.o \
+i2c.o \
+gpio.o \
+encoder_menu.o \
 switch_menu.o \
-gpio.o
+toolbar_menu.o
 
 $(PROGRAM):  $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) \
 		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \

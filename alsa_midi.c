@@ -20,6 +20,7 @@
 
 #include <gtk/gtk.h>
 
+#include "actions.h"
 #include "midi.h"
 #include "midi_menu.h"
 #include "alsa_midi.h"
@@ -220,6 +221,7 @@ int register_midi_device(char *myname) {
         g_print("%s: Cannot find MIDI device: %s\n",__FUNCTION__,myname);
 	ret=-1;
     }
+    return ret;
 }
 
 void close_midi_device() {
