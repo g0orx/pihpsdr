@@ -20,6 +20,7 @@
 
 #include <gtk/gtk.h>
 
+#include "actions.h"
 #include "midi.h"
 #include "midi_menu.h"
 #include "alsa_midi.h"

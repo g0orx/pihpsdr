@@ -24,9 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "actions.h"
-#ifdef GPIO
 #include "gpio.h"
-#endif
 #include "toolbar.h"
 #include "mode.h"
 #include "filter.h"
@@ -94,11 +92,7 @@ static gboolean rit_timer_cb(gpointer data) {
 
 static gboolean xit_timer_cb(gpointer data) {
   int i=GPOINTER_TO_INT(data);
-  //
-  // In most operations, one want to move XIT faster than RIT
-  // therefore take 10 times the RIT value for XIT
-  //
-  transmitter->xit+=(10*i*rit_increment);
+  transmitter->xit+=(i*rit_increment);
   if(transmitter->xit>10000) transmitter->xit=10000;
   if(transmitter->xit<-10000) transmitter->xit=-10000;
   if(protocol==NEW_PROTOCOL) {
@@ -109,14 +103,14 @@ static gboolean xit_timer_cb(gpointer data) {
 }
 
 void update_toolbar_labels() {
-  gtk_button_set_label(GTK_BUTTON(sim_mox),sw_cap_string[toolbar_switches[0].switch_function]);
-  gtk_button_set_label(GTK_BUTTON(sim_s1),sw_cap_string[toolbar_switches[1].switch_function]);
-  gtk_button_set_label(GTK_BUTTON(sim_s2),sw_cap_string[toolbar_switches[2].switch_function]);
-  gtk_button_set_label(GTK_BUTTON(sim_s3),sw_cap_string[toolbar_switches[3].switch_function]);
-  gtk_button_set_label(GTK_BUTTON(sim_s4),sw_cap_string[toolbar_switches[4].switch_function]);
-  gtk_button_set_label(GTK_BUTTON(sim_s5),sw_cap_string[toolbar_switches[5].switch_function]);
-  gtk_button_set_label(GTK_BUTTON(sim_s6),sw_cap_string[toolbar_switches[6].switch_function]);
-  gtk_button_set_label(GTK_BUTTON(sim_function),sw_cap_string[toolbar_switches[7].switch_function]);
+  gtk_button_set_label(GTK_BUTTON(sim_mox),ActionTable[toolbar_switches[0].switch_function].button_str);
+  gtk_button_set_label(GTK_BUTTON(sim_s1),ActionTable[toolbar_switches[1].switch_function].button_str);
+  gtk_button_set_label(GTK_BUTTON(sim_s2),ActionTable[toolbar_switches[2].switch_function].button_str);
+  gtk_button_set_label(GTK_BUTTON(sim_s3),ActionTable[toolbar_switches[3].switch_function].button_str);
+  gtk_button_set_label(GTK_BUTTON(sim_s4),ActionTable[toolbar_switches[4].switch_function].button_str);
+  gtk_button_set_label(GTK_BUTTON(sim_s5),ActionTable[toolbar_switches[5].switch_function].button_str);
+  gtk_button_set_label(GTK_BUTTON(sim_s6),ActionTable[toolbar_switches[6].switch_function].button_str);
+  gtk_button_set_label(GTK_BUTTON(sim_function),ActionTable[toolbar_switches[7].switch_function].button_str);
 }
 
 static void close_cb(GtkWidget *widget, gpointer data) {
@@ -327,12 +321,7 @@ static void xit_enable_cb(GtkWidget *widget, gpointer data) {
 static void xit_cb(GtkWidget *widget, gpointer data) {
   if(can_transmit) {
     int i=GPOINTER_TO_INT(data);
-    //
-    // in practical operation, you mostly want to change rit by small amounts
-    // (if listening to a group of non-transceive members) but XIT is mostly used
-    // for "split" operation and needs 10 times larger increments
-    //
-    transmitter->xit+=i*rit_increment*10;
+    transmitter->xit+=i*rit_increment;
     if(transmitter->xit>10000) transmitter->xit=10000;
     if(transmitter->xit<-10000) transmitter->xit=-10000;
     if(protocol==NEW_PROTOCOL) {
@@ -513,18 +502,18 @@ void tune_update(int state) {
 
 void switch_pressed_cb(GtkWidget *widget, gpointer data) {
   gint i=GPOINTER_TO_INT(data);
-  SWITCH_ACTION *a=g_new(SWITCH_ACTION,1);
+  PROCESS_ACTION *a=g_new(PROCESS_ACTION,1);
   a->action=toolbar_switches[i].switch_function;
-  a->state=PRESSED;
-  g_idle_add(switch_action,a);
+  a->mode=PRESSED;
+  g_idle_add(process_action,a);
 }
 
 void switch_released_cb(GtkWidget *widget, gpointer data) {
   gint i=GPOINTER_TO_INT(data);
-  SWITCH_ACTION *a=g_new(SWITCH_ACTION,1);
+  PROCESS_ACTION *a=g_new(PROCESS_ACTION,1);
   a->action=toolbar_switches[i].switch_function;
-  a->state=RELEASED;
-  g_idle_add(switch_action,a);
+  a->mode=RELEASED;
+  g_idle_add(process_action,a);
 }
 
 GtkWidget *toolbar_init(int my_width, int my_height, GtkWidget* parent) {
@@ -550,44 +539,43 @@ GtkWidget *toolbar_init(int my_width, int my_height, GtkWidget* parent) {
     gtk_widget_set_size_request (toolbar, width, height);
     gtk_grid_set_column_homogeneous(GTK_GRID(toolbar),TRUE);
 
-    sim_mox=gtk_button_new_with_label(sw_cap_string[toolbar_switches[0].switch_function]);
+    sim_mox=gtk_button_new_with_label(ActionTable[toolbar_switches[0].switch_function].button_str);
     g_signal_connect(G_OBJECT(sim_mox),"pressed",G_CALLBACK(switch_pressed_cb),GINT_TO_POINTER(0));
     gtk_grid_attach(GTK_GRID(toolbar),sim_mox,0,0,4,1);
 
-
-    sim_s1=gtk_button_new_with_label(sw_cap_string[toolbar_switches[1].switch_function]);
+    sim_s1=gtk_button_new_with_label(ActionTable[toolbar_switches[1].switch_function].button_str);
     gtk_widget_set_size_request (sim_s1, button_width, 0);
     g_signal_connect(G_OBJECT(sim_s1),"pressed",G_CALLBACK(switch_pressed_cb),GINT_TO_POINTER(1));
     g_signal_connect(G_OBJECT(sim_s1),"released",G_CALLBACK(switch_released_cb),GINT_TO_POINTER(1));
     gtk_grid_attach(GTK_GRID(toolbar),sim_s1,4,0,4,1);
 
-    sim_s2=gtk_button_new_with_label(sw_cap_string[toolbar_switches[2].switch_function]);
-    gtk_widget_set_size_request (sim_s2, button_width, 0); 
+    sim_s2=gtk_button_new_with_label(ActionTable[toolbar_switches[2].switch_function].button_str);
+    gtk_widget_set_size_request (sim_s2, button_width, 0);
     g_signal_connect(G_OBJECT(sim_s2),"pressed",G_CALLBACK(switch_pressed_cb),GINT_TO_POINTER(2));
     g_signal_connect(G_OBJECT(sim_s2),"released",G_CALLBACK(switch_released_cb),GINT_TO_POINTER(2));
     gtk_grid_attach(GTK_GRID(toolbar),sim_s2,8,0,4,1);
 
-    sim_s3=gtk_button_new_with_label(sw_cap_string[toolbar_switches[3].switch_function]);
+    sim_s3=gtk_button_new_with_label(ActionTable[toolbar_switches[3].switch_function].button_str);
     g_signal_connect(G_OBJECT(sim_s3),"pressed",G_CALLBACK(switch_pressed_cb),GINT_TO_POINTER(3));
     g_signal_connect(G_OBJECT(sim_s3),"released",G_CALLBACK(switch_released_cb),GINT_TO_POINTER(3));
     gtk_grid_attach(GTK_GRID(toolbar),sim_s3,12,0,4,1);
 
-    sim_s4=gtk_button_new_with_label(sw_cap_string[toolbar_switches[4].switch_function]);
+    sim_s4=gtk_button_new_with_label(ActionTable[toolbar_switches[4].switch_function].button_str);
     g_signal_connect(G_OBJECT(sim_s4),"pressed",G_CALLBACK(switch_pressed_cb),GINT_TO_POINTER(4));
     g_signal_connect(G_OBJECT(sim_s4),"released",G_CALLBACK(switch_released_cb),GINT_TO_POINTER(4));
     gtk_grid_attach(GTK_GRID(toolbar),sim_s4,16,0,4,1);
 
-    sim_s5=gtk_button_new_with_label(sw_cap_string[toolbar_switches[5].switch_function]);
+    sim_s5=gtk_button_new_with_label(ActionTable[toolbar_switches[5].switch_function].button_str);
     g_signal_connect(G_OBJECT(sim_s5),"pressed",G_CALLBACK(switch_pressed_cb),GINT_TO_POINTER(5));
     g_signal_connect(G_OBJECT(sim_s5),"released",G_CALLBACK(switch_released_cb),GINT_TO_POINTER(5));
     gtk_grid_attach(GTK_GRID(toolbar),sim_s5,20,0,4,1);
 
-    sim_s6=gtk_button_new_with_label(sw_cap_string[toolbar_switches[6].switch_function]);
+    sim_s6=gtk_button_new_with_label(ActionTable[toolbar_switches[6].switch_function].button_str);
     g_signal_connect(G_OBJECT(sim_s6),"pressed",G_CALLBACK(switch_pressed_cb),GINT_TO_POINTER(6));
     g_signal_connect(G_OBJECT(sim_s6),"released",G_CALLBACK(switch_released_cb),GINT_TO_POINTER(6));
     gtk_grid_attach(GTK_GRID(toolbar),sim_s6,24,0,4,1);
 
-    sim_function=gtk_button_new_with_label(sw_cap_string[toolbar_switches[7].switch_function]);
+    sim_function=gtk_button_new_with_label(ActionTable[toolbar_switches[7].switch_function].button_str);
     g_signal_connect(G_OBJECT(sim_function),"pressed",G_CALLBACK(switch_pressed_cb),GINT_TO_POINTER(7));
     gtk_grid_attach(GTK_GRID(toolbar),sim_function,28,0,4,1);
 

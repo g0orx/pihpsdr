@@ -197,9 +197,6 @@ void rx_menu(GtkWidget *parent) {
 
   GtkWidget *grid=gtk_grid_new();
   gtk_grid_set_column_spacing (GTK_GRID(grid),10);
-  //gtk_grid_set_row_spacing (GTK_GRID(grid),10);
-  //gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
-  //gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
 
   GtkWidget *close_b=gtk_button_new_with_label("Close");
   g_signal_connect (close_b, "button_press_event", G_CALLBACK(close_cb), NULL);

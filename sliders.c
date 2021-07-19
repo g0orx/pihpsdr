@@ -59,6 +59,7 @@
 #ifdef CLIENT_SERVER
 #include "client_server.h"
 #endif
+#include "actions.h"
 
 static int width;
 static int height;
@@ -348,7 +349,6 @@ void update_af_gain() {
 }
 
 void set_af_gain(int rx,double value) {
-  g_print("%s\n",__FUNCTION__);
   receiver[rx]->volume=value;
   SetRXAPanelGain1 (receiver[rx]->id, receiver[rx]->volume);
   if(display_sliders) {
@@ -448,7 +448,7 @@ void set_rf_gain(int rx,double value) {
 
 void set_filter_width(int rx,int width) {
   g_print("%s\n",__FUNCTION__);
-    if(scale_status!=FILTER_WIDTH || scale_rx!=rx) {
+    if(scale_status!=IF_WIDTH || scale_rx!=rx) {
       if(scale_status!=NO_FUNCTION) {
         g_source_remove(scale_timer);
         gtk_widget_destroy(scale_dialog);
@@ -456,7 +456,7 @@ void set_filter_width(int rx,int width) {
       }
     }
     if(scale_status==NO_FUNCTION) {
-      scale_status=FILTER_WIDTH;
+      scale_status=IF_WIDTH;
       scale_rx=rx;
       char title[64];
       sprintf(title,"Filter Width RX %d (Hz)",rx);
@@ -479,7 +479,7 @@ void set_filter_width(int rx,int width) {
 
 void set_filter_shift(int rx,int shift) {
   g_print("%s\n",__FUNCTION__);
-    if(scale_status!=FILTER_SHIFT || scale_rx!=rx) {
+    if(scale_status!=IF_SHIFT || scale_rx!=rx) {
       if(scale_status!=NO_FUNCTION) {
         g_source_remove(scale_timer);
         gtk_widget_destroy(scale_dialog);
@@ -487,7 +487,7 @@ void set_filter_shift(int rx,int shift) {
       }
     }
     if(scale_status==NO_FUNCTION) {
-      scale_status=FILTER_SHIFT;
+      scale_status=IF_SHIFT;
       scale_rx=rx;
       char title[64];
       sprintf(title,"Filter SHIFT RX %d (Hz)",rx);
@@ -723,7 +723,7 @@ void set_compression(TRANSMITTER* tx) {
     gtk_range_set_value (GTK_RANGE(comp_scale),tx->compressor_level);
   } else {
 #endif
-    if(scale_status!=COMP) {
+    if(scale_status!=COMPRESSION) {
       if(scale_status!=NO_FUNCTION) {
         g_source_remove(scale_timer);
         gtk_widget_destroy(scale_dialog);
@@ -731,7 +731,7 @@ void set_compression(TRANSMITTER* tx) {
       }
     }
     if(scale_status==NO_FUNCTION) {
-      scale_status=COMP;
+      scale_status=COMPRESSION;
       scale_dialog=gtk_dialog_new_with_buttons("COMP",GTK_WINDOW(top_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
       GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
       comp_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 20.0, 1.00);
@@ -754,7 +754,7 @@ void set_compression(TRANSMITTER* tx) {
 
 void show_diversity_gain() {
   g_print("%s\n",__FUNCTION__);
-    if(scale_status!=DIVERSITY_GAIN) {
+    if(scale_status!=DIV_GAIN) {
       if(scale_status!=NO_FUNCTION) {
         g_source_remove(scale_timer);
         gtk_widget_destroy(scale_dialog);
@@ -762,7 +762,7 @@ void show_diversity_gain() {
       }
     }
     if(scale_status==NO_FUNCTION) {
-      scale_status=DIVERSITY_GAIN;
+      scale_status=DIV_GAIN;
       scale_dialog=gtk_dialog_new_with_buttons("Diversity Gain",GTK_WINDOW(top_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
       GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
       diversity_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-27.0, 27.0, 0.01);
@@ -782,7 +782,7 @@ void show_diversity_gain() {
 
 void show_diversity_phase() {
   g_print("%s\n",__FUNCTION__);
-    if(scale_status!=DIVERSITY_PHASE) {
+    if(scale_status!=DIV_PHASE) {
       if(scale_status!=NO_FUNCTION) {
         g_source_remove(scale_timer);
         gtk_widget_destroy(scale_dialog);
@@ -790,7 +790,7 @@ void show_diversity_phase() {
       }
     }
     if(scale_status==NO_FUNCTION) {
-      scale_status=DIVERSITY_PHASE;
+      scale_status=DIV_PHASE;
       scale_dialog=gtk_dialog_new_with_buttons("Diversity Phase",GTK_WINDOW(top_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
       GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
       diversity_phase_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, -180.0, 180.0, 0.1);

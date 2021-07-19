@@ -39,8 +39,8 @@
 #ifdef SOAPYSDR
 #include "soapy_protocol.h"
 #endif
-#ifdef GPIO
 #include "actions.h"
+#ifdef GPIO
 #include "gpio.h"
 #endif
 #include "vfo.h"
@@ -678,19 +678,19 @@ void radio_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),rit_label,col,row,1,1);
   row++;
 
-  GtkWidget *rit_1=gtk_radio_button_new_with_label(NULL,"1/10");
+  GtkWidget *rit_1=gtk_radio_button_new_with_label(NULL,"1");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rit_1), rit_increment==1);
   gtk_grid_attach(GTK_GRID(grid),rit_1,col,row,1,1);
   g_signal_connect(rit_1,"pressed",G_CALLBACK(rit_cb),(gpointer *)1);
   row++;
 
-  GtkWidget *rit_10=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(rit_1),"10/100");
+  GtkWidget *rit_10=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(rit_1),"10");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rit_10), rit_increment==10);
   gtk_grid_attach(GTK_GRID(grid),rit_10,col,row,1,1);
   g_signal_connect(rit_10,"pressed",G_CALLBACK(rit_cb),(gpointer *)10);
   row++;
 
-  GtkWidget *rit_100=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(rit_10),"100/1000");
+  GtkWidget *rit_100=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(rit_10),"100");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rit_100), rit_increment==100);
   gtk_grid_attach(GTK_GRID(grid),rit_100,col,row,1,1);
   g_signal_connect(rit_100,"pressed",G_CALLBACK(rit_cb),(gpointer *)100);

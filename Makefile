@@ -29,7 +29,7 @@ MIDI_INCLUDE=MIDI
 #LOCALCW_INCLUDE=LOCALCW
 
 # uncomment the line below for SoapySDR
-#SOAPYSDR_INCLUDE=SOAPYSDR
+SOAPYSDR_INCLUDE=SOAPYSDR
 
 # uncomment the line to below include support for sx1509 i2c expander
 #SX1509_INCLUDE=sx1509
@@ -297,6 +297,7 @@ receiver.c \
 rigctl.c \
 rigctl_menu.c \
 toolbar.c \
+toolbar_menu.c \
 transmitter.c \
 zoompan.c \
 sliders.c \
@@ -316,6 +317,7 @@ cwramp.c \
 protocols.c \
 css.c \
 actions.c \
+action_dialog.c \
 switch_menu.c \
 gpio.c
 
@@ -371,6 +373,7 @@ receiver.h \
 rigctl.h \
 rigctl_menu.h \
 toolbar.h \
+toolbar_menu.h \
 transmitter.h \
 zoompan.h \
 sliders.h \
@@ -388,6 +391,7 @@ ext.h \
 error_handler.h \
 protocols.h \
 actions.h \
+action_dialog.h \
 switch_menu.h \
 gpio.h
 
@@ -442,6 +446,7 @@ receiver.o \
 rigctl.o \
 rigctl_menu.o \
 toolbar.o \
+toolbar_menu.o \
 transmitter.o \
 zoompan.o \
 sliders.o \
@@ -459,6 +464,7 @@ error_handler.o \
 cwramp.o \
 protocols.o \
 css.o \
+action_dialog.o \
 actions.o \
 switch_menu.o \
 gpio.o

@@ -32,6 +32,7 @@
 #ifdef CLIENT_SERVER
 #include "client_server.h"
 #endif
+#include "actions.h"
 
 static int width;
 static int height;

@@ -60,7 +60,9 @@ typedef struct _switch {
   gulong switch_debounce;
 } SWITCH;
 
+#ifdef LOCALCW
 extern SWITCH switches_cw[3];
+#endif
 extern SWITCH switches_no_controller[MAX_SWITCHES];
 extern SWITCH switches_controller1[MAX_FUNCTIONS][MAX_SWITCHES];
 extern SWITCH switches_controller2_v1[MAX_SWITCHES];
@@ -89,8 +91,6 @@ extern int ENABLE_GPIO_SIDETONE;
 extern int ENABLE_CW_BUTTONS;
 extern int CW_ACTIVE_LOW;
 extern void gpio_cw_sidetone_set(int level);
-extern int  gpio_left_cw_key();
-extern int  gpio_right_cw_key();
 extern int  gpio_cw_sidetone_enabled();
 #endif
 
