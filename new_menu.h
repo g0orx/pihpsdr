@@ -42,7 +42,8 @@ enum {
   FILTER_MENU,
   NOISE_MENU,
   AGC_MENU,
-  VFO_MENU
+  VFO_MENU,
+  STORE_MENU
 };
 
 extern int active_menu;
