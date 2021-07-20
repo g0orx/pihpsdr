@@ -484,9 +484,11 @@ void new_menu()
     // The "Restart" restarts the protocol
     // This may help to recover from certain error conditions
     //
-    GtkWidget *restart_b=gtk_button_new_with_label("Restart");
-    g_signal_connect (restart_b, "button-press-event", G_CALLBACK(restart_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),restart_b,2,0,2,1);
+    if (protocol != SOAPYSDR_PROTOCOL) {
+      GtkWidget *restart_b=gtk_button_new_with_label("Restart");
+      g_signal_connect (restart_b, "button-press-event", G_CALLBACK(restart_cb), NULL);
+      gtk_grid_attach(GTK_GRID(grid),restart_b,2,0,2,1);
+    }
 
     GtkWidget *exit_b=gtk_button_new_with_label("Exit piHPSDR");
     g_signal_connect (exit_b, "button-press-event", G_CALLBACK(exit_cb), NULL);
