@@ -599,24 +599,11 @@ if(!radio_is_remote) {
   gtk_fixed_put(GTK_FIXED(fixed),audio_waterfall,0,VFO_HEIGHT+20);
 #endif
 
-  gboolean init_gpio=FALSE;
-#ifdef LOCALCW
-  init_gpio=TRUE;
-#endif
-#ifdef PTT
-  init_gpio=TRUE;
-#endif
-#ifdef GPIO
-  init_gpio=TRUE;
-#endif
-
-  if(init_gpio) {
 #ifdef GPIO
     if(gpio_init()<0) {
       g_print("GPIO failed to initialize\n");
     }
 #endif
-  }
 
 #ifdef LOCALCW
   // init local keyer if enabled
