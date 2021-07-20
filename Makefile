@@ -20,7 +20,7 @@ GPIO_INCLUDE=GPIO
 PURESIGNAL_INCLUDE=PURESIGNAL
 
 # uncomment the line below to include MIDI support
-MIDI_INCLUDE=MIDI
+#MIDI_INCLUDE=MIDI
 
 # uncomment the line below to include USB Ozy support
 # USBOZY_INCLUDE=USBOZY
@@ -29,7 +29,7 @@ MIDI_INCLUDE=MIDI
 #LOCALCW_INCLUDE=LOCALCW
 
 # uncomment the line below for SoapySDR
-SOAPYSDR_INCLUDE=SOAPYSDR
+#SOAPYSDR_INCLUDE=SOAPYSDR
 
 # uncomment the line to below include support for sx1509 i2c expander
 #SX1509_INCLUDE=sx1509
@@ -52,6 +52,8 @@ SOAPYSDR_INCLUDE=SOAPYSDR
 #SERVER_INCLUDE=SERVER
 
 CFLAGS?= -O -Wno-deprecated-declarations
+LINK?=   $(CC)
+
 PKG_CONFIG = pkg-config
 
 ifeq ($(MIDI_INCLUDE),MIDI)
@@ -103,6 +105,7 @@ USBOZY_OBJS= \
 ozyio.o
 endif
 
+
 ifeq ($(SOAPYSDR_INCLUDE),SOAPYSDR)
 SOAPYSDR_OPTIONS=-D SOAPYSDR
 SOAPYSDRLIBS=-lSoapySDR
@@ -117,6 +120,13 @@ soapy_discovery.o \
 soapy_protocol.o
 endif
 
+ifeq ($(LOCALCW_INCLUDE),LOCALCW)
+LOCALCW_OPTIONS=-D LOCALCW
+LOCALCW_SOURCES= iambic.c
+LOCALCW_HEADERS= iambic.h
+LOCALCW_OBJS   = iambic.o
+endif
+
 ifeq ($(PTT_INCLUDE),PTT)
 PTT_OPTIONS=-D PTT
 endif
@@ -128,25 +138,6 @@ GPIOD_OPTIONS=-D OLD_GPIOD
 endif
 GPIO_OPTIONS=-D GPIO
 GPIO_LIBS=-lgpiod -li2c
-GPIO_SOURCES= \
-  configure.c \
-  i2c.c \
-  encoder_menu.c
-GPIO_HEADERS= \
-  configure.h \
-  i2c.h \
-  encoder_menu.h
-GPIO_OBJS= \
-  configure.o \
-  i2c.o \
-  encoder_menu.o
-endif
-
-ifeq ($(LOCALCW_INCLUDE),LOCALCW)
-LOCALCW_OPTIONS=-D LOCALCW
-LOCALCW_SOURCES= iambic.c
-LOCALCW_HEADERS= iambic.h
-LOCALCW_OBJS   = iambic.o
 endif
 
 #
@@ -187,7 +178,9 @@ GTKINCLUDES=$(shell $(PKG_CONFIG) --cflags gtk+-3.0)
 GTKLIBS=$(shell $(PKG_CONFIG) --libs gtk+-3.0)
 
 #
-# MacOS: only PORTAUDIO
+# set options for audio module
+#  - MacOS: only PORTAUDIO
+#  - Linux: either ALSA or PULSEAUDIO
 #
 ifeq ($(UNAME_S), Darwin)
     AUDIO_MODULE=PORTAUDIO
@@ -225,20 +218,27 @@ AUDIO_SOURCES=portaudio.c
 AUDIO_OBJS=portaudio.o
 endif
 
+OPTIONS=$(SMALL_SCREEN_OPTIONS) $(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) \
+	$(GPIO_OPTIONS) $(GPIOD_OPTIONS) $(SOAPYSDR_OPTIONS) $(LOCALCW_OPTIONS) \
+	$(STEMLAB_OPTIONS) \
+        $(PTT_OPTIONS) \
+	$(SERVER_OPTIONS) \
+	$(AUDIO_OPTIONS) \
+	-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION)
+
+#
+# Specify additional OS-dependent system libraries
+#
 ifeq ($(UNAME_S), Linux)
 SYSLIBS=-lrt
 endif
+
 ifeq ($(UNAME_S), Darwin)
 SYSLIBS=-framework IOKit
 endif
 
-OPTIONS=$(SMALL_SCREEN_OPTIONS) $(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) \
-	$(GPIO_OPTIONS) $(GPIOD_OPTIONS)  $(SOAPYSDR_OPTIONS) $(LOCALCW_OPTIONS) \
-	$(STEMLAB_OPTIONS) $(PTT_OPTIONES) $(SERVER_OPTIONS) $(AUDIO_OPTIONS) $(GPIO_OPTIONS) \
-	-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION)
-
-LIBS=	-lm -lwdsp -lpthread $(SYSLIBS) $(AUDIO_LIBS) $(USBOZY_LIBS) $(GTKLIBS) \
-		$(GPIO_LIBS) $(SOAPYSDRLIBS) $(STEMLAB_LIBS) $(MIDI_LIBS)
+LIBS=	$(LDFLAGS) $(AUDIO_LIBS) $(USBOZY_LIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(STEMLAB_LIBS) \
+	$(MIDI_LIBS) -lwdsp -lpthread -lm $(SYSLIBS)
 INCLUDES=$(GTKINCLUDES)
 
 COMPILE=$(CC) $(CFLAGS) $(OPTIONS) $(INCLUDES)
@@ -297,7 +297,6 @@ receiver.c \
 rigctl.c \
 rigctl_menu.c \
 toolbar.c \
-toolbar_menu.c \
 transmitter.c \
 zoompan.c \
 sliders.c \
@@ -318,8 +317,13 @@ protocols.c \
 css.c \
 actions.c \
 action_dialog.c \
+configure.c \
+i2c.c \
+gpio.c \
+encoder_menu.c \
 switch_menu.c \
-gpio.c
+toolbar_menu.c
+
 
 
 HEADERS= \
@@ -373,7 +377,6 @@ receiver.h \
 rigctl.h \
 rigctl_menu.h \
 toolbar.h \
-toolbar_menu.h \
 transmitter.h \
 zoompan.h \
 sliders.h \
@@ -390,10 +393,16 @@ led.h \
 ext.h \
 error_handler.h \
 protocols.h \
+css.h \
 actions.h \
 action_dialog.h \
+configure.h \
+i2c.h \
+gpio.h \
+encoder_menu.h \
 switch_menu.h \
-gpio.h
+toolbar_menu.h
+
 
 
 OBJS= \
@@ -446,7 +455,6 @@ receiver.o \
 rigctl.o \
 rigctl_menu.o \
 toolbar.o \
-toolbar_menu.o \
 transmitter.o \
 zoompan.o \
 sliders.o \
@@ -464,27 +472,31 @@ error_handler.o \
 cwramp.o \
 protocols.o \
 css.o \
-action_dialog.o \
 actions.o \
+action_dialog.o \
+configure.o \
+i2c.o \
+gpio.o \
+encoder_menu.o \
 switch_menu.o \
-gpio.o
+toolbar_menu.o
 
 $(PROGRAM):  $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) \
-		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) $(GPIO_OBJS) \
+		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS)
-	$(CC) -o $(PROGRAM) $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) \
-		$(SOAPYSDR_OBJS) $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) $(GPIO_OBJS) \
-		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS) $(LIBS) $(LDFLAGS)
+	$(LINK) -o $(PROGRAM) $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) \
+		$(SOAPYSDR_OBJS) $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
+		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS) $(LIBS)
 
-.PHONY: all
-all:    prebuild  $(PROGRAM) $(HEADERS) $(AUDIO_HEADERS) $(USBOZY_HEADERS) $(SOAPYSDR_HEADERS) \
-	$(LOCALCW_HEADERS) $(GPIO_HEADERS) \
+.PHONY:	all
+all:	prebuild  $(PROGRAM) $(HEADERS) $(AUDIO_HEADERS) $(USBOZY_HEADERS) $(SOAPYSDR_HEADERS) \
+	$(LOCALCW_HEADERS) \
 	$(PURESIGNAL_HEADERS) $(MIDI_HEADERS) $(STEMLAB_HEADERS) $(SERVER_HEADERS) \
-	$(AUDIO_SOURCES) $(SOURCES) $(GPIO_SOURCES) \
+	$(AUDIO_SOURCES) $(SOURCES) \
 	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(LOCALCW_SOURCE) \
 	$(PURESIGNAL_SOURCES) $(MIDI_SOURCES) $(STEMLAB_SOURCES) $(SERVER_SOURCES)
 
-.PHONY: prebuild
+.PHONY:	prebuild
 prebuild:
 	rm -f version.o
 
@@ -494,47 +506,58 @@ prebuild:
 # Therefore, correct this here. Furthermore, we can add additional options to CPP
 # in the variable CPPOPTIONS
 #
-CPPOPTIONS= --enable=all --suppress=shadowVariable --suppress=variableScope -D__APPLE__
+CPPOPTIONS= --enable=all --suppress=shadowVariable --suppress=variableScope
+ifeq ($(UNAME_S), Darwin)
+CPPOPTIONS += -D__APPLE__
+endif
 CPPINCLUDES:=$(shell echo $(INCLUDES) | sed -e "s/-pthread / /" )
 
 .PHONY:	cppcheck
 cppcheck:
-	cppcheck $(CPPOPTIONS) $(OPTIONS) $(CPPINCLUDES) $(SOURCES) $(REMOTE_SOURCES) \
-	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(SERVER_SOURCES) \
-	$(PURESIGNAL_SOURCES) $(MIDI_SOURCES) $(STEMLAB_SOURCES) $(LOCALCW_SOURCES)
+	cppcheck $(CPPOPTIONS) $(OPTIONS) $(CPPINCLUDES) $(AUDIO_SOURCES) $(SOURCES) $(REMOTE_SOURCES) \
+	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) \
+	$(PURESIGNAL_SOURCES) $(MIDI_SOURCES) $(STEMLAB_SOURCES) $(LOCALCW_SOURCES) \
+	$(SERVER_SOURCES)
 
-.PHONY: clean
+.PHONY:	clean
 clean:
 	-rm -f *.o
 	-rm -f $(PROGRAM) hpsdrsim
 	-rm -rf $(PROGRAM).app
 
-.PHONY: install
-install: $(PROGRAM)
-	cp $(PROGRAM) $(DESTDIR)/usr/local/bin
+#
+# If $DESTDIR is set, copy to that directory, otherwise use /usr/local/bin
+#
+ifeq ($(DESTDIR), )
+DESTDIR := /usr/local/bin
+endif
 
-.PHONY: release
+.PHONY:	install
+install: $(PROGRAM)
+	cp $(PROGRAM) $(DESTDIR)
+
+.PHONY:	release
 release: $(PROGRAM)
 	cp $(PROGRAM) release/pihpsdr
 	cd release; tar cvf pihpsdr.tar pihpsdr
 	cd release; tar cvf pihpsdr-$(GIT_VERSION).tar pihpsdr
 
-.PHONY: nocontroller
+.PHONY:	nocontroller
 nocontroller: clean controller1 $(PROGRAM)
 	cp $(PROGRAM) release/pihpsdr
 	cd release; tar cvf pihpsdr-nocontroller.$(GIT_VERSION).tar pihpsdr
 
-.PHONY: controller1
+.PHONY:	controller1
 controller1: clean $(PROGRAM)
 	cp $(PROGRAM) release/pihpsdr
 	cd release; tar cvf pihpsdr-controller1.$(GIT_VERSION).tar pihpsdr
 
-.PHONY: controller2v1
+.PHONY:	controller2v1
 controller2v1: clean $(PROGRAM)
 	cp $(PROGRAM) release/pihpsdr
 	cd release; tar cvf pihpsdr-controller2-v1.$(GIT_VERSION).tar pihpsdr
 
-.PHONY: controller2v2
+.PHONY:	controller2v2
 controller2v2: clean $(PROGRAM)
 	cp $(PROGRAM) release/pihpsdr
 	cd release; tar cvf pihpsdr-controller2-v2.$(GIT_VERSION).tar pihpsdr
@@ -556,7 +579,7 @@ newhpsdrsim.o:	newhpsdrsim.c hpsdrsim.h
 	$(CC) -c -O newhpsdrsim.c
 
 hpsdrsim:       hpsdrsim.o newhpsdrsim.o
-	$(CC) -o hpsdrsim hpsdrsim.o newhpsdrsim.o -lm -lpthread
+	$(LINK) -o hpsdrsim hpsdrsim.o newhpsdrsim.o -lm -lpthread
 
 debian:
 	cp $(PROGRAM) pkg/pihpsdr/usr/local/bin
@@ -584,10 +607,10 @@ debian:
 
 .PHONY: app
 app:	$(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS)  $(SOAPYSDR_OBJS) \
-		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) $(GPIO_OBJS) \
+		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS)
-	$(CC)   -headerpad_max_install_names -o $(PROGRAM) $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS)  $(USBOZY_OBJS)  \
-		$(SOAPYSDR_OBJS) $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) $(GPIO_OBJS) \
+	$(LINK) -headerpad_max_install_names -o $(PROGRAM) $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS)  $(USBOZY_OBJS)  \
+		$(SOAPYSDR_OBJS) $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS) $(LIBS) $(LDFLAGS)
 	@rm -rf pihpsdr.app
 	@mkdir -p pihpsdr.app/Contents/MacOS
@@ -601,11 +624,11 @@ app:	$(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS)  $(SOAPYSDR_OBJS) \
 #
 #	Copy the WDSP library into the executable
 #
-	@lib=`otool -L pihpsdr.app/Contents/MacOS/pihpsdr | grep libwdsp | sed -e "s/ (.*//" | sed -e 's/	//'`; \
+	@lib=`/usr/bin/otool -L pihpsdr.app/Contents/MacOS/pihpsdr | grep libwdsp | sed -e "s/ (.*//" | sed -e 's/	//'`; \
 	 libfn=`basename $$lib`; \
 	 cp "$$lib" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
 	 chmod u+w "pihpsdr.app/Contents/Frameworks/$$libfn"; \
-	 install_name_tool -id "@executable_path/../Frameworks/$$libfn" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
-	 install_name_tool -change "$$lib" "@executable_path/../Frameworks/$$libfn" pihpsdr.app/Contents/MacOS/pihpsdr
+	 /usr/bin/install_name_tool -id "@executable_path/../Frameworks/$$libfn" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
+	 /usr/bin/install_name_tool -change "$$lib" "@executable_path/../Frameworks/$$libfn" pihpsdr.app/Contents/MacOS/pihpsdr
 #
 #############################################################################
