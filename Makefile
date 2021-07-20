@@ -54,9 +54,9 @@ LINK=gcc
 
 ifeq ($(MIDI_INCLUDE),MIDI)
 MIDI_OPTIONS=-D MIDI
-MIDI_HEADERS= midi.h midi_menu.h
+MIDI_HEADERS= midi.h midi_menu.h alsa_midi.h
 ifeq ($(UNAME_S), Darwin)
-MIDI_SOURCES= mac_midi.c midi2.c midi3.c
+MIDI_SOURCES= mac_midi.c midi2.c midi3.c midi_menu.c
 MIDI_OBJS= mac_midi.o midi2.o midi3.o midi_menu.o
 MIDI_LIBS= -framework CoreMIDI -framework Foundation
 endif
@@ -135,24 +135,6 @@ GPIOD_OPTIONS=-D OLD_GPIOD
 endif
 GPIO_OPTIONS=-D GPIO
 GPIO_LIBS=-lgpiod -li2c
-GPIO_SOURCES= \
-  configure.c \
-  i2c.c \
-  gpio.c \
-  encoder_menu.c \
-  switch_menu.c
-GPIO_HEADERS= \
-  configure.h \
-  i2c.h \
-  gpio.h \
-  encoder_menu.h \
-  switch_menu.h
-GPIO_OBJS= \
-  configure.o \
-  i2c.o \
-  gpio.o \
-  encoder_menu.o \
-  switch_menu.o
 endif
 
 #
