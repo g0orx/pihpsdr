@@ -564,7 +564,6 @@ static void add_cb(GtkButton *widget,gpointer user_data) {
   gint i;
   gint type;
   gint action;
-  gint onoff;
 
   if(str_type==NULL) {
     return;
@@ -585,12 +584,10 @@ static void add_cb(GtkButton *widget,gpointer user_data) {
   }
 
   action=MIDI_ACTION_NONE;
-  onoff=0;
   i=0;
   while(ActionTable[i].action!=MIDI_ACTION_LAST) {
     if(strcmp(ActionTable[i].str,str_action)==0) {
       action=ActionTable[i].action;
-      onoff=ActionTable[i].onoff;
       break;
     }
     i++;
@@ -604,7 +601,6 @@ static void add_cb(GtkButton *widget,gpointer user_data) {
   desc->action = action; // MIDIaction
   desc->type = type; // MIDItype
   desc->event = thisEvent; // MIDevent
-  desc->onoff = onoff;
   desc->delay = thisDelay;
   desc->vfl1  = thisVfl1;
   desc->vfl2  = thisVfl2;
@@ -640,7 +636,6 @@ static void update_cb(GtkButton *widget,gpointer user_data) {
   char str_channel[16];
   char str_note[16];
   int i;
-  int onoff;
 
   if (current_cmd == NULL) {
     g_print("%s: current_cmd is NULL!\n", __FUNCTION__);
@@ -666,12 +661,10 @@ static void update_cb(GtkButton *widget,gpointer user_data) {
   //g_print("%s: type=%s action=%s\n",__FUNCTION__,str_type,str_action);
 
   thisAction=MIDI_ACTION_NONE;
-  onoff=0;
   i=0;
   while(ActionTable[i].action!=MIDI_ACTION_LAST) {
     if(strcmp(ActionTable[i].str,str_action)==0) {
       thisAction=ActionTable[i].action;
-      onoff=ActionTable[i].onoff;
       break;
     }
     i++;
@@ -680,7 +673,6 @@ static void update_cb(GtkButton *widget,gpointer user_data) {
   current_cmd->channel=thisChannel;
   current_cmd->type   =thisType;
   current_cmd->action =thisAction;
-  current_cmd->onoff =onoff;
   current_cmd->delay =thisDelay;
 
   current_cmd->vfl1  =thisVfl1;
@@ -1606,7 +1598,6 @@ void midi_restore_state() {
   gint indices;
   gint channel;
   gint event;
-  gint onoff;
   gint type;
   gint action;
   gint delay;
@@ -1676,7 +1667,7 @@ void midi_restore_state() {
 	action=MIDI_ACTION_NONE;
         if(value) {
 	  int j=0;
-	  while(ActionTable[j].type!=MIDI_ACTION_LAST) {
+	  while(ActionTable[j].action!=MIDI_ACTION_LAST) {
             if(strcmp(value,ActionTable[j].str)==0) {
               action=ActionTable[j].action;
 	      break;
@@ -1751,16 +1742,12 @@ void midi_restore_state() {
         vfr2=-1;
         if (value) vfr2=atoi(value);
 
-	// ATTENTION: this assumes ActionTable is sorted by Action enums
-        onoff=ActionTable[action].onoff;
-
 	struct desc *desc = (struct desc *) malloc(sizeof(struct desc));
 
         desc->next     = NULL;
         desc->action   = action; // MIDIaction
         desc->type     = type;   // MIDItype
         desc->event    = event;  // MIDevent
-        desc->onoff    = onoff;
         desc->delay    = delay;
         desc->vfl1     = vfl1;
         desc->vfl2     = vfl2;
@@ -1776,8 +1763,8 @@ void midi_restore_state() {
         desc->vfr2     = vfr2;
         desc->channel  = channel;
 
-//g_print("DESC INIT Note=%3d Action=%3d Type=%3d Event=%3d OnOff=%3d Chan=%3d Delay=%3d THR=%3d %3d %3d %3d %3d %3d %3d %3d %3d %3d %3d %3d\n",
-//        i, action, type, event, onoff, channel, delay,
+//g_print("DESC INIT Note=%3d Action=%3d Type=%3d Event=%3d Chan=%3d Delay=%3d THR=%3d %3d %3d %3d %3d %3d %3d %3d %3d %3d %3d %3d\n",
+//        i, action, type, event, channel, delay,
 //        vfl1, vfl2, fl1, fl2, lft1, lft2, rgt1, rgt2, fr1, fr2, vfr1, vfr2);
         MidiAddCommand(i, desc);
       }

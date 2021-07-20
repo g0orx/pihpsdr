@@ -56,9 +56,21 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
 	    // Found matching entry
 	    switch (desc->event) {
 		case MIDI_EVENT_NOTE:
-		    if ((val == 1 || (desc->onoff == 1)) && desc->type == MIDI_TYPE_KEY) {
-			DoTheMidi(desc->action, desc->type, val);
-		    }
+                    if (desc->type == MIDI_TYPE_KEY) {
+                      switch (desc->action) {
+                        case MIDI_ACTION_CWLEFT:
+                        case MIDI_ACTION_CWRIGHT:
+                        case MIDI_ACTION_CWKEYER:
+                        case MIDI_ACTION_PTTKEYER:
+                          // deliver message for note-on and note-off
+			  DoTheMidi(desc->action, desc->type, val);
+                          break;
+                        default:
+                          // deliver only note-on messages
+			  if (val == 1) DoTheMidi(desc->action, desc->type, val);
+                          break;
+                      }
+                    }
 		    break;
 		case MIDI_EVENT_CTRL:
 		    if (desc->type == MIDI_TYPE_KNOB) {
@@ -124,117 +136,117 @@ gchar *midi_events[] = {"NONE","NOTE","CTRL","PITCH"};
  */
 
 ACTION_TABLE ActionTable[] = {
-        { MIDI_ACTION_NONE,     	"NONE",         	MIDI_TYPE_KEY|MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,   0},
-        { MIDI_ACTION_VFO_A2B,         	"A2B",          	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_AF_GAIN,         	"AFGAIN",       	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
-        { MIDI_ACTION_AGCATTACK,       	"AGCATTACK",    	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_AGC,             	"AGCVAL",       	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
-	{ MIDI_ACTION_ANF,             	"ANF",          	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_ATT,             	"ATT",          	MIDI_TYPE_KEY|MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,   0},
-        { MIDI_ACTION_VFO_B2A,        	"B2A",          	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_BAND_10,         	"BAND10",       	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_BAND_12,         	"BAND12",       	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_BAND_1240,       	"BAND1240",     	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_BAND_144,        	"BAND144",      	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_BAND_15,         	"BAND15",       	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_BAND_160,        	"BAND160",      	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_BAND_17,         	"BAND17",       	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_BAND_20,         	"BAND20",       	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_BAND_220,        	"BAND220",      	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_BAND_2300,       	"BAND2300",     	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_BAND_30,         	"BAND30",       	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_BAND_3400,       	"BAND3400",     	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_BAND_40,         	"BAND40",       	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_BAND_430,        	"BAND430",      	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_BAND_6,          	"BAND6",        	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_BAND_60,         	"BAND60",       	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_BAND_70,         	"BAND70",       	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_BAND_80,         	"BAND80",       	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_BAND_902,        	"BAND902",      	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_BAND_AIR,        	"BANDAIR",      	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_BAND_DOWN,	"BANDDOWN",     	MIDI_TYPE_KEY|MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,	0},
-        { MIDI_ACTION_BAND_GEN,      	"BANDGEN",      	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_BAND_UP,         	"BANDUP",       	MIDI_TYPE_KEY|MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,	0},
-        { MIDI_ACTION_BAND_WWV,        	"BANDWWV",      	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_COMPRESS,        	"COMPRESS",     	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
-        { MIDI_ACTION_CTUN,            	"CTUN",         	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_VFO,             	"CURRVFO",      	MIDI_TYPE_WHEEL,				0},
-        { MIDI_ACTION_CWKEYER,         	"CW(Keyer)",        	MIDI_TYPE_KEY,					1},
-        { MIDI_ACTION_CWLEFT,         	"CWLEFT",          	MIDI_TYPE_KEY,					1},
-        { MIDI_ACTION_CWRIGHT,         	"CWRIGHT",          	MIDI_TYPE_KEY,					1},
-        { MIDI_ACTION_CWSPEED,         	"CWSPEED",      	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
-        { MIDI_ACTION_DIV_COARSEGAIN,  	"DIVCOARSEGAIN",        MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
-        { MIDI_ACTION_DIV_COARSEPHASE,  "DIVCOARSEPHASE",       MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
-        { MIDI_ACTION_DIV_FINEGAIN,     "DIVFINEGAIN",  	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
-        { MIDI_ACTION_DIV_FINEPHASE,    "DIVFINEPHASE", 	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
-        { MIDI_ACTION_DIV_GAIN,         "DIVGAIN",      	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
-        { MIDI_ACTION_DIV_PHASE,        "DIVPHASE",     	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
-        { MIDI_ACTION_DIV_TOGGLE,       "DIVTOGGLE",    	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_DUP,             	"DUP",          	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_FILTER_DOWN,      "FILTERDOWN",   	MIDI_TYPE_KEY|MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,	0},
-        { MIDI_ACTION_FILTER_UP,        "FILTERUP",     	MIDI_TYPE_KEY|MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,	0},
-        { MIDI_ACTION_LOCK,            	"LOCK",         	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_MEM_RECALL_M0,    "RECALLM0",  		MIDI_TYPE_KEY,          			0},
-        { MIDI_ACTION_MEM_RECALL_M1,    "RECALLM1",  		MIDI_TYPE_KEY,          			0},
-        { MIDI_ACTION_MEM_RECALL_M2,    "RECALLM2",  		MIDI_TYPE_KEY,          			0},
-        { MIDI_ACTION_MEM_RECALL_M3,    "RECALLM3",  		MIDI_TYPE_KEY,          			0},
-        { MIDI_ACTION_MEM_RECALL_M4,    "RECALLM4",  		MIDI_TYPE_KEY,          			0},
-        { MIDI_ACTION_MENU_FILTER,      "MENU_FILTER",  	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_MENU_MODE,        "MENU_MODE",    	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_MIC_VOLUME,       "MICGAIN",      	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
-        { MIDI_ACTION_MODE_DOWN,        "MODEDOWN",     	MIDI_TYPE_KEY|MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,	0},
-        { MIDI_ACTION_MODE_UP,          "MODEUP",       	MIDI_TYPE_KEY|MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,	0},
-        { MIDI_ACTION_MOX,             	"MOX",  		MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_MUTE,            	"MUTE", 		MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_NB,             	"NOISEBLANKER", 	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_NR,              	"NOISEREDUCTION",       MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_NUMPAD_0,        	"NUMPAD0",      	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_NUMPAD_1,        	"NUMPAD1",      	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_NUMPAD_2,        	"NUMPAD2",      	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_NUMPAD_3,        	"NUMPAD3",      	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_NUMPAD_4,        	"NUMPAD4",      	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_NUMPAD_5,        	"NUMPAD5",      	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_NUMPAD_6,        	"NUMPAD6",      	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_NUMPAD_7,        	"NUMPAD7",      	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_NUMPAD_8,        	"NUMPAD8",      	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_NUMPAD_9,        	"NUMPAD9",      	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_NUMPAD_CL,       	"NUMPADCL",     	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_NUMPAD_ENTER,    	"NUMPADENTER",  	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_PAN,             	"PAN",  		MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
-        { MIDI_ACTION_PAN_HIGH,        	"PANHIGH",      	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
-        { MIDI_ACTION_PAN_LOW,         	"PANLOW",       	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
-        { MIDI_ACTION_PRE,             	"PREAMP",       	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_PTTKEYER,        	"PTT(Keyer)",     	MIDI_TYPE_KEY,					1},
-        { MIDI_ACTION_PS,               "PURESIGNAL",   	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_RF_GAIN,         	"RFGAIN",       	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
-        { MIDI_ACTION_TX_DRIVE,         "RFPOWER",      	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
-        { MIDI_ACTION_RIT_CLEAR,       	"RITCLEAR",     	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_RIT_STEP,         "RITSTEP",      	MIDI_TYPE_KEY|MIDI_TYPE_WHEEL,			0},
-        { MIDI_ACTION_RIT_TOGGLE,       "RITTOGGLE",    	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_RIT_VAL,          "RITVAL",       	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
-        { MIDI_ACTION_SAT,             	"SAT",  		MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_SNB,              "SNB",  		MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_SPLIT,           	"SPLIT",        	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_MEM_STORE_M0,     "STOREM0",             	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_MEM_STORE_M1,     "STOREM1",             	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_MEM_STORE_M2,     "STOREM2",             	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_MEM_STORE_M3,     "STOREM3",              MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_MEM_STORE_M4,     "STOREM4",              MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_SWAP_RX,          "SWAPRX",       	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_SWAP_VFO,         "SWAPVFO",      	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_TUNE,            	"TUNE", 		MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_VFOA,             "VFOA", 		MIDI_TYPE_WHEEL,				0},
-        { MIDI_ACTION_VFOB,             "VFOB", 		MIDI_TYPE_WHEEL,				0},
-        { MIDI_ACTION_VFO_STEP_UP,      "VFOSTEPUP",    	MIDI_TYPE_KEY|MIDI_TYPE_WHEEL,			0},
-        { MIDI_ACTION_VFO_STEP_DOWN,    "VFOSTEPDOWN",  	MIDI_TYPE_KEY|MIDI_TYPE_WHEEL,			0},
-        { MIDI_ACTION_VOX,              "VOX",  		MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_VOXLEVEL,         "VOXLEVEL",     	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
-        { MIDI_ACTION_XIT_CLEAR,       	"XITCLEAR",     	MIDI_TYPE_KEY,					0},
-        { MIDI_ACTION_XIT_VAL,          "XITVAL",       	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
-        { MIDI_ACTION_ZOOM,            	"ZOOM", 		MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL,			0},
-        { MIDI_ACTION_ZOOM_UP,          "ZOOMUP",       	MIDI_TYPE_KEY|MIDI_TYPE_WHEEL,			0},
-        { MIDI_ACTION_ZOOM_DOWN,        "ZOOMDOWN",     	MIDI_TYPE_KEY|MIDI_TYPE_WHEEL,			0},
-        { MIDI_ACTION_LAST,		"NONE", 		MIDI_TYPE_NONE,					0},
+        { MIDI_ACTION_NONE,     	"NONE",         	MIDI_TYPE_KEY|MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL     },
+        { MIDI_ACTION_VFO_A2B,         	"A2B",          	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_AF_GAIN,         	"AFGAIN",       	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL 			 },
+        { MIDI_ACTION_AGCATTACK,       	"AGCATTACK",    	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_AGC,             	"AGCVAL",       	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL 			 },
+	{ MIDI_ACTION_ANF,             	"ANF",          	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_ATT,             	"ATT",          	MIDI_TYPE_KEY|MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL     },
+        { MIDI_ACTION_VFO_B2A,        	"B2A",          	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_BAND_10,         	"BAND10",       	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_BAND_12,         	"BAND12",       	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_BAND_1240,       	"BAND1240",     	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_BAND_144,        	"BAND144",      	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_BAND_15,         	"BAND15",       	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_BAND_160,        	"BAND160",      	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_BAND_17,         	"BAND17",       	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_BAND_20,         	"BAND20",       	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_BAND_220,        	"BAND220",      	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_BAND_2300,       	"BAND2300",     	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_BAND_30,         	"BAND30",       	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_BAND_3400,       	"BAND3400",     	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_BAND_40,         	"BAND40",       	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_BAND_430,        	"BAND430",      	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_BAND_6,          	"BAND6",        	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_BAND_60,         	"BAND60",       	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_BAND_70,         	"BAND70",       	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_BAND_80,         	"BAND80",       	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_BAND_902,        	"BAND902",      	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_BAND_AIR,        	"BANDAIR",      	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_BAND_DOWN,	"BANDDOWN",     	MIDI_TYPE_KEY|MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL 	 },
+        { MIDI_ACTION_BAND_GEN,      	"BANDGEN",      	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_BAND_UP,         	"BANDUP",       	MIDI_TYPE_KEY|MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL 	 },
+        { MIDI_ACTION_BAND_WWV,        	"BANDWWV",      	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_COMPRESS,        	"COMPRESS",     	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL 			 },
+        { MIDI_ACTION_CTUN,            	"CTUN",         	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_VFO,             	"CURRVFO",      	MIDI_TYPE_WHEEL 				 },
+        { MIDI_ACTION_CWKEYER,         	"CW(Keyer)",        	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_CWLEFT,         	"CWLEFT",          	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_CWRIGHT,         	"CWRIGHT",          	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_CWSPEED,         	"CWSPEED",      	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL 			 },
+        { MIDI_ACTION_DIV_COARSEGAIN,  	"DIVCOARSEGAIN",        MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL 			 },
+        { MIDI_ACTION_DIV_COARSEPHASE,  "DIVCOARSEPHASE",       MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL 			 },
+        { MIDI_ACTION_DIV_FINEGAIN,     "DIVFINEGAIN",  	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL 			 },
+        { MIDI_ACTION_DIV_FINEPHASE,    "DIVFINEPHASE", 	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL 			 },
+        { MIDI_ACTION_DIV_GAIN,         "DIVGAIN",      	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL 			 },
+        { MIDI_ACTION_DIV_PHASE,        "DIVPHASE",     	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL 			 },
+        { MIDI_ACTION_DIV_TOGGLE,       "DIVTOGGLE",    	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_DUP,             	"DUP",          	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_FILTER_DOWN,      "FILTERDOWN",   	MIDI_TYPE_KEY|MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL 	 },
+        { MIDI_ACTION_FILTER_UP,        "FILTERUP",     	MIDI_TYPE_KEY|MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL 	 },
+        { MIDI_ACTION_LOCK,            	"LOCK",         	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_MEM_RECALL_M0,    "RECALLM0",  		MIDI_TYPE_KEY           			 },
+        { MIDI_ACTION_MEM_RECALL_M1,    "RECALLM1",  		MIDI_TYPE_KEY           			 },
+        { MIDI_ACTION_MEM_RECALL_M2,    "RECALLM2",  		MIDI_TYPE_KEY           			 },
+        { MIDI_ACTION_MEM_RECALL_M3,    "RECALLM3",  		MIDI_TYPE_KEY           			 },
+        { MIDI_ACTION_MEM_RECALL_M4,    "RECALLM4",  		MIDI_TYPE_KEY           			 },
+        { MIDI_ACTION_MENU_FILTER,      "MENU_FILTER",  	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_MENU_MODE,        "MENU_MODE",    	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_MIC_VOLUME,       "MICGAIN",      	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL 		         },
+        { MIDI_ACTION_MODE_DOWN,        "MODEDOWN",     	MIDI_TYPE_KEY|MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL     },
+        { MIDI_ACTION_MODE_UP,          "MODEUP",       	MIDI_TYPE_KEY|MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL 	 },
+        { MIDI_ACTION_MOX,             	"MOX",  		MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_MUTE,            	"MUTE", 		MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_NB,             	"NOISEBLANKER", 	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_NR,              	"NOISEREDUCTION",       MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_NUMPAD_0,        	"NUMPAD0",      	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_NUMPAD_1,        	"NUMPAD1",      	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_NUMPAD_2,        	"NUMPAD2",      	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_NUMPAD_3,        	"NUMPAD3",      	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_NUMPAD_4,        	"NUMPAD4",      	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_NUMPAD_5,        	"NUMPAD5",      	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_NUMPAD_6,        	"NUMPAD6",      	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_NUMPAD_7,        	"NUMPAD7",      	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_NUMPAD_8,        	"NUMPAD8",      	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_NUMPAD_9,        	"NUMPAD9",      	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_NUMPAD_CL,       	"NUMPADCL",     	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_NUMPAD_ENTER,    	"NUMPADENTER",  	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_PAN,             	"PAN",  		MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL 			 },
+        { MIDI_ACTION_PAN_HIGH,        	"PANHIGH",      	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL 			 },
+        { MIDI_ACTION_PAN_LOW,         	"PANLOW",       	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL 			 },
+        { MIDI_ACTION_PRE,             	"PREAMP",       	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_PTTKEYER,        	"PTT(Keyer)",     	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_PS,               "PURESIGNAL",   	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_RF_GAIN,         	"RFGAIN",       	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL 			 },
+        { MIDI_ACTION_TX_DRIVE,         "RFPOWER",      	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL 			 },
+        { MIDI_ACTION_RIT_CLEAR,       	"RITCLEAR",     	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_RIT_STEP,         "RITSTEP",      	MIDI_TYPE_KEY|MIDI_TYPE_WHEEL 			 },
+        { MIDI_ACTION_RIT_TOGGLE,       "RITTOGGLE",    	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_RIT_VAL,          "RITVAL",       	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL 			 },
+        { MIDI_ACTION_SAT,             	"SAT",  		MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_SNB,              "SNB",  		MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_SPLIT,           	"SPLIT",        	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_MEM_STORE_M0,     "STOREM0",             	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_MEM_STORE_M1,     "STOREM1",             	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_MEM_STORE_M2,     "STOREM2",             	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_MEM_STORE_M3,     "STOREM3",              MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_MEM_STORE_M4,     "STOREM4",              MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_SWAP_RX,          "SWAPRX",       	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_SWAP_VFO,         "SWAPVFO",      	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_TUNE,            	"TUNE", 		MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_VFOA,             "VFOA", 		MIDI_TYPE_WHEEL 				 },
+        { MIDI_ACTION_VFOB,             "VFOB", 		MIDI_TYPE_WHEEL 				 },
+        { MIDI_ACTION_VFO_STEP_UP,      "VFOSTEPUP",    	MIDI_TYPE_KEY|MIDI_TYPE_WHEEL 			 },
+        { MIDI_ACTION_VFO_STEP_DOWN,    "VFOSTEPDOWN",  	MIDI_TYPE_KEY|MIDI_TYPE_WHEEL 			 },
+        { MIDI_ACTION_VOX,              "VOX",  		MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_VOXLEVEL,         "VOXLEVEL",     	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL 			 },
+        { MIDI_ACTION_XIT_CLEAR,       	"XITCLEAR",     	MIDI_TYPE_KEY 					 },
+        { MIDI_ACTION_XIT_VAL,          "XITVAL",       	MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL 			 },
+        { MIDI_ACTION_ZOOM,            	"ZOOM", 		MIDI_TYPE_KNOB|MIDI_TYPE_WHEEL 			 },
+        { MIDI_ACTION_ZOOM_UP,          "ZOOMUP",       	MIDI_TYPE_KEY|MIDI_TYPE_WHEEL 			 },
+        { MIDI_ACTION_ZOOM_DOWN,        "ZOOMDOWN",     	MIDI_TYPE_KEY|MIDI_TYPE_WHEEL 			 },
+        { MIDI_ACTION_LAST,		"NONE", 		MIDI_TYPE_NONE       				 },
 };
 
 
@@ -242,19 +254,14 @@ ACTION_TABLE ActionTable[] = {
  * Translation from keyword in midi.props file to MIDIaction
  */
 
-static void keyword2action(char *s, enum MIDIaction *action, int *onoff) {
+static int keyword2action(char *s) {
     int i=0;
 
     for (i=0; i< (sizeof(ActionTable) / sizeof(ActionTable[0])); i++) {
-	if (!strcmp(s, ActionTable[i].str)) {
-          *action = ActionTable[i].action;
-          *onoff  = ActionTable[i].onoff;
-          return;
-        }
+	if (!strcmp(s, ActionTable[i].str)) return ActionTable[i].action;
     }
     g_print("%s: action keyword %s NOT FOUND.\n", __FUNCTION__, s);
-    *action = MIDI_ACTION_NONE;
-    *onoff  = 0;
+    return MIDI_ACTION_NONE;
 }
 
 int MIDIstop() {
@@ -326,7 +333,7 @@ int MIDIstartup(char *filename) {
     enum MIDIaction action;
     int chan;
     int t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12;
-    int onoff, delay;
+    int delay;
     struct desc *desc;
     enum MIDItype type;
     enum MIDIevent event;
@@ -373,7 +380,6 @@ int MIDIstartup(char *filename) {
       t5= 0; t6= 63;
       t7=65; t8=127;
       t9 = t10 = t11 = t12 = -1;
-      onoff=0;                  // this will be set automatically
       event=MIDI_EVENT_NONE;
       type=MIDI_TYPE_NONE;
       key=0;
@@ -440,8 +446,8 @@ int MIDIstartup(char *filename) {
         cq=cp+7;
         while (*cq != 0 && *cq != '\n' && *cq != ' ' && *cq != '\t') cq++;
 	*cq=0;
-        keyword2action(cp+7, &action, &onoff);
-//g_print("MIDI:ACTION:%s (%d), onoff=%d\n",cp+7, action, onoff);
+        action = keyword2action(cp+7);
+        //g_print("MIDI:ACTION:%s (%d)\n",cp+7, action);
       }
       //
       // All data for a descriptor has been read. Construct it!
@@ -451,7 +457,6 @@ int MIDIstartup(char *filename) {
       desc->action = action;
       desc->type = type;
       desc->event = event;
-      desc->onoff = onoff;
       desc->delay = delay;
       desc->vfl1  = t1;
       desc->vfl2  = t2;

@@ -211,7 +211,6 @@ typedef struct _action_table {
   enum MIDIaction action;
   const char *str;
   enum MIDItype type;
-  int onoff;
 } ACTION_TABLE;
 
 extern ACTION_TABLE ActionTable[];
@@ -230,25 +229,14 @@ extern ACTION_TABLE ActionTable[];
 // a delay: once a wheel event is reported upstream, any such events are suppressed during
 // the delay.
 // 
-// Note that with a MIDI KEY, you can choose that an action is
-// generated only for a NOTE_ON event or both for NOTE_ON and
-// NOTE_OFF. In the first case, if the key is associated to MOX,
-// then MOX is toggled each time the key is pressed. This behaves
-// very much like point-and-clicking the MOX buttion in the GUI.
+// Note that with a MIDI KEY, normally only "NoteOn" messages
+// but no "NoteOff" messages are passed to the next layer.
+// The only exceptions are CWLEFT,CWRIGHT,CWKEYER, and PTTKEYER.
 //
-// If an action is generated both on NOTE_ON and NOTE_OFF,
-// then MOX is engaged when pressing the key and disengaged
-// when releasing it. For MOX this makes little send but you
-// might want to configure the TUNE button this way.
-// The latter behaviour is triggered when the line assigning the key
-// or "NOTE OFF". The table speficying the behaviour of layer-2 thus
-// contains the key word "ONOFF". This is stored in the field "onoff"
-// in struct desc.
 
 struct desc {
    int               channel;     // -1 for ANY channel
    enum MIDIevent    event;	  // type of event (NOTE on/off, Controller change, Pitch value)
-   int               onoff;       // 1: generate upstream event both for Note-on and Note-off
    enum MIDItype     type;        // Key, Knob, or Wheel
    int               vfl1,vfl2;   // Wheel only: range of controller values for "very fast left"
    int               fl1,fl2;     // Wheel only: range of controller values for "fast left"
