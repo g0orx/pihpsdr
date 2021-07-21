@@ -57,10 +57,22 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
 	    // Found matching entry
 	    switch (desc->event) {
 		case MIDI_NOTE:
-		    if ((val == 1 || (desc->onoff == 1)) && desc->type == MIDI_KEY) {
-			DoTheMidi(desc->action, desc->type, val);
-		    }
-		    break;
+                    if (desc->type == MIDI_KEY) {
+                      switch (desc->action) {
+                        case CW_LEFT:
+                        case CW_RIGHT:
+                        case CW_KEYER:
+                        case PTT:
+                          // deliver message for note-on and note-off
+                          DoTheMidi(desc->action, desc->type, val);
+                          break;
+                        default:
+                          // deliver only note-on messages
+                          if (val == 1) DoTheMidi(desc->action, desc->type, val);
+                          break;
+                      }
+                    }
+                    break;
 		case MIDI_CTRL:
 		    if (desc->type == MIDI_KNOB) {
 			// normalize value to range 0 - 100
@@ -299,7 +311,7 @@ int MIDIstartup(char *filename) {
     int action;
     int chan;
     int t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12;
-    int onoff, delay;
+    int delay;
     struct desc *desc;
     enum ACTIONtype type;
     enum MIDIevent event;
@@ -346,7 +358,6 @@ int MIDIstartup(char *filename) {
       t5= 0; t6= 63;
       t7=65; t8=127;
       t9 = t10 = t11 = t12 = -1;
-      onoff=0;                  // this will be set automatically
       event=EVENT_NONE;
       type=TYPE_NONE;
       key=0;
@@ -414,21 +425,7 @@ int MIDIstartup(char *filename) {
         while (*cq != 0 && *cq != '\n' && *cq != ' ' && *cq != '\t') cq++;
 	*cq=0;
         action=keyword2action(cp+7);
-        //
-        // set ONOFF flag automatically
-        //
-        switch (action) {
-          case CW_LEFT:
-          case CW_RIGHT:
-          case CW_KEYER:
-          case PTT_KEYER:
-	    onoff=1;
-            break;
-	  default:
-	    onoff=0;
-	    break;
-        }
-//g_print("MIDI:ACTION:%s (%d), onoff=%d\n",cp+7, action, onoff);
+//g_print("MIDI:ACTION:%s (%d)\n",cp+7, action);
       }
       //
       // All data for a descriptor has been read. Construct it!
@@ -438,7 +435,6 @@ int MIDIstartup(char *filename) {
       desc->action = action;
       desc->type = type;
       desc->event = event;
-      desc->onoff = onoff;
       desc->delay = delay;
       desc->vfl1  = t1;
       desc->vfl2  = t2;
