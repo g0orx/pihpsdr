@@ -105,7 +105,6 @@ enum ACTION {
   PREAMP,
   PS,
   PTT,
-  PTT_KEYER,
   RF_GAIN,
   RF_GAIN_RX1,
   RF_GAIN_RX2,
