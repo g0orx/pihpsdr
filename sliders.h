@@ -22,25 +22,6 @@
 #include "receiver.h"
 #include "transmitter.h"
 
-enum {
-  NO_FUNCTION=0,
-  SLIDER_AF_GAIN,
-  SLIDER_RF_GAIN,
-  SLIDER_MIC_GAIN,
-  SLIDER_LINEIN_GAIN,
-  SLIDER_AGC_GAIN,
-  SLIDER_DRIVE,
-  SLIDER_ATTENUATION,
-  SLIDER_SQUELCH,
-  SLIDER_COMP,
-  SLIDER_FILTER_WIDTH,
-  SLIDER_FILTER_SHIFT,
-  SLIDER_DIVERSITY_GAIN,
-  SLIDER_DIVERSITY_PHASE,
-  SLIDER_ZOOM,
-  SLIDER_PAN
-};
-
 extern gint scale_timer;
 extern gint scale_status;
 extern gint scale_rx;
