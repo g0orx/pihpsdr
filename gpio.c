@@ -79,12 +79,6 @@ int ENABLE_CW_BUTTONS=1;
 int CW_ACTIVE_LOW=1;
 #endif
 
-#ifdef PTT
-int ENABLE_PTT_GPIO=1;
-int PTT_GPIO=14;
-int PTT_ACTIVE_LOW=1;
-#endif
-
 enum {
   TOP_ENCODER,
   BOTTOM_ENCODER
