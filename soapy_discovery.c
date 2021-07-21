@@ -126,8 +126,10 @@ static void get_info(char *driver) {
   }
   if(strcmp(driver,"rtlsdr")==0) {
     sample_rate=1536000;
+  } else if(strcmp(driver,"radioberry")==0) {
+    sample_rate=48000;
   }
-  
+
   fprintf(stderr,"\n");
   free(rx_rates);
   fprintf(stderr,"sample_rate selected %d\n",sample_rate);
@@ -244,6 +246,8 @@ static void get_info(char *driver) {
     }
     if(strcmp(driver,"lime")==0) {
       sprintf(discovered[devices].info.soapy.version,"fw=%s gw=%s hw=%s p=%s", fw_version, gw_version, hw_version, p_version);
+    } else if (strcmp(driver,"radioberry")==0) {
+      sprintf(discovered[devices].info.soapy.version,"fw=%s gw=%s", fw_version, gw_version);
     } else {
       strcpy(discovered[devices].info.soapy.version,"");
     }
