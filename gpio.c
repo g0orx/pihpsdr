@@ -1088,6 +1088,10 @@ void gpio_cw_sidetone_set(int level) {
   int rc;
   if (ENABLE_GPIO_SIDETONE) {
 #ifdef GPIO
+    //
+    // changed from gpiod_ctxless_set_value_ext to gpiod_ctxless_set_value,
+    // so it works with older gpiod libs
+    //
     if((rc=gpiod_ctxless_set_value(gpio_device,SIDETONE_GPIO,level,FALSE,consumer,NULL,NULL))<0) {
       g_print("%s: err=%d\n",__FUNCTION__,rc);
     }
