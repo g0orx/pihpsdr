@@ -149,37 +149,37 @@ static void *midi_thread(void *arg) {
 			   // a push-button
 			   if (arg2 == 0) {
                              if(configure) {
-			       NewMidiConfigureEvent(MIDI_EVENT_NOTE, chan, arg1, 0);
+			       NewMidiConfigureEvent(MIDI_NOTE, chan, arg1, 0);
                              } else {
-			       NewMidiEvent(MIDI_EVENT_NOTE, chan, arg1, 0);
+			       NewMidiEvent(MIDI_NOTE, chan, arg1, 0);
 			     }
 			   } else {
                              if(configure) {
-			       NewMidiConfigureEvent(MIDI_EVENT_NOTE, chan, arg1, 1);
+			       NewMidiConfigureEvent(MIDI_NOTE, chan, arg1, 1);
                              } else {
-			       NewMidiEvent(MIDI_EVENT_NOTE, chan, arg1, 1);
+			       NewMidiEvent(MIDI_NOTE, chan, arg1, 1);
 			     }
 			   }
 			   break;
 			case CMD_NOTEOFF:
                            if(configure) {
-			     NewMidiConfigureEvent(MIDI_EVENT_NOTE, chan, arg1, 0);
+			     NewMidiConfigureEvent(MIDI_NOTE, chan, arg1, 0);
                            } else {
-			     NewMidiEvent(MIDI_EVENT_NOTE, chan, arg1, 0);
+			     NewMidiEvent(MIDI_NOTE, chan, arg1, 0);
 			   }
 			   break;
 			case CMD_CTRL:
                            if(configure) {
-			     NewMidiConfigureEvent(MIDI_EVENT_CTRL, chan, arg1, arg2);
+			     NewMidiConfigureEvent(MIDI_CTRL, chan, arg1, arg2);
                            } else {
-			     NewMidiEvent(MIDI_EVENT_CTRL, chan, arg1, arg2);
+			     NewMidiEvent(MIDI_CTRL, chan, arg1, arg2);
 			   }
 			   break;
 			case CMD_PITCH:
                            if(configure) {
-			     NewMidiConfigureEvent(MIDI_EVENT_PITCH, chan, 0, arg1+128*arg2);
+			     NewMidiConfigureEvent(MIDI_PITCH, chan, 0, arg1+128*arg2);
                            } else {
-			     NewMidiEvent(MIDI_EVENT_PITCH, chan, 0, arg1+128*arg2);
+			     NewMidiEvent(MIDI_PITCH, chan, 0, arg1+128*arg2);
 			   }
 			   break;
                     }
