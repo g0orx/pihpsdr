@@ -521,9 +521,7 @@ clean:
 #
 # If $DESTDIR is set, copy to that directory, otherwise use /usr/local/bin
 #
-ifeq ($(DESTDIR), )
-DESTDIR := /usr/local/bin
-endif
+DESTDIR?= /usr/local/bin
 
 .PHONY:	install
 install: $(PROGRAM)
