@@ -136,6 +136,9 @@ void DoTheMidi(int action, enum ACTIONtype type, int val) {
 		//dnew=active_receiver->agc_gain;
 		break;
 	    }
+	    //dp=malloc(sizeof(double));
+	    //*dp=dnew;
+	    //g_idle_add(ext_set_agc_gain, (gpointer) dp);
 	    break;
 	/////////////////////////////////////////////////////////// "ANF"
 	case ANF:	// only key supported
