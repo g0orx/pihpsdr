@@ -42,6 +42,9 @@
  * must generate MIDI events on different channels
  */
 
+#ifndef _MIDI_H
+#define _MIDI_H
+
 //
 // MIDIaction encodes the "action" to be taken in Layer3
 // (sorted alphabetically by the keyword).
@@ -165,14 +168,14 @@ enum MIDIaction {
 // MIDItype encodes the type of MIDI control. This info
 // is passed from Layer-2 to Layer-3
 //
-// MIDI_TYPE_KEY has no parameters and indicates that some
+// MIDI_KEY has no parameters and indicates that some
 // button has been pressed.
 //
-// MIDI_TYPE_KNOB has a "value" parameter (between 0 and 100)
+// MIDI_KNOB has a "value" parameter (between 0 and 100)
 // and indicates that some knob has been set to a specific
 // position.
 //
-// MIDI_TYPE_WHEEL has a "direction" parameter and indicates that
+// MIDI_WHEEL has a "direction" parameter and indicates that
 // some knob has been turned left/down or right/ip. The  value
 // can be
 //
@@ -185,10 +188,10 @@ enum MIDIaction {
 //
 
 enum MIDItype {
- MIDI_TYPE_NONE =0,
- MIDI_TYPE_KEY  =1,      // Button (press event)
- MIDI_TYPE_KNOB =2,      // Knob   (value between 0 and 100)
- MIDI_TYPE_WHEEL=4       // Wheel  (direction and speed)
+ TYPE_NONE =0,
+ MIDI_KEY  =1,      // Button (press event)
+ MIDI_KNOB =2,      // Knob   (value between 0 and 100)
+ MIDI_WHEEL=4       // Wheel  (direction and speed)
 };
 
 extern gchar *midi_types[];
@@ -201,10 +204,10 @@ extern gchar *midi_events[];
 // MIDI_KNOB or MIDI_WHEEL, depending on the device description.
 //
 enum MIDIevent {
- MIDI_EVENT_NONE=0,
- MIDI_EVENT_NOTE,
- MIDI_EVENT_CTRL,
- MIDI_EVENT_PITCH
+ EVENT_NONE=0,
+ MIDI_NOTE,
+ MIDI_CTRL,
+ MIDI_PITCH
 };
 
 typedef struct _action_table {
@@ -285,3 +288,5 @@ void MidiReleaseCommands();
 //
 
 void DoTheMidi(enum MIDIaction code, enum MIDItype type, int val);
+
+#endif

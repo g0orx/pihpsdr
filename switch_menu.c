@@ -31,6 +31,7 @@
 #include "receiver.h"
 #include "vfo.h"
 #include "button_text.h"
+#include "actions.h"
 #include "gpio.h"
 #include "i2c.h"
 

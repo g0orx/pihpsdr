@@ -59,6 +59,7 @@
 #include "iambic.h"
 #endif
 #include "zoompan.h"
+#include "actions.h"
 
 // debounce settle time in ms
 #define DEFAULT_SETTLE_TIME 50
@@ -224,6 +225,7 @@ char *encoder_string[ENCODER_ACTIONS] = {
   "IF WIDTH",
   "IF WIDTH RX1",
   "IF WIDTH RX2",
+  "LINEIN GAIN",
   "MIC GAIN",
   "PAN",
   "PANADAPTER HIGH",

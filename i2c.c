@@ -1,3 +1,4 @@
+#ifdef GPIO
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
@@ -11,6 +12,7 @@
 #include <gtk/gtk.h>
 //#include "i2c.h"
 #include "wiringPiI2C.h"
+#include "actions.h"
 #include "gpio.h"
 #include "band.h"
 #include "band_menu.h"
@@ -301,3 +303,4 @@ fprintf(stderr,"i2c_init: %s\n",i2c_device);
   } while(flags!=0);
   
 }
+#endif

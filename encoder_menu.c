@@ -31,6 +31,7 @@
 #include "receiver.h"
 #include "vfo.h"
 #include "button_text.h"
+#include "actions.h"
 #include "gpio.h"
 #include "i2c.h"
 
@@ -356,6 +357,7 @@ static gboolean select_cb (GtkWidget *widget, gpointer data) {
   }
   button=getRadioButton(action);
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (button), TRUE);
+  return TRUE;
 }
 
 static gboolean top_select_cb (GtkWidget *widget, gpointer data) {
@@ -378,6 +380,7 @@ static gboolean top_select_cb (GtkWidget *widget, gpointer data) {
   }
   button=getTopRadioButton(action);
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (button), TRUE);
+  return TRUE;
 }
 
 void encoder_select(int pos) {
@@ -516,6 +519,7 @@ void top_encoder_select(int pos) {
         e5_encoder_action=action;
         break;
     }
+    return TRUE;
   }
 
   static gboolean top_action_select_cb (GtkWidget *widget, gpointer data) {
@@ -534,6 +538,7 @@ void top_encoder_select(int pos) {
         e5_top_encoder_action=action;
         break;
     }
+    return TRUE;
   }
 
   static gboolean enc2_cb(GtkWidget *widget, gpointer data) {

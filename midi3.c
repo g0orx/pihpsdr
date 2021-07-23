@@ -6,9 +6,9 @@
  *
  * In most cases, a certain action only makes sense for a specific
  * type. For example, changing the VFO frequency will only be implemeted
- * for MIDI_TYPE_WHEEL, and TUNE off/on only with MIDI_TYPE_KNOB.
+ * for MIDI_WHEEL, and TUNE off/on only with MIDI_KNOB.
  *
- * However, changing the volume makes sense both with MIDI_TYPE_KNOB and MIDI_TYPE_WHEEL.
+ * However, changing the volume makes sense both with MIDI_KNOB and MIDI_WHEEL.
  */
 #include <gtk/gtk.h>
 
@@ -130,10 +130,10 @@ int DoTheRestOfTheMIDI(void *data) {
 	/////////////////////////////////////////////////////////// "AFGAIN"
 	case MIDI_ACTION_AF_GAIN: // knob or wheel supported
             switch (type) {
-	      case MIDI_TYPE_KNOB:
+	      case MIDI_KNOB:
 		active_receiver->volume = 0.01*val;
 		break;
-	      case MIDI_TYPE_WHEEL:	
+	      case MIDI_WHEEL:	
 		dnew=active_receiver->volume += 0.01*val;
 		if (dnew < 0.0) dnew=0.0; if (dnew > 1.0) dnew=1.0;
 		active_receiver->volume = dnew;
@@ -156,10 +156,10 @@ int DoTheRestOfTheMIDI(void *data) {
 	/////////////////////////////////////////////////////////// "AGCVAL"
 	case MIDI_ACTION_AGC: // knob or wheel supported
 	    switch (type) {
-	      case MIDI_TYPE_KNOB:
+	      case MIDI_KNOB:
 		dnew = -20.0 + 1.4*val;
 		break;
-	      case MIDI_TYPE_WHEEL:
+	      case MIDI_WHEEL:
 		dnew=active_receiver->agc_gain + val;
 		if (dnew < -20.0) dnew = -20.0;
                 if (dnew > 120.0) dnew = 120.0;
@@ -187,7 +187,7 @@ int DoTheRestOfTheMIDI(void *data) {
 	/////////////////////////////////////////////////////////// "ATT"
 	case MIDI_ACTION_ATT:	// Key for ALEX attenuator, wheel or knob for slider
 	    switch(type) {
-	      case MIDI_TYPE_KEY:
+	      case MIDI_KEY:
 		if (filter_board == ALEX && active_receiver->adc == 0) {
 		  new=active_receiver->alex_attenuation + 1;
 		  if (new > 3) new=0;
@@ -195,7 +195,7 @@ int DoTheRestOfTheMIDI(void *data) {
                   update_att_preamp();
 		}
 		break;
-	      case MIDI_TYPE_WHEEL:
+	      case MIDI_WHEEL:
 		dnew=adc[active_receiver->adc].attenuation + val;
                 if(have_rx_gain) {
                   if(dnew < -12.0) {
@@ -212,7 +212,7 @@ int DoTheRestOfTheMIDI(void *data) {
                 }
                 set_attenuation_value(dnew);
 		break;
-	      case MIDI_TYPE_KNOB:
+	      case MIDI_KNOB:
                 if (have_rx_gain) {
 		  dnew = -12.0 + 0.6*val;
                 } else {
@@ -314,13 +314,13 @@ int DoTheRestOfTheMIDI(void *data) {
 	case MIDI_ACTION_BAND_DOWN:
 	case MIDI_ACTION_BAND_UP:
 	    switch (type) {
-	      case MIDI_TYPE_KEY:
+	      case MIDI_KEY:
 		new=(action == MIDI_ACTION_BAND_UP) ? 1 : -1;
 		break;
-	      case MIDI_TYPE_WHEEL:
+	      case MIDI_WHEEL:
 		new=val > 0 ? 1 : -1;
 		break;
-	      case MIDI_TYPE_KNOB:
+	      case MIDI_KNOB:
 		// cycle through the bands
 		new = ((BANDS-1) * val) / 100 - vfo[active_receiver->id].band;
 		break;
@@ -344,12 +344,12 @@ int DoTheRestOfTheMIDI(void *data) {
 	/////////////////////////////////////////////////////////// "COMPRESS"
 	case MIDI_ACTION_COMPRESS: // wheel or knob
 	    switch (type) {
-	      case MIDI_TYPE_WHEEL:
+	      case MIDI_WHEEL:
 		dnew=transmitter->compressor_level + val;
 		if (dnew > 20.0) dnew=20.0;
 		if (dnew < 0 ) dnew=0;
 		break;
-	      case MIDI_TYPE_KNOB:
+	      case MIDI_KNOB:
 		dnew=(20.0*val)/100.0;
 		break;
 	      default:
@@ -384,11 +384,11 @@ int DoTheRestOfTheMIDI(void *data) {
 	/////////////////////////////////////////////////////////// "CWSPEED"
 	case MIDI_ACTION_CWSPEED: // knob or wheel
             switch (type) {
-              case MIDI_TYPE_KNOB:
+              case MIDI_KNOB:
 		// speed between 5 and 35 wpm
                 new= (int) (5.0 + (double) val * 0.3);
                 break;
-              case MIDI_TYPE_WHEEL:
+              case MIDI_WHEEL:
 		// here we allow from 1 to 60 wpm
                 new = cw_keyer_speed + val;
 		if (new <  1) new=1;
@@ -411,7 +411,7 @@ int DoTheRestOfTheMIDI(void *data) {
 	case MIDI_ACTION_DIV_FINEGAIN:    // knob or wheel supported
 	case MIDI_ACTION_DIV_GAIN:        // knob or wheel supported
             switch (type) {
-              case MIDI_TYPE_KNOB:
+              case MIDI_KNOB:
                 if (action == MIDI_ACTION_DIV_COARSEGAIN || action == MIDI_ACTION_DIV_GAIN) {
 		  // -25 to +25 dB in steps of 0.5 dB
 		  dnew = 10.0*(-25.0 + 0.5*val - div_gain);
@@ -421,7 +421,7 @@ int DoTheRestOfTheMIDI(void *data) {
 		  dnew = 10.0*((double) new + 0.01*val - 0.5 - div_gain);
 		}
                 break;
-              case MIDI_TYPE_WHEEL:
+              case MIDI_WHEEL:
                 // coarse: increaments in steps of 0.25 dB, medium: steps of 0.1 dB fine: in steps of 0.01 dB
                 if (action == MIDI_ACTION_DIV_GAIN) {
 		  dnew = val*0.5;
@@ -446,7 +446,7 @@ int DoTheRestOfTheMIDI(void *data) {
 	case MIDI_ACTION_DIV_PHASE:		// knob or wheel supported
             dnew=0.0;
             switch (type) {
-              case MIDI_TYPE_KNOB:
+              case MIDI_KNOB:
 		// coarse: change phase from -180 to 180
                 // fine: change from -5 to 5
                 if (action == MIDI_ACTION_DIV_COARSEPHASE || action == MIDI_ACTION_DIV_PHASE) {
@@ -458,7 +458,7 @@ int DoTheRestOfTheMIDI(void *data) {
                   dnew =  (double) new + 0.1*val -5.0 -div_phase;
                 }
                 break;
-              case MIDI_TYPE_WHEEL:
+              case MIDI_WHEEL:
 		if (action == MIDI_ACTION_DIV_PHASE) {
 		  dnew = val*0.5; 
 		} else if (action == MIDI_ACTION_DIV_COARSEPHASE) {
@@ -496,13 +496,13 @@ int DoTheRestOfTheMIDI(void *data) {
 	    // Therefore let MIDI_ACTION_FILTER_UP move down.
 	    //
 	    switch (type) {
-	      case MIDI_TYPE_KEY:
+	      case MIDI_KEY:
 		new=(action == MIDI_ACTION_FILTER_UP) ? -1 : 1;
 		break;
-	      case MIDI_TYPE_WHEEL:
+	      case MIDI_WHEEL:
 		new=val > 0 ? -1 : 1;
 		break;
-	      case MIDI_TYPE_KNOB:
+	      case MIDI_KNOB:
 		// cycle through all the filters: val=100 maps to filter #0
 		new = ((FILTERS-1) * (val-100)) / 100 - vfo[active_receiver->id].filter;
 		break;
@@ -536,10 +536,10 @@ int DoTheRestOfTheMIDI(void *data) {
 	case MIDI_ACTION_MIC_VOLUME: // knob or wheel supported
 	    // TODO: possibly adjust linein value if that is effective
 	    switch (type) {
-	      case MIDI_TYPE_KNOB:
+	      case MIDI_KNOB:
 		dnew = -10.0 + 0.6*val;
 		break;
-	      case MIDI_TYPE_WHEEL:
+	      case MIDI_WHEEL:
 		dnew = mic_gain + val;
 		if (dnew < -10.0) dnew = -10.0;
                 if (dnew >  50.0) dnew =  50.0;
@@ -557,13 +557,13 @@ int DoTheRestOfTheMIDI(void *data) {
 	case MIDI_ACTION_MODE_DOWN:
 	case MIDI_ACTION_MODE_UP:
 	    switch (type) {
-	      case MIDI_TYPE_KEY:
+	      case MIDI_KEY:
 		new=(action == MIDI_ACTION_MODE_UP) ? 1 : -1;
 		break;
-	      case MIDI_TYPE_WHEEL:
+	      case MIDI_WHEEL:
 		new=val > 0 ? 1 : -1;
 		break;
-	      case MIDI_TYPE_KNOB:
+	      case MIDI_KNOB:
 		// cycle through all the modes
 		new = ((MODES-1) * val) / 100 - vfo[active_receiver->id].mode;
 		break;
@@ -666,10 +666,10 @@ int DoTheRestOfTheMIDI(void *data) {
 	/////////////////////////////////////////////////////////// "PAN"
         case MIDI_ACTION_PAN:  // wheel and knob
 	    switch (type) {
-              case MIDI_TYPE_WHEEL:
+              case MIDI_WHEEL:
                 update_pan(val*10.0);
                 break;
-	      case MIDI_TYPE_KNOB:
+	      case MIDI_KNOB:
                 if(active_receiver->zoom>1) {
                   int pos=GPOINTER_TO_INT(data);
                   double pan=(double)((active_receiver->zoom-1)*active_receiver->width)*((double)pos/100.0);
@@ -684,7 +684,7 @@ int DoTheRestOfTheMIDI(void *data) {
 	/////////////////////////////////////////////////////////// "PANHIGH"
 	case MIDI_ACTION_PAN_HIGH:  // wheel or knob
 	    switch (type) {
-	      case MIDI_TYPE_WHEEL:
+	      case MIDI_WHEEL:
 		if (mox) {
 		    // TX panadapter affected
 		    transmitter->panadapter_high += val;
@@ -692,7 +692,7 @@ int DoTheRestOfTheMIDI(void *data) {
 		    active_receiver->panadapter_high += val;
 		}
 		break;
-	    case MIDI_TYPE_KNOB:
+	    case MIDI_KNOB:
 		// Adjust "high water" in the range -50 ... 0 dBm
 		new = -50 + val/2;
 		if (mox) {
@@ -711,7 +711,7 @@ int DoTheRestOfTheMIDI(void *data) {
 	/////////////////////////////////////////////////////////// "PANLOW"
 	case MIDI_ACTION_PAN_LOW:  // wheel and knob
 	    switch (type) {
-	      case MIDI_TYPE_WHEEL:
+	      case MIDI_WHEEL:
 		if (isTransmitting()) {
 		    // TX panadapter affected
 		    transmitter->panadapter_low += val;
@@ -719,7 +719,7 @@ int DoTheRestOfTheMIDI(void *data) {
 		    active_receiver->panadapter_low += val;
 		}
 		break;
-	      case MIDI_TYPE_KNOB:
+	      case MIDI_KNOB:
 		if (isTransmitting()) {
 		    // TX panadapter: use values -100 through -50
 		    new = -100 + val/2;
@@ -804,10 +804,10 @@ int DoTheRestOfTheMIDI(void *data) {
 	/////////////////////////////////////////////////////////// "RFGAIN"
         case MIDI_ACTION_RF_GAIN: // knob or wheel supported
             switch (type) {
-              case MIDI_TYPE_KNOB:
+              case MIDI_KNOB:
                 dnew=val;
                 break;
-              case MIDI_TYPE_WHEEL:
+              case MIDI_WHEEL:
                 dnew=adc[active_receiver->id].gain+val;
                 break;
               default:
@@ -822,10 +822,10 @@ int DoTheRestOfTheMIDI(void *data) {
 	/////////////////////////////////////////////////////////// "RFPOWER"
 	case MIDI_ACTION_TX_DRIVE: // knob or wheel supported
 	    switch (type) {
-	      case MIDI_TYPE_KNOB:
+	      case MIDI_KNOB:
 		dnew = val;
 		break;
-	      case MIDI_TYPE_WHEEL:
+	      case MIDI_WHEEL:
 		dnew=transmitter->drive + val;
 		if (dnew < 0.0) dnew=0.0; if (dnew > 100.0) dnew=100.0;
 		break;
@@ -848,11 +848,11 @@ int DoTheRestOfTheMIDI(void *data) {
         case MIDI_ACTION_RIT_STEP: // key or wheel supported
             // This cycles between RIT increments 1, 10, 100, 1, 10, 100, ...
             switch (type) {
-              case MIDI_TYPE_KEY:
+              case MIDI_KEY:
                 // key cycles through in upward direction
                 val=1;
                 /* FALLTHROUGH */
-              case MIDI_TYPE_WHEEL:
+              case MIDI_WHEEL:
                 // wheel cycles upward or downward
                 if (val > 0) {
                   rit_increment=10*rit_increment;
@@ -878,7 +878,7 @@ int DoTheRestOfTheMIDI(void *data) {
 	/////////////////////////////////////////////////////////// "RITVAL"
 	case MIDI_ACTION_RIT_VAL:	// wheel or knob
 	    switch (type) {
-	      case MIDI_TYPE_WHEEL:
+	      case MIDI_WHEEL:
 		// This changes the RIT value incrementally,
 	  	// but we restrict the change to +/ 9.999 kHz
 		new = vfo[active_receiver->id].rit + val*rit_increment;
@@ -886,7 +886,7 @@ int DoTheRestOfTheMIDI(void *data) {
 		if (new < -9999) new= -9999;
 		vfo[active_receiver->id].rit = new;
 		break;
-	      case MIDI_TYPE_KNOB:
+	      case MIDI_KNOB:
 	 	// knob: adjust in the range +/ 50*rit_increment
 		new = (val-50) * rit_increment;
 		vfo[active_receiver->id].rit = new;
@@ -985,11 +985,11 @@ int DoTheRestOfTheMIDI(void *data) {
         case MIDI_ACTION_VFO_STEP_DOWN: // key or wheel supported
         case MIDI_ACTION_VFO_STEP_UP:
 	    switch (type) {
-	      case MIDI_TYPE_KEY:
+	      case MIDI_KEY:
 		new =  (action == MIDI_ACTION_VFO_STEP_UP) ? 1 : -1;
                 update_vfo_step(new);
 		break;
-	      case MIDI_TYPE_WHEEL:
+	      case MIDI_WHEEL:
 		new = (val > 0) ? 1 : -1;
                 update_vfo_step(new);
 		break;
@@ -1010,14 +1010,14 @@ int DoTheRestOfTheMIDI(void *data) {
 	/////////////////////////////////////////////////////////// "VOXLEVEL"
 	case MIDI_ACTION_VOXLEVEL: // knob or wheel supported
             switch (type) {
-              case MIDI_TYPE_WHEEL:
+              case MIDI_WHEEL:
                 // This changes the value incrementally,
                 // but stay within limits (0.0 through 1.0)
                 vox_threshold += (double) val * 0.01;
 		if (vox_threshold > 1.0) vox_threshold=1.0;
 		if (vox_threshold < 0.0) vox_threshold=0.0;
                 break;
-              case MIDI_TYPE_KNOB:
+              case MIDI_KNOB:
                 vox_threshold = 0.01 * (double) val;
                 break;
               default:
@@ -1040,7 +1040,7 @@ int DoTheRestOfTheMIDI(void *data) {
         case MIDI_ACTION_XIT_VAL:   // wheel and knob supported.
 	    if (can_transmit) {
               switch (type) {
-                case MIDI_TYPE_WHEEL:
+                case MIDI_WHEEL:
                   // This changes the XIT value incrementally,
                   // but we restrict the change to +/ 9.999 kHz
                   new = transmitter->xit + val*rit_increment;
@@ -1048,7 +1048,7 @@ int DoTheRestOfTheMIDI(void *data) {
                   if (new < -9999) new = -9999;
                   transmitter->xit = new;
                   break;
-                case MIDI_TYPE_KNOB:
+                case MIDI_KNOB:
                   // knob: adjust in the range +/ 50*rit_increment
                   new = (val-50) * rit_increment;
                   transmitter->xit = new;
@@ -1074,16 +1074,16 @@ int DoTheRestOfTheMIDI(void *data) {
         case MIDI_ACTION_ZOOM_UP:    // key, wheel, knob
         case MIDI_ACTION_ZOOM_DOWN:  // key, wheel, knob
 	    switch (type) {
-	      case MIDI_TYPE_KEY:
+	      case MIDI_KEY:
                 if (action == MIDI_ACTION_ZOOM) break;
 		dnew =  (action == MIDI_ACTION_ZOOM_UP) ? 1.0 :-1.0;
                 update_zoom(dnew);
 		break;
-	      case MIDI_TYPE_WHEEL:
+	      case MIDI_WHEEL:
 		dnew = (val > 0) ? 1.0 : -1.0;
                 update_zoom(dnew);
 		break;
-              case MIDI_TYPE_KNOB:
+              case MIDI_KNOB:
                 dnew= 1.0+ 0.07*val;  // from 1.0 to 8.0
                 if((int)dnew != active_receiver->zoom) {
                   set_zoom(active_receiver->id, dnew);

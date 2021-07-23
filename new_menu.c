@@ -379,8 +379,12 @@ static gboolean vfo_cb (GtkWidget *widget, GdkEventButton *event, gpointer data)
 }
 
 void start_store() {
+  int old_menu=active_menu;
   cleanup();
-  store_menu(top_window);
+  if (old_menu != STORE_MENU) {
+    store_menu(top_window);
+    active_menu=STORE_MENU;
+  }
 }
 
 static gboolean store_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
@@ -484,7 +488,10 @@ void new_menu()
     // The "Restart" restarts the protocol
     // This may help to recover from certain error conditions
     //
-    if (protocol != SOAPYSDR_PROTOCOL) {
+#ifdef SOAPYSDR
+    if (protocol != SOAPYSDR_PROTOCOL)
+#endif
+    {
       GtkWidget *restart_b=gtk_button_new_with_label("Restart");
       g_signal_connect (restart_b, "button-press-event", G_CALLBACK(restart_cb), NULL);
       gtk_grid_attach(GTK_GRID(grid),restart_b,2,0,2,1);

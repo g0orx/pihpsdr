@@ -78,7 +78,7 @@ static GtkWidget *update_b;
 static GtkWidget *delete_b;
 static GtkWidget *device_b[MAX_MIDI_DEVICES];
 
-static enum MIDIevent thisEvent=MIDI_EVENT_NONE;
+static enum MIDIevent thisEvent=EVENT_NONE;
 static int thisChannel;
 static int thisNote;
 static int thisVal;
@@ -178,7 +178,7 @@ static void update_wheelparams(gpointer user_data) {
   //       thre current type is a wheel. If it is a wheel,
   //       set spin buttons to current values.
   //
-  if (thisType==MIDI_TYPE_WHEEL) {
+  if (thisType==MIDI_WHEEL) {
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(set_delay),(double) thisDelay);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(set_vfl1 ),(double) thisVfl1 );
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(set_vfl2 ),(double) thisVfl2 );
@@ -218,17 +218,17 @@ static void type_changed_cb(GtkWidget *widget, gpointer data) {
   gtk_widget_hide(newAction_knob);
   gtk_widget_hide(newAction_wheel);
   if (strcmp(type,"NONE")==0) {
-    thisType=MIDI_TYPE_NONE;
+    thisType=TYPE_NONE;
   } else if(strcmp(type,"KEY")==0) {
-    thisType=MIDI_TYPE_KEY;
+    thisType=MIDI_KEY;
     gtk_widget_show(newAction_key);
     gtk_combo_box_set_active(GTK_COMBO_BOX(newAction_key),key_list[thisAction]);
   } else if(strcmp(type,"KNOB/SLIDER")==0) {
-    thisType=MIDI_TYPE_KNOB;
+    thisType=MIDI_KNOB;
     gtk_widget_show(newAction_knob);
     gtk_combo_box_set_active(GTK_COMBO_BOX(newAction_knob),knob_list[thisAction]);
   } else if(strcmp(type,"WHEEL")==0) {
-    thisType=MIDI_TYPE_WHEEL;
+    thisType=MIDI_WHEEL;
     gtk_widget_show(newAction_wheel);
     gtk_combo_box_set_active(GTK_COMBO_BOX(newAction_wheel),wheel_list[thisAction]);
   }
@@ -262,13 +262,13 @@ static void tree_selection_changed_cb (GtkTreeSelection *selection, gpointer dat
       if(str_event!=NULL && str_channel!=NULL && str_note!=NULL && str_type!=NULL && str_action!=NULL) {
 
         if(strcmp(str_event,"CTRL")==0) {
-          thisEvent=MIDI_EVENT_CTRL;
+          thisEvent=MIDI_CTRL;
         } else if(strcmp(str_event,"PITCH")==0) {
-          thisEvent=MIDI_EVENT_PITCH;
+          thisEvent=MIDI_PITCH;
         } else if(strcmp(str_event,"NOTE")==0) {
-          thisEvent=MIDI_EVENT_NOTE;
+          thisEvent=MIDI_NOTE;
         } else {
-          thisEvent=MIDI_EVENT_NONE;
+          thisEvent=EVENT_NONE;
         }
         if (!strncmp(str_channel,"Any", 3)) {
           thisChannel=-1;
@@ -280,13 +280,13 @@ static void tree_selection_changed_cb (GtkTreeSelection *selection, gpointer dat
         thisMin=0;
         thisMax=0;
         if(strcmp(str_type,"KEY")==0) {
-          thisType=MIDI_TYPE_KEY;
+          thisType=MIDI_KEY;
         } else if(strcmp(str_type,"KNOB/SLIDER")==0) {
-          thisType=MIDI_TYPE_KNOB;
+          thisType=MIDI_KNOB;
         } else if(strcmp(str_type,"WHEEL")==0) {
-          thisType=MIDI_TYPE_WHEEL;
+          thisType=MIDI_WHEEL;
         } else {
-          thisType=MIDI_TYPE_NONE;
+          thisType=TYPE_NONE;
         }
         thisAction=MIDI_ACTION_NONE;
         int i=0;
@@ -322,7 +322,7 @@ static void wheelparam_cb(GtkWidget *widget, gpointer user_data) {
   int val=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
   int newval=val;
 
-  if (thisType != MIDI_TYPE_WHEEL) {
+  if (thisType != MIDI_WHEEL) {
     // we should never arrive here
     return;
   }
@@ -489,16 +489,16 @@ static void add_store(int key,struct desc *cmd) {
 
   //g_print("%s: key=%d desc=%p\n",__FUNCTION__,key,cmd);
   switch(cmd->event) {
-    case MIDI_EVENT_NONE:
+    case EVENT_NONE:
       strcpy(str_event,"NONE");
       break;
-    case MIDI_EVENT_NOTE:
+    case MIDI_NOTE:
       strcpy(str_event,"NOTE");
       break;
-    case MIDI_EVENT_CTRL:
+    case MIDI_CTRL:
       strcpy(str_event,"CTRL");
       break;
-    case MIDI_EVENT_PITCH:
+    case MIDI_PITCH:
       strcpy(str_event,"PITCH");
       break;
   }
@@ -509,16 +509,16 @@ static void add_store(int key,struct desc *cmd) {
   }
   sprintf(str_note,"%d",key);
   switch(cmd->type) {
-    case MIDI_TYPE_NONE:
+    case TYPE_NONE:
       strcpy(str_type,"NONE");
       break;
-    case MIDI_TYPE_KEY:
+    case MIDI_KEY:
       strcpy(str_type,"KEY");
       break;
-    case MIDI_TYPE_KNOB:
+    case MIDI_KNOB:
       strcpy(str_type,"KNOB/SLIDER");
       break;
-    case MIDI_TYPE_WHEEL:
+    case MIDI_WHEEL:
       strcpy(str_type,"WHEEL");
       break;
   }
@@ -570,16 +570,16 @@ static void add_cb(GtkButton *widget,gpointer user_data) {
   }
 
   if(strcmp(str_type,"KEY")==0) {
-    type=MIDI_TYPE_KEY;
+    type=MIDI_KEY;
     str_action=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newAction_key));
   } else if(strcmp(str_type,"KNOB/SLIDER")==0) {
-    type=MIDI_TYPE_KNOB;
+    type=MIDI_KNOB;
     str_action=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newAction_knob));
   } else if(strcmp(str_type,"WHEEL")==0) {
-    type=MIDI_TYPE_WHEEL;
+    type=MIDI_WHEEL;
     str_action=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newAction_wheel));
   } else {
-    type=MIDI_TYPE_NONE;
+    type=TYPE_NONE;
     str_action="NONE";
   }
 
@@ -646,16 +646,16 @@ static void update_cb(GtkButton *widget,gpointer user_data) {
   gchar *str_action;
 
   if(strcmp(str_type,"KEY")==0) {
-    thisType=MIDI_TYPE_KEY;
+    thisType=MIDI_KEY;
     str_action=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newAction_key));
   } else if(strcmp(str_type,"KNOB/SLIDER")==0) {
-    thisType=MIDI_TYPE_KNOB;
+    thisType=MIDI_KNOB;
     str_action=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newAction_knob));
   } else if(strcmp(str_type,"WHEEL")==0) {
-    thisType=MIDI_TYPE_WHEEL;
+    thisType=MIDI_WHEEL;
     str_action=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newAction_wheel));
   } else {
-    thisType=MIDI_TYPE_NONE;
+    thisType=TYPE_NONE;
     str_action="NONE";
   }
   //g_print("%s: type=%s action=%s\n",__FUNCTION__,str_type,str_action);
@@ -689,16 +689,16 @@ static void update_cb(GtkButton *widget,gpointer user_data) {
   current_cmd->vfr2  =thisVfr2;
 
   switch(current_cmd->event) {
-    case MIDI_EVENT_NONE:
+    case EVENT_NONE:
       strcpy(str_event,"NONE");
       break;
-    case MIDI_EVENT_NOTE:
+    case MIDI_NOTE:
       strcpy(str_event,"NOTE");
       break;
-    case MIDI_EVENT_CTRL:
+    case MIDI_CTRL:
       strcpy(str_event,"CTRL");
       break;
-    case MIDI_EVENT_PITCH:
+    case MIDI_PITCH:
       strcpy(str_event,"PITCH");
       break;
   }
@@ -954,15 +954,15 @@ void midi_menu(GtkWidget *parent) {
     key_list[i]=0;
     knob_list[i]=0;
     wheel_list[i]=0;
-    if(ActionTable[i].type&MIDI_TYPE_KEY) {
+    if(ActionTable[i].type&MIDI_KEY) {
       gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newAction_key),NULL,ActionTable[i].str);
       key_list[i]=jkey++;
     }
-    if(ActionTable[i].type&MIDI_TYPE_KNOB) {
+    if(ActionTable[i].type&MIDI_KNOB) {
       gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newAction_knob),NULL,ActionTable[i].str);
       knob_list[i]=jknob++;
     }
-    if(ActionTable[i].type&MIDI_TYPE_WHEEL) {
+    if(ActionTable[i].type&MIDI_WHEEL) {
       gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newAction_wheel),NULL,ActionTable[i].str);
       wheel_list[i]=jwheel++;
     }
@@ -1209,16 +1209,16 @@ static int update(void *data) {
     case UPDATE_NEW:
       g_print("%s: UPDATE_NEW\n",__FUNCTION__);
       switch(thisEvent) {
-        case MIDI_EVENT_NONE:
+        case EVENT_NONE:
           gtk_label_set_text(GTK_LABEL(newEvent),"NONE");
           break;
-        case MIDI_EVENT_NOTE:
+        case MIDI_NOTE:
           gtk_label_set_text(GTK_LABEL(newEvent),"NOTE");
           break;
-        case MIDI_EVENT_CTRL:
+        case MIDI_CTRL:
           gtk_label_set_text(GTK_LABEL(newEvent),"CTRL");
           break;
-        case MIDI_EVENT_PITCH:
+        case MIDI_PITCH:
           gtk_label_set_text(GTK_LABEL(newEvent),"PITCH");
           break;
       }
@@ -1233,15 +1233,15 @@ static int update(void *data) {
       gtk_combo_box_text_remove_all(GTK_COMBO_BOX_TEXT(newType));
       gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newType),NULL,"NONE");
       switch(thisEvent) {
-        case MIDI_EVENT_NONE:
+        case EVENT_NONE:
           gtk_combo_box_set_active (GTK_COMBO_BOX(newType),0);
           break;
-        case MIDI_EVENT_NOTE:
-        case MIDI_EVENT_PITCH:
+        case MIDI_NOTE:
+        case MIDI_PITCH:
           gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newType),NULL,"KEY");
           gtk_combo_box_set_active (GTK_COMBO_BOX(newType),1);
           break;
-        case MIDI_EVENT_CTRL:
+        case MIDI_CTRL:
           gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newType),NULL,"KNOB/SLIDER");
           gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newType),NULL,"WHEEL");
           gtk_combo_box_set_active (GTK_COMBO_BOX(newType),0);
@@ -1273,16 +1273,16 @@ static int update(void *data) {
     case UPDATE_EXISTING:
       g_print("%s: UPDATE_EXISTING Type=%d Action=%d\n",__FUNCTION__,thisType,thisAction);
       switch(thisEvent) {
-        case MIDI_EVENT_NONE:
+        case EVENT_NONE:
           gtk_label_set_text(GTK_LABEL(newEvent),"NONE");
           break;
-        case MIDI_EVENT_NOTE:
+        case MIDI_NOTE:
           gtk_label_set_text(GTK_LABEL(newEvent),"NOTE");
           break;
-        case MIDI_EVENT_CTRL:
+        case MIDI_CTRL:
           gtk_label_set_text(GTK_LABEL(newEvent),"CTRL");
           break;
-        case MIDI_EVENT_PITCH:
+        case MIDI_PITCH:
           gtk_label_set_text(GTK_LABEL(newEvent),"PITCH");
           break;
       }
@@ -1297,26 +1297,26 @@ static int update(void *data) {
       gtk_combo_box_text_remove_all(GTK_COMBO_BOX_TEXT(newType));
       gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newType),NULL,"NONE");
       switch(thisEvent) {
-        case MIDI_EVENT_NONE:
+        case EVENT_NONE:
 	  gtk_combo_box_set_active (GTK_COMBO_BOX(newType),0);
           break;
-        case MIDI_EVENT_NOTE:
-        case MIDI_EVENT_PITCH:
+        case MIDI_NOTE:
+        case MIDI_PITCH:
           gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newType),NULL,"KEY");
-	  if(thisType==MIDI_TYPE_NONE) {
+	  if(thisType==TYPE_NONE) {
 	    gtk_combo_box_set_active (GTK_COMBO_BOX(newType),0);
-	  } else if(thisType==MIDI_TYPE_KEY) {
+	  } else if(thisType==MIDI_KEY) {
 	    gtk_combo_box_set_active (GTK_COMBO_BOX(newType),1);
 	  }
           break;
-        case MIDI_EVENT_CTRL:
+        case MIDI_CTRL:
           gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newType),NULL,"KNOB/SLIDER");
           gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newType),NULL,"WHEEL");
-	  if(thisType==MIDI_TYPE_NONE) {
+	  if(thisType==TYPE_NONE) {
 	    gtk_combo_box_set_active (GTK_COMBO_BOX(newType),0);
-	  } else if(thisType==MIDI_TYPE_KNOB) {
+	  } else if(thisType==MIDI_KNOB) {
 	    gtk_combo_box_set_active (GTK_COMBO_BOX(newType),1);
-	  } else if(thisType==MIDI_TYPE_WHEEL) {
+	  } else if(thisType==MIDI_WHEEL) {
             gtk_combo_box_set_active (GTK_COMBO_BOX(newType),2);
           }
           break;
@@ -1388,7 +1388,7 @@ void NewMidiConfigureEvent(enum MIDIevent event, int channel, int note, int val)
     thisVal=val;
     thisMin=val;
     thisMax=val;
-    thisType=MIDI_TYPE_NONE;
+    thisType=TYPE_NONE;
     thisAction=MIDI_ACTION_NONE;
     //
     // set default values for wheel parameters
@@ -1420,13 +1420,13 @@ void NewMidiConfigureEvent(enum MIDIevent event, int channel, int note, int val)
 
       if(str_event!=NULL && str_channel!=NULL && str_note!=NULL && str_type!=NULL && str_action!=NULL) {
         if(strcmp(str_event,"CTRL")==0) {
-          tree_event=MIDI_EVENT_CTRL;
+          tree_event=MIDI_CTRL;
         } else if(strcmp(str_event,"PITCH")==0) {
-          tree_event=MIDI_EVENT_PITCH;
+          tree_event=MIDI_PITCH;
         } else if(strcmp(str_event,"NOTE")==0) {
-          tree_event=MIDI_EVENT_NOTE;
+          tree_event=MIDI_NOTE;
         } else {
-          tree_event=MIDI_EVENT_NONE;
+          tree_event=EVENT_NONE;
         }
         if (!strncmp(str_channel,"Any", 3)) {
 	  tree_channel=-1;
@@ -1440,13 +1440,13 @@ void NewMidiConfigureEvent(enum MIDIevent event, int channel, int note, int val)
           thisMin=0;
           thisMax=0;
           if(strcmp(str_type,"KEY")==0) {
-            thisType=MIDI_TYPE_KEY;
+            thisType=MIDI_KEY;
           } else if(strcmp(str_type,"KNOB/SLIDER")==0) {
-            thisType=MIDI_TYPE_KNOB;
+            thisType=MIDI_KNOB;
           } else if(strcmp(str_type,"WHEEL")==0) {
-            thisType=MIDI_TYPE_WHEEL;
+            thisType=MIDI_WHEEL;
           } else {
-            thisType=MIDI_TYPE_NONE;
+            thisType=TYPE_NONE;
           }
           thisAction=MIDI_ACTION_NONE;
           int i=1;
@@ -1523,7 +1523,7 @@ void midi_save_state() {
         // For wheels, also store the additional parameters,
         // but do so only if they deviate from the default values.
         //
-        if (cmd->type == MIDI_TYPE_WHEEL) {
+        if (cmd->type == MIDI_WHEEL) {
           if (cmd->delay > 0) {
             sprintf(name,"midi[%d].index[%d].delay",i,index);
             sprintf(value,"%d",cmd->delay);
@@ -1619,7 +1619,6 @@ void midi_restore_state() {
   // set the "active" flag, and the devices will be opened in
   // radio.c when it is appropriate
   //
-    
   for(int i=0; i<MAX_MIDI_DEVICES; i++) {
     sprintf(name,"mididevice[%d].name",i);
     value=getProperty(name);
@@ -1642,7 +1641,7 @@ void midi_restore_state() {
       for(int index=0; index<indices; index++) {
         sprintf(name,"midi[%d].index[%d].event",i,index);
         value=getProperty(name);
-	event=MIDI_EVENT_NONE;
+	event=EVENT_NONE;
         if(value) {
           for(int j=0;j<4;j++) {
 	    if(strcmp(value,midi_events[j])==0) {
@@ -1653,7 +1652,7 @@ void midi_restore_state() {
 	}
         sprintf(name,"midi[%d].index[%d].type",i,index);
         value=getProperty(name);
-	type=MIDI_TYPE_NONE;
+	type=TYPE_NONE;
         if(value) {
           for(int j=0;j<5;j++) {
             if(strcmp(value,midi_types[j])==0) {

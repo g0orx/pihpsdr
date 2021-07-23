@@ -32,6 +32,7 @@
 #ifdef CLIENT_SERVER
 #include "client_server.h"
 #endif
+#include "actions.h"
 
 static int width;
 static int height;
@@ -102,14 +103,14 @@ void set_zoom(int rx,double value) {
     gtk_range_set_value (GTK_RANGE(zoom_scale),receiver[rx]->zoom);
   } else {
     if(scale_status!=ZOOM || scale_rx!=rx) {
-      if(scale_status!=NO_FUNCTION) {
+      if(scale_status!=NO_ACTION) {
         g_source_remove(scale_timer);
         gtk_widget_destroy(scale_dialog);
-        scale_status=NO_FUNCTION;
+        scale_status=NO_ACTION;
       }
     }
     receiver_change_zoom(active_receiver,value);
-    if(scale_status==NO_FUNCTION) {
+    if(scale_status==NO_ACTION) {
       scale_status=ZOOM;
       scale_rx=rx;
       char title[64];
@@ -174,14 +175,14 @@ g_print("set_pan: %f\n",value);
     gtk_range_set_value (GTK_RANGE(pan_scale),receiver[rx]->pan);
   } else {
     if(scale_status!=PAN || scale_rx!=rx) {
-      if(scale_status!=NO_FUNCTION) {
+      if(scale_status!=NO_ACTION) {
         g_source_remove(scale_timer);
         gtk_widget_destroy(scale_dialog);
-        scale_status=NO_FUNCTION;
+        scale_status=NO_ACTION;
       }
     }
     receiver_change_pan(active_receiver,value);
-    if(scale_status==NO_FUNCTION) {
+    if(scale_status==NO_ACTION) {
       scale_status=PAN;
       scale_rx=rx;
       char title[64];
