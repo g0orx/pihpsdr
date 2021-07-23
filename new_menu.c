@@ -495,7 +495,10 @@ void new_menu()
     // This may help to recover from certain error conditions
     // At the moment I do not know how to do this for SOAPY
     //
-    if (protocol != SOAPYSDR_PROTOCOL) {
+#ifdef SOAPYSDR
+    if (protocol != SOAPYSDR_PROTOCOL)
+#endif
+    {
       GtkWidget *restart_b=gtk_button_new_with_label("Restart");
       g_signal_connect (restart_b, "button-press-event", G_CALLBACK(restart_cb), NULL);
       gtk_grid_attach(GTK_GRID(grid),restart_b,2,0,2,1);
