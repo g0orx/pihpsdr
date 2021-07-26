@@ -1059,7 +1059,11 @@ void process_ep2(uint8_t *frame)
 
 	case 18:
 	case 19:
-	   chk_data(frame[1],txdrive,"TX DRIVE");
+           if (OLDDEVICE == DEVICE_METIS) {
+             txdrive=255;   // penelope's cannnot adjust TX amplitude 
+           } else {
+	     chk_data(frame[1],txdrive,"TX DRIVE");
+           }
 	   chk_data(frame[2] & 0x3F,hermes_config,"HERMES CONFIG");
 	   chk_data((frame[2] >> 6) & 0x01, alex_manual,"ALEX manual HPF/LPF");
 	   chk_data((frame[2] >> 7) & 0x01, vna     ,"VNA mode");
@@ -1213,7 +1217,7 @@ void *handler_ep6(void *arg)
 	uint8_t header[40] =
 	{
 //                             C0  C1  C2  C3  C4
-		127, 127, 127,  0,  0, 33, 17, 21,
+		127, 127, 127,  0,  0, 33, 18, 21,
 		127, 127, 127,  8,  0,  0,  0,  0,
 		127, 127, 127, 16,  0,  0,  0,  0,
 		127, 127, 127, 24,  0,  0,  0,  0,

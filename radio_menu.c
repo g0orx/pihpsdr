@@ -765,6 +765,14 @@ void radio_menu(GtkWidget *parent) {
     g_signal_connect(mic_src_b,"toggled",G_CALLBACK(micsource_cb),NULL);
     row++;
 
+    //
+    // If we arrive here and atlas_penelope is still "unknown", 
+    // set it to "no penelope" (from now on, it may only take
+    // the values 0 and 1).
+    //
+    if (atlas_penelope == 2) {
+      atlas_penelope = 0;
+    }
     GtkWidget *pene_tx_b=gtk_check_button_new_with_label("Penelope TX");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (pene_tx_b), atlas_penelope);
     gtk_grid_attach(GTK_GRID(grid),pene_tx_b,col,row,1,1);
