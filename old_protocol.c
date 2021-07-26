@@ -872,6 +872,16 @@ static void process_control_bytes() {
           penelope_software_version=control_in[3];
           g_print("  Penelope Software version: %d (0x%0X)\n",penelope_software_version,penelope_software_version);
         }
+        //
+        // Set atlas_penelope flag to "penelope" if three conditions are met:
+        // a) it's a METIS device (no HERMES, ORION, etc.)
+        // b) penelope software version is 18
+        // c) atlas_penelope flag is "unknown"
+        //
+        if (device == DEVICE_METIS && penelope_software_version == 18 && atlas_penelope == 2) {
+          g_print("Adjusted settings for PENELOPE\n");
+	  atlas_penelope=1;
+        }
       }
       //
       //DEBUG code to monitor HL2 TX-FIFO filling and 
