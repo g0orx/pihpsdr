@@ -313,7 +313,7 @@ protocols.c \
 css.c \
 actions.c \
 configure.c \
-is2.c \
+i2c.c \
 gpio.c \
 encoder_menu.c \
 switch_menu.c
