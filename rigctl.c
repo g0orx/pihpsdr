@@ -1081,14 +1081,26 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
       break;
     case 'C': //ZZCx
       switch(command[3]) {
-        case 'B': //ZZCB
-          implemented=FALSE;
+        case 'B': //ZZCB: VFO A to B
+          if(!locked) {
+		      if(command[4]==';') {
+				vfo_a_to_b();
+		      }
+          }
           break;
-        case 'D': //ZZCD
-          implemented=FALSE;
+        case 'D': //ZZCD: VFO B to A
+          if(!locked) {
+		      if(command[4]==';') {
+				vfo_b_to_a();
+		      }
+          }
           break;
-        case 'F': //ZZCF
-          implemented=FALSE;
+        case 'F': //ZZCF: Swap VFO A and B
+          if(!locked) {
+		      if(command[4]==';') {
+				vfo_a_swap_b();
+		      }
+          }
           break;
         case 'I': //ZZCI
           implemented=FALSE;
@@ -1399,6 +1411,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           } else if(command[6]==';') {
             int filter=atoi(&command[4]);
             // update RX1 filter
+            vfo_filter_changed(filter);
           }
           break;
         case 'J': //ZZFJ
@@ -1895,6 +1908,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
            implemented=FALSE;
            break;
       }
+      break;
     case 'O': //ZZOx
       switch(command[3]) {
         default:
@@ -1972,7 +1986,8 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
             if(vfo[VFO_A].mode==modeCWL || vfo[VFO_A].mode==modeCWU) {
               vfo[VFO_A].rit-=10;
             } else {
-              vfo[VFO_A].rit-=50;
+              //vfo[VFO_A].rit-=50;
+              vfo[VFO_A].rit -= rit_increment;
             }
             vfo_update();
           } else if(command[9]==';') {
@@ -2028,7 +2043,8 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
             if(vfo[VFO_A].mode==modeCWL || vfo[VFO_A].mode==modeCWU) {
               vfo[VFO_A].rit+=10;
             } else {
-              vfo[VFO_A].rit+=50;
+              //vfo[VFO_A].rit+=50;
+              vfo[VFO_A].rit += rit_increment;
             }
             vfo_update();
           } else if(command[9]==';') {
@@ -2040,6 +2056,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           implemented=FALSE;
           break;
       }
+      break;
     case 'S': //ZZSx
       switch(command[3]) {
         case 'A': //ZZSA
@@ -2970,8 +2987,9 @@ int parse_cmd(void *data) {
           if(command[2]==';') {
             sprintf(reply,"LK%d%d;",locked,locked);
             send_resp(client->fd,reply);
-          } else if(command[27]==';') {
-            locked=command[2]=='1';
+          } else if(command[4]==';') {
+            //locked=command[2]=='1';
+            locked = atoi(&command[2]);
             vfo_update();
           }
           break;
