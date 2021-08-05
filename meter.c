@@ -446,7 +446,9 @@ if(analog_meter) {
 
       double swr;
       if (max_level > reverse) {
-        swr=(max_level+reverse)/(max_level-reverse);
+        //swr=(max_level+reverse)/(max_level-reverse);
+	// fix fhanks to JW1TWP
+	swr=(1+sqrt(max_level/reverse))/(1-sqrt(max_level/reverse));
       } else {
         swr=999.9;
       }

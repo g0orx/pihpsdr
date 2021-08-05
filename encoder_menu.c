@@ -37,14 +37,6 @@
 #include "gpio.h"
 #include "i2c.h"
 
-typedef struct _choice {
-  int id;
-  int action;
-  GtkWidget *initial_button;
-  GtkWidget *button;
-  gulong signal_id;
-} CHOICE;
-
 static GtkWidget *parent_window=NULL;
 
 static GtkWidget *dialog=NULL;
@@ -101,7 +93,7 @@ void encoder_menu(GtkWidget *parent) {
   dialog=gtk_dialog_new();
   gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent));
   //gtk_window_set_decorated(GTK_WINDOW(dialog),FALSE);
-  char title[32];
+  char title[64];
   switch(controller) {
     case NO_CONTROLLER:
       sprintf(title,"piHPSDR - No Encoders");

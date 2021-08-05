@@ -39,14 +39,6 @@
 #include "gpio.h"
 #include "i2c.h"
 
-typedef struct _choice {
-  int sw;
-  int action;
-  GtkWidget *initial_button;
-  GtkWidget *button;
-  gulong signal_id;
-} CHOICE;
-
 static GtkWidget *parent_window=NULL;
 
 static GtkWidget *dialog=NULL;
@@ -135,7 +127,6 @@ next_function_set:
     } else {
       widget=gtk_button_new_with_label(ActionTable[temp_switches[i].switch_function].str);
       g_signal_connect(widget,"button-press-event",G_CALLBACK(switch_cb),GINT_TO_POINTER(i));
-g_print("%s: %d\n",__FUNCTION__,i);
     }
     gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
     col++;

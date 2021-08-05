@@ -2,11 +2,28 @@
 #include "css.h"
 
 char *css=
+"  @define-color TOGGLE_ON rgb(100%,0%,0%);\n"
+"  @define-color TOGGLE_OFF rgb(70%,70%,70%);\n"
 "  #small_button {\n"
 "    padding: 0;\n"
 "    font-family: Sans;\n"
 "    font-size: 15px;\n"
 "    }\n"
+"  #small_toggle_button {\n"
+"    padding: 0;\n"
+"    font-family: Sans;\n"
+"    font-size: 15px;\n"
+"    background-image: none;\n"
+"    background-color: @TOGGLE_OFF;\n"
+"    }\n"
+"  #small_toggle_button:checked {\n"
+"    padding: 0;\n"
+"    font-family: Sans;\n"
+"    font-size: 15px;\n"
+"    background-image: none;\n"
+"    background-color: @TOGGLE_ON;\n"
+"    }\n"
+
 ;
 
 void load_css() {

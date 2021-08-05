@@ -99,13 +99,6 @@ enum {
   UPDATE_EXISTING
 };
 
-typedef struct _choice {
-  int action;
-  GtkWidget *initial_button;
-  GtkWidget *button;
-  gulong signal_id;
-} CHOICE;
-
 static int update(void *data);
 static void load_store();
 

@@ -693,6 +693,8 @@ static void new_protocol_high_priority() {
           }
         }
 
+	rxFrequency+=calibration;
+
         phase=(long)((4294967296.0*(double)rxFrequency)/122880000.0);
         high_priority_buffer_to_radio[ 9]=phase>>24;
         high_priority_buffer_to_radio[10]=phase>>16;
@@ -724,6 +726,8 @@ static void new_protocol_high_priority() {
             }
           }
 
+	  rxFrequency+=calibration;
+
 	  phase=(long)((4294967296.0*(double)rxFrequency)/122880000.0);
 	  high_priority_buffer_to_radio[9+(ddc*4)]=phase>>24;
 	  high_priority_buffer_to_radio[10+(ddc*4)]=phase>>16;
@@ -749,6 +753,8 @@ static void new_protocol_high_priority() {
         txFrequency-=(long long)cw_keyer_sidetone_frequency;
       }
     }
+
+    txFrequency+=calibration;
 
     phase=(long)((4294967296.0*(double)txFrequency)/122880000.0);
 
