@@ -37,14 +37,6 @@
 #include "gpio.h"
 #include "i2c.h"
 
-typedef struct _choice {
-  int id;
-  int action;
-  GtkWidget *initial_button;
-  GtkWidget *button;
-  gulong signal_id;
-} CHOICE;
-
 static GtkWidget *parent_window=NULL;
 
 static GtkWidget *dialog=NULL;

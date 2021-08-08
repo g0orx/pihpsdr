@@ -323,7 +323,7 @@ float audio_get_next_mic_sample() {
 
   if ((mic_ring_buffer == NULL) || (mic_ring_read_pt == mic_ring_write_pt)) {
     // no buffer, or nothing in buffer: insert silence
-    g_print("%s: no samples\n",__FUNCTION__);
+    //g_print("%s: no samples\n",__FUNCTION__);
     sample=0.0;
   } else {
     // the "existence" of the ring buffer is now guaranteed for 1 msec,

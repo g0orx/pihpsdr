@@ -114,6 +114,9 @@ static GtkWidget *panadapter;
 static GtkWidget *waterfall;
 static GtkWidget *audio_waterfall;
 
+// RX and TX calibration
+long long calibration=0LL;
+
 /*
 #ifdef GPIO
 static GtkWidget *encoders;
@@ -2059,8 +2062,11 @@ g_print("radioRestoreState: %s\n",property_path);
     value=getProperty("binaural");
     if(value) binaural=atoi(value);
 
+    value=getProperty("calibration");
+    if(value) calibration=atoll(value);
+
     value=getProperty("frequencyB");
-    if(value) frequencyB=atol(value);
+    if(value) frequencyB=atoll(value);
 
     value=getProperty("modeB");
     if(value) modeB=atoi(value);
@@ -2405,6 +2411,9 @@ g_print("radioSaveState: %s\n",property_path);
 
     sprintf(value,"%d",binaural);
     setProperty("binaural",value);
+
+    sprintf(value,"%lld",calibration);
+    setProperty("calibration",value);
 
     sprintf(value,"%lld",frequencyB);
     setProperty("frequencyB",value);

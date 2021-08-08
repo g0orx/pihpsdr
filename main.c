@@ -199,7 +199,7 @@ static int init(void *data) {
   char *c=getcwd(wisdom_directory, sizeof(wisdom_directory));
   strcpy(&wisdom_directory[strlen(wisdom_directory)],"/");
   fprintf(stderr,"Securing wisdom file in directory: %s\n", wisdom_directory);
-  status_text("Creating FFTW Wisdom file ...");
+  status_text("Checking FFTW Wisdom file ...");
   wisdom_running=1;
   pthread_create(&wisdom_thread_id, NULL, wisdom_thread, wisdom_directory);
   while (wisdom_running) {
@@ -209,6 +209,7 @@ static int init(void *data) {
       while (gtk_events_pending ()) {
         gtk_main_iteration ();
       }
+      status_text("Creating FFTW Wisdom file ...");
   }
 
   g_idle_add(ext_discovery,NULL);
