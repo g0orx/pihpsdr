@@ -183,6 +183,21 @@ ACTION_TABLE ActionTable[] = {
   {ACTIONS,		"",			NULL,		TYPE_NONE}
 };
 
+static gint timer=0;
+static gboolean timer_released;
+
+static int timeout_cb(gpointer data) {
+  if(timer_released) {
+    g_free(data);
+    timer=0;
+    return FALSE;
+  }
+  // process the action;
+  process_action(data);
+  return TRUE;
+}
+
+
 
 int process_action(void *data) {
   PROCESS_ACTION *a=(PROCESS_ACTION *)data;
@@ -194,8 +209,9 @@ int process_action(void *data) {
   FILTER *filter;
   int new_val;
   int i;
+  gboolean free_action=TRUE;
 
-  g_print("%s: action=%d mode=%d value=%d\n",__FUNCTION__,a->action,a->mode,a->val);
+  //g_print("%s: action=%d mode=%d value=%d\n",__FUNCTION__,a->action,a->mode,a->val);
   switch(a->action) {
 
     case A_SWAP_B:
@@ -956,11 +972,25 @@ int process_action(void *data) {
     case RIT_MINUS:
       if(a->mode==PRESSED) {
         vfo_rit(active_receiver->id,-1);
+	if(timer==0) {
+  	  timer=g_timeout_add(250,timeout_cb,a);
+	  timer_released=FALSE;
+	}
+	free_action=FALSE;
+      } else {
+	timer_released=TRUE;
       }
       break;
     case RIT_PLUS:
       if(a->mode==PRESSED) {
         vfo_rit(active_receiver->id,1);
+	if(timer==0) {
+	  timer=g_timeout_add(250,timeout_cb,a);
+	  timer_released=FALSE;
+	}
+	free_action=FALSE;
+      } else {
+	timer_released=TRUE;
       }
       break;
     case RIT_RX1:
@@ -1193,6 +1223,7 @@ int process_action(void *data) {
         value=10000.0;
       }
       transmitter->xit=(int)value;
+      transmitter->xit_enabled=(value!=0);
       if(protocol==NEW_PROTOCOL) {
         schedule_high_priority();
       }
@@ -1202,6 +1233,10 @@ int process_action(void *data) {
       if(a->mode==PRESSED) {
         if(can_transmit) {
           transmitter->xit=0;
+          transmitter->xit_enabled=0;
+          if(protocol==NEW_PROTOCOL) {
+            schedule_high_priority();
+          }
           g_idle_add(ext_vfo_update, NULL);
         }
       }
@@ -1228,6 +1263,7 @@ int process_action(void *data) {
             value=10000.0;
           }
           transmitter->xit=(int)value;
+	  transmitter->xit_enabled=(value!=0);
           if(protocol==NEW_PROTOCOL) {
             schedule_high_priority();
           }
@@ -1246,6 +1282,7 @@ int process_action(void *data) {
             value=10000.0;
           }
           transmitter->xit=(int)value;
+	  transmitter->xit_enabled=(value!=0);
           if(protocol==NEW_PROTOCOL) {
             schedule_high_priority();
           }
@@ -1275,7 +1312,9 @@ int process_action(void *data) {
       }
       break;
   }
-  g_free(data);
+  if(free_action) {
+    g_free(data);
+  }
   return 0;
 }
 

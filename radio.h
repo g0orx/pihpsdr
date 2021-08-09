@@ -74,6 +74,8 @@ extern gboolean radio_is_remote;
 
 extern GtkWidget *fixed;
 
+extern long long calibration;
+
 extern char property_path[];
 
 #define NONE 0

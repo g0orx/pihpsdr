@@ -35,13 +35,22 @@ void DoTheMidi(int action, enum ACTIONtype type, int val) {
     int    *ip;
     PROCESS_ACTION *a;
 
-    g_print("%s: action=%d type=%d val=%d\n",__FUNCTION__,action,type,val);
+    //g_print("%s: action=%d type=%d val=%d\n",__FUNCTION__,action,type,val);
 
-    //
-    // CW actions are time-critical, so they are handled HERE
-    // instead of invoking the GTK idle queue
-    //
-    if (action == CW_KEYER) {
+    switch(type) {
+      case MIDI_KEY:
+	//
+	// CW_LEFT, CW_RIGHT, and CW_KEYER have to be handled with
+	// minimum latency, so these are not put to the GTK idle queue
+	// but rather handled immediately
+	//
+	if(action==CW_LEFT || action==CW_RIGHT) {
+#ifdef LOCALCW
+	  keyer_event(action==CW_LEFT,val);
+#else
+	  g_print("MIDI CW key but compiled without LOCALCW\n");
+#endif
+        } else if (action == CW_KEYER) {
           //
           // This is a CW key-up/down which uses functions from the keyer
           // that by-pass the interrupt-driven standard action.
@@ -63,24 +72,12 @@ void DoTheMidi(int action, enum ACTIONtype type, int val) {
             cw_key_down=0;
             cw_key_up=0;
           }
-          return;
-    }
-#ifdef LOCALCW  
-    if (action == CW_LEFT) {
-	keyer_event(1, val);
-	return;
-    }
-    if (action == CW_RIGHT) {
-	keyer_event(0, val);
-	return;
-    }
-#endif
-    switch(type) {
-      case MIDI_KEY:
-        a=g_new(PROCESS_ACTION,1);
-        a->action=action;
-        a->mode=val?PRESSED:RELEASED;
-        g_idle_add(process_action,a);
+	} else {
+	  a=g_new(PROCESS_ACTION,1);
+	  a->action=action;
+	  a->mode=val?PRESSED:RELEASED;
+	  g_idle_add(process_action,a);
+	}
 	break;
       case MIDI_KNOB:
         a=g_new(PROCESS_ACTION,1);

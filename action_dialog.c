@@ -7,6 +7,7 @@ typedef struct _choice {
   int action;
   GtkWidget *button;
   gulong signal_id;
+  struct _choice *previous;
 } CHOICE;
 
 static GtkWidget *dialog;
@@ -26,6 +27,8 @@ static void action_select_cb(GtkWidget *widget,gpointer data) {
 
 int action_dialog(GtkWidget *parent,int filter,int currentAction) {
   int i,j;
+  CHOICE *previous=NULL;
+  CHOICE *choice=NULL;
 
   action=currentAction;
   previous_button=NULL;
@@ -44,15 +47,18 @@ int action_dialog(GtkWidget *parent,int filter,int currentAction) {
   for(i=0;i<ACTIONS;i++) {
     if((ActionTable[i].type&filter) || (ActionTable[i].type==TYPE_NONE)) {
       GtkWidget *button=gtk_toggle_button_new_with_label(ActionTable[i].str);
-      gtk_widget_set_name(button,"small_button");
+      gtk_widget_set_name(button,"small_toggle_button");
       gtk_grid_attach(GTK_GRID(grid),button,j%GRID_WIDTH,j/GRID_WIDTH,1,1);
       if(ActionTable[i].action==currentAction) {
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button),TRUE);
       }
-      CHOICE *choice=g_new0(CHOICE,1);
+      choice=g_new0(CHOICE,1);
       choice->action=i;
       choice->button=button;
       choice->signal_id=g_signal_connect(button,"toggled",G_CALLBACK(action_select_cb),choice);
+      choice->previous=previous;
+      previous=choice;
+
       if(ActionTable[i].action==currentAction) {
         previous_button=button;
         previous_signal_id=choice->signal_id;
@@ -67,6 +73,12 @@ int action_dialog(GtkWidget *parent,int filter,int currentAction) {
   gtk_widget_destroy(dialog);
   if(result!=GTK_RESPONSE_ACCEPT) {
     action=currentAction;
+  }
+  // free up choice structures
+  while(previous!=NULL) {
+    choice=previous;
+    previous=choice->previous;
+    g_free(choice);
   }
   return action;
 }

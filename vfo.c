@@ -1457,6 +1457,7 @@ void vfo_rit_update(int rx) {
 
 void vfo_rit_clear(int rx) {
   vfo[receiver[rx]->id].rit=0;
+  vfo[receiver[rx]->id].rit_enabled=0;
   receiver_frequency_changed(receiver[rx]);
   g_idle_add(ext_vfo_update, NULL);
 }
@@ -1469,7 +1470,8 @@ void vfo_rit(int rx,int i) {
   } else if(value>10000.0) {
     value=10000.0;
   }
-  vfo[receiver[rx]->id].rit=(int)value;
+  vfo[receiver[rx]->id].rit=value;
+  vfo[receiver[rx]->id].rit_enabled=(value!=0);
   receiver_frequency_changed(receiver[rx]);
   g_idle_add(ext_vfo_update,NULL);
 }
