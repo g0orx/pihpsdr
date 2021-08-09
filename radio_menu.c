@@ -167,6 +167,10 @@ static void dac0_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
 */
 #endif
 
+static void calibration_value_changed_cb(GtkWidget *widget, gpointer data) {
+  calibration=(long long)gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+}
+
 static void rx_gain_calibration_value_changed_cb(GtkWidget *widget, gpointer data) {
   rx_gain_calibration=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
 }
@@ -429,8 +433,10 @@ void radio_menu(GtkWidget *parent) {
   GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
 
   GtkWidget *grid=gtk_grid_new();
-  gtk_grid_set_column_spacing (GTK_GRID(grid),10);
+  gtk_grid_set_column_spacing (GTK_GRID(grid),5);
   gtk_grid_set_row_spacing (GTK_GRID(grid),5);
+  gtk_grid_set_column_homogeneous (GTK_GRID(grid), FALSE);
+  gtk_grid_set_row_homogeneous (GTK_GRID(grid), FALSE);
 
   int col=0;
   int row=0;
@@ -822,9 +828,20 @@ void radio_menu(GtkWidget *parent) {
   g_signal_connect(mute_rx_b,"toggled",G_CALLBACK(mute_rx_cb),NULL);
 
   row++;
+  col=0;
+
+  GtkWidget *calibration_label=gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(calibration_label), "<b>Frequency\nCalibration(Hz):</b>");
+  gtk_grid_attach(GTK_GRID(grid),calibration_label,col,row,1,1);
+  col++;
+
+  GtkWidget *calibration_b=gtk_spin_button_new_with_range(-10000.0,10000.0,1.0);
+  gtk_spin_button_set_value(GTK_SPIN_BUTTON(calibration_b),(double)calibration);
+  gtk_grid_attach(GTK_GRID(grid),calibration_b,col,row,1,1);
+  g_signal_connect(calibration_b,"value_changed",G_CALLBACK(calibration_value_changed_cb),NULL);
 
   if(have_rx_gain) {
-    col=0;
+    col++;
     GtkWidget *rx_gain_label=gtk_label_new(NULL);
     gtk_label_set_markup(GTK_LABEL(rx_gain_label), "<b>RX Gain Calibration:</b>");
     gtk_grid_attach(GTK_GRID(grid),rx_gain_label,col,row,1,1);
@@ -844,8 +861,8 @@ void radio_menu(GtkWidget *parent) {
         g_signal_connect(PA_enable_b,"toggled",G_CALLBACK(PA_enable_cb),NULL);
     }
 
-    row++;
   }
+  row++;
 
   if(row>temp_row) temp_row=row;
 

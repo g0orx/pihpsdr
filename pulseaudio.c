@@ -333,6 +333,7 @@ float audio_get_next_mic_sample() {
   g_mutex_lock(&audio_mutex);
   if ((mic_ring_buffer == NULL) || (mic_ring_read_pt == mic_ring_write_pt)) {
     // no buffer, or nothing in buffer: insert silence
+    //g_print("%s: no samples\n",__FUNCTION__);
     sample=0.0;
   } else {
     newpt = mic_ring_read_pt+1;
