@@ -1586,7 +1586,9 @@ void ozy_send_buffer() {
           output_buffer[C3]=output_buffer[C3]|0x40; // Alex 6M low noise amplifier
         }
         if(band->disablePA) {
-          output_buffer[C3]=output_buffer[C3]|0x80; // disable PA
+          output_buffer[C2]=output_buffer[C2]|0x40; // Manual Filter Selection
+          output_buffer[C3]=output_buffer[C3]|0x20; // bypass all RX filters
+          output_buffer[C3]=output_buffer[C3]|0x80; // disable Alex T/R relay
         }
 #ifdef PURESIGNAL
 	//
