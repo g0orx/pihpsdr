@@ -1697,7 +1697,7 @@ static int last_power=0;
         }
         if(band->disablePA) {
           output_buffer[C2]=output_buffer[C2]|0x40; // Manual Filter Selection
-          output_buffer[C3]=output_buffer[C2]|0x20; // bypass all RX filters
+          output_buffer[C3]=output_buffer[C3]|0x20; // bypass all RX filters
           output_buffer[C3]=output_buffer[C3]|0x80; // disable Alex T/R relay
         }
 #ifdef PURESIGNAL
