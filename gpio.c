@@ -1029,14 +1029,9 @@ int gpio_init() {
     if((ret=setup_line(chip,CWL_BUTTON,CW_ACTIVE_LOW==1))<0) {
       goto err;
     }
-    monitor_lines[lines]=CWL_BUTTON;
-    lines++;
     if((ret=setup_line(chip,CWR_BUTTON,CW_ACTIVE_LOW==1))<0) {
       goto err;
     }
-    monitor_lines[lines]=CWR_BUTTON;
-    lines++;
-
   }
   if (ENABLE_GPIO_SIDETONE) {
 //
@@ -1093,7 +1088,11 @@ void gpio_close() {
 void gpio_cw_sidetone_set(int level) {
   int rc;
   if (ENABLE_GPIO_SIDETONE) {
+#ifdef OLD_GPIOD
+    if((rc=gpiod_ctxless_set_value(gpio_device,SIDETONE_GPIO,level,FALSE,consumer,NULL,NULL))<0) {
+#else
     if((rc=gpiod_ctxless_set_value_ext(gpio_device,SIDETONE_GPIO,level,FALSE,consumer,NULL,NULL,0))<0) {
+#endif
       g_print("%s: err=%d\n",__FUNCTION__,rc);
     }
   }
