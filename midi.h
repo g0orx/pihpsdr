@@ -64,13 +64,6 @@ enum MIDIevent {
 //
 // Data structure for Layer-2
 //
-typedef struct _old_action_table {
-  enum ACTION action;
-  const char *str;
-  enum ACTIONtype type;
-} OLD_ACTION_TABLE;
-
-extern OLD_ACTION_TABLE OLD_ActionTable[];
 
 //
 // There is linked list of all specified MIDI events for a given "Note" value,
