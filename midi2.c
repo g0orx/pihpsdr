@@ -62,7 +62,7 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
                         case MIDI_ACTION_CWLEFT:
                         case MIDI_ACTION_CWRIGHT:
                         case MIDI_ACTION_CWKEYER:
-                        case MIDI_ACTION_PTTKEYER:
+                        case MIDI_ACTION_PTT:
                           // deliver message for note-on and note-off
                           DoTheMidi(desc->action, desc->type, val);
                           break;
@@ -218,7 +218,7 @@ ACTION_TABLE ActionTable[] = {
         { MIDI_ACTION_PAN_HIGH,        	"PANHIGH",      	MIDI_KNOB|MIDI_WHEEL 		},
         { MIDI_ACTION_PAN_LOW,         	"PANLOW",       	MIDI_KNOB|MIDI_WHEEL 		},
         { MIDI_ACTION_PRE,             	"PREAMP",       	MIDI_KEY 			},
-        { MIDI_ACTION_PTTKEYER,        	"PTT(Keyer)",     	MIDI_KEY 			},
+        { MIDI_ACTION_PTT,        	"PTT",     		MIDI_KEY 			},
         { MIDI_ACTION_PS,               "PURESIGNAL",   	MIDI_KEY 			},
         { MIDI_ACTION_RF_GAIN,         	"RFGAIN",       	MIDI_KNOB|MIDI_WHEEL 		},
         { MIDI_ACTION_TX_DRIVE,         "RFPOWER",      	MIDI_KNOB|MIDI_WHEEL 		},

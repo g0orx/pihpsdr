@@ -583,7 +583,7 @@ int DoTheRestOfTheMIDI(void *data) {
 	/////////////////////////////////////////////////////////// "MOX"
 	case MIDI_ACTION_MOX: // only key supported
 	    // Note this toggles the PTT state without knowing the
-            // actual state. See MIDI_ACTION_PTTKEYER for actually
+            // actual state. See MIDI_ACTION_PTT for actually
             // *setting* PTT
 	    if (can_transmit) {
 	        new = !mox;
