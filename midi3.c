@@ -768,8 +768,8 @@ int DoTheRestOfTheMIDI(void *data) {
 	    }
             update_att_preamp();
 	    break;
-	/////////////////////////////////////////////////////////// "PTT(Keyer)"
-        case MIDI_ACTION_PTTKEYER:  // key only
+	/////////////////////////////////////////////////////////// "PTT"
+        case MIDI_ACTION_PTT:  // key only
             // always use with "ONOFF"
 	    if (can_transmit) {
                 mox_update(val);
