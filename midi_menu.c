@@ -273,7 +273,7 @@ static void tree_selection_changed_cb (GtkTreeSelection *selection, gpointer dat
         if (!strncmp(str_channel,"Any", 3)) {
           thisChannel=-1;
         } else {
-          thisChannel=atoi(str_channel);
+          thisChannel=atoi(str_channel)-1;   // MIDI channels 1-16 are encoded as 0-15
         }
         thisNote=atoi(str_note);
         thisVal=0;
@@ -503,7 +503,7 @@ static void add_store(int key,struct desc *cmd) {
       break;
   }
   if (cmd->channel >= 0) {
-    sprintf(str_channel,"%d",cmd->channel);
+    sprintf(str_channel,"%d",cmd->channel+1); // MIDI channels go from 1 to 16  
   } else {
     sprintf(str_channel,"%s","Any");
   }
@@ -703,7 +703,7 @@ static void update_cb(GtkButton *widget,gpointer user_data) {
       break;
   }
   if (current_cmd->channel >= 0) {
-    sprintf(str_channel,"%d",current_cmd->channel);
+    sprintf(str_channel,"%d",current_cmd->channel+1); // MIDI channels go from 1 to 16
   } else {
     sprintf(str_channel,"%s","Any");
   }
@@ -1223,7 +1223,7 @@ static int update(void *data) {
           break;
       }
       if (thisChannel >= 0) {
-        sprintf(text,"%d",thisChannel);
+        sprintf(text,"%d",thisChannel+1); // MIDI channels go from 1 to 16
       } else {
         strcpy(text,"Any");
       }
@@ -1287,7 +1287,7 @@ static int update(void *data) {
           break;
       }
       if (thisChannel >= 0) {
-        sprintf(text,"%d",thisChannel);
+        sprintf(text,"%d",thisChannel+1); // MIDI channels go from 1 to 16
       } else {
         sprintf(text,"%s","Any");
       }
@@ -1431,7 +1431,7 @@ void NewMidiConfigureEvent(enum MIDIevent event, int channel, int note, int val)
         if (!strncmp(str_channel,"Any", 3)) {
 	  tree_channel=-1;
         } else {
-          tree_channel=atoi(str_channel);
+          tree_channel=atoi(str_channel)-1; // MIDI channel 1-16 is encoded as 0-15
         }
         tree_note=atoi(str_note);
 
