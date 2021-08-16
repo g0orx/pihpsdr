@@ -1543,6 +1543,10 @@ void ozy_send_buffer() {
             //       stronger than the "TUNE" signal, and in the case of very low drive slider
             //       values they can be *much* stronger.
             //
+	    // NOTE: When using predistortion (PURESIGNAL), the IQ scaling must be switched off.
+	    //       In this case, the output  power can also be stronger than intended.
+            //
+
             if (power > 0) {
               int hl2power = 15+(int)lround(ceil(40.0 * log10((double) power / 255.0)));
               if (hl2power < 0) hl2power=0;

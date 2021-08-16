@@ -1245,7 +1245,7 @@ static void full_tx_buffer(TRANSMITTER *tx) {
         gain=gain*(double)tx->drive_level*0.00392;
       }
     }
-    if (protocol == ORIGINAL_PROTOCOL && radio->device == DEVICE_HERMES_LITE2) {
+    if (protocol == ORIGINAL_PROTOCOL && radio->device == DEVICE_HERMES_LITE2 && !transmitter->puresignal) {
       //
       // The HermesLite2 is built around the AD9866 modem chip. The TX level can
       // be adjusted from 0.0 to -7.5 dB in 0.5 db steps, and these settings are
@@ -1256,6 +1256,9 @@ static void full_tx_buffer(TRANSMITTER *tx) {
       // to achieve a smooth drive level adjustment.
       // However, if the drive level requires an attenuation *much* larger than
       // 7.5 dB we have to damp significantly at this place, which may affect IMD.
+      //
+      // NOTE: When doing adaptive pre-distortion (PURESIGNAL), IQ scaling cannot
+      //       be used.
       //
       int power;
       double f,g;
