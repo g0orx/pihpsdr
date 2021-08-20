@@ -87,7 +87,7 @@ static GtkWidget *status;
 void status_text(char *text) {
   //fprintf(stderr,"splash_status: %s\n",text);
   gtk_label_set_text(GTK_LABEL(status),text);
-  usleep(10000);
+  usleep(100000);
   while (gtk_events_pending ())
     gtk_main_iteration ();
 }
@@ -209,7 +209,7 @@ static int init(void *data) {
       while (gtk_events_pending ()) {
         gtk_main_iteration ();
       }
-      status_text("Creating FFTW Wisdom file ...");
+      status_text(wisdom_get_status());
   }
 
   g_idle_add(ext_discovery,NULL);
