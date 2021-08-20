@@ -58,6 +58,7 @@ static void cleanup() {
     gtk_widget_destroy(dialog);
     dialog=NULL;
     sub_menu=NULL;
+    active_menu=NO_MENU;
   }
 }
 
@@ -290,13 +291,11 @@ void vfo_menu(GtkWidget *parent,int vfo) {
   gtk_grid_attach(GTK_GRID(grid),vfo_label,3,3,1,1);
 
   GtkWidget *vfo_b=gtk_combo_box_text_new();
-  i=0;
-  while(steps[i]!=0) {
+  for(i=0;i<15;i++) {
     gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(vfo_b),NULL,step_labels[i]);
     if(steps[i]==step) {
       gtk_combo_box_set_active (GTK_COMBO_BOX(vfo_b), i);
     }
-    i++;
   }
   g_signal_connect(vfo_b,"changed",G_CALLBACK(vfo_cb),NULL);
   gtk_grid_attach(GTK_GRID(grid),vfo_b,4,3,1,1);

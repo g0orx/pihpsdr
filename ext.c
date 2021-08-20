@@ -53,6 +53,47 @@
 
 // The following calls functions can be called usig g_idle_add
 
+int ext_menu_filter(void *data) {
+  start_filter();
+  return 0;
+}
+
+int ext_menu_mode(void *data) {
+  start_mode();
+  return 0;
+}
+
+int ext_num_pad(void *data) {
+  gint val=GPOINTER_TO_INT(data);
+  RECEIVER *rx=active_receiver;
+  if(!vfo[rx->id].entering_frequency) {
+    vfo[rx->id].entered_frequency=0;
+    vfo[rx->id].entering_frequency=TRUE;
+  }
+  switch(val) {
+    case -1: // clear
+      vfo[rx->id].entered_frequency=0;
+      vfo[rx->id].entering_frequency=FALSE;
+      break;
+    case -2: // enter
+      if(vfo[rx->id].entered_frequency!=0) {
+        vfo[rx->id].frequency=vfo[rx->id].entered_frequency;
+	if(vfo[rx->id].ctun) {
+          vfo[rx->id].ctun=FALSE;
+          vfo[rx->id].offset=0;
+          vfo[rx->id].ctun_frequency=vfo[rx->id].frequency;
+	}
+      }
+      vfo[rx->id].entering_frequency=FALSE;
+      break;
+    default:
+      vfo[rx->id].entered_frequency=(vfo[rx->id].entered_frequency*10)+val;
+      break;
+  }
+  vfo_update(rx);
+  return 0;
+}
+
 int ext_vfo_mode_changed(void * data)
 {
   int mode=GPOINTER_TO_INT(data);
@@ -159,6 +200,7 @@ int ext_noise_update(void *data) {
 }
 
 int ext_mox_update(void *data) {
+g_print("%s\n",__FUNCTION__);
   mox_update(GPOINTER_TO_INT(data));
   return 0;
 }
@@ -222,10 +264,11 @@ int ext_tx_set_ps(void *data) {
 
 int ext_update_vfo_step(void *data) {
   int direction=GPOINTER_TO_INT(data);
-  int i=0;
-  while(steps[i]!=step && steps[i]!=0) {
-    i++;
+  int i;
+  for(i=0;i<STEPS;i++) {
+    if(steps[i]==step) break;
   }
+  if(step>=STEPS) i=0;
 
   if(steps[i]!=0) {
     if(direction>0) {
@@ -262,6 +305,13 @@ int ext_vfo_id_step(void *data) {
 int ext_set_mic_gain(void * data) {
   double d=*(double *)data;
   set_mic_gain(d);
+  free(data);
+  return 0;
+}
+
+int ext_set_af_gain(void *data) {
+  double d=*(double *)data;
+  set_af_gain(active_receiver->id,d);
   free(data);
   return 0;
 }
@@ -418,6 +468,13 @@ void band_plus(int id) {
       found=1;
     }
   }
+}
+
+int ext_band_select(void *data) {
+  int b=GPOINTER_TO_INT(data);
+  g_print("%s: %d\n",__FUNCTION__,b);
+  vfo_band_changed(active_receiver->id,b);
+  return 0;
 }
 
 int ext_band_plus(void *data) {

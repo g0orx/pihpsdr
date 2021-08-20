@@ -18,7 +18,8 @@
 */
 
 #include <gtk/gtk.h>
-#include <gdk/gdk.h>
+#include <glib.h>
+#include <glib/gprintf.h>
 #include <math.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -30,6 +31,7 @@
 #include "main.h"
 #include "channel.h"
 #include "discovered.h"
+#include "actions.h"
 #include "gpio.h"
 #include "i2c.h"
 
@@ -38,830 +40,301 @@
 
 static GtkWidget *dialog;
 
-static GtkWidget *b_enable_vfo_encoder;
-static   GtkWidget *vfo_a_label;
-static   GtkWidget *vfo_a;
-static   GtkWidget *vfo_b_label;
-static   GtkWidget *vfo_b;
-static   GtkWidget *b_enable_vfo_pullup;
-static GtkWidget *b_enable_E2_encoder;
-static   GtkWidget *E2_a_label;
-static   GtkWidget *E2_a;
-static   GtkWidget *E2_b_label;
-static   GtkWidget *E2_b;
-static   GtkWidget *b_enable_E2_pullup;
-static GtkWidget *b_enable_E2_top_encoder;
-static   GtkWidget *E2_top_a_label;
-static   GtkWidget *E2_top_a;
-static   GtkWidget *E2_top_b_label;
-static   GtkWidget *E2_top_b;
-static GtkWidget *E2_sw_label;
-static   GtkWidget *E2_sw;
-static GtkWidget *b_enable_E3_encoder;
-static   GtkWidget *E3_a_label;
-static   GtkWidget *E3_a;
-static   GtkWidget *E3_b_label;
-static   GtkWidget *E3_b;
-static   GtkWidget *b_enable_E3_pullup;
-static GtkWidget *b_enable_E3_top_encoder;
-static   GtkWidget *E3_top_a_label;
-static   GtkWidget *E3_top_a;
-static   GtkWidget *E3_top_b_label;
-static   GtkWidget *E3_top_b;
-static GtkWidget *E3_sw_label;
-static   GtkWidget *E3_sw;
-static GtkWidget *b_enable_E4_encoder;
-static   GtkWidget *E4_a_label;
-static   GtkWidget *E4_a;
-static   GtkWidget *E4_b_label;
-static   GtkWidget *E4_b;
-static   GtkWidget *b_enable_E4_pullup;
-static GtkWidget *b_enable_E4_top_encoder;
-static   GtkWidget *E4_top_a_label;
-static   GtkWidget *E4_top_a;
-static   GtkWidget *E4_top_b_label;
-static   GtkWidget *E4_top_b;
-static GtkWidget *E4_sw_label;
-static   GtkWidget *E4_sw;
-static GtkWidget *b_enable_E5_encoder;
-static   GtkWidget *E5_a_label;
-static   GtkWidget *E5_a;
-static   GtkWidget *E5_b_label;
-static   GtkWidget *E5_b;
-static   GtkWidget *b_enable_E5_pullup;
-static GtkWidget *b_enable_E5_top_encoder;
-static   GtkWidget *E5_top_a_label;
-static   GtkWidget *E5_top_a;
-static   GtkWidget *E5_top_b_label;
-static   GtkWidget *E5_top_b;
-static GtkWidget *E5_sw_label;
-static   GtkWidget *E5_sw;
-
-static GtkWidget *b_enable_mox;
-static   GtkWidget *mox_label;
-static   GtkWidget *mox;
-static GtkWidget *b_enable_S1;
-static   GtkWidget *S1_label;
-static   GtkWidget *S1;
-static GtkWidget *b_enable_S2;
-static   GtkWidget *S2_label;
-static   GtkWidget *S2;
-static GtkWidget *b_enable_S3;
-static   GtkWidget *S3_label;
-static   GtkWidget *S3;
-static GtkWidget *b_enable_S4;
-static   GtkWidget *S4_label;
-static   GtkWidget *S4;
-static GtkWidget *b_enable_S5;
-static   GtkWidget *S5_label;
-static   GtkWidget *S5;
-static GtkWidget *b_enable_S6;
-static   GtkWidget *S6_label;
-static   GtkWidget *S6;
-static GtkWidget *b_enable_function;
-static   GtkWidget *function_label;
-static   GtkWidget *function;
-
-static GtkWidget *i2c_device_text;
-static GtkWidget *i2c_address;
 static GtkWidget *i2c_sw_text[16];
 
-
-#ifdef LOCALCW
-static GtkWidget *cwl_label;
-static GtkWidget *cwl;
-static GtkWidget *cwr_label;
-static GtkWidget *cwr;
-static GtkWidget *cws_label;
-static GtkWidget *cws;
-static GtkWidget *b_enable_cws;
-static GtkWidget *b_enable_cwlr;
-static GtkWidget *b_cw_active_low;
-#endif
-
-#ifdef PTT
-static GtkWidget *ptt_label;
-static GtkWidget *ptt;
-static GtkWidget *b_enable_ptt;
-static GtkWidget *b_ptt_active_low;
-#endif
-
-static gboolean save_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  if(dialog!=NULL) {
-    ENABLE_VFO_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_vfo_encoder))?1:0;
-    VFO_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(vfo_a));
-    VFO_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(vfo_b));
-    ENABLE_VFO_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_vfo_pullup))?1:0;
-
-    ENABLE_E2_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E2_encoder))?1:0;
-    E2_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E2_a));
-    E2_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E2_b));
-    ENABLE_E2_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E2_pullup))?1:0;
-    E2_FUNCTION=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E2_sw));
-
-    if(controller==CONTROLLER2_V2) {
-      E2_TOP_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E2_top_a));
-      E2_TOP_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E2_top_b));
-    }
-
-    ENABLE_E3_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E3_encoder))?1:0;
-    E3_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E3_a));
-    E3_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E3_b));
-    ENABLE_E3_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E3_pullup))?1:0;
-    E3_FUNCTION=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E3_sw));
-
-    if(controller==CONTROLLER2_V2) {
-      E3_TOP_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E3_top_a));
-      E3_TOP_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E3_top_b));
-    }
-
-    ENABLE_E4_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E4_encoder))?1:0;
-    E4_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E4_a));
-    E4_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E4_b));
-    ENABLE_E4_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E4_pullup))?1:0;
-    E4_FUNCTION=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E4_sw));
-
-    if(controller==CONTROLLER2_V2) {
-      E4_TOP_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E4_top_a));
-      E4_TOP_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E4_top_b));
-    }
-
-    if(controller==CONTROLLER2_V1 || controller==CONTROLLER2_V2) {
-      ENABLE_E5_ENCODER=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E5_encoder))?1:0;
-      E5_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E5_a));
-      E5_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E5_b));
-      ENABLE_E5_PULLUP=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_E5_pullup))?1:0;
-      E5_FUNCTION=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E5_sw));
-
-      if(controller==CONTROLLER2_V2) {
-        E5_TOP_ENCODER_A=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E5_top_a));
-        E5_TOP_ENCODER_B=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(E5_top_b));
-      }
-
-      const char *temp=gtk_entry_get_text(GTK_ENTRY(i2c_device_text));
-      i2c_device=g_new(char,strlen(temp)+1);
-      strcpy(i2c_device,temp);
-      i2c_address_1=(unsigned int)strtol(gtk_entry_get_text(GTK_ENTRY(i2c_address)),NULL,16);
-      for(int i=0;i<16;i++) {
-        i2c_sw[i]=(unsigned int)strtol(gtk_entry_get_text(GTK_ENTRY(i2c_sw_text[i])),NULL,16);
-      }
-    }
-
-  if(controller==CONTROLLER1) {
-    ENABLE_MOX_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_mox))?1:0;
-    MOX_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(mox));
-
-    ENABLE_S1_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_S1))?1:0;
-    S1_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(S1));
-
-    ENABLE_S2_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_S2))?1:0;
-    S2_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(S2));
-
-    ENABLE_S3_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_S3))?1:0;
-    S3_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(S3));
-
-    ENABLE_S4_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_S4))?1:0;
-    S4_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(S4));
-
-    ENABLE_S5_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_S5))?1:0;
-    S5_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(S5));
-
-    ENABLE_S6_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_S6))?1:0;
-    S6_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(S6));
-
-    ENABLE_FUNCTION_BUTTON=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_function))?1:0;
-    FUNCTION_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(function));
-  }
-
-#ifdef LOCALCW
-    ENABLE_CW_BUTTONS=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_cwlr))?1:0;
-    CW_ACTIVE_LOW=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_cw_active_low))?1:0;
-    CWL_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(cwl));
-    CWR_BUTTON=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(cwr));
-    ENABLE_GPIO_SIDETONE=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_cws))?1:0;
-    SIDETONE_GPIO=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(cws));
-#endif
-
-#ifdef PTT
-    ENABLE_PTT_GPIO=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_enable_ptt))?1:0;
-    PTT_ACTIVE_LOW=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(b_ptt_active_low))?1:0;
-    PTT_GPIO=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(ptt));
-#endif
-
+static void response_event(GtkWidget *dialog,gint id,gpointer user_data) {
+  g_print("%s: id=%d\n",__FUNCTION__,id);
+  if(id==GTK_RESPONSE_ACCEPT) {
     gpio_save_state();
-    gtk_widget_destroy(dialog);
+    g_print("%s: ACCEPT\n",__FUNCTION__);
   }
-  return TRUE;
-}
-
-static gboolean cancel_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  if(dialog!=NULL) {
-    gtk_widget_destroy(dialog);
-  }
-  return TRUE;
+  gtk_widget_destroy(dialog);
+  dialog=NULL;
 }
 
 void configure_gpio(GtkWidget *parent) {
-  int row;
+  gint row=0;
+  gint col=0;
+  GtkWidget *widget;
+  int i;
 
   gpio_restore_state();
 
-  dialog=gtk_dialog_new_with_buttons("Configure GPIO (WiringPi pin numbers)",GTK_WINDOW(parent),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
+  GtkWidget *dialog=gtk_dialog_new_with_buttons("piHPSDR - GPIO pins (Broadcom Numbers) ",GTK_WINDOW(parent),GTK_DIALOG_DESTROY_WITH_PARENT,("OK"),GTK_RESPONSE_ACCEPT,"Cancel",GTK_RESPONSE_REJECT,NULL);
+
+  g_signal_connect (dialog, "response", G_CALLBACK (response_event), NULL);
+
   GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-  GtkWidget *grid=gtk_grid_new();
-  //gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
-  gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
 
   GtkWidget *notebook=gtk_notebook_new();
 
-  GtkWidget *grid0=gtk_grid_new();
-  gtk_grid_set_column_spacing (GTK_GRID(grid0),10);
-
-  GtkWidget *save_b=gtk_button_new_with_label("Save");
-  g_signal_connect (save_b, "button_press_event", G_CALLBACK(save_cb), NULL);
-  gtk_grid_attach(GTK_GRID(grid0),save_b,0,0,1,1);
-
-  GtkWidget *cancel_b=gtk_button_new_with_label("Cancel");
-  g_signal_connect (cancel_b, "button_press_event", G_CALLBACK(cancel_cb), NULL);
-  gtk_grid_attach(GTK_GRID(grid0),cancel_b,1,0,1,1);
-
-
-  if(controller!=NO_CONTROLLER) {
-
-    // Encoders
-  
-    GtkWidget *grid1=gtk_grid_new();
-    gtk_grid_set_column_homogeneous(GTK_GRID(grid1),FALSE);
-    gtk_grid_set_row_homogeneous(GTK_GRID(grid1),TRUE);
-    gtk_grid_set_column_spacing (GTK_GRID(grid1),5);
-    row=0;
-  
-    b_enable_vfo_encoder=gtk_check_button_new_with_label("Enable VFO");
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_vfo_encoder), ENABLE_VFO_ENCODER);
-    gtk_widget_show(b_enable_vfo_encoder);
-    gtk_grid_attach(GTK_GRID(grid1),b_enable_vfo_encoder,0,row,1,1);
-  
-    vfo_a_label=gtk_label_new("GPIO A:");
-    gtk_widget_show(vfo_a_label);
-    gtk_grid_attach(GTK_GRID(grid1),vfo_a_label,1,row,1,1);
-  
-    vfo_a=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-    gtk_spin_button_set_value (GTK_SPIN_BUTTON(vfo_a),VFO_ENCODER_A);
-    gtk_widget_show(vfo_a);
-    gtk_grid_attach(GTK_GRID(grid1),vfo_a,2,row,1,1);
-  
-    vfo_b_label=gtk_label_new("GPIO B:");
-    gtk_widget_show(vfo_b_label);
-    gtk_grid_attach(GTK_GRID(grid1),vfo_b_label,3,row,1,1);
-  
-    vfo_b=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-    gtk_spin_button_set_value (GTK_SPIN_BUTTON(vfo_b),VFO_ENCODER_B);
-    gtk_widget_show(vfo_b);
-    gtk_grid_attach(GTK_GRID(grid1),vfo_b,4,row,1,1);
-
-    b_enable_vfo_pullup=gtk_check_button_new_with_label("Enable Pull-up");
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_vfo_pullup), ENABLE_VFO_PULLUP);
-    gtk_widget_show(b_enable_vfo_pullup);
-    gtk_grid_attach(GTK_GRID(grid1),b_enable_vfo_pullup,7,row,1,1);
-  
-  
-    row++;
-  
-    b_enable_E2_encoder=gtk_check_button_new_with_label("Enable E2");
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E2_encoder), ENABLE_E2_ENCODER);
-    gtk_widget_show(b_enable_E2_encoder);
-    gtk_grid_attach(GTK_GRID(grid1),b_enable_E2_encoder,0,row,1,1);
-  
-    E2_a_label=gtk_label_new("GPIO A:");
-    gtk_widget_show(E2_a_label);
-    gtk_grid_attach(GTK_GRID(grid1),E2_a_label,1,row,1,1);
-  
-    E2_a=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-    gtk_spin_button_set_value (GTK_SPIN_BUTTON(E2_a),E2_ENCODER_A);
-    gtk_widget_show(E2_a);
-    gtk_grid_attach(GTK_GRID(grid1),E2_a,2,row,1,1);
-  
-    E2_b_label=gtk_label_new("GPIO B:");
-    gtk_widget_show(E2_b_label);
-    gtk_grid_attach(GTK_GRID(grid1),E2_b_label,3,row,1,1);
-  
-    E2_b=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-    gtk_spin_button_set_value (GTK_SPIN_BUTTON(E2_b),E2_ENCODER_B);
-    gtk_widget_show(E2_b);
-    gtk_grid_attach(GTK_GRID(grid1),E2_b,4,row,1,1);
-  
-    E2_sw_label=gtk_label_new("SW:");
-    gtk_widget_show(E2_sw_label);
-    gtk_grid_attach(GTK_GRID(grid1),E2_sw_label,5,row,1,1);
-  
-    E2_sw=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-    gtk_spin_button_set_value (GTK_SPIN_BUTTON(E2_sw),E2_FUNCTION);
-    gtk_widget_show(E2_sw);
-    gtk_grid_attach(GTK_GRID(grid1),E2_sw,6,row,1,1);
-  
-    b_enable_E2_pullup=gtk_check_button_new_with_label("Enable Pull-up");
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E2_pullup), ENABLE_E2_PULLUP);
-    gtk_widget_show(b_enable_E2_pullup);
-    gtk_grid_attach(GTK_GRID(grid1),b_enable_E2_pullup,7,row,1,1);
-  
-  
-    row++;
-
-    if(controller==CONTROLLER2_V2) {
-      E2_top_a_label=gtk_label_new("GPIO A:");
-      gtk_widget_show(E2_top_a_label);
-      gtk_grid_attach(GTK_GRID(grid1),E2_top_a_label,1,row,1,1);
-
-      E2_top_a=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-      gtk_spin_button_set_value (GTK_SPIN_BUTTON(E2_top_a),E2_TOP_ENCODER_A);
-      gtk_widget_show(E2_top_a);
-      gtk_grid_attach(GTK_GRID(grid1),E2_top_a,2,row,1,1);
-
-      E2_top_b_label=gtk_label_new("GPIO B:");
-      gtk_widget_show(E2_top_b_label);
-      gtk_grid_attach(GTK_GRID(grid1),E2_top_b_label,3,row,1,1);
-
-      E2_top_b=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-      gtk_spin_button_set_value (GTK_SPIN_BUTTON(E2_top_b),E2_TOP_ENCODER_B);
-      gtk_widget_show(E2_top_b);
-      gtk_grid_attach(GTK_GRID(grid1),E2_top_b,4,row,1,1);
-
-      row++;
-    }
-
-    b_enable_E3_encoder=gtk_check_button_new_with_label("Enable E3");
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E3_encoder), ENABLE_E3_ENCODER);
-    gtk_widget_show(b_enable_E3_encoder);
-    gtk_grid_attach(GTK_GRID(grid1),b_enable_E3_encoder,0,row,1,1);
-  
-    E3_a_label=gtk_label_new("GPIO A:");
-    gtk_widget_show(E3_a_label);
-    gtk_grid_attach(GTK_GRID(grid1),E3_a_label,1,row,1,1);
-  
-    E3_a=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-    gtk_spin_button_set_value (GTK_SPIN_BUTTON(E3_a),E3_ENCODER_A);
-    gtk_widget_show(E3_a);
-    gtk_grid_attach(GTK_GRID(grid1),E3_a,2,row,1,1);
-  
-    E3_b_label=gtk_label_new("GPIO B:");
-    gtk_widget_show(E3_b_label);
-    gtk_grid_attach(GTK_GRID(grid1),E3_b_label,3,row,1,1);
-  
-    E3_b=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-    gtk_spin_button_set_value (GTK_SPIN_BUTTON(E3_b),E3_ENCODER_B);
-    gtk_widget_show(E3_b);
-    gtk_grid_attach(GTK_GRID(grid1),E3_b,4,row,1,1);
-  
-    E3_sw_label=gtk_label_new("SW:");
-    gtk_widget_show(E3_sw_label);
-    gtk_grid_attach(GTK_GRID(grid1),E3_sw_label,5,row,1,1);
-  
-    E3_sw=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-    gtk_spin_button_set_value (GTK_SPIN_BUTTON(E3_sw),E3_FUNCTION);
-    gtk_widget_show(E3_sw);
-    gtk_grid_attach(GTK_GRID(grid1),E3_sw,6,row,1,1);
-  
-    b_enable_E3_pullup=gtk_check_button_new_with_label("Enable Pull-up");
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E3_pullup), ENABLE_E3_PULLUP);
-    gtk_widget_show(b_enable_E3_pullup);
-    gtk_grid_attach(GTK_GRID(grid1),b_enable_E3_pullup,7,row,1,1);
-  
-    row++;
-
-    if(controller==CONTROLLER2_V2) {
-      E3_top_a_label=gtk_label_new("GPIO A:");
-      gtk_widget_show(E3_top_a_label);
-      gtk_grid_attach(GTK_GRID(grid1),E3_top_a_label,1,row,1,1);
-
-      E3_top_a=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-      gtk_spin_button_set_value (GTK_SPIN_BUTTON(E3_top_a),E3_TOP_ENCODER_A);
-      gtk_widget_show(E3_top_a);
-      gtk_grid_attach(GTK_GRID(grid1),E3_top_a,2,row,1,1);
-
-      E3_top_b_label=gtk_label_new("GPIO B:");
-      gtk_widget_show(E3_top_b_label);
-      gtk_grid_attach(GTK_GRID(grid1),E3_top_b_label,3,row,1,1);
-
-      E3_top_b=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-      gtk_spin_button_set_value (GTK_SPIN_BUTTON(E3_top_b),E3_TOP_ENCODER_B);
-      gtk_widget_show(E3_top_b);
-      gtk_grid_attach(GTK_GRID(grid1),E3_top_b,4,row,1,1);
-
-      row++;
-    }
-
-    b_enable_E4_encoder=gtk_check_button_new_with_label("Enable E4");
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E4_encoder), ENABLE_E4_ENCODER);
-    gtk_widget_show(b_enable_E4_encoder);
-    gtk_grid_attach(GTK_GRID(grid1),b_enable_E4_encoder,0,row,1,1);
-  
-    E4_a_label=gtk_label_new("GPIO A:");
-    gtk_widget_show(E4_a_label);
-    gtk_grid_attach(GTK_GRID(grid1),E4_a_label,1,row,1,1);
-  
-    E4_a=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-    gtk_spin_button_set_value (GTK_SPIN_BUTTON(E4_a),E4_ENCODER_A);
-    gtk_widget_show(E4_a);
-    gtk_grid_attach(GTK_GRID(grid1),E4_a,2,row,1,1);
-  
-    E4_b_label=gtk_label_new("GPIO B:");
-    gtk_widget_show(E4_b_label);
-    gtk_grid_attach(GTK_GRID(grid1),E4_b_label,3,row,1,1);
-  
-    E4_b=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-    gtk_spin_button_set_value (GTK_SPIN_BUTTON(E4_b),E4_ENCODER_B);
-    gtk_widget_show(E4_b);
-    gtk_grid_attach(GTK_GRID(grid1),E4_b,4,row,1,1);
-  
-    E4_sw_label=gtk_label_new("SW:");
-    gtk_widget_show(E4_sw_label);
-    gtk_grid_attach(GTK_GRID(grid1),E4_sw_label,5,row,1,1);
-  
-    E4_sw=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-    gtk_spin_button_set_value (GTK_SPIN_BUTTON(E4_sw),E4_FUNCTION);
-    gtk_widget_show(E4_sw);
-    gtk_grid_attach(GTK_GRID(grid1),E4_sw,6,row,1,1);
-  
-    b_enable_E4_pullup=gtk_check_button_new_with_label("Enable Pull-up");
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E4_pullup), ENABLE_E4_PULLUP);
-    gtk_widget_show(b_enable_E4_pullup);
-    gtk_grid_attach(GTK_GRID(grid1),b_enable_E4_pullup,7,row,1,1);
-  
-    row++;
-
-    if(controller==CONTROLLER2_V2)
-    {
-      E4_top_a_label=gtk_label_new("GPIO A:");
-      gtk_widget_show(E4_top_a_label);
-      gtk_grid_attach(GTK_GRID(grid1),E4_top_a_label,1,row,1,1);
-
-      E4_top_a=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-      gtk_spin_button_set_value (GTK_SPIN_BUTTON(E4_top_a),E4_TOP_ENCODER_A);
-      gtk_widget_show(E4_top_a);
-      gtk_grid_attach(GTK_GRID(grid1),E4_top_a,2,row,1,1);
-
-      E4_top_b_label=gtk_label_new("GPIO B:");
-      gtk_widget_show(E4_top_b_label);
-      gtk_grid_attach(GTK_GRID(grid1),E4_top_b_label,3,row,1,1);
-
-      E4_top_b=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-      gtk_spin_button_set_value (GTK_SPIN_BUTTON(E4_top_b),E4_TOP_ENCODER_B);
-      gtk_widget_show(E4_top_b);
-      gtk_grid_attach(GTK_GRID(grid1),E4_top_b,4,row,1,1);
-
-      row++;
-    }
-
-    if(controller==CONTROLLER2_V1 || controller==CONTROLLER2_V2) {
-      b_enable_E5_encoder=gtk_check_button_new_with_label("Enable E5");
-      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E5_encoder), ENABLE_E5_ENCODER);
-      gtk_widget_show(b_enable_E5_encoder);
-      gtk_grid_attach(GTK_GRID(grid1),b_enable_E5_encoder,0,row,1,1);
-
-      E5_a_label=gtk_label_new("GPIO A:");
-      gtk_widget_show(E5_a_label);
-      gtk_grid_attach(GTK_GRID(grid1),E5_a_label,1,row,1,1);
-
-      E5_a=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-      gtk_spin_button_set_value (GTK_SPIN_BUTTON(E5_a),E5_ENCODER_A);
-      gtk_widget_show(E5_a);
-      gtk_grid_attach(GTK_GRID(grid1),E5_a,2,row,1,1);
-
-      E5_b_label=gtk_label_new("GPIO B:");
-      gtk_widget_show(E5_b_label);
-      gtk_grid_attach(GTK_GRID(grid1),E5_b_label,3,row,1,1);
-
-      E5_b=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-      gtk_spin_button_set_value (GTK_SPIN_BUTTON(E5_b),E5_ENCODER_B);
-      gtk_widget_show(E5_b);
-      gtk_grid_attach(GTK_GRID(grid1),E5_b,4,row,1,1);
-
-      E5_sw_label=gtk_label_new("SW:");
-      gtk_widget_show(E5_sw_label);
-      gtk_grid_attach(GTK_GRID(grid1),E5_sw_label,5,row,1,1);
-
-      E5_sw=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-      gtk_spin_button_set_value (GTK_SPIN_BUTTON(E5_sw),E5_FUNCTION);
-      gtk_widget_show(E5_sw);
-      gtk_grid_attach(GTK_GRID(grid1),E5_sw,6,row,1,1);
-
-      b_enable_E5_pullup=gtk_check_button_new_with_label("Enable Pull-up");
-      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_E5_pullup), ENABLE_E5_PULLUP);
-      gtk_widget_show(b_enable_E5_pullup);
-      gtk_grid_attach(GTK_GRID(grid1),b_enable_E5_pullup,7,row,1,1);
-
-      if(controller==CONTROLLER2_V2) {
-        row++;
-
-        E5_top_a_label=gtk_label_new("GPIO A:");
-        gtk_widget_show(E5_top_a_label);
-        gtk_grid_attach(GTK_GRID(grid1),E5_top_a_label,1,row,1,1);
-
-        E5_top_a=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-        gtk_spin_button_set_value (GTK_SPIN_BUTTON(E5_top_a),E5_TOP_ENCODER_A);
-        gtk_widget_show(E5_top_a);
-        gtk_grid_attach(GTK_GRID(grid1),E5_top_a,2,row,1,1);
-
-        E5_top_b_label=gtk_label_new("GPIO B:");
-        gtk_widget_show(E5_top_b_label);
-        gtk_grid_attach(GTK_GRID(grid1),E5_top_b_label,3,row,1,1);
-
-        E5_top_b=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-        gtk_spin_button_set_value (GTK_SPIN_BUTTON(E5_top_b),E5_TOP_ENCODER_B);
-        gtk_widget_show(E5_top_b);
-        gtk_grid_attach(GTK_GRID(grid1),E5_top_b,4,row,1,1);
-      }
-    }
-  
-    gtk_notebook_append_page(GTK_NOTEBOOK(notebook),grid1,gtk_label_new("Encoders"));
-  
-    // Switches
-  
-    GtkWidget *grid2=gtk_grid_new();
-    gtk_grid_set_column_spacing (GTK_GRID(grid2),10);
-    row=0;
-
-
-    if(controller==CONTROLLER1) {
-      b_enable_mox=gtk_check_button_new_with_label("Enable MOX/TUN");
-      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_mox), ENABLE_MOX_BUTTON);
-      gtk_widget_show(b_enable_mox);
-      gtk_grid_attach(GTK_GRID(grid2),b_enable_mox,0,row,1,1);
-  
-      mox_label=gtk_label_new("GPIO:");
-      gtk_widget_show(mox_label);
-      gtk_grid_attach(GTK_GRID(grid2),mox_label,1,row,1,1);
-  
-      mox=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-      gtk_spin_button_set_value (GTK_SPIN_BUTTON(mox),MOX_BUTTON);
-      gtk_widget_show(mox);
-      gtk_grid_attach(GTK_GRID(grid2),mox,2,row,1,1);
-
-      row++;
-  
-      b_enable_S1=gtk_check_button_new_with_label("Enable S1");
-      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_S1), ENABLE_S1_BUTTON);
-      gtk_widget_show(b_enable_S1);
-      gtk_grid_attach(GTK_GRID(grid2),b_enable_S1,0,row,1,1);
-  
-      S1_label=gtk_label_new("GPIO:");
-      gtk_widget_show(S1_label);
-      gtk_grid_attach(GTK_GRID(grid2),S1_label,1,row,1,1);
-  
-      S1=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-      gtk_spin_button_set_value (GTK_SPIN_BUTTON(S1),S1_BUTTON);
-      gtk_widget_show(S1);
-      gtk_grid_attach(GTK_GRID(grid2),S1,2,row,1,1);
-
-      row++;
-
-      b_enable_S2=gtk_check_button_new_with_label("Enable S2");
-      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_S2), ENABLE_S2_BUTTON);
-      gtk_widget_show(b_enable_S2);
-      gtk_grid_attach(GTK_GRID(grid),b_enable_S2,0,row,1,1);
-    
-      S2_label=gtk_label_new("GPIO:");
-      gtk_widget_show(S2_label);
-      gtk_grid_attach(GTK_GRID(grid),S2_label,1,row,1,1);
-  
-      S2=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-      gtk_spin_button_set_value (GTK_SPIN_BUTTON(S2),S2_BUTTON);
-      gtk_widget_show(S2);
-      gtk_grid_attach(GTK_GRID(grid),S2,2,row,1,1);
-  
-      row++;
-  
-      b_enable_S3=gtk_check_button_new_with_label("Enable S3");
-      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_S3), ENABLE_S3_BUTTON);
-      gtk_widget_show(b_enable_S3);
-      gtk_grid_attach(GTK_GRID(grid),b_enable_S3,0,row,1,1);
-    
-      S3_label=gtk_label_new("GPIO:");
-      gtk_widget_show(S3_label);
-      gtk_grid_attach(GTK_GRID(grid),S3_label,1,row,1,1);
-    
-      S3=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-      gtk_spin_button_set_value (GTK_SPIN_BUTTON(S3),S3_BUTTON);
-      gtk_widget_show(S3);
-      gtk_grid_attach(GTK_GRID(grid),S3,2,row,1,1);
-
-      row++;
-
-      b_enable_S4=gtk_check_button_new_with_label("Enable S4");
-      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_S4), ENABLE_S4_BUTTON);
-      gtk_widget_show(b_enable_S4);
-      gtk_grid_attach(GTK_GRID(grid2),b_enable_S4,0,row,1,1);
-    
-      S4_label=gtk_label_new("GPIO:");
-      gtk_widget_show(S4_label);
-      gtk_grid_attach(GTK_GRID(grid2),S4_label,1,row,1,1);
-    
-      S4=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-      gtk_spin_button_set_value (GTK_SPIN_BUTTON(S4),S4_BUTTON);
-      gtk_widget_show(S4);
-      gtk_grid_attach(GTK_GRID(grid2),S4,2,row,1,1);
-    
-      row++;
-    
-      b_enable_S5=gtk_check_button_new_with_label("Enable S5");
-      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_S5), ENABLE_S5_BUTTON);
-      gtk_widget_show(b_enable_S5);
-      gtk_grid_attach(GTK_GRID(grid2),b_enable_S5,0,row,1,1);
-  
-      S5_label=gtk_label_new("GPIO:");
-      gtk_widget_show(S5_label);
-      gtk_grid_attach(GTK_GRID(grid2),S5_label,1,row,1,1);
-    
-      S5=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-      gtk_spin_button_set_value (GTK_SPIN_BUTTON(S5),S5_BUTTON);
-      gtk_widget_show(S5);
-      gtk_grid_attach(GTK_GRID(grid2),S5,2,row,1,1);
-    
-      row++;
-    
-      b_enable_S6=gtk_check_button_new_with_label("Enable S6");
-      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_S6), ENABLE_S6_BUTTON);
-      gtk_widget_show(b_enable_S6);
-      gtk_grid_attach(GTK_GRID(grid2),b_enable_S6,0,row,1,1);
-    
-      S6_label=gtk_label_new("GPIO:");
-      gtk_widget_show(S6_label);
-      gtk_grid_attach(GTK_GRID(grid2),S6_label,1,row,1,1);
-    
-      S6=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-      gtk_spin_button_set_value (GTK_SPIN_BUTTON(S6),S6_BUTTON);
-      gtk_widget_show(S6);
-      gtk_grid_attach(GTK_GRID(grid2),S6,2,row,1,1);
-    
-      row++;
-    
-      b_enable_function=gtk_check_button_new_with_label("Enable Function");
-      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_function), ENABLE_FUNCTION_BUTTON);
-      gtk_widget_show(b_enable_function);
-      gtk_grid_attach(GTK_GRID(grid2),b_enable_function,0,row,1,1);
-    
-      function_label=gtk_label_new("GPIO:");
-      gtk_widget_show(function_label);
-      gtk_grid_attach(GTK_GRID(grid2),function_label,1,row,1,1);
-    
-      function=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-      gtk_spin_button_set_value (GTK_SPIN_BUTTON(function),FUNCTION_BUTTON);
-      gtk_widget_show(function);
-      gtk_grid_attach(GTK_GRID(grid2),function,2,row,1,1);
-
-      gtk_notebook_append_page(GTK_NOTEBOOK(notebook),grid2,gtk_label_new("Switches"));
-    } else {
-      char text[16];
-      GtkWidget *grid2=gtk_grid_new();
-      gtk_grid_set_column_spacing (GTK_GRID(grid2),10);
-      row=0;
-  
-      GtkWidget *label=gtk_label_new("I2C Device:");
-      gtk_widget_show(label);
-      gtk_grid_attach(GTK_GRID(grid2),label,0,row,1,1);
-  
-      i2c_device_text=gtk_entry_new();
-      gtk_widget_show(i2c_device_text);
-      gtk_entry_set_text (GTK_ENTRY(i2c_device_text),i2c_device);
-      gtk_grid_attach(GTK_GRID(grid2),i2c_device_text,1,row,1,1);
-     
-      label=gtk_label_new("I2C Address:");
-      gtk_widget_show(label);
-      gtk_grid_attach(GTK_GRID(grid2),label,2,row,1,1);
-  
-      i2c_address=gtk_entry_new();
-      sprintf(text,"0x%02X",i2c_address_1);
-      gtk_entry_set_text (GTK_ENTRY(i2c_address),text);
-      gtk_widget_show(i2c_address);
-      gtk_grid_attach(GTK_GRID(grid2),i2c_address,3,row,1,1);
-
-      row++;
-
-      for(int i=0;i<8;i++) {
-        sprintf(text,"SW_%d",i+2);
-        label=gtk_label_new(text);
-        gtk_widget_show(label);
-        gtk_grid_attach(GTK_GRID(grid2),label,0,row,1,1);
-
-        i2c_sw_text[i]=gtk_entry_new();
-        sprintf(text,"0x%04X",i2c_sw[i]);
-        gtk_entry_set_text (GTK_ENTRY(i2c_sw_text[i]),text);
-        gtk_widget_show(i2c_sw_text[i]);
-        gtk_grid_attach(GTK_GRID(grid2),i2c_sw_text[i],1,row,1,1);
-
-        sprintf(text,"SW_%d",i+10);
-        label=gtk_label_new(text);
-        gtk_widget_show(label);
-        gtk_grid_attach(GTK_GRID(grid2),label,2,row,1,1);
-
-        i2c_sw_text[i+8]=gtk_entry_new();
-        sprintf(text,"0x%04X",i2c_sw[i+8]);
-        gtk_entry_set_text (GTK_ENTRY(i2c_sw_text[i+8]),text);
-        gtk_widget_show(i2c_sw_text[i+8]);
-        gtk_grid_attach(GTK_GRID(grid2),i2c_sw_text[i+8],3,row,1,1);
-
-        row++;
-
-      }
-
-      gtk_notebook_append_page(GTK_NOTEBOOK(notebook),grid2,gtk_label_new("I2C"));
-    }
-
+  // Encoders
+  gint max_encoders=MAX_ENCODERS;
+  switch(controller) {
+    case NO_CONTROLLER:
+      max_encoders=0;
+      break;
+    case CONTROLLER1:
+      max_encoders=4;
+      break;
+    case CONTROLLER2_V1:
+      max_encoders=5;
+      break;
+    case CONTROLLER2_V2:
+      max_encoders=5;
+      break;
   }
 
-#ifdef LOCALCW
-  // CW
+  GtkWidget *grid=gtk_grid_new();
+  gtk_grid_set_column_homogeneous(GTK_GRID(grid),FALSE);
+  gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
+  gtk_grid_set_column_spacing (GTK_GRID(grid),2);
+  gtk_grid_set_row_spacing (GTK_GRID(grid),2);
 
-  GtkWidget *grid3=gtk_grid_new();
-  gtk_grid_set_column_spacing (GTK_GRID(grid3),10);
-  row=0;
 
-  cwl_label=gtk_label_new("CWL GPIO:");
-  gtk_widget_show(cwl_label);
-  gtk_grid_attach(GTK_GRID(grid3),cwl_label,0,row,1,1);
-
-  cwl=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(cwl),CWL_BUTTON);
-  gtk_widget_show(cwl);
-  gtk_grid_attach(GTK_GRID(grid3),cwl,1,row,1,1);
-
-  b_enable_cwlr=gtk_check_button_new_with_label("CWLR Enable");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_cwlr), ENABLE_CW_BUTTONS);
-  gtk_widget_show(b_enable_cwlr);
-  gtk_grid_attach(GTK_GRID(grid3),b_enable_cwlr,2,row,1,1);
+/*
+  widget=gtk_label_new(NULL);
+  gtk_label_set_markup (GTK_LABEL(widget), "<span foreground=\"#ff0000\"><b>Note: Pin number now use Broadcom GPIO</b></span>");
+  gtk_grid_attach(GTK_GRID(grid),widget,col,row,6,1);
 
   row++;
+  col=0;
+*/
+  widget=gtk_label_new("");
+  gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
+  col++;
 
-  cwr_label=gtk_label_new("CWR GPIO:");
-  gtk_widget_show(cwr_label);
-  gtk_grid_attach(GTK_GRID(grid3),cwr_label,0,row,1,1);
+  widget=gtk_label_new(NULL);
+  gtk_label_set_markup (GTK_LABEL(widget), controller==CONTROLLER2_V2?"<b>Bottom Encoder</b>":"<b>Encoder</b>");
+  gtk_grid_attach(GTK_GRID(grid),widget,col,row,2,1);
+  col+=2;
 
-  cwr=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(cwr),CWR_BUTTON);
-  gtk_widget_show(cwr);
-  gtk_grid_attach(GTK_GRID(grid3),cwr,1,row,1,1);
+  if(controller==CONTROLLER2_V2) {
+    widget=gtk_label_new(NULL);
+    gtk_label_set_markup (GTK_LABEL(widget), "<b>Top Encoder</b>");
+    gtk_grid_attach(GTK_GRID(grid),widget,col,row,2,1);
+    col+=2;
+  }
 
-  b_cw_active_low=gtk_check_button_new_with_label("CWLR active-low");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_cw_active_low), CW_ACTIVE_LOW);
-  gtk_widget_show(b_cw_active_low);
-  gtk_grid_attach(GTK_GRID(grid3),b_cw_active_low,2,row,1,1);
-
-  row++;
-
-  cws_label=gtk_label_new("  SideTone GPIO:");
-  gtk_widget_show(cws_label);
-  gtk_grid_attach(GTK_GRID(grid3),cws_label,0,row,1,1);
-
-  cws=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(cws),SIDETONE_GPIO);
-  gtk_widget_show(cws);
-  gtk_grid_attach(GTK_GRID(grid3),cws,1,row,1,1);
-
-  b_enable_cws=gtk_check_button_new_with_label("Enable");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_cws), ENABLE_GPIO_SIDETONE);
-  gtk_widget_show(b_enable_cws);
-  gtk_grid_attach(GTK_GRID(grid3),b_enable_cws,2,row,1,1);
-
-  gtk_notebook_append_page(GTK_NOTEBOOK(notebook),grid3,gtk_label_new("CW"));
-#endif
-
-#ifdef PTT
-  GtkWidget *grid4=gtk_grid_new();
-  gtk_grid_set_column_spacing (GTK_GRID(grid4),10);
-  row=0;
-
-  b_enable_ptt=gtk_check_button_new_with_label("PTT Enable");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_enable_ptt), ENABLE_PTT_GPIO);
-  gtk_widget_show(b_enable_ptt);
-  gtk_grid_attach(GTK_GRID(grid4),b_enable_ptt,0,row,1,1);
+  widget=gtk_label_new(NULL);
+  gtk_label_set_markup (GTK_LABEL(widget), "<b>Switch</b>");
+  gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
 
   row++;
+  col=0;
 
-  ptt_label=gtk_label_new("PTT GPIO:");
-  gtk_widget_show(ptt_label);
-  gtk_grid_attach(GTK_GRID(grid4),ptt_label,0,row,1,1);
+  widget=gtk_label_new(NULL);
+  gtk_label_set_markup (GTK_LABEL(widget), "<b>ID</b>");
+  gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
+  col++;
 
-  ptt=gtk_spin_button_new_with_range (0.0,100.0,1.0);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON(ptt),CWR_BUTTON);
-  gtk_widget_show(ptt);
-  gtk_grid_attach(GTK_GRID(grid4),ptt,1,row,1,1);
+  widget=gtk_label_new(NULL);
+  gtk_label_set_markup (GTK_LABEL(widget), "<b>Gpio A</b>");
+  gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
+  col++;
+
+  widget=gtk_label_new(NULL);
+  gtk_label_set_markup (GTK_LABEL(widget), "<b>Gpio B</b>");
+  gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
+  col++;
+
+  if(controller==CONTROLLER2_V2) {
+    widget=gtk_label_new(NULL);
+    gtk_label_set_markup (GTK_LABEL(widget), "<b>Gpio A</b>");
+    gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
+    col++;
+
+    widget=gtk_label_new(NULL);
+    gtk_label_set_markup (GTK_LABEL(widget), "<b>Gpio B</b>");
+    gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
+    col++;
+  }
+
+  widget=gtk_label_new(NULL);
+  gtk_label_set_markup (GTK_LABEL(widget), "<b>Gpio</b>");
+  gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
+  col++;
 
   row++;
+  col=0;
 
-  b_ptt_active_low=gtk_check_button_new_with_label("PTT active-low");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b_ptt_active_low), PTT_ACTIVE_LOW);
-  gtk_widget_show(b_ptt_active_low);
-  gtk_grid_attach(GTK_GRID(grid4),b_ptt_active_low,0,row,1,1);
+  for(i=0;i<max_encoders;i++) {
+    widget=gtk_label_new(NULL);
+    gchar id[16];
+    g_sprintf(id,"<b>%d</b>",i);
+    gtk_label_set_markup (GTK_LABEL(widget), id);
+    gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
+    col++;
 
-  gtk_notebook_append_page(GTK_NOTEBOOK(notebook),grid4,gtk_label_new("PTT"));
-#endif
+    widget=gtk_spin_button_new_with_range (0.0,28.0,1.0);
+    gtk_spin_button_set_value (GTK_SPIN_BUTTON(widget),encoders[i].bottom_encoder_address_a);
+    gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
+    col++;
+    
+    widget=gtk_spin_button_new_with_range (0.0,28.0,1.0);
+    gtk_spin_button_set_value (GTK_SPIN_BUTTON(widget),encoders[i].bottom_encoder_address_b);
+    gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
+    col++;
+    
+    if(controller==CONTROLLER2_V2 && i<(max_encoders-1)) {
+      widget=gtk_spin_button_new_with_range (0.0,28.0,1.0);
+      gtk_spin_button_set_value (GTK_SPIN_BUTTON(widget),encoders[i].top_encoder_address_a);
+      gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
+      col++;
+   
+      widget=gtk_spin_button_new_with_range (0.0,28.0,1.0);
+      gtk_spin_button_set_value (GTK_SPIN_BUTTON(widget),encoders[i].top_encoder_address_b);
+      gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
+      col++;
+    }
 
-  gtk_grid_attach(GTK_GRID(grid0),notebook,0,1,6,1);
-  gtk_container_add(GTK_CONTAINER(content),grid0);
+    if(i<(max_encoders-1)) {
+      widget=gtk_spin_button_new_with_range (0.0,28.0,1.0);
+      gtk_spin_button_set_value (GTK_SPIN_BUTTON(widget),encoders[i].switch_address);
+      gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
+      col++;
+    }
+
+    row++;
+    col=0;
+  }
+  gtk_notebook_append_page(GTK_NOTEBOOK(notebook),grid,gtk_label_new("Encoders"));
+
+
+  // switches
+  if(controller==CONTROLLER1) {
+    gint max_switches=MAX_SWITCHES;
+    switch(controller) {
+      case NO_CONTROLLER:
+        max_switches=0;
+        break;
+      case CONTROLLER1:
+        max_switches=8;
+        break;
+      case CONTROLLER2_V1:
+        max_switches=0;
+        break;
+      case CONTROLLER2_V2:
+        max_switches=0;
+        break;
+    }
+  
+    grid=gtk_grid_new();
+    gtk_grid_set_column_homogeneous(GTK_GRID(grid),FALSE);
+    gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
+    gtk_grid_set_column_spacing (GTK_GRID(grid),2);
+    gtk_grid_set_row_spacing (GTK_GRID(grid),2);
+
+    row=0;
+    col=0;
+  
+/*
+    widget=gtk_label_new(NULL);
+    gtk_label_set_markup (GTK_LABEL(widget), "<span foreground=\"#ff0000\"><b>Note: Pin number now use Broadcom GPIO</b></span>");
+    gtk_grid_attach(GTK_GRID(grid),widget,col,row,6,1);
+  
+    row++;
+    col=0;
+*/
+    for(i=0;i<max_switches/8;i++) {
+      widget=gtk_label_new(NULL);
+      gtk_label_set_markup (GTK_LABEL(widget), "<b>ID</b>");
+      gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
+      col++;
+    
+      widget=gtk_label_new(NULL);
+      gtk_label_set_markup (GTK_LABEL(widget), "<b>Gpio</b>");
+      gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
+      col++;
+    }
+  
+    row++;
+    col=0;
+  
+    for(i=0;i<max_switches;i++) {
+      widget=gtk_label_new(NULL);
+      gchar id[16];
+      g_sprintf(id,"<b>%d</b>",i);
+      gtk_label_set_markup (GTK_LABEL(widget), id);
+      gtk_grid_attach(GTK_GRID(grid),widget,(i/8)*2,(row+(i%8)),1,1);
+  
+      widget=gtk_spin_button_new_with_range (0.0,28.0,1.0);
+      gtk_spin_button_set_value (GTK_SPIN_BUTTON(widget),switches[i].switch_address);
+      gtk_grid_attach(GTK_GRID(grid),widget,((i/8)*2)+1,(row+(i%8)),1,1);
+    }
+    
+    gtk_notebook_append_page(GTK_NOTEBOOK(notebook),grid,gtk_label_new("switches"));
+  }
+
+  if(controller==CONTROLLER2_V1 || controller==CONTROLLER2_V2) {
+    grid=gtk_grid_new();
+    gtk_grid_set_column_homogeneous(GTK_GRID(grid),FALSE);
+    gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
+    gtk_grid_set_column_spacing (GTK_GRID(grid),2);
+    gtk_grid_set_row_spacing (GTK_GRID(grid),2);
+
+    row=0;
+    col=0;
+ 
+    char text[16];
+    grid=gtk_grid_new();
+    gtk_grid_set_column_spacing (GTK_GRID(grid),10);
+
+    widget=gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(widget),"<b>I2C Device</b>");
+    gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
+    col++;
+
+    widget=gtk_entry_new();
+    gtk_entry_set_text(GTK_ENTRY(widget),i2c_device);
+    gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
+    col++;
+
+    widget=gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(widget),"<b>I2C Address</b>");
+    gtk_widget_show(widget);
+    gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
+    col++;
+
+    widget=gtk_entry_new();
+    sprintf(text,"0x%02X",i2c_address_1);
+    gtk_entry_set_text(GTK_ENTRY(widget),text);
+    gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
+
+    row++;
+    col=0;
+
+    for(int i=0;i<8;i++) {
+      widget=gtk_label_new(NULL);
+      sprintf(text,"<b>SW_%d</b>",i+2);
+      gtk_label_set_markup(GTK_LABEL(widget),text);
+      gtk_grid_attach(GTK_GRID(grid),widget,0,row,1,1);
+
+      i2c_sw_text[i]=gtk_entry_new();
+      sprintf(text,"0x%04X",i2c_sw[i]);
+      gtk_entry_set_text (GTK_ENTRY(i2c_sw_text[i]),text);
+      gtk_grid_attach(GTK_GRID(grid),i2c_sw_text[i],1,row,1,1);
+
+      widget=gtk_label_new(NULL);
+      sprintf(text,"<b>SW_%d</b>",i+10);
+      gtk_label_set_markup(GTK_LABEL(widget),text);
+      gtk_grid_attach(GTK_GRID(grid),widget,2,row,1,1);
+
+      i2c_sw_text[i+8]=gtk_entry_new();
+      sprintf(text,"0x%04X",i2c_sw[i+8]);
+      gtk_entry_set_text (GTK_ENTRY(i2c_sw_text[i+8]),text);
+      gtk_grid_attach(GTK_GRID(grid),i2c_sw_text[i+8],3,row,1,1);
+
+      row++;
+    }
+    
+    gtk_notebook_append_page(GTK_NOTEBOOK(notebook),grid,gtk_label_new("i2c"));
+  }
+
+  gtk_container_add(GTK_CONTAINER(content),notebook);
 
   gtk_widget_show_all(dialog);
   gtk_dialog_run(GTK_DIALOG(dialog));
-
 }
 #endif
 

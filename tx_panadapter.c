@@ -35,6 +35,7 @@
 #include "tx_panadapter.h"
 #include "vfo.h"
 #include "mode.h"
+#include "actions.h"
 #ifdef GPIO
 #include "gpio.h"
 #endif
@@ -350,6 +351,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   cairo_set_line_width(cr, 1.0);
   cairo_stroke(cr);
 
+/*
 #ifdef GPIO
   if(controller==CONTROLLER1 && !duplex) {
     char text[64];
@@ -375,7 +377,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     }
   }
 #endif
-
+*/
 
 #ifdef PURESIGNAL
   if(tx->puresignal) {

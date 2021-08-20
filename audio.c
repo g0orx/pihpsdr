@@ -569,7 +569,7 @@ void audio_get_cards() {
   char *device_id;
   int card = -1;
 
-g_print("audio_get_cards\n");
+g_print("%s\n",__FUNCTION__);
 
   n_input_devices=0;
   n_output_devices=0;

@@ -32,6 +32,7 @@
 #ifdef CLIENT_SERVER
 #include "client_server.h"
 #endif
+#include "actions.h"
 
 static int width;
 static int height;
@@ -96,7 +97,7 @@ g_print("zoom_value_changed_cb\n");
 }
 
 void set_zoom(int rx,double value) {
-g_print("set_zoom: %f\n",value);
+//g_print("set_zoom: %f\n",value);
   receiver[rx]->zoom=value;
   if(display_zoompan) {
     gtk_range_set_value (GTK_RANGE(zoom_scale),receiver[rx]->zoom);
@@ -145,7 +146,7 @@ g_print("remote_set_zoom: EXIT\n");
 }
 
 void update_zoom(double zoom) {
-g_print("update_zoom: %f\n",zoom);
+//g_print("update_zoom: %f\n",zoom);
   int z=active_receiver->zoom+(int)zoom;
   if(z>MAX_ZOOM) z=MAX_ZOOM;
   if(z<1) z=1;

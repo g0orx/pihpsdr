@@ -42,7 +42,10 @@
 #include "channel.h"
 #include "discovered.h"
 #include "configure.h"
+#include "actions.h"
+#ifdef GPIO
 #include "gpio.h"
+#endif
 #include "wdsp.h"
 #include "new_menu.h"
 #include "radio.h"
@@ -59,6 +62,7 @@
 #endif
 #include "ext.h"
 #include "vfo.h"
+#include "css.h"
 
 struct utsname unameData;
 
@@ -83,7 +87,7 @@ static GtkWidget *status;
 void status_text(char *text) {
   //fprintf(stderr,"splash_status: %s\n",text);
   gtk_label_set_text(GTK_LABEL(status),text);
-  usleep(10000);
+  usleep(100000);
   while (gtk_events_pending ())
     gtk_main_iteration ();
 }
@@ -173,9 +177,13 @@ gboolean main_delete (GtkWidget *widget) {
 static int init(void *data) {
   char wisdom_directory[1024];
 
-  fprintf(stderr,"init\n");
+  g_print("%s\n",__FUNCTION__);
 
   audio_get_cards();
+
+  // wait for get_cards to complete
+  //g_mutex_lock(&audio_mutex);
+  //g_mutex_unlock(&audio_mutex);
 
   cursor_arrow=gdk_cursor_new(GDK_ARROW);
   cursor_watch=gdk_cursor_new(GDK_WATCH);
@@ -191,7 +199,7 @@ static int init(void *data) {
   char *c=getcwd(wisdom_directory, sizeof(wisdom_directory));
   strcpy(&wisdom_directory[strlen(wisdom_directory)],"/");
   fprintf(stderr,"Securing wisdom file in directory: %s\n", wisdom_directory);
-  status_text("Creating FFTW Wisdom file ...");
+  status_text("Checking FFTW Wisdom file ...");
   wisdom_running=1;
   pthread_create(&wisdom_thread_id, NULL, wisdom_thread, wisdom_directory);
   while (wisdom_running) {
@@ -201,6 +209,7 @@ static int init(void *data) {
       while (gtk_events_pending ()) {
         gtk_main_iteration ();
       }
+      status_text(wisdom_get_status());
   }
 
   g_idle_add(ext_discovery,NULL);
@@ -221,6 +230,8 @@ static void activate_pihpsdr(GtkApplication *app, gpointer data) {
   fprintf(stderr,"release: %s\n",unameData.release);
   fprintf(stderr,"version: %s\n",unameData.version);
   fprintf(stderr,"machine: %s\n",unameData.machine);
+
+  load_css();
 
   GdkScreen *screen=gdk_screen_get_default();
   if(screen==NULL) {

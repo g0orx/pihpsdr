@@ -31,6 +31,9 @@ extern int ext_remote_command(void *data);
 extern int ext_receiver_remote_update_display(void *data);
 #endif
 
+extern int ext_menu_filter(void *data);
+extern int ext_menu_mode(void *data);
+extern int ext_num_pad(void *data);
 extern void local_set_frequency(int v,long long f);
 extern int ext_discovery(void *data);
 extern int ext_vfo_update(void *data);
@@ -55,6 +58,7 @@ extern int ext_nr_update(void *data);
 extern int ext_nb_update(void *data);
 extern int ext_snb_update(void *data);
 extern int ext_anf_update(void *data);
+extern int ext_band_select(void *data);
 extern void band_plus(int id);
 extern int ext_band_plus(void *data);
 extern void band_minus(int id);

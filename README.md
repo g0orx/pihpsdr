@@ -3,9 +3,6 @@ Raspberry Pi 3 standalone code for HPSDR
 
 Supports both the old and new ethernet protocols.
 
-Download release/documentation/pihpsdr-install.pdf for instructions to install on RPi3.
+See the Wiki (https://github.com/g0orx/pihpsdr/wiki) for more information about building and running piHPSDR.
 
-wget https://github.com/g0orx/pihpsdr/blob/master/release/documentation/pihpsdr-install.pdf
-
-Full download using git into your HOME folder: 
-git clone https://github.com/g0orx/pihpsdr.git
+Note: the latest source code is in the gpiod branch.

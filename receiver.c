@@ -69,7 +69,7 @@ static int waterfall_resample=6;
 
 void receiver_weak_notify(gpointer data,GObject  *obj) {
   RECEIVER *rx=(RECEIVER *)data;
-  fprintf(stderr,"receiver_weak_notify: id=%d obj=%p\n",rx->id, obj);
+  g_print("%s: id=%d obj=%p\n",__FUNCTION__,rx->id, obj);
 }
 
 gboolean receiver_button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data) {
@@ -175,7 +175,7 @@ void receiver_save_state(RECEIVER *rx) {
   char name[128];
   char value[128];
 
-  g_print("receiver_save_state: %d\n",rx->id);
+  g_print("%s: %d\n",__FUNCTION__,rx->id);
   sprintf(name,"receiver.%d.audio_channel",rx->id);
   sprintf(value,"%d",rx->audio_channel);
   setProperty(name,value);
@@ -212,7 +212,11 @@ void receiver_save_state(RECEIVER *rx) {
     // for PS_RX_RECEIVER, *only* save the ALEX antenna setting
     // and then return quickly.
     //
-    if (rx->id == PS_RX_FEEDBACK) return;
+    if (rx->id == PS_RX_FEEDBACK
+#ifdef SOAPYSDR
+        && protocol!=SOAPYSDR_PROTOCOL
+#endif
+       ) return;
 #endif
 
     sprintf(name,"receiver.%d.sample_rate",rx->id);
@@ -258,9 +262,9 @@ void receiver_save_state(RECEIVER *rx) {
     sprintf(name,"receiver.%d.volume",rx->id);
     sprintf(value,"%f",rx->volume);
     setProperty(name,value);
-    sprintf(name,"receiver.%d.rf_gain",rx->id);
-    sprintf(value,"%f",rx->rf_gain);
-    setProperty(name,value);
+    //sprintf(name,"receiver.%d.rf_gain",rx->id);
+    //sprintf(value,"%f",rx->rf_gain);
+    //setProperty(name,value);
     sprintf(name,"receiver.%d.agc",rx->id);
     sprintf(value,"%d",rx->agc);
     setProperty(name,value);
@@ -344,7 +348,7 @@ void receiver_restore_state(RECEIVER *rx) {
   char name[128];
   char *value;
 
-fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
+g_print("%s: id=%d\n",__FUNCTION__,rx->id);
 
   sprintf(name,"receiver.%d.audio_channel",rx->id);
   value=getProperty(name);
@@ -385,7 +389,11 @@ fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
     // for PS_RX_RECEIVER, *only* restore the ALEX antenna and setting
     // and then return quickly
     //
-    if (rx->id == PS_RX_FEEDBACK) return;
+    if (rx->id == PS_RX_FEEDBACK
+#ifdef SOAPYSDR
+        && protocol!=SOAPYSDR_PROTOCOL
+#endif
+       ) return;
 #endif
 
     sprintf(name,"receiver.%d.sample_rate",rx->id);
@@ -452,9 +460,9 @@ fprintf(stderr,"receiver_restore_state: id=%d\n",rx->id);
     sprintf(name,"receiver.%d.volume",rx->id);
     value=getProperty(name);
     if(value) rx->volume=atof(value);
-    sprintf(name,"receiver.%d.rf_gain",rx->id);
-    value=getProperty(name);
-    if(value) rx->rf_gain=atof(value);
+    //sprintf(name,"receiver.%d.rf_gain",rx->id);
+    //value=getProperty(name);
+    //if(value) rx->rf_gain=atof(value);
     sprintf(name,"receiver.%d.agc",rx->id);
     value=getProperty(name);
     if(value) rx->agc=atoi(value);
@@ -549,12 +557,11 @@ void reconfigure_receiver(RECEIVER *rx,int height) {
 
   if(rx->display_panadapter) {
     if(rx->panadapter==NULL) {
-fprintf(stderr,"reconfigure_receiver: panadapter_init: width:%d height:%d\n",rx->width,myheight);
+g_print("%s: panadapter_init: width:%d height:%d\n",__FUNCTION__,rx->width,myheight);
       rx_panadapter_init(rx, rx->width,myheight);
       gtk_fixed_put(GTK_FIXED(rx->panel),rx->panadapter,0,y);  // y=0 here always
     } else {
        // set the size
-//fprintf(stderr,"reconfigure_receiver: panadapter set_size_request: width:%d height:%d\n",rx->width,myheight);
       gtk_widget_set_size_request(rx->panadapter, rx->width, myheight);
       // move the current one
       gtk_fixed_move(GTK_FIXED(rx->panel),rx->panadapter,0,y);
@@ -570,12 +577,12 @@ fprintf(stderr,"reconfigure_receiver: panadapter_init: width:%d height:%d\n",rx-
 
   if(rx->display_waterfall) {
     if(rx->waterfall==NULL) {
-fprintf(stderr,"reconfigure_receiver: waterfall_init: width:%d height:%d\n",rx->width,myheight);
+g_print("%s: waterfall_init: width:%d height:%d\n",__FUNCTION__,rx->width,myheight);
       waterfall_init(rx,rx->width,myheight);
       gtk_fixed_put(GTK_FIXED(rx->panel),rx->waterfall,0,y);  // y=0 if ONLY waterfall is present
     } else {
       // set the size
-fprintf(stderr,"reconfigure_receiver: waterfall set_size_request: width:%d height:%d\n",rx->width,myheight);
+g_print("%s: waterfall set_size_request: width:%d height:%d\n",__FUNCTION__,rx->width,myheight);
       gtk_widget_set_size_request(rx->waterfall, rx->width, myheight);
       // move the current one
       gtk_fixed_move(GTK_FIXED(rx->panel),rx->waterfall,0,y);
@@ -595,8 +602,6 @@ fprintf(stderr,"reconfigure_receiver: waterfall set_size_request: width:%d heigh
 static gint update_display(gpointer data) {
   RECEIVER *rx=(RECEIVER *)data;
   int rc;
-
-//g_print("update_display: rx=%d displaying=%d\n",rx->id,rx->displaying);
 
   if(rx->displaying) {
     if(rx->pixels>0) {
@@ -716,8 +721,6 @@ void set_agc(RECEIVER *rx, int agc) {
 }
 
 void set_offset(RECEIVER *rx,long long offset) {
-//fprintf(stderr,"set_offset: id=%d ofset=%lld\n",rx->id,offset);
-//fprintf(stderr,"set_offset: frequency=%lld ctun_freqeuncy=%lld offset=%lld\n",vfo[rx->id].frequency,vfo[rx->id].ctun_frequency,vfo[rx->id].offset);
   if(offset==0) {
     SetRXAShiftFreq(rx->id, (double)offset);
     RXANBPSetShiftFrequency(rx->id, (double)offset);
@@ -752,7 +755,7 @@ static void init_analyzer(RECEIVER *rx) {
 
     overlap = (int)fmax(0.0, ceil(fft_size - (double)rx->sample_rate / (double)rx->fps));
 
-    //g_print("SetAnalyzer id=%d buffer_size=%d overlap=%d\n",rx->id,rx->buffer_size,overlap);
+    //g_print("%s: id=%d buffer_size=%d overlap=%d\n",_FUNCTION__,rx->id,rx->buffer_size,overlap);
 
 
     SetAnalyzer(rx->id,
@@ -783,7 +786,7 @@ static void create_visual(RECEIVER *rx) {
   int y=0;
 
   rx->panel=gtk_fixed_new();
-fprintf(stderr,"receiver: create_visual: id=%d width=%d height=%d %p\n",rx->id, rx->width, rx->height, rx->panel);
+g_print("%s: id=%d width=%d height=%d %p\n",__FUNCTION__,rx->id, rx->width, rx->height, rx->panel);
   g_object_weak_ref(G_OBJECT(rx->panel),receiver_weak_notify,(gpointer)rx);
   gtk_widget_set_size_request (rx->panel, rx->width, rx->height);
 
@@ -796,14 +799,14 @@ fprintf(stderr,"receiver: create_visual: id=%d width=%d height=%d %p\n",rx->id, 
   }
 
   rx_panadapter_init(rx, rx->width,height);
-fprintf(stderr,"receiver: panadapter_init: height=%d y=%d %p\n",height,y,rx->panadapter);
+g_print("%s: panadapter height=%d y=%d %p\n",__FUNCTION__,height,y,rx->panadapter);
   g_object_weak_ref(G_OBJECT(rx->panadapter),receiver_weak_notify,(gpointer)rx);
   gtk_fixed_put(GTK_FIXED(rx->panel),rx->panadapter,0,y);
   y+=height;
 
   if(rx->display_waterfall) {
     waterfall_init(rx,rx->width,height);
-fprintf(stderr,"receiver: waterfall_init: height=%d y=%d %p\n",height,y,rx->waterfall);
+g_print("%ss: waterfall height=%d y=%d %p\n",__FUNCTION__,height,y,rx->waterfall);
     g_object_weak_ref(G_OBJECT(rx->waterfall),receiver_weak_notify,(gpointer)rx);
     gtk_fixed_put(GTK_FIXED(rx->panel),rx->waterfall,0,y);
   }
@@ -813,7 +816,7 @@ fprintf(stderr,"receiver: waterfall_init: height=%d y=%d %p\n",height,y,rx->wate
 
 #ifdef PURESIGNAL
 RECEIVER *create_pure_signal_receiver(int id, int buffer_size,int sample_rate,int width) {
-fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_size);
+g_print("%s: id=%d buffer_size=%d\n",__FUNCTION__,id,buffer_size);
   RECEIVER *rx=malloc(sizeof(RECEIVER));
   rx->id=id;
 
@@ -868,7 +871,7 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
   rx->panadapter_step=20;
 
   rx->volume=5.0;
-  rx->rf_gain=50.0;
+  //rx->rf_gain=50.0;
 
   rx->squelch_enable=0;
   rx->squelch=0;
@@ -897,7 +900,7 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
   rx->agc_slope=35.0;
   rx->agc_hang_threshold=0.0;
   
-  rx->playback_handle=NULL;
+  //rx->playback_handle=NULL;
   rx->local_audio_buffer=NULL;
   rx->local_audio_buffer_size=2048;
   rx->local_audio=0;
@@ -916,7 +919,7 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
   int result;
   XCreateAnalyzer(rx->id, &result, 262144, 1, 1, "");
   if(result != 0) {
-    fprintf(stderr, "XCreateAnalyzer id=%d failed: %d\n", rx->id, result);
+    g_print( "%s: XCreateAnalyzer id=%d failed: %d\n",__FUNCTION__, rx->id, result);
   } else {
     init_analyzer(rx);
   }
@@ -933,7 +936,7 @@ fprintf(stderr,"create_pure_signal_receiver: id=%d buffer_size=%d\n",id,buffer_s
 #endif
 
 RECEIVER *create_receiver(int id, int buffer_size, int fft_size, int pixels, int fps, int width, int height) {
-fprintf(stderr,"create_receiver: id=%d buffer_size=%d fft_size=%d pixels=%d fps=%d\n",id,buffer_size, fft_size, pixels, fps);
+g_print("%s: id=%d buffer_size=%d fft_size=%d pixels=%d fps=%d\n",__FUNCTION__,id,buffer_size, fft_size, pixels, fps);
   RECEIVER *rx=malloc(sizeof(RECEIVER));
   rx->id=id;
   g_mutex_init(&rx->mutex);
@@ -970,12 +973,13 @@ fprintf(stderr,"create_receiver: id=%d buffer_size=%d fft_size=%d pixels=%d fps=
           break;
       }
   }
-fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
+g_print("%s: id=%d default adc=%d\n",__FUNCTION__,rx->id, rx->adc);
 #ifdef SOAPYSDR
   if(radio->device==SOAPYSDR_USB_DEVICE) {
     rx->sample_rate=radio->info.soapy.sample_rate;
     rx->resampler=NULL;
     rx->resample_buffer=NULL;
+g_print("%s: id=%d sample_rate=%d\n",__FUNCTION__,rx->id, rx->sample_rate);
   } else {
 #endif
     rx->sample_rate=48000;
@@ -1004,7 +1008,7 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
   rx->waterfall_automatic=1;
 
   rx->volume=0.1;
-  rx->rf_gain=50.0;
+  //rx->rf_gain=50.0;
 
   rx->dither=0;
   rx->random=0;
@@ -1031,7 +1035,7 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
   rx->agc_slope=35.0;
   rx->agc_hang_threshold=0.0;
   
-  rx->playback_handle=NULL;
+  //rx->playback_handle=NULL;
   rx->local_audio=0;
   g_mutex_init(&rx->local_audio_mutex);
   rx->local_audio_buffer=NULL;
@@ -1068,21 +1072,21 @@ fprintf(stderr,"create_receiver: id=%d default adc=%d\n",rx->id, rx->adc);
   rx->pixel_samples=g_new(float,rx->pixels);
 
 
-fprintf(stderr,"create_receiver (after restore): rx=%p id=%d audio_buffer_size=%d local_audio=%d\n",rx,rx->id,rx->audio_buffer_size,rx->local_audio);
-  //rx->audio_buffer=g_new(guchar,rx->audio_buffer_size);
+g_print("%s (after restore): rx=%p id=%d audio_buffer_size=%d local_audio=%d\n",__FUNCTION__,rx,rx->id,rx->audio_buffer_size,rx->local_audio);
   int scale=rx->sample_rate/48000;
   rx->output_samples=rx->buffer_size/scale;
   rx->audio_output_buffer=g_new(gdouble,2*rx->output_samples);
 
-fprintf(stderr,"create_receiver: id=%d output_samples=%d\n",rx->id,rx->output_samples);
+g_print("%s: id=%d output_samples=%d audio_output_buffer=%p\n",__FUNCTION__,rx->id,rx->output_samples,rx->audio_output_buffer);
 
   rx->hz_per_pixel=(double)rx->sample_rate/(double)rx->pixels;
 
   // setup wdsp for this receiver
 
-fprintf(stderr,"create_receiver: id=%d after restore adc=%d\n",rx->id, rx->adc);
+g_print("%s: id=%d after restore adc=%d\n",__FUNCTION__,rx->id, rx->adc);
 
-fprintf(stderr,"create_receiver: OpenChannel id=%d buffer_size=%d fft_size=%d sample_rate=%d\n",
+g_print("%s: OpenChannel id=%d buffer_size=%d fft_size=%d sample_rate=%d\n",
+        __FUNCTION__,
         rx->id,
         rx->buffer_size,
         rx->fft_size,
@@ -1100,9 +1104,7 @@ fprintf(stderr,"create_receiver: OpenChannel id=%d buffer_size=%d fft_size=%d sa
   create_anbEXT(rx->id,1,rx->buffer_size,rx->sample_rate,0.0001,0.0001,0.0001,0.05,20);
   create_nobEXT(rx->id,1,0,rx->buffer_size,rx->sample_rate,0.0001,0.0001,0.0001,0.05,20);
   
-fprintf(stderr,"RXASetNC %d\n",rx->fft_size);
   RXASetNC(rx->id, rx->fft_size);
-fprintf(stderr,"RXASetMP %d\n",rx->low_latency);
   RXASetMP(rx->id, rx->low_latency);
 
   set_agc(rx, rx->agc);
@@ -1141,7 +1143,7 @@ fprintf(stderr,"RXASetMP %d\n",rx->low_latency);
   int result;
   XCreateAnalyzer(rx->id, &result, 262144, 1, 1, "");
   if(result != 0) {
-    fprintf(stderr, "XCreateAnalyzer id=%d failed: %d\n", rx->id, result);
+    g_print( "%s: XCreateAnalyzer id=%d failed: %d\n",__FUNCTION__,rx->id, result);
   } else {
     init_analyzer(rx);
   }
@@ -1153,9 +1155,11 @@ fprintf(stderr,"RXASetMP %d\n",rx->low_latency);
 
   create_visual(rx);
 
-fprintf(stderr,"create_receiver: rx=%p id=%d local_audio=%d\n",rx,rx->id,rx->local_audio);
+g_print("%s: rx=%p id=%d local_audio=%d\n",__FUNCTION__,rx,rx->id,rx->local_audio);
   if(rx->local_audio) {
-    audio_open_output(rx);
+    if(audio_open_output(rx)<0) {
+      rx->local_audio=0;
+    }
   }
 
   return rx;
@@ -1181,23 +1185,25 @@ void receiver_change_sample_rate(RECEIVER *rx,int sample_rate) {
   rx->output_samples=rx->buffer_size/scale;
   rx->hz_per_pixel=(double)rx->sample_rate/(double)rx->width;
 
-g_print("receiver_change_sample_rate: id=%d rate=%d scale=%d buffer_size=%d output_samples=%d\n",rx->id,sample_rate,scale,rx->buffer_size,rx->output_samples);
+g_print("%s: id=%d rate=%d scale=%d buffer_size=%d output_samples=%d\n",__FUNCTION__,rx->id,sample_rate,scale,rx->buffer_size,rx->output_samples);
 #ifdef PURESIGNAL
-  if (rx->id == PS_RX_FEEDBACK) {
-    if (protocol == ORIGINAL_PROTOCOL) {
-      rx->pixels = 2* scale * rx->width;
-    } else {
-      // We should never arrive here, since the sample rate of the
-      // PS feedback receiver is fixed.
-      rx->pixels = 8 * rx->width;
+  if(can_transmit/* && transmitter->puresignal*/) {
+    if (rx->id == PS_RX_FEEDBACK) {
+      if (protocol == ORIGINAL_PROTOCOL) {
+        rx->pixels = 2* scale * rx->width;
+      } else {
+        // We should never arrive here, since the sample rate of the
+        // PS feedback receiver is fixed.
+        rx->pixels = 8 * rx->width;
+      }
+      g_free(rx->pixel_samples);
+      rx->pixel_samples=g_new(float,rx->pixels);
+      init_analyzer(rx);
+      g_print("%s: PS FEEDBACK: id=%d rate=%d buffer_size=%d output_samples=%d\n",
+                     __FUNCTION__,rx->id, rx->sample_rate, rx->buffer_size, rx->output_samples);
+      g_mutex_unlock(&rx->mutex);
+      return;
     }
-    g_free(rx->pixel_samples);
-    rx->pixel_samples=g_new(float,rx->pixels);
-    init_analyzer(rx);
-    fprintf(stderr,"PS FEEDBACK change sample rate:id=%d rate=%d buffer_size=%d output_samples=%d\n",
-                   rx->id, rx->sample_rate, rx->buffer_size, rx->output_samples);
-    g_mutex_unlock(&rx->mutex);
-    return;
   }
 #endif
   if (rx->audio_output_buffer != NULL) {
@@ -1221,7 +1227,7 @@ g_print("receiver_change_sample_rate: id=%d rate=%d scale=%d buffer_size=%d outp
 
   g_mutex_unlock(&rx->mutex);
 
-fprintf(stderr,"receiver_change_sample_rate: id=%d rate=%d buffer_size=%d output_samples=%d\n",rx->id, rx->sample_rate, rx->buffer_size, rx->output_samples);
+g_print("%s: id=%d rate=%d buffer_size=%d output_samples=%d\n",__FUNCTION__,rx->id, rx->sample_rate, rx->buffer_size, rx->output_samples);
 }
 
 void receiver_frequency_changed(RECEIVER *rx) {
@@ -1312,6 +1318,9 @@ static void process_rx_buffer(RECEIVER *rx) {
   gdouble left_sample,right_sample;
   short left_audio_sample,right_audio_sample;
   int i;
+
+  //g_print("%s: rx=%p id=%d output_samples=%d audio_output_buffer=%p\n",__FUNCTION__,rx,rx->id,rx->output_samples,rx->audio_output_buffer);
+
   for(i=0;i<rx->output_samples;i++) {
     if(isTransmitting() && (!duplex || mute_rx_while_transmitting)) {
       left_sample=0.0;
@@ -1399,6 +1408,7 @@ static void process_rx_buffer(RECEIVER *rx) {
 void full_rx_buffer(RECEIVER *rx) {
   int error;
 
+  //g_print("%s: rx=%p\n",__FUNCTION__,rx);
   g_mutex_lock(&rx->mutex);
 
   // noise blanker works on original IQ samples
@@ -1411,7 +1421,6 @@ void full_rx_buffer(RECEIVER *rx) {
 
   fexchange0(rx->id, rx->iq_input_buffer, rx->audio_output_buffer, &error);
   if(error!=0) {
-    //fprintf(stderr,"full_rx_buffer: id=%d fexchange0: error=%d\n",rx->id,error);
     rx->fexchange_errors++;
   }
 
@@ -1421,7 +1430,6 @@ void full_rx_buffer(RECEIVER *rx) {
     g_mutex_unlock(&rx->display_mutex);
   }
 
-//g_print("full_rx_buffer: rx=%d buffer_size=%d samples=%d\n",rx->id,rx->buffer_size,rx->samples);
   process_rx_buffer(rx);
   g_mutex_unlock(&rx->mutex);
 }
@@ -1453,7 +1461,6 @@ void add_div_iq_samples(RECEIVER *rx, double i0, double q0, double i1, double q1
 }
 
 void receiver_change_zoom(RECEIVER *rx,double zoom) {
-g_print("receiver_change_zoom: %d %f\n",rx->id,zoom);
   rx->zoom=(int)zoom;
   rx->pixels=rx->width*rx->zoom;
   rx->hz_per_pixel=(double)rx->sample_rate/(double)rx->pixels;
@@ -1480,7 +1487,6 @@ g_print("receiver_change_zoom: %d %f\n",rx->id,zoom);
 #ifdef CLIENT_SERVER
   }
 #endif
-g_print("receiver_change_zoom: pixels=%d zoom=%d pan=%d\n",rx->pixels,rx->zoom,rx->pan);
 }
 
 void receiver_change_pan(RECEIVER *rx,double pan) {
