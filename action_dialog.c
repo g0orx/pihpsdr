@@ -18,7 +18,7 @@ static int action;
 static void action_select_cb(GtkWidget *widget,gpointer data) {
   CHOICE *choice=(CHOICE *)data;
   g_signal_handler_block(G_OBJECT(previous_button),previous_signal_id);
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(previous_button),FALSE);
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(previous_button),widget==previous_button);
   g_signal_handler_unblock(G_OBJECT(previous_button),previous_signal_id);
   previous_button=widget;
   previous_signal_id=choice->signal_id;
