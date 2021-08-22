@@ -87,7 +87,7 @@ static GtkWidget *status;
 void status_text(char *text) {
   //fprintf(stderr,"splash_status: %s\n",text);
   gtk_label_set_text(GTK_LABEL(status),text);
-  usleep(10000);
+  usleep(100000);
   while (gtk_events_pending ())
     gtk_main_iteration ();
 }
