@@ -176,7 +176,6 @@ gboolean main_delete (GtkWidget *widget) {
 
 static int init(void *data) {
   char wisdom_directory[1024];
-  int counter;
 
   g_print("%s\n",__FUNCTION__);
 
@@ -200,23 +199,17 @@ static int init(void *data) {
   char *c=getcwd(wisdom_directory, sizeof(wisdom_directory));
   strcpy(&wisdom_directory[strlen(wisdom_directory)],"/");
   g_print("Securing wisdom file in directory: %s\n", wisdom_directory);
+  status_text("Checking FFTW Wisdom file ...");
   wisdom_running=1;
-  counter=0;
   pthread_create(&wisdom_thread_id, NULL, wisdom_thread, wisdom_directory);
   while (wisdom_running) {
-      if (counter++ < 10) {
-        status_text("Checking FFTW Wisdom file ...");
-      } else {
-	// if it takes longer than 1 sec, assume that WDSP
-	// is (re-) creating the wisdom file
-        status_text("Creating FFTW Wisdom file ...");
-      }
       // wait for the wisdom thread to complete, meanwhile
       // handling any GTK events.
       usleep(100000); // 100ms
       while (gtk_events_pending ()) {
         gtk_main_iteration ();
       }
+      status_text(wisdom_get_status());
   }
 
   g_idle_add(ext_discovery,NULL);
