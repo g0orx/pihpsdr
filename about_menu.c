@@ -57,7 +57,7 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 
 void about_menu(GtkWidget *parent) {
   char text[2048];
-  char line[256];
+  char line[128];
   char addr[64];
   char interface_addr[64];
 

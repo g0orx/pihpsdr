@@ -766,7 +766,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           if(command[4]==';') {
             // read the step size
             int i=0;
-            for(i=0;i<STEPS;i++) {
+            for(i=0;i<=14;i++) {
               if(steps[i]==step) break;
             }
             if(i<=14) {
@@ -777,7 +777,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           } else if(command[6]==';') {
             // set the step size
             int i=atoi(&command[4]) ;
-            if(i>=0 && i<STEPS) {
+            if(i>=0 && i<=14) {
               step=steps[i];
               vfo_update();
             }
@@ -789,7 +789,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           if(command[6]==';') {
             int step_index=atoi(&command[4]);
             long long hz=0;
-            if(step_index>=0 && step_index<STEPS) {
+            if(step_index>=0 && step_index<=14) {
               hz=(long long)steps[step_index];
             }
             if(hz!=0LL) {
@@ -862,7 +862,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           if(command[6]==';') {
             int step_index=atoi(&command[4]);
             long long hz=0;
-            if(step_index>=0 && step_index<STEPS) {
+            if(step_index>=0 && step_index<=14) {
               hz=(long long)steps[step_index];
             }
             if(hz!=0LL) {
@@ -926,7 +926,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           if(command[6]==';') {
             int step_index=atoi(&command[4]);
             long long hz=0;
-            if(step_index>=0 && step_index<STEPS) {
+            if(step_index>=0 && step_index<=14) {
               hz=(long long)steps[step_index];
             }
             if(hz!=0LL) {
@@ -941,7 +941,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           if(command[6]==';') {
             int step_index=atoi(&command[4]);
             long long hz=0;
-            if(step_index>=0 && step_index<STEPS) {
+            if(step_index>=0 && step_index<=14) {
               hz=(long long)steps[step_index];
             }
             if(hz!=0LL) {

@@ -237,7 +237,7 @@ SWITCH switches_controller1[MAX_FUNCTIONS][MAX_SWITCHES]={
   {{TRUE,TRUE,27,MOX,0L},
    {TRUE,TRUE,13,MENU_FREQUENCY,0L},
    {TRUE,TRUE,12,MENU_MEMORY,0L},
-   {TRUE,TRUE,6,RIT_ENABLE,0L},
+   {TRUE,TRUE,6,RIT,0L},
    {TRUE,TRUE,5,RIT_PLUS,0L},
    {TRUE,TRUE,24,RIT_MINUS,0L},
    {TRUE,TRUE,23,RIT_CLEAR,0L},
@@ -253,7 +253,7 @@ SWITCH switches_controller1[MAX_FUNCTIONS][MAX_SWITCHES]={
   {{TRUE,TRUE,27,MOX,0L},
    {TRUE,TRUE,13,MENU_FREQUENCY,0L},
    {TRUE,TRUE,12,MENU_MEMORY,0L},
-   {TRUE,TRUE,6,XIT_ENABLE,0L},
+   {TRUE,TRUE,6,XIT,0L},
    {TRUE,TRUE,5,XIT_PLUS,0L},
    {TRUE,TRUE,24,XIT_MINUS,0L},
    {TRUE,TRUE,23,XIT_CLEAR,0L},
@@ -1088,7 +1088,6 @@ void gpio_close() {
 void gpio_cw_sidetone_set(int level) {
   int rc;
   if (ENABLE_GPIO_SIDETONE) {
-#ifdef GPIO
 #ifdef OLD_GPIOD
     if((rc=gpiod_ctxless_set_value(gpio_device,SIDETONE_GPIO,level,FALSE,consumer,NULL,NULL))<0) {
 #else
@@ -1096,8 +1095,13 @@ void gpio_cw_sidetone_set(int level) {
 #endif
       g_print("%s: err=%d\n",__FUNCTION__,rc);
     }
-#endif
   }
+}
+
+int  gpio_left_cw_key() {
+}
+
+int  gpio_right_cw_key() {
 }
 
 int  gpio_cw_sidetone_enabled() {

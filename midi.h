@@ -207,7 +207,7 @@ typedef struct _old_action_table {
   enum ACTIONtype type;
 } OLD_ACTION_TABLE;
 
-extern OLD_ACTION_TABLE OLD_ActionTable[];
+extern ACTION_TABLE ActionTable[];
 
 //
 // There is linked list of all specified MIDI events for a given "Note" value,

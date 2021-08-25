@@ -51,8 +51,7 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 }
 
 static void step_select_cb (GtkToggleButton *widget, gpointer        data) {
-  int val=GPOINTER_TO_INT(data);
-  if(gtk_toggle_button_get_active(widget) && val >= 0 && val<STEPS) {
+  if(gtk_toggle_button_get_active(widget)) {
     step=steps[GPOINTER_TO_INT(data)];
     g_idle_add(ext_vfo_update,NULL);
   }
@@ -87,7 +86,8 @@ void step_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
   GtkWidget *step_rb=NULL;
-  for (int i=0; i<STEPS; i++) {
+  int i=0;
+  while(steps[i]!=0) {
     if(i==0) {
       step_rb=gtk_radio_button_new_with_label(NULL,step_labels[i]);
     } else {
@@ -98,6 +98,7 @@ void step_menu(GtkWidget *parent) {
     gtk_widget_show(step_rb);
     gtk_grid_attach(GTK_GRID(grid),step_rb,i%5,1+(i/5),1,1);
     g_signal_connect(step_rb,"toggled",G_CALLBACK(step_select_cb),(gpointer)(long)i);
+    i++;
   }
 
   gtk_container_add(GTK_CONTAINER(content),grid);

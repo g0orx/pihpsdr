@@ -265,26 +265,24 @@ int ext_tx_set_ps(void *data) {
 int ext_update_vfo_step(void *data) {
   int direction=GPOINTER_TO_INT(data);
   int i;
-
-  for (i=0; i<STEPS; i++) {
-    if (steps[i] == step) break;
+  for(i=0;i<STEPS;i++) {
+    if(steps[i]==step) break;
   }
-  //
-  // This should not happen (step size not found). If it happens,
-  // take the seond-smallest one such that the step size remains 
-  // small after changing it.
-  //
-  if (i >= STEPS) i=1;
+  if(step>=STEPS) i=0;
 
-  if (direction > 0) {
-    i++;
-  } else {
-    i--;
+  if(steps[i]!=0) {
+    if(direction>0) {
+      i++;
+      if(steps[i]!=0) {
+        step=steps[i];
+      }
+    } else {
+      i--;
+      if(i>=0) {
+        step=steps[i];
+      }
+    }
   }
-  if (i >= STEPS) i=STEPS-1;
-  if (i < 0     ) i=0;
-  step=steps[i];
-
   g_idle_add(ext_vfo_update, NULL);
   return 0;
 }

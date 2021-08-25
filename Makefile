@@ -54,9 +54,9 @@ LINK=gcc
 
 ifeq ($(MIDI_INCLUDE),MIDI)
 MIDI_OPTIONS=-D MIDI
-MIDI_HEADERS= midi.h midi_menu.h alsa_midi.h
+MIDI_HEADERS= midi.h midi_menu.h
 ifeq ($(UNAME_S), Darwin)
-MIDI_SOURCES= mac_midi.c midi2.c midi3.c midi_menu.c
+MIDI_SOURCES= mac_midi.c midi2.c midi3.c
 MIDI_OBJS= mac_midi.o midi2.o midi3.o midi_menu.o
 MIDI_LIBS= -framework CoreMIDI -framework Foundation
 endif
@@ -129,12 +129,30 @@ PTT_OPTIONS=-D PTT
 endif
 
 ifeq ($(GPIO_INCLUDE),GPIO)
-GPIO_OPTIONS=-D GPIO
 GPIOD_VERSION=$(shell pkg-config --modversion libgpiod)
 ifeq ($(GPIOD_VERSION),1.2)
-GPIO_OPTIONS += -D OLD_GPIOD
+GPIOD_OPTIONS=-D OLD_GPIOD
 endif
+GPIO_OPTIONS=-D GPIO
 GPIO_LIBS=-lgpiod -li2c
+GPIO_SOURCES= \
+  configure.c \
+  i2c.c \
+  gpio.c \
+  encoder_menu.c \
+  switch_menu.c
+GPIO_HEADERS= \
+  configure.h \
+  i2c.h \
+  gpio.h \
+  encoder_menu.h \
+  switch_menu.h
+GPIO_OBJS= \
+  configure.o \
+  i2c.o \
+  gpio.o \
+  encoder_menu.o \
+  switch_menu.o
 endif
 
 #
@@ -189,7 +207,7 @@ endif
 //CFLAGS=	-g -Wno-deprecated-declarations -O3
 CFLAGS=	-g -Wno-deprecated-declarations
 OPTIONS=$(SMALL_SCREEN_OPTIONS) $(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) \
-	$(GPIO_OPTIONS) $(SOAPYSDR_OPTIONS) $(LOCALCW_OPTIONS) \
+	$(GPIO_OPTIONS) $(GPIOD_OPTIONS) $(SOAPYSDR_OPTIONS) $(LOCALCW_OPTIONS) \
 	$(STEMLAB_OPTIONS) \
         $(PTT_OPTIONS) \
 	$(SERVER_OPTIONS) \

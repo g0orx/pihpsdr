@@ -387,12 +387,8 @@ static gboolean vfo_cb (GtkWidget *widget, GdkEventButton *event, gpointer data)
 }
 
 void start_store() {
-  int old_menu=active_menu;
   cleanup();
-  if (old_menu != STORE_MENU) {
-    store_menu(top_window);
-    active_menu=STORE_MENU;
-  }
+  store_menu(top_window);
 }
 
 static gboolean store_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
