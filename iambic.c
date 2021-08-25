@@ -238,14 +238,6 @@ extern int clock_nanosleep(clockid_t __clock_id, int __flags,
       struct timespec *__rem);
 #endif
 
-#ifndef GPIO
-//
-// Dummy functions if compiled without GPIO
-//
-int gpio_cw_sidetone_enabled() { return 0; }
-void gpio_cw_sidetone_set(int level) {}
-#endif
-
 void keyer_update() {
     //
     // This function will take notice of changes in the following variables
