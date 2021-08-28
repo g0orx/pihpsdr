@@ -1529,24 +1529,23 @@ void ozy_send_buffer() {
             power=transmitter->drive_level;
           }
           if (device == DEVICE_HERMES_LITE2) {
-            //
-            // from the "intended" drive level power, calculate the
-            // next lower TX attenuation which can be from 0.0 to -7.5 dB
-            // in 0.5 dB steps, encode the step in a four-bit word and shift
-            // it to the upper 4 bits.
-            // we always use the att level that produces a little bit *less* attenuation
-            // than required, and down-scale the IQ samples in transmitter.c
-            //
-            // NOTE: this down-scaling does not occur when connecting a CW key to the HL2
-            //       and using "internal" CW, because in this case the IQ samples are
-            //       generated in the FPGA. A typical symptom is that the CW signals are
-            //       stronger than the "TUNE" signal, and in the case of very low drive slider
-            //       values they can be *much* stronger.
+	    //
+	    // from the "intended" drive level power, calculate the
+	    // next lower TX attenuation which can be from 0.0 to -7.5 dB
+	    // in 0.5 dB steps, encode the step in a four-bit word and shift
+	    // it to the upper 4 bits.
+	    // we always use the att level that produces a little bit *less* attenuation
+	    // than required, and down-scale the IQ samples in transmitter.c
+	    //
+	    // NOTE: this down-scaling does not occur when connecting a CW key to the HL2
+	    //       and using "internal" CW, because in this case the IQ samples are
+	    //       generated in the FPGA. A typical symptom is that the CW signals are
+	    //       stronger than the "TUNE" signal, and in the case of very low drive slider
+	    //       values they can be *much* stronger.
 	    //
 	    // NOTE: When using predistortion (PURESIGNAL), the IQ scaling must be switched off.
 	    //       In this case, the output  power can also be stronger than intended.
-            //
-
+	    //
             if (power > 0) {
               int hl2power = 15+(int)lround(ceil(40.0 * log10((double) power / 255.0)));
               if (hl2power < 0) hl2power=0;
