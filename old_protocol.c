@@ -761,6 +761,7 @@ static long long channel_freq(int chan) {
       }
     }
   }
+  freq+=calibration;
   return freq;
 }
 
@@ -1545,6 +1546,7 @@ void ozy_send_buffer() {
 	    // NOTE: When using predistortion (PURESIGNAL), the IQ scaling must be switched off.
 	    //       In this case, the output  power can also be stronger than intended.
             //
+
             if (power > 0) {
               int hl2power = 15+(int)lround(ceil(40.0 * log10((double) power / 255.0)));
               if (hl2power < 0) hl2power=0;

@@ -20,109 +20,66 @@
 #ifndef _GPIO_H
 #define _GPIO_H
 
-enum {
-  CONTROLLER1_SW1=0,
-  CONTROLLER1_SW2,
-  CONTROLLER1_SW3,
-  CONTROLLER1_SW4,
-  CONTROLLER1_SW5,
-  CONTROLLER1_SW6,
-  CONTROLLER1_SW7,
-  CONTROLLER1_SW8,
-  CONTROLLER1_SWITCHES
-};
+#define MAX_ENCODERS 5
+#define MAX_SWITCHES 16
+#define MAX_FUNCTIONS 6
 
-enum {
-  CONTROLLER2_SW2=0,
-  CONTROLLER2_SW3,
-  CONTROLLER2_SW4,
-  CONTROLLER2_SW5,
-  CONTROLLER2_SW6,
-  CONTROLLER2_SW7,
-  CONTROLLER2_SW8,
-  CONTROLLER2_SW9,
-  CONTROLLER2_SW10,
-  CONTROLLER2_SW11,
-  CONTROLLER2_SW12,
-  CONTROLLER2_SW13,
-  CONTROLLER2_SW14,
-  CONTROLLER2_SW15,
-  CONTROLLER2_SW16,
-  CONTROLLER2_SW17,
-  CONTROLLER2_SWITCHES
-};
+typedef struct _encoder {
+  gboolean bottom_encoder_enabled;
+  gboolean bottom_encoder_pullup;
+  gint bottom_encoder_address_a;
+  gint bottom_encoder_a_value;
+  gint bottom_encoder_address_b;
+  gint bottom_encoder_b_value;
+  gint bottom_encoder_pos;
+  gint bottom_encoder_function;
+  guchar bottom_encoder_state;
+  gint top_encoder_enabled;
+  gboolean top_encoder_pullup;
+  gint top_encoder_address_a;
+  gint top_encoder_a_value;
+  gint top_encoder_address_b;
+  gint top_encoder_b_value;
+  gint top_encoder_pos;
+  gint top_encoder_function;
+  guchar top_encoder_state;
+  gboolean switch_enabled;
+  gboolean switch_pullup;
+  gint switch_address;
+  gint switch_function;
+  gulong switch_debounce;
+} ENCODER;
+
+extern ENCODER *encoders;
+
+typedef struct _switch {
+  gboolean switch_enabled;
+  gboolean switch_pullup;
+  gint switch_address;
+  gint switch_function;
+  gulong switch_debounce;
+} SWITCH;
+
+extern SWITCH switches_no_controller[MAX_SWITCHES];
+extern SWITCH switches_controller1[MAX_FUNCTIONS][MAX_SWITCHES];
+extern SWITCH switches_controller2_v1[MAX_SWITCHES];
+extern SWITCH switches_controller2_v2[MAX_SWITCHES];
+
+extern SWITCH *switches;
 
 extern int *sw_action;
 
-extern int settle_time;
+extern long settle_time;
 
+extern int process_function_switch(void *data);
+extern void gpio_set_defaults(int ctrlr);
+extern void gpio_restore_actions();
+extern void gpio_restore_state();
+extern void gpio_save_state();
+extern void gpio_save_actions();
+extern int gpio_init();
+extern void gpio_close();
 
-extern int e2_encoder_action;
-extern int e3_encoder_action;
-extern int e4_encoder_action;
-extern int e5_encoder_action;
-
-extern int e2_top_encoder_action;
-extern int e3_top_encoder_action;
-extern int e4_top_encoder_action;
-extern int e5_top_encoder_action;
-
-extern int e2_sw_action;
-extern int e3_sw_action;
-extern int e4_sw_action;
-extern int e5_sw_action;
-
-// uses wiringpi pin numbers
-extern int ENABLE_VFO_ENCODER;
-extern int ENABLE_VFO_PULLUP;
-extern int VFO_ENCODER_A;
-extern int VFO_ENCODER_B;
-extern int ENABLE_E2_ENCODER;
-extern int ENABLE_E2_PULLUP;
-extern int E2_ENCODER_A;
-extern int E2_ENCODER_B;
-extern int E2_TOP_ENCODER_A;
-extern int E2_TOP_ENCODER_B;
-extern int E2_FUNCTION;
-extern int ENABLE_E3_ENCODER;
-extern int ENABLE_E3_PULLUP;
-extern int E3_ENCODER_A;
-extern int E3_ENCODER_B;
-extern int E3_TOP_ENCODER_A;
-extern int E3_TOP_ENCODER_B;
-extern int E3_FUNCTION;
-extern int ENABLE_E4_ENCODER;
-extern int ENABLE_E4_PULLUP;
-extern int E4_ENCODER_A;
-extern int E4_ENCODER_B;
-extern int E4_TOP_ENCODER_A;
-extern int E4_TOP_ENCODER_B;
-extern int E4_FUNCTION;
-extern int ENABLE_E5_ENCODER;
-extern int ENABLE_E5_PULLUP;
-extern int E5_ENCODER_A;
-extern int E5_ENCODER_B;
-extern int E5_TOP_ENCODER_A;
-extern int E5_TOP_ENCODER_B;
-extern int E5_FUNCTION;
-
-extern int ENABLE_S1_BUTTON;
-extern int S1_BUTTON;
-extern int ENABLE_S2_BUTTON;
-extern int S2_BUTTON;
-extern int ENABLE_S3_BUTTON;
-extern int S3_BUTTON;
-extern int ENABLE_S4_BUTTON;
-extern int S4_BUTTON;
-extern int ENABLE_S5_BUTTON;
-extern int S5_BUTTON;
-extern int ENABLE_S6_BUTTON;
-extern int S6_BUTTON;
-
-extern int ENABLE_MOX_BUTTON;
-extern int MOX_BUTTON;
-extern int ENABLE_FUNCTION_BUTTON;
-extern int FUNCTION_BUTTON;
 #ifdef LOCALCW
 extern int CWL_BUTTON;
 extern int CWR_BUTTON;
@@ -131,34 +88,7 @@ extern int ENABLE_GPIO_SIDETONE;
 extern int ENABLE_CW_BUTTONS;
 extern int CW_ACTIVE_LOW;
 extern void gpio_cw_sidetone_set(int level);
-extern int  gpio_left_cw_key();
-extern int  gpio_right_cw_key();
 extern int  gpio_cw_sidetone_enabled();
 #endif
-
-#ifdef PTT
-extern int ENABLE_PTT_GPIO;
-extern int PTT_GPIO;
-extern int PTT_ACTIVE_LOW;
-#endif
-
-extern void gpio_set_defaults(int ctrlr);
-extern void gpio_restore_actions();
-extern void gpio_restore_state();
-extern void gpio_save_state();
-extern void gpio_save_actions();
-extern int gpio_init();
-extern void gpio_close();
-extern int vfo_encoder_get_pos();
-extern int af_encoder_get_pos();
-extern int af_function_get_state();
-extern int rf_encoder_get_pos();
-extern int rf_function_get_state();
-extern int function_get_state();
-extern int band_get_state();
-extern int mode_get_state();
-extern int filter_get_state();
-extern int noise_get_state();
-extern int mox_get_state();
 
 #endif

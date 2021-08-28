@@ -34,6 +34,7 @@
 #include "adc.h"
 #include "dac.h"
 #include "radio.h"
+#include "actions.h"
 #include "midi.h"
 #include "alsa_midi.h"
 #include "new_menu.h"
@@ -101,8 +102,8 @@ static GtkWidget *set_rgt1, *set_rgt2;
 static GtkWidget *set_fr1,  *set_fr2;
 static GtkWidget *set_vfr1, *set_vfr2;
 
-static enum MIDItype thisType;
-static enum MIDIaction thisAction;
+static enum ACTIONtype thisType;
+static int thisAction;
 
 static gboolean accept_any=FALSE;
 
@@ -273,7 +274,7 @@ static void tree_selection_changed_cb (GtkTreeSelection *selection, gpointer dat
         if (!strncmp(str_channel,"Any", 3)) {
           thisChannel=-1;
         } else {
-          thisChannel=atoi(str_channel)-1;   // MIDI channels 1-16 are encoded as 0-15
+          thisChannel=atoi(str_channel);
         }
         thisNote=atoi(str_note);
         thisVal=0;
@@ -288,9 +289,9 @@ static void tree_selection_changed_cb (GtkTreeSelection *selection, gpointer dat
         } else {
           thisType=TYPE_NONE;
         }
-        thisAction=MIDI_ACTION_NONE;
+        thisAction=NO_ACTION;
         int i=0;
-        while(ActionTable[i].action!=MIDI_ACTION_LAST) {
+        while(ActionTable[i].action!=ACTIONS) {
           if(strcmp(ActionTable[i].str,str_action)==0) {
             thisAction=ActionTable[i].action;
             break;
@@ -503,7 +504,7 @@ static void add_store(int key,struct desc *cmd) {
       break;
   }
   if (cmd->channel >= 0) {
-    sprintf(str_channel,"%d",cmd->channel+1); // MIDI channels go from 1 to 16  
+    sprintf(str_channel,"%d",cmd->channel);
   } else {
     sprintf(str_channel,"%s","Any");
   }
@@ -520,6 +521,10 @@ static void add_store(int key,struct desc *cmd) {
       break;
     case MIDI_WHEEL:
       strcpy(str_type,"WHEEL");
+      break;
+    default:
+      // Controlle types cannot arise here
+      strcpy(str_type,"ERROR");
       break;
   }
   // ATTENTION: this assumes ActionTable is sorted by action enum
@@ -583,9 +588,9 @@ static void add_cb(GtkButton *widget,gpointer user_data) {
     str_action="NONE";
   }
 
-  action=MIDI_ACTION_NONE;
+  action=NO_ACTION;
   i=0;
-  while(ActionTable[i].action!=MIDI_ACTION_LAST) {
+  while(ActionTable[i].action!=ACTIONS) {
     if(strcmp(ActionTable[i].str,str_action)==0) {
       action=ActionTable[i].action;
       break;
@@ -660,9 +665,9 @@ static void update_cb(GtkButton *widget,gpointer user_data) {
   }
   //g_print("%s: type=%s action=%s\n",__FUNCTION__,str_type,str_action);
 
-  thisAction=MIDI_ACTION_NONE;
+  thisAction=NO_ACTION;
   i=0;
-  while(ActionTable[i].action!=MIDI_ACTION_LAST) {
+  while(ActionTable[i].action!=ACTIONS) {
     if(strcmp(ActionTable[i].str,str_action)==0) {
       thisAction=ActionTable[i].action;
       break;
@@ -703,7 +708,7 @@ static void update_cb(GtkButton *widget,gpointer user_data) {
       break;
   }
   if (current_cmd->channel >= 0) {
-    sprintf(str_channel,"%d",current_cmd->channel+1); // MIDI channels go from 1 to 16
+    sprintf(str_channel,"%d",current_cmd->channel);
   } else {
     sprintf(str_channel,"%s","Any");
   }
@@ -934,7 +939,7 @@ void midi_menu(GtkWidget *parent) {
 
   // Determint number of actions
   i=0;
-  while(ActionTable[i].action!=MIDI_ACTION_LAST) {
+  while(ActionTable[i].action!=ACTIONS) {
     i++;
   }
   key_list   = (int *) g_new(int, i);
@@ -950,7 +955,7 @@ void midi_menu(GtkWidget *parent) {
   // the lists note the position of the action #i in the newAction_<type> combo-box
   // an action can appear in more than one combo-box.
   //
-  while(ActionTable[i].action!=MIDI_ACTION_LAST) {
+  while(ActionTable[i].action!=ACTIONS) {
     key_list[i]=0;
     knob_list[i]=0;
     wheel_list[i]=0;
@@ -1223,7 +1228,7 @@ static int update(void *data) {
           break;
       }
       if (thisChannel >= 0) {
-        sprintf(text,"%d",thisChannel+1); // MIDI channels go from 1 to 16
+        sprintf(text,"%d",thisChannel);
       } else {
         strcpy(text,"Any");
       }
@@ -1287,7 +1292,7 @@ static int update(void *data) {
           break;
       }
       if (thisChannel >= 0) {
-        sprintf(text,"%d",thisChannel+1); // MIDI channels go from 1 to 16
+        sprintf(text,"%d",thisChannel);
       } else {
         sprintf(text,"%s","Any");
       }
@@ -1389,7 +1394,7 @@ void NewMidiConfigureEvent(enum MIDIevent event, int channel, int note, int val)
     thisMin=val;
     thisMax=val;
     thisType=TYPE_NONE;
-    thisAction=MIDI_ACTION_NONE;
+    thisAction=NO_ACTION;
     //
     // set default values for wheel parameters
     //
@@ -1431,7 +1436,7 @@ void NewMidiConfigureEvent(enum MIDIevent event, int channel, int note, int val)
         if (!strncmp(str_channel,"Any", 3)) {
 	  tree_channel=-1;
         } else {
-          tree_channel=atoi(str_channel)-1; // MIDI channel 1-16 is encoded as 0-15
+          tree_channel=atoi(str_channel);
         }
         tree_note=atoi(str_note);
 
@@ -1448,9 +1453,9 @@ void NewMidiConfigureEvent(enum MIDIevent event, int channel, int note, int val)
           } else {
             thisType=TYPE_NONE;
           }
-          thisAction=MIDI_ACTION_NONE;
+          thisAction=NO_ACTION;
           int i=1;
-          while(ActionTable[i].action!=MIDI_ACTION_LAST) {
+          while(ActionTable[i].action!=ACTIONS) {
             if(strcmp(ActionTable[i].str,str_action)==0) {
               thisAction=ActionTable[i].action;
               break;
@@ -1663,10 +1668,10 @@ void midi_restore_state() {
 	}
         sprintf(name,"midi[%d].index[%d].action",i,index);
         value=getProperty(name);
-	action=MIDI_ACTION_NONE;
+	action=NO_ACTION;
         if(value) {
 	  int j=0;
-	  while(ActionTable[j].action!=MIDI_ACTION_LAST) {
+	  while(ActionTable[j].action!=ACTIONS) {
             if(strcmp(value,ActionTable[j].str)==0) {
               action=ActionTable[j].action;
 	      break;

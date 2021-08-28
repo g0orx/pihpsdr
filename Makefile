@@ -46,8 +46,6 @@ LOCALCW_INCLUDE=LOCALCW
 # uncomment the line below for various debug facilities
 #DEBUG_OPTION=-D DEBUG
 
-#PTT_INCLUDE=PTT
-
 # very early code not included yet
 #SERVER_INCLUDE=SERVER
 
@@ -127,13 +125,13 @@ LOCALCW_HEADERS= iambic.h
 LOCALCW_OBJS   = iambic.o
 endif
 
-ifeq ($(PTT_INCLUDE),PTT)
-PTT_OPTIONS=-D PTT
-endif
-
 ifeq ($(GPIO_INCLUDE),GPIO)
 GPIO_OPTIONS=-D GPIO
-GPIO_LIBS=-lwiringPi
+GPIOD_VERSION=$(shell pkg-config --modversion libgpiod)
+ifeq ($(GPIOD_VERSION),1.2)
+GPIO_OPTIONS += -D OLD_GPIOD
+endif
+GPIO_LIBS=-lgpiod -li2c
 endif
 
 #
@@ -215,16 +213,15 @@ AUDIO_OBJS=portaudio.o
 endif
 
 OPTIONS=$(SMALL_SCREEN_OPTIONS) $(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) \
-        $(GPIO_OPTIONS) $(SOAPYSDR_OPTIONS) $(LOCALCW_OPTIONS) \
-	$(STEMLAB_OPTIONS) $(PTT_OPTIONS) \
+	$(GPIO_OPTIONS) $(SOAPYSDR_OPTIONS) $(LOCALCW_OPTIONS) \
+	$(STEMLAB_OPTIONS) \
 	$(SERVER_OPTIONS) \
-	$(AUDIO_OPTIONS)  \
+	$(AUDIO_OPTIONS) \
 	-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION)
 
 #
 # Specify additional OS-dependent system libraries
 #
-
 ifeq ($(UNAME_S), Linux)
 SYSLIBS=-lrt
 endif
@@ -312,11 +309,14 @@ cwramp.c \
 protocols.c \
 css.c \
 actions.c \
+action_dialog.c \
 configure.c \
 i2c.c \
 gpio.c \
 encoder_menu.c \
-switch_menu.c
+switch_menu.c \
+toolbar_menu.c
+
 
 
 HEADERS= \
@@ -388,11 +388,14 @@ error_handler.h \
 protocols.h \
 css.h \
 actions.h \
+action_dialog.h \
 configure.h \
 i2c.h \
 gpio.h \
 encoder_menu.h \
-switch_menu.h
+switch_menu.h \
+toolbar_menu.h
+
 
 
 OBJS= \
@@ -463,11 +466,13 @@ cwramp.o \
 protocols.o \
 css.o \
 actions.o \
+action_dialog.o \
 configure.o \
 i2c.o \
 gpio.o \
 encoder_menu.o \
-switch_menu.o
+switch_menu.o \
+toolbar_menu.o
 
 $(PROGRAM):  $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) \
 		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
@@ -484,7 +489,7 @@ all:	prebuild  $(PROGRAM) $(HEADERS) $(AUDIO_HEADERS) $(USBOZY_HEADERS) $(SOAPYS
 	$(USBOZY_SOURCES) $(SOAPYSDR_SOURCES) $(LOCALCW_SOURCE) \
 	$(PURESIGNAL_SOURCES) $(MIDI_SOURCES) $(STEMLAB_SOURCES) $(SERVER_SOURCES)
 
-.PHONY:	rebuild
+.PHONY:	prebuild
 prebuild:
 	rm -f version.o
 
@@ -595,7 +600,7 @@ debian:
 app:	$(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS)  $(SOAPYSDR_OBJS) \
 		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS)
-	$(LINK)  -headerpad_max_install_names -o $(PROGRAM) $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS)  $(USBOZY_OBJS)  \
+	$(LINK) -headerpad_max_install_names -o $(PROGRAM) $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS)  $(USBOZY_OBJS)  \
 		$(SOAPYSDR_OBJS) $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS) $(LIBS) $(LDFLAGS)
 	@rm -rf pihpsdr.app

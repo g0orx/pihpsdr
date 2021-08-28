@@ -34,7 +34,7 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
 
     struct desc *desc;
     int new;
-    static enum MIDIaction last_wheel_action=MIDI_ACTION_NONE ;
+    static int last_wheel_action=NO_ACTION ;
     static struct timespec tp, last_wheel_tp={0,0};
     long delta;
     struct timespec ts;  // used in debug code
@@ -59,10 +59,10 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
 		case MIDI_NOTE:
                     if (desc->type == MIDI_KEY) {
                       switch (desc->action) {
-                        case MIDI_ACTION_CWLEFT:
-                        case MIDI_ACTION_CWRIGHT:
-                        case MIDI_ACTION_CWKEYER:
-                        case MIDI_ACTION_PTT:
+                        case CW_LEFT:
+                        case CW_RIGHT:
+                        case CW_KEYER:
+                        case PTT:
                           // deliver message for note-on and note-off
                           DoTheMidi(desc->action, desc->type, val);
                           break;
@@ -94,7 +94,7 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
 			if ((val >= desc->rgt1) && (val <= desc->rgt2)) new= 1;
 			if ((val >= desc-> fr1) && (val <= desc-> fr2)) new= 4;
 			if ((val >= desc->vfr1) && (val <= desc->vfr2)) new= 16;
-//			g_print("%s: WHEEL: val=%d new=%d thrs=%d/%d, %d/%d, %d/%d, %d/%d, %d/%d, %d/%d\n",
+//			g_print("%s: WHEEL PARAMS: val=%d new=%d thrs=%d/%d, %d/%d, %d/%d, %d/%d, %d/%d, %d/%d\n",
 //                               __FUNCTION__,
 //                               val, new, desc->vfl1, desc->vfl2, desc->fl1, desc->fl2, desc->lft1, desc->lft2,
 //				 desc->rgt1, desc->rgt2, desc->fr1, desc->fr2, desc->vfr1, desc->vfr2);
@@ -119,152 +119,14 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
     }
     if (!desc) {
       // Nothing found. This is nothing to worry about, but log the key to stderr
-       if (event == MIDI_PITCH) g_print("Unassigned PitchBend Value=%d\n", val);
-       if (event == MIDI_NOTE ) g_print("Unassigned Key Note=%d Val=%d\n", note, val);
-       if (event == MIDI_CTRL ) g_print("Unassigned Controller Ctl=%d Val=%d\n", note, val);
+        if (event == MIDI_PITCH) g_print("Unassigned PitchBend Value=%d\n", val);
+        if (event == MIDI_NOTE ) g_print("Unassigned Key Note=%d Val=%d\n", note, val);
+        if (event == MIDI_CTRL ) g_print("Unassigned Controller Ctl=%d Val=%d\n", note, val);
     }
 }
 
 gchar *midi_types[] = {"NONE","KEY","KNOB/SLIDER","*INVALID*","WHEEL"};
 gchar *midi_events[] = {"NONE","NOTE","CTRL","PITCH"};
-
-/*
- * This data structre connects names as used in the midi.props file with
- * our MIDIaction enum values.
- *
- * At some places in the code, it is assumes that ActionTable[i].action == i
- * so keep the entries strictly in the order the enum is defined, and
- * add one entry with ACTION_NONE at the end.
- */
-
-ACTION_TABLE ActionTable[] = {
-        { MIDI_ACTION_NONE,     	"NONE",         	MIDI_KEY|MIDI_KNOB|MIDI_WHEEL   },
-        { MIDI_ACTION_VFO_A2B,         	"A2B",          	MIDI_KEY 			},
-        { MIDI_ACTION_AF_GAIN,         	"AFGAIN",       	MIDI_KNOB|MIDI_WHEEL 		},
-        { MIDI_ACTION_AGCATTACK,       	"AGCATTACK",    	MIDI_KEY 			},
-        { MIDI_ACTION_AGC,             	"AGCVAL",       	MIDI_KNOB|MIDI_WHEEL 		},
-	{ MIDI_ACTION_ANF,             	"ANF",          	MIDI_KEY 			},
-        { MIDI_ACTION_ATT,             	"ATT",          	MIDI_KEY|MIDI_KNOB|MIDI_WHEEL   },
-        { MIDI_ACTION_VFO_B2A,        	"B2A",          	MIDI_KEY 			},
-        { MIDI_ACTION_BAND_10,         	"BAND10",       	MIDI_KEY 			},
-        { MIDI_ACTION_BAND_12,         	"BAND12",       	MIDI_KEY 			},
-        { MIDI_ACTION_BAND_1240,       	"BAND1240",     	MIDI_KEY 			},
-        { MIDI_ACTION_BAND_144,        	"BAND144",      	MIDI_KEY 			},
-        { MIDI_ACTION_BAND_15,         	"BAND15",       	MIDI_KEY 			},
-        { MIDI_ACTION_BAND_160,        	"BAND160",      	MIDI_KEY 			},
-        { MIDI_ACTION_BAND_17,         	"BAND17",       	MIDI_KEY 			},
-        { MIDI_ACTION_BAND_20,         	"BAND20",       	MIDI_KEY 			},
-        { MIDI_ACTION_BAND_220,        	"BAND220",      	MIDI_KEY 			},
-        { MIDI_ACTION_BAND_2300,       	"BAND2300",     	MIDI_KEY 			},
-        { MIDI_ACTION_BAND_30,         	"BAND30",       	MIDI_KEY 			},
-        { MIDI_ACTION_BAND_3400,       	"BAND3400",     	MIDI_KEY 			},
-        { MIDI_ACTION_BAND_40,         	"BAND40",       	MIDI_KEY 			},
-        { MIDI_ACTION_BAND_430,        	"BAND430",      	MIDI_KEY 			},
-        { MIDI_ACTION_BAND_6,          	"BAND6",        	MIDI_KEY 			},
-        { MIDI_ACTION_BAND_60,         	"BAND60",       	MIDI_KEY 			},
-        { MIDI_ACTION_BAND_70,         	"BAND70",       	MIDI_KEY 			},
-        { MIDI_ACTION_BAND_80,         	"BAND80",       	MIDI_KEY 			},
-        { MIDI_ACTION_BAND_902,        	"BAND902",      	MIDI_KEY 			},
-        { MIDI_ACTION_BAND_AIR,        	"BANDAIR",      	MIDI_KEY 			},
-        { MIDI_ACTION_BAND_DOWN,	"BANDDOWN",     	MIDI_KEY|MIDI_KNOB|MIDI_WHEEL 	},
-        { MIDI_ACTION_BAND_GEN,      	"BANDGEN",      	MIDI_KEY 			},
-        { MIDI_ACTION_BAND_UP,         	"BANDUP",       	MIDI_KEY|MIDI_KNOB|MIDI_WHEEL 	},
-        { MIDI_ACTION_BAND_WWV,        	"BANDWWV",      	MIDI_KEY 			},
-        { MIDI_ACTION_COMPRESS,        	"COMPRESS",     	MIDI_KNOB|MIDI_WHEEL 		},
-        { MIDI_ACTION_CTUN,            	"CTUN",         	MIDI_KEY 			},
-        { MIDI_ACTION_VFO,             	"CURRVFO",      	MIDI_WHEEL 			},
-        { MIDI_ACTION_CWKEYER,         	"CW(Keyer)",        	MIDI_KEY 			},
-        { MIDI_ACTION_CWLEFT,         	"CWLEFT",          	MIDI_KEY 			},
-        { MIDI_ACTION_CWRIGHT,         	"CWRIGHT",          	MIDI_KEY 			},
-        { MIDI_ACTION_CWSPEED,         	"CWSPEED",      	MIDI_KNOB|MIDI_WHEEL 		},
-        { MIDI_ACTION_DIV_COARSEGAIN,  	"DIVCOARSEGAIN",        MIDI_KNOB|MIDI_WHEEL 		},
-        { MIDI_ACTION_DIV_COARSEPHASE,  "DIVCOARSEPHASE",       MIDI_KNOB|MIDI_WHEEL 		},
-        { MIDI_ACTION_DIV_FINEGAIN,     "DIVFINEGAIN",  	MIDI_KNOB|MIDI_WHEEL 		},
-        { MIDI_ACTION_DIV_FINEPHASE,    "DIVFINEPHASE", 	MIDI_KNOB|MIDI_WHEEL 		},
-        { MIDI_ACTION_DIV_GAIN,         "DIVGAIN",      	MIDI_KNOB|MIDI_WHEEL 		},
-        { MIDI_ACTION_DIV_PHASE,        "DIVPHASE",     	MIDI_KNOB|MIDI_WHEEL 		},
-        { MIDI_ACTION_DIV_TOGGLE,       "DIVTOGGLE",    	MIDI_KEY 			},
-        { MIDI_ACTION_DUP,             	"DUP",          	MIDI_KEY 			},
-        { MIDI_ACTION_FILTER_DOWN,      "FILTERDOWN",   	MIDI_KEY|MIDI_KNOB|MIDI_WHEEL 	},
-        { MIDI_ACTION_FILTER_UP,        "FILTERUP",     	MIDI_KEY|MIDI_KNOB|MIDI_WHEEL 	},
-        { MIDI_ACTION_LOCK,            	"LOCK",         	MIDI_KEY 			},
-        { MIDI_ACTION_MEM_RECALL_M0,    "RECALLM0",  		MIDI_KEY           		},
-        { MIDI_ACTION_MEM_RECALL_M1,    "RECALLM1",  		MIDI_KEY           		},
-        { MIDI_ACTION_MEM_RECALL_M2,    "RECALLM2",  		MIDI_KEY           		},
-        { MIDI_ACTION_MEM_RECALL_M3,    "RECALLM3",  		MIDI_KEY           		},
-        { MIDI_ACTION_MEM_RECALL_M4,    "RECALLM4",  		MIDI_KEY           		},
-        { MIDI_ACTION_MENU_FILTER,      "MENU_FILTER",  	MIDI_KEY 			},
-        { MIDI_ACTION_MENU_MODE,        "MENU_MODE",    	MIDI_KEY 			},
-        { MIDI_ACTION_MIC_VOLUME,       "MICGAIN",      	MIDI_KNOB|MIDI_WHEEL 		},
-        { MIDI_ACTION_MODE_DOWN,        "MODEDOWN",     	MIDI_KEY|MIDI_KNOB|MIDI_WHEEL   },
-        { MIDI_ACTION_MODE_UP,          "MODEUP",       	MIDI_KEY|MIDI_KNOB|MIDI_WHEEL 	},
-        { MIDI_ACTION_MOX,             	"MOX",  		MIDI_KEY 			},
-        { MIDI_ACTION_MUTE,            	"MUTE", 		MIDI_KEY 			},
-        { MIDI_ACTION_NB,             	"NOISEBLANKER", 	MIDI_KEY 			},
-        { MIDI_ACTION_NR,              	"NOISEREDUCTION",       MIDI_KEY 			},
-        { MIDI_ACTION_NUMPAD_0,        	"NUMPAD0",      	MIDI_KEY 			},
-        { MIDI_ACTION_NUMPAD_1,        	"NUMPAD1",      	MIDI_KEY 			},
-        { MIDI_ACTION_NUMPAD_2,        	"NUMPAD2",      	MIDI_KEY 			},
-        { MIDI_ACTION_NUMPAD_3,        	"NUMPAD3",      	MIDI_KEY 			},
-        { MIDI_ACTION_NUMPAD_4,        	"NUMPAD4",      	MIDI_KEY 			},
-        { MIDI_ACTION_NUMPAD_5,        	"NUMPAD5",      	MIDI_KEY 			},
-        { MIDI_ACTION_NUMPAD_6,        	"NUMPAD6",      	MIDI_KEY 			},
-        { MIDI_ACTION_NUMPAD_7,        	"NUMPAD7",      	MIDI_KEY 			},
-        { MIDI_ACTION_NUMPAD_8,        	"NUMPAD8",      	MIDI_KEY 			},
-        { MIDI_ACTION_NUMPAD_9,        	"NUMPAD9",      	MIDI_KEY 			},
-        { MIDI_ACTION_NUMPAD_CL,       	"NUMPADCL",     	MIDI_KEY 			},
-        { MIDI_ACTION_NUMPAD_ENTER,    	"NUMPADENTER",  	MIDI_KEY 			},
-        { MIDI_ACTION_PAN,             	"PAN",  		MIDI_KNOB|MIDI_WHEEL 		},
-        { MIDI_ACTION_PAN_HIGH,        	"PANHIGH",      	MIDI_KNOB|MIDI_WHEEL 		},
-        { MIDI_ACTION_PAN_LOW,         	"PANLOW",       	MIDI_KNOB|MIDI_WHEEL 		},
-        { MIDI_ACTION_PRE,             	"PREAMP",       	MIDI_KEY 			},
-        { MIDI_ACTION_PTT,        	"PTT",     		MIDI_KEY 			},
-        { MIDI_ACTION_PS,               "PURESIGNAL",   	MIDI_KEY 			},
-        { MIDI_ACTION_RF_GAIN,         	"RFGAIN",       	MIDI_KNOB|MIDI_WHEEL 		},
-        { MIDI_ACTION_TX_DRIVE,         "RFPOWER",      	MIDI_KNOB|MIDI_WHEEL 		},
-        { MIDI_ACTION_RIT_CLEAR,       	"RITCLEAR",     	MIDI_KEY 			},
-        { MIDI_ACTION_RIT_STEP,         "RITSTEP",      	MIDI_KEY|MIDI_WHEEL 		},
-        { MIDI_ACTION_RIT_TOGGLE,       "RITTOGGLE",    	MIDI_KEY 			},
-        { MIDI_ACTION_RIT_VAL,          "RITVAL",       	MIDI_KNOB|MIDI_WHEEL 		},
-        { MIDI_ACTION_SAT,             	"SAT",  		MIDI_KEY 			},
-        { MIDI_ACTION_SNB,              "SNB",  		MIDI_KEY 			},
-        { MIDI_ACTION_SPLIT,           	"SPLIT",        	MIDI_KEY 			},
-        { MIDI_ACTION_MEM_STORE_M0,     "STOREM0",             	MIDI_KEY 			},
-        { MIDI_ACTION_MEM_STORE_M1,     "STOREM1",             	MIDI_KEY 			},
-        { MIDI_ACTION_MEM_STORE_M2,     "STOREM2",             	MIDI_KEY 			},
-        { MIDI_ACTION_MEM_STORE_M3,     "STOREM3",              MIDI_KEY 			},
-        { MIDI_ACTION_MEM_STORE_M4,     "STOREM4",              MIDI_KEY 			},
-        { MIDI_ACTION_SWAP_RX,          "SWAPRX",       	MIDI_KEY 			},
-        { MIDI_ACTION_SWAP_VFO,         "SWAPVFO",      	MIDI_KEY 			},
-        { MIDI_ACTION_TUNE,            	"TUNE", 		MIDI_KEY 			},
-        { MIDI_ACTION_VFOA,             "VFOA", 		MIDI_WHEEL 			},
-        { MIDI_ACTION_VFOB,             "VFOB", 		MIDI_WHEEL 			},
-        { MIDI_ACTION_VFO_STEP_UP,      "VFOSTEPUP",    	MIDI_KEY|MIDI_WHEEL 		},
-        { MIDI_ACTION_VFO_STEP_DOWN,    "VFOSTEPDOWN",  	MIDI_KEY|MIDI_WHEEL 		},
-        { MIDI_ACTION_VOX,              "VOX",  		MIDI_KEY 			},
-        { MIDI_ACTION_VOXLEVEL,         "VOXLEVEL",     	MIDI_KNOB|MIDI_WHEEL 		},
-        { MIDI_ACTION_XIT_CLEAR,       	"XITCLEAR",     	MIDI_KEY 			},
-        { MIDI_ACTION_XIT_VAL,          "XITVAL",       	MIDI_KNOB|MIDI_WHEEL 		},
-        { MIDI_ACTION_ZOOM,            	"ZOOM", 		MIDI_KNOB|MIDI_WHEEL 		},
-        { MIDI_ACTION_ZOOM_UP,          "ZOOMUP",       	MIDI_KEY|MIDI_WHEEL 		},
-        { MIDI_ACTION_ZOOM_DOWN,        "ZOOMDOWN",     	MIDI_KEY|MIDI_WHEEL 		},
-        { MIDI_ACTION_LAST,		"NONE", 		TYPE_NONE       		},
-};
-
-
-/*
- * Translation from keyword in midi.props file to MIDIaction
- */
-
-static int keyword2action(char *s) {
-    int i=0;
-
-    for (i=0; i< (sizeof(ActionTable) / sizeof(ActionTable[0])); i++) {
-	if (!strcmp(s, ActionTable[i].str)) return ActionTable[i].action;
-    }
-    g_print("%s: action keyword %s NOT FOUND.\n", __FUNCTION__, s);
-    return MIDI_ACTION_NONE;
-}
 
 int MIDIstop() {
   for (int i=0; i<n_midi_devices; i++) {
@@ -322,22 +184,148 @@ void MidiAddCommand(int note, struct desc *desc) {
   }
 }
 
+//
+// maintained so old midi configurations can be loaded
+// the sole purpose of this table is to map names in
+// the midi.props file to actions
+//
+// THIS TABLE IS ONLY USED IN keyword2action()
+//
+typedef struct _old_mapping {
+  enum ACTION action;
+  const char *str;
+} OLD_MAPPING;
+
+
+static OLD_MAPPING OLD_Mapping[] = {
+	{ NO_ACTION,		"NONE"			},
+	{ A_TO_B,		"A2B"			},
+        { AF_GAIN,      	"AFGAIN"		},
+	{ AGC,   		"AGCATTACK"		},
+        { AGC_GAIN, 		"AGCVAL"		},
+        { ANF,     		"ANF"			},
+        { ATTENUATION, 		"ATT"			},
+	{ B_TO_A,		"B2A"			},
+	{ BAND_10,      	"BAND10"		},
+        { BAND_12,      	"BAND12"		},
+        { BAND_1240,    	"BAND1240"		},
+        { BAND_144,     	"BAND144"		},
+        { BAND_15,      	"BAND15"		},
+        { BAND_160,     	"BAND160"		},
+        { BAND_17,      	"BAND17"		},
+        { BAND_20,      	"BAND20"		},
+        { BAND_220,     	"BAND220"		},
+        { BAND_2300,    	"BAND2300"		},
+        { BAND_30,      	"BAND30"		},
+        { BAND_3400,    	"BAND3400"		},
+        { BAND_40,      	"BAND40"		},
+        { BAND_430,     	"BAND430"		},
+        { BAND_6,       	"BAND6"			},
+        { BAND_60,      	"BAND60"		},
+        { BAND_70,      	"BAND70"		},
+        { BAND_80,      	"BAND80"		},
+        { BAND_902,     	"BAND902"		},
+        { BAND_AIR,     	"BANDAIR"		},
+        { BAND_MINUS,   	"BANDDOWN"		},
+        { BAND_GEN,     	"BANDGEN"		},
+        { BAND_PLUS,    	"BANDUP"		},
+        { BAND_WWV,     	"BANDWWV"		},
+        { COMPRESSION,  	"COMPRESS"		},
+	{ CTUN,  		"CTUN"			},
+	{ VFO,			"CURRVFO"		},
+	{ CW_LEFT,		"CWL"			},
+	{ CW_KEYER,		"CW(Keyer)"		},
+	{ CW_RIGHT,		"CWR"			},
+	{ CW_SPEED,		"CWSPEED"		},
+	{ DIV_GAIN_COARSE,	"DIVCOARSEGAIN"		},
+	{ DIV_PHASE_COARSE,	"DIVCOARSEPHASE"	},
+	{ DIV_GAIN_FINE,	"DIVFINEGAIN"		},
+	{ DIV_PHASE_FINE,	"DIVFINEPHASE"		},
+	{ DIV_GAIN,		"DIVGAIN"		},
+	{ DIV_PHASE,		"DIVPHASE"		},
+	{ DIV,			"DIVTOGGLE"		},
+	{ DUPLEX,  		"DUP"			},
+        { FILTER_MINUS,  	"FILTERDOWN"		},
+        { FILTER_PLUS,    	"FILTERUP"		},
+	{ MENU_FILTER,		"MENU_FILTER"		},
+	{ MENU_MODE,		"MENU_MODE"		},
+	{ LOCK,	    		"LOCK"			},
+        { MIC_GAIN,   		"MICGAIN"		},
+	{ MODE_MINUS,		"MODEDOWN"		},
+	{ MODE_PLUS,		"MODEUP"		},
+        { MOX, 		    	"MOX"			},
+	{ MUTE,			"MUTE"			},
+	{ NB,    		"NOISEBLANKER"		},
+	{ NR,    		"NOISEREDUCTION"	},
+	{ NUMPAD_0,		"NUMPAD0"		},
+	{ NUMPAD_1,		"NUMPAD1"		},
+	{ NUMPAD_2,		"NUMPAD2"		},
+	{ NUMPAD_3,		"NUMPAD3"		},
+	{ NUMPAD_4,		"NUMPAD4"		},
+	{ NUMPAD_5,		"NUMPAD5"		},
+	{ NUMPAD_6,		"NUMPAD6"		},
+	{ NUMPAD_7,		"NUMPAD7"		},
+	{ NUMPAD_8,		"NUMPAD8"		},
+	{ NUMPAD_9,		"NUMPAD9"		},
+	{ NUMPAD_CL,		"NUMPADCL"		},
+	{ NUMPAD_ENTER,		"NUMPADENTER"		},
+        { PAN,			"PAN"			},
+        { PANADAPTER_HIGH,     	"PANHIGH"		},
+        { PANADAPTER_LOW,      	"PANLOW"		},
+        { PREAMP,          	"PREAMP"		},
+	{ PTT,    		"PTT"			},
+	{ PS,    		"PURESIGNAL"		},
+	{ RF_GAIN,	 	"RFGAIN"		},
+        { DRIVE, 	    	"RFPOWER"		},
+	{ RIT_CLEAR,		"RITCLEAR"		},
+	{ RIT_STEP, 		"RITSTEP"		},
+        { RIT_ENABLE,   	"RITTOGGLE"		},
+        { RIT, 	     		"RITVAL"		},
+        { SAT,     		"SAT"			},
+        { SNB, 		    	"SNB"			},
+	{ SPLIT,  		"SPLIT"			},
+	{ SWAP_RX,		"SWAPRX"		},
+	{ A_SWAP_B,		"SWAPVFO"		},
+        { TUNE, 	   	"TUNE"			},
+        { VFOA,         	"VFOA"			},
+        { VFOB,         	"VFOB"			},
+	{ VFO_STEP_MINUS,	"VFOSTEPDOWN"		},
+	{ VFO_STEP_PLUS,  	"VFOSTEPUP"		},
+	{ VOX,   		"VOX"			},
+	{ VOXLEVEL,   		"VOXLEVEL"		},
+	{ XIT_CLEAR, 	 	"XITCLEAR"		},
+	{ XIT,  		"XITVAL"		},
+	{ ZOOM,			"ZOOM"			},
+	{ ZOOM_MINUS,		"ZOOMDOWN"		},
+	{ ZOOM_PLUS,		"ZOOMUP"		},
+        { NO_ACTION,  		"NONE"			}
+};
+
 /*
- * Here we read in a MIDI description file and fill the MidiCommandsTable
- * data structure
+ * Translation from keyword in midi.props file to MIDIaction
  */
+
+static int keyword2action(char *s) {
+    int i=0;
+
+    for (i=0; i< (sizeof(OLD_Mapping) / sizeof(OLD_Mapping[0])); i++) {
+	if (!strcmp(s, OLD_Mapping[i].str)) return OLD_Mapping[i].action;
+    }
+    fprintf(stderr,"MIDI: action keyword %s NOT FOUND.\n", s);
+    return NO_ACTION;
+}
 
 int MIDIstartup(char *filename) {
     FILE *fpin;
     char zeile[255];
     char *cp,*cq;
     int key;
-    enum MIDIaction action;
+    int action;
     int chan;
     int t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12;
     int delay;
     struct desc *desc;
-    enum MIDItype type;
+    enum ACTIONtype type;
     enum MIDIevent event;
     char c;
 
@@ -448,7 +436,7 @@ int MIDIstartup(char *filename) {
         cq=cp+7;
         while (*cq != 0 && *cq != '\n' && *cq != ' ' && *cq != '\t') cq++;
 	*cq=0;
-         action = keyword2action(cp+7);
+        action=keyword2action(cp+7);
 //g_print("MIDI:ACTION:%s (%d)\n",cp+7, action);
       }
       //
