@@ -125,6 +125,10 @@ LOCALCW_HEADERS= iambic.h
 LOCALCW_OBJS   = iambic.o
 endif
 
+ifeq ($(UNAME_S), Darwin)
+GPIO_INCLUDE=
+endif
+
 ifeq ($(GPIO_INCLUDE),GPIO)
 GPIO_OPTIONS=-D GPIO
 GPIOD_VERSION=$(shell pkg-config --modversion libgpiod)

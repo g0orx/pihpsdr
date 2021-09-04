@@ -501,12 +501,12 @@ void new_menu()
     {
       GtkWidget *restart_b=gtk_button_new_with_label("Restart");
       g_signal_connect (restart_b, "button-press-event", G_CALLBACK(restart_cb), NULL);
-      gtk_grid_attach(GTK_GRID(grid),restart_b,2,0,2,1);
+      gtk_grid_attach(GTK_GRID(grid),restart_b,2,0,1,1);
     }
 
     GtkWidget *exit_b=gtk_button_new_with_label("Exit piHPSDR");
     g_signal_connect (exit_b, "button-press-event", G_CALLBACK(exit_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),exit_b,4,0,2,1);
+    gtk_grid_attach(GTK_GRID(grid),exit_b,3,0,2,1);
 
     i=5;
 

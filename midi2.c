@@ -57,21 +57,7 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
 	    // Found matching entry
 	    switch (desc->event) {
 		case MIDI_NOTE:
-                    if (desc->type == MIDI_KEY) {
-                      switch (desc->action) {
-                        case CW_LEFT:
-                        case CW_RIGHT:
-                        case CW_KEYER:
-                        case PTT:
-                          // deliver message for note-on and note-off
-                          DoTheMidi(desc->action, desc->type, val);
-                          break;
-                        default:
-                          // deliver only note-on messages
-                          if (val == 1) DoTheMidi(desc->action, desc->type, val);
-                          break;
-                      }
-                    }
+                    DoTheMidi(desc->action, desc->type, val);
                     break;
 		case MIDI_CTRL:
 		    if (desc->type == MIDI_KNOB) {

@@ -689,7 +689,7 @@ void start_radio() {
   protocol=radio->protocol;
   device=radio->device;
 
-  // init atlas_penelop flag
+  // init atlas_penelope flag
   atlas_penelope = 0;  // default: no penelope
   if (protocol == ORIGINAL_PROTOCOL && device == DEVICE_METIS) {
     //
@@ -1122,6 +1122,12 @@ void start_radio() {
 
   iqswap=0;
 
+//
+// In most cases, ALEX is the best default choice for the filter board.
+// here we set filter_board to a different default value for some
+// "special" hardware. The choice made here only applies if the filter_board
+// is not specified in the props fil
+//
 #ifdef SOAPYSDR
   if(device==SOAPYSDR_USB_DEVICE) {
     iqswap=1;
@@ -1129,6 +1135,15 @@ void start_radio() {
     filter_board=NONE;
   }
 #endif
+
+  if ((protocol == ORIGINAL_PROTOCOL && device == DEVICE_HERMES_LITE2) ||
+      (protocol == NEW_PROTOCOL && device == NEW_DEVICE_HERMES_LITE2))  {
+    filter_board = N2ADR;
+  }
+
+  if (protocol == ORIGINAL_PROTOCOL && device == DEVICE_STEMLAB) {
+    filter_board = CHARLY25;
+  }
 
   /*
   adc_attenuation[0]=0;
