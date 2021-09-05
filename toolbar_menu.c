@@ -71,7 +71,7 @@ static void switch_page_cb(GtkNotebook *notebook,GtkWidget *page,guint page_num,
 
 static gboolean switch_cb(GtkWidget *widget, GdkEvent *event, gpointer data) {
   int sw=GPOINTER_TO_INT(data);
-  int action=action_dialog(top_window,CONTROLLER_SWITCH,temp_switches[sw].switch_function);
+  int action=action_dialog(dialog,CONTROLLER_SWITCH,temp_switches[sw].switch_function);
   gtk_button_set_label(GTK_BUTTON(widget),ActionTable[action].str);
   temp_switches[sw].switch_function=action;
   update_toolbar_labels();
