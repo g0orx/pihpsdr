@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <termios.h>
 
+#include "main.h"
 #include "discovered.h"
 #include "mode.h"
 #include "filter.h"
@@ -35,6 +36,7 @@
 #include "dac.h"
 #include "radio.h"
 #include "actions.h"
+#include "action_dialog.h"
 #include "midi.h"
 #include "alsa_midi.h"
 #include "new_menu.h"
@@ -69,9 +71,7 @@ static GtkWidget *newVal;
 static GtkWidget *newType;
 static GtkWidget *newMin;
 static GtkWidget *newMax;
-static GtkWidget *newAction_key;
-static GtkWidget *newAction_knob;
-static GtkWidget *newAction_wheel;
+static GtkWidget *newAction;
 static GtkWidget *configure_b;
 static GtkWidget *any_b;
 static GtkWidget *add_b;
@@ -107,10 +107,6 @@ static int thisAction;
 
 static gboolean accept_any=FALSE;
 
-static int *key_list;
-static int *knob_list;
-static int *wheel_list;
-
 enum {
   UPDATE_NEW,
   UPDATE_CURRENT,
@@ -127,12 +123,6 @@ static void cleanup() {
     gtk_widget_destroy(dialog);
     dialog=NULL;
     sub_menu=NULL;
-    if (key_list   != NULL) g_free(key_list);
-    if (knob_list  != NULL) g_free(knob_list);
-    if (wheel_list != NULL) g_free(wheel_list);
-    key_list=NULL;
-    knob_list=NULL;
-    wheel_list=NULL;
   }
 }
 
@@ -210,30 +200,45 @@ static void type_changed_cb(GtkWidget *widget, gpointer data) {
     //
     return;
   }
-  g_print("%s: type=%s action=%d\n",__FUNCTION__,type,thisAction);
-  //
-  // Show the correct "Action" combo-box for the current type,
-  // and select the action
-  //
-  gtk_widget_hide(newAction_key);
-  gtk_widget_hide(newAction_knob);
-  gtk_widget_hide(newAction_wheel);
-  if (strcmp(type,"NONE")==0) {
-    thisType=TYPE_NONE;
-  } else if(strcmp(type,"KEY")==0) {
+  //g_print("%s: type=%s action=%d type=%d\n",__FUNCTION__,type,thisAction,thisType);
+
+  if(strcmp(type,"KEY")==0) {
     thisType=MIDI_KEY;
-    gtk_widget_show(newAction_key);
-    gtk_combo_box_set_active(GTK_COMBO_BOX(newAction_key),key_list[thisAction]);
   } else if(strcmp(type,"KNOB/SLIDER")==0) {
     thisType=MIDI_KNOB;
-    gtk_widget_show(newAction_knob);
-    gtk_combo_box_set_active(GTK_COMBO_BOX(newAction_knob),knob_list[thisAction]);
   } else if(strcmp(type,"WHEEL")==0) {
     thisType=MIDI_WHEEL;
-    gtk_widget_show(newAction_wheel);
-    gtk_combo_box_set_active(GTK_COMBO_BOX(newAction_wheel),wheel_list[thisAction]);
+  } else {
+    thisType=TYPE_NONE;
   }
+  //
+  // If the type changed, the current action may no longer be allowed
+  //
+  if (ActionTable[thisAction].type && thisType == 0) {
+    thisAction=NO_ACTION;
+  }
+
+  gtk_button_set_label(GTK_BUTTON(newAction),ActionTable[thisAction].str);
   update_wheelparams(NULL);
+}
+
+static gboolean action_cb(GtkWidget *widget,gpointer data) {
+  int selection=0;
+  gchar *type=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newType));
+  if(type==NULL || strcmp(type,"NONE")==0) {
+    return TRUE;
+  } else if(strcmp(type,"KEY")==0) {
+    selection=MIDI_KEY;
+  } else if(strcmp(type,"KNOB/SLIDER")==0) {
+    selection=MIDI_KNOB;
+  } else if(strcmp(type,"WHEEL")==0) {
+    selection=MIDI_WHEEL | MIDI_KNOB;
+  }
+//g_print("%s: type=%s selection=%02X thisAction=%d\n",__FUNCTION__,type,selection,thisAction);
+  int action=action_dialog(top_window,selection,thisAction);
+  thisAction=action;
+  gtk_button_set_label(GTK_BUTTON(newAction),ActionTable[action].str);
+  return TRUE;
 }
 
 static void row_inserted_cb(GtkTreeModel *tree_model,GtkTreePath *path, GtkTreeIter *iter,gpointer user_data) {
@@ -241,81 +246,75 @@ static void row_inserted_cb(GtkTreeModel *tree_model,GtkTreePath *path, GtkTreeI
   gtk_tree_view_set_cursor(GTK_TREE_VIEW(view),path,NULL,FALSE);
 }
 
-
 static void tree_selection_changed_cb (GtkTreeSelection *selection, gpointer data) {
   char *str_event;
   char *str_channel;
   char *str_note;
   char *str_type;
   char *str_action;
+  int i;
 
-  //g_print("%s\n",__FUNCTION__);
-  //if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(configure_b))) {
-    if (gtk_tree_selection_get_selected (selection, &model, &iter)) {
-      gtk_tree_model_get(model, &iter, EVENT_COLUMN, &str_event, -1);
-      gtk_tree_model_get(model, &iter, CHANNEL_COLUMN, &str_channel, -1);
-      gtk_tree_model_get(model, &iter, NOTE_COLUMN, &str_note, -1);
-      gtk_tree_model_get(model, &iter, TYPE_COLUMN, &str_type, -1);
-      gtk_tree_model_get(model, &iter, ACTION_COLUMN, &str_action, -1);
+  if (gtk_tree_selection_get_selected (selection, &model, &iter)) {
+    gtk_tree_model_get(model, &iter, EVENT_COLUMN, &str_event, -1);
+    gtk_tree_model_get(model, &iter, CHANNEL_COLUMN, &str_channel, -1);
+    gtk_tree_model_get(model, &iter, NOTE_COLUMN, &str_note, -1);
+    gtk_tree_model_get(model, &iter, TYPE_COLUMN, &str_type, -1);
+    gtk_tree_model_get(model, &iter, ACTION_COLUMN, &str_action, -1);
 
-      g_print("%s: %s %s %s %s %s\n",__FUNCTION__,str_event,str_channel,str_note,str_type,str_action);
+    if(str_event!=NULL && str_channel!=NULL && str_note!=NULL && str_type!=NULL && str_action!=NULL) {
 
-      if(str_event!=NULL && str_channel!=NULL && str_note!=NULL && str_type!=NULL && str_action!=NULL) {
-
-        if(strcmp(str_event,"CTRL")==0) {
-          thisEvent=MIDI_CTRL;
-        } else if(strcmp(str_event,"PITCH")==0) {
-          thisEvent=MIDI_PITCH;
-        } else if(strcmp(str_event,"NOTE")==0) {
-          thisEvent=MIDI_NOTE;
-        } else {
-          thisEvent=EVENT_NONE;
-        }
-        if (!strncmp(str_channel,"Any", 3)) {
-          thisChannel=-1;
-        } else {
-          thisChannel=atoi(str_channel);
-        }
-        thisNote=atoi(str_note);
-        thisVal=0;
-        thisMin=0;
-        thisMax=0;
-        if(strcmp(str_type,"KEY")==0) {
-          thisType=MIDI_KEY;
-        } else if(strcmp(str_type,"KNOB/SLIDER")==0) {
-          thisType=MIDI_KNOB;
-        } else if(strcmp(str_type,"WHEEL")==0) {
-          thisType=MIDI_WHEEL;
-        } else {
-          thisType=TYPE_NONE;
-        }
-        thisAction=NO_ACTION;
-        int i=0;
-        while(ActionTable[i].action!=ACTIONS) {
-          if(strcmp(ActionTable[i].str,str_action)==0) {
-            thisAction=ActionTable[i].action;
-            break;
-          }
-          i++;
-        }
-        g_idle_add(update,GINT_TO_POINTER(UPDATE_EXISTING));
+      if(strcmp(str_event,"CTRL")==0) {
+        thisEvent=MIDI_CTRL;
+      } else if(strcmp(str_event,"PITCH")==0) {
+        thisEvent=MIDI_PITCH;
+      } else if(strcmp(str_event,"NOTE")==0) {
+        thisEvent=MIDI_NOTE;
+      } else {
+        thisEvent=EVENT_NONE;
       }
+      if (!strncmp(str_channel,"Any",3)) {
+        thisChannel=-1;
+      } else {
+        thisChannel=atoi(str_channel);
+      }
+      thisNote=atoi(str_note);
+      thisVal=0;
+      thisMin=0;
+      thisMax=0;
+      if(strcmp(str_type,"KEY")==0) {
+        thisType=MIDI_KEY;
+      } else if(strcmp(str_type,"KNOB/SLIDER")==0) {
+        thisType=MIDI_KNOB;
+      } else if(strcmp(str_type,"WHEEL")==0) {
+        thisType=MIDI_WHEEL;
+      } else {
+        thisType=TYPE_NONE;
+      }
+
+      thisAction=NO_ACTION;
+      for(i=0;i<ACTIONS;i++) {
+        if(strcmp(ActionTable[i].str,str_action)==0 && (thisType & ActionTable[i].type)) {
+          thisAction=ActionTable[i].action;
+          break;
+        }
+      }
+      g_idle_add(update,GINT_TO_POINTER(UPDATE_EXISTING));
     }
-  //}
+  }
 }
 
 static void find_current_cmd() {
   struct desc *cmd;
   cmd=MidiCommandsTable[thisNote];
   while(cmd!=NULL) {
-    if((cmd->channel==thisChannel) && cmd->type==thisType && cmd->action==thisAction) {
+    if((cmd->channel==thisChannel || cmd->channel==-1) && cmd->type==thisType && cmd->action==thisAction) {
       break;
     }
     cmd=cmd->next;
   }
   current_cmd=cmd;  // NULL if not found
-  g_print("%s: Note=%d Chan=%d Type=%d Action=%d Cmd=%p\n",__FUNCTION__,
-		  thisNote, thisChannel, thisType, thisAction, current_cmd);
+//g_print("%s: Note=%d Chan=%d Type=%d Action=%d Cmd=%p\n",__FUNCTION__,
+//		  thisNote, thisChannel, thisType, thisAction, current_cmd);
 }
 
 static void wheelparam_cb(GtkWidget *widget, gpointer user_data) {
@@ -564,41 +563,36 @@ static void load_store() {
 static void add_cb(GtkButton *widget,gpointer user_data) {
 
   gchar *str_type=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newType));
-  gchar *str_action;
+  //gchar *str_action=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newAction));
+  const gchar *str_action=gtk_button_get_label(GTK_BUTTON(newAction));
 
   gint i;
   gint type;
   gint action;
 
-  if(str_type==NULL) {
+  if(str_type==NULL || str_action==NULL) {
     return;
   }
 
   if(strcmp(str_type,"KEY")==0) {
     type=MIDI_KEY;
-    str_action=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newAction_key));
   } else if(strcmp(str_type,"KNOB/SLIDER")==0) {
     type=MIDI_KNOB;
-    str_action=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newAction_knob));
   } else if(strcmp(str_type,"WHEEL")==0) {
     type=MIDI_WHEEL;
-    str_action=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newAction_wheel));
   } else {
     type=TYPE_NONE;
-    str_action="NONE";
   }
 
   action=NO_ACTION;
-  i=0;
-  while(ActionTable[i].action!=ACTIONS) {
-    if(strcmp(ActionTable[i].str,str_action)==0) {
+  for(i=0;i<ACTIONS;i++) {
+    if(strcmp(ActionTable[i].str,str_action)==0 && (type & ActionTable[i].type)) {
       action=ActionTable[i].action;
       break;
     }
-    i++;
   }
 
-  g_print("%s: type=%s (%d) action=%s (%d)\n",__FUNCTION__,str_type,type,str_action,action);
+  //g_print("%s: type=%s (%d) action=%s (%d)\n",__FUNCTION__,str_type,type,str_action,action);
 
   struct desc *desc;
   desc = (struct desc *) malloc(sizeof(struct desc));
@@ -642,37 +636,33 @@ static void update_cb(GtkButton *widget,gpointer user_data) {
   char str_note[16];
   int i;
 
+  gchar *str_type=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newType));
+  //gchar *str_action=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newAction));
+  const gchar *str_action=gtk_button_get_label(GTK_BUTTON(newAction));
+;
+  //g_print("%s: type=%s action=%s\n",__FUNCTION__,str_type,str_action);
+
   if (current_cmd == NULL) {
     g_print("%s: current_cmd is NULL!\n", __FUNCTION__);
     return;
   }
 
-  gchar *str_type=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newType));
-  gchar *str_action;
-
   if(strcmp(str_type,"KEY")==0) {
     thisType=MIDI_KEY;
-    str_action=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newAction_key));
   } else if(strcmp(str_type,"KNOB/SLIDER")==0) {
     thisType=MIDI_KNOB;
-    str_action=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newAction_knob));
   } else if(strcmp(str_type,"WHEEL")==0) {
     thisType=MIDI_WHEEL;
-    str_action=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newAction_wheel));
   } else {
     thisType=TYPE_NONE;
-    str_action="NONE";
   }
-  //g_print("%s: type=%s action=%s\n",__FUNCTION__,str_type,str_action);
 
   thisAction=NO_ACTION;
-  i=0;
-  while(ActionTable[i].action!=ACTIONS) {
-    if(strcmp(ActionTable[i].str,str_action)==0) {
+  for(i=0;i<ACTIONS;i++) {
+    if(strcmp(ActionTable[i].str,str_action)==0 && (thisType & ActionTable[i].type)) {
       thisAction=ActionTable[i].action;
       break;
     }
-    i++;
   }
 
   current_cmd->channel=thisChannel;
@@ -692,6 +682,8 @@ static void update_cb(GtkButton *widget,gpointer user_data) {
   current_cmd->fr2   =thisFr2;
   current_cmd->vfr1  =thisVfr1;
   current_cmd->vfr2  =thisVfr2;
+
+  if (accept_any) current_cmd->channel=-1;
 
   switch(current_cmd->event) {
     case EVENT_NONE:
@@ -714,8 +706,8 @@ static void update_cb(GtkButton *widget,gpointer user_data) {
   }
   sprintf(str_note,"%d",thisNote);
 
-  g_print("%s: event=%s channel=%s note=%s type=%s action=%s\n",
-          __FUNCTION__,str_event,str_channel,str_note,str_type,str_action);
+  //g_print("%s: event=%s channel=%s note=%s type=%s action=%s\n",
+  //        __FUNCTION__,str_event,str_channel,str_note,str_type,str_action);
   gtk_list_store_set(store,&iter,
       EVENT_COLUMN,str_event,
       CHANNEL_COLUMN,str_channel,
@@ -729,7 +721,7 @@ static void delete_cb(GtkButton *widget,gpointer user_data) {
   struct desc *previous_cmd;
   struct desc *next_cmd;
   GtkTreeIter saved_iter;
-  g_print("%s: thisNote=%d current_cmd=%p\n",__FUNCTION__,thisNote,current_cmd);
+  //g_print("%s: thisNote=%d current_cmd=%p\n",__FUNCTION__,thisNote,current_cmd);
 
   if (current_cmd == NULL) {
     g_print("%s: current_cmd is NULL!\n", __FUNCTION__);
@@ -741,7 +733,7 @@ static void delete_cb(GtkButton *widget,gpointer user_data) {
 
   // remove from MidiCommandsTable
   if(MidiCommandsTable[thisNote]==current_cmd) {
-    g_print("%s: remove first\n",__FUNCTION__);
+    //g_print("%s: remove first\n",__FUNCTION__);
     MidiCommandsTable[thisNote]=current_cmd->next;
     g_free(current_cmd);
     current_cmd=NULL;
@@ -750,7 +742,7 @@ static void delete_cb(GtkButton *widget,gpointer user_data) {
     while(previous_cmd->next!=NULL) {
       next_cmd=previous_cmd->next;
       if(next_cmd==current_cmd) {
-        g_print("%s: remove next\n",__FUNCTION__);
+        //g_print("%s: remove next\n",__FUNCTION__);
 	previous_cmd->next=next_cmd->next;
 	g_free(next_cmd);
         current_cmd=NULL;  // note next_cmd == current_cmd
@@ -924,55 +916,10 @@ void midi_menu(GtkWidget *parent) {
   newMax=gtk_label_new("");
   gtk_grid_attach(GTK_GRID(grid),newMax,col++,row,1,1);
 
-  //
-  // Create three instances of the "Action" combo-box,
-  // valid for the different types (KEY, KNOB, WHEEL)
-  newAction_key=gtk_combo_box_text_new();
-  gtk_combo_box_set_wrap_width(GTK_COMBO_BOX(newAction_key),4);
-  gtk_grid_attach(GTK_GRID(grid),newAction_key,col,row,3,1);
-  newAction_knob=gtk_combo_box_text_new();
-  gtk_combo_box_set_wrap_width(GTK_COMBO_BOX(newAction_knob),4);
-  gtk_grid_attach(GTK_GRID(grid),newAction_knob,col,row,3,1);
-  newAction_wheel=gtk_combo_box_text_new();
-  gtk_combo_box_set_wrap_width(GTK_COMBO_BOX(newAction_wheel),4);
-  gtk_grid_attach(GTK_GRID(grid),newAction_wheel,col,row,3,1);
+  newAction=gtk_button_new_with_label("    ");
+  g_signal_connect(newAction, "button-press-event", G_CALLBACK(action_cb),NULL);
+  gtk_grid_attach(GTK_GRID(grid),newAction,col,row,3,1);
 
-  // Determint number of actions
-  i=0;
-  while(ActionTable[i].action!=ACTIONS) {
-    i++;
-  }
-  key_list   = (int *) g_new(int, i);
-  knob_list  = (int *) g_new(int, i);
-  wheel_list = (int *) g_new(int, i);
-
-  // Load Action box with "Key" actions
-  i=0;
-  jkey=0;
-  jknob=0;
-  jwheel=0;
-  //
-  // the lists note the position of the action #i in the newAction_<type> combo-box
-  // an action can appear in more than one combo-box.
-  //
-  while(ActionTable[i].action!=ACTIONS) {
-    key_list[i]=0;
-    knob_list[i]=0;
-    wheel_list[i]=0;
-    if(ActionTable[i].type&MIDI_KEY) {
-      gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newAction_key),NULL,ActionTable[i].str);
-      key_list[i]=jkey++;
-    }
-    if(ActionTable[i].type&MIDI_KNOB) {
-      gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newAction_knob),NULL,ActionTable[i].str);
-      knob_list[i]=jknob++;
-    }
-    if(ActionTable[i].type&MIDI_WHEEL) {
-      gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newAction_wheel),NULL,ActionTable[i].str);
-      wheel_list[i]=jwheel++;
-    }
-    i++;
-  }
   row++;
   col=0;
 
@@ -1194,12 +1141,6 @@ void midi_menu(GtkWidget *parent) {
   gtk_widget_show_all(dialog);
 
   //
-  // Clear Action box (we filled it just to set its width)
-  //
-  gtk_widget_hide(newAction_key);
-  gtk_widget_hide(newAction_knob);
-  gtk_widget_hide(newAction_wheel);
-  //
   // Hide "accept from any source" checkbox
   // (made visible only if config is checked)
   gtk_widget_hide(any_b);
@@ -1212,7 +1153,7 @@ static int update(void *data) {
 
   switch(state) {
     case UPDATE_NEW:
-      g_print("%s: UPDATE_NEW\n",__FUNCTION__);
+      //g_print("%s: UPDATE_NEW\n",__FUNCTION__);
       switch(thisEvent) {
         case EVENT_NONE:
           gtk_label_set_text(GTK_LABEL(newEvent),"NONE");
@@ -1252,7 +1193,7 @@ static int update(void *data) {
           gtk_combo_box_set_active (GTK_COMBO_BOX(newType),0);
           break;
       }
-
+      gtk_button_set_label(GTK_BUTTON(newAction),ActionTable[0].str); // NONE
       sprintf(text,"%d",thisVal);
       gtk_label_set_text(GTK_LABEL(newVal),text);
       sprintf(text,"%d",thisMin);
@@ -1266,7 +1207,7 @@ static int update(void *data) {
       break;
 
     case UPDATE_CURRENT:
-      g_print("%s: UPDATE_CURRENT\n",__FUNCTION__);
+      //g_print("%s: UPDATE_CURRENT\n",__FUNCTION__);
       sprintf(text,"%d",thisVal);
       gtk_label_set_text(GTK_LABEL(newVal),text);
       sprintf(text,"%d",thisMin);
@@ -1276,7 +1217,7 @@ static int update(void *data) {
       break;
 
     case UPDATE_EXISTING:
-      g_print("%s: UPDATE_EXISTING Type=%d Action=%d\n",__FUNCTION__,thisType,thisAction);
+      //g_print("%s: UPDATE_EXISTING Type=%d Action=%d\n",__FUNCTION__,thisType,thisAction);
       switch(thisEvent) {
         case EVENT_NONE:
           gtk_label_set_text(GTK_LABEL(newEvent),"NONE");
@@ -1334,7 +1275,7 @@ static int update(void *data) {
       gtk_label_set_text(GTK_LABEL(newMax),text);
   
       find_current_cmd();
-      g_print("%s: current_cmd %p\n",__FUNCTION__,current_cmd);
+      //g_print("%s: current_cmd %p\n",__FUNCTION__,current_cmd);
 
       if (current_cmd != NULL) {
         thisDelay = current_cmd->delay;
@@ -1363,7 +1304,24 @@ static int update(void *data) {
   return 0;
 }
 
-void NewMidiConfigureEvent(enum MIDIevent event, int channel, int note, int val) {
+typedef struct MYEVENT {
+  enum MIDIevent event;
+  int            channel;
+  int            note;
+  int            val;
+} myevent;
+
+int ProcessNewMidiConfigureEvent(void * data) {
+
+  //
+  // This is now running in the GTK idle queue
+  //
+
+  myevent *mydata = (myevent *) data;
+  enum MIDIevent event=mydata->event;
+  int  channel = mydata->channel;
+  int  note = mydata->note;
+  int  val = mydata->val;
 
   gboolean valid;
   char *str_event;
@@ -1376,14 +1334,14 @@ void NewMidiConfigureEvent(enum MIDIevent event, int channel, int note, int val)
   gint tree_channel;
   gint tree_note;
 
-  //g_print("%s: event=%d channel=%d note=%d val=%d\n", __FUNCTION__,event,channel,note,val);
+  g_free(data);
 
   if(event==thisEvent && channel==thisChannel && note==thisNote) {
     //g_print("%s: current event\n",__FUNCTION__);
     thisVal=val;
     if(val<thisMin) thisMin=val;
     if(val>thisMax) thisMax=val;
-    g_idle_add(update,GINT_TO_POINTER(UPDATE_CURRENT));
+    update(GINT_TO_POINTER(UPDATE_CURRENT));
   } else {
     //g_print("%s: new or existing event\n",__FUNCTION__);
     thisEvent=event;
@@ -1456,30 +1414,34 @@ void NewMidiConfigureEvent(enum MIDIevent event, int channel, int note, int val)
           thisAction=NO_ACTION;
           int i=1;
           while(ActionTable[i].action!=ACTIONS) {
-            if(strcmp(ActionTable[i].str,str_action)==0) {
+            if(strcmp(ActionTable[i].str,str_action)==0 && (ActionTable[i].type & thisType)) {
               thisAction=ActionTable[i].action;
               break;
             }
             i++;
           }
 	  gtk_tree_view_set_cursor(GTK_TREE_VIEW(view),gtk_tree_model_get_path(model,&iter),NULL,FALSE);
-          g_idle_add(update,GINT_TO_POINTER(UPDATE_EXISTING));
-          return;
+          update(GINT_TO_POINTER(UPDATE_EXISTING));
+          return 0;
 	}
       }
 
       valid=gtk_tree_model_iter_next(model,&iter);
     }
     
-    //
-    // It is not guaranteed that update() will be executed before
-    // thisAction & friends are overwritten by the next incoming MIDI
-    // message. Therefore, we should allocate a data structure with
-    // all information therein that is needed by update() and pass
-    // a pointer.
-    //
-    g_idle_add(update,GINT_TO_POINTER(UPDATE_NEW));
+    update(GINT_TO_POINTER(UPDATE_NEW));
   }
+  return 0;
+}
+ 
+void NewMidiConfigureEvent(enum MIDIevent event, int channel, int note, int val) {
+  myevent *data = g_new(myevent, 1);
+  data->event = event;
+  data->channel = channel;
+  data->note = note;
+  data->val = val;
+  //g_print("%s: Event=%d Chan=%d Note=%d Val=%d\n", __FUNCTION__, event, channel, note, val);
+  g_idle_add(ProcessNewMidiConfigureEvent, data);
 }
 
 void midi_save_state() {
@@ -1502,7 +1464,6 @@ void midi_save_state() {
       index=0;
       cmd=MidiCommandsTable[i];
       while(cmd!=NULL) {
-	//ATTENTION: g_print assumes ActionTable is sorted by action enum
         //g_print("%s:  channel=%d key=%d event=%s type=%s action=%s\n",__FUNCTION__,cmd->channel,i,midi_events[cmd->event],midi_types[cmd->type],ActionTable[cmd->action].str);
 
         //
@@ -1672,7 +1633,7 @@ void midi_restore_state() {
         if(value) {
 	  int j=0;
 	  while(ActionTable[j].action!=ACTIONS) {
-            if(strcmp(value,ActionTable[j].str)==0) {
+            if(strcmp(value,ActionTable[j].str)==0 && (type & ActionTable[j].type)) {
               action=ActionTable[j].action;
 	      break;
             }
