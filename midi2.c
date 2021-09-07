@@ -105,9 +105,9 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
     }
     if (!desc) {
       // Nothing found. This is nothing to worry about, but log the key to stderr
-        if (event == MIDI_PITCH) g_print("Unassigned PitchBend Value=%d\n", val);
-        if (event == MIDI_NOTE ) g_print("Unassigned Key Note=%d Val=%d\n", note, val);
-        if (event == MIDI_CTRL ) g_print("Unassigned Controller Ctl=%d Val=%d\n", note, val);
+        if (event == MIDI_PITCH) g_print("%s: Unassigned PitchBend Value=%d\n",__FUNCTION__, val);
+        if (event == MIDI_NOTE ) g_print("%s: Unassigned Key Note=%d Val=%d\n",__FUNCTION__, note, val);
+        if (event == MIDI_CTRL ) g_print("%s: Unassigned Controller Ctl=%d Val=%d\n",__FUNCTION__, note, val);
     }
 }
 
