@@ -52,14 +52,14 @@ enum {
   N_COLUMNS
 };
 
-static GtkWidget *parent_window=NULL;
+//static GtkWidget *parent_window=NULL;
 static GtkWidget *dialog=NULL;
 
 static GtkListStore *store;
 static GtkWidget *view;
 static GtkWidget *scrolled_window=NULL;
 static gulong selection_signal_id;
-GtkTreeSelection *selection;
+//GtkTreeSelection *selection;
 static GtkTreeModel *model;
 static GtkTreeIter iter;
 struct desc *current_cmd;
@@ -115,7 +115,6 @@ enum {
 
 static int update(void *data);
 static void load_store();
-static void add_store(int key,struct desc *cmd);
 
 static void cleanup() {
   configure_midi_device(FALSE);
@@ -190,6 +189,9 @@ static void update_wheelparams(gpointer user_data) {
 }
 
 static void type_changed_cb(GtkWidget *widget, gpointer data) {
+  int i=1;
+  int j=1;
+
 
   // update actions available for the type
   gchar *type=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(widget));
@@ -234,7 +236,7 @@ static gboolean action_cb(GtkWidget *widget,gpointer data) {
   } else if(strcmp(type,"WHEEL")==0) {
     selection=MIDI_WHEEL | MIDI_KNOB;
   }
-//g_print("%s: type=%s selection=%02X thisAction=%d\n",__FUNCTION__,type,selection,thisAction);
+g_print("%s: type=%s selection=%02X thisAction=%d\n",__FUNCTION__,type,selection,thisAction);
   int action=action_dialog(top_window,selection,thisAction);
   thisAction=action;
   gtk_button_set_label(GTK_BUTTON(newAction),ActionTable[action].str);
@@ -245,6 +247,7 @@ static void row_inserted_cb(GtkTreeModel *tree_model,GtkTreePath *path, GtkTreeI
   //g_print("%s\n",__FUNCTION__);
   gtk_tree_view_set_cursor(GTK_TREE_VIEW(view),path,NULL,FALSE);
 }
+
 
 static void tree_selection_changed_cb (GtkTreeSelection *selection, gpointer data) {
   char *str_event;
@@ -312,9 +315,7 @@ static void find_current_cmd() {
     }
     cmd=cmd->next;
   }
-  current_cmd=cmd;  // NULL if not found
-//g_print("%s: Note=%d Chan=%d Type=%d Action=%d Cmd=%p\n",__FUNCTION__,
-//		  thisNote, thisChannel, thisType, thisAction, current_cmd);
+  current_cmd=cmd;
 }
 
 static void wheelparam_cb(GtkWidget *widget, gpointer user_data) {
@@ -388,10 +389,8 @@ static void wheelparam_cb(GtkWidget *widget, gpointer user_data) {
 
 static void clear_cb(GtkWidget *widget,gpointer user_data) {
 
-  g_signal_handler_block(G_OBJECT(selection), selection_signal_id);
   gtk_list_store_clear(store);
   MidiReleaseCommands();  
-  g_signal_handler_unblock(G_OBJECT(selection), selection_signal_id);
 }
 
 static void save_cb(GtkWidget *widget,gpointer user_data) {
@@ -444,9 +443,7 @@ static void load_cb(GtkWidget *widget,gpointer user_data) {
     clearProperties();
     loadProperties(loadfilename);
     midi_restore_state();
-    g_signal_handler_block(G_OBJECT(selection), selection_signal_id);
     load_store();
-    g_signal_handler_unblock(G_OBJECT(selection), selection_signal_id);
     g_free(loadfilename);
   }
   gtk_widget_destroy(load_dialog);
@@ -458,7 +455,7 @@ static void load_original_cb(GtkWidget *widget,gpointer user_data) {
   GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_OPEN;
   gint res;
 
-  load_dialog = gtk_file_chooser_dialog_new ("Open LEGACY MIDI File",
+  load_dialog = gtk_file_chooser_dialog_new ("Open ORIGINAL MIDI File",
                                       GTK_WINDOW(dialog),
                                       action,
                                       "_Cancel",
@@ -473,9 +470,7 @@ static void load_original_cb(GtkWidget *widget,gpointer user_data) {
     clear_cb(NULL,NULL);
     MIDIstartup(loadfilename);
     g_free(loadfilename);
-    g_signal_handler_block(G_OBJECT(selection), selection_signal_id);
     load_store();
-    g_signal_handler_unblock(G_OBJECT(selection), selection_signal_id);
   }
   gtk_widget_destroy(load_dialog);
 }
@@ -521,15 +516,8 @@ static void add_store(int key,struct desc *cmd) {
     case MIDI_WHEEL:
       strcpy(str_type,"WHEEL");
       break;
-    default:
-      // Controlle types cannot arise here
-      strcpy(str_type,"ERROR");
-      break;
   }
-  // ATTENTION: this assumes ActionTable is sorted by action enum
   strcpy(str_action,ActionTable[cmd->action].str);
-  
-  //g_print("%s: Event=%s Channel=%s Note=%s Type=%s Action=%s\n", __FUNCTION__, str_event, str_channel, str_note, str_type, str_action);
   gtk_list_store_prepend(store,&iter);
   gtk_list_store_set(store,&iter,
       EVENT_COLUMN,str_event,
@@ -565,6 +553,7 @@ static void add_cb(GtkButton *widget,gpointer user_data) {
   gchar *str_type=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newType));
   //gchar *str_action=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newAction));
   const gchar *str_action=gtk_button_get_label(GTK_BUTTON(newAction));
+;
 
   gint i;
   gint type;
@@ -592,7 +581,7 @@ static void add_cb(GtkButton *widget,gpointer user_data) {
     }
   }
 
-  //g_print("%s: type=%s (%d) action=%s (%d)\n",__FUNCTION__,str_type,type,str_action,action);
+  g_print("%s: type=%s (%d) action=%s (%d)\n",__FUNCTION__,str_type,type,str_action,action);
 
   struct desc *desc;
   desc = (struct desc *) malloc(sizeof(struct desc));
@@ -635,6 +624,7 @@ static void update_cb(GtkButton *widget,gpointer user_data) {
   char str_channel[16];
   char str_note[16];
   int i;
+
 
   gchar *str_type=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newType));
   //gchar *str_action=gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(newAction));
@@ -721,7 +711,7 @@ static void delete_cb(GtkButton *widget,gpointer user_data) {
   struct desc *previous_cmd;
   struct desc *next_cmd;
   GtkTreeIter saved_iter;
-  //g_print("%s: thisNote=%d current_cmd=%p\n",__FUNCTION__,thisNote,current_cmd);
+  g_print("%s: thisNote=%d current_cmd=%p\n",__FUNCTION__,thisNote,current_cmd);
 
   if (current_cmd == NULL) {
     g_print("%s: current_cmd is NULL!\n", __FUNCTION__);
@@ -733,7 +723,7 @@ static void delete_cb(GtkButton *widget,gpointer user_data) {
 
   // remove from MidiCommandsTable
   if(MidiCommandsTable[thisNote]==current_cmd) {
-    //g_print("%s: remove first\n",__FUNCTION__);
+    g_print("%s: remove first\n",__FUNCTION__);
     MidiCommandsTable[thisNote]=current_cmd->next;
     g_free(current_cmd);
     current_cmd=NULL;
@@ -742,7 +732,7 @@ static void delete_cb(GtkButton *widget,gpointer user_data) {
     while(previous_cmd->next!=NULL) {
       next_cmd=previous_cmd->next;
       if(next_cmd==current_cmd) {
-        //g_print("%s: remove next\n",__FUNCTION__);
+        g_print("%s: remove next\n",__FUNCTION__);
 	previous_cmd->next=next_cmd->next;
 	g_free(next_cmd);
         current_cmd=NULL;  // note next_cmd == current_cmd
@@ -762,17 +752,17 @@ static void delete_cb(GtkButton *widget,gpointer user_data) {
 }
 
 void midi_menu(GtkWidget *parent) {
-  int i,jkey,jknob,jwheel;
+  int i;
   int col=0;
   int row=0;
   GtkCellRenderer *renderer;
   GtkWidget *lbl;
 
-  parent_window=parent;
-
   dialog=gtk_dialog_new();
-  gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent_window));
-  gtk_window_set_title(GTK_WINDOW(dialog),"piHPSDR - MIDI");
+  gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(parent));
+  char title[64];
+  sprintf(title,"piHPSDR - MIDI");
+  gtk_window_set_title(GTK_WINDOW(dialog),title);
   g_signal_connect (dialog, "delete_event", G_CALLBACK (delete_event), NULL);
 
   GdkRGBA color;
@@ -862,7 +852,7 @@ void midi_menu(GtkWidget *parent) {
   g_signal_connect(load_b,"clicked",G_CALLBACK(load_cb),NULL);
   col++;
 
-  GtkWidget *load_original_b=gtk_button_new_with_label("Load Legacy");
+  GtkWidget *load_original_b=gtk_button_new_with_label("Load Original");
   gtk_grid_attach(GTK_GRID(grid),load_original_b,col,row,1,1);
   g_signal_connect(load_original_b,"clicked",G_CALLBACK(load_original_cb),NULL);
   col++;
@@ -979,7 +969,7 @@ void midi_menu(GtkWidget *parent) {
   model=gtk_tree_view_get_model(GTK_TREE_VIEW(view));
   g_signal_connect(model,"row-inserted",G_CALLBACK(row_inserted_cb),NULL);
 
-  selection=gtk_tree_view_get_selection(GTK_TREE_VIEW(view));
+  GtkTreeSelection *selection=gtk_tree_view_get_selection(GTK_TREE_VIEW(view));
   gtk_tree_selection_set_mode(selection, GTK_SELECTION_SINGLE);
 
   selection_signal_id=g_signal_connect(G_OBJECT(selection),"changed",G_CALLBACK(tree_selection_changed_cb),NULL);
@@ -1150,10 +1140,12 @@ void midi_menu(GtkWidget *parent) {
 static int update(void *data) {
   int state=GPOINTER_TO_INT(data);
   gchar text[32];
+  gint i=1;
+  gint j;
+
 
   switch(state) {
     case UPDATE_NEW:
-      //g_print("%s: UPDATE_NEW\n",__FUNCTION__);
       switch(thisEvent) {
         case EVENT_NONE:
           gtk_label_set_text(GTK_LABEL(newEvent),"NONE");
@@ -1183,7 +1175,6 @@ static int update(void *data) {
           gtk_combo_box_set_active (GTK_COMBO_BOX(newType),0);
           break;
         case MIDI_NOTE:
-        case MIDI_PITCH:
           gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newType),NULL,"KEY");
           gtk_combo_box_set_active (GTK_COMBO_BOX(newType),1);
           break;
@@ -1192,6 +1183,9 @@ static int update(void *data) {
           gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newType),NULL,"WHEEL");
           gtk_combo_box_set_active (GTK_COMBO_BOX(newType),0);
           break;
+        case MIDI_PITCH:
+          gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newType),NULL,"KNOB/SLIDER");
+          gtk_combo_box_set_active (GTK_COMBO_BOX(newType),1);
       }
       gtk_button_set_label(GTK_BUTTON(newAction),ActionTable[0].str); // NONE
       sprintf(text,"%d",thisVal);
@@ -1207,7 +1201,6 @@ static int update(void *data) {
       break;
 
     case UPDATE_CURRENT:
-      //g_print("%s: UPDATE_CURRENT\n",__FUNCTION__);
       sprintf(text,"%d",thisVal);
       gtk_label_set_text(GTK_LABEL(newVal),text);
       sprintf(text,"%d",thisMin);
@@ -1217,7 +1210,6 @@ static int update(void *data) {
       break;
 
     case UPDATE_EXISTING:
-      //g_print("%s: UPDATE_EXISTING Type=%d Action=%d\n",__FUNCTION__,thisType,thisAction);
       switch(thisEvent) {
         case EVENT_NONE:
           gtk_label_set_text(GTK_LABEL(newEvent),"NONE");
@@ -1247,7 +1239,6 @@ static int update(void *data) {
 	  gtk_combo_box_set_active (GTK_COMBO_BOX(newType),0);
           break;
         case MIDI_NOTE:
-        case MIDI_PITCH:
           gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newType),NULL,"KEY");
 	  if(thisType==TYPE_NONE) {
 	    gtk_combo_box_set_active (GTK_COMBO_BOX(newType),0);
@@ -1266,6 +1257,13 @@ static int update(void *data) {
             gtk_combo_box_set_active (GTK_COMBO_BOX(newType),2);
           }
           break;
+        case MIDI_PITCH:
+          gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(newType),NULL,"KNOB/SLIDER");
+	  if(thisType==MIDI_KNOB) {
+	    gtk_combo_box_set_active (GTK_COMBO_BOX(newType),1);
+	  } else {
+	    gtk_combo_box_set_active (GTK_COMBO_BOX(newType),0);
+          }
       }
       sprintf(text,"%d",thisVal);
       gtk_label_set_text(GTK_LABEL(newVal),text);
@@ -1275,7 +1273,7 @@ static int update(void *data) {
       gtk_label_set_text(GTK_LABEL(newMax),text);
   
       find_current_cmd();
-      //g_print("%s: current_cmd %p\n",__FUNCTION__,current_cmd);
+      g_print("%s: current_cmd %p\n",__FUNCTION__,current_cmd);
 
       if (current_cmd != NULL) {
         thisDelay = current_cmd->delay;
@@ -1292,7 +1290,6 @@ static int update(void *data) {
         thisVfr1  = current_cmd->vfr1;
         thisVfr2  = current_cmd->vfr2;
       }
-      // no need for g_idle_add since this is called in the idle queue
       update_wheelparams(NULL);
       gtk_widget_set_sensitive(add_b,FALSE);
       gtk_widget_set_sensitive(update_b,TRUE);
@@ -1329,6 +1326,7 @@ int ProcessNewMidiConfigureEvent(void * data) {
   char *str_note;
   char *str_type;
   char *str_action;
+  int i;
 
   gint tree_event;
   gint tree_channel;
@@ -1337,13 +1335,11 @@ int ProcessNewMidiConfigureEvent(void * data) {
   g_free(data);
 
   if(event==thisEvent && channel==thisChannel && note==thisNote) {
-    //g_print("%s: current event\n",__FUNCTION__);
     thisVal=val;
     if(val<thisMin) thisMin=val;
     if(val>thisMax) thisMax=val;
     update(GINT_TO_POINTER(UPDATE_CURRENT));
   } else {
-    //g_print("%s: new or existing event\n",__FUNCTION__);
     thisEvent=event;
     thisChannel=channel;
     if (accept_any) thisChannel=-1;
@@ -1379,8 +1375,6 @@ int ProcessNewMidiConfigureEvent(void * data) {
       gtk_tree_model_get(model, &iter, TYPE_COLUMN, &str_type, -1);
       gtk_tree_model_get(model, &iter, ACTION_COLUMN, &str_action, -1);
 
-      //g_print("%s: %s %s %s %s %s\n",__FUNCTION__,str_event,str_channel,str_note,str_type,str_action);
-
       if(str_event!=NULL && str_channel!=NULL && str_note!=NULL && str_type!=NULL && str_action!=NULL) {
         if(strcmp(str_event,"CTRL")==0) {
           tree_event=MIDI_CTRL;
@@ -1412,13 +1406,11 @@ int ProcessNewMidiConfigureEvent(void * data) {
             thisType=TYPE_NONE;
           }
           thisAction=NO_ACTION;
-          int i=1;
-          while(ActionTable[i].action!=ACTIONS) {
+          for(i=0;i<ACTIONS;i++) {
             if(strcmp(ActionTable[i].str,str_action)==0 && (ActionTable[i].type & thisType)) {
               thisAction=ActionTable[i].action;
               break;
             }
-            i++;
           }
 	  gtk_tree_view_set_cursor(GTK_TREE_VIEW(view),gtk_tree_model_get_path(model,&iter),NULL,FALSE);
           update(GINT_TO_POINTER(UPDATE_EXISTING));
@@ -1728,8 +1720,8 @@ void midi_restore_state() {
         desc->vfr2     = vfr2;
         desc->channel  = channel;
 
-//g_print("DESC INIT Note=%3d Action=%3d Type=%3d Event=%3d Chan=%3d Delay=%3d THR=%3d %3d %3d %3d %3d %3d %3d %3d %3d %3d %3d %3d\n",
-//        i, action, type, event, channel, delay,
+//g_print("%s: add command Note=%3d Action=%3d Type=%3d Event=%3d Chan=%3d Delay=%3d THR=%3d/%3d %3d/%3d %3d/%3d %3d/%3d %3d/%3d %3d/%3d\n",
+//        __FUNCTION__, i, action, type, event, channel, delay,
 //        vfl1, vfl2, fl1, fl2, lft1, lft2, rgt1, rgt2, fr1, fr2, vfr1, vfr2);
         MidiAddCommand(i, desc);
       }
