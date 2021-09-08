@@ -52,14 +52,12 @@ enum {
   N_COLUMNS
 };
 
-//static GtkWidget *parent_window=NULL;
 static GtkWidget *dialog=NULL;
 
 static GtkListStore *store;
 static GtkWidget *view;
 static GtkWidget *scrolled_window=NULL;
 static gulong selection_signal_id;
-//GtkTreeSelection *selection;
 static GtkTreeModel *model;
 static GtkTreeIter iter;
 struct desc *current_cmd;
@@ -237,7 +235,7 @@ static gboolean action_cb(GtkWidget *widget,gpointer data) {
     selection=MIDI_WHEEL | MIDI_KNOB;
   }
 g_print("%s: type=%s selection=%02X thisAction=%d\n",__FUNCTION__,type,selection,thisAction);
-  int action=action_dialog(top_window,selection,thisAction);
+  int action=action_dialog(dialog,selection,thisAction);
   thisAction=action;
   gtk_button_set_label(GTK_BUTTON(newAction),ActionTable[action].str);
   return TRUE;
@@ -933,11 +931,7 @@ void midi_menu(GtkWidget *parent) {
 
   scrolled_window=gtk_scrolled_window_new (NULL, NULL);
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled_window),GTK_POLICY_AUTOMATIC,GTK_POLICY_ALWAYS);
-  //
-  // At the top of the window, there are rows of checkboxes for MIDI devices, up to 3 in a row.
-  // In the unlikely case there are very many MIDI devices, vertical space becomes scarce
-  //
-  gtk_widget_set_size_request(scrolled_window,400,300-15*((n_midi_devices+1)/3));
+  gtk_widget_set_size_request(scrolled_window,400,200);
 
   view=gtk_tree_view_new();
 
