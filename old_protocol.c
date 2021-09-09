@@ -406,7 +406,8 @@ static void open_udp_socket() {
       perror("data_socket: SO_RCVBUF");
     }
 #ifdef __APPLE__
-    optval = 0x10;  // IPTOS_LOWDELAY
+    //optval = 0x10;  // IPTOS_LOWDELAY
+    optval = 0xb8;  // DSCP EF
     if(setsockopt(tmp, IPPROTO_IP, IP_TOS, &optval, sizeof(optval))<0) {
       perror("data_socket: SO_PRIORITY");
     }
@@ -480,7 +481,8 @@ static void open_tcp_socket() {
       perror("tcp_socket: SO_RCVBUF");
     }
 #ifdef __APPLE__
-    optval = 0x10;  // IPTOS_LOWDELAY
+    //optval = 0x10;  // IPTOS_LOWDELAY
+    optval = 0xb8;  // DSCP EF
     if(setsockopt(tmp, IPPROTO_IP, IP_TOS, &optval, sizeof(optval))<0) {
       perror("data_socket: SO_PRIORITY");
     }
