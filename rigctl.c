@@ -802,7 +802,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
             for(i=0;i<STEPS;i++) {
               if(steps[i]==step) break;
             }
-            if(i<=14) {
+            if(i<STEPS) {
               // send reply back
               sprintf(reply,"ZZAC%02d;",i);
               send_resp(client->fd,reply) ;
@@ -2605,11 +2605,11 @@ int parse_cmd(void *data) {
           break;
         case 'G': //AG
           // set/read AF Gain
-          if(command[2]==';') {
+          if(command[3]==';' && command[2]=='0') { // query, main receiver
             // send reply back (covert from 0..1 to 0..255)
-            sprintf(reply,"AG0%03d;",(int)(receiver[0]->volume*255.0));
+            sprintf(reply,"AG0%03d;",(int)(receiver[0]->volume*255.0+0.5));
             send_resp(client->fd,reply) ;
-          } else if(command[6]==';') {
+          } else if(command[6]==';' && command[2] == '0') {
             int gain=atoi(&command[3]);
             receiver[0]->volume=(double)gain/255.0;
             update_af_gain();
@@ -3684,13 +3684,13 @@ int parse_cmd(void *data) {
           if(command[3]==';') {
             int p1=atoi(&command[2]);
             if(p1==0) { // Main receiver
-              sprintf(reply,"SQ%d%03d;",p1,(int)((double)active_receiver->squelch/100.0*255.0));
+              sprintf(reply,"SQ%d%03d;",p1,(int)((double)active_receiver->squelch/100.0*255.0+0.5));
               send_resp(client->fd,reply);
             }
           } else if(command[6]==';') {
             if(command[2]=='0') {
               int p2=atoi(&command[3]);
-              active_receiver->squelch=(int)((double)p2/255.0*100.0);
+              active_receiver->squelch=(int)((double)p2/255.0*100.0+0.5);
               set_squelch();
             }
           } else {
