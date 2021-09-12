@@ -1163,7 +1163,7 @@ void start_radio() {
   adc[0].preamp=FALSE;
   adc[0].attenuation=0;
   if(have_rx_gain) {
-    adc[0].gain=rx_calibration;
+    adc[0].gain=rx_gain_calibration;
   } else {
     adc[0].gain=0;
   }
