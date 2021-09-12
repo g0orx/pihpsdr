@@ -1161,10 +1161,11 @@ void start_radio() {
   adc[0].dither=FALSE;
   adc[0].random=FALSE;
   adc[0].preamp=FALSE;
+  adc[0].attenuation=0;
   if(have_rx_gain) {
-    adc[0].attenuation=14;
+    adc[0].gain=rx_calibration;
   } else {
-    adc[0].attenuation=0;
+    adc[0].gain=0;
   }
 #ifdef SOAPYSDR
   adc[0].antenna=0;
@@ -1190,8 +1191,9 @@ void start_radio() {
   adc[1].dither=FALSE;
   adc[1].random=FALSE;
   adc[1].preamp=FALSE;
+  adc[1].attenuation=0;
   if(have_rx_gain) {
-    adc[0].attenuation=14;
+    adc[1].attenuation=rx_gain_calibration;
   } else {
     adc[1].attenuation=0;
   }

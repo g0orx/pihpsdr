@@ -183,7 +183,7 @@ void waterfall_update(RECEIVER *rx) {
 
     for(i=0;i<width;i++) {
             if(have_rx_gain) {
-              sample=samples[i+pan]+(float)(rx_gain_calibration-adc[rx->adc].attenuation);
+              sample=samples[i+pan]+(float)(rx_gain_calibration-adc[rx->adc].gain);
             } else {
               sample=samples[i+pan]+(float)adc[rx->adc].attenuation;
             }
@@ -242,7 +242,7 @@ void waterfall_update(RECEIVER *rx) {
 
     
     if(rx->waterfall_automatic) {
-      rx->waterfall_low=average/display_width;
+      rx->waterfall_low=average/width;
       rx->waterfall_high=rx->waterfall_low+50;
     }
 

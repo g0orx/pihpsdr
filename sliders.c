@@ -156,7 +156,8 @@ void set_attenuation_value(double value) {
   set_attenuation(adc[active_receiver->adc].attenuation);
   if(display_sliders) {
     if (have_rx_gain) {
-	gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc[active_receiver->adc].attenuation);
+	/* NOTREACHED */
+	gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc[active_receiver->adc].gain);
     } else {
         gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc[active_receiver->adc].attenuation);
     }
@@ -859,7 +860,7 @@ fprintf(stderr,"sliders_init: width=%d height=%d\n", width,height);
     } else {
 #endif
       rf_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-12.0, 48.0, 1.0);
-      gtk_range_set_value (GTK_RANGE(rf_gain_scale),adc[active_receiver->adc].attenuation);
+      gtk_range_set_value (GTK_RANGE(rf_gain_scale),adc[active_receiver->adc].gain);
 #ifdef SOAPYSDR
     }
 #endif
