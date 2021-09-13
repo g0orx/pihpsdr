@@ -67,6 +67,7 @@ struct _mode_settings {
   int en_rxeq;       // RX equalizer on/off
   int txeq[4];       // TX equalizer settings
   int rxeq[4];       // RX equalizer settings
+  long long step;    // VFO step size
 };
 
 extern struct _mode_settings mode_settings[];
@@ -81,6 +82,9 @@ extern int steps[];
 extern char *step_labels[];
 
 extern GtkWidget* vfo_init(int width,int height,GtkWidget *parent);
+extern int  vfo_get_stepindex();
+extern void vfo_set_step_from_index(int index);
+extern void vfo_set_stepsize(long long newstep);
 extern void vfo_step(int steps);
 extern void vfo_id_step(int id, int steps);
 extern void vfo_move(long long hz,int round);

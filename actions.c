@@ -1159,25 +1159,19 @@ int process_action(void *data) {
       break;
     case VFO_STEP_MINUS:
       if(a->mode==PRESSED) {
-        for(i=0;i<STEPS;i++) {
-          if(steps[i]==step) break;
-        }
-        if(i>=STEPS) i=0;
+        i=vfo_get_stepindex();
         i--;
         if(i<0) i=STEPS-1;
-        step=steps[i];
+        vfo_set_stepsize(steps[i]);
         g_idle_add(ext_vfo_update, NULL);
       }
       break;
     case VFO_STEP_PLUS:
       if(a->mode==PRESSED) {
-        for(i=0;i<STEPS;i++) {
-          if(steps[i]==step) break;
-        }
-        if(i>=STEPS) i=0;
+        i=vfo_get_stepindex();
         i++;
         if(i>=STEPS) i=0;
-        step=steps[i];
+        vfo_set_stepsize(steps[i]);
         g_idle_add(ext_vfo_update, NULL);
       }
       break;

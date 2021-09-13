@@ -798,22 +798,12 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           // sets or reads the Step Size
           if(command[4]==';') {
             // read the step size
-            int i=0;
-            for(i=0;i<STEPS;i++) {
-              if(steps[i]==step) break;
-            }
-            if(i<STEPS) {
-              // send reply back
-              sprintf(reply,"ZZAC%02d;",i);
-              send_resp(client->fd,reply) ;
-            }
+            sprintf(reply,"ZZAC%02d;",vfo_get_stepindex());
+            send_resp(client->fd,reply) ;
           } else if(command[6]==';') {
             // set the step size
             int i=atoi(&command[4]) ;
-            if(i>=0 && i<STEPS) {
-              step=steps[i];
-              vfo_update();
-            }
+            vfo_set_step_from_index(i);
           } else {
           }
           break;
@@ -821,12 +811,8 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           // move VFO A down by selected step
           if(command[6]==';') {
             int step_index=atoi(&command[4]);
-            long long hz=0;
             if(step_index>=0 && step_index<STEPS) {
-              hz=(long long)steps[step_index];
-            }
-            if(hz!=0LL) {
-              vfo_id_move(VFO_A,-hz,FALSE);
+              vfo_id_move(VFO_A,-steps[step_index],FALSE);
             }
           } else {
           }
@@ -894,12 +880,8 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           // move VFO A up by selected step
           if(command[6]==';') {
             int step_index=atoi(&command[4]);
-            long long hz=0;
             if(step_index>=0 && step_index<STEPS) {
-              hz=(long long)steps[step_index];
-            }
-            if(hz!=0LL) {
-              vfo_id_move(VFO_A,hz,FALSE);
+              vfo_id_move(VFO_A,steps[step_index],FALSE);
             }
           } else {
           }
@@ -958,12 +940,8 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           // move VFO B down by selected step
           if(command[6]==';') {
             int step_index=atoi(&command[4]);
-            long long hz=0;
             if(step_index>=0 && step_index<STEPS) {
-              hz=(long long)steps[step_index];
-            }
-            if(hz!=0LL) {
-              vfo_id_move(VFO_B,-hz,FALSE);
+              vfo_id_move(VFO_B,-steps[step_index],FALSE);
             }
           } else {
           }
@@ -973,12 +951,8 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           // move VFO B up by selected step
           if(command[6]==';') {
             int step_index=atoi(&command[4]);
-            long long hz=0;
             if(step_index>=0 && step_index<STEPS) {
-              hz=(long long)steps[step_index];
-            }
-            if(hz!=0LL) {
-              vfo_id_move(VFO_B,hz,FALSE);
+              vfo_id_move(VFO_B,steps[step_index],FALSE);
             }
           } else {
           }

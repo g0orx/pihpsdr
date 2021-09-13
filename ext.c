@@ -190,26 +190,14 @@ void num_pad(int val) {
 }
 
 void update_vfo_step(int direction) {
-  int i;
-  for (i=0; i<STEPS; i++) {
-    if (steps[i] == step) break;
-  }
-  //
-  // This should not happen (step size not found). If it happens,
-  // take the seond-smallest one such that the step size remains
-  // small after changing it.
-  //
-  if (i >= STEPS) i=1;
+  int i = vfo_get_stepindex();;
 
   if (direction > 0) {
     i++;
   } else {
     i--;
   }
-  if (i >= STEPS) i=STEPS-1;
-  if (i < 0     ) i=0;
-  step=steps[i];
-
+  vfo_set_step_from_index(i);
   vfo_update();
 }
 
