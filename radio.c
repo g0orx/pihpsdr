@@ -1193,9 +1193,9 @@ void start_radio() {
   adc[1].preamp=FALSE;
   adc[1].attenuation=0;
   if(have_rx_gain) {
-    adc[1].attenuation=rx_gain_calibration;
+    adc[1].gain=rx_gain_calibration;
   } else {
-    adc[1].attenuation=0;
+    adc[1].gain=0;
   }
 #ifdef SOAPYSDR
   adc[1].antenna=0;
