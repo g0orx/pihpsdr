@@ -170,6 +170,16 @@ void waterfall_update(RECEIVER *rx) {
       rx->waterfall_sample_rate=rx->sample_rate;
     }
 
+    //
+    // If we have just shifted the waterfall befause the VFO frequency has changed,
+    // there are  still IQ samples in the input queue corresponding to the "old"
+    // VFO frequency, and this produces artifacts both on the panadaper and on the
+    // waterfall. However, for the panadapter these are overwritten in due course,
+    // while artifacts "stay" on the waterfall. We therefore refrain from updating
+    // the waterfall *now* and continue updating when the VFO frequency has
+    // stabilized. This will not remove the artifacts in any case but is a big
+    // improvement.
+    //
     if (rotate_pixels != 0)  return;
 
     memmove(&pixels[rowstride],pixels,(height-1)*rowstride);

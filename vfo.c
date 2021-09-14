@@ -813,7 +813,6 @@ void vfo_id_step(int id, int steps) {
     } else {
       delta=vfo[id].frequency;
       vfo[id].frequency=ROUND(vfo[id].frequency,steps);
-      g_print("%s: OLD=%lld NEW=%lld\n", __FUNCTION__,delta, vfo[id].frequency);
       delta = vfo[id].frequency - delta;
     }
 
