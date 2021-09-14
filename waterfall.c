@@ -125,6 +125,7 @@ void waterfall_update(RECEIVER *rx) {
 
   float *samples;
   long long vfofreq=vfo[rx->id].frequency;  // access only once to be thread-safe
+  int rotate_pixels=0;                      // used to suppress drawing just after rotating
   if(rx->pixbuf) {
     unsigned char *pixels = gdk_pixbuf_get_pixels (rx->pixbuf);
 
@@ -132,7 +133,7 @@ void waterfall_update(RECEIVER *rx) {
     int height=gdk_pixbuf_get_height(rx->pixbuf);
     int rowstride=gdk_pixbuf_get_rowstride(rx->pixbuf);
 
-    hz_per_pixel=(double)rx->sample_rate/(double)display_width;
+    hz_per_pixel=(double)rx->sample_rate/((double)display_width*rx->zoom);
 
     if(rx->waterfall_frequency!=0 && (rx->sample_rate==rx->waterfall_sample_rate)) {
       if(rx->waterfall_frequency!=vfofreq) {
@@ -145,7 +146,7 @@ void waterfall_update(RECEIVER *rx) {
           rx->waterfall_frequency=vfofreq;
         } else {
           // rotate waterfall
-          int rotate_pixels=(int)((double)(rx->waterfall_frequency-vfofreq)/hz_per_pixel);
+          rotate_pixels=(int)((double)(rx->waterfall_frequency-vfofreq)/hz_per_pixel);
 //fprintf(stderr,"waterfall_update: rotate waterfall from %lld to %lld pixels=%d\n",rx->waterfall_frequency,vfofreq,rotate_pixels);
           if(rotate_pixels<0) {
             memmove(pixels,&pixels[-rotate_pixels*3],((display_width*display_height)+rotate_pixels)*3);
@@ -168,6 +169,8 @@ void waterfall_update(RECEIVER *rx) {
       rx->waterfall_frequency=vfofreq;
       rx->waterfall_sample_rate=rx->sample_rate;
     }
+
+    if (rotate_pixels != 0)  return;
 
     memmove(&pixels[rowstride],pixels,(height-1)*rowstride);
 
