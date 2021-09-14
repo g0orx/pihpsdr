@@ -67,6 +67,12 @@ static cairo_surface_t *vfo_surface = NULL;
 int steps[]={1,10,25,50,100,250,500,1000,5000,9000,10000,100000,250000,500000,1000000};
 char *step_labels[]={"1Hz","10Hz","25Hz","50Hz","100Hz","250Hz","500Hz","1kHz","5kHz","9kHz","10kHz","100kHz","250KHz","500KHz","1MHz"};
 
+//
+// Move frequency f by n steps, adjust to multiple of step size
+// This should replace *all* divisions by the step size
+//
+#define ROUND(f,n)  (((f+step/2)/step + n)*step)
+
 static GtkWidget* menu=NULL;
 static GtkWidget* band_menu=NULL;
 
@@ -735,8 +741,8 @@ void vfo_step(int steps) {
     if(vfo[id].ctun) {
       // don't let ctun go beyond end of passband
       long long frequency=vfo[id].frequency;
-      long long rx_low=((vfo[id].ctun_frequency/step + steps)*step)+active_receiver->filter_low;
-      long long rx_high=((vfo[id].ctun_frequency/step + steps)*step)+active_receiver->filter_high;
+      long long rx_low =ROUND(vfo[id].ctun_frequency,steps)+active_receiver->filter_low;
+      long long rx_high=ROUND(vfo[id].ctun_frequency,steps)+active_receiver->filter_high;
       long long half=(long long)active_receiver->sample_rate/2LL;
       long long min_freq=frequency-half;
       long long max_freq=frequency+half;
@@ -748,11 +754,11 @@ void vfo_step(int steps) {
       }
 
       delta=vfo[id].ctun_frequency;
-      vfo[id].ctun_frequency=(vfo[id].ctun_frequency/step + steps)*step;
+      vfo[id].ctun_frequency=ROUND(vfo[id].ctun_frequency,steps);
       delta=vfo[id].ctun_frequency - delta;
     } else {
       delta=vfo[id].frequency;
-      vfo[id].frequency=(vfo[id].frequency/step + steps)*step;
+      vfo[id].frequency=ROUND(vfo[id].frequency, steps);
       delta = vfo[id].frequency - delta;
     }
 
@@ -802,11 +808,12 @@ void vfo_id_step(int id, int steps) {
   if(!locked) {
     if(vfo[id].ctun) {
       delta=vfo[id].ctun_frequency;
-      vfo[id].ctun_frequency=(vfo[id].ctun_frequency/step+steps)*step;
+      vfo[id].ctun_frequency=ROUND(vfo[id].ctun_frequency,steps);
       delta=vfo[id].ctun_frequency - delta;
     } else {
       delta=vfo[id].frequency;
-      vfo[id].frequency=(vfo[id].frequency/step+steps)*step;
+      vfo[id].frequency=ROUND(vfo[id].frequency,steps);
+      g_print("%s: OLD=%lld NEW=%lld\n", __FUNCTION__,delta, vfo[id].frequency);
       delta = vfo[id].frequency - delta;
     }
 
@@ -877,14 +884,14 @@ void vfo_id_move(int id,long long hz,int round) {
       delta=vfo[id].ctun_frequency;
       vfo[id].ctun_frequency=vfo[id].ctun_frequency+hz;
       if(round && (vfo[id].mode!=modeCWL && vfo[id].mode!=modeCWU)) {
-         vfo[id].ctun_frequency=(vfo[id].ctun_frequency/step)*step;
+         vfo[id].ctun_frequency=ROUND(vfo[id].ctun_frequency,0);
       }
       delta=vfo[id].ctun_frequency - delta;
     } else {
       delta=vfo[id].frequency;
       vfo[id].frequency=vfo[id].frequency-hz;
       if(round && (vfo[id].mode!=modeCWL && vfo[id].mode!=modeCWU)) {
-         vfo[id].frequency=(vfo[id].frequency/step)*step;
+         vfo[id].frequency=ROUND(vfo[id].frequency,0);
       }
       delta = vfo[id].frequency - delta;
     }
@@ -945,7 +952,7 @@ void vfo_move_to(long long hz) {
 #endif
 
   if(vfo[id].mode!=modeCWL && vfo[id].mode!=modeCWU) {
-    offset=(hz/step)*step;
+    offset=ROUND(hz,0);
   }
   f=(vfo[id].frequency-half)+offset+((double)active_receiver->pan*active_receiver->hz_per_pixel);
 
