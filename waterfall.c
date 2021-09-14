@@ -124,6 +124,7 @@ void waterfall_update(RECEIVER *rx) {
   int i;
 
   float *samples;
+  long long vfofreq=vfo[rx->id].frequency;  // access only once to be thread-safe
   if(rx->pixbuf) {
     unsigned char *pixels = gdk_pixbuf_get_pixels (rx->pixbuf);
 
@@ -134,38 +135,39 @@ void waterfall_update(RECEIVER *rx) {
     hz_per_pixel=(double)rx->sample_rate/(double)display_width;
 
     if(rx->waterfall_frequency!=0 && (rx->sample_rate==rx->waterfall_sample_rate)) {
-      if(rx->waterfall_frequency!=vfo[rx->id].frequency) {
+      if(rx->waterfall_frequency!=vfofreq) {
         // scrolled or band change
         long long half=(long long)(rx->sample_rate/2);
-        if(rx->waterfall_frequency<(vfo[rx->id].frequency-half) || rx->waterfall_frequency>(vfo[rx->id].frequency+half)) {
+        if(rx->waterfall_frequency<(vfofreq-half) || rx->waterfall_frequency>(vfofreq+half)) {
           // outside of the range - blank waterfall
-//fprintf(stderr,"waterfall_update: clear waterfall from %lld to %lld\n",rx->waterfall_frequency,vfo[rx->id].frequency);
+//fprintf(stderr,"waterfall_update: clear waterfall from %lld to %lld\n",rx->waterfall_frequency,vfofreq);
           memset(pixels, 0, display_width*display_height*3);
+          rx->waterfall_frequency=vfofreq;
         } else {
           // rotate waterfall
-          int rotate_pixels=(int)((double)(rx->waterfall_frequency-vfo[rx->id].frequency)/hz_per_pixel);
-//fprintf(stderr,"waterfall_update: rotate waterfall from %lld to %lld pixels=%d\n",rx->waterfall_frequency,vfo[rx->id].frequency,rotate_pixels);
+          int rotate_pixels=(int)((double)(rx->waterfall_frequency-vfofreq)/hz_per_pixel);
+//fprintf(stderr,"waterfall_update: rotate waterfall from %lld to %lld pixels=%d\n",rx->waterfall_frequency,vfofreq,rotate_pixels);
           if(rotate_pixels<0) {
             memmove(pixels,&pixels[-rotate_pixels*3],((display_width*display_height)+rotate_pixels)*3);
             //now clear the right hand side
             for(i=0;i<display_height;i++) {
               memset(&pixels[((i*display_width)+(width+rotate_pixels))*3], 0, -rotate_pixels*3);
             }
-          } else {
+          } else if (rotate_pixels > 0) {
             memmove(&pixels[rotate_pixels*3],pixels,((display_width*display_height)-rotate_pixels)*3);
             //now clear the left hand side
             for(i=0;i<display_height;i++) {
               memset(&pixels[(i*display_width)*3], 0, rotate_pixels*3);
             }
           }
+          rx->waterfall_frequency -= rotate_pixels*hz_per_pixel;
         }
       }
     } else {
       memset(pixels, 0, display_width*display_height*3);
+      rx->waterfall_frequency=vfofreq;
+      rx->waterfall_sample_rate=rx->sample_rate;
     }
-
-    rx->waterfall_frequency=vfo[rx->id].frequency;
-    rx->waterfall_sample_rate=rx->sample_rate;
 
     memmove(&pixels[rowstride],pixels,(height-1)*rowstride);
 
