@@ -149,6 +149,8 @@ typedef struct _receiver {
 
   gint64 waterfall_frequency;
   gint waterfall_sample_rate;
+  gint waterfall_pan;
+  gint waterfall_zoom;
 
   gint mute_radio;
 
