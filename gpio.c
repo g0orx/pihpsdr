@@ -623,6 +623,9 @@ void gpio_set_defaults(int ctrlr) {
       switches=switches_controller2_v1;
       break;
     case CONTROLLER2_V2:
+#ifdef LOCALCW
+      ENABLE_CW_BUTTONS=0;
+#endif
       encoders=encoders_controller2_v2;
       switches=switches_controller2_v2;
       break;
