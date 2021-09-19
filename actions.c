@@ -211,6 +211,10 @@ static inline double KnobOrWheel(PROCESS_ACTION *a, double oldval, double minval
       break;
     case ABSOLUTE:
       oldval = minval + a->val*(maxval-minval)*0.01;
+      //
+      // Round the new value to a multiple of inc
+      //
+      oldval=inc*round(oldval/inc);
       break;
     default:
       // do nothing
@@ -842,8 +846,6 @@ int process_action(void *data) {
       break;
     case PANADAPTER_STEP:
       value=KnobOrWheel(a, active_receiver->panadapter_step, 5.0, 30.0, 1.0);
-      // restrict to multiples of 5
-      active_receiver->panadapter_step=(int)(value*0.2)+5;
       break;
     case PREAMP:
     case PS:
