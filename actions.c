@@ -1,4 +1,5 @@
 #include <gtk/gtk.h>
+#include <math.h>
 
 #include "main.h"
 #include "discovery.h"
