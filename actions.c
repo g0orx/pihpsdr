@@ -198,6 +198,53 @@ static int timeout_cb(gpointer data) {
 }
 
 
+static inline double KnobOrWheelDouble(PROCESS_ACTION *a, double oldval, double minval, double maxval, double inc) {
+  //
+  // Slider: set value
+  // Wheel:  increment/decrement the value (by "inc" per tick)
+  //
+  // In either case, the returned value is in the range minval...maxval
+  //
+  switch (a->mode) {
+    case RELATIVE:
+      oldval += a->val * inc;
+      break;
+    case ABSOLUTE:
+      oldval = minval + a->val*(maxval-minval)*0.01;
+      break;
+    default:
+      // do nothing
+      break;
+  }
+  if (oldval > maxval) oldval=maxval;
+  if (oldval < minval) oldval=minval;
+  return oldval;
+}
+
+static inline int KnobOrWheelInt(PROCESS_ACTION *a, int oldval, int minval, int maxval, int inc) {
+  //
+  // Slider: set value
+  // Wheel:  increment/decrement the value (by "inc" per tick)
+  //
+  // In either case, the returned value is in the range minval...maxval
+  //
+  switch (a->mode) {
+    case RELATIVE:
+      oldval += a->val * inc;
+      break;
+    case ABSOLUTE:
+      oldval = minval + (a->val*(maxval-minval))/100;
+      break;
+    default:
+      // do nothing
+      break;
+  }
+  if (oldval > maxval) oldval=maxval;
+  if (oldval < minval) oldval=minval;
+  return oldval;
+}
+
+
 
 int process_action(void *data) {
   PROCESS_ACTION *a=(PROCESS_ACTION *)data;
@@ -225,40 +272,15 @@ int process_action(void *data) {
       }
       break;
     case AF_GAIN:
-      value=active_receiver->volume;
-      switch(a->mode) {
-	case RELATIVE:
-          value+=a->val/100.0;
-	  break;
-	case ABSOLUTE:
-	  value=a->val/100.0;
-	  break;
-      }
-      if(value<0.0) {
-        value=0.0;
-      } else if(value>1.0) {
-        value=1.0;
-      }
+      value=KnobOrWheelDouble(a, active_receiver->volume, 0.0, 1.0, 0.01);
       set_af_gain(active_receiver->id,value);
       break;
     case AF_GAIN_RX1:
-      value=receiver[0]->volume;
-      value+=a->val/100.0;
-      if(value<0.0) {
-        value=0.0;
-      } else if(value>1.0) {
-        value=1.0;
-      }
+      value=KnobOrWheelDouble(a, receiver[0]->volume, 0.0, 1.0, 0.01);
       set_af_gain(0,value);
       break;
     case AF_GAIN_RX2:
-      value=receiver[1]->volume;
-      value+=a->val/100.0;
-      if(value<0.0) {
-        value=0.0;
-      } else if(value>1.0) {
-        value=1.0;
-      }
+      value=KnobOrWheelDouble(a, receiver[1]->volume, 0.0, 1.0, 0.01);
       set_af_gain(1,value);
       break;
     case AGC:
@@ -272,33 +294,15 @@ int process_action(void *data) {
       }
       break;
     case AGC_GAIN:
-      value=active_receiver->agc_gain;
-      value+=a->val;
-      if(value<-20.0) {
-        value=-20.0;
-      } else if(value>120.0) {
-        value=120.0;
-      }
+      value=KnobOrWheelDouble(a, active_receiver->agc_gain, -20.0, 120.0, 1.0);
       set_agc_gain(active_receiver->id,value);
       break;
     case AGC_GAIN_RX1:
-      value=receiver[0]->agc_gain;
-      value+=a->val;
-      if(value<-20.0) {
-        value=-20.0;
-      } else if(value>120.0) {
-        value=120.0;
-      }
+      value=KnobOrWheelDouble(a, receiver[0]->agc_gain, -20.0, 120.0, 1.0);
       set_agc_gain(0,value);
       break;
     case AGC_GAIN_RX2:
-      value=receiver[1]->agc_gain;
-      value+=a->val;
-      if(value<-20.0) {
-        value=-20.0;
-      } else if(value>120.0) {
-        value=120.0;
-      }
+      value=KnobOrWheelDouble(a, receiver[1]->agc_gain, -20.0, 120.0, 1.0);
       set_agc_gain(1,value);
       break;
     case ANF:
@@ -315,20 +319,10 @@ int process_action(void *data) {
       }
       break;
     case ATTENUATION:
-      value=(double)adc[active_receiver->adc].attenuation;
-      value+=(double)a->val;
       if(have_rx_gain) {
-        if(value<-12.0) {
-          value=-12.0;
-        } else if(value>48.0) {
-          value=48.0;
-        }
+        value=KnobOrWheelDouble(a, adc[active_receiver->adc].attenuation, -12.0, 48.0, 1.0);
       } else {
-        if(value<0.0) {
-          value=0.0;
-        } else if (value>31.0) {
-          value=31.0;
-        }
+        value=KnobOrWheelDouble(a, adc[active_receiver->adc].attenuation,   0.0, 31.0, 1.0);
       }
       set_attenuation_value(value);
       break;
@@ -616,13 +610,7 @@ int process_action(void *data) {
       update_diversity_phase((double)a->val*0.1);
       break;
     case DRIVE:
-      value=getDrive();
-      value+=(double)a->val;
-      if(value<0.0) {
-        value=0.0;
-      } else if(value>drive_max) {
-        value=drive_max;
-      }
+      value=KnobOrWheelDouble(a, getDrive(), 0.0, drive_max, 1.0);
       set_drive(value);
       break;
     case DUPLEX:
