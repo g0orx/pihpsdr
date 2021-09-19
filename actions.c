@@ -82,23 +82,23 @@ ACTION_TABLE ActionTable[] = {
   {CW_RIGHT,		"CW RIGHT",		"CWR",		MIDI_KEY | CONTROLLER_SWITCH},
   {CW_SPEED,		"CW SPEED",		NULL,		MIDI_KNOB | MIDI_WHEEL | CONTROLLER_ENCODER},
   {DIV,			"DIV ON/OFF",		"DIV",		MIDI_KEY | CONTROLLER_SWITCH},
-  {DIV_GAIN,		"DIV GAIN",		NULL,		MIDI_KNOB | MIDI_WHEEL | CONTROLLER_ENCODER},
-  {DIV_GAIN_COARSE,	"DIV GAIN\nCOARSE",	NULL,		MIDI_KNOB | MIDI_WHEEL | CONTROLLER_ENCODER},
-  {DIV_GAIN_FINE,	"DIV GAIN\nFINE",	NULL,		MIDI_KNOB | MIDI_WHEEL | CONTROLLER_ENCODER},
-  {DIV_PHASE,		"DIV PHASE",		NULL,		MIDI_KNOB | MIDI_WHEEL | CONTROLLER_ENCODER},
-  {DIV_PHASE_COARSE,	"DIV PHASE\nCOARSE",	NULL,		MIDI_KNOB | MIDI_WHEEL | CONTROLLER_ENCODER},
-  {DIV_PHASE_FINE,	"DIV PHASE\nFINE",	NULL,		MIDI_KNOB | MIDI_WHEEL | CONTROLLER_ENCODER},
+  {DIV_GAIN,		"DIV GAIN",		NULL,		MIDI_WHEEL | CONTROLLER_ENCODER},
+  {DIV_GAIN_COARSE,	"DIV GAIN\nCOARSE",	NULL,		MIDI_WHEEL | CONTROLLER_ENCODER},
+  {DIV_GAIN_FINE,	"DIV GAIN\nFINE",	NULL,		MIDI_WHEEL | CONTROLLER_ENCODER},
+  {DIV_PHASE,		"DIV PHASE",		NULL,		MIDI_WHEEL | CONTROLLER_ENCODER},
+  {DIV_PHASE_COARSE,	"DIV PHASE\nCOARSE",	NULL,		MIDI_WHEEL | CONTROLLER_ENCODER},
+  {DIV_PHASE_FINE,	"DIV PHASE\nFINE",	NULL,		MIDI_WHEEL | CONTROLLER_ENCODER},
   {DRIVE,		"TX DRIVE",		NULL,		MIDI_KNOB | MIDI_WHEEL | CONTROLLER_ENCODER},
   {DUPLEX,		"DUPLEX",		"DUP",		MIDI_KEY | CONTROLLER_SWITCH},
   {FILTER_MINUS,	"FILTER -",		"FL-",		MIDI_KEY | CONTROLLER_SWITCH},
   {FILTER_PLUS,		"FILTER +",		"FL+",		MIDI_KEY | CONTROLLER_SWITCH},
   {FUNCTION,		"FUNC",			"FUNC",		CONTROLLER_SWITCH},
-  {IF_SHIFT,		"IF SHIFT",		NULL,		MIDI_KNOB | MIDI_WHEEL | CONTROLLER_ENCODER},
-  {IF_SHIFT_RX1,	"IF SHIFT\nRX1",	NULL,		MIDI_KNOB | MIDI_WHEEL | CONTROLLER_ENCODER},
-  {IF_SHIFT_RX2,	"IF SHIFT\nRX2",	NULL,		MIDI_KNOB | MIDI_WHEEL | CONTROLLER_ENCODER},
-  {IF_WIDTH,		"IF WIDTH",		NULL,		MIDI_KNOB | MIDI_WHEEL | CONTROLLER_ENCODER},
-  {IF_WIDTH_RX1,	"IF WIDTH\nRX1",	NULL,		MIDI_KNOB | MIDI_WHEEL | CONTROLLER_ENCODER},
-  {IF_WIDTH_RX2,	"IF WIDTH\nRX2",	NULL,		MIDI_KNOB | MIDI_WHEEL | CONTROLLER_ENCODER},
+  {IF_SHIFT,		"IF SHIFT",		NULL,		MIDI_WHEEL | CONTROLLER_ENCODER},
+  {IF_SHIFT_RX1,	"IF SHIFT\nRX1",	NULL,		MIDI_WHEEL | CONTROLLER_ENCODER},
+  {IF_SHIFT_RX2,	"IF SHIFT\nRX2",	NULL,		MIDI_WHEEL | CONTROLLER_ENCODER},
+  {IF_WIDTH,		"IF WIDTH",		NULL,		MIDI_WHEEL | CONTROLLER_ENCODER},
+  {IF_WIDTH_RX1,	"IF WIDTH\nRX1",	NULL,		MIDI_WHEEL | CONTROLLER_ENCODER},
+  {IF_WIDTH_RX2,	"IF WIDTH\nRX2",	NULL,		MIDI_WHEEL | CONTROLLER_ENCODER},
   {LINEIN_GAIN,		"LINEIN\nGAIN",		NULL,		MIDI_KNOB | MIDI_WHEEL | CONTROLLER_ENCODER},
   {LOCK,		"LOCK",			"LOCK",		MIDI_KEY | CONTROLLER_SWITCH},
   {MENU_AGC,		"AGC\nMENU",		"AGC",		MIDI_KEY | CONTROLLER_SWITCH},
@@ -130,7 +130,7 @@ ACTION_TABLE ActionTable[] = {
   {NUMPAD_9,		"NUMPAD 9",		"9",		MIDI_KEY},
   {NUMPAD_CL,		"NUMPAD\nCL",		"CL",		MIDI_KEY},
   {NUMPAD_ENTER,	"NUMPAD\nENTER",	"EN",		MIDI_KEY},
-  {PAN,			"PAN",			NULL,		MIDI_KNOB | MIDI_WHEEL | CONTROLLER_ENCODER},
+  {PAN,			"PAN",			NULL,		MIDI_WHEEL | CONTROLLER_ENCODER},
   {PAN_MINUS,		"PAN -",		"PAN-",		MIDI_KEY | CONTROLLER_SWITCH},
   {PAN_PLUS,		"PAN +",		"PAN+",		MIDI_KEY | CONTROLLER_SWITCH},
   {PANADAPTER_HIGH,	"PAN HIGH",		NULL,		MIDI_KNOB | MIDI_WHEEL | CONTROLLER_ENCODER},
@@ -142,13 +142,13 @@ ACTION_TABLE ActionTable[] = {
   {RF_GAIN,		"RF GAIN",		NULL,		MIDI_KNOB | MIDI_WHEEL | CONTROLLER_ENCODER},
   {RF_GAIN_RX1,		"RF GAIN\nRX1",		NULL,		MIDI_KNOB | MIDI_WHEEL | CONTROLLER_ENCODER},
   {RF_GAIN_RX2,		"RF GAIN\nRX2",		NULL,		MIDI_KNOB | MIDI_WHEEL | CONTROLLER_ENCODER},
-  {RIT,			"RIT",			NULL,		MIDI_KNOB | MIDI_WHEEL | CONTROLLER_ENCODER},
+  {RIT,			"RIT",			NULL,		MIDI_WHEEL | CONTROLLER_ENCODER},
   {RIT_CLEAR,		"RIT\nCLEAR",		"RITCL",	MIDI_KEY | CONTROLLER_SWITCH},
   {RIT_ENABLE,		"RIT\nON/OFF",		"RIT",		MIDI_KEY | CONTROLLER_SWITCH},
   {RIT_MINUS,		"RIT +",		"RIT-",		MIDI_KEY | CONTROLLER_SWITCH},
   {RIT_PLUS,		"RIT -",		"RIT+",		MIDI_KEY | CONTROLLER_SWITCH},
-  {RIT_RX1,		"RIT\nRX1",		NULL,		MIDI_KNOB | MIDI_WHEEL | CONTROLLER_ENCODER},
-  {RIT_RX2,		"RIT\nRX2",		NULL,		MIDI_KNOB | MIDI_WHEEL | CONTROLLER_ENCODER},
+  {RIT_RX1,		"RIT\nRX1",		NULL,		MIDI_WHEEL | CONTROLLER_ENCODER},
+  {RIT_RX2,		"RIT\nRX2",		NULL,		MIDI_WHEEL | CONTROLLER_ENCODER},
   {RIT_STEP,		"RIT\nSTEP",		"RITST",	MIDI_KEY | CONTROLLER_SWITCH},
   {RSAT,		"RSAT",			"RSAT",		MIDI_KEY | CONTROLLER_SWITCH},
   {SAT,			"SAT",			"SAT",		MIDI_KEY | CONTROLLER_SWITCH},
@@ -198,7 +198,7 @@ static int timeout_cb(gpointer data) {
 }
 
 
-static inline double KnobOrWheelDouble(PROCESS_ACTION *a, double oldval, double minval, double maxval, double inc) {
+static inline double KnobOrWheel(PROCESS_ACTION *a, double oldval, double minval, double maxval, double inc) {
   //
   // Slider: set value
   // Wheel:  increment/decrement the value (by "inc" per tick)
@@ -220,30 +220,6 @@ static inline double KnobOrWheelDouble(PROCESS_ACTION *a, double oldval, double 
   if (oldval < minval) oldval=minval;
   return oldval;
 }
-
-static inline int KnobOrWheelInt(PROCESS_ACTION *a, int oldval, int minval, int maxval, int inc) {
-  //
-  // Slider: set value
-  // Wheel:  increment/decrement the value (by "inc" per tick)
-  //
-  // In either case, the returned value is in the range minval...maxval
-  //
-  switch (a->mode) {
-    case RELATIVE:
-      oldval += a->val * inc;
-      break;
-    case ABSOLUTE:
-      oldval = minval + (a->val*(maxval-minval))/100;
-      break;
-    default:
-      // do nothing
-      break;
-  }
-  if (oldval > maxval) oldval=maxval;
-  if (oldval < minval) oldval=minval;
-  return oldval;
-}
-
 
 
 int process_action(void *data) {
@@ -272,15 +248,15 @@ int process_action(void *data) {
       }
       break;
     case AF_GAIN:
-      value=KnobOrWheelDouble(a, active_receiver->volume, 0.0, 1.0, 0.01);
+      value=KnobOrWheel(a, active_receiver->volume, 0.0, 1.0, 0.01);
       set_af_gain(active_receiver->id,value);
       break;
     case AF_GAIN_RX1:
-      value=KnobOrWheelDouble(a, receiver[0]->volume, 0.0, 1.0, 0.01);
+      value=KnobOrWheel(a, receiver[0]->volume, 0.0, 1.0, 0.01);
       set_af_gain(0,value);
       break;
     case AF_GAIN_RX2:
-      value=KnobOrWheelDouble(a, receiver[1]->volume, 0.0, 1.0, 0.01);
+      value=KnobOrWheel(a, receiver[1]->volume, 0.0, 1.0, 0.01);
       set_af_gain(1,value);
       break;
     case AGC:
@@ -294,15 +270,15 @@ int process_action(void *data) {
       }
       break;
     case AGC_GAIN:
-      value=KnobOrWheelDouble(a, active_receiver->agc_gain, -20.0, 120.0, 1.0);
+      value=KnobOrWheel(a, active_receiver->agc_gain, -20.0, 120.0, 1.0);
       set_agc_gain(active_receiver->id,value);
       break;
     case AGC_GAIN_RX1:
-      value=KnobOrWheelDouble(a, receiver[0]->agc_gain, -20.0, 120.0, 1.0);
+      value=KnobOrWheel(a, receiver[0]->agc_gain, -20.0, 120.0, 1.0);
       set_agc_gain(0,value);
       break;
     case AGC_GAIN_RX2:
-      value=KnobOrWheelDouble(a, receiver[1]->agc_gain, -20.0, 120.0, 1.0);
+      value=KnobOrWheel(a, receiver[1]->agc_gain, -20.0, 120.0, 1.0);
       set_agc_gain(1,value);
       break;
     case ANF:
@@ -320,9 +296,9 @@ int process_action(void *data) {
       break;
     case ATTENUATION:
       if(have_rx_gain) {
-        value=KnobOrWheelDouble(a, adc[active_receiver->adc].attenuation, -12.0, 48.0, 1.0);
+        value=KnobOrWheel(a, adc[active_receiver->adc].attenuation, -12.0, 48.0, 1.0);
       } else {
-        value=KnobOrWheelDouble(a, adc[active_receiver->adc].attenuation,   0.0, 31.0, 1.0);
+        value=KnobOrWheel(a, adc[active_receiver->adc].attenuation,   0.0, 31.0, 1.0);
       }
       set_attenuation_value(value);
       break;
@@ -526,13 +502,7 @@ int process_action(void *data) {
       break;
     case COMPRESSION:
       if(can_transmit) {
-        value=transmitter->compressor_level;
-        value+=a->val;
-        if(value<0.0) {
-          value=0.0;
-        } else if(value>20.0) {
-          value=20.0;
-        }
+        value=KnobOrWheel(a, transmitter->compressor_level, 0.0, 20.0, 1.0);
 	transmitter_set_compressor_level(transmitter,value);
       }
       break;
@@ -549,13 +519,7 @@ int process_action(void *data) {
       break;
     case CW_FREQUENCY:
 #ifdef LOCALCW
-      value=(double)cw_keyer_sidetone_frequency;
-      value+=(double)a->val;
-      if(value<0.0) {
-        value=0.0;
-      } else if(value>1000.0) {
-        value=1000.0;
-      }
+      value=KnobOrWheel(a, (double)cw_keyer_sidetone_frequency, 300.0, 1000.0, 10.0);
       cw_keyer_sidetone_frequency=(int)value;
       g_idle_add(ext_vfo_update,NULL);
 #endif
@@ -570,13 +534,7 @@ int process_action(void *data) {
       break;
     case CW_SPEED:
 #ifdef LOCALCW
-      value=(double)cw_keyer_speed;
-      value+=(double)a->val;
-      if(value<1.0) {
-        value=1.0;
-      } else if(value>60.0) {
-        value=60.0;
-      }
+      value=KnobOrWheel(a, (double)cw_keyer_speed, 1.0, 60.0, 1.0);
       cw_keyer_speed=(int)value;
       g_idle_add(ext_vfo_update,NULL);
 #endif
@@ -610,7 +568,7 @@ int process_action(void *data) {
       update_diversity_phase((double)a->val*0.1);
       break;
     case DRIVE:
-      value=KnobOrWheelDouble(a, getDrive(), 0.0, drive_max, 1.0);
+      value=KnobOrWheel(a, getDrive(), 0.0, drive_max, 1.0);
       set_drive(value);
       break;
     case DUPLEX:
@@ -742,13 +700,7 @@ int process_action(void *data) {
       break;
 #endif
     case MIC_GAIN:
-      value=mic_gain;
-      value+=(double)a->val;
-      if(value<-12.0) {
-        value=-12.0;
-      } else if(value>50.0) {
-        value=50.0;
-      }
+      value=KnobOrWheel(a, mic_gain, -12.0, 50.0, 1.0);
       set_mic_gain(value);
       break;
     case MODE_MINUS:
@@ -881,19 +833,17 @@ int process_action(void *data) {
        }
        break;
     case PANADAPTER_HIGH:
-      value=(double)active_receiver->panadapter_high;
-      value+=(double)a->val;
+      value=KnobOrWheel(a, active_receiver->panadapter_high, -60.0, 20.0, 1.0);
       active_receiver->panadapter_high=(int)value;
       break;
     case PANADAPTER_LOW:
-      value=(double)active_receiver->panadapter_low;
-      value+=(double)a->val;
+      value=KnobOrWheel(a, active_receiver->panadapter_high, -160.0, -60.0, 1.0);
       active_receiver->panadapter_low=(int)value;
       break;
     case PANADAPTER_STEP:
-      value=(double)active_receiver->panadapter_step;
-      value+=(double)a->val;
-      active_receiver->panadapter_step=(int)value;
+      value=KnobOrWheel(a, active_receiver->panadapter_step, 5.0, 30.0, 1.0);
+      // restrict to multiples of 5
+      active_receiver->panadapter_step=(int)(value*0.2)+5;
       break;
     case PREAMP:
     case PS:
@@ -915,33 +865,15 @@ int process_action(void *data) {
       }
       break;
     case RF_GAIN:
-      value=adc[active_receiver->id].gain;
-      value+=a->val;
-      if(value<0.0) {
-        value=0.0;
-      } else if(value>100.0) {
-        value=100.0;
-      }
+      value=KnobOrWheel(a, adc[active_receiver->adc].gain, 0.0, 100.0, 1.0);
       set_rf_gain(active_receiver->id,value);
       break;
     case RF_GAIN_RX1:
-      value=adc[receiver[0]->id].gain;
-      value+=a->val;
-      if(value<0.0) {
-        value=0.0;
-      } else if(value>100.0) {
-        value=100.0;
-      }
+      value=KnobOrWheel(a, adc[receiver[0]->adc].gain, 0.0, 100.0, 1.0);
       set_rf_gain(0,value);
       break;
     case RF_GAIN_RX2:
-      value=adc[receiver[1]->id].gain;
-      value+=a->val;
-      if(value<0.0) {
-        value=0.0;
-      } else if(value>71.0) {
-        value=71.0;
-      }
+      value=KnobOrWheel(a, adc[receiver[1]->adc].gain, 0.0, 71.0, 1.0);
       set_rf_gain(1,value);
       break;
     case RIT:
@@ -1031,42 +963,23 @@ int process_action(void *data) {
     case SPLIT:
       if(a->mode==PRESSED) {
         if(can_transmit) {
-          split=split==1?0:1;
-          tx_set_mode(transmitter,get_tx_mode());
+          set_split(split==1?0:1);
           g_idle_add(ext_vfo_update, NULL);
         }
       }
       break;
     case SQUELCH:
-      value=active_receiver->squelch;
-      value+=(double)a->val;
-      if(value<0.0) {
-        value=0.0;
-      } else if(value>100.0) {
-        value=100.0;
-      }
+      value=KnobOrWheel(a, active_receiver->squelch, 0.0, 100.0, 1.0);
       active_receiver->squelch=value;
       set_squelch(active_receiver);
       break;
     case SQUELCH_RX1:
-      value=receiver[0]->squelch;
-      value+=(double)a->val;
-      if(value<0.0) {
-        value=0.0;
-      } else if(value>100.0) {
-        value=100.0;
-      }
+      value=KnobOrWheel(a, receiver[0]->squelch, 0.0, 100.0, 1.0);
       receiver[0]->squelch=value;
       set_squelch(receiver[0]);
       break;
     case SQUELCH_RX2:
-      value=receiver[1]->squelch;
-      value+=(double)a->val;
-      if(value<0.0) {
-        value=0.0;
-      } else if(value>100.0) {
-        value=100.0;
-      }
+      value=KnobOrWheel(a, receiver[1]->squelch, 0.0, 100.0, 1.0);
       receiver[1]->squelch=value;
       set_squelch(receiver[1]);
       break;
@@ -1099,23 +1012,8 @@ int process_action(void *data) {
       break;
     case TUNE_DRIVE:
       if(can_transmit) {
-        switch(a->mode) {
-          case RELATIVE:
-            if(a->val>0) {
-              transmitter->tune_percent=transmitter->tune_percent+1;
-	    }
-            if(a->val<0) {
-              transmitter->tune_percent=transmitter->tune_percent-1;
-	    }
-	    if(transmitter->tune_percent<0) transmitter->tune_percent=0;
-	    if(transmitter->tune_percent>100) transmitter->tune_percent=100;
-            break;
-          case ABSOLUTE:
-	    transmitter->tune_percent=(int)a->val;
-	    if(transmitter->tune_percent<0) transmitter->tune_percent=0;
-	    if(transmitter->tune_percent>100) transmitter->tune_percent=100;
-            break;
-        }
+        value=KnobOrWheel(a, (double) transmitter->tune_percent, 0.0, 100.0, 1.0);
+        transmitter->tune_percent=(int) value;
       }
       break;
     case TUNE_FULL:
@@ -1178,6 +1076,7 @@ int process_action(void *data) {
       g_idle_add(ext_vfo_update, NULL);
       break;
     case VOXLEVEL:
+      value=KnobOrWheel(a, vox_threshold, 0.0, 1.0, 0.01);
       if(a->mode==ABSOLUTE) {
 	vox_threshold = 0.01 * a->val;
       } else if(a->mode==RELATIVE) {
@@ -1187,23 +1086,15 @@ int process_action(void *data) {
       }
       break;
     case WATERFALL_HIGH:
-      value=(double)active_receiver->waterfall_high;
-      value+=(double)a->val;
+      value=KnobOrWheel(a, active_receiver->waterfall_high, -100.0, 0.0, 1.0);
       active_receiver->waterfall_high=(int)value;
       break;
     case WATERFALL_LOW:
-      value=(double)active_receiver->waterfall_low;
-      value+=(double)a->val;
+      value=KnobOrWheel(a, active_receiver->waterfall_low, -150.0, -50.0, 1.0);
       active_receiver->waterfall_low=(int)value;
       break;
     case XIT:
-      value=(double)transmitter->xit;
-      value+=(double)(a->val*rit_increment);
-      if(value<-10000.0) {
-        value=-10000.0;
-      } else if(value>10000.0) {
-        value=10000.0;
-      }
+      value=KnobOrWheel(a, (double)transmitter->xit, -10000.0, 10000.0, (double) rit_increment);
       transmitter->xit=(int)value;
       transmitter->xit_enabled=(value!=0);
       if(protocol==NEW_PROTOCOL) {
