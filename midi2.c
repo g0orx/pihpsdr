@@ -61,8 +61,8 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
                     break;
 		case MIDI_CTRL:
 		    if (desc->type == MIDI_KNOB) {
-			// normalize value to range 0 - 100
-			new = (val*100)/127;
+			// normalize value to range 0 - 100, round to nearest
+			new = (val*100+63)/127;
 			DoTheMidi(desc->action, desc->type, new);
 		    } else if (desc->type == MIDI_WHEEL) {
 			if (desc->delay > 0 && last_wheel_action == desc->action) {
@@ -90,8 +90,8 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
 		    break;
 		case MIDI_PITCH:
 		    if (desc->type == MIDI_KNOB) {
-			// normalize value to 0 - 100
-			new = (val*100)/16383;
+			// normalize value to 0 - 100, round to nearest
+			new = (val*100+8191)/16383;
 			DoTheMidi(desc->action, desc->type, new);
 		    }
 		    break;
