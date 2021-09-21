@@ -188,10 +188,8 @@ static void rit_cb(GtkComboBox *widget,gpointer data) {
 
 static void vfo_cb(GtkComboBox *widget,gpointer data) {
   int i=gtk_combo_box_get_active(widget);
-  if (i >= 0 && i < STEPS) {
-    vfo_set_stepsize(steps[i]);
-    g_idle_add(ext_vfo_update,NULL);
-  }
+  vfo_set_step_from_index(i);
+  g_idle_add(ext_vfo_update,NULL);
 }
 
 #ifdef PURESIGNAL

@@ -300,11 +300,7 @@ int process_action(void *data) {
       }
       break;
     case ATTENUATION:
-      if(have_rx_gain) {
-        value=KnobOrWheel(a, adc[active_receiver->adc].attenuation, -12.0, 48.0, 1.0);
-      } else {
-        value=KnobOrWheel(a, adc[active_receiver->adc].attenuation,   0.0, 31.0, 1.0);
-      }
+      value=KnobOrWheel(a, adc[active_receiver->adc].attenuation,   0.0, 31.0, 1.0);
       set_attenuation_value(value);
       break;
     case B_TO_A:
@@ -1081,14 +1077,7 @@ int process_action(void *data) {
       g_idle_add(ext_vfo_update, NULL);
       break;
     case VOXLEVEL:
-      value=KnobOrWheel(a, vox_threshold, 0.0, 1.0, 0.01);
-      if(a->mode==ABSOLUTE) {
-	vox_threshold = 0.01 * a->val;
-      } else if(a->mode==RELATIVE) {
-        vox_threshold += a->val * 0.01;
-        if (vox_threshold > 1.0) vox_threshold=1.0;
-        if (vox_threshold < 0.0) vox_threshold=0.0;
-      }
+      vox_threshold=KnobOrWheel(a, vox_threshold, 0.0, 1.0, 0.01);
       break;
     case WATERFALL_HIGH:
       value=KnobOrWheel(a, active_receiver->waterfall_high, -100.0, 0.0, 1.0);
