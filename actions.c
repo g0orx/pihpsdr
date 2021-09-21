@@ -510,6 +510,7 @@ int process_action(void *data) {
         value=KnobOrWheel(a, transmitter->compressor_level, 0.0, 20.0, 1.0);
 	transmitter_set_compressor_level(transmitter,value);
       }
+      g_idle_add(ext_vfo_update, NULL);
       break;
     case CTUN:
       if(a->mode==PRESSED) {
@@ -868,15 +869,16 @@ int process_action(void *data) {
       }
       break;
     case RF_GAIN:
-      value=KnobOrWheel(a, adc[active_receiver->adc].gain, 0.0, 100.0, 1.0);
+      value=KnobOrWheel(a, adc[active_receiver->adc].gain, adc[active_receiver->adc].min_gain, adc[active_receiver->adc].max_gain, 1.0);
       set_rf_gain(active_receiver->id,value);
       break;
     case RF_GAIN_RX1:
+      value=KnobOrWheel(a, adc[receiver[0]->adc].gain, adc[receiver[0]->adc].min_gain, adc[receiver[0]->adc].max_gain, 1.0);
       value=KnobOrWheel(a, adc[receiver[0]->adc].gain, 0.0, 100.0, 1.0);
       set_rf_gain(0,value);
       break;
     case RF_GAIN_RX2:
-      value=KnobOrWheel(a, adc[receiver[1]->adc].gain, 0.0, 71.0, 1.0);
+      value=KnobOrWheel(a, adc[receiver[1]->adc].gain, adc[receiver[1]->adc].min_gain, adc[receiver[1]->adc].max_gain, 1.0);
       set_rf_gain(1,value);
       break;
     case RIT:
