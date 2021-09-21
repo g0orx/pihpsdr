@@ -152,15 +152,17 @@ static void attenuation_value_changed_cb(GtkWidget *widget, gpointer data) {
 
 void set_attenuation_value(double value) {
   g_print("%s\n",__FUNCTION__);
+  if (have_rx_gain) {
+    // The only way to arrive here is to assign "ATTENUATION" to a
+    // MIDI/GPIO controller. However, this program either uses attenuation
+    // or gain, so ignore this.
+    g_print("%s: Ignoring attempt to set ATTENUATION value\n",__FUNCTION__);
+    return;
+  }
   adc[active_receiver->adc].attenuation=(int)value;
   set_attenuation(adc[active_receiver->adc].attenuation);
   if(display_sliders) {
-    if (have_rx_gain) {
-	/* NOTREACHED */
-	gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc[active_receiver->adc].gain);
-    } else {
-        gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc[active_receiver->adc].attenuation);
-    }
+    gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc[active_receiver->adc].attenuation);
   } else {
     if(scale_status!=ATTENUATION) {
       if(scale_status!=NO_ACTION) {
@@ -171,19 +173,11 @@ void set_attenuation_value(double value) {
     }
     if(scale_status==NO_ACTION) {
       char title[64];
-      if (have_rx_gain) {
-	  sprintf(title,"RX GAIN - ADC-%d (dB)",active_receiver->adc);
-      } else {
-          sprintf(title,"Attenuation - ADC-%d (dB)",active_receiver->adc);
-      }
+      sprintf(title,"Attenuation - ADC-%d (dB)",active_receiver->adc);
       scale_status=ATTENUATION;
       scale_dialog=gtk_dialog_new_with_buttons(title,GTK_WINDOW(top_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
       GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
-      if (have_rx_gain) {
-        attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-12.0, 48.0, 1.00);
-      } else {
-        attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 31.0, 1.00);
-      }
+      attenuation_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 31.0, 1.00);
       gtk_widget_set_size_request (attenuation_scale, 400, 30);
       gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc[active_receiver->adc].attenuation);
       gtk_widget_show(attenuation_scale);
@@ -405,6 +399,11 @@ void update_rf_gain() {
 
 void set_rf_gain(int rx,double value) {
   g_print("%s\n",__FUNCTION__);
+  if (!have_rx_gain) {
+    // ignore attempt to set gain when we do not have one
+    g_print("%s: Ignoring attempt to set RF gain\n",__FUNCTION__);
+    return;
+  }
   adc[receiver[rx]->adc].gain=value;
 #ifdef SOAPYSDR
   if(protocol==SOAPYSDR_PROTOCOL) {
@@ -429,7 +428,7 @@ void set_rf_gain(int rx,double value) {
       sprintf(title,"RF Gain RX %d",rx);
       scale_dialog=gtk_dialog_new_with_buttons(title,GTK_WINDOW(top_window),GTK_DIALOG_DESTROY_WITH_PARENT,NULL,NULL);
       GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(scale_dialog));
-      rf_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0, 100.0, 1.00);
+      rf_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,adc[rx].min_gain, adc[rx].max_gain, 1.0);
       gtk_widget_set_size_request (rf_gain_scale, 400, 30);
       //gtk_range_set_value (GTK_RANGE(rf_gain_scale),receiver[rx]->rf_gain);
       gtk_range_set_value (GTK_RANGE(rf_gain_scale),adc[receiver[rx]->id].gain);
@@ -853,17 +852,8 @@ fprintf(stderr,"sliders_init: width=%d height=%d\n", width,height);
     gtk_widget_override_font(rf_gain_label, pango_font_description_from_string(SLIDERS_FONT));
     gtk_widget_show(rf_gain_label);
     gtk_grid_attach(GTK_GRID(sliders),rf_gain_label,6,0,1,1);
-#ifdef SOAPYSDR
-    if(protocol==SOAPYSDR_PROTOCOL) {
-      rf_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,adc[0].min_gain, adc[0].max_gain, 1.0);
-      gtk_range_set_value (GTK_RANGE(rf_gain_scale),adc[0].gain);
-    } else {
-#endif
-      rf_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,-12.0, 48.0, 1.0);
-      gtk_range_set_value (GTK_RANGE(rf_gain_scale),adc[active_receiver->adc].gain);
-#ifdef SOAPYSDR
-    }
-#endif
+    rf_gain_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,adc[0].min_gain, adc[0].max_gain, 1.0);
+    gtk_range_set_value (GTK_RANGE(rf_gain_scale),adc[0].gain);
     gtk_widget_override_font(rf_gain_scale, pango_font_description_from_string(SLIDERS_FONT));
     gtk_range_set_increments (GTK_RANGE(rf_gain_scale),1.0,1.0);
     gtk_widget_show(rf_gain_scale);
