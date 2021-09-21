@@ -1145,15 +1145,8 @@ void start_radio() {
     filter_board = CHARLY25;
   }
 
-  /*
-  adc_attenuation[0]=0;
-  adc_attenuation[1]=0;
+  /* Set defaults */
 
-  if(have_rx_gain) {
-    adc_attenuation[0]=14;
-    adc_attenuation[1]=14;
-  }
-*/
   adc[0].antenna=ANTENNA_1;
   adc[0].filters=AUTOMATIC;
   adc[0].hpf=HPF_13;
@@ -1162,25 +1155,30 @@ void start_radio() {
   adc[0].random=FALSE;
   adc[0].preamp=FALSE;
   adc[0].attenuation=0;
-  if(have_rx_gain) {
-    adc[0].gain=rx_gain_calibration;
-  } else {
-    adc[0].gain=0;
-  }
-#ifdef SOAPYSDR
+  adc[0].gain=rx_gain_calibration;
+  adc[0].min_gain=0.0;
+  adc[0].max_gain=100.0;
   adc[0].antenna=0;
+  dac[0].antenna=1;
+  dac[0].gain=0;
+
+  //
+  // Some HPSDR radios have RX GAIN instead of attenuation
+  // these usually have a gain range from -12 to +48
+  //
+  if(have_rx_gain && (protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL)) {
+    adc[0].min_gain=-12.0;
+    adc[0].max_gain=+48.0;
+  }
+
+#ifdef SOAPYSDR
+  adc[0].agc=FALSE;
   if(device==SOAPYSDR_USB_DEVICE) {
-    adc[0].gain=0;
     if(radio->info.soapy.rx_gains>0) {
       adc[0].min_gain=radio->info.soapy.rx_range[0].minimum;
       adc[0].max_gain=radio->info.soapy.rx_range[0].maximum;;
-    } else {
-      adc[0].min_gain=0.0;
-      adc[0].max_gain=100.0;
+      adc[0].gain=adc[0].min_gain;
     }
-    adc[0].agc=FALSE;
-    dac[0].antenna=1;
-    dac[0].gain=0;
   }
 #endif
 
@@ -1192,26 +1190,26 @@ void start_radio() {
   adc[1].random=FALSE;
   adc[1].preamp=FALSE;
   adc[1].attenuation=0;
-  if(have_rx_gain) {
-    adc[1].gain=rx_gain_calibration;
-  } else {
-    adc[1].gain=0;
-  }
-#ifdef SOAPYSDR
+  adc[1].gain=rx_gain_calibration;
+  adc[1].min_gain=0.0;
+  adc[1].max_gain=100.0;
   adc[1].antenna=0;
+  dac[1].antenna=1;
+  dac[1].gain=0;
+
+  if(have_rx_gain && (protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL)) {
+    adc[1].min_gain=-12.0;
+    adc[1].max_gain=+48.0;
+  }
+
+#ifdef SOAPYSDR
+  adc[1].agc=FALSE;
   if(device==SOAPYSDR_USB_DEVICE) {
-    adc[1].gain=0;
     if(radio->info.soapy.rx_gains>0) {
       adc[1].min_gain=radio->info.soapy.rx_range[0].minimum;
       adc[1].max_gain=radio->info.soapy.rx_range[0].maximum;;
-    } else {
-      adc[1].min_gain=0.0;
-      adc[1].max_gain=100.0;
+      adc[1].gain=adc[1].min_gain;
     }
-    adc[1].max_gain=0;
-    adc[1].agc=FALSE;
-    dac[1].antenna=1;
-    dac[1].gain=0;
   }
 
   radio_sample_rate=radio->info.soapy.sample_rate;
