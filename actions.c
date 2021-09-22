@@ -505,6 +505,7 @@ int process_action(void *data) {
       if(can_transmit) {
         value=KnobOrWheel(a, transmitter->compressor_level, 0.0, 20.0, 1.0);
 	transmitter_set_compressor_level(transmitter,value);
+        transmitter_set_compressor(transmitter, value > 0.5);
       }
       g_idle_add(ext_vfo_update, NULL);
       break;
