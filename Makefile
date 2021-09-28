@@ -26,7 +26,7 @@ PURESIGNAL_INCLUDE=PURESIGNAL
 # USBOZY_INCLUDE=USBOZY
 
 # uncomment the line to below include support local CW keyer
-LOCALCW_INCLUDE=LOCALCW
+#LOCALCW_INCLUDE=LOCALCW
 
 # uncomment the line below for SoapySDR
 #SOAPYSDR_INCLUDE=SOAPYSDR
