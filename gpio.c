@@ -624,6 +624,12 @@ void gpio_set_defaults(int ctrlr) {
       break;
     case CONTROLLER2_V2:
 #ifdef LOCALCW
+      //
+      // This controller uses nearly all GPIO lines,
+      // so lines 9, 10, 11 are not available for
+      // CW keys and producing a side tone
+      //
+      ENABLE_GPIO_SIDETONE=0;
       ENABLE_CW_BUTTONS=0;
 #endif
       encoders=encoders_controller2_v2;
