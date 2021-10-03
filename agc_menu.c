@@ -65,7 +65,7 @@ static void agc_select_cb (GtkToggleButton *widget, gpointer        data) {
       send_agc(client_socket,active_receiver->id,active_receiver->agc);
     } else {
 #endif
-      set_agc(active_receiver, active_receiver->agc);
+      set_agc(active_receiver);
       g_idle_add(ext_vfo_update, NULL);
 #ifdef CLIENT_SERVER
     }

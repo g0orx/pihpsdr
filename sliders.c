@@ -273,9 +273,7 @@ static void agcgain_value_changed_cb(GtkWidget *widget, gpointer data) {
     send_agc_gain(client_socket,active_receiver->id,(int)active_receiver->agc_gain,(int)active_receiver->agc_hang,(int)active_receiver->agc_thresh);
   } else {
 #endif
-    SetRXAAGCTop(active_receiver->id, active_receiver->agc_gain);
-    GetRXAAGCHangLevel(active_receiver->id, &active_receiver->agc_hang);
-    GetRXAAGCThresh(active_receiver->id, &active_receiver->agc_thresh, 4096.0, (double)active_receiver->sample_rate);
+  set_agc(active_receiver);
 #ifdef CLIENT_SERVER
   }
 #endif
@@ -284,9 +282,7 @@ static void agcgain_value_changed_cb(GtkWidget *widget, gpointer data) {
 void set_agc_gain(int rx,double value) {
   g_print("%s\n",__FUNCTION__);
   receiver[rx]->agc_gain=value;
-  SetRXAAGCTop(receiver[rx]->id, receiver[rx]->agc_gain);
-  GetRXAAGCHangLevel(receiver[rx]->id, &receiver[rx]->agc_hang);
-  GetRXAAGCThresh(receiver[rx]->id, &receiver[rx]->agc_thresh, 4096.0, (double)receiver[rx]->sample_rate);
+  set_agc(receiver[rx]);
   if(display_sliders) {
     gtk_range_set_value (GTK_RANGE(agc_scale),receiver[rx]->agc_gain);
   } else {

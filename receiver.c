@@ -705,13 +705,13 @@ void set_deviation(RECEIVER *rx) {
   SetRXAFMDeviation(rx->id, (double)rx->deviation);
 }
 
-void set_agc(RECEIVER *rx, int agc) {
+void set_agc(RECEIVER *rx) {
  
-  SetRXAAGCMode(rx->id, agc);
+  SetRXAAGCMode(rx->id, rx->agc);
   //SetRXAAGCThresh(rx->id, agc_thresh_point, 4096.0, rx->sample_rate);
   SetRXAAGCSlope(rx->id,rx->agc_slope);
   SetRXAAGCTop(rx->id,rx->agc_gain);
-  switch(agc) {
+  switch(rx->agc) {
     case AGC_OFF:
       break;
     case AGC_LONG:
@@ -1145,8 +1145,6 @@ g_print("%s: OpenChannel id=%d buffer_size=%d fft_size=%d sample_rate=%d\n",
   RXASetNC(rx->id, rx->fft_size);
   RXASetMP(rx->id, rx->low_latency);
 
-  set_agc(rx, rx->agc);
-
   SetRXAAMDSBMode(rx->id, 0);
   SetRXAShiftRun(rx->id, 0);
 
@@ -1199,6 +1197,8 @@ g_print("%s: rx=%p id=%d local_audio=%d\n",__FUNCTION__,rx,rx->id,rx->local_audi
       rx->local_audio=0;
     }
   }
+  // defer set_agc until here, otherwise the AGC threshold is not computed correctly
+  set_agc(rx);
   return rx;
 }
 

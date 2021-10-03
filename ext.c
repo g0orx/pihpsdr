@@ -656,7 +656,7 @@ int ext_agc_update(void *data) {
   if(active_receiver->agc>+AGC_LAST) {
     active_receiver->agc=0;
   }
-  set_agc(active_receiver, active_receiver->agc);
+  set_agc(active_receiver);
   g_idle_add(ext_vfo_update, NULL);
   return 0;
 }
