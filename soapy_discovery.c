@@ -135,7 +135,7 @@ static void get_info(char *driver) {
   fprintf(stderr,"sample_rate selected %d\n",sample_rate);
 
   if(tx_channels>0) {
-    SoapySDRRange *tx_rates=SoapySDRDevice_getSampleRateRange(sdr, SOAPY_SDR_TX, 1, &tx_rates_length);
+    SoapySDRRange *tx_rates=SoapySDRDevice_getSampleRateRange(sdr, SOAPY_SDR_TX, 0, &tx_rates_length);
     fprintf(stderr,"Tx sample rates: ");
     for (size_t i = 0; i < tx_rates_length; i++) {
       fprintf(stderr,"%f -> %f (%f),", tx_rates[i].minimum, tx_rates[i].maximum, tx_rates[i].minimum/48000.0);
@@ -197,7 +197,7 @@ static void get_info(char *driver) {
   fprintf(stderr,"has_automaic_dc_offset_correction=%d\n",has_automatic_dc_offset_correction);
 
   if(tx_channels>0) {
-    tx_gains = SoapySDRDevice_listGains(sdr, SOAPY_SDR_TX, 1, &tx_gains_length);
+    tx_gains = SoapySDRDevice_listGains(sdr, SOAPY_SDR_TX, 0, &tx_gains_length);
   }
 
   size_t formats_length;
@@ -275,7 +275,7 @@ fprintf(stderr,"Rx gains: \n");
       fprintf(stderr,"Tx gains: \n");
       for (size_t i = 0; i < tx_gains_length; i++) {
         fprintf(stderr,"%s ", tx_gains[i]);
-        SoapySDRRange tx_range=SoapySDRDevice_getGainElementRange(sdr, SOAPY_SDR_TX, 1, tx_gains[i]);
+        SoapySDRRange tx_range=SoapySDRDevice_getGainElementRange(sdr, SOAPY_SDR_TX, 0, tx_gains[i]);
         fprintf(stderr,"%f -> %f step=%f\n",tx_range.minimum,tx_range.maximum,tx_range.step);
         discovered[devices].info.soapy.tx_range[i]=tx_range;
       }
@@ -307,11 +307,11 @@ void soapy_discovery() {
   SoapySDRKwargs input_args={};
   SoapySDRKwargs args={};
 
-fprintf(stderr,"soapy_discovery\n");
+fprintf(stderr,"%s\n",__FUNCTION__);
   rtlsdr_count=0;
   SoapySDRKwargs_set(&input_args, "hostname", "pluto.local");
   SoapySDRKwargs *results = SoapySDRDevice_enumerate(&input_args, &length);
-fprintf(stderr,"soapy_discovery: length=%d\n",(int)length);
+fprintf(stderr,"%s: length=%d\n", __FUNCTION__, (int)length);
   for (i = 0; i < length; i++) {
     for (size_t j = 0; j < results[i].size; j++) {
       if(strcmp(results[i].keys[j],"driver")==0 && strcmp(results[i].vals[j],"audio")!=0) {
