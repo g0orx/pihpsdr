@@ -65,6 +65,7 @@ gboolean band_select_cb (GtkWidget *widget, gpointer        data) {
   int b=GPOINTER_TO_UINT(data);
   set_button_text_color(last_band,"black");
   last_band=widget;
+  //fprintf(stderr,"%s: %d\n",__FUNCTION__,b);
   set_button_text_color(last_band,"orange");
 #ifdef CLIENT_SERVER
   if(radio_is_remote) {

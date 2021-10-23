@@ -1381,11 +1381,6 @@ void old_protocol_iq_samples(int isample,int qsample) {
   }
 }
 
-/*
-static void process_bandscope_buffer(char  *buffer) {
-}
-*/
-
 void ozy_send_buffer() {
 
 
@@ -1644,7 +1639,11 @@ void ozy_send_buffer() {
         break;
       case 3:
         {
-        BAND *band=band_get_current_band();
+        //BAND *band=band_get_current_band();
+        band=band_get_band(vfo[VFO_A].band);
+        if(isTransmitting()) {
+          band=band_get_band(vfo[txvfo].band);
+        }
         int power=0;
 static int last_power=0;
 	//
@@ -1670,6 +1669,7 @@ static int last_power=0;
 //  last_power=power;
 //}
 
+	//fprintf(stderr,"%s: band=%s disablePA=%d\n",__FUNCTION__,band->title,band->disablePA);
 
 
         output_buffer[C0]=0x12;
@@ -1695,10 +1695,10 @@ static int last_power=0;
         if(band_get_current()==band6) {
           output_buffer[C3]=output_buffer[C3]|0x40; // Alex 6M low noise amplifier
         }
-        if(band->disablePA) {
-          output_buffer[C2]=output_buffer[C2]|0x40; // Manual Filter Selection
-          output_buffer[C3]=output_buffer[C3]|0x20; // bypass all RX filters
-          output_buffer[C3]=output_buffer[C3]|0x80; // disable Alex T/R relay
+        if(isTransmitting() && band->disablePA) {
+          output_buffer[C2]|=0x40; // Manual Filter Selection
+          output_buffer[C3]|=0x20; // bypass all RX filters
+          output_buffer[C3]|=0x80; // disable Alex T/R relay
         }
 #ifdef PURESIGNAL
 	//

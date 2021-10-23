@@ -402,7 +402,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     cairo_set_source_rgb(cr,1.0,0.0,0.0);
     cairo_set_font_size(cr, 16);
 
-    if(transmitter->fwd<0.0001) {
+    if(transmitter->fwd<0.0001 || band->disablePA) {
       sprintf(text,"FWD: %0.3f",transmitter->exciter);
     } else {
       sprintf(text,"FWD: %0.3f",transmitter->fwd);
@@ -418,15 +418,6 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     cairo_move_to(cr,10,45);
     cairo_show_text(cr, text);
 
-/*
-    sprintf(text,"FWD: %0.8f",transmitter->fwd);
-    cairo_move_to(cr,10,60);
-    cairo_show_text(cr, text);
-
-    sprintf(text,"EXC: %0.3f",transmitter->exciter);
-    cairo_move_to(cr,10,75);
-    cairo_show_text(cr, text);
-*/
   }
 
   if(tx->dialog==NULL && protocol==ORIGINAL_PROTOCOL && device==DEVICE_HERMES_LITE2) {

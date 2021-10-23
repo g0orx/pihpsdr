@@ -271,6 +271,7 @@ void vfo_xvtr_changed() {
 void vfo_band_changed(int id,int b) {
   BANDSTACK *bandstack;
 
+  //fprintf(stderr,"%s: %d\n",__FUNCTION__,b);
 #ifdef CLIENT_SERVER
   if(radio_is_remote) {
     send_band(client_socket,id,b);
@@ -294,7 +295,7 @@ void vfo_band_changed(int id,int b) {
     vfo[id].bandstack=bandstack->current_entry;
   }
 
-  BAND *band=band_get_band(b);
+  BAND *band=band_set_current(b);
   BANDSTACK_ENTRY *entry=&bandstack->entry[vfo[id].bandstack];
   vfo[id].band=b;
   vfo[id].frequency=entry->frequency;

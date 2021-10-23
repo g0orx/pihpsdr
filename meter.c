@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <math.h>
 
+#include "band.h"
 #include "receiver.h"
 #include "meter.h"
 #include "radio.h"
@@ -150,36 +151,43 @@ void meter_update(RECEIVER *rx,int meter_type,double value,double reverse,double
   char *units="W";
   double interval=10.0;
   cairo_t *cr = cairo_create (meter_surface);
+  BAND *band=band_get_current_band();
 
   if(meter_type==POWER) {
     level=value;
-    if(level==0.0) {
+    if(level==0.0 || band->disablePA) {
       level=exciter;
     }
-    switch(pa_power) {
-      case PA_1W:
-        units="mW";
-        interval=100.0;
-        level=level*1000.0;
-        break;
-      case PA_10W:
-        interval=1.0;
-        break;
-      case PA_30W:
-        interval=3.0;
-        break;
-      case PA_50W:
-        interval=5.0;
-        break;
-      case PA_100W:
-        interval=10.0;
-        break;
-      case PA_200W:
-        interval=20.0;
-        break;
-      case PA_500W:
-        interval=50.0;
-        break;
+    if(band->disablePA) {
+      units="mW";
+      interval=100.0;
+      level=level*1000.0;
+    } else {
+      switch(pa_power) {
+        case PA_1W:
+          units="mW";
+          interval=100.0;
+          level=level*1000.0;
+          break;
+        case PA_10W:
+          interval=1.0;
+          break;
+        case PA_30W:
+          interval=3.0;
+          break;
+        case PA_50W:
+          interval=5.0;
+          break;
+        case PA_100W:
+          interval=10.0;
+          break;
+        case PA_200W:
+          interval=20.0;
+          break;
+        case PA_500W:
+          interval=50.0;
+          break;
+      }
     }
   }
 
@@ -334,29 +342,35 @@ if(analog_meter) {
 
       char *units="W";
       double interval=10.0;
-      switch(pa_power) {
-        case PA_1W:
-          units="mW";
-          interval=100.0;
-          break;
-        case PA_10W:
-          interval=1.0;
-          break;
-        case PA_30W:
-          interval=3.0;
-          break;
-        case PA_50W:
-          interval=5.0;
-          break;
-        case PA_100W:
-          interval=10.0;
-          break;
-        case PA_200W:
-          interval=20.0;
-          break;
-        case PA_500W:
-          interval=50.0;
-          break;
+
+      if(band->disablePA) {
+        units="mW";
+        interval=100.0;
+      } else {
+        switch(pa_power) {
+          case PA_1W:
+            units="mW";
+            interval=100.0;
+            break;
+          case PA_10W:
+            interval=1.0;
+            break;
+          case PA_30W:
+            interval=3.0;
+            break;
+          case PA_50W:
+            interval=5.0;
+            break;
+          case PA_100W:
+            interval=10.0;
+            break;
+          case PA_200W:
+            interval=20.0;
+            break;
+          case PA_500W:
+            interval=50.0;
+            break;
+        }
       }
 
       for(i=0;i<=100;i++) {
@@ -440,7 +454,8 @@ if(analog_meter) {
 
 
       cairo_set_source_rgb (cr, 1.0, 1.0, 1.0);
-      sprintf(sf,"%0.1f %s",max_level,units);
+      //sprintf(sf,"%0.1f%s",max_level,units);
+      sprintf(sf,"%d%s",(int)max_level,units);
       cairo_move_to(cr, 80, meter_height-22);
       cairo_show_text(cr, sf);
 
@@ -685,7 +700,7 @@ if(analog_meter) {
       }
       max_count++;
 
-      sprintf(sf,"FWD: %0.1f %s",max_level,units);
+      sprintf(sf,"FWD: %d%s",(int)max_level,units);
       cairo_move_to(cr, 10, 35);
       cairo_show_text(cr, sf);
 
