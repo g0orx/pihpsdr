@@ -48,4 +48,16 @@ echo "installing shared libraries"
 sudo cp libwdsp.so /usr/local/lib
 cd /usr/local/lib
 sudo ldconfig
-
+if test -f "/boot/config.txt"; then
+  if grep -q "gpio=4-13,16-27=ip,pu" /boot/config.txt; then
+    echo "/boot/config.txt already contains gpio setup."
+  else
+    echo "/boot/config.txt does not contain gpio setup - adding it."
+    echo "Please reboot system for this to take effect."
+    cat <<EGPIO | sudo tee -a /boot/config.txt > /dev/null
+[all]
+# setup GPIO for pihpsdr controllers
+gpio=4-13,16-27=ip,pu
+EGPIO
+  fi
+fi
