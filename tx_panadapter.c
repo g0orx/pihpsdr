@@ -405,7 +405,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     cairo_set_source_rgb(cr,1.0,0.2,0.0);
     cairo_set_font_size(cr, DISPLAY_FONT_SIZE3);
 
-    if(transmitter->fwd<0.0001) {
+    if(transmitter->fwd<0.0001 || band->disablePA || !pa_enabled) {
       sprintf(text,"FWD %0.3f W",transmitter->exciter);
     } else {
       static int max_count=0;
@@ -431,15 +431,6 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     cairo_move_to(cr,10,45);
     cairo_show_text(cr, text);
 
-/*
-    sprintf(text,"FWD: %0.8f",transmitter->fwd);
-    cairo_move_to(cr,10,60);
-    cairo_show_text(cr, text);
-
-    sprintf(text,"EXC: %0.3f",transmitter->exciter);
-    cairo_move_to(cr,10,75);
-    cairo_show_text(cr, text);
-*/
   }
   //
   // If the SWR protection has been triggered, display message for three seconds

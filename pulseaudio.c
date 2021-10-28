@@ -135,11 +135,11 @@ int audio_open_output(RECEIVER *rx) {
   int err;
 
   pa_buffer_attr attr;
-  attr.maxlength = (uint32_t) -1;
-  attr.tlength = (uint32_t) -1;
-  attr.prebuf = (uint32_t) 3072;  // about 64 msec "pre-filling"
-  attr.minreq = (uint32_t) -1;
-  attr.fragsize = (uint32_t) -1;
+  attr.maxlength = (uint32_t) 4800;
+  attr.tlength   = (uint32_t) 3800;
+  attr.prebuf    = (uint32_t) 3072;  // about 64 msec "pre-filling"
+  attr.minreq    = (uint32_t) -1;
+  attr.fragsize  = (uint32_t) -1;
 
   if(rx->audio_name==NULL) {
     result=-1;

@@ -1,7 +1,10 @@
 echo "installing fftw"
 sudo apt-get -y install libfftw3-3
-echo "installing librtlsdr0"
-sudo apt-get -y install librtlsdr0
+echo "installing gppiod"
+sudo apt-get -y install libgpuiod2
+echo "installing pulseaudio"
+sudo apt-get -y install libpulse0
+sudo apt-get -y install libpulse-mainloop-glib0
 echo "removing old versions of pihpsdr"
 sudo rm -rf /usr/local/bin/pihpsdr
 echo "creating start script"
@@ -35,11 +38,7 @@ fi
 cp pihpsdr.desktop ~/.local/share/applications
 echo "removing old versions of shared libraries"
 sudo rm -rf /usr/local/lib/libwdsp.so
-sudo rm -rf /usr/local/lib/libLimeSuite*
-sudo rm -rf /usr/local/lib/libSoapySDR*
-sudo rm -rf /usr/local/lib/SoapySDR
 echo "copying udev rules"
-sudo cp 64-limesuite.rules /etc/udev/rules.d/
 sudo cp 90-ozy.rules /etc/udev/rules.d/
 sudo udevadm control --reload-rules
 sudo udevadm trigger
@@ -47,13 +46,18 @@ echo "installing pihpsdr"
 sudo cp pihpsdr /usr/local/bin
 echo "installing shared libraries"
 sudo cp libwdsp.so /usr/local/lib
-sudo cp libLimeSuite.so.19.04.1 /usr/local/lib
-sudo cp libSoapySDR.so.0.8.0 /usr/local/lib
-sudo cp -R SoapySDR /usr/local/lib
 cd /usr/local/lib
-sudo ln -s libLimeSuite.so.19.04.1 libLimeSuite.so.19.04-1
-sudo ln -s libLimeSuite.so.19.04-1 libLimeSuite.so
-sudo ln -s libSoapySDR.so.0.8.0 libSoapySDR.so.0.8
-sudo ln -s libSoapySDR.so.0.8 libSoapySDR.so
 sudo ldconfig
-
+if test -f "/boot/config.txt"; then
+  if grep -q "gpio=4-13,16-27=ip,pu" /boot/config.txt; then
+    echo "/boot/config.txt already contains gpio setup."
+  else
+    echo "/boot/config.txt does not contain gpio setup - adding it."
+    echo "Please reboot system for this to take effect."
+    cat <<EGPIO | sudo tee -a /boot/config.txt > /dev/null
+[all]
+# setup GPIO for pihpsdr controllers
+gpio=4-13,16-27=ip,pu
+EGPIO
+  fi
+fi

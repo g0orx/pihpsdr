@@ -659,6 +659,7 @@ static gboolean update_display(gpointer data) {
     //
     tx->fwd=compute_power(tx->fwd);
     tx->rev=compute_power(tx->rev);
+    tx->exciter=compute_power(tx->exciter);
 
     //
     // Calculate SWR and store as tx->swr.
@@ -699,7 +700,7 @@ static gboolean update_display(gpointer data) {
     }
 
     if(!duplex) {
-      meter_update(active_receiver,POWER,tx->fwd,tx->rev,tx->alc,tx->swr);
+      meter_update(active_receiver,POWER,tx->fwd,tx->rev,tx->exciter,tx->alc,tx->swr);
     }
 
     return TRUE; // keep going

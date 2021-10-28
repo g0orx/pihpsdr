@@ -853,13 +853,10 @@ void radio_menu(GtkWidget *parent) {
     g_signal_connect(rx_gain_calibration_b,"value_changed",G_CALLBACK(rx_gain_calibration_value_changed_cb),NULL);
     col++;
 
-    if ((protocol == ORIGINAL_PROTOCOL && device == DEVICE_HERMES_LITE2) ||
-        (protocol == NEW_PROTOCOL      && device == NEW_DEVICE_HERMES_LITE2)) {
-        GtkWidget *PA_enable_b=gtk_check_button_new_with_label("HL2 PA enable");
-        gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (PA_enable_b), pa_enabled);
-        gtk_grid_attach(GTK_GRID(grid),PA_enable_b,col,row,1,1);
-        g_signal_connect(PA_enable_b,"toggled",G_CALLBACK(PA_enable_cb),NULL);
-    }
+    GtkWidget *PA_enable_b=gtk_check_button_new_with_label("PA enable");
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (PA_enable_b), pa_enabled);
+    gtk_grid_attach(GTK_GRID(grid),PA_enable_b,col,row,1,1);
+    g_signal_connect(PA_enable_b,"toggled",G_CALLBACK(PA_enable_cb),NULL);
 
   }
   row++;

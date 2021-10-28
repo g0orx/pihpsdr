@@ -1252,21 +1252,19 @@ void old_protocol_iq_samples(int isample,int qsample) {
   }
 }
 
-/*
-static void process_bandscope_buffer(char  *buffer) {
-}
-*/
-
 void ozy_send_buffer() {
 
 
   int txmode=get_tx_mode();
   int txvfo=get_tx_vfo();
   int i;
-  BAND *band;
+  int power;
   int num_hpsdr_receivers=how_many_receivers();
   int rx1channel = first_receiver_channel();
   int rx2channel = second_receiver_channel();
+
+  BAND *rxband=band_get_band(vfo[VFO_A].band);
+  BAND *txband=band_get_band(vfo[txvfo].band);
 
   output_buffer[SYNC0]=SYNC;
   output_buffer[SYNC1]=SYNC;
@@ -1329,10 +1327,8 @@ void ozy_send_buffer() {
     if(classE) {
       output_buffer[C2]|=0x01;
     }
-    band=band_get_band(vfo[VFO_A].band);
     if(isTransmitting()) {
-      band=band_get_band(vfo[txvfo].band);
-      output_buffer[C2]|=band->OCtx<<1;
+      output_buffer[C2]|=txband->OCtx<<1;
       if(tune) {
         if(OCmemory_tune_time!=0) {
           struct timeval te;
@@ -1346,7 +1342,7 @@ void ozy_send_buffer() {
         }
       }
     } else {
-      output_buffer[C2]|=band->OCrx<<1;
+      output_buffer[C2]|=rxband->OCrx<<1;
     }
 
     output_buffer[C3] = (receiver[0]->alex_attenuation) & 0x03;  // do not set higher bits
@@ -1510,9 +1506,7 @@ void ozy_send_buffer() {
         }
         break;
       case 3:
-        {
-        BAND *band=band_get_current_band();
-        int power=0;
+        power=0;
 //static int last_power=0;
 	//
 	// Some HPSDR apps for the RedPitaya generate CW inside the FPGA, but while
@@ -1562,6 +1556,7 @@ void ozy_send_buffer() {
 //  last_power=power;
 //}
 
+       //fprintf(stderr,"%s: TXband=%s disablePA=%d\n",__FUNCTION__,txband->title,txband->disablePA);
 
 
         output_buffer[C0]=0x12;
@@ -1578,22 +1573,15 @@ void ozy_send_buffer() {
         if((filter_board==APOLLO) && tune) {
           output_buffer[C2]|=0x10;
         }
-        if (device==DEVICE_HERMES_LITE2) {
-          // do not set any Apollo/Alex bits,
-          // ADDR=0x09 bit 19 follows "PA enable" state
-          // ADDR=0x09 bit 20 follows "TUNE" state
-          // ADDR=0x09 bit 18 always cleared (external tuner enabled)
-          output_buffer[C2]= 0x00;
-          if (pa_enabled) output_buffer[C2] |= 0x08;
-          if (tune)       output_buffer[C2] |= 0x10;
-        } 
         if(band_get_current()==band6) {
           output_buffer[C3]=output_buffer[C3]|0x40; // Alex 6M low noise amplifier
         }
-        if(band->disablePA) {
-          output_buffer[C2]=output_buffer[C2]|0x40; // Manual Filter Selection
-          output_buffer[C3]=output_buffer[C3]|0x20; // bypass all RX filters
-          output_buffer[C3]=output_buffer[C3]|0x80; // disable Alex T/R relay
+        if (txband->disablePA || !pa_enabled) {
+          output_buffer[C3]|=0x80; // disable Alex T/R relay
+          if(isTransmitting()) {
+            output_buffer[C2]|=0x40; // Manual Filter Selection
+            output_buffer[C3]|=0x20; // bypass all RX filters
+          }
         }
 #ifdef PURESIGNAL
 	//
@@ -1632,6 +1620,16 @@ void ozy_send_buffer() {
 	  }
 	}
 #endif
+        if (device==DEVICE_HERMES_LITE2) {
+          // do not set any Apollo/Alex bits (ADDR=0x09 bits 0:23)
+          // ADDR=0x09 bit 19 follows "PA enable" state
+          // ADDR=0x09 bit 20 follows "TUNE" state
+          // ADDR=0x09 bit 18 always cleared (external tuner enabled)
+          output_buffer[C2]= 0x00;
+          output_buffer[C3]= 0x00;
+          output_buffer[C4]= 0x00;
+          if (pa_enabled || txband->disablePA) output_buffer[C2] |= 0x08;
+          if (tune)                            output_buffer[C2] |= 0x10;
         }
         command=4;
         break;
