@@ -52,7 +52,7 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 
 static void step_select_cb (GtkToggleButton *widget, gpointer        data) {
   if(gtk_toggle_button_get_active(widget)) {
-    step=steps[GPOINTER_TO_INT(data)];
+    vfo_set_step_from_index(GPOINTER_TO_INT(data));
     g_idle_add(ext_vfo_update,NULL);
   }
 }
@@ -86,6 +86,7 @@ void step_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),close_b,0,0,1,1);
 
   GtkWidget *step_rb=NULL;
+  int index=vfo_get_stepindex();
   for(int i=0;i<STEPS;i++) {
     if(i==0) {
       step_rb=gtk_radio_button_new_with_label(NULL,step_labels[i]);
@@ -93,7 +94,7 @@ void step_menu(GtkWidget *parent) {
       step_rb=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(step_rb),step_labels[i]);
     }
     gtk_widget_override_font(step_rb, pango_font_description_from_string("Sans 16"));
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (step_rb), steps[i]==step);
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (step_rb), i==index);
     gtk_widget_show(step_rb);
     gtk_grid_attach(GTK_GRID(grid),step_rb,i%5,1+(i/5),1,1);
     g_signal_connect(step_rb,"toggled",G_CALLBACK(step_select_cb),(gpointer)(long)i);
