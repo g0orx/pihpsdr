@@ -69,8 +69,8 @@ ACTION_TABLE ActionTable[] = {
   {BAND_902,		"BAND 902",		"902",		MIDI_KEY},
   {BAND_AIR,		"BAND AIR",		"AIR",		MIDI_KEY},
   {BAND_GEN,		"BAND GEN",		"GEN",		MIDI_KEY},
-  {BAND_MINUS,		"BAND -",		"BND+",		MIDI_KEY | CONTROLLER_SWITCH},
-  {BAND_PLUS,		"BAND +",		"BND-",		MIDI_KEY | CONTROLLER_SWITCH},
+  {BAND_MINUS,		"BAND -",		"BND-",		MIDI_KEY | CONTROLLER_SWITCH},
+  {BAND_PLUS,		"BAND +",		"BND+",		MIDI_KEY | CONTROLLER_SWITCH},
   {BAND_WWV,		"BAND WWV",		"WWV",		MIDI_KEY},
   {BANDSTACK_MINUS,	"BANDSTACK -",		"BSTK-",	MIDI_KEY | CONTROLLER_SWITCH},
   {BANDSTACK_PLUS,	"BANDSTACK +",		"BSTK+",	MIDI_KEY | CONTROLLER_SWITCH},
@@ -1048,18 +1048,14 @@ int process_action(void *data) {
     case VFO_STEP_MINUS:
       if(a->mode==PRESSED) {
         i=vfo_get_stepindex();
-        i--;
-        if(i<0) i=STEPS-1;
-        vfo_set_stepsize(steps[i]);
+        vfo_set_step_from_index(--i);
         g_idle_add(ext_vfo_update, NULL);
       }
       break;
     case VFO_STEP_PLUS:
       if(a->mode==PRESSED) {
         i=vfo_get_stepindex();
-        i++;
-        if(i>=STEPS) i=0;
-        vfo_set_stepsize(steps[i]);
+        vfo_set_step_from_index(++i);
         g_idle_add(ext_vfo_update, NULL);
       }
       break;

@@ -804,6 +804,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
             // set the step size
             int i=atoi(&command[4]) ;
             vfo_set_step_from_index(i);
+            vfo_update();
           } else {
           }
           break;
@@ -811,9 +812,8 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           // move VFO A down by selected step
           if(command[6]==';') {
             int step_index=atoi(&command[4]);
-            if(step_index>=0 && step_index<STEPS) {
-              vfo_id_move(VFO_A,-steps[step_index],FALSE);
-            }
+            long long hz = (long long) vfo_get_step_from_index(step_index);
+            vfo_id_move(VFO_A,-hz,FALSE);
           } else {
           }
           break;
@@ -880,9 +880,8 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           // move VFO A up by selected step
           if(command[6]==';') {
             int step_index=atoi(&command[4]);
-            if(step_index>=0 && step_index<STEPS) {
-              vfo_id_move(VFO_A,steps[step_index],FALSE);
-            }
+            long long hz = (long long) vfo_get_step_from_index(step_index);
+            vfo_id_move(VFO_A, hz, FALSE);
           } else {
           }
           break;
@@ -940,9 +939,8 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           // move VFO B down by selected step
           if(command[6]==';') {
             int step_index=atoi(&command[4]);
-            if(step_index>=0 && step_index<STEPS) {
-              vfo_id_move(VFO_B,-steps[step_index],FALSE);
-            }
+            long long hz = (long long) vfo_get_step_from_index(step_index);
+            vfo_id_move(VFO_B,-hz,FALSE);
           } else {
           }
 
@@ -951,9 +949,8 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           // move VFO B up by selected step
           if(command[6]==';') {
             int step_index=atoi(&command[4]);
-            if(step_index>=0 && step_index<STEPS) {
-              vfo_id_move(VFO_B,steps[step_index],FALSE);
-            }
+            long long hz = (long long) vfo_get_step_from_index(step_index);
+            vfo_id_move(VFO_B,hz,FALSE);
           } else {
           }
           break;

@@ -154,4 +154,3 @@ extern void ctun_update(int id,int state);
 extern void band_plus(int id);
 extern void band_minus(int id);
 extern void num_pad(int num);
-extern void update_vfo_step(int direction);

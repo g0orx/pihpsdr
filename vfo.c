@@ -685,21 +685,30 @@ void vfo_a_swap_b() {
 // get/set the VFO step size
 //
 
+int vfo_get_step_from_index(int index) {
+  //
+  // This function is used for some
+  // extended CAT commands
+  //
+  if (index < 0) index=0;
+  if (index >= STEPS) index=STEPS-1;
+  return steps[index];
+}
+
 int vfo_get_stepindex() {
   //
-  // return index of current step size in steps[] array,
-  // or 1 if not found
+  // return index of current step size in steps[] array
   //
   int i;
   for(i=0;i<STEPS;i++) {
     if(steps[i]==step) break;
   }
   //
-  // If step size is not found (usually cannot happen)
-  // report second-smallest step size so that we can
-  // safely increment and decrement in the caller
+  // If step size is not found (this should not happen)
+  // report some "convenient" index at the small end
+  // (here: index 4 corresponding to 100 Hz)
   //
-  if (i >= STEPS) i=1;
+  if (i >= STEPS) i=4;
   return i;
 }
 
@@ -712,7 +721,7 @@ void vfo_set_step_from_index(int index) {
   vfo_set_stepsize(steps[index]);
 }
 
-void vfo_set_stepsize(long long newstep) {
+void vfo_set_stepsize(int newstep) {
   //
   // Set current VFO step size.
   // and store the value in mode_settings of the current mode

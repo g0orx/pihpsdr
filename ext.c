@@ -75,7 +75,6 @@
 // - ctun_update(int id, int state)       // set CTUN state of VFO #id
 // - set_split(int state)                 // Set split mode to state
 // - num_pad(int val)                     // enter VFO frequency
-// - update_vfo_step(int direction)       // cycle throught VFO step sizes
 //
 
 void set_frequency(int v,long long f) {
@@ -186,18 +185,6 @@ void num_pad(int val) {
       vfo[rx->id].entered_frequency=(vfo[rx->id].entered_frequency*10)+val;
       break;
   }
-  vfo_update();
-}
-
-void update_vfo_step(int direction) {
-  int i = vfo_get_stepindex();;
-
-  if (direction > 0) {
-    i++;
-  } else {
-    i--;
-  }
-  vfo_set_step_from_index(i);
   vfo_update();
 }
 
@@ -374,7 +361,12 @@ int ext_tx_set_ps(void *data) {
 
 int ext_update_vfo_step(void *data) {
   int direction=GPOINTER_TO_INT(data);
-  update_vfo_step(direction);
+  int i = vfo_get_stepindex();
+
+  direction > 0 ? i++ : i--;
+
+  vfo_set_step_from_index(i);
+  g_idle_add(ext_vfo_update, NULL);
   return 0;
 }
 
