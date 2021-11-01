@@ -202,10 +202,15 @@ OPTIONS=$(SMALL_SCREEN_OPTIONS) $(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_O
 
 
 ifeq ($(UNAME_S), Linux)
-RT_OPTION=-lrt
+SYSLIBS=-lrt
 endif
 
-LIBS=$(RT_OPTION) -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(STEMLAB_LIBS) $(MIDI_LIBS)
+ifeq ($(UNAME_S), Darwin)
+SYSLIBS=-framework IOKit
+endif
+
+
+LIBS= -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(STEMLAB_LIBS) $(MIDI_LIBS) $(SYSLIBS)
 INCLUDES=$(GTKINCLUDES)
 
 COMPILE=$(CC) $(CFLAGS) $(OPTIONS) $(INCLUDES)
@@ -216,6 +221,7 @@ COMPILE=$(CC) $(CFLAGS) $(OPTIONS) $(INCLUDES)
 PROGRAM=pihpsdr
 
 SOURCES= \
+MacOS.c \
 band.c \
 discovered.c \
 discovery.c \
@@ -293,6 +299,7 @@ toolbar_menu.c
 
 
 HEADERS= \
+MacOS.h \
 agc.h \
 alex.h \
 band.h \
@@ -371,6 +378,7 @@ toolbar_menu.h
 
 
 OBJS= \
+MacOS.o \
 band.o \
 discovered.o \
 discovery.o \
@@ -483,7 +491,7 @@ cppcheck:
 .PHONY:	clean
 clean:
 	-rm -f *.o
-	-rm -f $(PROGRAM) hpsdrsim
+	-rm -f $(PROGRAM) $(PROGRAM).app hpsdrsim
 
 .PHONY:	install
 install: $(PROGRAM)
@@ -542,4 +550,40 @@ debian:
 	cp release/pihpsdr/hpsdr_icon.png pkg/pihpsdr/usr/share/pihpsdr
 	cp release/pihpsdr/pihpsdr.desktop pkg/pihpsdr/usr/share/applications
 	cd pkg; dpkg-deb --build pihpsdr
+
+#############################################################################
+#
+# This is for MacOS "app" creation ONLY
+#
+#       The piHPSDR working directory is
+#       $HOME -> Application Support -> piHPSDR
+#
+#       That is the directory where the WDSP wisdom file (created upon first
+#       start of piHPSDR) but also the radio settings and the midi.props file
+#       are stored.
+#
+#       No libraries are included in the app bundle, so it will only run
+#	on the computer where it was created, and on other computers which
+#       have all libraries (including WDSP) and possibly the SoapySDR support
+#       modules installed.
+#
+#############################################################################
+
+.PHONY: app
+app:    $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS)  $(SOAPYSDR_OBJS) \
+                $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
+                $(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS)
+	$(LINK) -headerpad_max_install_names -o $(PROGRAM) $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS)  $(USBOZY_OBJS)  \
+                $(SOAPYSDR_OBJS) $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
+                $(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS) $(LIBS) $(LDFLAGS)
+	@rm -rf pihpsdr.app
+	@mkdir -p pihpsdr.app/Contents/MacOS
+	@mkdir -p pihpsdr.app/Contents/Frameworks
+	@mkdir -p pihpsdr.app/Contents/Resources
+	@cp pihpsdr pihpsdr.app/Contents/MacOS/pihpsdr
+	@cp MacOS/PkgInfo pihpsdr.app/Contents
+	@cp MacOS/Info.plist pihpsdr.app/Contents
+	@cp MacOS/hpsdr.icns pihpsdr.app/Contents/Resources/hpsdr.icns
+	@cp MacOS/hpsdr.png pihpsdr.app/Contents/Resources
+#############################################################################
 
