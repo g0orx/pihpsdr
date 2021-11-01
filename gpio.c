@@ -509,7 +509,7 @@ static void process_edge(int offset,int value) {
   // handle CW events as quickly as possible HERE.
   // This also implies to store the bouncing time locally.
   //
-  if (offset == CW_KEYER) then
+  if (offset == CW_KEYER) {
     static unsigned int cw_key_debounce=0;
     found=true;
     t=millis();
