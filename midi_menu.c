@@ -103,6 +103,7 @@ static int update(void *data);
 static void load_store();
 
 static void cleanup() {
+  configure_midi_device(FALSE);
   if(dialog!=NULL) {
     gtk_widget_destroy(dialog);
     dialog=NULL;
@@ -489,7 +490,7 @@ static void add_cb(GtkButton *widget,gpointer user_data) {
   desc->action = action; // MIDIaction
   desc->type = type; // MIDItype
   desc->event = thisEvent; // MIDevent
-  desc->onoff = action==CW_LEFT || action==CW_RIGHT || PTT;
+  desc->onoff = action==CW_LEFT || action==CW_RIGHT || action==PTT;
   desc->delay = 0;
   desc->vfl1  = -1;
   desc->vfl2  = -1;
