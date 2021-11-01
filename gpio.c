@@ -400,7 +400,6 @@ int process_function_switch(void *data) {
 }
 
 #ifdef GPIO
-static unsigned long switch_debounce;
 
 static void process_encoder(int e,int l,int addr,int val) {
   guchar pinstate;
@@ -501,19 +500,53 @@ static void process_encoder(int e,int l,int addr,int val) {
 
 static void process_edge(int offset,int value) {
   gint i;
-  gint t;
+  unsigned int t;  // should be gulong, but then also change millis()
   gboolean found;
 
   //g_print("%s: offset=%d value=%d\n",__FUNCTION__,offset,value);
   found=FALSE;
+  //
+  // handle CW events as quickly as possible HERE.
+  // This also implies to store the bouncing time locally.
+  //
+  if (offset == CW_KEYER) then
+    static unsigned int cw_key_debounce=0;
+    found=true;
+    t=millis();
+    if (t < cw_key_debounce) {
+      return;
+    }
+    cw_key_debounce=t+10;  // use 10 msec for CW contacts
+    if (value == PRESSED && cw_keyer_internal == 0) {
+      cw_key_down=960000;  // max. 20 sec to protect hardware
+      cw_key_up=0;
+      cw_key_hit=1;
+    } else {
+      cw_key_down=0;
+      cw_key_up=0;
+    }
+  }
+  if (found) return;
 #ifdef LOCALCW
   if(ENABLE_CW_BUTTONS) {
+    static unsigned int cw_left_debounce=0;
+    static unsigned int cw_right_debounce=0;
     if(offset==CWL_BUTTON) {
-      keyer_event(1, CW_ACTIVE_LOW ? (value==PRESSED) : value);
       found=TRUE;
+      t=millis();
+      if (t < cw_left_debounce) {
+        return;
+      }
+      cw_left_debounce=t+10;  // use 10 msec for CW contacts
+      keyer_event(1, CW_ACTIVE_LOW ? (value==PRESSED) : (value==RELEASED));
     } else if(offset==CWR_BUTTON) {
-      keyer_event(1, CW_ACTIVE_LOW ? (value==PRESSED) : value);
       found=TRUE;
+      t=millis();
+      if (t < cw_right_debounce) {
+        return;
+      }
+      cw_right_debounce=t+10;  // use 10 msec for CW contacts
+      keyer_event(0, CW_ACTIVE_LOW ? (value==PRESSED) : (value==RELEASED));
     }
   }
   if(found) return;
@@ -542,9 +575,18 @@ static void process_edge(int offset,int value) {
       break;
     } else if(encoders[i].switch_enabled && encoders[i].switch_address==offset) {
       //g_print("%s: found %d encoder %d switch\n",__FUNCTION__,offset,i);
+      //
+      // While the encoder lines cannot be debounced,
+      // we should debounce the pushbutton contacts
+      //
+      t=millis();
+      if (t<encoders[i].switch_debounce) {
+        return;
+      }
+      encoders[i].switch_debounce=t+settle_time;
       PROCESS_ACTION *a=g_new(PROCESS_ACTION,1);
       a->action=encoders[i].switch_function;
-      a->mode=value?PRESSED:RELEASED;
+      a->mode=value;
       g_idle_add(process_action,a);
       found=TRUE;
       break;
@@ -573,7 +615,7 @@ static void process_edge(int offset,int value) {
         switches[i].switch_debounce=t+settle_time;
         PROCESS_ACTION *a=g_new(PROCESS_ACTION,1);
         a->action=switches[i].switch_function;
-        a->mode=value?PRESSED:RELEASED;
+        a->mode=value;
         g_idle_add(process_action,a);
         break;
       }
@@ -964,7 +1006,6 @@ int gpio_init() {
 
 #ifdef GPIO
   initialiseEpoch();
-  switch_debounce=millis();
 
   g_mutex_init(&encoder_mutex);
 
