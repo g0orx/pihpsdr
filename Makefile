@@ -595,9 +595,10 @@ debian:
 #       start of piHPSDR) but also the radio settings and the midi.props file
 #       are stored.
 #
-#       ONLY the wdsp library is bundled with the app, all others, including
-#       the SoapySDR support modules, must be installed separatedly.
-#
+#       No libraries are included in the app bundle, so it will only run
+#       on the computer where it was created, and on other computers which
+#       have all libraries (including WDSP) and possibly the SoapySDR support
+#       modules installed.
 #############################################################################
 
 .PHONY: app
@@ -616,14 +617,4 @@ app:	$(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS)  $(SOAPYSDR_OBJS) \
 	@cp MacOS/Info.plist pihpsdr.app/Contents
 	@cp MacOS/hpsdr.icns pihpsdr.app/Contents/Resources/hpsdr.icns
 	@cp MacOS/hpsdr.png pihpsdr.app/Contents/Resources
-#
-#	Copy the WDSP library into the executable
-#
-	@lib=`/usr/bin/otool -L pihpsdr.app/Contents/MacOS/pihpsdr | grep libwdsp | sed -e "s/ (.*//" | sed -e 's/	//'`; \
-	 libfn=`basename $$lib`; \
-	 cp "$$lib" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
-	 chmod u+w "pihpsdr.app/Contents/Frameworks/$$libfn"; \
-	 /usr/bin/install_name_tool -id "@executable_path/../Frameworks/$$libfn" "pihpsdr.app/Contents/Frameworks/$$libfn"; \
-	 /usr/bin/install_name_tool -change "$$lib" "@executable_path/../Frameworks/$$libfn" pihpsdr.app/Contents/MacOS/pihpsdr
-#
 #############################################################################
