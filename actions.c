@@ -840,7 +840,7 @@ int process_action(void *data) {
       active_receiver->panadapter_high=(int)value;
       break;
     case PANADAPTER_LOW:
-      value=KnobOrWheel(a, active_receiver->panadapter_high, -160.0, -60.0, 1.0);
+      value=KnobOrWheel(a, active_receiver->panadapter_low, -160.0, -60.0, 1.0);
       active_receiver->panadapter_low=(int)value;
       break;
     case PANADAPTER_STEP:
@@ -871,7 +871,6 @@ int process_action(void *data) {
       break;
     case RF_GAIN_RX1:
       value=KnobOrWheel(a, adc[receiver[0]->adc].gain, adc[receiver[0]->adc].min_gain, adc[receiver[0]->adc].max_gain, 1.0);
-      value=KnobOrWheel(a, adc[receiver[0]->adc].gain, 0.0, 100.0, 1.0);
       set_rf_gain(0,value);
       break;
     case RF_GAIN_RX2:
