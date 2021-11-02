@@ -22,7 +22,7 @@
 #include "ext.h"
 
 char *i2c_device="/dev/i2c-1";
-unsigned int i2c_address_1=0X20;
+unsigned int i2c_address_1=0X27;
 unsigned int i2c_address_2=0X23;
 
 static int fd;
@@ -80,26 +80,29 @@ static void frequencyStep(int pos) {
 void i2c_interrupt() {
   unsigned int flags;
   unsigned int ints;
+  int i;
 
   do {
-    flags=read_word_data(0x0E);
+    flags=read_word_data(0x0E);  // indicates which switch caused the interrupt
+                                 // More than one bit may be set if two input lines
+				 // changed state at the very same moment
+    ints=read_word_data(0x10);   // input lines at time of interrupt
+                                 // only those bits set in "flags" are meaningful!
     if(flags) {
-      ints=read_word_data(0x10);
 g_print("%s: flags=%04X ints=%04X\n",__FUNCTION__,flags,ints);
-      if(ints) {
-        int i;
-        for(i=0;i<16;i++) {
-          if(i2c_sw[i]==ints) break;
-        }
-        if(i<16) {
-g_print("%s: switches=%p sw=%d action=%d\n",__FUNCTION__,switches,i,switches[i].switch_function);
-          PROCESS_ACTION *a=g_new(PROCESS_ACTION,1);
-          a->action=switches[i].switch_function;
-          a->mode=PRESSED;
-          g_idle_add(process_action,a);
-        }
+      for(i=0;i<16;i++) {
+          if(i2c_sw[i] & flags) {
+            // The input line associated with switch #i has triggered an interrupt
+	    // so (ints & i2c_sw[i]) (bit-wise and)
+	    //  is non-zero upon "press" and zero upon "release"
+	    g_print("Queue ACTION=%d mode=%d\n", a->action, a->mode);
+            PROCESS_ACTION *a=g_new(PROCESS_ACTION,1);
+            a->action=switches[i].switch_function;
+            a->mode=(ints & i2c_sw[i]) ? PRESSED : RELEASED;
+            g_idle_add(process_action,a);
+          }		  
+	}
       }
-    }
   } while(flags!=0);
 }
 
