@@ -22,7 +22,7 @@
 #include "ext.h"
 
 char *i2c_device="/dev/i2c-1";
-unsigned int i2c_address_1=0X27;
+unsigned int i2c_address_1=0X20;
 unsigned int i2c_address_2=0X23;
 
 static int fd;
@@ -95,10 +95,10 @@ g_print("%s: flags=%04X ints=%04X\n",__FUNCTION__,flags,ints);
             // The input line associated with switch #i has triggered an interrupt
 	    // so (ints & i2c_sw[i]) (bit-wise and)
 	    //  is non-zero upon "press" and zero upon "release"
-	    g_print("Queue ACTION=%d mode=%d\n", a->action, a->mode);
             PROCESS_ACTION *a=g_new(PROCESS_ACTION,1);
             a->action=switches[i].switch_function;
             a->mode=(ints & i2c_sw[i]) ? PRESSED : RELEASED;
+	    g_print("Queue ACTION=%d mode=%d\n", a->action, a->mode);
             g_idle_add(process_action,a);
           }		  
 	}
