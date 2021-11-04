@@ -507,50 +507,30 @@ static void process_edge(int offset,int value) {
   found=FALSE;
   //
   // handle CW events as quickly as possible HERE.
-  // This also implies to store the bouncing time locally.
   //
-  if (offset == CW_KEYER) {
-    static unsigned int cw_key_debounce=0;
-    found=true;
-    t=millis();
-    if (t < cw_key_debounce) {
+  switch (offset) {
+    case CW_KEYER:
+      if (value == PRESSED && cw_keyer_internal == 0) {
+        cw_key_down=960000;  // max. 20 sec to protect hardware
+        cw_key_up=0;
+        cw_key_hit=1;
+      } else {
+        cw_key_down=0;
+        cw_key_up=0;
+      }
       return;
-    }
-    cw_key_debounce=t+10;  // use 10 msec for CW contacts
-    if (value == PRESSED && cw_keyer_internal == 0) {
-      cw_key_down=960000;  // max. 20 sec to protect hardware
-      cw_key_up=0;
-      cw_key_hit=1;
-    } else {
-      cw_key_down=0;
-      cw_key_up=0;
-    }
-  }
-  if (found) return;
 #ifdef LOCALCW
-  if(ENABLE_CW_BUTTONS) {
-    static unsigned int cw_left_debounce=0;
-    static unsigned int cw_right_debounce=0;
-    if(offset==CWL_BUTTON) {
-      found=TRUE;
-      t=millis();
-      if (t < cw_left_debounce) {
-        return;
-      }
-      cw_left_debounce=t+10;  // use 10 msec for CW contacts
+    case CW_LEFT:
       keyer_event(1, CW_ACTIVE_LOW ? (value==PRESSED) : (value==RELEASED));
-    } else if(offset==CWR_BUTTON) {
-      found=TRUE;
-      t=millis();
-      if (t < cw_right_debounce) {
-        return;
-      }
-      cw_right_debounce=t+10;  // use 10 msec for CW contacts
+      return;
+    case CW_RIGHT:
       keyer_event(0, CW_ACTIVE_LOW ? (value==PRESSED) : (value==RELEASED));
-    }
-  }
-  if(found) return;
+      return;
+    default:
+      break; // do nothing, continue
 #endif
+  }
+  found=FALSE;
   // check encoders
   for(i=0;i<MAX_ENCODERS;i++) {
     if(encoders[i].bottom_encoder_enabled && encoders[i].bottom_encoder_address_a==offset) {
@@ -574,12 +554,8 @@ static void process_edge(int offset,int value) {
       found=TRUE;
       break;
     } else if(encoders[i].switch_enabled && encoders[i].switch_address==offset) {
-      //g_print("%s: found %d encoder %d switch\n",__FUNCTION__,offset,i);
-      //
-      // While the encoder lines cannot be debounced,
-      // we should debounce the pushbutton contacts
-      //
       t=millis();
+      //g_print("%s: found %d encoder %d switch value=%d t=%u\n",__FUNCTION__,offset,i,value,t);
       if (t<encoders[i].switch_debounce) {
         return;
       }
@@ -606,7 +582,7 @@ static void process_edge(int offset,int value) {
     for(i=0;i<MAX_SWITCHES;i++) {
       if(switches[i].switch_enabled && switches[i].switch_address==offset) {
         t=millis();
-        //g_print("%s: found %d switch %d value=%d t=%d\n",__FUNCTION__,offset,i,value,t);
+        //g_print("%s: found %d switch %d value=%d t=%u\n",__FUNCTION__,offset,i,value,t);
         found=TRUE;
         if(t<switches[i].switch_debounce) {
           return;
