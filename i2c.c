@@ -20,12 +20,16 @@
 #include "toolbar.h"
 #include "vfo.h"
 #include "ext.h"
+#ifdef LOCALCW
+#include "iambic.h"
+#endif
 
 char *i2c_device="/dev/i2c-1";
 unsigned int i2c_address_1=0X20;
 unsigned int i2c_address_2=0X23;
 
 static int fd;
+static GMutex i2c_mutex;
 
 #define SW_2  0X8000
 #define SW_3  0X4000
@@ -80,30 +84,62 @@ static void frequencyStep(int pos) {
 void i2c_interrupt() {
   unsigned int flags;
   unsigned int ints;
-  int i;
+  int i, offset, value;
+  PROCESS_ACTION *a;
 
-  do {
-    flags=read_word_data(0x0E);  // indicates which switch caused the interrupt
-                                 // More than one bit may be set if two input lines
-				 // changed state at the very same moment
-    ints=read_word_data(0x10);   // input lines at time of interrupt
-                                 // only those bits set in "flags" are meaningful!
-    if(flags) {
-g_print("%s: flags=%04X ints=%04X\n",__FUNCTION__,flags,ints);
-      for(i=0;i<16;i++) {
-          if(i2c_sw[i] & flags) {
-            // The input line associated with switch #i has triggered an interrupt
-	    // so (ints & i2c_sw[i]) (bit-wise and)
-	    //  is non-zero upon "press" and zero upon "release"
-            PROCESS_ACTION *a=g_new(PROCESS_ACTION,1);
-            a->action=switches[i].switch_function;
-            a->mode=(ints & i2c_sw[i]) ? PRESSED : RELEASED;
-	    g_print("Queue ACTION=%d mode=%d\n", a->action, a->mode);
-            g_idle_add(process_action,a);
+  //
+  // The mutex guarantees that no MCP23017 registers are read by
+  // another instance of this function between reading "flags"
+  // and "ints".
+  // Perhaps we should determine the lock status and simply return if it is locked.
+  //
+  g_mutex_lock(&i2c_mutex);
+  for (;;) {
+    flags=read_word_data(0x0E);      // indicates which switch caused the interrupt
+                                     // More than one bit may be set if two input lines
+				     // changed state at the very same moment
+    if (flags == 0) break;           // "forever" loop is left if no interrups pending
+    ints=read_word_data(0x10);       // input lines at time of interrupt
+                                     // only those bits set in "flags" are meaningful!
+    for(i=0; i<16 && flags; i++) {   // leave loop if no bits left in flags.
+        if(i2c_sw[i] & flags) {
+          // The input line associated with switch #i has triggered an interrupt
+          flags &= ~i2c_sw[i];       // clear *this* bit in flags
+          offset=switches[i].switch_function;
+          value=(ints & i2c_sw[i]) ? PRESSED : RELEASED;
+          // 
+          // handle CW events as quickly as possible
+          // 
+          switch (offset) {
+            case CW_KEYER:
+              if (value == PRESSED && cw_keyer_internal == 0) {
+               cw_key_down=960000;  // max. 20 sec to protect hardware
+               cw_key_up=0;
+               cw_key_hit=1;
+             } else {
+               cw_key_down=0;
+               cw_key_up=0;
+             }
+             break;
+#ifdef LOCALCW
+           case CW_LEFT:
+             keyer_event(1, CW_ACTIVE_LOW ? (value==PRESSED) : (value==RELEASED));
+             break;
+           case CW_RIGHT:
+             keyer_event(0, CW_ACTIVE_LOW ? (value==PRESSED) : (value==RELEASED));
+             break;
+#endif
+           default:
+             a=g_new(PROCESS_ACTION,1);
+             a->action=offset;
+             a->mode=value;
+	     g_print("Queue ACTION=%d mode=%d\n", a->action, a->mode);
+             g_idle_add(process_action,a);
           }		  
 	}
       }
-  } while(flags!=0);
+  }
+  g_mutex_unlock(&i2c_mutex);
 }
 
 void i2c_init() {
@@ -122,6 +158,7 @@ void i2c_init() {
     g_print("%s: ioctl i2c slave %d failed: %s\n",__FUNCTION__,i2c_address_1,g_strerror(errno));
     return;
   }
+  g_mutex_init(&i2c_mutex);
 
   // setup i2c
   if(write_byte_data(0x0A,0x44)<0) return;
