@@ -1628,8 +1628,8 @@ void ozy_send_buffer() {
           output_buffer[C2]= 0x00;
           output_buffer[C3]= 0x00;
           output_buffer[C4]= 0x00;
-          if (pa_enabled || txband->disablePA) output_buffer[C2] |= 0x08;
-          if (tune)                            output_buffer[C2] |= 0x10;
+          if (pa_enabled && !txband->disablePA) output_buffer[C2] |= 0x08;
+          if (tune)                             output_buffer[C2] |= 0x10;
         }
         command=4;
         break;

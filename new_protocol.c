@@ -692,7 +692,7 @@ static void new_protocol_general() {
     general_buffer[37]=0x08;  //  phase word (not frequency)
     general_buffer[38]=0x01;  //  enable hardware timer
 
-    if(band->disablePA) {
+    if(!pa_enabled || band->disablePA) {
       general_buffer[58]=0x00;
     } else {
       general_buffer[58]=0x01;  // enable PA
