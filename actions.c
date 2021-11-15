@@ -198,13 +198,14 @@ static int timeout_cb(gpointer data) {
   return TRUE;
 }
 
-
 static inline double KnobOrWheel(PROCESS_ACTION *a, double oldval, double minval, double maxval, double inc) {
   //
-  // Slider: set value
-  // Wheel:  increment/decrement the value (by "inc" per tick)
+  // Knob ("Potentiometer"):  set value
+  // Wheel("Rotary Encoder"): increment/decrement the value (by "inc" per tick)
   //
-  // In either case, the returned value is in the range minval...maxval
+  // In both cases, the returned value is
+  //  - in the range minval...maxval
+  //  - rounded to a multiple of inc
   //
   switch (a->mode) {
     case RELATIVE:
@@ -212,20 +213,19 @@ static inline double KnobOrWheel(PROCESS_ACTION *a, double oldval, double minval
       break;
     case ABSOLUTE:
       oldval = minval + a->val*(maxval-minval)*0.01;
-      //
-      // Round the new value to a multiple of inc
-      //
-      oldval=inc*round(oldval/inc);
       break;
     default:
       // do nothing
       break;
   }
+  //
+  // Round and check range
+  //
+  oldval=inc*round(oldval/inc);
   if (oldval > maxval) oldval=maxval;
   if (oldval < minval) oldval=minval;
   return oldval;
 }
-
 
 int process_action(void *data) {
   PROCESS_ACTION *a=(PROCESS_ACTION *)data;
@@ -504,10 +504,10 @@ int process_action(void *data) {
     case COMPRESSION:
       if(can_transmit) {
         value=KnobOrWheel(a, transmitter->compressor_level, 0.0, 20.0, 1.0);
-	transmitter_set_compressor_level(transmitter,value);
+        transmitter_set_compressor_level(transmitter,value);
         transmitter_set_compressor(transmitter, value > 0.5);
+        g_idle_add(ext_vfo_update, NULL);
       }
-      g_idle_add(ext_vfo_update, NULL);
       break;
     case CTUN:
       if(a->mode==PRESSED) {
@@ -845,6 +845,7 @@ int process_action(void *data) {
       break;
     case PANADAPTER_STEP:
       value=KnobOrWheel(a, active_receiver->panadapter_step, 5.0, 30.0, 1.0);
+      active_receiver->panadapter_step=(int)value;
       break;
     case PREAMP:
     case PS:
