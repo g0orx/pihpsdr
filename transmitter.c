@@ -1356,13 +1356,8 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 	//
 	for(j=0;j<tx->output_samples;j++) {
             double is,qs;
-            if(iqswap) {
-	      qs=tx->iq_output_buffer[j*2];
-	      is=tx->iq_output_buffer[(j*2)+1];
-            } else {
-	      is=tx->iq_output_buffer[j*2];
-	      qs=tx->iq_output_buffer[(j*2)+1];
-            }
+	    is=tx->iq_output_buffer[j*2];
+	    qs=tx->iq_output_buffer[(j*2)+1];
 	    isample=is>=0.0?(long)floor(is*gain+0.5):(long)ceil(is*gain-0.5);
 	    qsample=qs>=0.0?(long)floor(qs*gain+0.5):(long)ceil(qs*gain-0.5);
 	    switch(protocol) {
