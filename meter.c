@@ -674,30 +674,35 @@ if(analog_meter) {
             CAIRO_FONT_WEIGHT_BOLD);
       cairo_set_font_size(cr, DISPLAY_FONT_SIZE2);
 
-      if(level>max_level || max_count==10) {
+      if (protocol == ORIGINAL_PROTOCOL || protocol == NEW_PROTOCOL) {
+	//
+	// Power levels not available for Soapy
+	//
+        if(level>max_level || max_count==10) {
           max_level=level;
           max_count=0;
-      }
-      max_count++;
+        }
+        max_count++;
 
-      sprintf(sf,"FWD: %d%s",(int)max_level,units);
-      cairo_move_to(cr, 10, 35);
-      cairo_show_text(cr, sf);
+        sprintf(sf,"FWD: %d%s",(int)max_level,units);
+        cairo_move_to(cr, 10, 35);
+        cairo_show_text(cr, sf);
 
-      if (swr > transmitter->swr_alarm) {
-        cairo_set_source_rgb(cr, 1.0, 0.2, 0.0);  // display SWR in red color
-      } else {
-        cairo_set_source_rgb (cr, 1.0, 1.0, 1.0); // display SWR in white color
-      }
+        if (swr > transmitter->swr_alarm) {
+          cairo_set_source_rgb(cr, 1.0, 0.2, 0.0);  // display SWR in red color
+        } else {
+          cairo_set_source_rgb (cr, 1.0, 1.0, 1.0); // display SWR in white color
+        }
 
 
-      cairo_select_font_face(cr, DISPLAY_FONT,
+        cairo_select_font_face(cr, DISPLAY_FONT,
             CAIRO_FONT_SLANT_NORMAL,
             CAIRO_FONT_WEIGHT_BOLD);
-      cairo_set_font_size(cr, DISPLAY_FONT_SIZE2);
-      sprintf(sf,"SWR: %1.1f:1",swr);
-      cairo_move_to(cr, 10, 55);
-      cairo_show_text(cr, sf);
+        cairo_set_font_size(cr, DISPLAY_FONT_SIZE2);
+        sprintf(sf,"SWR: %1.1f:1",swr);
+        cairo_move_to(cr, 10, 55);
+        cairo_show_text(cr, sf);
+      }
 
       cairo_set_source_rgb (cr, 1.0, 1.0, 1.0);  // revert to white color
 

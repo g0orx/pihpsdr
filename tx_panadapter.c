@@ -404,31 +404,41 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     char text[64];
     cairo_set_source_rgb(cr,1.0,0.2,0.0);
     cairo_set_font_size(cr, DISPLAY_FONT_SIZE3);
+    int row=0;
 
-    if(transmitter->fwd<0.0001 || band->disablePA || !pa_enabled) {
-      sprintf(text,"FWD %0.3f W",transmitter->exciter);
-    } else {
-      static int max_count=0;
-      static double max_level=0.0;
-      if(transmitter->fwd > max_level || max_count==10) {
+
+    if (protocol == ORIGINAL_PROTOCOL || protocol == NEW_PROTOCOL) {
+      //
+      // Power values not available for SoapySDR
+      //
+      if(transmitter->fwd<0.0001 || band->disablePA || !pa_enabled) {
+        sprintf(text,"FWD %0.3f W",transmitter->exciter);
+      } else {
+        static int max_count=0;
+        static double max_level=0.0;
+        if(transmitter->fwd > max_level || max_count==10) {
           max_level=transmitter->fwd;
           max_count=0;
+        }
+        max_count++;
+        sprintf(text,"FWD %0.1f W",max_level);
       }
-      max_count++;
-      sprintf(text,"FWD %0.1f W",max_level);
+      row += 15;
+      cairo_move_to(cr,10,row);
+      cairo_show_text(cr, text);
+      //
+      // Since colour is already red, no special
+      // action for "high SWR" warning
+      //
+      sprintf(text,"SWR 1:%1.1f",transmitter->swr);
+      row +=15;
+      cairo_move_to(cr,10,row);
+      cairo_show_text(cr, text);
     }
-    cairo_move_to(cr,10,15);
-    cairo_show_text(cr, text);
-    //
-    // Since colour is already red, no special
-    // action for "high SWR" warning
-    //
-    sprintf(text,"SWR 1:%1.1f",transmitter->swr);
-    cairo_move_to(cr,10,30);
-    cairo_show_text(cr, text);
 
+    row +=15;
     sprintf(text,"ALC %2.1f dB",transmitter->alc);
-    cairo_move_to(cr,10,45);
+    cairo_move_to(cr,10,row);
     cairo_show_text(cr, text);
 
   }
