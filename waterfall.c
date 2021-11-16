@@ -50,7 +50,7 @@ static gint last_x;
 static gboolean has_moved=FALSE;
 static gboolean pressed=FALSE;
 
-static gfloat hz_per_pixel;
+static double hz_per_pixel;
 
 static int display_width;
 static int display_height;
@@ -144,45 +144,64 @@ void waterfall_update(RECEIVER *rx) {
 
     hz_per_pixel=(double)rx->sample_rate/((double)display_width*rx->zoom);
 
+    //
+    // The existing waterfall corresponds to a VFO frequency rx->waterfall_frequency, a zoom value rx->waterfall_zoom and
+    // a pan value rx->waterfall_pan. If the zoom value changes, or if the waterfill needs horizontal shifting larger
+    // than the width of the waterfall (band change or big frequency jump), re-init the waterfall.
+    // Otherwise, shift the waterfall by an appropriate number of pixels.
+    //
+    // Note that VFO frequency changes can occur in very many very small steps, such that in each step, the horizontal
+    // shifting is only a fraction of one pixel. In this case, there will be every now and then a horizontal shift that
+    // corrects for a number of VFO update steps.
+    //
     if(rx->waterfall_frequency!=0 && (rx->sample_rate==rx->waterfall_sample_rate) && (rx->zoom == rx->waterfall_zoom)) {
-      //
-      // correct nominal waterfall frequency by change in pan value
-      //
-      rx->waterfall_frequency += (rx->waterfall_pan - pan)*hz_per_pixel;
-      rx->waterfall_pan = pan;
-      if(rx->waterfall_frequency!=vfofreq) {
-        // scrolled or band change
-        long long half=(long long)(rx->sample_rate/2);
-        if(rx->waterfall_frequency<(vfofreq-half) || rx->waterfall_frequency>(vfofreq+half)) {
-          // outside of the range - blank waterfall
-//fprintf(stderr,"waterfall_update: clear waterfall from %lld to %lld\n",rx->waterfall_frequency,vfofreq);
+      if(rx->waterfall_frequency!=vfofreq || rx->waterfall_pan != pan) {
+        //
+        // Frequency and/or PAN value changed: possibly shift waterfall
+        //
+
+        int rotfreq = (int)((double)(rx->waterfall_frequency-vfofreq)/hz_per_pixel);  // shift due to freq. change
+        int rotpan  = rx->waterfall_pan - pan;                                        // shift due to pan   change
+        int rotate_pixels=rotfreq + rotpan;
+
+        if (rotate_pixels >= display_width || rotate_pixels <= -display_width) {
+          //
+          // If horizontal shift is too large, re-init waterfall
+          //
           memset(pixels, 0, display_width*display_height*3);
           rx->waterfall_frequency=vfofreq;
           rx->waterfall_pan=pan;
-          rx->waterfall_zoom=zoom;
         } else {
-          // rotate waterfall
-          int rotate_pixels=(int)((double)(rx->waterfall_frequency-vfofreq)/hz_per_pixel);
-//fprintf(stderr,"waterfall_update: rotate waterfall from %lld to %lld pixels=%d\n",rx->waterfall_frequency,vfofreq,rotate_pixels);
+          //
+          // If rotate_pixels != 0, shift waterfall horizontally and set "freq changed" flag
+          // calculated which VFO/pan value combination the shifted waterfall corresponds to
+          //  
+          //
           if(rotate_pixels<0) {
+            // shift left, and clear the right-most part
             memmove(pixels,&pixels[-rotate_pixels*3],((display_width*display_height)+rotate_pixels)*3);
-            //now clear the right hand side
             for(i=0;i<display_height;i++) {
               memset(&pixels[((i*display_width)+(width+rotate_pixels))*3], 0, -rotate_pixels*3);
             }
-            freq_changed=1;
           } else if (rotate_pixels > 0) {
+            // shift right, and clear left-most part
             memmove(&pixels[rotate_pixels*3],pixels,((display_width*display_height)-rotate_pixels)*3);
-            //now clear the left hand side
             for(i=0;i<display_height;i++) {
               memset(&pixels[(i*display_width)*3], 0, rotate_pixels*3);
             }
-            freq_changed=1;
           }
-          rx->waterfall_frequency -= rotate_pixels*hz_per_pixel;
+          if (rotfreq != 0) {
+            freq_changed=1;
+            rx->waterfall_frequency -= lround(rotfreq*hz_per_pixel); // this is not necessarily vfofreq!
+          }
+          rx->waterfall_pan = pan;
         }
       }
     } else {
+      //
+      // waterfall frequency not (yet) set, sample rate changed, or zoom value changed:
+      // (re-) init waterfall
+      //
       memset(pixels, 0, display_width*display_height*3);
       rx->waterfall_frequency=vfofreq;
       rx->waterfall_pan=pan;
