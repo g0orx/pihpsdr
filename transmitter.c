@@ -893,6 +893,8 @@ fprintf(stderr,"create_transmitter: id=%d buffer_size=%d mic_sample_rate=%d mic_
   tx->swr_protection = FALSE;
   tx->swr_alarm=3.0;       // default value for SWR protection
 
+  tx->alc=0.0;
+
   transmitter_restore_state(tx);
 
 
