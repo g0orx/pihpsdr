@@ -1047,38 +1047,41 @@ void midi_save_state() {
   char value[80];
   struct desc *cmd;
   gint channels;
+  gint entry;
 
   if(device_index!=-1) {
     setProperty("midi_device",midi_devices[device_index].name);
     for(int i=0;i<128;i++) {
       channels=0;
       cmd=MidiCommandsTable.desc[i];
+      entry=-1;
       while(cmd!=NULL) {
-        //g_print("%s:  channel=%d key=%d event=%s onoff=%d type=%s action=%s\n",__FUNCTION__,cmd->channel,i,midi_events[cmd->event],cmd->onoff,midi_types[cmd->type],ActionTable[cmd->action].str);
+	entry++;
+        g_print("%s:  channel=%d key=%d entry=%d event=%s onoff=%d type=%s action=%s\n",__FUNCTION__,cmd->channel,i,entry,midi_events[cmd->event],cmd->onoff,midi_types[cmd->type],ActionTable[cmd->action].str);
 
-        sprintf(name,"midi[%d].channel[%d]",i,channels);
+        sprintf(name,"midi[%d].entry[%d].channel",i,entry);
         sprintf(value,"%d",cmd->channel);
         setProperty(name,value);
-        sprintf(name,"midi[%d].channel[%d].event",i,cmd->channel);
-        setProperty(name,midi_events[cmd->event]);
-        sprintf(name,"midi[%d].channel[%d].onoff",i,cmd->channel);
-        sprintf(value,"%d",cmd->onoff);
+
+        sprintf(name,"midi[%d].entry[%d].channel[%d].event",i,entry,cmd->channel);
+        sprintf(value,"%s",midi_events[cmd->event]);
         setProperty(name,value);
-        sprintf(name,"midi[%d].channel[%d].type",i,cmd->channel);
-        setProperty(name,midi_types[cmd->type]);
-        sprintf(name,"midi[%d].channel[%d].action",i,cmd->channel);
+        sprintf(name,"midi[%d].entry[%d].channel[%d].action",i,entry,cmd->channel);
 	sprintf(value,"%s",ActionTable[cmd->action].str);
         setProperty(name,value);
+        sprintf(name,"midi[%d].entry[%d].channel[%d].type",i,entry,cmd->channel);
+	sprintf(value,"%s",midi_types[cmd->type]);
+        setProperty(name,value);
+        sprintf(name,"midi[%d].entry[%d].channel[%d].onoff",i,entry,cmd->channel);
+        sprintf(value,"%d",cmd->onoff);
+        setProperty(name,value);
         cmd=cmd->next;
-	channels++;
       }
-
-      if(channels!=0) {
-        sprintf(name,"midi[%d].channels",i);
-        sprintf(value,"%d",channels);
+      if(entry!=-1) {
+        sprintf(name,"midi[%d].entries",i);
+        sprintf(value,"%d",entry+1);
         setProperty(name,value);
       }
-
     }
   }
 }
@@ -1086,7 +1089,7 @@ void midi_save_state() {
 void midi_restore_state() {
   char name[80];
   char *value;
-  gint channels;
+  gint entries;
   gint channel;
   gint event;
   gint onoff;
@@ -1116,16 +1119,16 @@ void midi_restore_state() {
   }
 
   for(i=0;i<128;i++) {
-    sprintf(name,"midi[%d].channels",i);
+    sprintf(name,"midi[%d].entries",i);
     value=getProperty(name);
     if(value) {
-      channels=atoi(value);
-      for(int c=0;c<channels;c++) {
-        sprintf(name,"midi[%d].channel[%d]",i,c);
+      entries=atoi(value);
+      for(int entry=0;entry<entries;entry++) {
+        sprintf(name,"midi[%d].entry[%d].channel",i,entry);
         value=getProperty(name);
         if(value) {
 	  channel=atoi(value);
-          sprintf(name,"midi[%d].channel[%d].event",i,channel);
+          sprintf(name,"midi[%d].entry[%d].channel[%d].event",i,entry,channel);
           value=getProperty(name);
 	  event=EVENT_NONE;
           if(value) {
@@ -1136,10 +1139,10 @@ void midi_restore_state() {
               }
 	    }
 	  }
-          sprintf(name,"midi[%d].channel[%d].onoff",i,channel);
+          sprintf(name,"midi[%d].entry[%d].channel[%d].onoff",i,entry,channel);
           value=getProperty(name);
           if(value) onoff=atoi(value);
-          sprintf(name,"midi[%d].channel[%d].type",i,channel);
+          sprintf(name,"midi[%d].entry[%d].channel[%d].type",i,entry,channel);
           value=getProperty(name);
 	  type=TYPE_NONE;
           if(value) {
@@ -1150,7 +1153,7 @@ void midi_restore_state() {
               }
             }
 	  }
-          sprintf(name,"midi[%d].channel[%d].action",i,channel);
+          sprintf(name,"midi[%d].entry[%d].channel[%d].action",i,entry,channel);
           value=getProperty(name);
 	  action=NO_ACTION;
           if(value) {
