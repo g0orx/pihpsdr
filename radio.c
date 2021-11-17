@@ -1710,7 +1710,7 @@ void setTune(int state) {
       pre_tune_cw_internal=cw_keyer_internal;
 
       //
-      // in USB/DIGU/DSB, tune 1000 Hz above carrier
+      // in USB/DIGU      tune 1000 Hz above carrier
       // in LSB/DIGL,     tune 1000 Hz below carrier
       // all other (CW, AM, FM): tune on carrier freq.
       //
@@ -1720,7 +1720,6 @@ void setTune(int state) {
           SetTXAPostGenToneFreq(transmitter->id,-(double)1000.0);
           break;
         case modeUSB:
-        case modeDSB:
         case modeDIGU:
           SetTXAPostGenToneFreq(transmitter->id,(double)1000.0);
           break;
