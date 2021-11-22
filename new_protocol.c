@@ -598,12 +598,7 @@ void new_protocol_init(int pixels) {
     //optval = 0x10;  // IPTOS_LOWDELAY
     optval = 0xb8;  // DSCP EF
     if(setsockopt(data_socket, IPPROTO_IP, IP_TOS, &optval, sizeof(optval))<0) {
-      perror("data_socket: SO_PRIORITY");
-    }
-#else
-    optval = 6;
-    if(setsockopt(data_socket, SOL_SOCKET, SO_PRIORITY, &optval, sizeof(optval))<0) {
-      perror("data_socket: SO_PRIORITY");
+      perror("data_socket: IP_TOS");
     }
 #endif
 
