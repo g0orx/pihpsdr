@@ -1435,9 +1435,10 @@ void midi_save_state() {
   char value[80];
   struct desc *cmd;
   gint entry;
+  int i;
 
   entry=0;
-  for (int i=0; i<n_midi_devices; i++) {
+  for (i=0; i<n_midi_devices; i++) {
     if (midi_devices[i].active) {
       sprintf(name,"mididevice[%d].name",entry);
       setProperty(name, midi_devices[i].name);
@@ -1446,7 +1447,7 @@ void midi_save_state() {
   }
 
     // the value i=128 is for the PitchBend
-    for(int i=0;i<129;i++) {
+    for(i=0;i<129;i++) {
       cmd=MidiCommandsTable[i];
       entry=-1;
       while(cmd!=NULL) {
@@ -1473,55 +1474,55 @@ void midi_save_state() {
         //
         if (cmd->type == MIDI_WHEEL) {
           if (cmd->delay > 0) {
-            sprintf(name,"midi[%d].entry[%d].delay",i,entry);
+            sprintf(name,"midi[%d].entry[%d].channel[%d].delay",i,entry,cmd->channel);
             sprintf(value,"%d",cmd->delay);
             setProperty(name, value);
           }
           if (cmd->vfl1 != -1 || cmd->vfl2 != -1) {
-            sprintf(name,"midi[%d].entry[%d].vfl1",i,entry);
+            sprintf(name,"midi[%d].entry[%d].channel[%d].vfl1",i,entry,cmd->channel);
             sprintf(value,"%d",cmd->vfl1);
             setProperty(name, value);
-            sprintf(name,"midi[%d].entry[%d].vfl2",i,entry);
+            sprintf(name,"midi[%d].entry[%d].channel[%d].vfl2",i,entry,cmd->channel);
             sprintf(value,"%d",cmd->vfl2);
             setProperty(name, value);
           }
           if (cmd->fl1 != -1 || cmd->fl2 != -1) {
-            sprintf(name,"midi[%d].entry[%d].fl1",i,entry);
+            sprintf(name,"midi[%d].entry[%d].channel[%d].fl1",i,entry,cmd->channel);
             sprintf(value,"%d",cmd->fl1);
             setProperty(name, value);
-            sprintf(name,"midi[%d].entry[%d].fl2",i,entry);
+            sprintf(name,"midi[%d].entry[%d].channel[%d].fl2",i,entry,cmd->channel);
             sprintf(value,"%d",cmd->fl2);
             setProperty(name, value);
           }
           if (cmd->lft1 != 0  || cmd->lft2 != 63) {
-            sprintf(name,"midi[%d].entry[%d].lft1",i,entry);
+            sprintf(name,"midi[%d].entry[%d].channel[%d].lft1",i,entry,cmd->channel);
             sprintf(value,"%d",cmd->lft1);
             setProperty(name, value);
-            sprintf(name,"midi[%d].entry[%d].lft2",i,entry);
+            sprintf(name,"midi[%d].entry[%d].channel[%d].lft2",i,entry,cmd->channel);
             sprintf(value,"%d",cmd->lft2);
             setProperty(name, value);
           }
           if (cmd->rgt1 != 65 || cmd->rgt2 != 127) {
-            sprintf(name,"midi[%d].entry[%d].rgt1",i,entry);
+            sprintf(name,"midi[%d].entry[%d].channel[%d].rgt1",i,entry,cmd->channel);
             sprintf(value,"%d",cmd->rgt1);
             setProperty(name, value);
-            sprintf(name,"midi[%d].entry[%d].rgt2",i,entry);
+            sprintf(name,"midi[%d].entry[%d].channel[%d].rgt2",i,entry,cmd->channel);
             sprintf(value,"%d",cmd->rgt2);
             setProperty(name, value);
           }
           if (cmd->fr1 != -1 || cmd->fr2 != -1) {
-            sprintf(name,"midi[%d].entry[%d].fr1",i,entry);
+            sprintf(name,"midi[%d].entry[%d].channel[%d].fr1",i,entry,cmd->channel);
             sprintf(value,"%d",cmd->fr1);
             setProperty(name, value);
-            sprintf(name,"midi[%d].entry[%d].fr2",i,entry);
+            sprintf(name,"midi[%d].entry[%d].channel[%d].fr2",i,entry,cmd->channel);
             sprintf(value,"%d",cmd->fr2);
             setProperty(name, value);
           }
           if (cmd->vfr1 != -1 || cmd->vfr2 != -1) {
-            sprintf(name,"midi[%d].entry[%d].vfr1",i,entry);
+            sprintf(name,"midi[%d].entry[%d].channel[%d].vfr1",i,entry,cmd->channel);
             sprintf(value,"%d",cmd->vfr1);
             setProperty(name, value);
-            sprintf(name,"midi[%d].entry[%d].vfr2",i,entry);
+            sprintf(name,"midi[%d].entry[%d].channel[%d].vfr2",i,entry,cmd->channel);
             sprintf(value,"%d",cmd->vfr2);
             setProperty(name, value);
           }
@@ -1552,7 +1553,6 @@ void midi_restore_state() {
   gint rgt1, rgt2;
   gint fr1, fr2;
   gint vfr1, vfr2;
-
   int i,j;
 
   get_midi_devices();
@@ -1594,7 +1594,7 @@ void midi_restore_state() {
           value=getProperty(name);
 	  event=EVENT_NONE;
           if(value) {
-            for(int j=0;j<4;j++) {
+            for(j=0;j<4;j++) {
 	      if(strcmp(value,midi_events[j])==0) {
 		event=j;
 		break;
@@ -1627,55 +1627,55 @@ void midi_restore_state() {
           // Look for "wheel" parameters. For those not found,
           // use default value
           //
-          sprintf(name,"midi[%d].entry[%d].delay",i,entry);
+          sprintf(name,"midi[%d].entry[%d].channel[%d].delay",i,entry,channel);
           value=getProperty(name);
           delay=0;
           if (value) delay=atoi(value);
-          sprintf(name,"midi[%d].entry[%d].vfl1",i,entry);
+          sprintf(name,"midi[%d].entry[%d].channel[%d].vfl1",i,entry,channel);
           value=getProperty(name);
           vfl1=-1;
           if (value) vfl1=atoi(value);
-          sprintf(name,"midi[%d].entry[%d].vfl2",i,entry);
+          sprintf(name,"midi[%d].entry[%d].channel[%d].vfl2",i,entry,channel);
           value=getProperty(name);
           vfl2=-1;
           if (value) vfl2=atoi(value);
-          sprintf(name,"midi[%d].entry[%d].fl1",i,entry);
+          sprintf(name,"midi[%d].entry[%d].channel[%d].fl1",i,entry,channel);
           value=getProperty(name);
           fl1=-1;
           if (value) fl1=atoi(value);
-          sprintf(name,"midi[%d].entry[%d].fl2",i,entry);
+          sprintf(name,"midi[%d].entry[%d].channel[%d].fl2",i,entry,channel);
           value=getProperty(name);
           fl2=-1;
           if (value) fl2=atoi(value);
-          sprintf(name,"midi[%d].entry[%d].lft1",i,entry);
+          sprintf(name,"midi[%d].entry[%d].channel[%d].lft1",i,entry,channel);
           value=getProperty(name);
           lft1=0;
           if (value) lft1=atoi(value);
-          sprintf(name,"midi[%d].entry[%d].lft2",i,entry);
+          sprintf(name,"midi[%d].entry[%d].channel[%d].lft2",i,entry,channel);
           value=getProperty(name);
           lft2=63;
           if (value) lft2=atoi(value);
-          sprintf(name,"midi[%d].entry[%d].rgt1",i,entry);
+          sprintf(name,"midi[%d].entry[%d].channel[%d].rgt1",i,entry,channel);
           value=getProperty(name);
           rgt1=65;
           if (value) rgt1=atoi(value);
-          sprintf(name,"midi[%d].entry[%d].rgt2",i,entry);
+          sprintf(name,"midi[%d].entry[%d].channel[%d].rgt2",i,entry,channel);
           value=getProperty(name);
           rgt2=127;
           if (value) rgt2=atoi(value);
-          sprintf(name,"midi[%d].entry[%d].fr1",i,entry);
+          sprintf(name,"midi[%d].entry[%d].channel[%d].fr1",i,entry,channel);
           value=getProperty(name);
           fr1=-1;
           if (value) fr1=atoi(value);
-          sprintf(name,"midi[%d].entry[%d].fr2",i,entry);
+          sprintf(name,"midi[%d].entry[%d].channel[%d].fr2",i,entry,channel);
           value=getProperty(name);
           fr2=-1;
           if (value) fr2=atoi(value);
-          sprintf(name,"midi[%d].entry[%d].vfr1",i,entry);
+          sprintf(name,"midi[%d].entry[%d].channel[%d].vfr1",i,entry,channel);
           value=getProperty(name);
           vfr1=-1;
           if (value) vfr1=atoi(value);
-          sprintf(name,"midi[%d].entry[%d].vfr2",i,entry);
+          sprintf(name,"midi[%d].entry[%d].channel[%d].vfr2",i,entry,channel);
           value=getProperty(name);
           vfr2=-1;
           if (value) vfr2=atoi(value);
