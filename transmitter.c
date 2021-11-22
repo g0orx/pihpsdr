@@ -802,6 +802,8 @@ fprintf(stderr,"create_transmitter: id=%d buffer_size=%d mic_sample_rate=%d mic_
   tx->dialog_x=-1;
   tx->dialog_y=-1;
 
+  tx->alc=0.0;
+
   transmitter_restore_state(tx);
 
 
@@ -1135,13 +1137,8 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 	//
 	for(j=0;j<tx->output_samples;j++) {
             double is,qs;
-            if(iqswap) {
-	      qs=tx->iq_output_buffer[j*2];
-	      is=tx->iq_output_buffer[(j*2)+1];
-            } else {
-	      is=tx->iq_output_buffer[j*2];
-	      qs=tx->iq_output_buffer[(j*2)+1];
-            }
+	    is=tx->iq_output_buffer[j*2];
+	    qs=tx->iq_output_buffer[(j*2)+1];
 	    isample=is>=0.0?(long)floor(is*gain+0.5):(long)ceil(is*gain-0.5);
 	    qsample=qs>=0.0?(long)floor(qs*gain+0.5):(long)ceil(qs*gain-0.5);
 	    switch(protocol) {
@@ -1153,7 +1150,7 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 		    break;
 #ifdef SOAPYSDR
                 case SOAPYSDR_PROTOCOL:
-                    soapy_protocol_iq_samples((float)isample,(float)qsample);
+                    soapy_protocol_iq_samples((float)is,(float)qs);
                     break;
 #endif
 	    }
