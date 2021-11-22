@@ -84,8 +84,7 @@ static void frequencyStep(int pos) {
 void i2c_interrupt() {
   unsigned int flags;
   unsigned int ints;
-  int i, offset, value;
-  PROCESS_ACTION *a;
+  int i;
 
   //
   // The mutex guarantees that no MCP23017 registers are read by
@@ -105,37 +104,7 @@ void i2c_interrupt() {
         if(i2c_sw[i] & flags) {
           // The input line associated with switch #i has triggered an interrupt
           flags &= ~i2c_sw[i];       // clear *this* bit in flags
-          offset=switches[i].switch_function;
-          value=(ints & i2c_sw[i]) ? PRESSED : RELEASED;
-          // 
-          // handle CW events as quickly as possible
-          // 
-          switch (offset) {
-            case CW_KEYER:
-              if (value == PRESSED && cw_keyer_internal == 0) {
-               cw_key_down=960000;  // max. 20 sec to protect hardware
-               cw_key_up=0;
-               cw_key_hit=1;
-             } else {
-               cw_key_down=0;
-               cw_key_up=0;
-             }
-             break;
-#ifdef LOCALCW
-           case CW_LEFT:
-             keyer_event(1, CW_ACTIVE_LOW ? (value==PRESSED) : (value==RELEASED));
-             break;
-           case CW_RIGHT:
-             keyer_event(0, CW_ACTIVE_LOW ? (value==PRESSED) : (value==RELEASED));
-             break;
-#endif
-           default:
-             a=g_new(PROCESS_ACTION,1);
-             a->action=offset;
-             a->mode=value;
-	     g_print("Queue ACTION=%d mode=%d\n", a->action, a->mode);
-             g_idle_add(process_action,a);
-          }		  
+          do_switch_action(switches[i].switch_function, (ints & i2c_sw[i]) ? PRESSED : RELEASED);
 	}
       }
   }

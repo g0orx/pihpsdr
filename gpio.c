@@ -370,18 +370,28 @@ static gpointer rotary_encoder_thread(gpointer data) {
         a=g_new(PROCESS_ACTION,1);
         a->action=encoders[i].bottom_encoder_function;
         a->mode=RELATIVE;
-        a->val=encoders[i].bottom_encoder_pos;
-        g_idle_add(process_action,a);
-        encoders[i].bottom_encoder_pos=0;
+	if(a->action==VFO && vfo_encoder_divisor>1) {
+          a->val=encoders[i].bottom_encoder_pos/vfo_encoder_divisor;
+          encoders[i].bottom_encoder_pos -= (a->val*vfo_encoder_divisor);
+        } else {
+          a->val=encoders[i].bottom_encoder_pos;
+          encoders[i].bottom_encoder_pos=0;
+	}
+	if(a->val!=0) g_idle_add(process_action,a);
       }
       if(encoders[i].top_encoder_enabled && encoders[i].top_encoder_pos!=0) {
         //g_print("%s: TOP encoder %d pos=%d\n",__FUNCTION__,i,encoders[i].top_encoder_pos);
         a=g_new(PROCESS_ACTION,1);
         a->action=encoders[i].top_encoder_function;
         a->mode=RELATIVE;
-        a->val=encoders[i].top_encoder_pos;
-        g_idle_add(process_action,a);
-        encoders[i].top_encoder_pos=0;
+	if(a->action==VFO && vfo_encoder_divisor>1) {
+          a->val=encoders[i].top_encoder_pos/vfo_encoder_divisor;
+          encoders[i].top_encoder_pos -= (a->val*vfo_encoder_divisor);
+        } else {
+          a->val=encoders[i].top_encoder_pos;
+          encoders[i].top_encoder_pos=0;
+	}
+	if(a->val!=0) g_idle_add(process_action,a);
       }
     }
     g_mutex_unlock(&encoder_mutex);
@@ -498,39 +508,64 @@ static void process_encoder(int e,int l,int addr,int val) {
   g_mutex_unlock(&encoder_mutex);
 }
 
+void do_switch_action(enum ACTION action, enum ACTION_MODE mode) {
+
+  //
+  // for a given action with mode==PRESSED or mode==RELEASED,
+  // put the "action" into the GTK idle queue. This is done here because
+  // we want to process CW events outside the GTK queue
+  // (this is also called from i2c.c)
+
+  PROCESS_ACTION *a;
+
+  switch (action) {
+    case CW_KEYER:
+      if (mode == PRESSED && cw_keyer_internal == 0) {
+       cw_key_down=960000;  // max. 20 sec to protect hardware
+       cw_key_up=0;
+       cw_key_hit=1;
+     } else {
+       cw_key_down=0;
+       cw_key_up=0;
+     }
+     break;
+#ifdef LOCALCW
+   case CW_LEFT:
+     keyer_event(1, CW_ACTIVE_LOW ? (mode==PRESSED) : (mode==RELEASED));
+     break;
+   case CW_RIGHT:
+     keyer_event(0, CW_ACTIVE_LOW ? (mode==PRESSED) : (mode==RELEASED));
+     break;
+#endif
+   default:
+     a=g_new(PROCESS_ACTION,1);
+     a->action=action;
+     a->mode=mode;
+     g_idle_add(process_action,a);
+  }              
+
+  
+}
+
 static void process_edge(int offset,int value) {
   gint i;
-  unsigned int t;  // should be gulong, but then also change millis()
+  unsigned int t;
   gboolean found;
 
   //g_print("%s: offset=%d value=%d\n",__FUNCTION__,offset,value);
   found=FALSE;
-  //
-  // handle CW events as quickly as possible HERE.
-  //
-  switch (offset) {
-    case CW_KEYER:
-      if (value == PRESSED && cw_keyer_internal == 0) {
-        cw_key_down=960000;  // max. 20 sec to protect hardware
-        cw_key_up=0;
-        cw_key_hit=1;
-      } else {
-        cw_key_down=0;
-        cw_key_up=0;
-      }
-      return;
 #ifdef LOCALCW
-    case CW_LEFT:
-      keyer_event(1, CW_ACTIVE_LOW ? (value==PRESSED) : (value==RELEASED));
-      return;
-    case CW_RIGHT:
-      keyer_event(0, CW_ACTIVE_LOW ? (value==PRESSED) : (value==RELEASED));
-      return;
-    default:
-      break; // do nothing, continue
-#endif
+  if(ENABLE_CW_BUTTONS) {
+    if(offset==CWL_BUTTON) {
+      keyer_event(1, CW_ACTIVE_LOW ? (value==PRESSED) : value);
+      found=TRUE;
+    } else if(offset==CWR_BUTTON) {
+      keyer_event(1, CW_ACTIVE_LOW ? (value==PRESSED) : value);
+      found=TRUE;
+    }
   }
-  found=FALSE;
+  if(found) return;
+#endif
   // check encoders
   for(i=0;i<MAX_ENCODERS;i++) {
     if(encoders[i].bottom_encoder_enabled && encoders[i].bottom_encoder_address_a==offset) {
@@ -560,10 +595,7 @@ static void process_edge(int offset,int value) {
         return;
       }
       encoders[i].switch_debounce=t+settle_time;
-      PROCESS_ACTION *a=g_new(PROCESS_ACTION,1);
-      a->action=encoders[i].switch_function;
-      a->mode=value;
-      g_idle_add(process_action,a);
+      do_switch_action(encoders[i].switch_function, value);
       found=TRUE;
       break;
     }
@@ -589,10 +621,7 @@ static void process_edge(int offset,int value) {
         }
 //g_print("%s: switches=%p function=%d (%s)\n",__FUNCTION__,switches,switches[i].switch_function,sw_string[switches[i].switch_function]);
         switches[i].switch_debounce=t+settle_time;
-        PROCESS_ACTION *a=g_new(PROCESS_ACTION,1);
-        a->action=switches[i].switch_function;
-        a->mode=value;
-        g_idle_add(process_action,a);
+        do_switch_action(switches[i].switch_function, value);
         break;
       }
     }
