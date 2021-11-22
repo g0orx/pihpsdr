@@ -72,10 +72,13 @@ typedef struct _set_frequency {
 } SET_FREQUENCY;
 
 #define STEPS 15
-extern int steps[];
 extern char *step_labels[];
 
 extern GtkWidget* vfo_init(int width,int height,GtkWidget *parent);
+extern int  vfo_get_stepindex();
+extern void vfo_set_step_from_index(int index);
+extern void vfo_set_stepsize(int newstep);
+extern int  vfo_get_step_from_index(int index);
 extern void vfo_step(int steps);
 extern void vfo_id_step(int id, int steps);
 extern void vfo_move(long long hz,int round);

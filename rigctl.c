@@ -540,12 +540,24 @@ long long rigctl_getFrequency() {
 void send_resp (int fd,char * msg) {
   if(rigctl_debug) g_print("RIGCTL: RESP=%s\n",msg);
   int length=strlen(msg);
-  int written=0;
-  
-  while(written<length) {
-    written+=write(fd,&msg[written],length-written);   
+  int rc;
+  int count=0;
+
+//
+// Possibly, the channel is already closed. In this case
+// give up (rc < 0) or at most try a few times (rc == 0)
+// since we are in the GTK idle loop
+//
+  while(length>0) {
+    rc=write(fd,msg,length);
+    if (rc < 0) return;
+    if (rc == 0) {
+      count++;
+      if (count > 10) return;
+    }
+    length -= rc;
+    msg += rc;
   }
-  
 }
 
 //
@@ -765,22 +777,13 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           // sets or reads the Step Size
           if(command[4]==';') {
             // read the step size
-            int i=0;
-            for(i=0;i<=14;i++) {
-              if(steps[i]==step) break;
-            }
-            if(i<=14) {
-              // send reply back
-              sprintf(reply,"ZZAC%02d;",i);
-              send_resp(client->fd,reply) ;
-            }
+           sprintf(reply,"ZZAC%02d;",vfo_get_stepindex());
+           send_resp(client->fd,reply) ;
           } else if(command[6]==';') {
             // set the step size
             int i=atoi(&command[4]) ;
-            if(i>=0 && i<=14) {
-              step=steps[i];
-              vfo_update();
-            }
+            vfo_set_step_from_index(i);
+            vfo_update();
           } else {
           }
           break;
@@ -788,13 +791,8 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           // move VFO A down by selected step
           if(command[6]==';') {
             int step_index=atoi(&command[4]);
-            long long hz=0;
-            if(step_index>=0 && step_index<=14) {
-              hz=(long long)steps[step_index];
-            }
-            if(hz!=0LL) {
-              vfo_id_move(VFO_A,-hz,FALSE);
-            }
+            long long hz = (long long) vfo_get_step_from_index(step_index);
+            vfo_id_move(VFO_A,-hz,FALSE);
           } else {
           }
           break;
@@ -861,13 +859,8 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           // move VFO A up by selected step
           if(command[6]==';') {
             int step_index=atoi(&command[4]);
-            long long hz=0;
-            if(step_index>=0 && step_index<=14) {
-              hz=(long long)steps[step_index];
-            }
-            if(hz!=0LL) {
-              vfo_id_move(VFO_A,hz,FALSE);
-            }
+            long long hz = (long long) vfo_get_step_from_index(step_index);
+            vfo_id_move(VFO_A, hz, FALSE);
           } else {
           }
           break;
@@ -925,13 +918,8 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           // move VFO B down by selected step
           if(command[6]==';') {
             int step_index=atoi(&command[4]);
-            long long hz=0;
-            if(step_index>=0 && step_index<=14) {
-              hz=(long long)steps[step_index];
-            }
-            if(hz!=0LL) {
-              vfo_id_move(VFO_B,-hz,FALSE);
-            }
+            long long hz = (long long) vfo_get_step_from_index(step_index);
+            vfo_id_move(VFO_B,-hz,FALSE);
           } else {
           }
 
@@ -940,13 +928,8 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           // move VFO B up by selected step
           if(command[6]==';') {
             int step_index=atoi(&command[4]);
-            long long hz=0;
-            if(step_index>=0 && step_index<=14) {
-              hz=(long long)steps[step_index];
-            }
-            if(hz!=0LL) {
-              vfo_id_move(VFO_B,hz,FALSE);
-            }
+            long long hz = (long long) vfo_get_step_from_index(step_index);
+            vfo_id_move(VFO_B,hz,FALSE);
           } else {
           }
           break;
