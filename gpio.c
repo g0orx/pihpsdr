@@ -376,9 +376,14 @@ static gpointer rotary_encoder_thread(gpointer data) {
         a=g_new(PROCESS_ACTION,1);
         a->action=encoders[i].bottom_encoder_function;
         a->mode=RELATIVE;
-        a->val=encoders[i].bottom_encoder_pos;
-        g_idle_add(process_action,a);
-        encoders[i].bottom_encoder_pos=0;
+	if(a->action==VFO) {
+          a->val=encoders[i].bottom_encoder_pos/vfo_encoder_divisor;
+          encoders[i].bottom_encoder_pos-(a->val*vfo_encoder_divisor);
+        } else {
+          a->val=encoders[i].bottom_encoder_pos;
+          encoders[i].bottom_encoder_pos=0;
+	}
+	if(a->val!=0) g_idle_add(process_action,a);
       }
       if(encoders[i].top_encoder_enabled && encoders[i].top_encoder_pos!=0) {
         //g_print("%s: TOP encoder %d pos=%d\n",__FUNCTION__,i,encoders[i].top_encoder_pos);
@@ -386,8 +391,15 @@ static gpointer rotary_encoder_thread(gpointer data) {
         a->action=encoders[i].top_encoder_function;
         a->mode=RELATIVE;
         a->val=encoders[i].top_encoder_pos;
+	if(a->action==VFO) {
+          a->val=encoders[i].top_encoder_pos/vfo_encoder_divisor;
+          encoders[i].top_encoder_pos-(a->val*vfo_encoder_divisor);
+        } else {
+          a->val=encoders[i].top_encoder_pos;
+          encoders[i].top_encoder_pos=0;
+	}
+	if(a->val!=0) g_idle_add(process_action,a);
         g_idle_add(process_action,a);
-        encoders[i].top_encoder_pos=0;
       }
     }
     g_mutex_unlock(&encoder_mutex);
