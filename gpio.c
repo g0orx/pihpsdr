@@ -376,7 +376,7 @@ static gpointer rotary_encoder_thread(gpointer data) {
         a=g_new(PROCESS_ACTION,1);
         a->action=encoders[i].bottom_encoder_function;
         a->mode=RELATIVE;
-	if(a->action==VFO) {
+	if(a->action==VFO && vfo_encoder_divisor>1) {
           a->val=encoders[i].bottom_encoder_pos/vfo_encoder_divisor;
           encoders[i].bottom_encoder_pos-(a->val*vfo_encoder_divisor);
         } else {
@@ -391,7 +391,7 @@ static gpointer rotary_encoder_thread(gpointer data) {
         a->action=encoders[i].top_encoder_function;
         a->mode=RELATIVE;
         a->val=encoders[i].top_encoder_pos;
-	if(a->action==VFO) {
+	if(a->action==VFO && vfo_encoder_divisor>1) {
           a->val=encoders[i].top_encoder_pos/vfo_encoder_divisor;
           encoders[i].top_encoder_pos-(a->val*vfo_encoder_divisor);
         } else {
