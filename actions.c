@@ -962,6 +962,9 @@ int process_action(void *data) {
 	  if(rit_increment<1) rit_increment=100;
 	  if(rit_increment>100) rit_increment=1;
 	  break;
+        default:
+          // ignore other types
+          break;
       }
       g_idle_add(ext_vfo_update,NULL);
       break;

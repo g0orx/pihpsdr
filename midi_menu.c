@@ -514,6 +514,9 @@ static void add_store(int key,struct desc *cmd) {
     case MIDI_WHEEL:
       strcpy(str_type,"WHEEL");
       break;
+    default:
+      // other types cannot occur for MIDI
+      break;
   }
   strcpy(str_action,ActionTable[cmd->action].str);
   gtk_list_store_prepend(store,&iter);

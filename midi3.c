@@ -79,5 +79,8 @@ void DoTheMidi(int action, enum ACTIONtype type, int val) {
         a->val=val;
         g_idle_add(process_action,a);
         break;
+      default:
+        // other types cannot happen for MIDI
+        break;
     }
 }
