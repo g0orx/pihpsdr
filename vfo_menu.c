@@ -300,10 +300,16 @@ void vfo_menu(GtkWidget *parent,int vfo) {
   gtk_grid_attach(GTK_GRID(grid),vfo_b,4,3,1,1);
 
 
-  GtkWidget *enable_squelch=gtk_check_button_new_with_label("Enable Squelch");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (enable_squelch), active_receiver->squelch_enable);
-  gtk_grid_attach(GTK_GRID(grid),enable_squelch,3,5,1,1);
-  g_signal_connect(enable_squelch,"toggled",G_CALLBACK(squelch_enable_cb),NULL);
+  if (!display_sliders) {
+    //
+    // If the sliders are "on display", then we also have a squelch-enable checkbox
+    // in the display area.
+    // 
+    GtkWidget *enable_squelch=gtk_check_button_new_with_label("Enable Squelch");
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (enable_squelch), active_receiver->squelch_enable);
+    gtk_grid_attach(GTK_GRID(grid),enable_squelch,3,5,1,1);
+    g_signal_connect(enable_squelch,"toggled",G_CALLBACK(squelch_enable_cb),NULL);
+  }
 
 #ifdef PURESIGNAL
   if(can_transmit && (protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL)) {
