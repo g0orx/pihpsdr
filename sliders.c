@@ -88,6 +88,7 @@ static GtkWidget *drive_label;
 static GtkWidget *drive_scale;
 static GtkWidget *squelch_label;
 static GtkWidget *squelch_scale;
+static gulong     squelch_signal_id;
 static GtkWidget *squelch_enable;
 static GtkWidget *comp_label;
 static GtkWidget *comp_scale;
@@ -119,12 +120,25 @@ void sliders_update() {
 
 int sliders_active_receiver_changed(void *data) {
   if(display_sliders) {
+    //
+    // Change sliders and check-boxes to reflect the state of the
+    // new active receiver
+    //
     gtk_range_set_value(GTK_RANGE(af_gain_scale),active_receiver->volume*100.0);
     gtk_range_set_value (GTK_RANGE(agc_scale),active_receiver->agc_gain);
+    //
+    // need block/unblock so setting the value of the receivers does not
+    // enable/disable squelch
+    //
+    g_signal_handler_block(G_OBJECT(squelch_scale),squelch_signal_id);
+    gtk_range_set_value (GTK_RANGE(squelch_scale),active_receiver->squelch);
+    g_signal_handler_unblock(G_OBJECT(squelch_scale),squelch_signal_id);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(squelch_enable),active_receiver->squelch_enable);
     if (filter_board == CHARLY25) {
       update_att_preamp();
     } else {
       if(attenuation_scale!=NULL) gtk_range_set_value (GTK_RANGE(attenuation_scale),(double)adc[active_receiver->adc].attenuation);
+      if (rf_gain_scale != NULL)  gtk_range_set_value (GTK_RANGE(rf_gain_scale),adc[active_receiver->adc].gain);
     }
     sliders_update();
   }
@@ -632,6 +646,8 @@ int update_drive(void *data) {
 
 static void squelch_value_changed_cb(GtkWidget *widget, gpointer data) {
   active_receiver->squelch=gtk_range_get_value(GTK_RANGE(widget));
+  active_receiver->squelch_enable = (active_receiver->squelch > 0.5);
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(squelch_enable),active_receiver->squelch_enable);
 #ifdef CLIENT_SERVER
   if(radio_is_remote) {
     send_squelch(client_socket,active_receiver->id,active_receiver->squelch_enable,active_receiver->squelch);
@@ -669,12 +685,18 @@ static void compressor_enable_cb(GtkWidget *widget, gpointer data) {
   g_idle_add(ext_vfo_update, NULL);
 }
 
-void set_squelch() {
+void set_squelch(RECEIVER *rx) {
   g_print("%s\n",__FUNCTION__);
-  setSquelch(active_receiver);
+  //
+  // automatically enable/disable squelch
+  // if squelch value changed
+  //
+  rx->squelch_enable = (rx->squelch > 0.5);
+  setSquelch(rx);
 #ifndef COMPRESSION_SLIDER_INSTEAD_OF_SQUELCH
-  if(display_sliders) {
+  if(display_sliders && rx->id == active_receiver->id) {
     gtk_range_set_value (GTK_RANGE(squelch_scale),active_receiver->squelch);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(squelch_enable),active_receiver->squelch_enable);
   } else {
 #endif
     if(scale_status!=SQUELCH) {
@@ -927,7 +949,7 @@ fprintf(stderr,"sliders_init: width=%d height=%d\n", width,height);
   gtk_range_set_value (GTK_RANGE(squelch_scale),active_receiver->squelch);
   gtk_widget_show(squelch_scale);
   gtk_grid_attach(GTK_GRID(sliders),squelch_scale,7,1,2,1);
-  g_signal_connect(G_OBJECT(squelch_scale),"value_changed",G_CALLBACK(squelch_value_changed_cb),NULL);
+  squelch_signal_id=g_signal_connect(G_OBJECT(squelch_scale),"value_changed",G_CALLBACK(squelch_value_changed_cb),NULL);
 
   squelch_enable=gtk_check_button_new();
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(squelch_enable),active_receiver->squelch_enable);
