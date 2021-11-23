@@ -172,8 +172,8 @@ SERVER_OBJS= \
 client_server.o server_menu.o
 endif
 
-GTKINCLUDES=$(shell $(PKG_CONFIG) --cflags gtk+-3.0)
-GTKLIBS=$(shell $(PKG_CONFIG) --libs gtk+-3.0)
+GTKINCLUDES=`$(PKG_CONFIG) --cflags gtk+-3.0`
+GTKLIBS=`$(PKG_CONFIG) --libs gtk+-3.0`
 
 #
 # set options for audio module
@@ -210,8 +210,8 @@ AUDIO_OBJS=audio.o
 endif
 
 ifeq ($(AUDIO_MODULE), PORTAUDIO)
-AUDIO_OPTIONS=-DPORTAUDIO $(shell $(PKG_CONFIG) --cflags portaudio-2.0)
-AUDIO_LIBS=$(shell $(PKG_CONFIG) --libs portaudio-2.0)
+AUDIO_OPTIONS=-DPORTAUDIO `$(PKG_CONFIG) --cflags portaudio-2.0`
+AUDIO_LIBS=`$(PKG_CONFIG) --libs portaudio-2.0`
 AUDIO_SOURCES=portaudio.c
 AUDIO_OBJS=portaudio.o
 endif
