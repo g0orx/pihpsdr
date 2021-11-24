@@ -917,8 +917,8 @@ void tx_set_mode(TRANSMITTER* tx,int mode) {
       int m=vfo[active_receiver->id].mode;
       if(m==modeFMN) {
         if(active_receiver->deviation==2500) {
-         filter_low=-4000;
-         filter_high=4000;
+         filter_low=-5500;
+         filter_high=5500;
         } else {
          filter_low=-8000;
          filter_high=8000;
@@ -961,8 +961,8 @@ void tx_set_filter(TRANSMITTER *tx,int low,int high) {
       break;
     case modeFMN:
       if(tx->deviation==2500) {
-        tx->filter_low=-4000;
-        tx->filter_high=4000;
+        tx->filter_low=-5500;
+        tx->filter_high=5500;
       } else {
         tx->filter_low=-8000;
         tx->filter_high=8000;
