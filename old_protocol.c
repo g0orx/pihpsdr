@@ -1328,13 +1328,6 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
 // that are called both by the RX and TX thread, and are filling and sending the
 // output buffer.
 //
-// In 99% if the cases, the check on isTransmitting() controls that only one
-// of the functions becomes active, but at the moment of a RX/TX transition
-// this may fail.
-//
-// So "blocking" can only occur very rarely, such that the lock/unlock
-// should cost only few CPU cycles.
-//
 
 static pthread_mutex_t send_buffer_mutex   = PTHREAD_MUTEX_INITIALIZER;
 
@@ -1790,8 +1783,8 @@ static int last_power=0;
         CHECK((output_buffer[C3] & 0x80) >> 7, C3_TXDIS);
         CHECK(output_buffer[C4], C4_LPF);
 #endif
-        break;
         }
+        break;
       case 4:
         output_buffer[C0]=0x14;
         output_buffer[C1]=0x00;
