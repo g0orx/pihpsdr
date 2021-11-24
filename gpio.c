@@ -378,12 +378,12 @@ static gpointer rotary_encoder_thread(gpointer data) {
         a->mode=RELATIVE;
 	if(a->action==VFO && vfo_encoder_divisor>1) {
           a->val=encoders[i].bottom_encoder_pos/vfo_encoder_divisor;
-          encoders[i].bottom_encoder_pos-(a->val*vfo_encoder_divisor);
+          encoders[i].bottom_encoder_pos=encoders[i].bottom_encoder_pos-(a->val*vfo_encoder_divisor);
         } else {
           a->val=encoders[i].bottom_encoder_pos;
           encoders[i].bottom_encoder_pos=0;
 	}
-	if(a->val!=0) g_idle_add(process_action,a);
+	if(a->val!=0) g_idle_add(process_action,a); else g_free(a);
       }
       if(encoders[i].top_encoder_enabled && encoders[i].top_encoder_pos!=0) {
         //g_print("%s: TOP encoder %d pos=%d\n",__FUNCTION__,i,encoders[i].top_encoder_pos);
@@ -392,13 +392,12 @@ static gpointer rotary_encoder_thread(gpointer data) {
         a->mode=RELATIVE;
 	if(a->action==VFO && vfo_encoder_divisor>1) {
           a->val=encoders[i].top_encoder_pos/vfo_encoder_divisor;
-          encoders[i].top_encoder_pos-(a->val*vfo_encoder_divisor);
+          encoders[i].top_encoder_pos=encoders[i].top_encoder_pos-(a->val*vfo_encoder_divisor);
         } else {
           a->val=encoders[i].top_encoder_pos;
           encoders[i].top_encoder_pos=0;
 	}
-	if(a->val!=0) g_idle_add(process_action,a);
-        g_idle_add(process_action,a);
+	if(a->val!=0) g_idle_add(process_action,a); else g_free(a);
       }
     }
     g_mutex_unlock(&encoder_mutex);
@@ -420,7 +419,7 @@ int process_function_switch(void *data) {
 
 static void process_encoder(int e,int l,int addr,int val) {
   guchar pinstate;
-  g_print("%s: encoder=%d level=%d addr=0x%02X val=%d\n",__FUNCTION__,e,l,addr,val);
+  //g_print("%s: encoder=%d level=%d addr=0x%02X val=%d\n",__FUNCTION__,e,l,addr,val);
   g_mutex_lock(&encoder_mutex);
   switch(l) {
     case BOTTOM_ENCODER:
@@ -429,7 +428,7 @@ static void process_encoder(int e,int l,int addr,int val) {
           encoders[e].bottom_encoder_a_value=val;
           pinstate=(encoders[e].bottom_encoder_b_value<<1) | encoders[e].bottom_encoder_a_value;
           encoders[e].bottom_encoder_state=encoder_state_table[encoders[e].bottom_encoder_state&0xf][pinstate];
-          g_print("%s: state=%02X\n",__FUNCTION__,encoders[e].bottom_encoder_state);
+          //g_print("%s: state=%02X\n",__FUNCTION__,encoders[e].bottom_encoder_state);
           switch(encoders[e].bottom_encoder_state&0x30) {
             case DIR_NONE:
               break;
@@ -443,13 +442,13 @@ static void process_encoder(int e,int l,int addr,int val) {
               break;
           }
 
-          g_print("%s: %d BOTTOM pos=%d\n",__FUNCTION__,e,encoders[e].bottom_encoder_pos);
+          //g_print("%s: %d BOTTOM pos=%d\n",__FUNCTION__,e,encoders[e].bottom_encoder_pos);
           break;
         case B:
           encoders[e].bottom_encoder_b_value=val;
           pinstate=(encoders[e].bottom_encoder_b_value<<1) | encoders[e].bottom_encoder_a_value;
           encoders[e].bottom_encoder_state=encoder_state_table[encoders[e].bottom_encoder_state&0xf][pinstate];
-          g_print("%s: state=%02X\n",__FUNCTION__,encoders[e].bottom_encoder_state);
+          //g_print("%s: state=%02X\n",__FUNCTION__,encoders[e].bottom_encoder_state);
           switch(encoders[e].bottom_encoder_state&0x30) {
             case DIR_NONE:
               break;
@@ -463,7 +462,7 @@ static void process_encoder(int e,int l,int addr,int val) {
               break;
           }
 
-          g_print("%s: %d BOTTOM pos=%d\n",__FUNCTION__,e,encoders[e].bottom_encoder_pos);
+          //g_print("%s: %d BOTTOM pos=%d\n",__FUNCTION__,e,encoders[e].bottom_encoder_pos);
 
           break;
       }
@@ -474,7 +473,7 @@ static void process_encoder(int e,int l,int addr,int val) {
           encoders[e].top_encoder_a_value=val;
           pinstate=(encoders[e].top_encoder_b_value<<1) | encoders[e].top_encoder_a_value;
           encoders[e].top_encoder_state=encoder_state_table[encoders[e].top_encoder_state&0xf][pinstate];
-          g_print("%s: state=%02X\n",__FUNCTION__,encoders[e].top_encoder_state);
+          //g_print("%s: state=%02X\n",__FUNCTION__,encoders[e].top_encoder_state);
           switch(encoders[e].top_encoder_state&0x30) {
             case DIR_NONE:
               break;
@@ -487,13 +486,13 @@ static void process_encoder(int e,int l,int addr,int val) {
             default:
               break;
           }
-          g_print("%s: %d TOP pos=%d\n",__FUNCTION__,e,encoders[e].top_encoder_pos);
+          //g_print("%s: %d TOP pos=%d\n",__FUNCTION__,e,encoders[e].top_encoder_pos);
           break;
         case B:
           encoders[e].top_encoder_b_value=val;
           pinstate=(encoders[e].top_encoder_b_value<<1) | encoders[e].top_encoder_a_value;
           encoders[e].top_encoder_state=encoder_state_table[encoders[e].top_encoder_state&0xf][pinstate];
-          g_print("%s: state=%02X\n",__FUNCTION__,encoders[e].top_encoder_state);
+          //g_print("%s: state=%02X\n",__FUNCTION__,encoders[e].top_encoder_state);
           switch(encoders[e].top_encoder_state&0x30) {
             case DIR_NONE:
               break;
@@ -506,7 +505,7 @@ static void process_encoder(int e,int l,int addr,int val) {
             default:
               break;
           }
-          g_print("%s: %d TOP pos=%d\n",__FUNCTION__,e,encoders[e].top_encoder_pos);
+          //g_print("%s: %d TOP pos=%d\n",__FUNCTION__,e,encoders[e].top_encoder_pos);
 
           break;
       }
