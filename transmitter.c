@@ -427,6 +427,7 @@ static gboolean update_display(gpointer data) {
       int start = (full-width) /2;      // Copy from start ... (end-1) 
       float *tfp=tx->pixel_samples;
       float *rfp=rx_feedback->pixel_samples+start;
+      float offset;
       int i;
       //
       // The TX panadapter shows a RELATIVE signal strength. A CW or single-tone signal at
@@ -440,18 +441,20 @@ static gboolean update_display(gpointer data) {
       // feedback channel, old=0.407, new=0.2899, difference is 3 dB).
       switch (protocol) {
         case ORIGINAL_PROTOCOL:
-          for (i=0; i<width; i++) {
-            *tfp++ =*rfp++ + 12.0;
-          }
+          // TX dac feedback peak = 0.406, on HermesLite2 0.230
+          offset = (device == DEVICE_HERMES_LITE2) ? 17.0 : 12.0;
           break;
         case NEW_PROTOCOL:
-          for (i=0; i<width; i++) {
-            *tfp++ =*rfp++ + 15.0;
-          }
+          // TX dac feedback peak = 0.2899
+          offset = 15.0;
           break;
         default:
-          memcpy(tfp, rfp, width*sizeof(float));
+          // we probably never come here
+          offset = 0.0;
           break;
+      }
+      for (i=0; i<width; i++) {
+        *tfp++ =*rfp++ + offset;
       }
       g_mutex_unlock(&rx_feedback->mutex);
     } else {
@@ -1045,6 +1048,33 @@ static void full_tx_buffer(TRANSMITTER *tx) {
     }
   } else {
     update_vox(tx);
+
+    //   
+    // DL1YCF:
+    // The FM pre-emphasis filter in WDSP has maximum unit 
+    // gain at about 3000 Hz, so that it attenuates at 300 Hz
+    // by about 20 dB and at 1000 Hz by about 10 dB.
+    // Natural speech has much energy at frequencies below 1000 Hz
+    // which will therefore aquire only little energy, such that 
+    // FM sounds rather "thin".
+    //   
+    // At the expense of having some distortion for the highest
+    // frequencies, we amplify the mic samples here by 15 dB
+    // when doing FM, such that enough "punch" remains after the
+    // FM pre-emphasis filter.
+    //   
+    // If ALC happens before FM pre-emphasis, this has little effect
+    // since the additional gain applied here will most likely be
+    // compensated by ALC, so it is important to have FM pre-emphasis
+    // before ALC (checkbox in tx_menu checked, that is, pre_emphasis==0).
+    //   
+    // Note that mic sample amplification has to be done after update_vox()
+    //   
+    if (tx->mode == modeFMN && !tune) {
+      for (int i=0; i<2*tx->samples; i+=2) {
+        tx->mic_input_buffer[i] *= 5.6234;  // 20*Log(5.6234) is 15
+      }    
+    }    
 
     fexchange0(tx->id, tx->mic_input_buffer, tx->iq_output_buffer, &error);
     if(error!=0) {
