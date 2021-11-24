@@ -210,16 +210,19 @@ static unsigned char high_priority_buffer_to_radio[1444];
 static unsigned char transmit_specific_buffer[60];
 static unsigned char receive_specific_buffer[1444];
 
-// DL1YCF
+//
 // new_protocol_receive_specific and friends are not thread-safe, but called
 // periodically from  timer thread and asynchronously from everywhere else
 // therefore we need to implement a critical section for each of these functions.
-// It seems that this is not necessary for the audio and TX-IQ buffers.
+// The audio buffer needs a mutex since both RX and TX threads may write to
+// this one (CW side tone).
+//
 
 static pthread_mutex_t rx_spec_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t tx_spec_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t hi_prio_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t general_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t audio_buffer_mutex   = PTHREAD_MUTEX_INITIALIZER;
 
 static int local_ptt=0;
 
@@ -384,11 +387,18 @@ void new_protocol_init(int pixels) {
     int rc;
     spectrumWIDTH=pixels;
 
+    //
+    // This is the hard (compile-time) limit on the number of DDCs
+    //
+    if (MAX_DDC > 7) {
+      g_print("%s: MAX_DDC exceeds allowed range\n", __FUNCTION__);
+      exit(-1);
+    }
     g_print("new_protocol_init: MIC_SAMPLES=%d\n",MIC_SAMPLES);
 
-    memset(rxcase      , 0, MAX_DDC*sizeof(int));
-    memset(rxid        , 0, MAX_DDC*sizeof(int));
-    memset(ddc_sequence, 0, MAX_DDC*sizeof(long));
+    memset(rxcase      , 0, sizeof(rxcase));
+    memset(rxid        , 0, sizeof(rxid));
+    memset(ddc_sequence, 0, sizeof(ddc_sequence));
     update_action_table();
 
 #ifdef INCLUDED
@@ -602,7 +612,7 @@ static void new_protocol_general() {
     general_buffer[37]=0x08;  //  phase word (not frequency)
     general_buffer[38]=0x01;  //  enable hardware timer
 
-    if(band->disablePA) {
+    if(!pa_enabled || band->disablePA) {
       general_buffer[58]=0x00;
     } else {
       general_buffer[58]=0x01;  // enable PA
@@ -1394,9 +1404,9 @@ void new_protocol_restart() {
   micsamples_sequence=0;
   audiosequence=0;
   tx_iq_sequence=0;
-  memset(rxcase      , 0, MAX_DDC*sizeof(int));
-  memset(rxid        , 0, MAX_DDC*sizeof(int));
-  memset(ddc_sequence, 0, MAX_DDC*sizeof(long));
+  memset(rxcase      , 0, sizeof(rxcase));
+  memset(rxid        , 0, sizeof(rxid));
+  memset(ddc_sequence, 0, sizeof(ddc_sequence));
   update_action_table();
   // running is set to 1 at the top of new_protocol_thread,
   // but this may lead to race conditions. So out of paranoia,
@@ -1874,33 +1884,37 @@ static void process_mic_data(int bytes) {
 void new_protocol_cw_audio_samples(short left_audio_sample,short right_audio_sample) {
   int rc;
   int txmode=get_tx_mode();
-  //
-  // Only process samples if transmitting in CW
+
   if (isTransmitting() && (txmode==modeCWU || txmode==modeCWL)) {
+    //
+    // Only process samples if transmitting in CW
+    //
 
-  // insert the samples
-  audiobuffer[audioindex++]=left_audio_sample>>8;
-  audiobuffer[audioindex++]=left_audio_sample;
-  audiobuffer[audioindex++]=right_audio_sample>>8;
-  audiobuffer[audioindex++]=right_audio_sample;
+    pthread_mutex_lock(&audio_buffer_mutex);
+    // insert the samples
+    audiobuffer[audioindex++]=left_audio_sample>>8;
+    audiobuffer[audioindex++]=left_audio_sample;
+    audiobuffer[audioindex++]=right_audio_sample>>8;
+    audiobuffer[audioindex++]=right_audio_sample;
 
-  if(audioindex>=sizeof(audiobuffer)) {
+    if(audioindex>=sizeof(audiobuffer)) {
 
-    // insert the sequence
-    audiobuffer[0]=audiosequence>>24;
-    audiobuffer[1]=audiosequence>>16;
-    audiobuffer[2]=audiosequence>>8;
-    audiobuffer[3]=audiosequence;
+      // insert the sequence
+      audiobuffer[0]=audiosequence>>24;
+      audiobuffer[1]=audiosequence>>16;
+      audiobuffer[2]=audiosequence>>8;
+      audiobuffer[3]=audiosequence;
 
-    // send the buffer
+      // send the buffer
 
-    rc=sendto(data_socket,audiobuffer,sizeof(audiobuffer),0,(struct sockaddr*)&audio_addr,audio_addr_length);
-    if(rc!=sizeof(audiobuffer)) {
-      g_print("sendto socket failed for %ld bytes of audio: %d\n",(long)sizeof(audiobuffer),rc);
+      rc=sendto(data_socket,audiobuffer,sizeof(audiobuffer),0,(struct sockaddr*)&audio_addr,audio_addr_length);
+      if(rc!=sizeof(audiobuffer)) {
+        g_print("sendto socket failed for %ld bytes of audio: %d\n",(long)sizeof(audiobuffer),rc);
+      }
+      audioindex=4;
+      audiosequence++;
     }
-    audioindex=4;
-    audiosequence++;
-  }
+    pthread_mutex_unlock(&audio_buffer_mutex);
   }
 }
 
@@ -1910,8 +1924,10 @@ void new_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right
   int txmode=get_tx_mode();
   //
   // Only process samples if NOT transmitting in CW
+  //
   if (isTransmitting() && (txmode==modeCWU || txmode==modeCWL)) return;
 
+  pthread_mutex_lock(&audio_buffer_mutex);
   // insert the samples
   audiobuffer[audioindex++]=left_audio_sample>>8;
   audiobuffer[audioindex++]=left_audio_sample;
@@ -1935,6 +1951,7 @@ void new_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right
     audioindex=4;
     audiosequence++;
   }
+  pthread_mutex_unlock(&audio_buffer_mutex);
 }
 
 void new_protocol_flush_iq_samples() {

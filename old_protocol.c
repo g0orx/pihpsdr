@@ -1323,12 +1323,42 @@ static void process_ozy_input_buffer(unsigned char  *buffer) {
   }
 }
 
+//
+// To avoid race conditions, we need a mutex covering the next three functions
+// that are called both by the RX and TX thread, and are filling and sending the
+// output buffer.
+//
+// In 99% if the cases, the check on isTransmitting() controls that only one
+// of the functions becomes active, but at the moment of a RX/TX transition
+// this may fail.
+//
+// So "blocking" can only occur very rarely, such that the lock/unlock
+// should cost only few CPU cycles.
+//
+
+static pthread_mutex_t send_buffer_mutex   = PTHREAD_MUTEX_INITIALIZER;
+
 void old_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right_audio_sample) {
   if(!isTransmitting()) {
-    output_buffer[output_buffer_index++]=left_audio_sample>>8;
-    output_buffer[output_buffer_index++]=left_audio_sample;
-    output_buffer[output_buffer_index++]=right_audio_sample>>8;
-    output_buffer[output_buffer_index++]=right_audio_sample;
+    pthread_mutex_lock(&send_buffer_mutex);
+    //
+    // The HL2 makes no use of audio samples, but instead
+    // uses them to write to extended addrs which we do not
+    // want to do un-intentionally, therefore send zeros
+    // We could also stop this data stream during TX
+    // completely
+    //
+    if (device == DEVICE_HERMES_LITE2) {
+      output_buffer[output_buffer_index++]=0;
+      output_buffer[output_buffer_index++]=0;
+      output_buffer[output_buffer_index++]=0;
+      output_buffer[output_buffer_index++]=0;
+    } else {
+      output_buffer[output_buffer_index++]=left_audio_sample>>8;
+      output_buffer[output_buffer_index++]=left_audio_sample;
+      output_buffer[output_buffer_index++]=right_audio_sample>>8;
+      output_buffer[output_buffer_index++]=right_audio_sample;
+    }
     output_buffer[output_buffer_index++]=0;
     output_buffer[output_buffer_index++]=0;
     output_buffer[output_buffer_index++]=0;
@@ -1337,6 +1367,7 @@ void old_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right
       ozy_send_buffer();
       output_buffer_index=8;
     }
+    pthread_mutex_unlock(&send_buffer_mutex);
   }
 }
 
@@ -1349,10 +1380,18 @@ void old_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right
 //
 void old_protocol_iq_samples_with_sidetone(int isample, int qsample, int side) {
   if(isTransmitting()) {
-    output_buffer[output_buffer_index++]=side >> 8;
-    output_buffer[output_buffer_index++]=side;
-    output_buffer[output_buffer_index++]=side >> 8;
-    output_buffer[output_buffer_index++]=side;
+    pthread_mutex_lock(&send_buffer_mutex);
+    if (device == DEVICE_HERMES_LITE2) {
+      output_buffer[output_buffer_index++]=0;
+      output_buffer[output_buffer_index++]=0;
+      output_buffer[output_buffer_index++]=0;
+      output_buffer[output_buffer_index++]=0;
+    } else {
+      output_buffer[output_buffer_index++]=side >> 8;
+      output_buffer[output_buffer_index++]=side;
+      output_buffer[output_buffer_index++]=side >> 8;
+      output_buffer[output_buffer_index++]=side;
+    }
     output_buffer[output_buffer_index++]=isample>>8;
     output_buffer[output_buffer_index++]=isample;
     output_buffer[output_buffer_index++]=qsample>>8;
@@ -1361,11 +1400,13 @@ void old_protocol_iq_samples_with_sidetone(int isample, int qsample, int side) {
       ozy_send_buffer();
       output_buffer_index=8;
     }
+    pthread_mutex_unlock(&send_buffer_mutex);
   }
 }
 
 void old_protocol_iq_samples(int isample,int qsample) {
   if(isTransmitting()) {
+    pthread_mutex_lock(&send_buffer_mutex);
     output_buffer[output_buffer_index++]=0;
     output_buffer[output_buffer_index++]=0;
     output_buffer[output_buffer_index++]=0;
@@ -1378,6 +1419,7 @@ void old_protocol_iq_samples(int isample,int qsample) {
       ozy_send_buffer();
       output_buffer_index=8;
     }
+    pthread_mutex_unlock(&send_buffer_mutex);
   }
 }
 
@@ -1387,7 +1429,8 @@ void ozy_send_buffer() {
   int txmode=get_tx_mode();
   int txvfo=get_tx_vfo();
   int i;
-  BAND *band;
+  BAND *rxband=band_get_band(vfo[VFO_A].band);
+  BAND *txband=band_get_band(vfo[txvfo].band);
   int num_hpsdr_receivers=how_many_receivers();
   int rx1channel = first_receiver_channel();
   int rx2channel = second_receiver_channel();
@@ -1453,10 +1496,8 @@ void ozy_send_buffer() {
     if(classE) {
       output_buffer[C2]|=0x01;
     }
-    band=band_get_band(vfo[VFO_A].band);
     if(isTransmitting()) {
-      band=band_get_band(vfo[txvfo].band);
-      output_buffer[C2]|=band->OCtx<<1;
+      output_buffer[C2]|=txband->OCtx<<1;
       if(tune) {
         if(OCmemory_tune_time!=0) {
           struct timeval te;
@@ -1470,7 +1511,7 @@ void ozy_send_buffer() {
         }
       }
     } else {
-      output_buffer[C2]|=band->OCrx<<1;
+      output_buffer[C2]|=rxband->OCrx<<1;
     }
 
     output_buffer[C3] = (receiver[0]->alex_attenuation) & 0x03;  // do not set higher bits
@@ -1639,11 +1680,6 @@ void ozy_send_buffer() {
         break;
       case 3:
         {
-        //BAND *band=band_get_current_band();
-        band=band_get_band(vfo[VFO_A].band);
-        if(isTransmitting()) {
-          band=band_get_band(vfo[txvfo].band);
-        }
         int power=0;
 static int last_power=0;
 	//
@@ -1669,7 +1705,7 @@ static int last_power=0;
 //  last_power=power;
 //}
 
-	//fprintf(stderr,"%s: band=%s disablePA=%d\n",__FUNCTION__,band->title,band->disablePA);
+	//fprintf(stderr,"%s: TXband=%s disablePA=%d\n",__FUNCTION__,txband->title,txband->disablePA);
 
 
         output_buffer[C0]=0x12;
@@ -1683,22 +1719,21 @@ static int last_power=0;
         if(mic_linein) {
           output_buffer[C2]|=0x02;
         }
-        if(filter_board==APOLLO || device==DEVICE_HERMES_LITE2) {
+        if(filter_board==APOLLO) {
           output_buffer[C2]|=0x2C;
         }
         if((filter_board==APOLLO) && tune) {
           output_buffer[C2]|=0x10;
         }
-        if((device==DEVICE_HERMES_LITE2) && pa_enabled) {
-          output_buffer[C2]|=0x10; // Enable PA
-        } 
         if(band_get_current()==band6) {
           output_buffer[C3]=output_buffer[C3]|0x40; // Alex 6M low noise amplifier
         }
-        if(isTransmitting() && band->disablePA) {
-          output_buffer[C2]|=0x40; // Manual Filter Selection
-          output_buffer[C3]|=0x20; // bypass all RX filters
+        if(txband->disablePA || !pa_enabled) {
           output_buffer[C3]|=0x80; // disable Alex T/R relay
+          if (isTransmitting()) {
+            output_buffer[C2]|=0x40; // Manual Filter Selection
+            output_buffer[C3]|=0x20; // bypass all RX filters
+          }
         }
 #ifdef PURESIGNAL
 	//
@@ -1735,6 +1770,17 @@ static int last_power=0;
 	  }
 	}
 #endif
+        if (device==DEVICE_HERMES_LITE2) {
+          // do not set any Apollo/Alex bits (ADDR=0x09 bits 0:23)
+          // ADDR=0x09 bit 19 follows "PA enable" state
+          // ADDR=0x09 bit 20 follows "TUNE" state
+          // ADDR=0x09 bit 18 always cleared (external tuner enabled)
+          output_buffer[C2]= 0x00;
+          output_buffer[C3]= 0x00;
+          output_buffer[C4]= 0x00;
+          if (pa_enabled && !txband->disablePA) output_buffer[C2] |= 0x08;
+          if (tune)                             output_buffer[C2] |= 0x10;
+        }
 #ifdef DEBUG_PROTO
 	CHECK(output_buffer[C1], C1_DRIVE);
 	CHECK((output_buffer[C2] & 0xE0) >> 5, C2_FB);
@@ -1744,8 +1790,8 @@ static int last_power=0;
         CHECK((output_buffer[C3] & 0x80) >> 7, C3_TXDIS);
         CHECK(output_buffer[C4], C4_LPF);
 #endif
-        }
         break;
+        }
       case 4:
         output_buffer[C0]=0x14;
         output_buffer[C1]=0x00;
