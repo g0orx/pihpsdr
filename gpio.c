@@ -390,7 +390,6 @@ static gpointer rotary_encoder_thread(gpointer data) {
         a=g_new(PROCESS_ACTION,1);
         a->action=encoders[i].top_encoder_function;
         a->mode=RELATIVE;
-        a->val=encoders[i].top_encoder_pos;
 	if(a->action==VFO && vfo_encoder_divisor>1) {
           a->val=encoders[i].top_encoder_pos/vfo_encoder_divisor;
           encoders[i].top_encoder_pos-(a->val*vfo_encoder_divisor);
@@ -418,7 +417,6 @@ int process_function_switch(void *data) {
 }
 
 #ifdef GPIO
-static unsigned long switch_debounce;
 
 static void process_encoder(int e,int l,int addr,int val) {
   guchar pinstate;
@@ -519,7 +517,7 @@ static void process_encoder(int e,int l,int addr,int val) {
 
 static void process_edge(int offset,int value) {
   gint i;
-  gint t;
+  unsigned int t;
   gboolean found;
 
   //g_print("%s: offset=%d value=%d\n",__FUNCTION__,offset,value);
@@ -560,9 +558,15 @@ static void process_edge(int offset,int value) {
       break;
     } else if(encoders[i].switch_enabled && encoders[i].switch_address==offset) {
       //g_print("%s: found %d encoder %d switch\n",__FUNCTION__,offset,i);
+      t=millis();
+      //g_print("%s: found %d encoder %d switch value=%d t=%u\n",__FUNCTION__,offset,i,value,t);
+      if (t<encoders[i].switch_debounce) {
+        return;
+      }
+      encoders[i].switch_debounce=t+settle_time;
       PROCESS_ACTION *a=g_new(PROCESS_ACTION,1);
       a->action=encoders[i].switch_function;
-      a->mode=value?PRESSED:RELEASED;
+      a->mode=value;
       g_idle_add(process_action,a);
       found=TRUE;
       break;
@@ -582,7 +586,7 @@ static void process_edge(int offset,int value) {
     for(i=0;i<MAX_SWITCHES;i++) {
       if(switches[i].switch_enabled && switches[i].switch_address==offset) {
         t=millis();
-        //g_print("%s: found %d switch %d value=%d t=%d\n",__FUNCTION__,offset,i,value,t);
+        //g_print("%s: found %d switch %d value=%d t=%u\n",__FUNCTION__,offset,i,value,t);
         found=TRUE;
         if(t<switches[i].switch_debounce) {
           return;
@@ -591,7 +595,7 @@ static void process_edge(int offset,int value) {
         switches[i].switch_debounce=t+settle_time;
         PROCESS_ACTION *a=g_new(PROCESS_ACTION,1);
         a->action=switches[i].switch_function;
-        a->mode=value?PRESSED:RELEASED;
+        a->mode=value;
         g_idle_add(process_action,a);
         break;
       }
@@ -641,6 +645,16 @@ void gpio_set_defaults(int ctrlr) {
       switches=switches_controller2_v1;
       break;
     case CONTROLLER2_V2:
+#ifdef LOCALCW
+      //
+      // This controller uses nearly all GPIO lines,
+      // so lines 9, 10, 11 are not available for
+      // CW keys and producing a side tone
+      //
+      ENABLE_GPIO_SIDETONE=0;
+      ENABLE_CW_BUTTONS=0;
+#endif
+
       encoders=encoders_controller2_v2;
       switches=switches_controller2_v2;
       break;
@@ -973,7 +987,6 @@ int gpio_init() {
 
 #ifdef GPIO
   initialiseEpoch();
-  switch_debounce=millis();
 
   g_mutex_init(&encoder_mutex);
 
