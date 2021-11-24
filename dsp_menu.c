@@ -58,9 +58,7 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 
 static void agc_hang_threshold_value_changed_cb(GtkWidget *widget, gpointer data) {
   active_receiver->agc_hang_threshold=(int)gtk_range_get_value(GTK_RANGE(widget));
-  if(active_receiver->agc==AGC_LONG || active_receiver->agc==AGC_SLOW) {
-    SetRXAAGCHangThreshold(active_receiver->id, (int)active_receiver->agc_hang_threshold);
-  }
+  set_agc(active_receiver, active_receiver->agc);
 }
 
 static void pre_post_agc_cb(GtkToggleButton *widget, gpointer data) {
