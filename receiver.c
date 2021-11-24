@@ -718,6 +718,12 @@ void set_agc(RECEIVER *rx, int agc) {
       SetRXAAGCHangThreshold(rx->id,100);
       break;
   }
+  //
+  // Recalculate the "panadapter" AGC line positions.
+  //
+  GetRXAAGCHangLevel(rx->id, &rx->agc_hang);
+  GetRXAAGCThresh(rx->id, &rx->agc_thresh, 4096.0, (double)rx->sample_rate);
+
 }
 
 void set_offset(RECEIVER *rx,long long offset) {
@@ -1278,8 +1284,8 @@ void receiver_filter_changed(RECEIVER *rx) {
   int m=vfo[rx->id].mode;
   if(m==modeFMN) {
     if(rx->deviation==2500) {
-      filter_low=-4000;
-      filter_high=4000;
+      filter_low=-5500;
+      filter_high=5500;
     } else {
       filter_low=-8000;
       filter_high=8000;
