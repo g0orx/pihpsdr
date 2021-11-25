@@ -939,13 +939,21 @@ int process_action(void *data) {
       break;
     case RSAT:
       if(a->mode==PRESSED) {
-        sat_mode=RSAT_MODE;
+        if(sat_mode==RSAT_MODE) {
+          sat_mode=SAT_NONE;
+        } else {
+          sat_mode=RSAT_MODE;
+        }
         g_idle_add(ext_vfo_update, NULL);
       }
       break;
     case SAT:
       if(a->mode==PRESSED) {
-        sat_mode=SAT_MODE;
+	if(sat_mode==SAT_MODE) {
+	  sat_mode=SAT_NONE;
+	} else {
+	  sat_mode=SAT_MODE;
+	}
         g_idle_add(ext_vfo_update, NULL);
       }
       break;
