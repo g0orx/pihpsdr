@@ -738,10 +738,8 @@ void set_agc(RECEIVER *rx) {
       break;
   }
   //
-  // Determine the "panadapter" AGC line positions. These are re-calculated
-  // the first time the AGC slider is moved, but we need correct values 
-  // until then.
-  // 
+  // Recalculate the "panadapter" AGC line positions.
+  //
   GetRXAAGCHangLevel(rx->id, &rx->agc_hang);
   GetRXAAGCThresh(rx->id, &rx->agc_thresh, 4096.0, (double)rx->sample_rate);
 }

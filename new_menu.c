@@ -492,9 +492,8 @@ void new_menu()
     gtk_grid_attach(GTK_GRID(grid),close_b,0,0,2,1);
 
     //
-    // The "Restart" restarts the protocol
+    // The "Restart" button restarts the protocol
     // This may help to recover from certain error conditions
-    // At the moment I do not know how to do this for SOAPY
     //
 #ifdef SOAPYSDR
     if (protocol != SOAPYSDR_PROTOCOL)
