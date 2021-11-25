@@ -595,7 +595,7 @@ int process_action(void *data) {
       }
       break;
     case FUNCTION:
-      if (a->mode==PRESSED) {
+      if(a->mode==PRESSED) {
         switch(controller) {
           case NO_CONTROLLER:
           case CONTROLLER1:
@@ -789,62 +789,62 @@ int process_action(void *data) {
       }
       break;
     case NUMPAD_0:
-      if (a->mode==PRESSED) {
+      if(a->mode==PRESSED) {
         g_idle_add(ext_num_pad,GINT_TO_POINTER(0));
       }
       break;
     case NUMPAD_1:
-      if (a->mode==PRESSED) {
+      if(a->mode==PRESSED) {
         g_idle_add(ext_num_pad,GINT_TO_POINTER(1));
       }
       break;
     case NUMPAD_2:
-      if (a->mode==PRESSED) {
+      if(a->mode==PRESSED) {
         g_idle_add(ext_num_pad,GINT_TO_POINTER(2));
       }
       break;
     case NUMPAD_3:
-      if (a->mode==PRESSED) {
+      if(a->mode==PRESSED) {
         g_idle_add(ext_num_pad,GINT_TO_POINTER(3));
       }
       break;
     case NUMPAD_4:
-      if (a->mode==PRESSED) {
+      if(a->mode==PRESSED) {
         g_idle_add(ext_num_pad,GINT_TO_POINTER(4));
       }
       break;
     case NUMPAD_5:
-      if (a->mode==PRESSED) {
+      if(a->mode==PRESSED) {
         g_idle_add(ext_num_pad,GINT_TO_POINTER(5));
       }
       break;
     case NUMPAD_6:
-      if (a->mode==PRESSED) {
+      if(a->mode==PRESSED) {
         g_idle_add(ext_num_pad,GINT_TO_POINTER(6));
       }
       break;
     case NUMPAD_7:
-      if (a->mode==PRESSED) {
+      if(a->mode==PRESSED) {
         g_idle_add(ext_num_pad,GINT_TO_POINTER(7));
       }
       break;
     case NUMPAD_8:
-      if (a->mode==PRESSED) {
+      if(a->mode==PRESSED) {
         g_idle_add(ext_num_pad,GINT_TO_POINTER(8));
       }
       break;
     case NUMPAD_9:
-      if (a->mode==PRESSED) {
+      if(a->mode==PRESSED) {
         g_idle_add(ext_num_pad,GINT_TO_POINTER(9));
       }
       break;
     case NUMPAD_CL:
-      if (a->mode==PRESSED) {
+      if(a->mode==PRESSED) {
         g_idle_add(ext_num_pad,GINT_TO_POINTER(-1));
       }
       break;
     case NUMPAD_ENTER:
-      if (a->mode==PRESSED) {
+      if(a->mode==PRESSED) {
         g_idle_add(ext_num_pad,GINT_TO_POINTER(-2));
       }
       break;
