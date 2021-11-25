@@ -113,6 +113,23 @@ void update_toolbar_labels() {
   gtk_button_set_label(GTK_BUTTON(sim_function),ActionTable[toolbar_switches[7].switch_function].button_str);
 }
 
+void mox_update(int state) {
+//fprintf(stderr,"mox_update: state=%d\n",state);
+  if(getTune()==1) {
+    setTune(0);
+  }
+  if(state) {
+    if(canTransmit() || tx_out_of_band) {
+      setMox(state);
+    } else {
+      transmitter_set_out_of_band(transmitter);
+    }
+  } else {
+    setMox(state);
+  }
+  g_idle_add(ext_vfo_update,NULL);
+}
+
 void tune_update(int state) {
   if(getMox()==1) {
     setMox(0);
