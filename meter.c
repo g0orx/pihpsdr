@@ -195,7 +195,7 @@ if(analog_meter) {
   cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
   cairo_paint (cr);
 
-  cairo_set_font_size(cr, 12);
+  cairo_set_font_size(cr, DISPLAY_FONT_SIZE2);
 
   switch(meter_type) {
     case SMETER:
@@ -488,10 +488,10 @@ if(analog_meter) {
     cairo_rectangle(cr, offset, 0.0, peak, 5.0);
     cairo_fill(cr);
 
-    cairo_select_font_face(cr, "FreeMono",
+    cairo_select_font_face(cr, DISPLAY_FONT,
                 CAIRO_FONT_SLANT_NORMAL,
                 CAIRO_FONT_WEIGHT_BOLD);
-    cairo_set_font_size(cr, 10);
+    cairo_set_font_size(cr, DISPLAY_FONT_SIZE1);
     cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
     cairo_move_to(cr, 0.0, 8.0);
     cairo_show_text(cr, "Mic Lvl");
@@ -523,10 +523,10 @@ if(analog_meter) {
   cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
   cairo_paint (cr);
 
-  cairo_select_font_face(cr, "FreeMono",
+  cairo_select_font_face(cr, DISPLAY_FONT,
                 CAIRO_FONT_SLANT_NORMAL,
                 CAIRO_FONT_WEIGHT_BOLD);
-  cairo_set_font_size(cr, 12);
+  cairo_set_font_size(cr, DISPLAY_FONT_SIZE2);
 
   cairo_set_line_width(cr, 1.0);
 
@@ -618,7 +618,7 @@ if(analog_meter) {
         }
         cairo_stroke(cr);
 
-        cairo_set_font_size(cr, 10);
+        cairo_set_font_size(cr, DISPLAY_FONT_SIZE1);
         cairo_move_to(cr, offset+(double)(18*db)-3.0, (double)meter_height-1);
         cairo_show_text(cr, "3");
         cairo_move_to(cr, offset+(double)(36*db)-3.0, (double)meter_height-1);
@@ -683,16 +683,16 @@ if(analog_meter) {
         text_location=offset+(db*114)+5;
       }
 
-      cairo_set_font_size(cr, 12);
+      cairo_set_font_size(cr, DISPLAY_FONT_SIZE2);
       sprintf(sf,"%d dBm",(int)level);
       cairo_move_to(cr, text_location, meter_height-12);
       cairo_show_text(cr, sf);
       break;
     case POWER:
-      cairo_select_font_face(cr, "FreeMono",
+      cairo_select_font_face(cr, DISPLAY_FONT,
             CAIRO_FONT_SLANT_NORMAL,
             CAIRO_FONT_WEIGHT_BOLD);
-      cairo_set_font_size(cr, 12);
+      cairo_set_font_size(cr, DISPLAY_FONT_SIZE2);
 
       if(level>max_level || max_count==10) {
           max_level=level;
@@ -710,10 +710,10 @@ if(analog_meter) {
       } else {
         swr=999.9;
       }
-      cairo_select_font_face(cr, "FreeMono",
+      cairo_select_font_face(cr, DISPLAY_FONT,
             CAIRO_FONT_SLANT_NORMAL,
             CAIRO_FONT_WEIGHT_BOLD);
-      cairo_set_font_size(cr, 12);
+      cairo_set_font_size(cr, DISPLAY_FONT_SIZE2);
       sprintf(sf,"SWR: %1.1f:1",swr);
       cairo_move_to(cr, 10, 55);
       cairo_show_text(cr, sf);

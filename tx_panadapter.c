@@ -216,8 +216,8 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   double dbm_per_line=(double)display_height/((double)tx->panadapter_high-(double)tx->panadapter_low);
   cairo_set_source_rgb (cr, 0.00, 1.00, 1.00);
   cairo_set_line_width(cr, 1.0);
-  cairo_select_font_face(cr, "FreeMono", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
-  cairo_set_font_size(cr, 12);
+  cairo_select_font_face(cr, DISPLAY_FONT, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
+  cairo_set_font_size(cr, DISPLAY_FONT_SIZE2);
 
   for(i=tx->panadapter_high;i>=tx->panadapter_low;i--) {
     char v[32];
@@ -274,10 +274,10 @@ void tx_panadapter_update(TRANSMITTER *tx) {
         cairo_line_to(cr,(double)i,(double)display_height);
 
         cairo_set_source_rgb (cr, 0.0, 1.0, 1.0);
-        cairo_select_font_face(cr, "FreeMono",
+        cairo_select_font_face(cr, DISPLAY_FONT,
                             CAIRO_FONT_SLANT_NORMAL,
                             CAIRO_FONT_WEIGHT_BOLD);
-        cairo_set_font_size(cr, 12);
+        cairo_set_font_size(cr, DISPLAY_FONT_SIZE2);
         char v[32];
         sprintf(v,"%0lld.%03lld",f/1000000,(f%1000000)/1000);
         //cairo_move_to(cr, (double)i, (double)(display_height-10));  
@@ -357,7 +357,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     char text[64];
 
     cairo_set_source_rgb(cr,1.0,1.0,0.0);
-    cairo_set_font_size(cr,16);
+    cairo_set_font_size(cr, DISPLAY_FONT_SIZE3);
     if(ENABLE_E2_ENCODER) {
       cairo_move_to(cr, display_width-200,70);
       sprintf(text,"%s (%s)",encoder_string[e2_encoder_action],sw_string[e2_sw_action]);
@@ -400,7 +400,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   if(duplex) {
     char text[64];
     cairo_set_source_rgb(cr,1.0,0.0,0.0);
-    cairo_set_font_size(cr, 16);
+    cairo_set_font_size(cr, DISPLAY_FONT_SIZE3);
 
     if(transmitter->fwd<0.0001 || band->disablePA) {
       sprintf(text,"FWD: %0.3f",transmitter->exciter);
@@ -423,7 +423,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   if(tx->dialog==NULL && protocol==ORIGINAL_PROTOCOL && device==DEVICE_HERMES_LITE2) {
     char text[64];
     cairo_set_source_rgb(cr,1.0,1.0,0.0);
-    cairo_set_font_size(cr,16);
+    cairo_set_font_size(cr,DISPLAY_FONT_SIZE3);
 
     double t = (3.26 * ((double)average_temperature / 4096.0) - 0.5) / 0.01;
     sprintf(text,"%0.1fC",t);

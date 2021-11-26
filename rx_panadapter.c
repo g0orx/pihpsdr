@@ -234,8 +234,8 @@ void rx_panadapter_update(RECEIVER *rx) {
 
   double dbm_per_line=(double)display_height/((double)rx->panadapter_high-(double)rx->panadapter_low);
   cairo_set_line_width(cr, LINE_WIDTH);
-  cairo_select_font_face(cr, "FreeMono", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
-  cairo_set_font_size(cr, 12);
+  cairo_select_font_face(cr, DISPLAY_FONT, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
+  cairo_set_font_size(cr, DISPLAY_FONT_SIZE2);
   char v[32];
 
   for(i=rx->panadapter_high;i>=rx->panadapter_low;i--) {
@@ -366,10 +366,10 @@ void rx_panadapter_update(RECEIVER *rx) {
   }
 
   f = ((min_display/divisor)*divisor)+divisor;
-  cairo_select_font_face(cr, "FreeMono",
+  cairo_select_font_face(cr, DISPLAY_FONT,
                             CAIRO_FONT_SLANT_NORMAL,
                             CAIRO_FONT_WEIGHT_BOLD);
-  cairo_set_font_size(cr, 12);
+  cairo_set_font_size(cr, DISPLAY_FONT_SIZE2);
   while(f<max_display) {
     x=(double)(f-min_display)/HzPerPixel;
     cairo_move_to(cr,(double)x,0.0);
@@ -405,11 +405,11 @@ void rx_panadapter_update(RECEIVER *rx) {
             
 #ifdef CLIENT_SERVER
   if(clients!=NULL) {
-    cairo_select_font_face(cr, "FreeMono",
+    cairo_select_font_face(cr, DISPLAY_FONT,
               CAIRO_FONT_SLANT_NORMAL,
               CAIRO_FONT_WEIGHT_NORMAL);
     cairo_set_source_rgb (cr, 0.5, 0.5, 0.5);
-    cairo_set_font_size(cr, 22);
+    cairo_set_font_size(cr, DISPLAY_FONT_SIZE4);
     inet_ntop(AF_INET, &(((struct sockaddr_in *)&clients->address)->sin_addr),text,64);
     cairo_text_extents(cr, text, &extents);
     cairo_move_to(cr, ((double)display_width/2.0)-(extents.width/2.0), (double)display_height/2.0);
@@ -581,7 +581,7 @@ void rx_panadapter_update(RECEIVER *rx) {
   if(rx->id==0 && controller==CONTROLLER1) {
 
     cairo_set_source_rgb(cr,1.0,1.0,0.0);
-    cairo_set_font_size(cr,16);
+    cairo_set_font_size(cr, DISPLAY_FONT_SIZE3);
     if(ENABLE_E2_ENCODER) {
       cairo_move_to(cr, display_width-200,70);
       sprintf(text,"%s (%s)",encoder_string[e2_encoder_action],sw_string[e2_sw_action]);
@@ -606,7 +606,7 @@ void rx_panadapter_update(RECEIVER *rx) {
     if(sequence_errors!=0) {
       cairo_move_to(cr,100.0,50.0);
       cairo_set_source_rgb(cr,1.0,0.0,0.0);
-      cairo_set_font_size(cr,12);
+      cairo_set_font_size(cr, DISPLAY_FONT_SIZE2);
       cairo_show_text(cr, "Sequence Error");
       sequence_error_count++;
       // show for 2 second
@@ -619,7 +619,7 @@ void rx_panadapter_update(RECEIVER *rx) {
 
   if(rx->id==0 && protocol==ORIGINAL_PROTOCOL && device==DEVICE_HERMES_LITE2) {
     cairo_set_source_rgb(cr,1.0,1.0,0.0);
-    cairo_set_font_size(cr,16);
+    cairo_set_font_size(cr, DISPLAY_FONT_SIZE3);
 
     double t = (3.26 * ((double)average_temperature / 4096.0) - 0.5) / 0.01;
     sprintf(text,"%0.1fC",t);
