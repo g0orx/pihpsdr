@@ -155,10 +155,10 @@ void meter_update(RECEIVER *rx,int meter_type,double value,double reverse,double
 
   if(meter_type==POWER) {
     level=value;
-    if(level==0.0 || band->disablePA) {
+    if(level==0.0 || band->disablePA || !pa_enabled) {
       level=exciter;
     }
-    if(band->disablePA) {
+    if(band->disablePA || !pa_enabled) {
       units="mW";
       interval=100.0;
       level=level*1000.0;
@@ -343,7 +343,7 @@ if(analog_meter) {
       char *units="W";
       double interval=10.0;
 
-      if(band->disablePA) {
+      if(band->disablePA || !pa_enabled) {
         units="mW";
         interval=100.0;
       } else {

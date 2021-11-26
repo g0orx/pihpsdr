@@ -62,7 +62,7 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 
 static gboolean encoder_bottom_cb(GtkWidget *widget, GdkEvent *event, gpointer data) {
   int en=GPOINTER_TO_INT(data);
-  int action=action_dialog(top_window,CONTROLLER_ENCODER,encoders[en].bottom_encoder_function);
+  int action=action_dialog(dialog,CONTROLLER_ENCODER,encoders[en].bottom_encoder_function);
   gtk_button_set_label(GTK_BUTTON(widget),ActionTable[action].str);
   encoders[en].bottom_encoder_function=action;
   return TRUE;

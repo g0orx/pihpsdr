@@ -2813,8 +2813,8 @@ int parse_cmd(void *data) {
                 break;
               case modeFMN:
                 if(fw==0) {
-                  filter->low=-4000;
-                  filter->high=4000;
+                  filter->low=-5500;
+                  filter->high=5500;
                   active_receiver->deviation=2500;
                 } else {
                   filter->low=-8000;
