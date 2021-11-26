@@ -27,12 +27,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#ifdef MIDI
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#endif
 
 #include "discovered.h"
 #include "old_discovery.h"
@@ -80,6 +74,14 @@ GtkWidget *host_port_spinner;
 gint host_port=45000;
 #endif
 
+//
+// This is a variable for the second phase of STEMlab discovery.
+// If set, we already have detected + selected the STEMlab,
+// started the SDR app on the RedPitaya and run a "P1 only"
+// discovery to obtain data from the SDR app
+//
+static int discover_only_p1 = 0;
+
 static gboolean delete_event_cb(GtkWidget *widget, GdkEvent *event, gpointer data) {
   _exit(0);
 }
@@ -100,123 +102,22 @@ static gboolean start_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
 	ret=stemlab_start_app(gtk_combo_box_get_active_id(GTK_COMBO_BOX(apps_combobox[device_id])));
     }
     //
-    // We have started the SDR app on the RedPitaya, but may need to fill
-    // in information necessary for starting the radio, including the
-    // MAC address and the interface listening to. Even when using AVAHI,
-    // we miss some information.
-    // To get all required info, we do a "fake" discovery on the RedPitaya IP address.
-    // Here we also try TCP if UDP does not work, such that we can work with STEMlabs
-    // in remote subnets.
+    // To make this bullet-proof, we do another "discover" now
+    // and proceeding this way is the only way to choose between UDP and TCP connection
+    // Since we have just started the app, we temporarily deactivate STEMlab detection
     //
-    if (ret == 0) {
-      ret=stemlab_get_info(device_id);
-    }
-    // At this point, if stemlab_start_app failed, we cannot recover
-    if (ret != 0) exit(-1);
+    stemlab_cleanup();
+    sleep(2);          // let Stemlab SDR app start
+    discover_only_p1=1;
+    gtk_widget_destroy(discovery_dialog);
+    g_idle_add(ext_discovery,NULL);
+    return TRUE;
   }
-  stemlab_cleanup();
 #endif
   gtk_widget_destroy(discovery_dialog);
   start_radio();
   return TRUE;
 }
-
-#ifdef MIDI
-//
-// This is a file open dialog. If we choose a readable file here, it is just copied
-// to file "midi.props" in the local directory
-//
-static gboolean midi_cb(GtkWidget *widget, GdkEventButton *event, gpointer data) {
-    GtkWidget *opfile,*message;
-    GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_OPEN;
-    gint res;
-    int fdin, fdout;
-    size_t len,bytes_read,bytes_written;
-
-    opfile = gtk_file_chooser_dialog_new ("Import MIDI description",
-                                      GTK_WINDOW(top_window),
-                                      action,
-                                      "Cancel",
-                                      GTK_RESPONSE_CANCEL,
-                                      "Open",
-                                      GTK_RESPONSE_ACCEPT,
-                                      NULL);
-
-    res = gtk_dialog_run (GTK_DIALOG (opfile));
-    if (res == GTK_RESPONSE_ACCEPT) {
-      char *filename, *cp;
-      struct stat statbuf;
-      GtkFileChooser *chooser = GTK_FILE_CHOOSER (opfile);
-      char *contents = NULL;
-      filename = gtk_file_chooser_get_filename (chooser);
-      fdin =open(filename, O_RDONLY);
-      bytes_read = bytes_written = 0;
-      if (fdin >= 0) {
-        fstat(fdin, &statbuf);
-        len=statbuf.st_size;
-        //
-        // Now first read the whole contents of the file, and then write it out.
-        // This is for new-bees trying to import the midi.props in the working dir
-        //
-        contents=g_new(char, len);
-        bytes_read = bytes_written = 0;
-        if (contents) {
-          bytes_read=read(fdin, contents, len);
-        }
-        close(fdin);
-      }
-      fdout=0;
-      if (contents && bytes_read == len) {
-	// should this file exist as a link or symlink, or should it
-	// be read-only, remove it first
-	unlink("midi.props");
-        fdout=open("midi.props", O_WRONLY | O_CREAT, 0644);
-        if (fdout >= 0) {
-          bytes_written=write(fdout, contents, len);
-          close(fdout);
-          g_free(contents);
-        }
-      }
-      if (fdin < 0 || bytes_read < len) {
-        message = gtk_message_dialog_new (GTK_WINDOW(top_window),
-		GTK_DIALOG_DESTROY_WITH_PARENT,
-		GTK_MESSAGE_ERROR,
-		GTK_BUTTONS_CLOSE,
-		"Cannot read input file!\n");
-        gtk_dialog_run (GTK_DIALOG (message));
-        gtk_widget_destroy(message);
-      } else if (fdout < 0 || bytes_written < len) {
-        message = gtk_message_dialog_new (GTK_WINDOW(top_window),
-		GTK_DIALOG_DESTROY_WITH_PARENT,
-		GTK_MESSAGE_ERROR,
-		GTK_BUTTONS_CLOSE,
-		"Cannot write MIDI settings!\n");
-        gtk_dialog_run (GTK_DIALOG (message));
-        gtk_widget_destroy(message);
-      } else {
-	// only show basename in the message
-	cp = filename + strlen(filename);
-        while (cp >= filename) {
-	  if (*cp == '/') {
-	    cp++;
-	    break;
-	  }
-	  cp--;
-	}
-        message = gtk_message_dialog_new (GTK_WINDOW(top_window),
-		GTK_DIALOG_DESTROY_WITH_PARENT,
-		GTK_MESSAGE_ERROR,
-		GTK_BUTTONS_CLOSE,
-		"MIDI import: %ld Bytes read from file %s\n",len,cp);
-        gtk_dialog_run (GTK_DIALOG (message));
-        gtk_widget_destroy(message);
-      }
-      g_free(filename);
-    }
-    gtk_widget_destroy (opfile);
-    return TRUE;
-}
-#endif
 
 static gboolean protocols_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   configure_protocols(discovery_dialog);
@@ -338,7 +239,7 @@ void discovery() {
 #endif
 
 #ifdef STEMLAB_DISCOVERY
-  if(enable_stemlab) {
+  if(enable_stemlab && !discover_only_p1) {
 #ifdef NO_AVAHI
     status_text("Looking for STEMlab WEB apps");
 #else
@@ -353,17 +254,20 @@ void discovery() {
     old_discovery();
   }
 
-  if(enable_protocol_2) {
+  if(enable_protocol_2 && !discover_only_p1) {
     status_text("Protocol 2 ... Discovering Devices");
     new_discovery();
   }
 
 #ifdef SOAPYSDR
-  if(enable_soapy_protocol) {
+  if(enable_soapy_protocol && !discover_only_p1) {
     status_text("SoapySDR ... Discovering Devices");
     soapy_discovery();
   }
 #endif
+
+  // subsequent discoveries check all protocols enabled.
+  discover_only_p1=0;
 
   status_text("Discovery");
   
@@ -441,7 +345,7 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
 #ifdef STEMLAB_DISCOVERY
           case STEMLAB_PROTOCOL:
 #ifdef NO_AVAHI
-            sprintf(text,"Choose RedPitaya App from %s and start radio: ",inet_ntoa(d->info.network.address.sin_addr));
+            sprintf(text,"Choose RedPitaya App from %s and re-discover: ",inet_ntoa(d->info.network.address.sin_addr));
 #else
             sprintf(text, "STEMlab (%02X:%02X:%02X:%02X:%02X:%02X) on %s",
                            d->info.network.mac_address[0],
@@ -477,9 +381,22 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
         if(d->device!=SOAPYSDR_USB_DEVICE) {
 #endif
           // if not on the same subnet then cannot start it
-          if((d->info.network.interface_address.sin_addr.s_addr&d->info.network.interface_netmask.sin_addr.s_addr) != (d->info.network.address.sin_addr.s_addr&d->info.network.interface_netmask.sin_addr.s_addr)) {
-            gtk_button_set_label(GTK_BUTTON(start_button),"Subnet!");
-            gtk_widget_set_sensitive(start_button, FALSE);
+	  //
+          // NOTE: self-assigned IP  (a.k.a. APIPA) addresses
+          // these addresses are of the numerical form 169.254.xxx.yyy and used
+          // by many radios if they do not get a DHCP address. These addresses are valid even if outside the
+          // netmask of the (physical) interface making the connection - so do not complain in this case!
+          //
+          // If the radio has a valid IP address but the computer only has an APIPA address, this also
+          // leads to a radio address outside the netmask and can be ignored. So if either the radio
+          // or the interface address starts with 169.254., suppress "Subnet!" complaint.
+          //
+          if (strncmp(inet_ntoa(d->info.network.address.sin_addr),"169.254.",8) &&
+              strncmp(inet_ntoa(d->info.network.interface_address.sin_addr),"169.254.",8)) {
+            if((d->info.network.interface_address.sin_addr.s_addr&d->info.network.interface_netmask.sin_addr.s_addr) != (d->info.network.address.sin_addr.s_addr&d->info.network.interface_netmask.sin_addr.s_addr)) {
+              gtk_button_set_label(GTK_BUTTON(start_button),"Subnet!");
+              gtk_widget_set_sensitive(start_button, FALSE);
+            }
           }
 #ifdef SOAPYSDR
         }
@@ -563,7 +480,7 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
 #endif
 
 #ifdef GPIO
-    controller=CONTROLLER2_V2;
+    controller=NO_CONTROLLER;
     gpio_set_defaults(controller);
     gpio_restore_state();
 
@@ -587,13 +504,6 @@ fprintf(stderr,"%p Protocol=%d name=%s\n",d,d->protocol,d->name);
     g_signal_connect (protocols_b, "button-press-event", G_CALLBACK(protocols_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),protocols_b,2,row,1,1);
 
-/*
-#ifdef MIDI
-    GtkWidget *midi_b=gtk_button_new_with_label("ImportMIDI");
-    g_signal_connect (midi_b, "button-press-event", G_CALLBACK(midi_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),midi_b,3,row,1,1);
-#endif
-*/
     row++;
 
 #ifdef GPIO

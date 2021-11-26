@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <ifaddrs.h>
+#include <sys/socket.h>
 #include <net/if.h>
 #include <arpa/inet.h>
 #include <string.h>
@@ -40,7 +41,6 @@
 #include <gdk/gdk.h>
 #include <glib.h>
 #include <errno.h>
-#include <ifaddrs.h>
 #include <stdint.h>
 #include <string.h>
 
