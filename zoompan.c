@@ -238,12 +238,12 @@ fprintf(stderr,"zoompan_init: width=%d height=%d\n", width,height);
   gtk_grid_set_column_homogeneous(GTK_GRID(zoompan),TRUE);
 
   zoom_label=gtk_label_new("Zoom");
-  gtk_widget_override_font(zoom_label, pango_font_description_from_string("Sans 10"));
+  gtk_widget_override_font(zoom_label, pango_font_description_from_string(SLIDERS_FONT));
   gtk_widget_show(zoom_label);
   gtk_grid_attach(GTK_GRID(zoompan),zoom_label,0,0,1,1);
 
   zoom_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,1.0,MAX_ZOOM,1.00);
-  gtk_widget_override_font(zoom_scale, pango_font_description_from_string("Sans 10"));
+  gtk_widget_override_font(zoom_scale, pango_font_description_from_string(SLIDERS_FONT));
   gtk_range_set_increments (GTK_RANGE(zoom_scale),1.0,1.0);
   gtk_range_set_value (GTK_RANGE(zoom_scale),active_receiver->zoom);
   gtk_widget_show(zoom_scale);
@@ -251,12 +251,12 @@ fprintf(stderr,"zoompan_init: width=%d height=%d\n", width,height);
   zoom_signal_id=g_signal_connect(G_OBJECT(zoom_scale),"value_changed",G_CALLBACK(zoom_value_changed_cb),NULL);
 
   pan_label=gtk_label_new("Pan:");
-  gtk_widget_override_font(pan_label, pango_font_description_from_string("Sans 10"));
+  gtk_widget_override_font(pan_label, pango_font_description_from_string(SLIDERS_FONT));
   gtk_widget_show(pan_label);
   gtk_grid_attach(GTK_GRID(zoompan),pan_label,3,0,1,1);
 
   pan_scale=gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,0.0,active_receiver->zoom==1?active_receiver->width:active_receiver->width*(active_receiver->zoom-1),1.0);
-  gtk_widget_override_font(pan_scale, pango_font_description_from_string("Sans 10"));
+  gtk_widget_override_font(pan_scale, pango_font_description_from_string(SLIDERS_FONT));
   gtk_scale_set_draw_value (GTK_SCALE(pan_scale), FALSE);
   gtk_range_set_increments (GTK_RANGE(pan_scale),10.0,10.0);
   gtk_range_set_value (GTK_RANGE(pan_scale),active_receiver->pan);

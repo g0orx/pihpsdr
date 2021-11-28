@@ -60,6 +60,18 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 
 static gboolean bandstack_select_cb (GtkWidget *widget, gpointer        data) {
   int b=GPOINTER_TO_UINT(data);
+
+  if (active_receiver->id == 0) {
+    //
+    // vfo_bandstack_changed() calls vfo_save_bandstack(), so the frequency/mode
+    // of the previous "current" bandstack will be overwritten with the
+    // current frequency/mode, which should be reflected by the button text.
+    // 
+    char label[32];
+    snprintf(label,32,"%lld %s",vfo[0].frequency,mode_string[vfo[0].mode]);
+    gtk_button_set_label(GTK_BUTTON(last_bandstack), label);
+  }
+
   set_button_text_color(last_bandstack,"black");
   last_bandstack=widget;
   set_button_text_color(last_bandstack,"orange");
