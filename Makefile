@@ -20,13 +20,13 @@ GPIO_INCLUDE=GPIO
 PURESIGNAL_INCLUDE=PURESIGNAL
 
 # uncomment the line below to include MIDI support
-MIDI_INCLUDE=MIDI
+#MIDI_INCLUDE=MIDI
 
 # uncomment the line below to include USB Ozy support
 # USBOZY_INCLUDE=USBOZY
 
 # uncomment the line to below include support local CW keyer
-LOCALCW_INCLUDE=LOCALCW
+#LOCALCW_INCLUDE=LOCALCW
 
 # uncomment the line below for SoapySDR
 #SOAPYSDR_INCLUDE=SOAPYSDR
@@ -40,19 +40,17 @@ LOCALCW_INCLUDE=LOCALCW
 # uncomment the line below to include support for STEMlab discovery (WITHOUT AVAHI)
 #STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_NOAVAHI
 
-# uncomment to get ALSA audio module on Linux (default is now to use pulseaudio)
-#AUDIO_MODULE=ALSA
 
 # uncomment the line below for various debug facilities
 #DEBUG_OPTION=-D DEBUG
 
+#PTT_INCLUDE=PTT
+
 # very early code not included yet
 #SERVER_INCLUDE=SERVER
 
-CFLAGS?= -O -Wno-deprecated-declarations
-LINK?=   $(CC)
-
-PKG_CONFIG = pkg-config
+CC=gcc
+LINK=gcc
 
 ifeq ($(MIDI_INCLUDE),MIDI)
 MIDI_OPTIONS=-D MIDI
@@ -118,11 +116,16 @@ soapy_discovery.o \
 soapy_protocol.o
 endif
 
+
 ifeq ($(LOCALCW_INCLUDE),LOCALCW)
 LOCALCW_OPTIONS=-D LOCALCW
 LOCALCW_SOURCES= iambic.c
 LOCALCW_HEADERS= iambic.h
 LOCALCW_OBJS   = iambic.o
+endif
+
+ifeq ($(PTT_INCLUDE),PTT)
+PTT_OPTIONS=-D PTT
 endif
 
 ifeq ($(UNAME_S), Darwin)
@@ -146,86 +149,58 @@ endif
 #
 ifeq ($(STEMLAB_DISCOVERY), STEMLAB_DISCOVERY)
 STEMLAB_OPTIONS=-D STEMLAB_DISCOVERY \
-  `$(PKG_CONFIG) --cflags avahi-gobject`
-  `$(PKG_CONFIG) --cflags libcurl`
-STEMLAB_LIBS=`$(PKG_CONFIG) --libs avahi-gobject --libs libcurl`
+  `pkg-config --cflags avahi-gobject` \
+  `pkg-config --cflags libcurl`
+STEMLAB_LIBS=`pkg-config --libs avahi-gobject` `pkg-config --libs libcurl`
 STEMLAB_SOURCES=stemlab_discovery.c
 STEMLAB_HEADERS=stemlab_discovery.h
 STEMLAB_OBJS=stemlab_discovery.o
 endif
 
 ifeq ($(STEMLAB_DISCOVERY), STEMLAB_DISCOVERY_NOAVAHI)
-STEMLAB_OPTIONS=-D STEMLAB_DISCOVERY -D NO_AVAHI `$(PKG_CONFIG) --cflags libcurl`
-STEMLAB_LIBS=`$(PKG_CONFIG) --libs libcurl`
+STEMLAB_OPTIONS=-D STEMLAB_DISCOVERY -D NO_AVAHI `pkg-config --cflags libcurl`
+STEMLAB_LIBS=`pkg-config --libs libcurl`
 STEMLAB_SOURCES=stemlab_discovery.c
 STEMLAB_HEADERS=stemlab_discovery.h
 STEMLAB_OBJS=stemlab_discovery.o
 endif
 
 ifeq ($(SERVER_INCLUDE), SERVER)
-SERVER_OPTIONS=-D CLIENT_SERVER
+SERVER_OPTIONS=-D SERVER
 SERVER_SOURCES= \
-client_server.c server_menu.c
+hpsdr_server.c
 SERVER_HEADERS= \
-client_server.h
+hpsdr_server.h
 SERVER_OBJS= \
-client_server.o server_menu.o
+hpsdr_server.o
 endif
 
-GTKINCLUDES=`$(PKG_CONFIG) --cflags gtk+-3.0`
-GTKLIBS=`$(PKG_CONFIG) --libs gtk+-3.0`
+GTKINCLUDES=`pkg-config --cflags gtk+-3.0`
+GTKLIBS=`pkg-config --libs gtk+-3.0`
 
-#
-# set options for audio module
-#  - MacOS: only PORTAUDIO
-#  - Linux: either ALSA or PULSEAUDIO
-#
-ifeq ($(UNAME_S), Darwin)
-    AUDIO_MODULE=PORTAUDIO
-endif
-
-#
-# default audio for LINUX is PULSEAUDIO but we can also use ALSA
-#
 ifeq ($(UNAME_S), Linux)
-  ifeq ($(AUDIO_MODULE) , ALSA)
-    AUDIO_MODULE=ALSA
-  else
-    AUDIO_MODULE=PULSEAUDIO
-  endif
-endif
-
-ifeq ($(AUDIO_MODULE), PULSEAUDIO)
-AUDIO_OPTIONS=-DPULSEAUDIO
 AUDIO_LIBS=-lpulse-simple -lpulse -lpulse-mainloop-glib
 AUDIO_SOURCES=pulseaudio.c
 AUDIO_OBJS=pulseaudio.o
 endif
-
-ifeq ($(AUDIO_MODULE), ALSA)
-AUDIO_OPTIONS=-DALSA
-AUDIO_LIBS=-lasound
-AUDIO_SOURCES=audio.c
-AUDIO_OBJS=audio.o
-endif
-
-ifeq ($(AUDIO_MODULE), PORTAUDIO)
-AUDIO_OPTIONS=-DPORTAUDIO `$(PKG_CONFIG) --cflags portaudio-2.0`
-AUDIO_LIBS=`$(PKG_CONFIG) --libs portaudio-2.0`
+ifeq ($(UNAME_S), Darwin)
+AUDIO_OPTIONS=-DPORTAUDIO
+AUDIO_LIBS=-lportaudio
 AUDIO_SOURCES=portaudio.c
 AUDIO_OBJS=portaudio.o
 endif
 
+//CFLAGS=	-g -Wno-deprecated-declarations -O3
+CFLAGS=	-g -Wno-deprecated-declarations
 OPTIONS=$(SMALL_SCREEN_OPTIONS) $(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) \
 	$(GPIO_OPTIONS) $(SOAPYSDR_OPTIONS) $(LOCALCW_OPTIONS) \
 	$(STEMLAB_OPTIONS) \
+        $(PTT_OPTIONS) \
 	$(SERVER_OPTIONS) \
 	$(AUDIO_OPTIONS) \
 	-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION)
 
-#
-# Specify additional OS-dependent system libraries
-#
+
 ifeq ($(UNAME_S), Linux)
 SYSLIBS=-lrt
 endif
@@ -234,8 +209,8 @@ ifeq ($(UNAME_S), Darwin)
 SYSLIBS=-framework IOKit
 endif
 
-LIBS=	$(LDFLAGS) $(AUDIO_LIBS) $(USBOZY_LIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(STEMLAB_LIBS) \
-	$(MIDI_LIBS) -lwdsp -lpthread -lm $(SYSLIBS)
+
+LIBS= -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(STEMLAB_LIBS) $(MIDI_LIBS) $(SYSLIBS)
 INCLUDES=$(GTKINCLUDES)
 
 COMPILE=$(CC) $(CFLAGS) $(OPTIONS) $(INCLUDES)
@@ -504,9 +479,6 @@ prebuild:
 # in the variable CPPOPTIONS
 #
 CPPOPTIONS= --enable=all --suppress=shadowVariable --suppress=variableScope
-ifeq ($(UNAME_S), Darwin)
-CPPOPTIONS += -D__APPLE__
-endif
 CPPINCLUDES:=$(shell echo $(INCLUDES) | sed -e "s/-pthread / /" )
 
 .PHONY:	cppcheck
@@ -519,17 +491,11 @@ cppcheck:
 .PHONY:	clean
 clean:
 	-rm -f *.o
-	-rm -f $(PROGRAM) hpsdrsim
-	-rm -rf $(PROGRAM).app
-
-#
-# If $DESTDIR is set, copy to that directory, otherwise use /usr/local/bin
-#
-DESTDIR?= /usr/local/bin
+	-rm -f $(PROGRAM) $(PROGRAM).app hpsdrsim
 
 .PHONY:	install
 install: $(PROGRAM)
-	cp $(PROGRAM) $(DESTDIR)
+	cp $(PROGRAM) /usr/local/bin
 
 .PHONY:	release
 release: $(PROGRAM)
@@ -567,14 +533,15 @@ controller2v2: clean $(PROGRAM)
 #
 #############################################################################
 
-hpsdrsim.o:     hpsdrsim.c  hpsdrsim.h
-	$(CC) -c -O hpsdrsim.c
-	
+hpsdrsim.o:	hpsdrsim.c hpsdrsim.h
+	$(CC) -c -O -DALSASOUND hpsdrsim.c
+
 newhpsdrsim.o:	newhpsdrsim.c hpsdrsim.h
 	$(CC) -c -O newhpsdrsim.c
 
-hpsdrsim:       hpsdrsim.o newhpsdrsim.o
-	$(LINK) -o hpsdrsim hpsdrsim.o newhpsdrsim.o -lm -lpthread
+hpsdrsim:	hpsdrsim.o newhpsdrsim.o
+	$(LINK) -o hpsdrsim hpsdrsim.o newhpsdrsim.o -lasound -lm -lpthread
+
 
 debian:
 	cp $(PROGRAM) pkg/pihpsdr/usr/local/bin
@@ -589,25 +556,26 @@ debian:
 # This is for MacOS "app" creation ONLY
 #
 #       The piHPSDR working directory is
-#	$HOME -> Application Support -> piHPSDR
+#       $HOME -> Application Support -> piHPSDR
 #
 #       That is the directory where the WDSP wisdom file (created upon first
 #       start of piHPSDR) but also the radio settings and the midi.props file
 #       are stored.
 #
 #       No libraries are included in the app bundle, so it will only run
-#       on the computer where it was created, and on other computers which
+#	on the computer where it was created, and on other computers which
 #       have all libraries (including WDSP) and possibly the SoapySDR support
 #       modules installed.
+#
 #############################################################################
 
 .PHONY: app
-app:	$(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS)  $(SOAPYSDR_OBJS) \
-		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
-		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS)
+app:    $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS)  $(SOAPYSDR_OBJS) \
+                $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
+                $(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS)
 	$(LINK) -headerpad_max_install_names -o $(PROGRAM) $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS)  $(USBOZY_OBJS)  \
-		$(SOAPYSDR_OBJS) $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
-		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS) $(LIBS) $(LDFLAGS)
+                $(SOAPYSDR_OBJS) $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
+                $(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS) $(LIBS) $(LDFLAGS)
 	@rm -rf pihpsdr.app
 	@mkdir -p pihpsdr.app/Contents/MacOS
 	@mkdir -p pihpsdr.app/Contents/Frameworks
@@ -618,3 +586,4 @@ app:	$(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS)  $(SOAPYSDR_OBJS) \
 	@cp MacOS/hpsdr.icns pihpsdr.app/Contents/Resources/hpsdr.icns
 	@cp MacOS/hpsdr.png pihpsdr.app/Contents/Resources
 #############################################################################
+

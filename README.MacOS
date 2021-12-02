@@ -1,60 +1,151 @@
-==================
-Compiling on MacOS
-==================
-
-To compile the program on MacOS, you need a Unix/Linux-style development
-environment including the GTK library. There are several options, I have
-tried "homebrew" and "MacPorts" and both work. If you have either of the
-two systems running, you probably know how to proceed.
-
-If you are not used to Unix/Linux programming, then you probably have
-neither "homebrew" nor "MacPorts" installed on your machine,
-the shell script "brew.init" in the MacOS directory initializes
-the "homebrew" universe, loads all packages required to compile pihpsdr
-and also the SoapySDR library and support files for some radios.
-When running this script, you will be ased the administrator password
-of your Macintosh *once*.
-
-Currently, pihpsdr has been tested on the MacOS with the Adalm Pluto
-but if you have experience with other radios, drop me a note at
-dl1ycf@darc.de. The brew.init script (hopefully) loads support files for
-LimeSDR, Adalm Pluto, RTL sticks, AirSpy and AirSpyHF, and HackRF
-hardware.
-
-After having initialized the homebrew universe, you simply need the 
-following two steps, the commands (to be entered in a terminal window)
-are given for both cases. The pihpsdr "app" file is then moved to
-the Desktop. Note it only runs on the machine where it has been compiled.
-
-Download, compile and install WDSP
----------------------------------
-
-cd $HOME
-git clone https://github.com/dl1ycf/wdsp.git
-cd $HOME/wdsp
-make
-make install
+===============================================================
+=                                                             =
+= piHPSDR on the Macintosh.                                   =
+=                                                             =
+= Port done by DL1YCF Christoph van Wullen.                   =
+=                                                             =
+===============================================================
 
 
-Download and compile piHPSDR
-----------------------------
 
-cd $HOME
-git clone https://github.com/dl1ycf/pihpsdr.git
-cd $HOME/pihpsdr
+============================
+NOTES ON CHANGES IN THE CODE
+============================
+
+To make piHPSDR work on MacOS, I had to do two major things:
+
+a) Semaphores: MacOS does not have sem_t variables, only
+   sem_t pointers that must not be dereferences. Therefore
+   it has no working sem_init.
+   On MacOS one must use sem_unlink+sem_open instead and use sem_t
+   pointers instead of sem_t variable throughout. This is
+   not recommended for LINUX, since named semaphores stay
+   alive even when the program terminates (hence the sem_unlink
+   before each sem_open) Therefore
+   *every* declaration of sem_t variable and *every*
+   call to semaphore functions had to be modified.
+
+   NOTE this change also applies to WDSP.
+
+b) Audio: MacOS does not have ALSA, therefore an additional
+   file portaudio.c is provided that is a functional duplicate
+   of audio.c. The whole file audio.c is not "protected with
+
+#ifndef PORTAUDIO
+everything in audio.c
+#endif
+
+  and the new file portaudio.c consequently reads
+
+#ifdef PORTAUDIO
+everything in portaudio.c
+#endif
+
+  such that one can link and compile both files. As an additional benefit,
+  the PortAudio module also offeres a two-tone generator as TX "mic" input.
+
+c) Only relevant for STEMLAB/HAMLAB: the "special" code that starts the
+   HPSDR application on the RedPitaya board via a browser interface relies
+   on AVAHI to detect the RedPitaya board. This does not work on MacOS
+   since we do not have AVAHI. However, libcurl is available on MacOS.
+   Therefore I provide a stripped-down version in the file stemlab_discovery.c
+   which assumes that the RedPitaya board is accessible by a fixed 
+   IP address. This address is read from $HOME/.rp.inet and set to 192.168.1.3
+   if this file could not be read.
+   If your STEMlab/HAMlab is then there, the list of applications is obtained
+   and the HPSDR application with highest priority is started, the priority
+   defined through the following list (first line = highest priority)
+
+   hamlab_sdr_transceiver_hpsdr
+   stemlab_sdr_transceiver_hpsdr
+   sdr_transceiver_hpsdr
+   sdr_receiver_hpsdr
+
+=============
+PREREQUISITES
+=============
+
+Since Audio and GUI are OpenSource and not Apple-specific, one needs some
+third-party libraries to link the program. Most recommended is to use
+"homebrew". You will need portaudio and gtk+3 for piHPSDR, and
+fftw3 for wdsp (which you have to compile separately). Note that packages
+such as gtk+3 depend on other packages, but these are automatically installed
+by homebrew.  The Makefile itself relies on pkg-config to determine the
+compile and link flags for certain external software.
+
+Of course, you need the Xcode command line tools (make, gcc, and friends).
+
+Before you compile piHPSDR, you need to compile wdsp. Using the Mac-Makefile
+there, "make -f Makefile.mac install" will put libwdsp.dylib in /usr/local/lib.
+This is needed by piHPSDR. The pihpsdr Makefile.mac assumes that WDSP can
+be linked with simply through the "-lwdsp" linker option.
+
+The following shell scripts installs all these prerequisites. At the beginning
+you have to give the administrator password. If the MacOS keychain ask you for
+permission, just answer with "Don't allow".
+
+#!/bin/sh
+
+xcode-select --install
+/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+brew install portaudio
+brew install fftw
+brew install gtk+3
+brew install pkg-config
+brew install git
+
+===================
+COMPILE and INSTALL
+===================
+
+The file Makefile.mac is meant for MacOS compilations. To "make" the program
+the command is thus 
+
+	make -f Makefile.mac
+
+That's easy. Just adjust the Makefile according to the instructions found there
+and type "make". In my case (I have a HAMLAB RedPitaya-based SDR box), I need
+the following options in the Makefile (and have all others commented out):
+
+STEMLAB_DISCOVERY=STEMLAB_DISCOVERY_MAC
+
+
+Note: never un-comment the lines containing GPI_INCLUDE, I2C_INCLUDE,
+SX1509_INCLUDE, or LOCALCW_INCLUDE. This software/hardware is not present on a Mac.
+
+As a result of "make", you get an executable file "pihpsdr" which you
+can start from the terminal. With
+
 make -f Makefile.mac app
-mv pihpsdr.app $HOME/Desktop
+
+you can make a click-able MacOS application bundle with a nice icon.
+However note that this bundle is not completely self-contained:
+it needs a working gtk+3 environment. To put all this into an app bundle
+would create an app file hundreds of MByte long: you need all those pixbuf
+loaders etc. etc. etc. installed.
+
+What we do is to include portaudio, WDSP, fftw3, pango, cairo and libs
+like that into the bundle.
 
 
-There is also a shell script "install.sh" provided in the MacOS directory
-which does everything in one step. So if you want to do this, place the
-file MacOS/install.sh on the Desktop, then open a Terminal window and
-issue the commands
+===========================
+piHPSDR and wsjtx or fldigi
+===========================
 
-cd $HOME/Desktop
-chmod 700 install.sh
-./install.sh
+a) CAT control: use hamlib, and choose "OpenHPSDR piHPSDR" radio model and
+   e.g. port number 19090.  Then, activate rigctl in the piHPSDR menu, choosing
+   the same port number there.
 
-and this should install the homebrew universe, download and compile
-WDSP as well as pihpsdr and put the pihpsdr application on the
-Desktop.
+b) Audio: here you need a virtual audio cable (loopback) device. On my github account,
+   github.com/dl1ycf, you can find such a device driver. It provides two audio devices,
+   named "SDR-RX" and "SDR-TX".
+   
+   For example, you can Choose "SDR RX" as the RX output device and "SDR TX" as the
+   TX input (mic) device in piHPSDR, and choose "SDR TX" as the output device and "SDR RX"
+   as the input device in fldigi or wsjt-x.
+   
+   Of course, you can also use two USB Sound cards devices and two stereo cables to
+   implement loop-back audio in hardware. But then you generate some additional noise
+   from D/A converting the signal first, putting it through the cable and then A/D converting
+   it back. This would be the way to go if you do not want or cannot install un-trusted
+   MacOS kernel extensions.
