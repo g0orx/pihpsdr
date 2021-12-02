@@ -96,10 +96,7 @@ void receiver_set_active(RECEIVER *rx) {
   g_idle_add(sliders_active_receiver_changed,NULL);
   // setup the transmitter mode and filter
   if(can_transmit) {
-    // TX band has possibly changed
     tx_set_mode(transmitter,get_tx_mode());
-    set_alex_tx_antenna();
-    calcDriveLevel();
   }
 }
 
@@ -142,38 +139,22 @@ gboolean receiver_motion_notify_event(GtkWidget *widget, GdkEventMotion *event, 
   int x, y;
   GdkModifierType state;
   RECEIVER *rx=(RECEIVER *)data;
-  //
-  // if !pressed, we may come from the destruction
-  // of a menu, and should not move the VFO.
-  //
-  if (!making_active && pressed) {
+  // DL1YCF: if !pressed, we may come from the destruction
+  //         of a menu, and should not move the VFO.
+  if(!making_active && pressed) {
     gdk_window_get_device_position (event->window,
-                                    event->device,
-                                    &x,
-                                    &y,
-                                    &state);
-    //
-    // Sometimes it turned out to be difficult to "jump" to a
-    // new frequency by just clicking in the panadaper. Futher analysis
-    // showed that there were "moves" with zero offset arriving between
-    // pressing and releasing the mouse button.
-    // (In fact, on my Macintosh I see zillions of moves with zero offset)
-    // Accepting such a "move" between a  "press" and the next "release" event
-    // sets "has_moved" and results in a "VFO drag" instead of a "VFO set".
-    //
-    // So we do the following:
-    // - "moves" with zero offset are always ignored
-    // - the first "move" to be accepted after a "press" must lead us
-    //   at least 2 pixels away from the original position.
-    //
-    int moved=x-last_x;
-    if (moved) {
-      if (has_moved || moved < -1 || moved > 1) {
-        vfo_move((long long)((float)moved*rx->hz_per_pixel),FALSE);
-        last_x=x;
-        has_moved=TRUE;
-      }
-    }
+                                event->device,
+                                &x,
+                                &y,
+                                &state);
+    // G0ORX: removed test as with it unable to drag screen
+    //if(state & GDK_BUTTON1_MASK) {
+      //int moved=last_x-x;
+      int moved=x-last_x;
+      vfo_move((long long)((float)moved*rx->hz_per_pixel),FALSE);
+      last_x=x;
+      has_moved=TRUE;
+    //}
   }
 
   return TRUE;
@@ -637,7 +618,7 @@ static gint update_display(gpointer data) {
       g_mutex_unlock(&rx->display_mutex);
       if(active_receiver==rx) {
         rx->meter=GetRXAMeter(rx->id,smeter)+meter_calibration;
-        meter_update(rx,SMETER,rx->meter,0.0,0.0,0.0,0.0);
+        meter_update(rx,SMETER,rx->meter,0.0,0.0,0.0);
       }
       return TRUE;
     }
@@ -656,7 +637,7 @@ void receiver_remote_update_display(RECEIVER *rx) {
         waterfall_update(rx);
       }
       if(active_receiver==rx) {
-        meter_update(rx,SMETER,rx->meter,0.0,0.0,0.0,0.0);
+        meter_update(rx,SMETER,rx->meter,0.0,0.0,0.0);
       }
       g_mutex_unlock(&rx->display_mutex);
     }
@@ -703,13 +684,13 @@ void set_deviation(RECEIVER *rx) {
   SetRXAFMDeviation(rx->id, (double)rx->deviation);
 }
 
-void set_agc(RECEIVER *rx) {
+void set_agc(RECEIVER *rx, int agc) {
  
-  SetRXAAGCMode(rx->id, rx->agc);
+  SetRXAAGCMode(rx->id, agc);
   //SetRXAAGCThresh(rx->id, agc_thresh_point, 4096.0, rx->sample_rate);
   SetRXAAGCSlope(rx->id,rx->agc_slope);
   SetRXAAGCTop(rx->id,rx->agc_gain);
-  switch(rx->agc) {
+  switch(agc) {
     case AGC_OFF:
       break;
     case AGC_LONG:
@@ -742,6 +723,7 @@ void set_agc(RECEIVER *rx) {
   //
   GetRXAAGCHangLevel(rx->id, &rx->agc_hang);
   GetRXAAGCThresh(rx->id, &rx->agc_thresh, 4096.0, (double)rx->sample_rate);
+
 }
 
 void set_offset(RECEIVER *rx,long long offset) {
@@ -830,7 +812,7 @@ g_print("%s: panadapter height=%d y=%d %p\n",__FUNCTION__,height,y,rx->panadapte
 
   if(rx->display_waterfall) {
     waterfall_init(rx,rx->width,height);
-g_print("%s: waterfall height=%d y=%d %p\n",__FUNCTION__,height,y,rx->waterfall);
+g_print("%ss: waterfall height=%d y=%d %p\n",__FUNCTION__,height,y,rx->waterfall);
     g_object_weak_ref(G_OBJECT(rx->waterfall),receiver_weak_notify,(gpointer)rx);
     gtk_fixed_put(GTK_FIXED(rx->panel),rx->waterfall,0,y);
   }
@@ -895,6 +877,7 @@ g_print("%s: id=%d buffer_size=%d\n",__FUNCTION__,id,buffer_size);
   rx->panadapter_step=20;
 
   rx->volume=5.0;
+  //rx->rf_gain=50.0;
 
   rx->squelch_enable=0;
   rx->squelch=0;
@@ -923,6 +906,7 @@ g_print("%s: id=%d buffer_size=%d\n",__FUNCTION__,id,buffer_size);
   rx->agc_slope=35.0;
   rx->agc_hang_threshold=0.0;
   
+  //rx->playback_handle=NULL;
   rx->local_audio_buffer=NULL;
   rx->local_audio_buffer_size=2048;
   rx->local_audio=0;
@@ -1030,6 +1014,7 @@ g_print("%s: id=%d sample_rate=%d\n",__FUNCTION__,rx->id, rx->sample_rate);
   rx->waterfall_automatic=1;
 
   rx->volume=0.1;
+  //rx->rf_gain=50.0;
 
   rx->dither=0;
   rx->random=0;
@@ -1049,13 +1034,14 @@ g_print("%s: id=%d sample_rate=%d\n",__FUNCTION__,rx->id, rx->sample_rate);
   
   BAND *b=band_get_band(vfo[rx->id].band);
   rx->alex_antenna=b->alexRxAntenna;
-  rx->alex_attenuation=0;
+  rx->alex_attenuation=b->alexAttenuation;
 
   rx->agc=AGC_MEDIUM;
   rx->agc_gain=80.0;
   rx->agc_slope=35.0;
   rx->agc_hang_threshold=0.0;
   
+  //rx->playback_handle=NULL;
   rx->local_audio=0;
   g_mutex_init(&rx->local_audio_mutex);
   rx->local_audio_buffer=NULL;
@@ -1121,25 +1107,13 @@ g_print("%s: OpenChannel id=%d buffer_size=%d fft_size=%d sample_rate=%d\n",
               1, // run
               0.010, 0.025, 0.0, 0.010, 0);
 
-//
-// It has been reported that the piHPSDR noise blankers do not function 
-// satisfactorily. I could reproduce this after building an "impulse noise source"
-// into the HPSDR simulator, and also confirmed that a popular Windows SDR program
-// has much better NB/NB2 performance.
-//
-// Digging into it, I found the Windows SDR program used NB default parameters *very*
-// different from those recommended in the WDSP manual: slewtime, hangtime and advtime
-// default to 0.01 msec, and the threshold to 30 (which is internally multiplied with 0.165
-// to obtain the WDSP threshold parameter).
-//
-// Since there is currently no GUI in piHPSDR to change these values, they are now hard-
-// coded here (0.01 msec ==> 0.00001 sec, 30 ==> 4.95).
-//
-  create_anbEXT(rx->id,1,  rx->buffer_size,rx->sample_rate,0.00001,0.00001,0.00001,0.05, 4.95);
-  create_nobEXT(rx->id,1,0,rx->buffer_size,rx->sample_rate,0.00001,0.00001,0.00001,0.05, 4.95);
+  create_anbEXT(rx->id,1,rx->buffer_size,rx->sample_rate,0.0001,0.0001,0.0001,0.05,20);
+  create_nobEXT(rx->id,1,0,rx->buffer_size,rx->sample_rate,0.0001,0.0001,0.0001,0.05,20);
   
   RXASetNC(rx->id, rx->fft_size);
   RXASetMP(rx->id, rx->low_latency);
+
+  set_agc(rx, rx->agc);
 
   SetRXAAMDSBMode(rx->id, 0);
   SetRXAShiftRun(rx->id, 0);
@@ -1193,8 +1167,7 @@ g_print("%s: rx=%p id=%d local_audio=%d\n",__FUNCTION__,rx,rx->id,rx->local_audi
       rx->local_audio=0;
     }
   }
-  // defer set_agc until here, otherwise the AGC threshold is not computed correctly
-  set_agc(rx);
+
   return rx;
 }
 
@@ -1204,6 +1177,13 @@ void receiver_change_adc(RECEIVER *rx,int adc) {
 
 void receiver_change_sample_rate(RECEIVER *rx,int sample_rate) {
 
+//
+// For  the PS_RX_FEEDBACK receiver we have to change
+// the number of pixels in the display (needed for
+// conversion from higher sample rates to 48K such
+// that the central part can be displayed in the TX panadapter
+//
+
   g_mutex_lock(&rx->mutex);
 
   rx->sample_rate=sample_rate;
@@ -1212,30 +1192,26 @@ void receiver_change_sample_rate(RECEIVER *rx,int sample_rate) {
   rx->hz_per_pixel=(double)rx->sample_rate/(double)rx->width;
 
 g_print("%s: id=%d rate=%d scale=%d buffer_size=%d output_samples=%d\n",__FUNCTION__,rx->id,sample_rate,scale,rx->buffer_size,rx->output_samples);
-
 #ifdef PURESIGNAL
-  //
-  // In the old protocol, the RX_FEEDBACK sample rate is tied
-  // to the radio's sample rate and therefore may vary.
-  // Since there is no downstream WDSP receiver her, the only thing
-  // we have to do here is to adapt the spectrum display of the
-  // feedback and must then return (rx->id is not a WDSP channel!)
-  // 
-  if (rx->id == PS_RX_FEEDBACK && protocol == ORIGINAL_PROTOCOL) {
-    rx->pixels = 2* scale * rx->width;
-    g_free(rx->pixel_samples);
-    rx->pixel_samples=g_new(float,rx->pixels);
-    init_analyzer(rx);
-    g_print("%s: PS FEEDBACK: id=%d rate=%d buffer_size=%d output_samples=%d\n",
-            __FUNCTION__,rx->id, rx->sample_rate, rx->buffer_size, rx->output_samples);
-    g_mutex_unlock(&rx->mutex);
-    return;
+  if(can_transmit/* && transmitter->puresignal*/) {
+    if (rx->id == PS_RX_FEEDBACK) {
+      if (protocol == ORIGINAL_PROTOCOL) {
+        rx->pixels = 2* scale * rx->width;
+      } else {
+        // We should never arrive here, since the sample rate of the
+        // PS feedback receiver is fixed.
+        rx->pixels = 8 * rx->width;
+      }
+      g_free(rx->pixel_samples);
+      rx->pixel_samples=g_new(float,rx->pixels);
+      init_analyzer(rx);
+      g_print("%s: PS FEEDBACK: id=%d rate=%d buffer_size=%d output_samples=%d\n",
+                     __FUNCTION__,rx->id, rx->sample_rate, rx->buffer_size, rx->output_samples);
+      g_mutex_unlock(&rx->mutex);
+      return;
+    }
   }
 #endif
-  //
-  // re-calculate AGC line for panadapter since it depends on sample rate
-  //
-  GetRXAAGCThresh(rx->id, &rx->agc_thresh, 4096.0, (double)rx->sample_rate);
   if (rx->audio_output_buffer != NULL) {
     g_free(rx->audio_output_buffer);
   }
@@ -1254,12 +1230,6 @@ g_print("%s: id=%d rate=%d scale=%d buffer_size=%d output_samples=%d\n",__FUNCTI
 #endif
 
   SetChannelState(rx->id,1,0);
-
-  //
-  // for a non-PS receiver, adjust pixels and hz_per_pixel depending on the zoom value
-  //
-  rx->pixels=rx->width*rx->zoom;
-  rx->hz_per_pixel=(double)rx->sample_rate/(double)rx->pixels;
 
   g_mutex_unlock(&rx->mutex);
 
@@ -1332,8 +1302,10 @@ void receiver_filter_changed(RECEIVER *rx) {
 
   if(can_transmit && transmitter!=NULL) {
     if(transmitter->use_rx_filter) {
-      tx_set_filter(transmitter);
-    } 
+      if(rx==active_receiver) {
+        tx_set_filter(transmitter,filter_low,filter_high);
+      }
+    }
   }
 }
 
@@ -1369,7 +1341,7 @@ static void process_rx_buffer(RECEIVER *rx) {
     }
 
     if(rx->local_audio) {
-      if((rx!=active_receiver && rx->mute_when_not_active)) {
+      if((rx!=active_receiver && rx->mute_when_not_active) || rx->mute_radio) {
         left_sample=0.0;
         right_sample=0.0;
       } else {

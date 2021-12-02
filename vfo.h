@@ -53,21 +53,15 @@ extern struct _vfo vfo[MAX_VFOS];
 
 //
 // Store filter and NR settings on a per-mode basis
-// all elements are "on/off"
 //
 struct _mode_settings {
   int filter;
-  int nb;            // Noise blanker #1
-  int nb2;           // Noise blanker #2
-  int nr;            // Noise reduction #1
-  int nr2;           // Noise reduction #2
-  int anf;           // Automatic notch filter
-  int snb;           // Spectral noise blanker
-  int en_txeq;       // TX equalizer on/off
-  int en_rxeq;       // RX equalizer on/off
-  int txeq[4];       // TX equalizer settings
-  int rxeq[4];       // RX equalizer settings
-  long long step;    // VFO step size
+  int nb;
+  int nb2;
+  int nr;
+  int nr2;
+  int anf;
+  int snb;
 };
 
 extern struct _mode_settings mode_settings[];
@@ -91,6 +85,7 @@ extern void vfo_move(long long hz,int round);
 extern void vfo_id_move(int id,long long hz,int round);
 extern void vfo_move_to(long long hz);
 extern void vfo_update();
+extern void set_frequency();
 
 extern void vfo_save_state();
 extern void vfo_restore_state();

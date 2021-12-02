@@ -66,7 +66,6 @@
 #include "server_menu.h"
 #endif
 #ifdef MIDI
-#include "midi.h"
 #include "midi_menu.h"
 #endif
 
@@ -109,6 +108,7 @@ static gboolean close_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
   return TRUE;
 }
 
+#ifdef RESTART_BUTTON
 //
 // The "Restart" button restarts the protocol
 // This may help to recover from certain error conditions
@@ -133,6 +133,7 @@ static gboolean restart_cb (GtkWidget *widget, GdkEventButton *event, gpointer d
   }
   return TRUE;
 }
+#endif
 
 static gboolean about_b_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   cleanup();
@@ -386,12 +387,8 @@ static gboolean vfo_cb (GtkWidget *widget, GdkEventButton *event, gpointer data)
 }
 
 void start_store() {
-  int old_menu=active_menu;
   cleanup();
-  if (old_menu != STORE_MENU) {
-    store_menu(top_window);
-    active_menu=STORE_MENU;
-  }
+  store_menu(top_window);
 }
 
 static gboolean store_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
@@ -491,22 +488,19 @@ void new_menu()
     g_signal_connect (close_b, "button-press-event", G_CALLBACK(close_cb), NULL);
     gtk_grid_attach(GTK_GRID(grid),close_b,0,0,2,1);
 
+#ifdef RESTART_BUTTON
     //
-    // The "Restart" button restarts the protocol
+    // The "Restart" restarts the protocol
     // This may help to recover from certain error conditions
     //
-#ifdef SOAPYSDR
-    if (protocol != SOAPYSDR_PROTOCOL)
+    GtkWidget *restart_b=gtk_button_new_with_label("Restart");
+    g_signal_connect (restart_b, "button-press-event", G_CALLBACK(restart_cb), NULL);
+    gtk_grid_attach(GTK_GRID(grid),restart_b,2,0,2,1);
 #endif
-    {
-      GtkWidget *restart_b=gtk_button_new_with_label("Restart");
-      g_signal_connect (restart_b, "button-press-event", G_CALLBACK(restart_cb), NULL);
-      gtk_grid_attach(GTK_GRID(grid),restart_b,2,0,1,1);
-    }
 
     GtkWidget *exit_b=gtk_button_new_with_label("Exit piHPSDR");
     g_signal_connect (exit_b, "button-press-event", G_CALLBACK(exit_cb), NULL);
-    gtk_grid_attach(GTK_GRID(grid),exit_b,3,0,2,1);
+    gtk_grid_attach(GTK_GRID(grid),exit_b,4,0,2,1);
 
     i=5;
 

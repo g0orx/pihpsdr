@@ -70,11 +70,13 @@
 #ifdef LOCALCW
 #include "iambic.h"
 #endif
-#include "rigctl_menu.h"
 #ifdef MIDI
-#include "midi.h"
 #include "alsa_midi.h"
 #include "midi_menu.h"
+// rather than including MIDI.h with all its internal stuff
+// (e.g. enum components) we just declare the single bit thereof
+// we need here to make a strict compiler happy.
+//extern void MIDIstartup();
 #endif
 #ifdef CLIENT_SERVER
 #include "client_server.h"
@@ -94,6 +96,10 @@
 #define SLIDERS_HEIGHT (100)
 #define TOOLBAR_HEIGHT (30)
 #define WATERFALL_HEIGHT (105)
+
+#ifdef MIDI
+gboolean midi_enabled;
+#endif
 
 gint controller=NO_CONTROLLER;
 
@@ -136,7 +142,7 @@ gboolean radio_is_remote=FALSE;
 char property_path[128];
 GMutex property_mutex;
 
-RECEIVER *receiver[8];
+RECEIVER *receiver[7];
 RECEIVER *active_receiver;
 TRANSMITTER *transmitter;
 
@@ -153,7 +159,7 @@ int PS_RX_FEEDBACK;
 int buffer_size=1024; // 64, 128, 256, 512, 1024, 2048
 int fft_size=2048; // 1024, 2048, 4096, 8192, 16384
 
-int atlas_penelope=0;  // 0: no penelope, 1: penelope, 2: unknown
+int atlas_penelope=0;
 int atlas_clock_source_10mhz=0;
 int atlas_clock_source_128mhz=0;
 int atlas_config=0;
@@ -199,11 +205,7 @@ double mic_gain=0.0;
 int binaural=0;
 
 int mic_linein=0;
-//
-// linein_gain = 0...31 maps onto -34.5dB ... +12 dB
-// (in 1.5 dB steps), and 0 dB corresponds to linein_gain=23
-//
-int linein_gain=23;
+int linein_gain=16; // 0..31
 int mic_boost=0;
 int mic_bias_enabled=0;
 int mic_ptt_enabled=0;
@@ -268,12 +270,8 @@ unsigned int n_temperature;
 unsigned int current;
 unsigned int average_current;
 unsigned int n_current;
-unsigned int tx_fifo_underrun;
-unsigned int tx_fifo_overrun;
 unsigned int alex_forward_power;
 unsigned int alex_reverse_power;
-unsigned int alex_forward_power_average=0;
-unsigned int alex_reverse_power_average=0;
 unsigned int AIN3;
 unsigned int AIN4;
 unsigned int AIN6;
@@ -287,7 +285,7 @@ int tune=0;
 int memory_tune=0;
 int full_tune=0;
 int have_rx_gain=0;
-int rx_gain_calibration=0;
+int rx_gain_calibration=14;
 
 //long long displayFrequency=14250000;
 //long long ddsFrequency=14250000;
@@ -307,8 +305,8 @@ long long tune_timeout;
 int analog_meter=0;
 int smeter=RXA_S_AV;
 
-//int local_audio=0;
-//int local_microphone=0;
+int local_audio=0;
+int local_microphone=0;
 
 int eer_pwm_min=100;
 int eer_pwm_max=800;
@@ -356,7 +354,6 @@ gboolean mute_rx_while_transmitting=FALSE;
 double drive_max=100;
 
 gboolean display_sequence_errors=TRUE;
-gboolean display_swr_protection=FALSE;
 gint sequence_errors=0;
 
 gint rx_height;
@@ -605,11 +602,24 @@ if(!radio_is_remote) {
   gtk_fixed_put(GTK_FIXED(fixed),audio_waterfall,0,VFO_HEIGHT+20);
 #endif
 
+  gboolean init_gpio=FALSE;
+#ifdef LOCALCW
+  init_gpio=TRUE;
+#endif
+#ifdef PTT
+  init_gpio=TRUE;
+#endif
+#ifdef GPIO
+  init_gpio=TRUE;
+#endif
+
+  if(init_gpio) {
 #ifdef GPIO
     if(gpio_init()<0) {
       g_print("GPIO failed to initialize\n");
     }
 #endif
+  }
 
 #ifdef LOCALCW
   // init local keyer if enabled
@@ -659,12 +669,6 @@ if(!radio_is_remote) {
     y+=TOOLBAR_HEIGHT;
   }
 
-//
-// Now, if there should only one receiver be displayed
-// at startup, do the change. We must momentarily fake
-// the number of receivers otherwise radio_change_receivers
-// will do nothing.
-//
 g_print("create_visual: receivers=%d RECEIVERS=%d\n",receivers,RECEIVERS);
   if (receivers != RECEIVERS) {
     int r=receivers;
@@ -689,30 +693,6 @@ void start_radio() {
   protocol=radio->protocol;
   device=radio->device;
 
-  // init atlas_penelope flag
-  atlas_penelope = 0;  // default: no penelope
-  if (protocol == ORIGINAL_PROTOCOL && device == DEVICE_METIS) {
-    //
-    // VK4XV (Bob) suggested
-    //   to have some "protection" for penelope systems which
-    //   start from a virgin props file, namely to auto-detect a penelope
-    //   and set the atlas_penelope flag so that the IQ samples are properly
-    //   scaled (otherwise full PA output power results).
-    //
-    // So my implementation works as follows:
-    //   To guard against "false penelope detects", the atlas_penelope flag
-    //   is initialized with 2 ("unknown").
-    //
-    //   This has no effect if a props file is already there and the flag is
-    //   read from the props file. The value 2 "unknown" can be changed
-    //   to either 0 or 1 in two situations:
-    //     - P1 analyzing the control flags and finding the penelope software version
-    //       is 18: change "unknown" to "penelope"
-    //     - radio menu is opened and penelope checkbox is to be displayed: change
-    //       "unknown" to "no penelope"
-    //
-    atlas_penelope=2;
-  }
   // set the default power output and max drive value
   drive_max=100.0;
   switch(protocol) {
@@ -866,7 +846,6 @@ void start_radio() {
 #endif
     default:
 	have_rx_gain=0;
-	rx_gain_calibration=0;
 	break;
   }
 
@@ -994,26 +973,13 @@ void start_radio() {
 
   status_text(text);
 
-  switch (protocol) {
-    case ORIGINAL_PROTOCOL:
-    case NEW_PROTOCOL:
-      sprintf(text,"piHPSDR: %s (%s %s) %s (%s) on %s",
-                   radio->name,
-                   p,
-                   version,
-                   ip,
-                   mac,
-                   iface);
-      break;
-#ifdef SOAPYSDR
-    case SOAPYSDR_PROTOCOL:
-      sprintf(text,"piHPSDR: %s (%s %s)",
-                   radio->name,
-                   p,
-                   version);
-      break;
-#endif
-  }
+  sprintf(text,"piHPSDR: %s (%s %s) %s (%s) on %s",
+                          radio->name,
+                          p,
+                          version,
+                          ip,
+                          mac,
+                          iface);
 
   gtk_window_set_title (GTK_WINDOW (top_window), text);
 
@@ -1122,12 +1088,6 @@ void start_radio() {
 
   iqswap=0;
 
-//
-// In most cases, ALEX is the best default choice for the filter board.
-// here we set filter_board to a different default value for some
-// "special" hardware. The choice made here only applies if the filter_board
-// is not specified in the props fil
-//
 #ifdef SOAPYSDR
   if(device==SOAPYSDR_USB_DEVICE) {
     iqswap=1;
@@ -1136,17 +1096,15 @@ void start_radio() {
   }
 #endif
 
-  if ((protocol == ORIGINAL_PROTOCOL && device == DEVICE_HERMES_LITE2) ||
-      (protocol == NEW_PROTOCOL && device == NEW_DEVICE_HERMES_LITE2))  {
-    filter_board = N2ADR;
+  /*
+  adc_attenuation[0]=0;
+  adc_attenuation[1]=0;
+
+  if(have_rx_gain) {
+    adc_attenuation[0]=14;
+    adc_attenuation[1]=14;
   }
-
-  if (protocol == ORIGINAL_PROTOCOL && device == DEVICE_STEMLAB) {
-    filter_board = CHARLY25;
-  }
-
-  /* Set defaults */
-
+*/
   adc[0].antenna=ANTENNA_1;
   adc[0].filters=AUTOMATIC;
   adc[0].hpf=HPF_13;
@@ -1154,31 +1112,25 @@ void start_radio() {
   adc[0].dither=FALSE;
   adc[0].random=FALSE;
   adc[0].preamp=FALSE;
-  adc[0].attenuation=0;
-  adc[0].gain=rx_gain_calibration;
-  adc[0].min_gain=0.0;
-  adc[0].max_gain=100.0;
-  adc[0].antenna=0;
-  dac[0].antenna=1;
-  dac[0].gain=0;
-
-  //
-  // Some HPSDR radios have RX GAIN instead of attenuation
-  // these usually have a gain range from -12 to +48
-  //
-  if(have_rx_gain && (protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL)) {
-    adc[0].min_gain=-12.0;
-    adc[0].max_gain=+48.0;
+  if(have_rx_gain) {
+    adc[0].attenuation=14;
+  } else {
+    adc[0].attenuation=0;
   }
-
 #ifdef SOAPYSDR
-  adc[0].agc=FALSE;
+  adc[0].antenna=0;
   if(device==SOAPYSDR_USB_DEVICE) {
+    adc[0].gain=0;
     if(radio->info.soapy.rx_gains>0) {
       adc[0].min_gain=radio->info.soapy.rx_range[0].minimum;
       adc[0].max_gain=radio->info.soapy.rx_range[0].maximum;;
-      adc[0].gain=adc[0].min_gain;
+    } else {
+      adc[0].min_gain=0.0;
+      adc[0].max_gain=100.0;
     }
+    adc[0].agc=FALSE;
+    dac[0].antenna=1;
+    dac[0].gain=0;
   }
 #endif
 
@@ -1189,27 +1141,26 @@ void start_radio() {
   adc[1].dither=FALSE;
   adc[1].random=FALSE;
   adc[1].preamp=FALSE;
-  adc[1].attenuation=0;
-  adc[1].gain=rx_gain_calibration;
-  adc[1].min_gain=0.0;
-  adc[1].max_gain=100.0;
-  adc[1].antenna=0;
-  dac[1].antenna=1;
-  dac[1].gain=0;
-
-  if(have_rx_gain && (protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL)) {
-    adc[1].min_gain=-12.0;
-    adc[1].max_gain=+48.0;
+  if(have_rx_gain) {
+    adc[0].attenuation=14;
+  } else {
+    adc[1].attenuation=0;
   }
-
 #ifdef SOAPYSDR
-  adc[1].agc=FALSE;
+  adc[1].antenna=0;
   if(device==SOAPYSDR_USB_DEVICE) {
+    adc[1].gain=0;
     if(radio->info.soapy.rx_gains>0) {
       adc[1].min_gain=radio->info.soapy.rx_range[0].minimum;
       adc[1].max_gain=radio->info.soapy.rx_range[0].maximum;;
-      adc[1].gain=adc[1].min_gain;
+    } else {
+      adc[1].min_gain=0.0;
+      adc[1].max_gain=100.0;
     }
+    adc[1].max_gain=0;
+    adc[1].agc=FALSE;
+    dac[1].antenna=1;
+    dac[1].gain=0;
   }
 
   radio_sample_rate=radio->info.soapy.sample_rate;
@@ -1242,8 +1193,6 @@ void start_radio() {
   n_temperature=0;
   current=0;
   average_current=0;
-  tx_fifo_underrun=0;
-  tx_fifo_overrun=0;
   n_current=0;
 
   display_sequence_errors=TRUE;
@@ -1317,13 +1266,6 @@ void start_radio() {
 
   if(rigctl_enable) {
     launch_rigctl();
-    if (serial_enable) {
-      launch_serial();
-    }
-  } else {
-    // since we do not spawn the serial thread,
-    // disable serial
-    serial_enable=0;
   }
 
   if(can_transmit) {
@@ -1369,24 +1311,19 @@ void start_radio() {
 
   gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_ARROW));
 
+  //
+  // MIDIstartup must not be called before the radio is completely set up, since
+  // then MIDI can asynchronously trigger actions which require the radio already
+  // running. So this is the last thing we do when starting the radio.
+  //
 #ifdef MIDI
-  //
-  // The MIDI devices could not be opened in midi_restore_state() since MIDI events
-  // must not fly in before the radio is fully configured. Therefore midi_restore_state()
-  // simply marks the devices to be opened here by hi-jacking the "active" flag. Note that
-  // apart from this (ab)use, this flag is updated ONLY in register_midi_device() and
-  // close_midi_device().
-  //
-  for (i=0; i<n_midi_devices; i++) {
-    if (midi_devices[i].active) {
-      //
-      // If device was marked "active" in the props file, open (register) it
-      // Note this flag is hi-jacked, so clear it before opening. It will be set
-      // if the MIDI device has been opened successfully
-      //
-      midi_devices[i].active=0;
-      register_midi_device(i);
+  g_print("%s: midi_enabled=%d midi_device_name=%s\n",__FUNCTION__,midi_enabled,midi_device_name);
+  if(midi_enabled && (midi_device_name!=NULL)) {
+    if(register_midi_device(midi_device_name)<0) {
+      midi_enabled=FALSE;
     }
+  } else {
+    midi_enabled=FALSE;
   }
 #endif
 
@@ -1564,7 +1501,9 @@ static void rxtx(int state) {
 
 void setMox(int state) {
   if(!can_transmit) return;
-  // SOAPY and no local mic: continue! e.g. for doing CW.
+#ifdef SOAPYSDR
+  if(protocol==SOAPYSDR_PROTOCOL && !transmitter->local_microphone) return;
+#endif
   vox_cancel();  // remove time-out
   if(mox!=state) {
     if (state && vox) {
@@ -1710,7 +1649,7 @@ void setTune(int state) {
       pre_tune_cw_internal=cw_keyer_internal;
 
       //
-      // in USB/DIGU      tune 1000 Hz above carrier
+      // in USB/DIGU/DSB, tune 1000 Hz above carrier
       // in LSB/DIGL,     tune 1000 Hz below carrier
       // all other (CW, AM, FM): tune on carrier freq.
       //
@@ -1720,6 +1659,7 @@ void setTune(int state) {
           SetTXAPostGenToneFreq(transmitter->id,-(double)1000.0);
           break;
         case modeUSB:
+        case modeDSB:
         case modeDIGU:
           SetTXAPostGenToneFreq(transmitter->id,(double)1000.0);
           break;
@@ -1907,60 +1847,42 @@ void set_attenuation(int value) {
     }
 }
 
-//
-// For HPSDR, only receiver[0]->rx_antenna has an effect
-// The antenna is set according to what is stored in the "band" info
-// We have to call this routine in the HPSDR case each time a band is switched.
-//
-void set_alex_rx_antenna() {
-    BAND *band;
-    switch (protocol) {
-      case ORIGINAL_PROTOCOL:
-        band=band_get_band(vfo[VFO_A].band);
-        receiver[0]->alex_antenna=band->alexRxAntenna;
-        break;
-      case NEW_PROTOCOL:
-        band=band_get_band(vfo[VFO_A].band);
-        receiver[0]->alex_antenna=band->alexRxAntenna;
-        schedule_high_priority();
-        break;
+void set_alex_rx_antenna(int v) {
+    if(active_receiver->id==0) {
+      active_receiver->alex_antenna=v;
+      if(protocol==NEW_PROTOCOL) {
+          schedule_high_priority();
       }
-      // This function is NOT called for SOAPY devices
-}
-
-//
-// For HPSDR, determine which band control the TX and
-// set TX antenna accordingly
-// We have to call this routine
-// in the HPSDR case each time the TX band is switched,
-// which is for each band switch, each time "split" is
-// changed, and in case of "split", each time the active
-// RX changes!
-//
-void set_alex_tx_antenna() {
-    BAND *band;
-    if (!can_transmit) return;
-    switch (protocol) {
-      case ORIGINAL_PROTOCOL:
-        band=band_get_band(vfo[get_tx_vfo()].band);
-        transmitter->alex_antenna=band->alexTxAntenna;
-	break;
-      case NEW_PROTOCOL:
-        band=band_get_band(vfo[get_tx_vfo()].band);
-        transmitter->alex_antenna=band->alexTxAntenna;
-        schedule_high_priority();
-	break;
     }
-    // This function is NOT called for SOAPY devices
+#ifdef SOAPYSDR
+    if(protocol==SOAPYSDR_PROTOCOL) {
+        soapy_protocol_set_rx_antenna(active_receiver,v);
+    }
+#endif
+}
+
+void set_alex_tx_antenna(int v) {
+    transmitter->alex_antenna=v;
+    if(protocol==NEW_PROTOCOL) {
+        schedule_high_priority();
+    }
 }
 
 //
-// For HPSDR, only receiver[0]->alex_attenuation has an effect
+// There is an error here.
+// The alex att should not be associated with a receiver,
+// but with an ADC. *all* receivers bound to that ADC
+// will experience the same attenuation.
+//
+// This means, alex_attenuation should not be stored in thre
+// receiver, but separately (as is the case with adc_attenuation).
 //
 void set_alex_attenuation(int v) {
-    receiver[0]->alex_attenuation=v;
-    if(protocol==NEW_PROTOCOL) {
-      schedule_high_priority();
+    if(active_receiver->id==0) {
+      active_receiver->alex_attenuation=v;
+      if(protocol==NEW_PROTOCOL) {
+          schedule_high_priority();
+      }
     }
 }
 
@@ -2076,8 +1998,10 @@ g_print("radioRestoreState: %s\n",property_path);
     if(value) cw_keyer_weight=atoi(value);
     value=getProperty("cw_keyer_spacing");
     if(value) cw_keyer_spacing=atoi(value);
+#ifdef LOCALCW
     value=getProperty("cw_keyer_internal");
     if(value) cw_keyer_internal=atoi(value);
+#endif
     value=getProperty("cw_keyer_sidetone_volume");
     if(value) cw_keyer_sidetone_volume=atoi(value);
     value=getProperty("cw_keyer_ptt_delay");
@@ -2102,12 +2026,14 @@ g_print("radioRestoreState: %s\n",property_path);
     if(value) smeter=atoi(value);
     value=getProperty("alc");
     if(value) alc=atoi(value);
-//    value=getProperty("local_audio");
-//    if(value) local_audio=atoi(value);
-//    value=getProperty("n_selected_output_device");
-//    if(value) n_selected_output_device=atoi(value);
-//    value=getProperty("local_microphone");
-//    if(value) local_microphone=atoi(value);
+#ifdef OLD_AUDIO
+    value=getProperty("local_audio");
+    if(value) local_audio=atoi(value);
+    value=getProperty("n_selected_output_device");
+    if(value) n_selected_output_device=atoi(value);
+#endif
+    value=getProperty("local_microphone");
+    if(value) local_microphone=atoi(value);
 //    value=getProperty("n_selected_input_device");
 //    if(value) n_selected_input_device=atoi(value);
     value=getProperty("enable_tx_equalizer");
@@ -2170,10 +2096,8 @@ g_print("radioRestoreState: %s\n",property_path);
     value=getProperty("iqswap");
     if(value) iqswap=atoi(value);
 
-    if (have_rx_gain) {
-      value=getProperty("rx_gain_calibration");
-      if(value) rx_gain_calibration=atoi(value);
-    }
+    value=getProperty("rx_gain_calibration");
+    if(value) rx_gain_calibration=atoi(value);
 
 
     filterRestoreState();
@@ -2186,12 +2110,6 @@ g_print("radioRestoreState: %s\n",property_path);
     if(value) rigctl_enable=atoi(value);
     value=getProperty("rigctl_port_base");
     if(value) rigctl_port_base=atoi(value);
-    value=getProperty("rigctl_serial_enable");
-    if (value) serial_enable=atoi(value);
-    value=getProperty("rigctl_serial_baud_rate");
-    if (value) serial_baud_rate=atoi(value);
-    value=getProperty("rigctl_serial_port");
-    if (value) strcpy(ser_port,value);
 
     /*
     value=getProperty("adc_0_attenuation");
@@ -2238,7 +2156,6 @@ g_print("radioRestoreState: %s\n",property_path);
 #ifdef  SOAPYSDR
     if(device==SOAPYSDR_USB_DEVICE) {
       value=getProperty("radio.adc[0].agc");
-      if (value) adc[0].agc=atoi(value);
     }
 #endif
 
@@ -2277,7 +2194,6 @@ g_print("radioRestoreState: %s\n",property_path);
 #ifdef  SOAPYSDR
       if(device==SOAPYSDR_USB_DEVICE) {
         value=getProperty("radio.adc[1].agc");
-        if (value) adc[1].agc=atoi(value);
       }
 #endif
 
@@ -2290,6 +2206,8 @@ g_print("radioRestoreState: %s\n",property_path);
 
 #ifdef MIDI
     midi_restore_state();
+    value=getProperty("radio.midi_enabled");
+    if(value) midi_enabled=atoi(value);
 #endif
 
     value=getProperty("radio.display_sequence_errors");
@@ -2461,12 +2379,14 @@ g_print("radioSaveState: %s\n",property_path);
     setProperty("smeter",value);
     sprintf(value,"%d",alc);
     setProperty("alc",value);
-//    sprintf(value,"%d",local_audio);
-//    setProperty("local_audio",value);
-//    sprintf(value,"%d",n_selected_output_device);
-//    setProperty("n_selected_output_device",value);
-//    sprintf(value,"%d",local_microphone);
-//    setProperty("local_microphone",value);
+#ifdef OLD_AUDIO
+    sprintf(value,"%d",local_audio);
+    setProperty("local_audio",value);
+    sprintf(value,"%d",n_selected_output_device);
+    setProperty("n_selected_output_device",value);
+#endif
+    sprintf(value,"%d",local_microphone);
+    setProperty("local_microphone",value);
 
     sprintf(value,"%d",enable_tx_equalizer);
     setProperty("enable_tx_equalizer",value);
@@ -2523,10 +2443,8 @@ g_print("radioSaveState: %s\n",property_path);
     setProperty("adc_1_attenuation",value);
     */
 	
-    if (have_rx_gain) {
-      sprintf(value,"%d",rx_gain_calibration);
-      setProperty("rx_gain_calibration",value);
-    }
+    sprintf(value,"%d",rx_gain_calibration);
+    setProperty("rx_gain_calibration",value);
 
     sprintf(value,"%d", adc[0].filters);
     setProperty("radio.adc[0].filters",value);
@@ -2598,7 +2516,7 @@ g_print("radioSaveState: %s\n",property_path);
         setProperty("radio.adc[1].agc",value);
       }
 #endif
-
+  
       sprintf(value,"%d", dac[1].antenna);
       setProperty("radio.dac[1].antenna",value);
       sprintf(value,"%f", dac[1].gain);
@@ -2638,11 +2556,6 @@ g_print("radioSaveState: %s\n",property_path);
     setProperty("rigctl_enable",value);
     sprintf(value,"%d",rigctl_port_base);
     setProperty("rigctl_port_base",value);
-    sprintf(value,"%d",serial_enable);
-    setProperty("rigctl_serial_enable",value);
-    sprintf(value,"%d",serial_baud_rate);
-    setProperty("rigctl_serial_baud_rate",value);
-    setProperty("rigctl_serial_port",ser_port);
 
     sprintf(value,"%d",display_sequence_errors);
     setProperty("radio.display_sequence_errors",value);
@@ -2651,6 +2564,8 @@ g_print("radioSaveState: %s\n",property_path);
 #endif
 
 #ifdef MIDI
+  sprintf(value,"%d",midi_enabled);
+  setProperty("radio.midi_enabled",value);
   midi_save_state();
 #endif
 
@@ -2723,7 +2638,7 @@ void radio_change_region(int r) {
 #ifdef CLIENT_SERVER
 int remote_start(void *data) {
   char *server=(char *)data;
-  sprintf(property_path,"%s@%s.props",radio->name,server);
+  sprintf(property_path,"%s@%s.props",name,server);
   radio_is_remote=TRUE;
 #ifdef GPIO
   switch(controller) {
@@ -2746,12 +2661,6 @@ int remote_start(void *data) {
 #endif
   radioRestoreState();
   create_visual();
-  if(transmitter->local_microphone) {
-    if(audio_open_input()!=0) {
-      g_print("audio_open_input failed\n");
-      transmitter->local_microphone=0;
-    }
-  }
   for(int i=0;i<receivers;i++) {
     receiver_restore_state(receiver[i]);
     if(receiver[i]->local_audio) {
@@ -2763,6 +2672,9 @@ int remote_start(void *data) {
   reconfigure_radio();
   g_idle_add(ext_vfo_update,(gpointer)NULL);
   gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_ARROW));
+#ifdef MIDI
+  MIDIstartup();
+#endif
   for(int i=0;i<receivers;i++) {
     gint timer_id=gdk_threads_add_timeout_full(G_PRIORITY_DEFAULT_IDLE,100, start_spectrum, receiver[i], NULL);
   }

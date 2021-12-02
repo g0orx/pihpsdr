@@ -22,11 +22,7 @@
 #include <gtk/gtk.h>
 #ifdef PORTAUDIO
 #include "portaudio.h"
-#endif
-#ifdef ALSA
-#include <alsa/asoundlib.h>
-#endif
-#ifdef PULSEAUDIO
+#else
 #include <pulse/pulseaudio.h>
 #include <pulse/simple.h>
 #endif
@@ -121,23 +117,16 @@ typedef struct _receiver {
   gint audio_device;
   gchar *audio_name;
 #ifdef PORTAUDIO
-  PaStream *playstream;
-  gint local_audio_buffer_inpt;    // pointer in audio ring-buffer
-  gint local_audio_buffer_outpt;   // pointer in audio ring-buffer
-  float *local_audio_buffer;
-#endif
-#ifdef ALSA
-  snd_pcm_t *playback_handle;
-  snd_pcm_format_t local_audio_format;
-  void *local_audio_buffer;        // different formats possible, so void*
-#endif
-#ifdef PULSEAUDIO
-  pa_simple *playstream;
+  PaStream *playback_handle;
+#else
+  pa_simple* playstream;
   gboolean output_started;
-  float *local_audio_buffer;
+//  snd_pcm_t *playback_handle;
+//  snd_pcm_format_t local_audio_format;
 #endif
   gint local_audio_buffer_size;
   gint local_audio_buffer_offset;
+  float *local_audio_buffer;
   GMutex local_audio_mutex;
 
   gint low_latency;
@@ -149,8 +138,6 @@ typedef struct _receiver {
 
   gint64 waterfall_frequency;
   gint waterfall_sample_rate;
-  gint waterfall_pan;
-  gint waterfall_zoom;
 
   gint mute_radio;
 
@@ -181,7 +168,7 @@ extern void receiver_change_pan(RECEIVER *rx,double pan);
 
 extern void set_mode(RECEIVER* rx,int m);
 extern void set_filter(RECEIVER *rx,int low,int high);
-extern void set_agc(RECEIVER *rx);
+extern void set_agc(RECEIVER *rx, int agc);
 extern void set_offset(RECEIVER *rx, long long offset);
 extern void set_deviation(RECEIVER *rx);
 

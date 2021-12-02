@@ -51,7 +51,6 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 }
 
 static void step_select_cb (GtkToggleButton *widget, gpointer        data) {
-  int val=GPOINTER_TO_INT(data);
   if(gtk_toggle_button_get_active(widget)) {
     vfo_set_step_from_index(GPOINTER_TO_INT(data));
     g_idle_add(ext_vfo_update,NULL);
@@ -88,7 +87,7 @@ void step_menu(GtkWidget *parent) {
 
   GtkWidget *step_rb=NULL;
   int index=vfo_get_stepindex();
-  for (int i=0; i<STEPS; i++) {
+  for(int i=0;i<STEPS;i++) {
     if(i==0) {
       step_rb=gtk_radio_button_new_with_label(NULL,step_labels[i]);
     } else {

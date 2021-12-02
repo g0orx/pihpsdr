@@ -23,27 +23,6 @@
 
 #ifndef PORTAUDIO 
 
-//
-// Some important parameters
-// Note that we keep the playback buffers at half-filling so
-// we can use a larger latency there.
-//
-//
-// while it is kept above out_low_water
-//
-static const int inp_latency = 125000;
-static const int out_latency = 200000;
-
-static const int mic_buffer_size = 256;
-static const int out_buffer_size = 256;
-
-static const int out_buflen = 48*(out_latency/1000);  // Length of ALSA buffer
-static const int out_cw_border = 1536;                // separates CW-TX from other buffer fillings
-
-static const int cw_mid_water  = 1024;                // target buffer filling for CW
-static const int cw_low_water  =  896;                // low water mark for CW
-static const int cw_high_water = 1152;                // high water mark for CW
-
 #include <gtk/gtk.h>
 
 #include <stdio.h>
@@ -62,10 +41,15 @@ static const int cw_high_water = 1152;                // high water mark for CW
 #include "transmitter.h"
 #include "audio.h"
 #include "mode.h"
+#include "new_protocol.h"
+#include "old_protocol.h"
+#ifdef SOAPYSDR
+#include "soapy_protocol.h"
+#endif
 #include "vfo.h"
 
 int audio = 0;
-static GMutex audio_mutex;
+int mic_buffer_size = 720; // samples (both left and right)
 
 static snd_pcm_t *record_handle=NULL;
 static snd_pcm_format_t record_audio_format;
@@ -105,13 +89,14 @@ int audio_open_output(RECEIVER *rx) {
   unsigned int rate=48000;
   unsigned int channels=2;
   int soft_resample=1;
+  unsigned int latency=125000;
 
   if(rx->audio_name==NULL) {
     rx->local_audio=0;
     return -1;
   }
 
-g_print("%s: rx=%d %s buffer_size=%d\n",__FUNCTION__,rx->id,rx->audio_name,out_buffer_size);
+g_print("audio_open_output: rx=%d %s buffer_size=%d\n",rx->id,rx->audio_name,rx->local_audio_buffer_size);
 
   int i;
   char hw[128];
@@ -124,55 +109,54 @@ g_print("%s: rx=%d %s buffer_size=%d\n",__FUNCTION__,rx->id,rx->audio_name,out_b
   }
   hw[i]='\0';
   
-g_print("%s: hw=%s\n", __FUNCTION__, hw);
+g_print("audio_open_output: hw=%s\n",hw);
 
   for(i=0;i<FORMATS;i++) {
     g_mutex_lock(&rx->local_audio_mutex);
     if ((err = snd_pcm_open (&rx->playback_handle, hw, SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK)) < 0) {
-      g_print("%s: cannot open audio device %s (%s)\n", 
-	      __FUNCTION__,
+      g_print("audio_open_output: cannot open audio device %s (%s)\n", 
               hw,
               snd_strerror (err));
       g_mutex_unlock(&rx->local_audio_mutex);
       return err;
     }
-g_print("%s: handle=%p\n",__FUNCTION__,rx->playback_handle);
+g_print("audio_open_output: handle=%p\n",rx->playback_handle);
 
-g_print("%s: trying format %s (%s)\n",__FUNCTION__,snd_pcm_format_name(formats[i]),snd_pcm_format_description(formats[i]));
-    if ((err = snd_pcm_set_params (rx->playback_handle,formats[i],SND_PCM_ACCESS_RW_INTERLEAVED,channels,rate,soft_resample,out_latency)) < 0) {
-      g_print("%s: snd_pcm_set_params failed: %s\n",__FUNCTION__,snd_strerror(err));
+g_print("audio_open_output: trying format %s (%s)\n",snd_pcm_format_name(formats[i]),snd_pcm_format_description(formats[i]));
+    if ((err = snd_pcm_set_params (rx->playback_handle,formats[i],SND_PCM_ACCESS_RW_INTERLEAVED,channels,rate,soft_resample,latency)) < 0) {
+      g_print("audio_open_output: snd_pcm_set_params failed: %s\n",snd_strerror(err));
       g_mutex_unlock(&rx->local_audio_mutex);
       audio_close_output(rx);
       continue;
     } else {
-g_print("%s: using format %s (%s)\n",__FUNCTION__,snd_pcm_format_name(formats[i]),snd_pcm_format_description(formats[i]));
+g_print("audio_open_output: using format %s (%s)\n",snd_pcm_format_name(formats[i]),snd_pcm_format_description(formats[i]));
       rx->local_audio_format=formats[i];
       break;
     }
   }
 
   if(i>=FORMATS) {
-    g_print("%s: cannot find usable format\n", __FUNCTION__);
+    g_print("audio_open_output: cannot find usable format\n");
     return err;
   }
 
   rx->local_audio_buffer_offset=0;
   switch(rx->local_audio_format) {
     case SND_PCM_FORMAT_S16_LE:
-g_print("%s: local_audio_buffer: size=%d sample=%ld\n",__FUNCTION__,out_buffer_size,sizeof(gint16));
-      rx->local_audio_buffer=g_new(gint16,2*out_buffer_size);
+g_print("audio_open_output: local_audio_buffer: size=%d sample=%ld\n",rx->local_audio_buffer_size,sizeof(gint16));
+      rx->local_audio_buffer=g_new(gint16,2*rx->local_audio_buffer_size);
         break;
     case SND_PCM_FORMAT_S32_LE:
-g_print("%s: local_audio_buffer: size=%d sample=%ld\n",__FUNCTION__,out_buffer_size,sizeof(gint32));
-      rx->local_audio_buffer=g_new(gint32,2*out_buffer_size);
+g_print("audio_open_output: local_audio_buffer: size=%d sample=%ld\n",rx->local_audio_buffer_size,sizeof(gint32));
+      rx->local_audio_buffer=g_new(gint32,2*rx->local_audio_buffer_size);
       break;
     case SND_PCM_FORMAT_FLOAT_LE:
-g_print("%s: local_audio_buffer: size=%d sample=%ld\n",__FUNCTION__,out_buffer_size,sizeof(gfloat));
-      rx->local_audio_buffer=g_new(gfloat,2*out_buffer_size);
+g_print("audio_open_output: local_audio_buffer: size=%d sample=%ld\n",rx->local_audio_buffer_size,sizeof(gfloat));
+      rx->local_audio_buffer=g_new(gfloat,2*rx->local_audio_buffer_size);
       break;
   }
   
-  g_print("%s: rx=%d audio_device=%d handle=%p buffer=%p size=%d\n",__FUNCTION__,rx->id,rx->audio_device,rx->playback_handle,rx->local_audio_buffer,out_buffer_size);
+  g_print("audio_open_output: rx=%d audio_device=%d handle=%p buffer=%p size=%d\n",rx->id,rx->audio_device,rx->playback_handle,rx->local_audio_buffer,rx->local_audio_buffer_size);
 
   g_mutex_unlock(&rx->local_audio_mutex);
   return 0;
@@ -183,6 +167,7 @@ int audio_open_input() {
   unsigned int rate=48000;
   unsigned int channels=1;
   int soft_resample=1;
+  unsigned int latency=125000;
   char hw[64];
   int i;
 
@@ -191,9 +176,11 @@ int audio_open_input() {
     return -1;
   }
 
-g_print("%s: %s\n",__FUNCTION__, transmitter->microphone_name);
+g_print("audio_open_input: %s\n",transmitter->microphone_name);
   
-  g_print("%s: mic_buffer_size=%d\n",__FUNCTION__, mic_buffer_size);
+  mic_buffer_size = 256;
+
+  g_print("audio_open_input: mic_buffer_size=%d\n",mic_buffer_size);
   i=0;
   while(i<63 && transmitter->microphone_name[i]!=' ') {
     hw[i]=transmitter->microphone_name[i];
@@ -202,83 +189,74 @@ g_print("%s: %s\n",__FUNCTION__, transmitter->microphone_name);
   hw[i]='\0';
 
 
-  g_print("%s: hw=%s\n", __FUNCTION__, hw);
+  g_print("audio_open_input: hw=%s\n",hw);
 
   for(i=0;i<FORMATS;i++) {
-    g_mutex_lock(&audio_mutex);
     if ((err = snd_pcm_open (&record_handle, hw, SND_PCM_STREAM_CAPTURE, SND_PCM_ASYNC)) < 0) {
-      g_print("%s: cannot open audio device %s (%s)\n",
-	      __FUNCTION__,
+      g_print("audio_open_input: cannot open audio device %s (%s)\n",
               hw,
               snd_strerror (err));
-      record_handle=NULL;
-      g_mutex_unlock(&audio_mutex);
       return err;
     }
-g_print("%s: handle=%p\n", __FUNCTION__, record_handle);
+g_print("audio_open_input: handle=%p\n",record_handle);
 
-g_print("%s: trying format %s (%s)\n",__FUNCTION__,snd_pcm_format_name(formats[i]),snd_pcm_format_description(formats[i]));
-    if ((err = snd_pcm_set_params (record_handle,formats[i],SND_PCM_ACCESS_RW_INTERLEAVED,channels,rate,soft_resample,inp_latency)) < 0) {
-      g_print("%s: snd_pcm_set_params failed: %s\n",__FUNCTION__,snd_strerror(err));
-      g_mutex_unlock(&audio_mutex);
+g_print("audio_open_input: trying format %s (%s)\n",snd_pcm_format_name(formats[i]),snd_pcm_format_description(formats[i]));
+    if ((err = snd_pcm_set_params (record_handle,formats[i],SND_PCM_ACCESS_RW_INTERLEAVED,channels,rate,soft_resample,latency)) < 0) {
+      g_print("audio_open_input: snd_pcm_set_params failed: %s\n",snd_strerror(err));
       audio_close_input();
       continue;
     } else {
-g_print("%s: using format %s (%s)\n",__FUNCTION__,snd_pcm_format_name(formats[i]),snd_pcm_format_description(formats[i]));
+g_print("audio_open_input: using format %s (%s)\n",snd_pcm_format_name(formats[i]),snd_pcm_format_description(formats[i]));
       record_audio_format=formats[i];
       break;
     }
   }
 
   if(i>=FORMATS) {
-    g_print("%s: cannot find usable format\n", __FUNCTION__);
-    g_mutex_unlock(&audio_mutex);
+    g_print("audio_open_input: cannot find usable format\n");
     audio_close_input();
     return err;
   }
 
-g_print("%s: format=%d\n",__FUNCTION__,record_audio_format);
+g_print("audio_open_input: format=%d\n",record_audio_format);
 
   switch(record_audio_format) {
     case SND_PCM_FORMAT_S16_LE:
-g_print("%s: mic_buffer: size=%d channels=%d sample=%ld bytes\n",__FUNCTION__,mic_buffer_size,channels,sizeof(gint16));
+g_print("audio_open_input: mic_buffer: size=%d channels=%d sample=%ld bytes\n",mic_buffer_size,channels,sizeof(gint16));
       mic_buffer=g_new(gint16,mic_buffer_size);
       break;
     case SND_PCM_FORMAT_S32_LE:
-g_print("%s: mic_buffer: size=%d channels=%d sample=%ld bytes\n",__FUNCTION__,mic_buffer_size,channels,sizeof(gint32));
+g_print("audio_open_input: mic_buffer: size=%d channels=%d sample=%ld bytes\n",mic_buffer_size,channels,sizeof(gint32));
       mic_buffer=g_new(gint32,mic_buffer_size);
       break;
     case SND_PCM_FORMAT_FLOAT_LE:
-g_print("%s: mic_buffer: size=%d channels=%d sample=%ld bytes\n",__FUNCTION__,mic_buffer_size,channels,sizeof(gfloat));
+g_print("audio_open_input: mic_buffer: size=%d channels=%d sample=%ld bytes\n",mic_buffer_size,channels,sizeof(gfloat));
       mic_buffer=g_new(gfloat,mic_buffer_size);
       break;
   }
 
-g_print("%s: allocating ring buffer\n", __FUNCTION__);
+g_print("audio_open_input: allocating ring buffer\n");
   mic_ring_buffer=(float *) g_new(float,MICRINGLEN);
   mic_ring_read_pt = mic_ring_write_pt=0;
   if (mic_ring_buffer == NULL) {
-    g_mutex_unlock(&audio_mutex);
     audio_close_input();
     return -1;
   }
 
-g_print("%s: creating mic_read_thread\n", __FUNCTION__);
+g_print("audio_open_input: creating mic_read_thread\n");
   GError *error;
   mic_read_thread_id = g_thread_try_new("microphone",mic_read_thread,NULL,&error);
   if(!mic_read_thread_id ) {
     g_print("g_thread_new failed on mic_read_thread: %s\n",error->message);
-    g_mutex_unlock(&audio_mutex);
     audio_close_input();
     return -1;
   }
 
-  g_mutex_unlock(&audio_mutex);
   return 0;
 }
 
 void audio_close_output(RECEIVER *rx) {
-g_print("%s: rx=%d handle=%p buffer=%p\n",__FUNCTION__,rx->id,rx->playback_handle,rx->local_audio_buffer);
+g_print("audio_close_output: rx=%d handle=%p buffer=%p\n",rx->id,rx->playback_handle,rx->local_audio_buffer);
   g_mutex_lock(&rx->local_audio_mutex);
   if(rx->playback_handle!=NULL) {
     snd_pcm_close (rx->playback_handle);
@@ -292,63 +270,58 @@ g_print("%s: rx=%d handle=%p buffer=%p\n",__FUNCTION__,rx->id,rx->playback_handl
 }
 
 void audio_close_input() {
-g_print("%s: enter\n",__FUNCTION__);
+  void *p;
+g_print("audio_close_input\n");
   running=FALSE;
-  g_mutex_lock(&audio_mutex);
   if(mic_read_thread_id!=NULL) {
-g_print("%s: wait for thread to complete\n", __FUNCTION__);
+g_print("audio_close_input: wait for thread to complete\n");
     g_thread_join(mic_read_thread_id);
     mic_read_thread_id=NULL;
   }
   if(record_handle!=NULL) {
-g_print("%s: snd_pcm_close\n", __FUNCTION__);
+g_print("audio_close_input: snd_pcm_close\n");
     snd_pcm_close (record_handle);
     record_handle=NULL;
   }
   if(mic_buffer!=NULL) {
-g_print("%s: free mic buffer\n", __FUNCTION__);
+g_print("audio_close_input: free mic buffer\n");
     g_free(mic_buffer);
     mic_buffer=NULL;
   }
+  //
+  // We do not want to do a mutex lock/unlock for every single mic sample
+  // accessed. Since only the ring buffer is maintained by the functions
+  // audio_get_next_mic_sample() and in the "mic read thread",
+  // it is more than enough to wait 2 msec after setting mic_ring_buffer to NULL
+  // before actually releasing the storage.
+  //
   if (mic_ring_buffer != NULL) {
-    g_free(mic_ring_buffer);
+    p=mic_ring_buffer;
+    mic_ring_buffer=NULL;
+    usleep(2);
+    g_free(p);
   }
-  g_mutex_unlock(&audio_mutex);
 }
 
 //
-// This is for writing a CW side tone.
-// To keep sidetone latencies low, we keep the ALSA buffer
-// at low filling, between cw_low_water and cw_high_water.
+// This is for writing a CW side tone. It is essentially
+// a copy of audio_write using the active receiver.
+// Note that audio_write must be switched off for the
+// active_receiver when transmitting.
 //
-// Note that when sending the buffer, delay "jumps" by the buffer size
-//
-
-int cw_audio_write(RECEIVER *rx, float sample){
+int cw_audio_write(float sample){
   snd_pcm_sframes_t delay;
   long rc;
+  long trim;
   float *float_buffer;
   gint32 *long_buffer;
   gint16 *short_buffer;
-  static int count=0;
 	
+  RECEIVER *rx = active_receiver;
+ 
   g_mutex_lock(&rx->local_audio_mutex);
   if(rx->playback_handle!=NULL && rx->local_audio_buffer!=NULL) {
 
-    if (snd_pcm_delay(rx->playback_handle, &delay) == 0) {
-      if (delay > out_cw_border) {
-	//
-	// This happens when we come here for the first time after a
-	// RX/TX transision. Rewind until we are at target filling for CW
-	//
-	snd_pcm_rewind(rx->playback_handle, delay-cw_mid_water);
-	count=0;
-      }
-    }
-
-    //
-    // Put sample into buffer
-    //
     switch(rx->local_audio_format) {
       case SND_PCM_FORMAT_S16_LE:
         short_buffer=(gint16 *)rx->local_audio_buffer;
@@ -368,64 +341,32 @@ int cw_audio_write(RECEIVER *rx, float sample){
     }
     rx->local_audio_buffer_offset++;
 
-    if (sample != 0.0) count=0;  // count upwards during silence
-    if (++count >= 16) {
-      count=0;
-      //
-      // We have just seen 16 zero samples, so this is the right place
-      // to adjust the buffer filling.
-      // If buffer gets too full   ==> skip the sample
-      // If buffer gets too empty ==> insert zero sample
-      //
-      if (snd_pcm_delay(rx->playback_handle,&delay) == 0) {
-        if (delay > cw_high_water && rx->local_audio_buffer_offset > 0) {
-          // delete the last sample
-	  rx->local_audio_buffer_offset--;
-        }
-        if ((delay < cw_low_water) && (rx->local_audio_buffer_offset < out_buffer_size)) {
-          // insert another zero sample
-          switch(rx->local_audio_format) {
-            case SND_PCM_FORMAT_S16_LE:
-              short_buffer=(gint16 *)rx->local_audio_buffer;
-              short_buffer[rx->local_audio_buffer_offset*2]=0;
-              short_buffer[(rx->local_audio_buffer_offset*2)+1]=0;
-              break;
-            case SND_PCM_FORMAT_S32_LE:
-              long_buffer=(gint32 *)rx->local_audio_buffer;
-              long_buffer[rx->local_audio_buffer_offset*2]=0;
-              long_buffer[(rx->local_audio_buffer_offset*2)+1]=0;
-              break;
-            case SND_PCM_FORMAT_FLOAT_LE:
-              float_buffer=(float *)rx->local_audio_buffer;
-              float_buffer[rx->local_audio_buffer_offset*2]=0.0;
-              float_buffer[(rx->local_audio_buffer_offset*2)+1]=0.0;
-              break;
-          }
-          rx->local_audio_buffer_offset++;
+    if(rx->local_audio_buffer_offset>=rx->local_audio_buffer_size) {
+
+      trim=0;
+
+      int max_delay=rx->local_audio_buffer_size*4;
+      if(snd_pcm_delay(rx->playback_handle,&delay)==0) {
+        if(delay>max_delay) {
+          trim=delay-max_delay;
+g_print("audio delay=%ld trim=%ld audio_buffer_size=%d\n",delay,trim,rx->local_audio_buffer_size);
         }
       }
-    }
 
-    if(rx->local_audio_buffer_offset>=out_buffer_size) {
-
-      if ((rc = snd_pcm_writei (rx->playback_handle, rx->local_audio_buffer, out_buffer_size)) != out_buffer_size) {
-        if(rc<0) {
-          switch (rc) {
-	    case -EPIPE:
+      if(trim<rx->local_audio_buffer_size) {
+        if ((rc = snd_pcm_writei (rx->playback_handle, rx->local_audio_buffer, rx->local_audio_buffer_size-trim)) != rx->local_audio_buffer_size-trim) {
+          if(rc<0) {
+            if(rc==-EPIPE) {
               if ((rc = snd_pcm_prepare (rx->playback_handle)) < 0) {
-                g_print("%s: cannot prepare audio interface for use %ld (%s)\n", __FUNCTION__, rc, snd_strerror (rc));
-                rx->local_audio_buffer_offset=0;
+                g_print("audio_write: cannot prepare audio interface for use %ld (%s)\n", rc, snd_strerror (rc));
                 g_mutex_unlock(&rx->local_audio_mutex);
                 return rc;
+              } else {
+                // ignore short write
               }
-	      break;
-	    default:
-	      g_print("%s:  write error: %s\n", __FUNCTION__, snd_strerror(rc));
-	      break;
+            }
           }
-        } else {
-	  g_print("%s: short write lost=%d\n", __FUNCTION__, out_buffer_size - rc);
-	}
+        }
       }
       rx->local_audio_buffer_offset=0;
     }
@@ -442,6 +383,7 @@ int cw_audio_write(RECEIVER *rx, float sample){
 int audio_write(RECEIVER *rx,float left_sample,float right_sample) {
   snd_pcm_sframes_t delay;
   long rc;
+  long trim;
   int txmode=get_tx_mode();
   float *float_buffer;
   gint32 *long_buffer;
@@ -464,7 +406,6 @@ int audio_write(RECEIVER *rx,float left_sample,float right_sample) {
   g_mutex_lock(&rx->local_audio_mutex);
 
   if(rx->playback_handle!=NULL && rx->local_audio_buffer!=NULL) {
-
     switch(rx->local_audio_format) {
       case SND_PCM_FORMAT_S16_LE:
         short_buffer=(gint16 *)rx->local_audio_buffer;
@@ -484,62 +425,33 @@ int audio_write(RECEIVER *rx,float left_sample,float right_sample) {
     }
     rx->local_audio_buffer_offset++;
 
-    if(rx->local_audio_buffer_offset>=out_buffer_size) {
+    if(rx->local_audio_buffer_offset>=rx->local_audio_buffer_size) {
 
-      if (snd_pcm_delay(rx->playback_handle, &delay) == 0) {
-	if (delay < out_cw_border) {
-	  //
-	  // upon first occurence, or after a TX/RX transition, the buffer
-	  // is empty (delay == 0), if we just come from CW TXing, delay is below
-	  // out_cw_border as well.
-	  // ACTION: fill buffer completely with silence to start output, then
-	  //         rewind until half-filling. Just filling by half does nothing,
-	  //         ALSA just does not start playing until the buffer is nearly full.
-	  //
-	  void *silence=NULL;
-	  size_t len;
-	  int num=(out_buflen - delay);
-          switch(rx->local_audio_format) {
-            case SND_PCM_FORMAT_S16_LE:
-              silence=g_new(gint16,2*num);
-	      len=2*num*sizeof(gint16);
-              break;
-            case SND_PCM_FORMAT_S32_LE:
-	      silence=g_new(gint32,2*num);
-	      len=2*num*sizeof(gint32);
-              break;
-            case SND_PCM_FORMAT_FLOAT_LE:
-	      silence=g_new(float,2*num);
-	      len=2*num*sizeof(float);
-              break;
-          }
-	  if (silence) {
-	    memset(silence, 0, len);
-	    snd_pcm_writei (rx->playback_handle, silence, num);
-	    snd_pcm_rewind (rx->playback_handle, out_buflen/2);
-	    g_free(silence);
-          }
-	}
+      trim=0;
+
+      int max_delay=rx->local_audio_buffer_size*4;
+      if(snd_pcm_delay(rx->playback_handle,&delay)==0) {
+        if(delay>max_delay) {
+          trim=delay-max_delay;
+g_print("audio delay=%ld trim=%ld audio_buffer_size=%d\n",delay,trim,rx->local_audio_buffer_size);
+        }
       }
 
-      if ((rc = snd_pcm_writei (rx->playback_handle, rx->local_audio_buffer, out_buffer_size)) != out_buffer_size) {
-        if(rc<0) {
-          switch (rc) {
-	    case -EPIPE:
+      if(trim<rx->local_audio_buffer_size) {
+        if ((rc = snd_pcm_writei (rx->playback_handle, rx->local_audio_buffer, rx->local_audio_buffer_size-trim)) != rx->local_audio_buffer_size-trim) {
+          if(rc<0) {
+            if(rc==-EPIPE) {
               if ((rc = snd_pcm_prepare (rx->playback_handle)) < 0) {
-                g_print("%s: cannot prepare audio interface for use %ld (%s)\n", __FUNCTION__, rc, snd_strerror (rc));
+                g_print("audio_write: cannot prepare audio interface for use %ld (%s)\n", rc, snd_strerror (rc));
                 rx->local_audio_buffer_offset=0;
                 g_mutex_unlock(&rx->local_audio_mutex);
                 return rc;
               }
-	      break;
-	    default:
-	      g_print("%s:  write error: %s\n", __FUNCTION__, snd_strerror(rc));
-	      break;
+            } else {
+              // ignore short write
+            }
           }
-        } else {
-	  g_print("%s: short write lost=%d\n", __FUNCTION__, out_buffer_size - rc);
-	}
+        }
       }
       rx->local_audio_buffer_offset=0;
     }
@@ -556,11 +468,10 @@ static void *mic_read_thread(gpointer arg) {
   gfloat sample;
   int i;
 
-g_print("%s: mic_buffer_size=%d\n",__FUNCTION__,mic_buffer_size);
-g_print("%s: snd_pcm_start\n", __FUNCTION__);
+g_print("mic_read_thread: mic_buffer_size=%d\n",mic_buffer_size);
+g_print("mic_read_thread: snd_pcm_start\n");
   if ((rc = snd_pcm_start (record_handle)) < 0) {
-    g_print("%s: cannot start audio interface for use (%s)\n",
-	    __FUNCTION__,
+    g_print("mic_read_thread: cannot start audio interface for use (%s)\n",
             snd_strerror (rc));
     return NULL;
   }
@@ -570,12 +481,11 @@ g_print("%s: snd_pcm_start\n", __FUNCTION__);
     if ((rc = snd_pcm_readi (record_handle, mic_buffer, mic_buffer_size)) != mic_buffer_size) {
       if(running) {
         if(rc<0) {
-          g_print("%s: read from audio interface failed (%s)\n",
-		  __FUNCTION__,
+          g_print("mic_read_thread: read from audio interface failed (%s)\n",
                   snd_strerror (rc));
           //running=FALSE;
         } else {
-          g_print("%s: read %d\n",__FUNCTION__,rc);
+          g_print("mic_read_thread: read %d\n",rc);
         }
       }
     } else {
@@ -596,28 +506,35 @@ g_print("%s: snd_pcm_start\n", __FUNCTION__);
             sample=float_buffer[i];
             break;
         }
-	//
-	// put sample into ring buffer
-	// Note check on the mic ring buffer is not necessary
-	// since audio_close_input() waits for this thread to
-	// complete.
-	//
-	if (mic_ring_buffer != NULL) {
-          // do not increase mic_ring_write_pt *here* since it must
-	  // not assume an illegal value at any time
-	  newpt=mic_ring_write_pt +1;
-	  if (newpt == MICRINGLEN) newpt=0;
-	  if (newpt != mic_ring_read_pt) {
-	    // buffer space available, do the write
-	    mic_ring_buffer[mic_ring_write_pt]=sample;
-	    // atomic update of mic_ring_write_pt
-	    mic_ring_write_pt=newpt;
-	  }
+        switch(protocol) {
+          case ORIGINAL_PROTOCOL:
+          case NEW_PROTOCOL:
+#ifdef SOAPYSDR
+          case SOAPYSDR_PROTOCOL:
+#endif
+	    //
+	    // put sample into ring buffer
+	    //
+	    if (mic_ring_buffer != NULL) {
+              // the "existence" of the ring buffer is now guaranteed for 1 msec,
+	      // see audio_close_input().
+	      newpt=mic_ring_write_pt +1;
+	      if (newpt == MICRINGLEN) newpt=0;
+	      if (newpt != mic_ring_read_pt) {
+	        // buffer space available, do the write
+	        mic_ring_buffer[mic_ring_write_pt]=sample;
+	        // atomic update of mic_ring_write_pt
+	        mic_ring_write_pt=newpt;
+	      }
+            }
+            break;
+          default:
+            break;
         }
       }
     }
   }
-g_print("%s: exiting\n", __FUNCTION__);
+g_print("mic_read_thread: exiting\n");
   return NULL;
 }
 
@@ -628,18 +545,18 @@ g_print("%s: exiting\n", __FUNCTION__);
 float audio_get_next_mic_sample() {
   int newpt;
   float sample;
-  g_mutex_lock(&audio_mutex);
   if ((mic_ring_buffer == NULL) || (mic_ring_read_pt == mic_ring_write_pt)) {
     // no buffer, or nothing in buffer: insert silence
     sample=0.0;
   } else {
+    // the "existence" of the ring buffer is now guaranteed for 1 msec,
+    // see audio_close_input(),
     newpt = mic_ring_read_pt+1;
     if (newpt == MICRINGLEN) newpt=0;
     sample=mic_ring_buffer[mic_ring_read_pt];
     // atomic update of read pointer
     mic_ring_read_pt=newpt;
   }
-  g_mutex_unlock(&audio_mutex);
   return sample;
 }
 
@@ -652,9 +569,8 @@ void audio_get_cards() {
   char *device_id;
   int card = -1;
 
-g_print("%s\n", __FUNCTION__);
+g_print("%s\n",__FUNCTION__);
 
-  g_mutex_init(&audio_mutex);
   n_input_devices=0;
   n_output_devices=0;
 

@@ -78,7 +78,6 @@ ACTION_TABLE ActionTable[] = {
   {COMPRESSION,		"COMPRESSION",		NULL,		MIDI_KNOB | MIDI_WHEEL | CONTROLLER_ENCODER},
   {CTUN,		"CTUN",			"CTUN",		MIDI_KEY | CONTROLLER_SWITCH},
   {CW_FREQUENCY,	"CW FREQUENCY",		NULL,		MIDI_KNOB | MIDI_WHEEL | CONTROLLER_ENCODER},
-  {CW_KEYER,            "CW(keyer)",            NULL,           MIDI_KEY | CONTROLLER_SWITCH},
   {CW_LEFT,		"CW LEFT",		"CWL",		MIDI_KEY | CONTROLLER_SWITCH},
   {CW_RIGHT,		"CW RIGHT",		"CWR",		MIDI_KEY | CONTROLLER_SWITCH},
   {CW_SPEED,		"CW SPEED",		NULL,		MIDI_KNOB | MIDI_WHEEL | CONTROLLER_ENCODER},
@@ -270,7 +269,7 @@ int process_action(void *data) {
         if(active_receiver->agc>+AGC_LAST) {
           active_receiver->agc=0;
         }
-        set_agc(active_receiver);
+        set_agc(active_receiver, active_receiver->agc);
         g_idle_add(ext_vfo_update, NULL);
       }
       break;
@@ -1003,7 +1002,8 @@ int process_action(void *data) {
     case SPLIT:
       if(a->mode==PRESSED) {
         if(can_transmit) {
-          set_split(split==1?0:1);
+          split=split==1?0:1;
+          tx_set_mode(transmitter,get_tx_mode());
           g_idle_add(ext_vfo_update, NULL);
         }
       }

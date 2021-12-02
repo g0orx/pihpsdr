@@ -72,12 +72,12 @@ static void comp_cb(GtkWidget *widget, gpointer data) {
 
 static void tx_spin_low_cb (GtkWidget *widget, gpointer data) {
   tx_filter_low=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
-  tx_set_filter(transmitter);
+  tx_set_filter(transmitter,tx_filter_low,tx_filter_high);
 }
 
 static void tx_spin_high_cb (GtkWidget *widget, gpointer data) {
   tx_filter_high=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
-  tx_set_filter(transmitter);
+  tx_set_filter(transmitter,tx_filter_low,tx_filter_high);
 }
 
 static void micboost_cb(GtkWidget *widget, gpointer data) {
@@ -126,18 +126,32 @@ static void tune_percent_cb (GtkWidget *widget, gpointer data) {
   transmitter->tune_percent=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
 }
 
-static void swr_protection_cb (GtkWidget *widget, gpointer data) {
-  transmitter->swr_protection=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-}
-
-static void swr_alarm_cb (GtkWidget *widget, gpointer data) {
-  transmitter->swr_alarm=(double)gtk_spin_button_get_value(GTK_SPIN_BUTTON(widget));
-}
-
 static void use_rx_filter_cb(GtkWidget *widget, gpointer data) {
   transmitter->use_rx_filter=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
+  int filter_low,filter_high;
 
-  tx_set_filter(transmitter);
+  if(transmitter->use_rx_filter) {
+    int m=vfo[active_receiver->id].mode;
+    if(m==modeFMN) {
+      if(active_receiver->deviation==2500) {
+        filter_low=-5500;
+        filter_high=5500;
+      } else {
+        filter_low=-8000;
+        filter_high=8000;
+      }
+    } else {
+      FILTER *mode_filters=filters[m];
+      FILTER *filter=&mode_filters[vfo[active_receiver->id].filter];
+      filter_low=filter->low;
+      filter_high=filter->high;
+    }
+  } else {
+    filter_low=tx_filter_low;
+    filter_high=tx_filter_high;
+  }
+
+  tx_set_filter(transmitter,filter_low,filter_high);
 
   if(transmitter->use_rx_filter) {
     gtk_widget_set_sensitive (tx_spin_low, FALSE);
@@ -194,7 +208,7 @@ static void linein_changed(GtkWidget *widget, gpointer data) {
 
 static void local_input_changed_cb(GtkWidget *widget, gpointer data) {
   int i = gtk_combo_box_get_active(GTK_COMBO_BOX(widget));
-g_print("local_input_changed_cb: %d %s\n",i,input_devices[i].name);
+g_print("local_input_changed_cp: %d %s\n",i,input_devices[i].name);
   if(transmitter->local_microphone) {
     audio_close_input();
   }
@@ -386,7 +400,9 @@ void tx_menu(GtkWidget *parent) {
 
   GtkWidget *label=gtk_label_new(NULL);
   gtk_label_set_markup(GTK_LABEL(label), "<b>TX Filter: </b>");
-  gtk_widget_set_halign(label, GTK_ALIGN_START);
+#ifdef GTK316
+  gtk_label_set_xalign(GTK_LABEL(label),0);
+#endif
   gtk_grid_attach(GTK_GRID(grid),label,col,row,1,1);
 
   col++;
@@ -414,7 +430,9 @@ void tx_menu(GtkWidget *parent) {
 
   GtkWidget *panadapter_high_label=gtk_label_new(NULL);
   gtk_label_set_markup(GTK_LABEL(panadapter_high_label), "<b>Panadapter High: </b>");
-  gtk_widget_set_halign(panadapter_high_label, GTK_ALIGN_START);
+#ifdef GTK316
+  gtk_label_set_xalign(GTK_LABEL(panadapter_high_label),0);
+#endif
   gtk_widget_show(panadapter_high_label);
   gtk_grid_attach(GTK_GRID(grid),panadapter_high_label,col,row,1,1);
 
@@ -422,7 +440,9 @@ void tx_menu(GtkWidget *parent) {
 
   GtkWidget *panadapter_low_label=gtk_label_new(NULL);
   gtk_label_set_markup(GTK_LABEL(panadapter_low_label), "<b>Panadapter Low: </b>");
-  gtk_widget_set_halign(panadapter_low_label, GTK_ALIGN_START);
+#ifdef GTK316
+  gtk_label_set_xalign(GTK_LABEL(panadapter_low_label),0);
+#endif
   gtk_widget_show(panadapter_low_label);
   gtk_grid_attach(GTK_GRID(grid),panadapter_low_label,col,row,1,1);
 
@@ -430,7 +450,9 @@ void tx_menu(GtkWidget *parent) {
 
   GtkWidget *panadapter_step_label=gtk_label_new(NULL);
   gtk_label_set_markup(GTK_LABEL(panadapter_step_label), "<b>Panadapter Step: </b>");
-  gtk_widget_set_halign(panadapter_step_label, GTK_ALIGN_START);
+#ifdef GTK316
+  gtk_label_set_xalign(GTK_LABEL(panadapter_step_label),0);
+#endif
   gtk_widget_show(panadapter_step_label);
   gtk_grid_attach(GTK_GRID(grid),panadapter_step_label,col,row,1,1);
 
@@ -464,7 +486,9 @@ void tx_menu(GtkWidget *parent) {
 
   GtkWidget *am_carrier_level_label=gtk_label_new(NULL);
   gtk_label_set_markup(GTK_LABEL(am_carrier_level_label), "<b>AM Carrier Level:</b>");
-  gtk_widget_set_halign(am_carrier_level_label, GTK_ALIGN_START);
+#ifdef GTK316
+  gtk_label_set_xalign(GTK_LABEL(am_carrier_level_label),0);
+#endif
   gtk_widget_show(am_carrier_level_label);
   gtk_grid_attach(GTK_GRID(grid),am_carrier_level_label,col,row,1,1);
 
@@ -527,7 +551,9 @@ void tx_menu(GtkWidget *parent) {
   
   GtkWidget *tune_percent_label=gtk_label_new(NULL);
   gtk_label_set_markup(GTK_LABEL(tune_percent_label), "<b>Tune Percent:</b>");
-  gtk_widget_set_halign(tune_percent_label, GTK_ALIGN_START);
+#ifdef GTK316
+  gtk_label_set_xalign(GTK_LABEL(tune_percent_label),0);
+#endif
   gtk_widget_show(tune_percent_label);
   gtk_grid_attach(GTK_GRID(grid),tune_percent_label,col,row,1,1);
 
@@ -537,28 +563,6 @@ void tx_menu(GtkWidget *parent) {
   gtk_grid_attach(GTK_GRID(grid),tune_percent,col,row,1,1);
   g_signal_connect(tune_percent,"value-changed",G_CALLBACK(tune_percent_cb),NULL);
 
-  row++;
-  col=0;
-
-  GtkWidget *swr_protection_b=gtk_check_button_new_with_label("SWR Protection");
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (swr_protection_b), transmitter->swr_protection);
-  gtk_widget_show(swr_protection_b);
-  gtk_grid_attach(GTK_GRID(grid),swr_protection_b,col,row,1,1);
-  g_signal_connect(swr_protection_b,"toggled",G_CALLBACK(swr_protection_cb),NULL);
-
-  col++;
-
-  GtkWidget *swr_alarm_label=gtk_label_new(NULL);
-  gtk_label_set_markup(GTK_LABEL(swr_alarm_label), "<b>SWR alarm at:</b>");
-  gtk_widget_set_halign(swr_alarm_label, GTK_ALIGN_START);
-  gtk_widget_show(swr_alarm_label);
-  gtk_grid_attach(GTK_GRID(grid),swr_alarm_label,col,row,1,1);
-
-  col++;
-  GtkWidget *swr_alarm=gtk_spin_button_new_with_range(1.0,10.0,0.1);
-  gtk_spin_button_set_value(GTK_SPIN_BUTTON(swr_alarm),(double)transmitter->swr_alarm);
-  gtk_grid_attach(GTK_GRID(grid),swr_alarm,col,row,1,1);
-  g_signal_connect(swr_alarm,"value-changed",G_CALLBACK(swr_alarm_cb),NULL);
 
   gtk_container_add(GTK_CONTAINER(content),grid);
 

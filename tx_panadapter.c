@@ -50,8 +50,6 @@ static gdouble hz_per_pixel;
 static gdouble filter_left=0.0;
 static gdouble filter_right=0.0;
 
-static gint tx_fifo_count=0;        // timer for FIFO underrun message
-static gint swr_protection_count=0; // timer for SWR protection message
 
 /* Create a new surface of the appropriate size to store our scribbles */
 static gboolean
@@ -244,7 +242,7 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   }
 
   // plot frequency markers
-  long long half= tx->dialog ? 3000LL : 12000LL; //(long long)(tx->output_rate/2);
+  long long half= duplex ? 3000LL : 12000LL; //(long long)(tx->output_rate/2);
   long long frequency;
   if(vfo[txvfo].ctun) {
     frequency=vfo[txvfo].ctun_frequency;
@@ -355,11 +353,11 @@ void tx_panadapter_update(TRANSMITTER *tx) {
 
 /*
 #ifdef GPIO
-  if(controller==CONTROLLER1 && tx->dialog == NULL) {
+  if(controller==CONTROLLER1 && !duplex) {
     char text[64];
 
     cairo_set_source_rgb(cr,1.0,1.0,0.0);
-    cairo_set_font_size(cr,DISPLAY_FONT_SIZE3);
+    cairo_set_font_size(cr, DISPLAY_FONT_SIZE3);
     if(ENABLE_E2_ENCODER) {
       cairo_move_to(cr, display_width-200,70);
       sprintf(text,"%s (%s)",encoder_string[e2_encoder_action],sw_string[e2_sw_action]);
@@ -384,7 +382,6 @@ void tx_panadapter_update(TRANSMITTER *tx) {
 #ifdef PURESIGNAL
   if(tx->puresignal) {
     cairo_set_source_rgb(cr,0.0,1.0,0.0);
-    cairo_set_font_size(cr,DISPLAY_FONT_SIZE2);
     cairo_move_to(cr,display_width/2,display_height-10);
     cairo_show_text(cr, "PureSignal");
 
@@ -400,65 +397,27 @@ void tx_panadapter_update(TRANSMITTER *tx) {
   }
 #endif
 
-  if(tx->dialog) {
+  if(duplex) {
     char text[64];
-    cairo_set_source_rgb(cr,1.0,0.2,0.0);
+    cairo_set_source_rgb(cr,1.0,0.0,0.0);
     cairo_set_font_size(cr, DISPLAY_FONT_SIZE3);
-    int row=0;
 
-
-    if (protocol == ORIGINAL_PROTOCOL || protocol == NEW_PROTOCOL) {
-      //
-      // Power values not available for SoapySDR
-      //
-      if(transmitter->fwd<0.0001 || band->disablePA || !pa_enabled) {
-        sprintf(text,"FWD %0.3f W",transmitter->exciter);
-      } else {
-        static int max_count=0;
-        static double max_level=0.0;
-        if(transmitter->fwd > max_level || max_count==10) {
-          max_level=transmitter->fwd;
-          max_count=0;
-        }
-        max_count++;
-        sprintf(text,"FWD %0.1f W",max_level);
-      }
-      row += 15;
-      cairo_move_to(cr,10,row);
-      cairo_show_text(cr, text);
-      //
-      // Since colour is already red, no special
-      // action for "high SWR" warning
-      //
-      sprintf(text,"SWR 1:%1.1f",transmitter->swr);
-      row +=15;
-      cairo_move_to(cr,10,row);
-      cairo_show_text(cr, text);
+    if(transmitter->fwd<0.0001 || band->disablePA) {
+      sprintf(text,"FWD: %0.3f",transmitter->exciter);
+    } else {
+      sprintf(text,"FWD: %0.3f",transmitter->fwd);
     }
-
-    row +=15;
-    sprintf(text,"ALC %2.1f dB",transmitter->alc);
-    cairo_move_to(cr,10,row);
+    cairo_move_to(cr,10,15);
     cairo_show_text(cr, text);
 
-  }
-  //
-  // If the SWR protection has been triggered, display message for three seconds
-  //
-  if (tx->dialog==NULL && display_swr_protection) {
-    char text[64];
-    cairo_set_source_rgb(cr,1.0,0.2,0.0);
-    cairo_set_font_size(cr,DISPLAY_FONT_SIZE3);
-    cairo_move_to(cr, 260.0, 30.0);
-    sprintf(text,"! High SWR > %2.1f", tx->swr_alarm);
+    sprintf(text,"REV: %0.3f",transmitter->rev);
+    cairo_move_to(cr,10,30);
     cairo_show_text(cr, text);
-    cairo_move_to(cr, 260.0, 50.0);
-    cairo_show_text(cr, "! Drive set to zero");
-    swr_protection_count++;
-    if (swr_protection_count >= 3*tx->fps) {
-      display_swr_protection = FALSE;
-      swr_protection_count=0;
-    }
+
+    sprintf(text,"ALC: %0.3f",transmitter->alc);
+    cairo_move_to(cr,10,45);
+    cairo_show_text(cr, text);
+
   }
 
   if(tx->dialog==NULL && protocol==ORIGINAL_PROTOCOL && device==DEVICE_HERMES_LITE2) {
@@ -475,25 +434,6 @@ void tx_panadapter_update(TRANSMITTER *tx) {
     sprintf(text,"%0.0fmA",c);
     cairo_move_to(cr, 160.0, 30.0);
     cairo_show_text(cr, text);
-
-    if (tx_fifo_overrun || tx_fifo_underrun) {
-      cairo_set_source_rgb(cr,1.0,0.0,0.0);
-      if (tx_fifo_underrun) {
-        cairo_move_to(cr, 220.0, 30.0);
-        cairo_show_text(cr, "Underrun");
-      }
-      if (tx_fifo_overrun) {
-        cairo_move_to(cr, 300.0, 30.0);
-        cairo_show_text(cr, "Overrun");
-      }
-      // display for 2 seconds
-      tx_fifo_count++;
-      if (tx_fifo_count >= 2*tx->fps) {
-        tx_fifo_underrun=0;
-        tx_fifo_overrun=0;
-        tx_fifo_count=0;
-      }
-    }
   }
 
   cairo_destroy (cr);

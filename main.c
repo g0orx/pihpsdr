@@ -198,7 +198,7 @@ static int init(void *data) {
   //
   char *c=getcwd(wisdom_directory, sizeof(wisdom_directory));
   strcpy(&wisdom_directory[strlen(wisdom_directory)],"/");
-  g_print("Securing wisdom file in directory: %s\n", wisdom_directory);
+  fprintf(stderr,"Securing wisdom file in directory: %s\n", wisdom_directory);
   status_text("Checking FFTW Wisdom file ...");
   wisdom_running=1;
   pthread_create(&wisdom_thread_id, NULL, wisdom_thread, wisdom_directory);

@@ -26,6 +26,6 @@
 #define POWER 1
 
 extern GtkWidget* meter_init(int width,int height,GtkWidget *parent);
-extern void meter_update(RECEIVER *rx,int meter_type,double value,double reverse,double exciter,double alc,double swr);
+extern void meter_update(RECEIVER *rx,int meter_type,double value,double reverse,double exciter,double alc);
 
 #endif

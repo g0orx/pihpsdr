@@ -79,6 +79,12 @@ int ENABLE_CW_BUTTONS=1;
 int CW_ACTIVE_LOW=1;
 #endif
 
+#ifdef PTT
+int ENABLE_PTT_GPIO=1;
+int PTT_GPIO=14;
+int PTT_ACTIVE_LOW=1;
+#endif
+
 enum {
   TOP_ENCODER,
   BOTTOM_ENCODER
@@ -348,7 +354,7 @@ static void initialiseEpoch() {
   epochMilli = (uint64_t)ts.tv_sec * (uint64_t)1000    + (uint64_t)(ts.tv_nsec / 1000000L) ;
 }
 
-unsigned int millis () {
+static unsigned int millis () {
   uint64_t now ;
   struct  timespec ts ;
   clock_gettime (CLOCK_MONOTONIC_RAW, &ts) ;
@@ -508,45 +514,6 @@ static void process_encoder(int e,int l,int addr,int val) {
   g_mutex_unlock(&encoder_mutex);
 }
 
-void do_switch_action(enum ACTION action, enum ACTION_MODE mode) {
-
-  //
-  // for a given action with mode==PRESSED or mode==RELEASED,
-  // put the "action" into the GTK idle queue. This is done here because
-  // we want to process CW events outside the GTK queue
-  // (this is also called from i2c.c)
-
-  PROCESS_ACTION *a;
-
-  switch (action) {
-    case CW_KEYER:
-      if (mode == PRESSED && cw_keyer_internal == 0) {
-       cw_key_down=960000;  // max. 20 sec to protect hardware
-       cw_key_up=0;
-       cw_key_hit=1;
-     } else {
-       cw_key_down=0;
-       cw_key_up=0;
-     }
-     break;
-#ifdef LOCALCW
-   case CW_LEFT:
-     keyer_event(1, CW_ACTIVE_LOW ? (mode==PRESSED) : (mode==RELEASED));
-     break;
-   case CW_RIGHT:
-     keyer_event(0, CW_ACTIVE_LOW ? (mode==PRESSED) : (mode==RELEASED));
-     break;
-#endif
-   default:
-     a=g_new(PROCESS_ACTION,1);
-     a->action=action;
-     a->mode=mode;
-     g_idle_add(process_action,a);
-  }              
-
-  
-}
-
 static void process_edge(int offset,int value) {
   gint i;
   unsigned int t;
@@ -589,13 +556,17 @@ static void process_edge(int offset,int value) {
       found=TRUE;
       break;
     } else if(encoders[i].switch_enabled && encoders[i].switch_address==offset) {
+      //g_print("%s: found %d encoder %d switch\n",__FUNCTION__,offset,i);
       t=millis();
       //g_print("%s: found %d encoder %d switch value=%d t=%u\n",__FUNCTION__,offset,i,value,t);
       if (t<encoders[i].switch_debounce) {
         return;
       }
       encoders[i].switch_debounce=t+settle_time;
-      do_switch_action(encoders[i].switch_function, value);
+      PROCESS_ACTION *a=g_new(PROCESS_ACTION,1);
+      a->action=encoders[i].switch_function;
+      a->mode=value;
+      g_idle_add(process_action,a);
       found=TRUE;
       break;
     }
@@ -621,7 +592,10 @@ static void process_edge(int offset,int value) {
         }
 //g_print("%s: switches=%p function=%d (%s)\n",__FUNCTION__,switches,switches[i].switch_function,sw_string[switches[i].switch_function]);
         switches[i].switch_debounce=t+settle_time;
-        do_switch_action(switches[i].switch_function, value);
+        PROCESS_ACTION *a=g_new(PROCESS_ACTION,1);
+        a->action=switches[i].switch_function;
+        a->mode=value;
+        g_idle_add(process_action,a);
         break;
       }
     }
@@ -1144,7 +1118,7 @@ void gpio_cw_sidetone_set(int level) {
 #else
     if((rc=gpiod_ctxless_set_value_ext(gpio_device,SIDETONE_GPIO,level,FALSE,consumer,NULL,NULL,0))<0) {
 #endif
-	g_print("%s: err=%d\n",__FUNCTION__,rc);
+      g_print("%s: err=%d\n",__FUNCTION__,rc);
     }
 #endif
   }

@@ -46,6 +46,7 @@ static int meter_height;
 static int last_meter_type=SMETER;
 static double max_level=-200.0;
 static int max_count=0;
+static int max_reverse=0;
 
 static void
 meter_clear_surface (void)
@@ -141,7 +142,7 @@ fprintf(stderr,"meter_init: width=%d height=%d\n",width,height);
 }
 
 
-void meter_update(RECEIVER *rx,int meter_type,double value,double reverse,double exciter,double alc,double swr) {
+void meter_update(RECEIVER *rx,int meter_type,double value,double reverse,double exciter,double alc) {
   
   double level;
   char sf[32];
@@ -190,11 +191,6 @@ void meter_update(RECEIVER *rx,int meter_type,double value,double reverse,double
     }
   }
 
-//
-// DL1YCF
-// there is a lot of code repetition in the analog and digital meter cases
-// which should be unified.
-//
 if(analog_meter) {
   cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
   cairo_paint (cr);
@@ -204,7 +200,17 @@ if(analog_meter) {
   switch(meter_type) {
     case SMETER:
       {
-      level=value + (double)rx_gain_calibration + (double)adc[rx->adc].attenuation - adc[rx->adc].gain;
+      if(have_rx_gain) {
+        level=value+rx_gain_calibration-adc[rx->adc].attenuation;
+      } else {
+        level=value+(double)adc[rx->adc].attenuation;
+      }
+#ifdef SOAPYSDR
+      if(protocol==SOAPYSDR_PROTOCOL) {
+        //level-=rx->rf_gain;
+        level-=adc[rx->id].gain;
+      }
+#endif
       if (filter_board == CHARLY25) {
 	// preamp/dither encodes the preamp level
         if (rx->preamp) level -= 18.0;
@@ -453,16 +459,18 @@ if(analog_meter) {
       cairo_move_to(cr, 80, meter_height-22);
       cairo_show_text(cr, sf);
 
-      if (swr > transmitter->swr_alarm) {
-        cairo_set_source_rgb(cr, 1.0, 0.2, 0.0);  // display SWR in red color
+      double swr;
+      if (max_level > reverse) {
+        //swr=(max_level+reverse)/(max_level-reverse);
+	// fix fhanks to JW1TWP
+	swr=(1+sqrt(max_level/reverse))/(1-sqrt(max_level/reverse));
       } else {
-        cairo_set_source_rgb (cr, 1.0, 1.0, 1.0); // display SWR in white color
+        swr=999.9;
       }
       sprintf(sf,"SWR: %1.1f:1",swr);
       cairo_move_to(cr, 60, meter_height-12);
       cairo_show_text(cr, sf);
 
-      cairo_set_source_rgb (cr, 1.0, 1.0, 1.0);
       sprintf(sf,"ALC: %2.1f dB",alc);
       cairo_move_to(cr, 60, meter_height-2);
       cairo_show_text(cr, sf);
@@ -561,6 +569,7 @@ if(analog_meter) {
       max_level=-200;
     } else {
       max_level=0;
+      max_reverse=0;
     }
   }
 
@@ -570,12 +579,23 @@ if(analog_meter) {
       // value is dBm
       text_location=10;
       offset=5.0;
-      level=value + (double)rx_gain_calibration + (double)adc[rx->adc].attenuation - adc[rx->adc].gain;
+      if(have_rx_gain) {
+        level=value+rx_gain_calibration-adc[rx->adc].attenuation;
+      } else {
+        level=value+(double)adc[rx->adc].attenuation;
+      }
+#ifdef SOAPYSDR
+      if(protocol==SOAPYSDR_PROTOCOL) {
+        //level-=rx->rf_gain;
+        level-=adc[rx->id].gain;
+      }
+#endif
       if (filter_board == CHARLY25) {
 	// preamp/dither encodes the preamp level
         if (rx->preamp) level -= 18.0;
         if (rx->dither) level -= 18.0;
       }
+
       //
       // Assume that alex_attenuation is set correctly if we have an ALEX board
       //
@@ -674,37 +694,29 @@ if(analog_meter) {
             CAIRO_FONT_WEIGHT_BOLD);
       cairo_set_font_size(cr, DISPLAY_FONT_SIZE2);
 
-      if (protocol == ORIGINAL_PROTOCOL || protocol == NEW_PROTOCOL) {
-	//
-	// Power levels not available for Soapy
-	//
-        if(level>max_level || max_count==10) {
+      if(level>max_level || max_count==10) {
           max_level=level;
           max_count=0;
-        }
-        max_count++;
+      }
+      max_count++;
 
-        sprintf(sf,"FWD: %d%s",(int)max_level,units);
-        cairo_move_to(cr, 10, 35);
-        cairo_show_text(cr, sf);
+      sprintf(sf,"FWD: %d%s",(int)max_level,units);
+      cairo_move_to(cr, 10, 35);
+      cairo_show_text(cr, sf);
 
-        if (swr > transmitter->swr_alarm) {
-          cairo_set_source_rgb(cr, 1.0, 0.2, 0.0);  // display SWR in red color
-        } else {
-          cairo_set_source_rgb (cr, 1.0, 1.0, 1.0); // display SWR in white color
-        }
-
-
-        cairo_select_font_face(cr, DISPLAY_FONT,
+      double swr;
+      if (max_level > reverse) {
+        swr=(max_level+reverse)/(max_level-reverse);
+      } else {
+        swr=999.9;
+      }
+      cairo_select_font_face(cr, DISPLAY_FONT,
             CAIRO_FONT_SLANT_NORMAL,
             CAIRO_FONT_WEIGHT_BOLD);
-        cairo_set_font_size(cr, DISPLAY_FONT_SIZE2);
-        sprintf(sf,"SWR: %1.1f:1",swr);
-        cairo_move_to(cr, 10, 55);
-        cairo_show_text(cr, sf);
-      }
-
-      cairo_set_source_rgb (cr, 1.0, 1.0, 1.0);  // revert to white color
+      cairo_set_font_size(cr, DISPLAY_FONT_SIZE2);
+      sprintf(sf,"SWR: %1.1f:1",swr);
+      cairo_move_to(cr, 10, 55);
+      cairo_show_text(cr, sf);
 
       sprintf(sf,"ALC: %2.1f dB",alc);
       cairo_move_to(cr, meter_width/2, 35);

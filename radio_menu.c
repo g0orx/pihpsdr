@@ -85,7 +85,7 @@ static gboolean delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_d
 static void rf_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
   ADC *adc=(ADC *)data;
   adc->gain=gtk_spin_button_get_value(GTK_SPIN_BUTTON(widget));
-
+  
   if(radio->device==SOAPYSDR_USB_DEVICE) {
     soapy_protocol_set_gain(receiver[0]);
   }
@@ -146,7 +146,7 @@ static void agc_changed_cb(GtkWidget *widget, gpointer data) {
   soapy_protocol_set_automatic_gain(active_receiver,agc);
   if(!agc) {
     soapy_protocol_set_gain(active_receiver);
-  }
+  } 
 }
 
 /*
@@ -262,54 +262,55 @@ static void sat_cb(GtkWidget *widget, gpointer data) {
 }
 
 void load_filters(void) {
-  BAND *band;
-  switch (filter_board) {
-      case N2ADR:
-        // set OC outputs for each band according to the N2ADR board requirements
-        band=band_get_band(band160);
-        band->OCrx=band->OCtx=1;
-        band=band_get_band(band80);
-        band->OCrx=band->OCtx=66;
-        band=band_get_band(band60);
-        band->OCrx=band->OCtx=68;
-        band=band_get_band(band40);
-        band->OCrx=band->OCtx=68;
-        band=band_get_band(band30);
-        band->OCrx=band->OCtx=72;
-        band=band_get_band(band20);
-        band->OCrx=band->OCtx=72;
-        band=band_get_band(band17);
-        band->OCrx=band->OCtx=80;
-        band=band_get_band(band15);
-        band->OCrx=band->OCtx=80;
-        band=band_get_band(band12);
-        band->OCrx=band->OCtx=96;
-        band=band_get_band(band10);
-        band->OCrx=band->OCtx=96;
-        break;
-    case ALEX:
-    case APOLLO:
-    case CHARLY25:
-        // This is most likely not necessary here, but can do no harm
-        set_alex_rx_antenna();
-        set_alex_tx_antenna();
-        break;
-    case NONE:
-        break;
-    default:
-        break;
+  if(filter_board==N2ADR) {
+    // set OC filters
+    BAND *band;
+    band=band_get_band(band160);
+    band->OCrx=band->OCtx=1;
+    band=band_get_band(band80);
+    band->OCrx=band->OCtx=66;
+    band=band_get_band(band60);
+    band->OCrx=band->OCtx=68;
+    band=band_get_band(band40);
+    band->OCrx=band->OCtx=68;
+    band=band_get_band(band30);
+    band->OCrx=band->OCtx=72;
+    band=band_get_band(band20);
+    band->OCrx=band->OCtx=72;
+    band=band_get_band(band17);
+    band->OCrx=band->OCtx=80;
+    band=band_get_band(band15);
+    band->OCrx=band->OCtx=80;
+    band=band_get_band(band12);
+    band->OCrx=band->OCtx=96;
+    band=band_get_band(band10);
+    band->OCrx=band->OCtx=96;
+    if(protocol==NEW_PROTOCOL) {
+      schedule_high_priority();
+    }
+    return;
   }
-  //
-  // After doing filter-board-specific actions,
-  // schedule "General" and "HighPrio" packets for P2
-  //
+
   if(protocol==NEW_PROTOCOL) {
     filter_board_changed();
-    schedule_high_priority();
   }
-  //
-  // This switches between StepAttenuator slider and CHARLY25 ATT/Preamp checkboxes
-  //
+
+  if(filter_board==ALEX || filter_board==APOLLO) {
+    BAND *band=band_get_current_band();
+    // mode and filters have nothing to do with the filter board
+    //BANDSTACK_ENTRY* entry=bandstack_entry_get_current();
+    //setFrequency(entry->frequency);
+    //setMode(entry->mode);
+    //set_mode(active_receiver,entry->mode);
+    //FILTER* band_filters=filters[entry->mode];
+    //FILTER* band_filter=&band_filters[entry->filter];
+    //set_filter(active_receiver,band_filter->low,band_filter->high);
+    if(active_receiver->id==0) {
+      set_alex_rx_antenna(band->alexRxAntenna);
+      set_alex_tx_antenna(band->alexTxAntenna);
+      set_alex_attenuation(band->alexAttenuation);
+    }
+  }
   att_type_changed();
 }
 
@@ -573,7 +574,7 @@ void radio_menu(GtkWidget *parent) {
         }
         g_signal_connect(sample_rate_combo_box,"changed",G_CALLBACK(sample_rate_cb),radio);
         gtk_grid_attach(GTK_GRID(grid),sample_rate_combo_box,col,row,1,1);
-        row++;
+	row++;
       } else {
         GtkWidget *sample_rate_label=gtk_label_new(NULL);
         gtk_label_set_markup(GTK_LABEL(sample_rate_label), "<b>Sample Rate:</b>");
@@ -771,14 +772,6 @@ void radio_menu(GtkWidget *parent) {
     g_signal_connect(mic_src_b,"toggled",G_CALLBACK(micsource_cb),NULL);
     row++;
 
-    //
-    // If we arrive here and atlas_penelope is still "unknown", 
-    // set it to "no penelope" (from now on, it may only take
-    // the values 0 and 1).
-    //
-    if (atlas_penelope == 2) {
-      atlas_penelope = 0;
-    }
     GtkWidget *pene_tx_b=gtk_check_button_new_with_label("Penelope TX");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (pene_tx_b), atlas_penelope);
     gtk_grid_attach(GTK_GRID(grid),pene_tx_b,col,row,1,1);
@@ -829,7 +822,7 @@ void radio_menu(GtkWidget *parent) {
 
   row++;
   col=0;
-
+ 
   GtkWidget *calibration_label=gtk_label_new(NULL);
   gtk_label_set_markup(GTK_LABEL(calibration_label), "<b>Frequency\nCalibration(Hz):</b>");
   gtk_grid_attach(GTK_GRID(grid),calibration_label,col,row,1,1);
@@ -902,7 +895,7 @@ void radio_menu(GtkWidget *parent) {
         gtk_spin_button_set_value(GTK_SPIN_BUTTON(rx_gains[i]),(double)value);
         gtk_grid_attach(GTK_GRID(grid),rx_gains[i],col,row,1,1);
         g_signal_connect(rx_gains[i],"value_changed",G_CALLBACK(rx_gain_value_changed_cb),&adc[0]);
-
+  
         row++;
       }
     } else {

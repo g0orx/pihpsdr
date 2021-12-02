@@ -316,9 +316,6 @@ void rx_menu(GtkWidget *parent) {
       if (filter_board == ALEX && active_receiver->adc == 0
           && ((protocol==ORIGINAL_PROTOCOL && device != DEVICE_ORION2) || (protocol==NEW_PROTOCOL && device != NEW_DEVICE_ORION2))) {
   
-        //
-        // The "Alex ATT" value is stored in receiver[0] no matter how the ADCs are selected
-        //
         GtkWidget *alex_att_label=gtk_label_new(NULL);
         gtk_label_set_markup(GTK_LABEL(alex_att_label), "<b>Alex Attenuator</b>");
         gtk_grid_attach(GTK_GRID(grid), alex_att_label, x, 5, 1, 1);
@@ -327,7 +324,7 @@ void rx_menu(GtkWidget *parent) {
           gchar button_text[] = "xx dB";
           sprintf(button_text, "%d dB", i*10);
           GtkWidget *alex_att_b=gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(last_alex_att_b), button_text);
-          gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(alex_att_b), receiver[0]->alex_attenuation == i);
+          gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(alex_att_b), active_receiver->alex_attenuation == i);
           gtk_grid_attach(GTK_GRID(grid), alex_att_b, x, 6 + i, 1, 1);
           g_signal_connect(alex_att_b, "toggled", G_CALLBACK(alex_att_cb), GINT_TO_POINTER(i));
           last_alex_att_b = alex_att_b;
@@ -377,18 +374,16 @@ void rx_menu(GtkWidget *parent) {
     i=gtk_combo_box_get_active(GTK_COMBO_BOX(output));
     if (i < 0) {
       gtk_combo_box_set_active(GTK_COMBO_BOX(output),0);
-      if (active_receiver->audio_name != NULL) {
-        g_free(active_receiver->audio_name);
-        active_receiver->audio_name=g_new(gchar,strlen(output_devices[0].name)+1);
-        strcpy(active_receiver->audio_name,output_devices[0].name);
-      }
     }
 
     gtk_grid_attach(GTK_GRID(grid),output,x,++row,1,1);
     g_signal_connect(output,"changed",G_CALLBACK(local_output_changed_cb),NULL);
 
+    /*
     row=0;
     x++;
+    */
+    row++;
 
     GtkWidget *stereo_b=gtk_radio_button_new_with_label(NULL,"Stereo");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (stereo_b), active_receiver->audio_channel==STEREO);

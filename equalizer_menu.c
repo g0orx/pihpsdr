@@ -30,8 +30,6 @@
 #include "equalizer_menu.h"
 #include "radio.h"
 #include "channel.h"
-#include "ext.h"
-#include "vfo.h"
 
 static GtkWidget *parent_window=NULL;
 
@@ -88,58 +86,26 @@ static gboolean rx_rb_cb (GtkWidget *widget, GdkEventButton *event, gpointer dat
   return FALSE;
 }
 
-void set_eq() {
-    SetTXAGrphEQ(transmitter->id, tx_equalizer);
-    SetTXAEQRun(transmitter->id, enable_tx_equalizer);
-    SetRXAGrphEQ(active_receiver->id, rx_equalizer);
-    SetRXAEQRun(active_receiver->id, enable_rx_equalizer);
-}
-
-void update_eq() {
-#ifdef CLIENT_SERVER
-  if(radio_is_remote) {
-     //
-     // insert here any function to inform the client of equalizer setting
-     // changes, if this becomes part of the protocol
-     //
-  } else {
-#endif
-    set_eq();
-#ifdef CLIENT_SERVER
-  }
-#endif
-}
-
 static gboolean enable_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
-  int m;
   if(tx_menu) {
     enable_tx_equalizer=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-    m=vfo[get_tx_vfo()].mode;
-    mode_settings[m].en_txeq = enable_tx_equalizer;
+    SetTXAEQRun(transmitter->id, enable_tx_equalizer);
   } else {
     enable_rx_equalizer=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-    m=vfo[active_receiver->id].mode;
-    mode_settings[m].en_rxeq = enable_rx_equalizer;
+    SetRXAEQRun(active_receiver->id, enable_rx_equalizer);
   }
-  update_eq();
-  // EQ status is now shown in VFO bar
-  g_idle_add(ext_vfo_update, NULL);
   return FALSE;
 }
 
 static void value_changed_cb (GtkWidget *widget, gpointer data) {
   int i=GPOINTER_TO_UINT(data);
-  int m;
   if(tx_menu) {
     tx_equalizer[i]=(int)gtk_range_get_value(GTK_RANGE(widget));
-    m=vfo[get_tx_vfo()].mode;
-    mode_settings[m].txeq[i]=tx_equalizer[i];
+    SetTXAGrphEQ(transmitter->id, tx_equalizer);
   } else {
     rx_equalizer[i]=(int)gtk_range_get_value(GTK_RANGE(widget));
-    m=vfo[active_receiver->id].mode;
-    mode_settings[m].rxeq[i]=rx_equalizer[i];
+    SetRXAGrphEQ(active_receiver->id, rx_equalizer);
   }
-  update_eq();
 }
 
 void equalizer_menu(GtkWidget *parent) {

@@ -56,7 +56,6 @@ void configure_gpio(GtkWidget *parent) {
   gint row=0;
   gint col=0;
   GtkWidget *widget;
-  GtkWidget *grid;
   int i;
 
   gpio_restore_state();
@@ -86,10 +85,7 @@ void configure_gpio(GtkWidget *parent) {
       break;
   }
 
-  if (max_encoders > 0) {
-  // No indent for this block to facilitate "diff"
-
-  grid=gtk_grid_new();
+  GtkWidget *grid=gtk_grid_new();
   gtk_grid_set_column_homogeneous(GTK_GRID(grid),FALSE);
   gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
   gtk_grid_set_column_spacing (GTK_GRID(grid),2);
@@ -174,18 +170,18 @@ void configure_gpio(GtkWidget *parent) {
     gtk_spin_button_set_value (GTK_SPIN_BUTTON(widget),encoders[i].bottom_encoder_address_a);
     gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
     col++;
-
+    
     widget=gtk_spin_button_new_with_range (0.0,28.0,1.0);
     gtk_spin_button_set_value (GTK_SPIN_BUTTON(widget),encoders[i].bottom_encoder_address_b);
     gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
     col++;
-
+    
     if(controller==CONTROLLER2_V2 && i<(max_encoders-1)) {
       widget=gtk_spin_button_new_with_range (0.0,28.0,1.0);
       gtk_spin_button_set_value (GTK_SPIN_BUTTON(widget),encoders[i].top_encoder_address_a);
       gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
       col++;
- 
+   
       widget=gtk_spin_button_new_with_range (0.0,28.0,1.0);
       gtk_spin_button_set_value (GTK_SPIN_BUTTON(widget),encoders[i].top_encoder_address_b);
       gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);
@@ -203,10 +199,10 @@ void configure_gpio(GtkWidget *parent) {
     col=0;
   }
   gtk_notebook_append_page(GTK_NOTEBOOK(notebook),grid,gtk_label_new("Encoders"));
-  }
 
 
   // switches
+  if(controller==CONTROLLER1) {
     gint max_switches=MAX_SWITCHES;
     switch(controller) {
       case NO_CONTROLLER:
@@ -223,7 +219,6 @@ void configure_gpio(GtkWidget *parent) {
         break;
     }
   
-  if (max_switches > 0) {
     grid=gtk_grid_new();
     gtk_grid_set_column_homogeneous(GTK_GRID(grid),FALSE);
     gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
@@ -272,16 +267,19 @@ void configure_gpio(GtkWidget *parent) {
   }
 
   if(controller==CONTROLLER2_V1 || controller==CONTROLLER2_V2) {
-    char text[16];
     grid=gtk_grid_new();
     gtk_grid_set_column_homogeneous(GTK_GRID(grid),FALSE);
     gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
-    gtk_grid_set_column_spacing (GTK_GRID(grid),10);
+    gtk_grid_set_column_spacing (GTK_GRID(grid),2);
     gtk_grid_set_row_spacing (GTK_GRID(grid),2);
 
     row=0;
     col=0;
  
+    char text[16];
+    grid=gtk_grid_new();
+    gtk_grid_set_column_spacing (GTK_GRID(grid),10);
+
     widget=gtk_label_new(NULL);
     gtk_label_set_markup(GTK_LABEL(widget),"<b>I2C Device</b>");
     gtk_grid_attach(GTK_GRID(grid),widget,col,row,1,1);

@@ -36,6 +36,8 @@ extern int n_input_devices;
 extern AUDIO_DEVICE input_devices[MAX_AUDIO_DEVICES];
 extern int n_output_devices;
 extern AUDIO_DEVICE output_devices[MAX_AUDIO_DEVICES];
+extern GMutex audio_mutex;
+extern gint local_microphone_buffer_size;
 
 extern int audio_open_input();
 extern void audio_close_input();

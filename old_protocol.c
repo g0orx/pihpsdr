@@ -68,6 +68,7 @@
 
 #define SYNC 0x7F
 #define OZY_BUFFER_SIZE 512
+//#define OUTPUT_BUFFER_SIZE 1024
 
 // ozy command and control
 #define MOX_DISABLED    0x00
@@ -119,6 +120,38 @@ enum {
 };
 static int state=SYNC_0;
 
+//#define DEBUG_PROTO 1
+
+#ifdef DEBUG_PROTO
+/*
+ * This is for debugging the protocol
+ */
+
+static int C3_RX1_OUT=-1;
+static int C3_RX1_ANT=-1;
+static int C4_TX_REL=-1;
+static int PC_PTT=-1;
+static int CASE1=-1;
+static int CASE2=-1;
+
+static int C2_FB=-1;
+static int C3_HPF=-1;
+static int C3_BP=-1;
+static int C3_LNA=-1;
+static int C3_TXDIS=-1;
+
+static int C4_LPF=-1;
+
+static int C1_DRIVE=-1;
+
+static int proto_mod=0;
+static int proto_val;
+
+#define CHECK(x, var) proto_val=(x); if ((x) != var) { proto_mod=1; var=proto_val;}
+#endif
+
+//static int buffer_size=BUFFER_SIZE;
+
 static int display_width;
 
 static int speed;
@@ -130,6 +163,8 @@ static int data_socket=-1;
 static int tcp_socket=-1;
 static struct sockaddr_in data_addr;
 
+static int output_buffer_size;
+
 static unsigned char control_in[5]={0x00,0x00,0x00,0x00,0x00};
 
 static double tuning_phase;
@@ -140,7 +175,6 @@ static long ep4_sequence;
 
 static uint32_t last_seq_num=-0xffffffff;
 static int suppress_ozy_packet = 0;
-static int tx_fifo_flag = 0;
 
 static int current_rx=0;
 
@@ -283,7 +317,7 @@ void old_protocol_init(int rx,int pixels,int rate) {
   else
 #endif
   {
-    g_print("old_protocol starting receive thread\n");
+    g_print("old_protocol starting receive thread: buffer_size=%d output_buffer_size=%d\n",buffer_size,output_buffer_size);
     if (radio->use_tcp) {
       open_tcp_socket();
     } else  {
@@ -315,7 +349,7 @@ void old_protocol_init(int rx,int pixels,int rate) {
 //
 static void start_usb_receive_threads()
 {
-  g_print("old_protocol starting USB receive thread\n");
+  g_print("old_protocol starting USB receive thread: buffer_size=%d\n",buffer_size);
 
   ozy_EP6_rx_thread_id = g_thread_new( "OZY EP6 RX", ozy_ep6_rx_thread, NULL);
   if( ! ozy_EP6_rx_thread_id )
@@ -405,13 +439,6 @@ static void open_udp_socket() {
     if (setsockopt(tmp, SOL_SOCKET, SO_RCVBUF, &optval, sizeof(optval))<0) {
       perror("data_socket: SO_RCVBUF");
     }
-#ifdef __APPLE__
-    //optval = 0x10;  // IPTOS_LOWDELAY
-    optval = 0xb8;  // DSCP EF
-    if(setsockopt(tmp, IPPROTO_IP, IP_TOS, &optval, sizeof(optval))<0) {
-      perror("data_socket: IP_TOS");
-    }
-#endif
 
     //
     // set a timeout for receive
@@ -475,13 +502,6 @@ static void open_tcp_socket() {
     if (setsockopt(tmp, SOL_SOCKET, SO_RCVBUF, &optval, sizeof(optval))<0) {
       perror("tcp_socket: SO_RCVBUF");
     }
-#ifdef __APPLE__
-    //optval = 0x10;  // IPTOS_LOWDELAY
-    optval = 0xb8;  // DSCP EF
-    if(setsockopt(tmp, IPPROTO_IP, IP_TOS, &optval, sizeof(optval))<0) {
-      perror("data_socket: IP_TOS");
-    }
-#endif
     tcp_socket=tmp;
     g_print("TCP socket established: %d\n", tcp_socket);
 }
@@ -555,11 +575,7 @@ static gpointer receive_thread(gpointer arg) {
 	      // A sequence error with a seqnum of zero usually indicates a METIS restart
 	      // and is no error condition
               if (sequence != 0 && sequence != last_seq_num+1) {
-		struct timespec ts;
-		double now;
-		clock_gettime(CLOCK_MONOTONIC, &ts);
-		now=ts.tv_sec + 1E-9*ts.tv_nsec;
-		g_print("SEQ ERROR: T=%0.3f last %ld, recvd %ld\n", now, (long) last_seq_num, (long) sequence);
+		g_print("SEQ ERROR: last %ld, recvd %ld\n", (long) last_seq_num, (long) sequence);
                 sequence_errors++;
 	      }
 	      last_seq_num=sequence;
@@ -799,6 +815,233 @@ static int how_many_receivers() {
     return ret;
 }
 
+/*
+static void process_ozy_input_buffer(unsigned char  *buffer) {
+  int i;
+  int r;
+  int b=0;
+  int previous_ptt;
+  int previous_dot;
+  int previous_dash;
+  int left_sample;
+  int right_sample;
+  short mic_sample;
+  float fsample;
+  double left_sample_double;
+  double right_sample_double;
+  double gain=pow(10.0, mic_gain / 20.0);
+  double left_sample_double_rx;
+  double right_sample_double_rx;
+  double left_sample_double_tx;
+  double right_sample_double_tx;
+  double left_sample_double_main;
+  double right_sample_double_main;
+  double left_sample_double_aux;
+  double right_sample_double_aux;
+
+  int id=active_receiver->id;
+
+  int num_hpsdr_receivers=how_many_receivers();
+  int rxfdbk = rx_feedback_channel();
+  int txfdbk = tx_feedback_channel();
+  int rx1channel = first_receiver_channel();
+  int rx2channel = second_receiver_channel();
+
+  if(buffer[b++]==SYNC && buffer[b++]==SYNC && buffer[b++]==SYNC) {
+    // extract control bytes
+    control_in[0]=buffer[b++];
+    control_in[1]=buffer[b++];
+    control_in[2]=buffer[b++];
+    control_in[3]=buffer[b++];
+    control_in[4]=buffer[b++];
+
+    // do not set ptt. In PURESIGNAL, this would stop the
+    // receiver sending samples to WDSP abruptly.
+    // Do the RX-TX change only via ext_mox_update.
+    previous_ptt=local_ptt;
+    previous_dot=dot;
+    previous_dash=dash;
+    local_ptt=(control_in[0]&0x01)==0x01;
+    dash=(control_in[0]&0x02)==0x02;
+    dot=(control_in[0]&0x04)==0x04;
+
+    if (cw_keyer_internal) {
+      // Stops CAT cw transmission if paddle hit in "internal" CW
+      if ((dash || dot) && cw_keyer_internal) cw_key_hit=1;
+    } else {
+#ifdef LOCALCW
+      //
+      // report "key hit" event to the local keyer
+      // (local keyer will stop CAT cw if necessary)
+      if (dash != previous_dash) keyer_event(0, dash);
+      if (dot  != previous_dot ) keyer_event(1, dot );
+#endif
+    }
+
+    if(previous_ptt!=local_ptt) {
+      g_idle_add(ext_mox_update,(gpointer)(long)(local_ptt));
+    }
+
+    switch((control_in[0]>>3)&0x1F) {
+      case 0:
+        adc_overload=control_in[1]&0x01;
+        if (device != DEVICE_HERMES_LITE2) {
+	  //
+	  // HL2 uses these bits of the protocol for a different purpose:
+	  // C1 unused except the ADC overload bit
+          // C2/C3 contains underflow/overflow and TX FIFO count
+	  //
+          IO1=(control_in[1]&0x02)?0:1;
+          IO2=(control_in[1]&0x04)?0:1;
+          IO3=(control_in[1]&0x08)?0:1;
+          if(mercury_software_version!=control_in[2]) {
+            mercury_software_version=control_in[2];
+            g_print("  Mercury Software version: %d (0x%0X)\n",mercury_software_version,mercury_software_version);
+          }
+          if(penelope_software_version!=control_in[3]) {
+            penelope_software_version=control_in[3];
+            g_print("  Penelope Software version: %d (0x%0X)\n",penelope_software_version,penelope_software_version);
+          }
+        }
+        if(ozy_software_version!=control_in[4]) {
+          ozy_software_version=control_in[4];
+          g_print("FPGA firmware version: %d.%d\n",ozy_software_version/10,ozy_software_version%10);
+        }
+        break;
+      case 1:
+        if (device != DEVICE_HERMES_LITE2) {
+	  //
+	  // HL2 uses C1/C2 for measuring the temperature
+	  //
+          exciter_power=((control_in[1]&0xFF)<<8)|(control_in[2]&0xFF); // from Penelope or Hermes
+          temperature=0;
+        } else {
+          exciter_power=0;
+          temperature+=((control_in[1]&0xFF)<<8)|(control_in[2]&0xFF); // HL2
+          n_temperature++;
+          if(n_temperature==10) {
+            average_temperature=temperature/10;
+            temperature=0;
+            n_temperature=0;
+          }
+	} 
+        alex_forward_power=((control_in[3]&0xFF)<<8)|(control_in[4]&0xFF); // from Alex or Apollo
+        break;
+      case 2:
+        alex_reverse_power=((control_in[1]&0xFF)<<8)|(control_in[2]&0xFF); // from Alex or Apollo
+        if (device != DEVICE_HERMES_LITE2) {
+          AIN3=((control_in[3]&0xFF)<<8)|(control_in[4]&0xFF); // For Penelope or Hermes
+          current=0;
+        } else {
+          AIN3=0;
+          current+=((control_in[3]&0xFF)<<8)|(control_in[4]&0xFF); // HL2
+          n_current++;
+          if(n_current==10) {
+            average_current=current/10;
+            current=0;
+            n_current=0;
+          }
+        }
+        break;
+      case 3:
+        AIN4=((control_in[1]&0xFF)<<8)|(control_in[2]&0xFF); // For Penelope or Hermes
+        AIN6=((control_in[3]&0xFF)<<8)|(control_in[4]&0xFF); // For Penelope or Hermes
+        break;
+    }
+
+    int iq_samples=(512-8)/((num_hpsdr_receivers*6)+2);
+
+    for(i=0;i<iq_samples;i++) {
+      for(r=0;r<num_hpsdr_receivers;r++) {
+        left_sample   = (int)((signed char) buffer[b++])<<16;
+        left_sample  |= (int)((((unsigned char)buffer[b++])<<8)&0xFF00);
+        left_sample  |= (int)((unsigned char)buffer[b++]&0xFF);
+        right_sample  = (int)((signed char)buffer[b++]) << 16;
+        right_sample |= (int)((((unsigned char)buffer[b++])<<8)&0xFF00);
+        right_sample |= (int)((unsigned char)buffer[b++]&0xFF);
+
+        left_sample_double=(double)left_sample/8388607.0; // 24 bit sample 2^23-1
+        right_sample_double=(double)right_sample/8388607.0; // 24 bit sample 2^23-1
+
+	if (isTransmitting() && transmitter->puresignal) {
+	  //
+	  // transmitting with PURESIGNAL. Get sample pairs and feed to pscc
+	  //
+	  if (r == rxfdbk) {
+            left_sample_double_rx=left_sample_double;
+            right_sample_double_rx=right_sample_double;
+          } else if (r == txfdbk) {
+            left_sample_double_tx=left_sample_double;
+            right_sample_double_tx=right_sample_double;
+          }
+	  // this is pure paranoia, it allows for txfdbk < rxfdbk
+          if (r+1 == num_hpsdr_receivers) {
+            add_ps_iq_samples(transmitter, left_sample_double_tx,right_sample_double_tx,left_sample_double_rx,right_sample_double_rx);
+          }
+        }
+
+	if (!isTransmitting() && diversity_enabled) {
+	  //
+	  // receiving with DIVERSITY. Get sample pairs and feed to diversity mixer
+	  //
+          if (r == rx1channel) {
+            left_sample_double_main=left_sample_double;
+            right_sample_double_main=right_sample_double;
+          } else if (r == rx2channel) {
+            left_sample_double_aux=left_sample_double;
+            right_sample_double_aux=right_sample_double;
+          }
+	  // this is pure paranoia, it allows for rx2channel < rx1channel
+          if (r+1 == num_hpsdr_receivers) {
+            add_div_iq_samples(receiver[0], left_sample_double_main,right_sample_double_main,left_sample_double_aux,right_sample_double_aux);
+	    // if we have a second receiver, display "auxiliary" receiver as well
+            if (receivers >1) add_iq_samples(receiver[1], left_sample_double_aux,right_sample_double_aux);
+          }
+	}
+
+        if ((!isTransmitting() || duplex) && !diversity_enabled) {
+	  //
+	  // RX without DIVERSITY. Feed samples to RX1 and RX2
+	  //
+          if (r == rx1channel) {
+             add_iq_samples(receiver[0], left_sample_double,right_sample_double);
+          } else if (r == rx2channel && receivers > 1) {
+             add_iq_samples(receiver[1], left_sample_double,right_sample_double);
+          }
+        }
+      } // end of loop over the receiver channels
+
+      //
+      // Process mic samples. Take them from radio or from
+      // "local microphone" ring buffer
+      //
+      mic_sample  = (short)(buffer[b++]<<8);
+      mic_sample |= (short)(buffer[b++]&0xFF);
+
+      mic_samples++;
+      if(mic_samples>=mic_sample_divisor) { // reduce to 48000
+        fsample = transmitter->local_microphone ? audio_get_next_mic_sample() : (float) mic_sample * 0.00003051;
+        add_mic_sample(transmitter,fsample);
+        mic_samples=0;
+      }
+
+    }
+  } else {
+    time_t t;
+    struct tm* gmt;
+    time(&t);
+    gmt=gmtime(&t);
+
+    g_print("%s: process_ozy_input_buffer: did not find sync: restarting\n",
+            asctime(gmt));
+
+
+    metis_start_stop(0);
+    metis_restart();
+  }
+}
+*/
+
 static int nreceiver;
 static int left_sample;
 static int right_sample;
@@ -834,7 +1077,7 @@ static void process_control_bytes() {
 
   if (cw_keyer_internal) {
     // Stops CAT cw transmission if paddle hit in "internal" CW
-    if ((dash || dot)) cw_key_hit=1;
+    if ((dash || dot) && cw_keyer_internal) cw_key_hit=1;
   } else {
 #ifdef LOCALCW
     //
@@ -869,51 +1112,6 @@ static void process_control_bytes() {
           penelope_software_version=control_in[3];
           g_print("  Penelope Software version: %d (0x%0X)\n",penelope_software_version,penelope_software_version);
         }
-        //
-        // Set atlas_penelope flag to "penelope" if three conditions are met:
-        // a) it's a METIS device (no HERMES, ORION, etc.)
-        // b) penelope software version is 18
-        // c) atlas_penelope flag is "unknown"
-        //
-        if (device == DEVICE_METIS && penelope_software_version == 18 && atlas_penelope == 2) {
-          g_print("Adjusted settings for PENELOPE\n");
-	  atlas_penelope=1;
-        }
-      }
-      //
-      //DEBUG code to monitor HL2 TX-FIFO filling and 
-      //underflow/overflow detection.
-      //
-      // Measured on HL2 software version 7.2:
-      // multiply FIFO value with 32 to get sample cound
-      // multiply FIFO value with 0.67 to get FIFO length in milli-seconds
-      // Overflow at about 3600 samples (75 msec).
-      //
-      // As a result, we set the "TX latency" to 40 msec (see below).
-      //
-      //
-      // Note after an RX/TX transition, "underflow" is reported
-      // until the TX fifo begins to fill, so we ignore underflows
-      // until the first packet reporting "no underflow" after each
-      // RX/TX transition.
-      //
-      if (device == DEVICE_HERMES_LITE2) {
-           if (!isTransmitting()) {
-              // during RX: set flag to zero
-              tx_fifo_flag=0;
-           } else {
-             // after RX/TX transition: ignore underflow condition
-             // until it first vanishes. tx_fifo_flag becomes "true"
-             // as soon as a "no underflow" condition is seen.
-             //
-             //fprintf(stderr,"TX FIFO: %d", control_in[3] & 0x7F);
-             //if ((control_in[3] & 0xC0) == 0xC0) fprintf(stderr," OVER ");
-             //if ((control_in[3] & 0xC0) == 0x80) fprintf(stderr," UNDER ");
-             //fprintf(stderr,"\n");
-             if ((control_in[3] & 0xC0) != 0x80) tx_fifo_flag=1;
-             if ((control_in[3] & 0xC0) == 0x80 && tx_fifo_flag) tx_fifo_underrun=1;
-             if ((control_in[3] & 0xC0) == 0xC0) tx_fifo_overrun=1;
-           }
       }
       if(ozy_software_version!=control_in[4]) {
         ozy_software_version=control_in[4];
@@ -937,20 +1135,10 @@ static void process_control_bytes() {
           n_temperature=0;
         }
       }
-      //
-      //  calculate moving averages of fwd and rev voltages to have a correct SWR
-      //  at the edges of an RF pulse. Otherwise a false trigger of the SWR 
-      //  protection may occur. Note that the rate at which these packets arrive strongly
-      //  depend on the sample rate and the number of receivers.
-      //  This exponential average means that the power drops to 1 percent within 16 hits
-      //  (at most 16 msec).
-      //
       alex_forward_power=((control_in[3]&0xFF)<<8)|(control_in[4]&0xFF); // from Alex or Apollo
-      alex_forward_power_average = (alex_forward_power + 3*alex_forward_power_average) >> 2;
       break;
     case 2:
       alex_reverse_power=((control_in[1]&0xFF)<<8)|(control_in[2]&0xFF); // from Alex or Apollo
-      alex_reverse_power_average = (alex_reverse_power + 3*alex_reverse_power_average) >> 2;
       if (device != DEVICE_HERMES_LITE2) {
         AIN3=((control_in[3]&0xFF)<<8)|(control_in[4]&0xFF); // For Penelope or Hermes
         current=0;
@@ -980,6 +1168,7 @@ static int rx1channel;
 static int rx2channel;
 
 static void process_ozy_byte(int b) {
+  int i,j;
   float fsample;
   switch(state) {
     case SYNC_0:
@@ -1107,19 +1296,7 @@ static void process_ozy_byte(int b) {
       mic_sample|=(short)(b&0xFF);
       mic_samples++;
       if(mic_samples>=mic_sample_divisor) { // reduce to 48000
-        //
-        // if local_ptt is set, this usually means the PTT at the microphone connected
-        // to the SDR is pressed. In this case, we take audio from BOTH sources
-        // then we can use a "voice keyer" on some loop-back interface but at the same
-        // time use our microphone.
-        // In most situations only one source will be active so we just add.
-        //
-        if (local_ptt) {
-          fsample = (float) mic_sample * 0.00003051;
-          if (transmitter->local_microphone) fsample += audio_get_next_mic_sample();
-        } else {
-          fsample = transmitter->local_microphone ? audio_get_next_mic_sample() : (float) mic_sample * 0.00003051;
-        }
+        fsample = transmitter->local_microphone ? audio_get_next_mic_sample() : (float) mic_sample * 0.00003051;
         add_mic_sample(transmitter,fsample);
         mic_samples=0;
       }
@@ -1245,13 +1422,11 @@ void ozy_send_buffer() {
   int txmode=get_tx_mode();
   int txvfo=get_tx_vfo();
   int i;
-  int power;
+  BAND *rxband=band_get_band(vfo[VFO_A].band);
+  BAND *txband=band_get_band(vfo[txvfo].band);
   int num_hpsdr_receivers=how_many_receivers();
   int rx1channel = first_receiver_channel();
   int rx2channel = second_receiver_channel();
-
-  BAND *rxband=band_get_band(vfo[VFO_A].band);
-  BAND *txband=band_get_band(vfo[txvfo].band);
 
   output_buffer[SYNC0]=SYNC;
   output_buffer[SYNC1]=SYNC;
@@ -1382,7 +1557,7 @@ void ozy_send_buffer() {
       case 5:		// XVTR with old pa board
         output_buffer[C3] |= 0xE0;
         break;
-      case 104:		// EXT2 with ANAN-7000: does not exist, use EXT1
+      case 104:		// EXT2 with ANAN-7000: does not exit, use EXT1
       case 103:		// EXT1 with ANAN-7000
         output_buffer[C3]|= 0x40;
         break;
@@ -1407,6 +1582,12 @@ void ozy_send_buffer() {
         output_buffer[C3] |= 0x80;
 	break;
     }
+#ifdef DEBUG_PROTO
+    CHECK(i, CASE1);
+    CHECK((output_buffer[C3] & 0x80) >> 7, C3_RX1_OUT);
+    CHECK((output_buffer[C3] & 0x60) >> 5, C3_RX1_ANT);
+#endif
+
 
     output_buffer[C4]=0x04;  // duplex
     //
@@ -1456,15 +1637,16 @@ void ozy_send_buffer() {
           output_buffer[C4]|=0x03;
           break;
     }
+#ifdef DEBUG_PROTO
+    CHECK(i, CASE2);
+    CHECK(output_buffer[C4] & 0x03, C4_TX_REL);
+#endif
+
     // end of "C0=0" packet
   } else {
     //
     // metis_offset !=8: send the other C&C packets in round-robin
     // RX frequency commands are repeated for each RX
-    output_buffer[C1]=0x00;
-    output_buffer[C2]=0x00;
-    output_buffer[C3]=0x00;
-    output_buffer[C4]=0x00;
     switch(command) {
       case 1: // tx frequency
         output_buffer[C0]=0x02;
@@ -1473,7 +1655,6 @@ void ozy_send_buffer() {
         output_buffer[C2]=txFrequency>>16;
         output_buffer[C3]=txFrequency>>8;
         output_buffer[C4]=txFrequency;
-        command=2;
         break;
       case 2: // rx frequency
         if(current_rx<num_hpsdr_receivers) {
@@ -1486,15 +1667,14 @@ void ozy_send_buffer() {
           current_rx++;
         }
 	// if we have reached the last RX channel, wrap around
-        // and proceed with the next "command"
         if(current_rx>=num_hpsdr_receivers) {
           current_rx=0;
-          command=3;
         }
         break;
       case 3:
-        power=0;
-//static int last_power=0;
+        {
+        int power=0;
+static int last_power=0;
 	//
 	// Some HPSDR apps for the RedPitaya generate CW inside the FPGA, but while
 	// doing this, DriveLevel changes are processed by the server, but do not become effective.
@@ -1511,31 +1691,6 @@ void ozy_send_buffer() {
           } else {
             power=transmitter->drive_level;
           }
-          if (device == DEVICE_HERMES_LITE2) {
-	    //
-	    // from the "intended" drive level power, calculate the
-	    // next lower TX attenuation which can be from 0.0 to -7.5 dB
-	    // in 0.5 dB steps, encode the step in a four-bit word and shift
-	    // it to the upper 4 bits.
-	    // we always use the att level that produces a little bit *less* attenuation
-	    // than required, and down-scale the IQ samples in transmitter.c
-	    //
-	    // NOTE: this down-scaling does not occur when connecting a CW key to the HL2
-	    //       and using "internal" CW, because in this case the IQ samples are
-	    //       generated in the FPGA. A typical symptom is that the CW signals are
-	    //       stronger than the "TUNE" signal, and in the case of very low drive slider
-	    //       values they can be *much* stronger.
-	    //
-	    // NOTE: When using predistortion (PURESIGNAL), the IQ scaling must be switched off.
-	    //       In this case, the output  power can also be stronger than intended.
-	    //
-            if (power > 0) {
-              int hl2power = 15+(int)lround(ceil(40.0 * log10((double) power / 255.0)));
-              if (hl2power < 0) hl2power=0;
-	      // hl2power=0: -7.5 dB, hl2power=1: -7.0 dB, ..., hl2power=15: 0dB
-              power=hl2power << 4;  // shift to upper bits
-            }
-          }
         }
 
 //if(last_power!=power) {
@@ -1543,11 +1698,14 @@ void ozy_send_buffer() {
 //  last_power=power;
 //}
 
-       //fprintf(stderr,"%s: TXband=%s disablePA=%d\n",__FUNCTION__,txband->title,txband->disablePA);
+	//fprintf(stderr,"%s: TXband=%s disablePA=%d\n",__FUNCTION__,txband->title,txband->disablePA);
 
 
         output_buffer[C0]=0x12;
         output_buffer[C1]=power&0xFF;
+        output_buffer[C2]=0x00;
+        output_buffer[C3]=0x00;
+        output_buffer[C4]=0x00;
         if(mic_boost) {
           output_buffer[C2]|=0x01;
         }
@@ -1563,9 +1721,9 @@ void ozy_send_buffer() {
         if(band_get_current()==band6) {
           output_buffer[C3]=output_buffer[C3]|0x40; // Alex 6M low noise amplifier
         }
-        if (txband->disablePA || !pa_enabled) {
+        if(txband->disablePA || !pa_enabled) {
           output_buffer[C3]|=0x80; // disable Alex T/R relay
-          if(isTransmitting()) {
+          if (isTransmitting()) {
             output_buffer[C2]|=0x40; // Manual Filter Selection
             output_buffer[C3]|=0x20; // bypass all RX filters
           }
@@ -1573,9 +1731,7 @@ void ozy_send_buffer() {
 #ifdef PURESIGNAL
 	//
 	// If using PURESIGNAL and a feedback to EXT1, we have to manually activate the RX HPF/BPF
-	// filters and select "bypass" since the feedback signal must arrive at the board
-        // un-altered. This is not necessary for feedback at the "ByPass" jack since filter bypass
-        // is realized in hardware here.
+	// filters and select "bypass"
 	//
         if (isTransmitting() && transmitter->puresignal && receiver[PS_RX_FEEDBACK]->alex_antenna == 6) {
           output_buffer[C2] |= 0x40;  // enable manual filter selection
@@ -1618,10 +1774,20 @@ void ozy_send_buffer() {
           if (pa_enabled && !txband->disablePA) output_buffer[C2] |= 0x08;
           if (tune)                             output_buffer[C2] |= 0x10;
         }
-        command=4;
+#ifdef DEBUG_PROTO
+	CHECK(output_buffer[C1], C1_DRIVE);
+	CHECK((output_buffer[C2] & 0xE0) >> 5, C2_FB);
+	CHECK(output_buffer[C3] & 0x1F, C3_HPF);
+        CHECK((output_buffer[C3] & 0x20) >> 5, C3_BP);
+        CHECK((output_buffer[C3] & 0x40) >> 6, C3_LNA);
+        CHECK((output_buffer[C3] & 0x80) >> 7, C3_TXDIS);
+        CHECK(output_buffer[C4], C4_LPF);
+#endif
+        }
         break;
       case 4:
         output_buffer[C0]=0x14;
+        output_buffer[C1]=0x00;
 
 #ifdef USBOZY
         if ((device == DEVICE_OZY) || (device == DEVICE_METIS)) {
@@ -1641,10 +1807,13 @@ void ozy_send_buffer() {
         if(mic_ptt_tip_bias_ring) {
           output_buffer[C1]|=0x10;
         }
+        output_buffer[C2]=0x00;
         output_buffer[C2]|=linein_gain;
         if(transmitter->puresignal) {
           output_buffer[C2]|=0x40;
         }
+        output_buffer[C3]=0x00;
+        output_buffer[C4]=0x00;
   
 	// upon TX, use transmitter->attenuation
 	// Usually the firmware takes care of this, but it is no
@@ -1655,29 +1824,14 @@ void ozy_send_buffer() {
 	  // is stored in rx_gain_slider. The firmware uses bit 6
 	  // of C4 to determine this case.
 	  //
+          //int rxgain = adc_attenuation[active_receiver->adc]+12; // -12..48 to 0..60
           int rxgain = adc[active_receiver->adc].gain+12; // -12..48 to 0..60
+
           if (rxgain <  0) rxgain=0;
           if (rxgain > 60) rxgain=60;
 	  // encode all 6 bits of RXgain in ATT value and set bit6
           if (isTransmitting()) {
-            //
-            // The "TX attenuation" value (0 ... 31 dB) has to be mapped to a
-            // a range of preamp settings. This range is very different on the
-            // HermesLite when using "internal" feedback (crosstalk from the
-            // RX/TX releay) or "external" feedback (attenuator output
-            // connected with RF3 input of the HermesLite2).
-            // To cope with both situations, the preamp range is
-            // +2 ... +33 dB if "Internal" feedback is selected in the
-            // PS menu (this is optimal for "crosstalk" feedback) and
-            // if external feedback is used (check either EXT1 or ByPass
-            // in the PS menu) the preamp range is -12 ... +19 dB.
-            //
-           output_buffer[C4] = 0x40 | (33 - (transmitter->attenuation & 0x1F));
-#ifdef PURESIGNAL
-           if (receiver[PS_RX_FEEDBACK]->alex_antenna == 0) {
-             output_buffer[C4] = 0x40 | (45 - (transmitter->attenuation & 0x1F));
-            }
-#endif
+	    output_buffer[C4] = 0x40 | (31 - (transmitter->attenuation & 0x1F));
           } else { 
 	    output_buffer[C4] = 0x40 | (rxgain & 0x3F);
           }
@@ -1685,13 +1839,14 @@ void ozy_send_buffer() {
           if (isTransmitting()) {
             output_buffer[C4]=0x20 | (transmitter->attenuation & 0x1F);
           } else {
-            output_buffer[C4]=0x20 | (adc[0].attenuation & 0x1F);
+            //output_buffer[C4]=0x20 | (adc_attenuation[0] & 0x1F);
+            output_buffer[C4]=0x20 | ((int)adc[0].gain & 0x1F);
           } 
         }
-        command=5;
 	break;
       case 5:
         output_buffer[C0]=0x16;
+        output_buffer[C1]=0x00;
         if(n_adc==2) {
 	  // must set bit 5 ("Att enable") all the time
           // upon transmitting, use high attenuation, since this is
@@ -1703,22 +1858,24 @@ void ozy_send_buffer() {
           } else {
 	    // if diversity is enabled, use RX1 att value for RX2
             if (diversity_enabled) {
-              output_buffer[C1]=0x20 | (adc[0].attenuation & 0x1F);
+              output_buffer[C1]=0x20 | (adc[receiver[0]->adc].attenuation & 0x1F);
 	    } else {
-              output_buffer[C1]=0x20 | (adc[1].attenuation & 0x1F);
+              output_buffer[C1]=0x20 | (adc[receiver[1]->adc].attenuation & 0x1F);
 	    }
           }
         }
+        output_buffer[C2]=0x00; // ADC3 attenuator disabled.
         if(cw_keys_reversed!=0) {
           output_buffer[C2]|=0x40;
         }
         output_buffer[C3]=cw_keyer_speed | (cw_keyer_mode<<6);
         output_buffer[C4]=cw_keyer_weight | (cw_keyer_spacing<<7);
-        command=6;
         break;
       case 6:
         // need to add tx attenuation and rx ADC selection
         output_buffer[C0]=0x1C;
+        output_buffer[C1]=0x00;
+        output_buffer[C2]=0x00;
         // if n_adc == 1, there is only a single ADC, so we can leave everything
         // set to zero
 	if (n_adc  > 1) {
@@ -1731,31 +1888,19 @@ void ozy_send_buffer() {
 	      output_buffer[C1]|=(receiver[1]->adc<<(2*rx2channel));
 	    }
 	}
-        if (device == DEVICE_HERMES_LITE2) {
-          //
-          // On the HermesLite2, we need bit7 set to make this feature active,
-          // and need bit6 set to tell HL2 to directly use the lowest 6 bits
-          // for the built-in preamp. For the effect of choosing different
-          // "alex antennas" see above.
-          output_buffer[C3] = 0xC0 | (33 - (transmitter->attenuation & 0x1F));
-#ifdef PURESIGNAL
-          if (receiver[PS_RX_FEEDBACK]->alex_antenna == 0) {
-            output_buffer[C3] = 0xC0 | (45 - (transmitter->attenuation & 0x1F));
-          }
-#endif
-        } else {
-          output_buffer[C3]=transmitter->attenuation & 0x1F;  // Step attenuator of first ADC, value used when TXing
-        }
-        command=7;
+        output_buffer[C3]=0x00;
+        output_buffer[C3]|=transmitter->attenuation;			// Step attenuator of first ADC, value used when TXing
+        output_buffer[C4]=0x00;
         break;
       case 7:
         output_buffer[C0]=0x1E;
+        output_buffer[C1]=0x00;
         if((txmode==modeCWU || txmode==modeCWL) && !tune && cw_keyer_internal && !transmitter->twotone) {
           output_buffer[C1]|=0x01;
         }
         output_buffer[C2]=cw_keyer_sidetone_volume;
         output_buffer[C3]=cw_keyer_ptt_delay;
-        command=8;
+        output_buffer[C4]=0x00;
         break;
       case 8:
         output_buffer[C0]=0x20;
@@ -1763,7 +1908,6 @@ void ozy_send_buffer() {
         output_buffer[C2]=cw_keyer_hang_time & 0x03;
         output_buffer[C3]=(cw_keyer_sidetone_frequency>>4) & 0xFF;
         output_buffer[C4]=cw_keyer_sidetone_frequency & 0x0F;
-        command=9;
         break;
       case 9:
         output_buffer[C0]=0x22;
@@ -1771,55 +1915,33 @@ void ozy_send_buffer() {
         output_buffer[C2]=eer_pwm_min & 0x03;
         output_buffer[C3]=(eer_pwm_max>>3) & 0xFF;
         output_buffer[C4]=eer_pwm_max & 0x03;
-        command=10;
         break;
       case 10:
-        //
-        // This is possibly only relevant for Orion-II boards
-        //
         output_buffer[C0]=0x24;
+        output_buffer[C1]=0x00;
 
         if(isTransmitting()) {
-          output_buffer[C1]|=0x80; // ground RX2 on transmit, bit0-6 are Alex2 filters
+            output_buffer[C1]|=0x80; // ground RX2 on transmit, bit0-6 are Alex2 filters
         }
+        output_buffer[C2]=0x00;
         if(receiver[0]->alex_antenna==5) { // XVTR
-          output_buffer[C2] |= 0x02;          // Alex2 XVTR enable
+          output_buffer[C2]=0x02;          // Alex2 XVTR enable
         }
         if(transmitter->puresignal) {
-          output_buffer[C2] |= 0x40;	   // Synchronize RX5 and TX frequency on transmit (ANAN-7000)
+          output_buffer[C2]|=0x40;	   // Synchronize RX5 and TX frequency on transmit (ANAN-7000)
         }
-
-        //
-        // This was the last command defined in the HPSDR document so we
-        // roll back to the first command.
-        // The HermesLite-II uses an extended command set so in this case
-        // we proceed.
-        if (device == DEVICE_HERMES_LITE2) {
-          command=11;
-        } else {
-          command=1;
-        }
-        break;
-      case 11:
-        // DL1YCF: HermesLite-II only
-        // specify some more robust TX latency and PTT hang times
-        // A latency of 40 msec means that we first send two buffers
-        // of TX iq samples (assuming a buffer length of 1024 samples,
-        // that is 21 msec) before HL2 starts TXing. This should be
-        // enough to prevent underflows and leave some head-room
-        // my measurements indicate that the TX FIFO can hold about
-        // 75 msec or 3600 samples (cum grano salis). 
-        output_buffer[C0]=0x2E;
-        output_buffer[C3]=20;   // 20 msec PTT hang time, only bits 4:0
-        output_buffer[C4]=40;   // 40 msec TX latency,    only bits 6:0
-        //
-        // This was the last command we use out of the extended HL2 command set,
-        // so roll back to the first one. It is obvious how to extend this
-        // to cover more of the HL2 extended command set.
-        //
-        command=1;
+        output_buffer[C3]=0x00;            // Alex2 filters
+        output_buffer[C4]=0x00;            // Alex2 filters
         break;
     }
+
+    if(current_rx==0) {
+      command++;
+      if(command>10) {
+        command=1;
+      }
+    }
+  
   }
 
   // set mox
@@ -1840,6 +1962,20 @@ void ozy_send_buffer() {
       output_buffer[C0]|=0x01;
     }
   }
+#ifdef DEBUG_PROTO
+  CHECK(output_buffer[C0] & 1, PC_PTT);
+
+/*
+ * ship out line after each complete run
+ */
+  if (proto_mod && command == 1) {
+    g_print("DIS=%d DRIVE=%3d PTT=%d i1=%4d RXout=%d RXant=%d i2=%d TXrel=%d FB=%d BP=%d LNA=%d HPF=%02x LPF=%02x\n",
+     C3_TXDIS, C1_DRIVE, PC_PTT, CASE1, C3_RX1_OUT, C3_RX1_ANT, CASE2, C4_TX_REL,
+     C2_FB, C3_BP, C3_LNA, C3_HPF, C4_LPF);
+    proto_mod=0;
+  }
+#endif
+     
 
 #ifdef USBOZY
 //

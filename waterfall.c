@@ -50,7 +50,7 @@ static gint last_x;
 static gboolean has_moved=FALSE;
 static gboolean pressed=FALSE;
 
-static double hz_per_pixel;
+static gfloat hz_per_pixel;
 
 static int display_width;
 static int display_height;
@@ -124,17 +124,6 @@ void waterfall_update(RECEIVER *rx) {
   int i;
 
   float *samples;
-  long long vfofreq=vfo[rx->id].frequency;  // access only once to be thread-safe
-  int  freq_changed=0;                      // flag whether we have just "rotated"
-  int pan=rx->pan;
-  int zoom=rx->zoom;
-#ifdef CLIENT_SERVER
-  if(radio_is_remote) {
-    pan=0;
-    zoom=1;
-  }
-#endif
-
   if(rx->pixbuf) {
     unsigned char *pixels = gdk_pixbuf_get_pixels (rx->pixbuf);
 
@@ -142,96 +131,59 @@ void waterfall_update(RECEIVER *rx) {
     int height=gdk_pixbuf_get_height(rx->pixbuf);
     int rowstride=gdk_pixbuf_get_rowstride(rx->pixbuf);
 
-    hz_per_pixel=(double)rx->sample_rate/((double)display_width*rx->zoom);
+    hz_per_pixel=(double)rx->sample_rate/(double)display_width;
 
-    //
-    // The existing waterfall corresponds to a VFO frequency rx->waterfall_frequency, a zoom value rx->waterfall_zoom and
-    // a pan value rx->waterfall_pan. If the zoom value changes, or if the waterfill needs horizontal shifting larger
-    // than the width of the waterfall (band change or big frequency jump), re-init the waterfall.
-    // Otherwise, shift the waterfall by an appropriate number of pixels.
-    //
-    // Note that VFO frequency changes can occur in very many very small steps, such that in each step, the horizontal
-    // shifting is only a fraction of one pixel. In this case, there will be every now and then a horizontal shift that
-    // corrects for a number of VFO update steps.
-    //
-    if(rx->waterfall_frequency!=0 && (rx->sample_rate==rx->waterfall_sample_rate) && (rx->zoom == rx->waterfall_zoom)) {
-      if(rx->waterfall_frequency!=vfofreq || rx->waterfall_pan != pan) {
-        //
-        // Frequency and/or PAN value changed: possibly shift waterfall
-        //
-
-        int rotfreq = (int)((double)(rx->waterfall_frequency-vfofreq)/hz_per_pixel);  // shift due to freq. change
-        int rotpan  = rx->waterfall_pan - pan;                                        // shift due to pan   change
-        int rotate_pixels=rotfreq + rotpan;
-
-        if (rotate_pixels >= display_width || rotate_pixels <= -display_width) {
-          //
-          // If horizontal shift is too large, re-init waterfall
-          //
+    if(rx->waterfall_frequency!=0 && (rx->sample_rate==rx->waterfall_sample_rate)) {
+      if(rx->waterfall_frequency!=vfo[rx->id].frequency) {
+        // scrolled or band change
+        long long half=(long long)(rx->sample_rate/2);
+        if(rx->waterfall_frequency<(vfo[rx->id].frequency-half) || rx->waterfall_frequency>(vfo[rx->id].frequency+half)) {
+          // outside of the range - blank waterfall
+//fprintf(stderr,"waterfall_update: clear waterfall from %lld to %lld\n",rx->waterfall_frequency,vfo[rx->id].frequency);
           memset(pixels, 0, display_width*display_height*3);
-          rx->waterfall_frequency=vfofreq;
-          rx->waterfall_pan=pan;
         } else {
-          //
-          // If rotate_pixels != 0, shift waterfall horizontally and set "freq changed" flag
-          // calculated which VFO/pan value combination the shifted waterfall corresponds to
-          //  
-          //
+          // rotate waterfall
+          int rotate_pixels=(int)((double)(rx->waterfall_frequency-vfo[rx->id].frequency)/hz_per_pixel);
+//fprintf(stderr,"waterfall_update: rotate waterfall from %lld to %lld pixels=%d\n",rx->waterfall_frequency,vfo[rx->id].frequency,rotate_pixels);
           if(rotate_pixels<0) {
-            // shift left, and clear the right-most part
             memmove(pixels,&pixels[-rotate_pixels*3],((display_width*display_height)+rotate_pixels)*3);
+            //now clear the right hand side
             for(i=0;i<display_height;i++) {
               memset(&pixels[((i*display_width)+(width+rotate_pixels))*3], 0, -rotate_pixels*3);
             }
-          } else if (rotate_pixels > 0) {
-            // shift right, and clear left-most part
+          } else {
             memmove(&pixels[rotate_pixels*3],pixels,((display_width*display_height)-rotate_pixels)*3);
+            //now clear the left hand side
             for(i=0;i<display_height;i++) {
               memset(&pixels[(i*display_width)*3], 0, rotate_pixels*3);
             }
           }
-          if (rotfreq != 0) {
-            freq_changed=1;
-            rx->waterfall_frequency -= lround(rotfreq*hz_per_pixel); // this is not necessarily vfofreq!
-          }
-          rx->waterfall_pan = pan;
         }
       }
     } else {
-      //
-      // waterfall frequency not (yet) set, sample rate changed, or zoom value changed:
-      // (re-) init waterfall
-      //
       memset(pixels, 0, display_width*display_height*3);
-      rx->waterfall_frequency=vfofreq;
-      rx->waterfall_pan=pan;
-      rx->waterfall_zoom=zoom;
-      rx->waterfall_sample_rate=rx->sample_rate;
     }
 
-    //
-    // If we have just shifted the waterfall befause the VFO frequency has changed,
-    // there are  still IQ samples in the input queue corresponding to the "old"
-    // VFO frequency, and this produces artifacts both on the panadaper and on the
-    // waterfall. However, for the panadapter these are overwritten in due course,
-    // while artifacts "stay" on the waterfall. We therefore refrain from updating
-    // the waterfall *now* and continue updating when the VFO frequency has
-    // stabilized. This will not remove the artifacts in any case but is a big
-    // improvement.
-    //
-    if (!freq_changed) {
+    rx->waterfall_frequency=vfo[rx->id].frequency;
+    rx->waterfall_sample_rate=rx->sample_rate;
 
-      memmove(&pixels[rowstride],pixels,(height-1)*rowstride);
+    memmove(&pixels[rowstride],pixels,(height-1)*rowstride);
 
-      float sample;
-      int average=0;
-      unsigned char *p;
-      p=pixels;
-      samples=rx->pixel_samples;
+    float sample;
+    int average=0;
+    unsigned char *p;
+    p=pixels;
+    samples=rx->pixel_samples;
+    int pan=rx->pan;
+#ifdef CLIENT_SERVER
+    if(radio_is_remote) {
+      pan=0;
+    }
+#endif
 
-      for(i=0;i<width;i++) {
+    for(i=0;i<width;i++) {
             if(have_rx_gain) {
-              sample=samples[i+pan]+(float)(rx_gain_calibration-adc[rx->adc].gain);
+              sample=samples[i+pan]+(float)(rx_gain_calibration-adc[rx->adc].attenuation);
             } else {
               sample=samples[i+pan]+(float)adc[rx->adc].attenuation;
             }
@@ -286,13 +238,12 @@ void waterfall_update(RECEIVER *rx) {
                 }
             }
         
-      }
+    }
 
     
-      if(rx->waterfall_automatic) {
-        rx->waterfall_low=average/width;
-        rx->waterfall_high=rx->waterfall_low+50;
-      }
+    if(rx->waterfall_automatic) {
+      rx->waterfall_low=average/display_width;
+      rx->waterfall_high=rx->waterfall_low+50;
     }
 
     gtk_widget_queue_draw (rx->waterfall);

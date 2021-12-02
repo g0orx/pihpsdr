@@ -62,8 +62,18 @@
  * Sep/Oct/Nov 2018, by DL1YCF Christoph van Wullen
  ***************************************************************************************************************
  *
- * SIDE TONE GENERATION
- * ====================
+ * a) SOME MINOR TECHNICAL ISSUES:
+ * ===============================
+ *
+ * -keyer_close was actually unused. It is now called when local CW is no longer used
+ *      and "joins" (terminates) the keyer thread.
+ *
+ * - GPIO pin names are no longer used in iambic.c
+ *
+ * - cw_keyer_spacing can now be set/un-set in the CW menu (cw_menu.c)
+ *
+ * b) SIDE TONE GENERATION
+ * =======================
  *
  * Getting a delay-free side tone is absolutely necessary at elevated CW speed (say, > 20 wpm).
  * The LINUX sound system produces a delay of up to 50 msec which is more than a dot length.
@@ -78,8 +88,8 @@
  * The volume of the CW side tone in the standard audio channel is reduced to zero while
  * using the "GPIO side tone" feature.
  *
- * CW VOX
- * ======
+ * c) CW VOX
+ * =========
  *
  * Suppose you hit the paddle while in RX mode. In this case, the SDR automatically switches
  * to TX, and remains so until a certain time (actually cw_keyer_hang_time, can be set in
@@ -89,8 +99,8 @@
  *
  * - during a dot or dash the keyer thread simply waits and does no busy spinning.
  *
- * DOT/DASH MEMORY
- * ===============
+ * d) DOT/DASH MEMORY
+ * ==================
  *
  * For reasons explained below, it is necessary to have TWO such memories for both dot and dash,
  * they are called dot_memory/dot_held and dash_memory/dash_held. Everything explained here and below
@@ -107,8 +117,8 @@
  * dot_memory because only dot_held (but not dot_memory) is cleared in iambic mode A when both
  * paddles are released.
  *
- * IAMBIC MODES A AND B, AND SINGLE-LEVER PADDLES
- * ==============================================
+ * e) IAMBIC MODES A AND B, AND SINGLE-LEVER PADDLES
+ * =================================================
  *
  * It seems that there are lively discussions about what is what, so I distilled out the
  * following and added one clarification that becomes important when using this mode
@@ -182,7 +192,9 @@
 #include <time.h>
 #include <sys/mman.h>
 
+#ifdef LOCALCW
 #include "gpio.h"
+#endif
 #include "radio.h"
 #include "new_protocol.h"
 #include "iambic.h"
@@ -204,8 +216,6 @@ static int dash_held = 0;
 static int key_state = 0;
 static int dot_length = 0;
 static int dash_length = 0;
-static int dot_samples = 0;
-static int dash_samples = 0;
 static int kcwl = 0;
 static int kcwr = 0;
 int *kdot;
@@ -219,10 +229,9 @@ static sem_t *cw_event;
 static sem_t cw_event;
 #endif
 
-#ifdef __APPLE__
-#include "MacOS.h"  // emulate clock_gettime on old MacOS systems
-#else
+static int cwvox = 0;
 
+#ifndef __APPLE__
 // using clock_nanosleep of librt
 extern int clock_nanosleep(clockid_t __clock_id, int __flags,
       __const struct timespec *__req,
@@ -247,8 +256,6 @@ void keyer_update() {
     dot_length = 1200 / cw_keyer_speed;
     // will be 3 * dot length at standard weight
     dash_length = (dot_length * 3 * cw_keyer_weight) / 50;
-    dot_samples = 57600 / cw_keyer_speed;
-    dash_samples = (3456 * cw_keyer_weight) / cw_keyer_speed;
 
     if (cw_keys_reversed) {
         kdot  = &kcwr;
@@ -281,6 +288,7 @@ void keyer_update() {
 static int enforce_cw_vox;
 
 void keyer_event(int left, int state) {
+  g_print("%s: running=%d left=%d state=%d\n",__FUNCTION__,running,left,state);
     if (!running) return;
     if (state) {
         // This is to remember whether the key stroke interrupts a running CAT CW 
@@ -307,6 +315,21 @@ void keyer_event(int left, int state) {
     }
 }
 
+void set_keyer_out(int state) {
+  if (state) {
+    cw_hold_key(1); // this starts a CW pulse in transmitter.c
+  } else {
+    cw_hold_key(0); // this stops a CW pulse in transmitter.c
+  }
+  //
+  // If GPIO sidetone information is requested,
+  // set GPIO pin to the state
+  //
+  if (gpio_cw_sidetone_enabled()) {
+    gpio_cw_sidetone_set(state);
+  }
+}
+
 static void* keyer_thread(void *arg) {
     struct timespec loop_delay;
     int interval = 1000000; // 1 ms
@@ -314,8 +337,9 @@ static void* keyer_thread(void *arg) {
     int kdelay;
     int old_volume;
     int txmode;
-    int moxbefore;
-    int cwvox;
+#ifdef __APPLE__
+    struct timespec now;
+#endif
 
     fprintf(stderr,"keyer_thread  state running= %d\n", running);
     while(running) {
@@ -338,39 +362,21 @@ static void* keyer_thread(void *arg) {
 	  cw_keyer_sidetone_volume=0;
 	}
 
-	//
-	// Normally the keyer will be used in "break-in" mode, that is, we switch to TX
-	// automatically here, and after a certain "hang" time we will switch back to RX
-	// if no further Morse key events arrive.
-	// The other option is to use a PTT foot-switch (that is, "manually" switching to
-	// TX before starting CW, and "manually" switching back to RX after all CW text has
-	// been sent). In this case, there should be no automatic TX/RX transition after the
-	// CW "hang" (or CW vox) time. This case is detected here: if we are already in TX
-	// mode when a key is hit, we remember this ("moxbefore") and in this case, the keyer
-	// will not switch back to RX.
-	//
-	// There is however one exception: if we sent "automatic" CW (by CAT CW commands) and
-	// interrupt the automatic transmission by hitting a key, we want to automatically
-	// switch back to RX. This is flagged by the variable enforce_cw_vox.
-	//
+	// check mode: to not induce RX/TX transition if not in CW mode
         txmode=get_tx_mode();
-        moxbefore=mox;
-        if (enforce_cw_vox) moxbefore=0;
-        cwvox=0;   // if not using CW break-in this will stay at zero
-
-        if (cw_breakin && (txmode == modeCWU || txmode == modeCWL)) {
+        if (!mox && cw_breakin && (txmode == modeCWU || txmode == modeCWL)) {
           g_idle_add(ext_mox_update, (gpointer)(long) 1);
-	  //
           // Wait for mox, that is, wait for WDSP shutting down the RX and
           // firing up the TX. This induces a small delay when hitting the key for
           // the first time, but excludes that the first dot is swallowed.
           // Note: if out-of-band, mox will never come, therefore
           // give up after 200 msec.
-	  //
           i=200;
           while ((!mox || cw_not_ready) && i-- > 0) usleep(1000L);
           cwvox=(int) cw_keyer_hang_time;
 	}
+	// Trigger VOX if CAT CW was active and we have interrupted it by hitting a key
+	if (enforce_cw_vox) cwvox=(int) cw_keyer_hang_time;
 
         key_state = CHECK;
 
@@ -381,8 +387,6 @@ static void* keyer_thread(void *arg) {
 	  // just leave the while-loop without removing MOX
 	  //
 	  // re-trigger VOX if *not* busy-spinning
-	  // (that is, for *all* states except EXITLOOP and CHECK)
-	  //
           if (cwvox > 0 && key_state != EXITLOOP && key_state != CHECK) cwvox=(int) cw_keyer_hang_time;
 
 	  switch (key_state) {
@@ -394,16 +398,7 @@ static void* keyer_thread(void *arg) {
 		// If CW-vox still hanging, continue "busy-spinning"
                 if (cwvox == 0) {
 		    // we have just reduced cwvox from 1 to 0.
-		    if (!moxbefore) {
-			g_idle_add(ext_mox_update,(gpointer)(long) 0);
-			// Wait for MOX really gone. This is necessary since otherwise we may
-		 	// still "see" PTT active upon the next key stroke and therefore fail
-			// to go into CW-vox mode. However, only wait up to 250 msec
-                        // in order not to be
-			// "caught" here.
-			i=250;
-			while (mox && i-- > 0) usleep(1000L);
-		    }
+		    g_idle_add(ext_mox_update,(gpointer)(long) 0);
 		} else {
 		    key_state=CHECK;
 		}
@@ -415,72 +410,85 @@ static void* keyer_thread(void *arg) {
 		// we won't enter the code 10 lines above that de-activates MOX.
 		if (cwvox > 1) cwvox--;
                 if (cw_keyer_mode == KEYER_STRAIGHT) {       // Straight/External key or bug
-                    if (*kdot) {
-		      // "bug" mode: dot key activates automatic dots
-                      key_state = PREDOT;
-                    }
-                    // If both paddles are pressed (should not happen), then
-                    // the dash paddle wins.
                     if (*kdash) {                  // send manual dashes
-                      cw_key_down=960000;  // max. 20 sec to protect hardware
-                      cw_key_up=0;
-                      cw_key_hit=1;
-                      gpio_cw_sidetone_set(1);
-                      key_state=STRAIGHT;
+                      set_keyer_out(1);
+            	      clock_gettime(CLOCK_MONOTONIC, &loop_delay);
+		      // wait until dash is released. Check once a milli-sec
+		      for (;;) {
+			loop_delay.tv_nsec += interval;
+            		while (loop_delay.tv_nsec >= NSEC_PER_SEC) {
+                	  loop_delay.tv_nsec -= NSEC_PER_SEC;
+                	  loop_delay.tv_sec++;
+            		}
+			if (!*kdash) break;
+#ifdef __APPLE__
+                	clock_gettime(CLOCK_MONOTONIC, &now);
+                	now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
+                	now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
+                	while (now.tv_nsec < 0) {
+                    	  now.tv_nsec += 1000000000;
+                    	  now.tv_sec--;
+                	}
+                	nanosleep(&now, NULL);
+#else
+            		clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
+#endif
+		      }
+		      // dash released.
+                      set_keyer_out(0);
+		      // since we stay in CHECK mode, re-trigger cwvox here
+		      cwvox=cw_keyer_hang_time;
                     }
+		    if (*kdot) {
+			// "bug" mode: dot key activates automatic dots
+                        key_state = SENDDOT;
+                    }
+		    // end of KEYER_STRAIGHT case
                 } else {
 		    // Paddle
 		    // If both following if-statements are true, which one should win?
 		    // I think a "simultaneous squeeze" means a dot-dash sequence, since in 
 		    // a dash-dot sequence there is a larger time window to hit the dot.
-                    if (*kdash) key_state = PREDASH;
-                    if (*kdot) key_state = PREDOT;
+                    if (*kdash) key_state = SENDDASH;
+                    if (*kdot) key_state = SENDDOT;
                 }
 		break;
 
-            case STRAIGHT:
-		//
-		// Wait for dash paddle being released in "straight key" mode.
-                //
-                if (! *kdash) {
-                  cw_key_down=0;
-                  cw_key_up=0;
-                  gpio_cw_sidetone_set(0);
-                  key_state=CHECK;
-                }
-                break;
-
-	    case PREDOT:
-                //
-                // start sending the dot
-                //
+	    case SENDDOT:
 		dash_memory = 0;
                 dash_held = *kdash;
-                cw_key_down=dot_samples;
-                cw_key_up=dot_samples;
-                gpio_cw_sidetone_set(1);
-                key_state=SENDDOT;
-                break;
-
-            case SENDDOT:
-                //
-                // wait for dot being complete
-                //
-                if (cw_key_down == 0) {
-                  gpio_cw_sidetone_set(0);
-                  key_state=DOTDELAY;
+                set_keyer_out(1);
+            	clock_gettime(CLOCK_MONOTONIC, &loop_delay);
+		// Wait one dot length, then key-up
+                loop_delay.tv_nsec += 1000000 * dot_length;
+                while (loop_delay.tv_nsec >= NSEC_PER_SEC) {
+                  loop_delay.tv_nsec -= NSEC_PER_SEC;
+                  loop_delay.tv_sec++;
+		}
+#ifdef __APPLE__
+                clock_gettime(CLOCK_MONOTONIC, &now);
+                now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
+                now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
+                while (now.tv_nsec < 0) {
+                  now.tv_nsec += 1000000000;
+                  now.tv_sec--;
                 }
+                nanosleep(&now, NULL);
+#else
+                clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
+#endif
+                set_keyer_out(0);
+                key_state = DOTDELAY;       // add inter-character spacing of one dot length
+		kdelay=0;
                 break;
 
             case DOTDELAY:
-                //
-                // wait for end of inter-element pause
-                //
-                if (cw_key_up == 0) {
+                kdelay++;
+                if (kdelay > dot_length) {
 		  if (cw_keyer_mode == KEYER_STRAIGHT) {
 		    // bug mode: continue sending dots or exit, depending on current dot key status
 		    key_state = EXITLOOP;
-		    if (*kdot) key_state=PREDOT;
+		    if (*kdot) key_state=SENDDOT;
 		    // end of bug/straight case
                   } else {
 //
@@ -494,9 +502,9 @@ static void* keyer_thread(void *arg) {
                     if (cw_keyer_mode == KEYER_MODE_A && !*kdot && !*kdash) dash_held=0;
 
                     if (dash_memory || *kdash || dash_held)
-                        key_state = PREDASH;
+                        key_state = SENDDASH;
                     else if (*kdot)                                 // dot still held, so send a dot
-			key_state = PREDOT;
+			key_state = SENDDOT;
 		    else if (cw_keyer_spacing) {
                         dot_memory = dash_memory = 0;
                         key_state = LETTERSPACE;
@@ -508,28 +516,39 @@ static void* keyer_thread(void *arg) {
                 }   
                 break;
 
-	    case PREDASH:
+	    case SENDDASH:
 		dot_memory =  0;
 		dot_held = *kdot;  // remember if dot is still held at beginning of the dash
-                cw_key_down=dash_samples;
-                cw_key_up=dot_samples;
-                gpio_cw_sidetone_set(1);
-                key_state=SENDDASH;
-                break;
-
-            case SENDDASH:
-                //
-                // wait for dot being complete
-                //
-                if (cw_key_down == 0) {
-                  gpio_cw_sidetone_set(0);
-                  key_state=DASHDELAY;
+                set_keyer_out(1);
+                clock_gettime(CLOCK_MONOTONIC, &loop_delay);
+		// Wait one dash length and then key-up
+                loop_delay.tv_nsec += 1000000L * dash_length;
+                while (loop_delay.tv_nsec >= NSEC_PER_SEC) {
+                  loop_delay.tv_nsec -= NSEC_PER_SEC;
+                  loop_delay.tv_sec++;
                 }
+#ifdef __APPLE__
+                clock_gettime(CLOCK_MONOTONIC, &now);
+                now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
+                now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
+                while (now.tv_nsec < 0) {
+                  now.tv_nsec += 1000000000;
+                  now.tv_sec--;
+                }
+                nanosleep(&now, NULL);
+#else
+                clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
+#endif
+                set_keyer_out(0);
+                key_state = DASHDELAY;       // add inter-character spacing of one dot length
+		kdelay=0;
+		// do not fall through, update VOX at beginning of loop
                 break;
 
             case DASHDELAY:
-		// Wait for the end of the inter-element delay
-                if (cw_key_up == 0) {
+		// we never arrive here in STRAIGHT/BUG mode
+                kdelay++;
+                if (kdelay > dot_length) {
 //
 //                  DL1YCF:
 //                  This is my understanding where MODE A comes in:
@@ -540,9 +559,9 @@ static void* keyer_thread(void *arg) {
 //
                     if (cw_keyer_mode == KEYER_MODE_A && !*kdot && !*kdash) dot_held=0;
                     if (dot_memory || *kdot || dot_held)
-                        key_state = PREDOT;
+                        key_state = SENDDOT;
                     else if (*kdash)
-			key_state = PREDASH;
+			key_state = SENDDASH;
 		    else if (cw_keyer_spacing) {
                         dot_memory = dash_memory = 0;
                         key_state = LETTERSPACE;
@@ -557,9 +576,9 @@ static void* keyer_thread(void *arg) {
                 kdelay++;
                 if (kdelay > 2 * dot_length) {
                     if (dot_memory)         // check if a dot or dash paddle was pressed during the delay.
-                        key_state = PREDOT;
+                        key_state = SENDDOT;
                     else if (dash_memory)
-                        key_state = PREDASH;
+                        key_state = SENDDASH;
                     else key_state = EXITLOOP;   // no memories set so restart
                 }
                 break;
@@ -577,7 +596,18 @@ static void* keyer_thread(void *arg) {
                 loop_delay.tv_nsec -= NSEC_PER_SEC;
                 loop_delay.tv_sec++;
             }
+#ifdef __APPLE__
+            clock_gettime(CLOCK_MONOTONIC, &now);
+            now.tv_sec =loop_delay.tv_sec  - now.tv_sec;
+            now.tv_nsec=loop_delay.tv_nsec - now.tv_nsec;
+            while (now.tv_nsec < 0) {
+              now.tv_nsec += 1000000000;
+              now.tv_sec--;
+            }
+            nanosleep(&now, NULL);
+#else
             clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &loop_delay, NULL);
+#endif
         }
 	//
 	// If we have reduced the side tone volume, restore it!

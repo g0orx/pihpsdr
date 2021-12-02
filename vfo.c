@@ -67,12 +67,6 @@ static cairo_surface_t *vfo_surface = NULL;
 int steps[]={1,10,25,50,100,250,500,1000,5000,9000,10000,100000,250000,500000,1000000};
 char *step_labels[]={"1Hz","10Hz","25Hz","50Hz","100Hz","250Hz","500Hz","1kHz","5kHz","9kHz","10kHz","100kHz","250KHz","500KHz","1MHz"};
 
-//
-// Move frequency f by n steps, adjust to multiple of step size
-// This should replace *all* divisions by the step size
-//
-#define ROUND(f,n)  (((f+step/2)/step + n)*step)
-
 static GtkWidget* menu=NULL;
 static GtkWidget* band_menu=NULL;
 
@@ -114,39 +108,6 @@ void modesettings_save_state() {
     sprintf(name,"modeset.%d.snb", i);
     sprintf(value,"%d", mode_settings[i].snb);
     setProperty(name,value);
-    sprintf(name,"modeset.%d.en_txeq", i);
-    sprintf(value,"%d", mode_settings[i].en_txeq);
-    setProperty(name,value);
-    sprintf(name,"modeset.%d.txeq.0", i);
-    sprintf(value,"%d", mode_settings[i].txeq[0]);
-    setProperty(name,value);
-    sprintf(name,"modeset.%d.txeq.1", i);
-    sprintf(value,"%d", mode_settings[i].txeq[1]);
-    setProperty(name,value);
-    sprintf(name,"modeset.%d.txeq.2", i);
-    sprintf(value,"%d", mode_settings[i].txeq[2]);
-    setProperty(name,value);
-    sprintf(name,"modeset.%d.txeq.3", i);
-    sprintf(value,"%d", mode_settings[i].txeq[3]);
-    setProperty(name,value);
-    sprintf(name,"modeset.%d.en_rxeq", i);
-    sprintf(value,"%d", mode_settings[i].en_rxeq);
-    setProperty(name,value);
-    sprintf(name,"modeset.%d.rxeq.0", i);
-    sprintf(value,"%d", mode_settings[i].rxeq[0]);
-    setProperty(name,value);
-    sprintf(name,"modeset.%d.rxeq.1", i);
-    sprintf(value,"%d", mode_settings[i].rxeq[1]);
-    setProperty(name,value);
-    sprintf(name,"modeset.%d.rxeq.2", i);
-    sprintf(value,"%d", mode_settings[i].rxeq[2]);
-    setProperty(name,value);
-    sprintf(name,"modeset.%d.rxeq.3", i);
-    sprintf(value,"%d", mode_settings[i].rxeq[3]);
-    setProperty(name,value);
-    sprintf(name,"modeset.%d.step", i);
-    sprintf(value,"%lld", mode_settings[i].step);
-    setProperty(name,value);
   }
 }
 
@@ -155,7 +116,7 @@ void modesettings_restore_state() {
   char name[80];
   char *value;
 
-  // set some reasonable defaults
+  // set some reasonable defaults for the filters
 
   for (i=0; i<MODES; i++) {
     mode_settings[i].filter=filterF6;
@@ -165,17 +126,6 @@ void modesettings_restore_state() {
     mode_settings[i].nb2=0;
     mode_settings[i].anf=0;
     mode_settings[i].snb=0;
-    mode_settings[i].en_txeq=0;
-    mode_settings[i].txeq[0]=0;
-    mode_settings[i].txeq[1]=0;
-    mode_settings[i].txeq[2]=0;
-    mode_settings[i].txeq[3]=0;
-    mode_settings[i].en_rxeq=0;
-    mode_settings[i].rxeq[0]=0;
-    mode_settings[i].rxeq[1]=0;
-    mode_settings[i].rxeq[2]=0;
-    mode_settings[i].rxeq[3]=0;
-    mode_settings[i].step=100;
 
     sprintf(name,"modeset.%d.filter",i);
     value=getProperty(name);
@@ -198,39 +148,6 @@ void modesettings_restore_state() {
     sprintf(name,"modeset.%d.snb",i);
     value=getProperty(name);
     if(value) mode_settings[i].snb=atoi(value);
-    sprintf(name,"modeset.%d.en_txeq",i);
-    value=getProperty(name);
-    if(value) mode_settings[i].en_txeq=atoi(value);
-    sprintf(name,"modeset.%d.txeq.0",i);
-    value=getProperty(name);
-    if(value) mode_settings[i].txeq[0]=atoi(value);
-    sprintf(name,"modeset.%d.txeq.1",i);
-    value=getProperty(name);
-    if(value) mode_settings[i].txeq[1]=atoi(value);
-    sprintf(name,"modeset.%d.txeq.2",i);
-    value=getProperty(name);
-    if(value) mode_settings[i].txeq[2]=atoi(value);
-    sprintf(name,"modeset.%d.txeq.3",i);
-    value=getProperty(name);
-    if(value) mode_settings[i].txeq[3]=atoi(value);
-    sprintf(name,"modeset.%d.en_rxeq",i);
-    value=getProperty(name);
-    if(value) mode_settings[i].en_rxeq=atoi(value);
-    sprintf(name,"modeset.%d.rxeq.0",i);
-    value=getProperty(name);
-    if(value) mode_settings[i].rxeq[0]=atoi(value);
-    sprintf(name,"modeset.%d.rxeq.1",i);
-    value=getProperty(name);
-    if(value) mode_settings[i].rxeq[1]=atoi(value);
-    sprintf(name,"modeset.%d.rxeq.2",i);
-    value=getProperty(name);
-    if(value) mode_settings[i].rxeq[2]=atoi(value);
-    sprintf(name,"modeset.%d.rxeq.3",i);
-    value=getProperty(name);
-    if(value) mode_settings[i].rxeq[3]=atoi(value);
-    sprintf(name,"modeset.%d.step",i);
-    value=getProperty(name);
-    if(value) mode_settings[i].step=atoll(value);
   }
 }
 
@@ -351,36 +268,6 @@ void vfo_xvtr_changed() {
   }
 }
 
-void vfo_apply_mode_settings(int id) {
-  int m; 
-
-  m=vfo[id].mode;
-
-  vfo[id].filter      =mode_settings[m].filter;
-  active_receiver->nr =mode_settings[m].nr;
-  active_receiver->nr2=mode_settings[m].nr2;
-  active_receiver->nb =mode_settings[m].nb;
-  active_receiver->nb2=mode_settings[m].nb2;
-  active_receiver->anf=mode_settings[m].anf;
-  active_receiver->snb=mode_settings[m].snb;
-  enable_rx_equalizer =mode_settings[m].en_rxeq;
-  rx_equalizer[0]     =mode_settings[m].rxeq[0];
-  rx_equalizer[1]     =mode_settings[m].rxeq[1];
-  rx_equalizer[2]     =mode_settings[m].rxeq[2];
-  rx_equalizer[3]     =mode_settings[m].rxeq[3];
-  enable_tx_equalizer =mode_settings[m].en_txeq;
-  tx_equalizer[0]     =mode_settings[m].txeq[0];
-  tx_equalizer[1]     =mode_settings[m].txeq[1];
-  tx_equalizer[2]     =mode_settings[m].txeq[2];
-  tx_equalizer[3]     =mode_settings[m].txeq[3];
-  step                =mode_settings[m].step;
-
-  // make changes effective
-  g_idle_add(ext_update_noise, NULL);
-  g_idle_add(ext_update_eq   , NULL);
-
-}
-
 void vfo_band_changed(int id,int b) {
   BANDSTACK *bandstack;
 
@@ -413,9 +300,8 @@ void vfo_band_changed(int id,int b) {
   vfo[id].band=b;
   vfo[id].frequency=entry->frequency;
   vfo[id].mode=entry->mode;
+  vfo[id].filter=entry->filter;
   vfo[id].lo=band->frequencyLO+band->errorLO;
-
-  vfo_apply_mode_settings(id);
 
   // turn off ctun
   vfo[id].ctun=0;
@@ -427,7 +313,13 @@ void vfo_band_changed(int id,int b) {
   switch(id) {
     case 0:
       bandstack->current_entry=vfo[id].bandstack;
-      // set_alex_attenuation(band->alexAttenuation); // nowhere maintained
+      receiver_vfo_changed(receiver[id]);
+      BAND *band=band_get_band(vfo[id].band);
+      set_alex_rx_antenna(band->alexRxAntenna);
+      if(can_transmit) {
+        set_alex_tx_antenna(band->alexTxAntenna);
+      }
+      set_alex_attenuation(band->alexAttenuation);
       receiver_vfo_changed(receiver[0]);
       break;
    case 1:
@@ -436,10 +328,8 @@ void vfo_band_changed(int id,int b) {
       }
       break;
   }
-  set_alex_rx_antenna();
 
   if(can_transmit) {
-    set_alex_tx_antenna();
     tx_set_mode(transmitter,get_tx_mode());
     //
     // If the band has changed, it is necessary to re-calculate
@@ -478,7 +368,13 @@ void vfo_bandstack_changed(int b) {
   switch(id) {
     case 0:
       bandstack->current_entry=vfo[id].bandstack;
-      // set_alex_attenuation(band->alexAttenuation); // nowhere maintained
+      receiver_vfo_changed(receiver[id]);
+      BAND *band=band_get_band(vfo[id].band);
+      set_alex_rx_antenna(band->alexRxAntenna);
+      if(can_transmit) {
+        set_alex_tx_antenna(band->alexTxAntenna);
+      }
+      set_alex_attenuation(band->alexAttenuation);
       receiver_vfo_changed(receiver[0]);
       break;
    case 1:
@@ -488,9 +384,7 @@ void vfo_bandstack_changed(int b) {
       break;
   }
 
-  set_alex_rx_antenna();
   if(can_transmit) {
-    set_alex_tx_antenna();
     tx_set_mode(transmitter,get_tx_mode());
     //
     // I do not think the band can change within this function.
@@ -515,8 +409,19 @@ void vfo_mode_changed(int m) {
 #endif
 
   vfo[id].mode=m;
-  vfo_apply_mode_settings(id);
+//
+// Change to the filter/NR combination stored for this mode
+//
+  vfo[id].filter      =mode_settings[m].filter;
+  active_receiver->nr =mode_settings[m].nr;
+  active_receiver->nr2=mode_settings[m].nr2;
+  active_receiver->nb =mode_settings[m].nb;
+  active_receiver->nb2=mode_settings[m].nb2;
+  active_receiver->anf=mode_settings[m].anf;
+  active_receiver->snb=mode_settings[m].snb;
 
+  // make changes effective
+  g_idle_add(ext_update_noise, NULL);
   switch(id) {
     case 0:
       receiver_mode_changed(receiver[0]);
@@ -576,21 +481,16 @@ void vfo_a_to_b() {
   vfo[VFO_B].frequency=vfo[VFO_A].frequency;
   vfo[VFO_B].mode=vfo[VFO_A].mode;
   vfo[VFO_B].filter=vfo[VFO_A].filter;
-  vfo[VFO_B].ctun=vfo[VFO_A].ctun;
-  vfo[VFO_B].ctun_frequency=vfo[VFO_A].ctun_frequency;
-  vfo[VFO_B].rit_enabled=vfo[VFO_A].rit_enabled;
-  vfo[VFO_B].rit=vfo[VFO_A].rit;
   vfo[VFO_B].lo=vfo[VFO_A].lo;
   vfo[VFO_B].offset=vfo[VFO_A].offset;
+  vfo[VFO_B].rit_enabled=vfo[VFO_A].rit_enabled;
+  vfo[VFO_B].rit=vfo[VFO_A].rit;
 
   if(receivers==2) {
     receiver_vfo_changed(receiver[1]);
   }
-  set_alex_rx_antenna();
   if(can_transmit) {
-    set_alex_tx_antenna();
     tx_set_mode(transmitter,get_tx_mode());
-    calcDriveLevel();  // sends HighPrio packet if in new protocol
   }
   g_idle_add(ext_vfo_update,NULL);
 }
@@ -601,19 +501,13 @@ void vfo_b_to_a() {
   vfo[VFO_A].frequency=vfo[VFO_B].frequency;
   vfo[VFO_A].mode=vfo[VFO_B].mode;
   vfo[VFO_A].filter=vfo[VFO_B].filter;
-  vfo[VFO_A].ctun=vfo[VFO_B].ctun;
-  vfo[VFO_A].ctun_frequency=vfo[VFO_B].ctun_frequency;
-  vfo[VFO_A].rit_enabled=vfo[VFO_B].rit_enabled;
-  vfo[VFO_A].rit=vfo[VFO_B].rit;
   vfo[VFO_A].lo=vfo[VFO_B].lo;
   vfo[VFO_A].offset=vfo[VFO_B].offset;
-
+  vfo[VFO_A].rit_enabled=vfo[VFO_B].rit_enabled;
+  vfo[VFO_A].rit=vfo[VFO_B].rit;
   receiver_vfo_changed(receiver[0]);
-  set_alex_rx_antenna();
   if(can_transmit) {
-    set_alex_tx_antenna();
     tx_set_mode(transmitter,get_tx_mode());
-    calcDriveLevel();  // sends HighPrio packet if in new protocol
   }
   g_idle_add(ext_vfo_update,NULL);
 }
@@ -624,58 +518,47 @@ void vfo_a_swap_b() {
   long long temp_frequency;
   int temp_mode;
   int temp_filter;
-  int temp_ctun;
-  long long temp_ctun_frequency;
+  int temp_lo;
+  int temp_offset;
   int temp_rit_enabled;
-  long long temp_rit;
-  long long temp_lo;
-  long long temp_offset;
+  int temp_rit;
 
   temp_band=vfo[VFO_A].band;
   temp_bandstack=vfo[VFO_A].bandstack;
   temp_frequency=vfo[VFO_A].frequency;
   temp_mode=vfo[VFO_A].mode;
   temp_filter=vfo[VFO_A].filter;
-  temp_ctun=vfo[VFO_A].ctun;
-  temp_ctun_frequency=vfo[VFO_A].ctun_frequency;
-  temp_rit_enabled=vfo[VFO_A].rit_enabled;
-  temp_rit=vfo[VFO_A].rit;
   temp_lo=vfo[VFO_A].lo;
   temp_offset=vfo[VFO_A].offset;
+  temp_rit_enabled=vfo[VFO_A].rit_enabled;
+  temp_rit=vfo[VFO_A].rit;
 
   vfo[VFO_A].band=vfo[VFO_B].band;
   vfo[VFO_A].bandstack=vfo[VFO_B].bandstack;
   vfo[VFO_A].frequency=vfo[VFO_B].frequency;
   vfo[VFO_A].mode=vfo[VFO_B].mode;
   vfo[VFO_A].filter=vfo[VFO_B].filter;
-  vfo[VFO_A].ctun=vfo[VFO_B].ctun;
-  vfo[VFO_A].ctun_frequency=vfo[VFO_B].ctun_frequency;
-  vfo[VFO_A].rit_enabled=vfo[VFO_B].rit_enabled;
-  vfo[VFO_A].rit=vfo[VFO_B].rit;
   vfo[VFO_A].lo=vfo[VFO_B].lo;
   vfo[VFO_A].offset=vfo[VFO_B].offset;
+  vfo[VFO_A].rit_enabled=vfo[VFO_B].rit_enabled;
+  vfo[VFO_A].rit=vfo[VFO_B].rit;
 
   vfo[VFO_B].band=temp_band;
   vfo[VFO_B].bandstack=temp_bandstack;
   vfo[VFO_B].frequency=temp_frequency;
   vfo[VFO_B].mode=temp_mode;
   vfo[VFO_B].filter=temp_filter;
-  vfo[VFO_B].ctun=temp_ctun;
-  vfo[VFO_B].ctun_frequency=temp_ctun_frequency;
-  vfo[VFO_B].rit_enabled=temp_rit_enabled;
-  vfo[VFO_B].rit=temp_rit;
   vfo[VFO_B].lo=temp_lo;
   vfo[VFO_B].offset=temp_offset;
+  vfo[VFO_B].rit_enabled=temp_rit_enabled;
+  vfo[VFO_B].rit=temp_rit;
 
   receiver_vfo_changed(receiver[0]);
   if(receivers==2) {
     receiver_vfo_changed(receiver[1]);
   }
-  set_alex_rx_antenna();
   if(can_transmit) {
-    set_alex_tx_antenna();
     tx_set_mode(transmitter,get_tx_mode());
-    calcDriveLevel();  // sends HighPrio packet if in new protocol
   }
   g_idle_add(ext_vfo_update,NULL);
 }
@@ -697,7 +580,7 @@ int vfo_get_step_from_index(int index) {
 
 int vfo_get_stepindex() {
   //
-  // return index of current step size in steps[] array
+  // return index of current step size in steps[] array,
   //
   int i;
   for(i=0;i<STEPS;i++) {
@@ -730,7 +613,7 @@ void vfo_set_stepsize(int newstep) {
   int m=vfo[id].mode;
 
   step=newstep;
-  mode_settings[m].step=newstep;
+  //mode_settings[m].step=newstep;
 }
 
 void vfo_step(int steps) {
@@ -751,8 +634,8 @@ void vfo_step(int steps) {
     if(vfo[id].ctun) {
       // don't let ctun go beyond end of passband
       long long frequency=vfo[id].frequency;
-      long long rx_low =ROUND(vfo[id].ctun_frequency,steps)+active_receiver->filter_low;
-      long long rx_high=ROUND(vfo[id].ctun_frequency,steps)+active_receiver->filter_high;
+      long long rx_low=((vfo[id].ctun_frequency/step + steps)*step)+active_receiver->filter_low;
+      long long rx_high=((vfo[id].ctun_frequency/step + steps)*step)+active_receiver->filter_high;
       long long half=(long long)active_receiver->sample_rate/2LL;
       long long min_freq=frequency-half;
       long long max_freq=frequency+half;
@@ -764,11 +647,11 @@ void vfo_step(int steps) {
       }
 
       delta=vfo[id].ctun_frequency;
-      vfo[id].ctun_frequency=ROUND(vfo[id].ctun_frequency,steps);
+      vfo[id].ctun_frequency=(vfo[id].ctun_frequency/step + steps)*step;
       delta=vfo[id].ctun_frequency - delta;
     } else {
       delta=vfo[id].frequency;
-      vfo[id].frequency=ROUND(vfo[id].frequency, steps);
+      vfo[id].frequency=(vfo[id].frequency/step + steps)*step;
       delta = vfo[id].frequency - delta;
     }
 
@@ -818,11 +701,11 @@ void vfo_id_step(int id, int steps) {
   if(!locked) {
     if(vfo[id].ctun) {
       delta=vfo[id].ctun_frequency;
-      vfo[id].ctun_frequency=ROUND(vfo[id].ctun_frequency,steps);
+      vfo[id].ctun_frequency=(vfo[id].ctun_frequency/step+steps)*step;
       delta=vfo[id].ctun_frequency - delta;
     } else {
       delta=vfo[id].frequency;
-      vfo[id].frequency=ROUND(vfo[id].frequency,steps);
+      vfo[id].frequency=(vfo[id].frequency/step+steps)*step;
       delta = vfo[id].frequency - delta;
     }
 
@@ -893,14 +776,14 @@ void vfo_id_move(int id,long long hz,int round) {
       delta=vfo[id].ctun_frequency;
       vfo[id].ctun_frequency=vfo[id].ctun_frequency+hz;
       if(round && (vfo[id].mode!=modeCWL && vfo[id].mode!=modeCWU)) {
-         vfo[id].ctun_frequency=ROUND(vfo[id].ctun_frequency,0);
+         vfo[id].ctun_frequency=(vfo[id].ctun_frequency/step)*step;
       }
       delta=vfo[id].ctun_frequency - delta;
     } else {
       delta=vfo[id].frequency;
       vfo[id].frequency=vfo[id].frequency-hz;
       if(round && (vfo[id].mode!=modeCWL && vfo[id].mode!=modeCWU)) {
-         vfo[id].frequency=ROUND(vfo[id].frequency,0);
+         vfo[id].frequency=(vfo[id].frequency/step)*step;
       }
       delta = vfo[id].frequency - delta;
     }
@@ -961,7 +844,7 @@ void vfo_move_to(long long hz) {
 #endif
 
   if(vfo[id].mode!=modeCWL && vfo[id].mode!=modeCWU) {
-    offset=ROUND(hz,0);
+    offset=(hz/step)*step;
   }
   f=(vfo[id].frequency-half)+offset+((double)active_receiver->pan*active_receiver->hz_per_pixel);
 
@@ -1132,37 +1015,6 @@ void vfo_update() {
 	if(vfo[1].entering_frequency) {
 	    bf=vfo[1].entered_frequency;
 	}
-
-#if 0
-//
-// DL1YCF: code still here but deactivated:
-// there is no consensus whether the "VFO display frequency" should move if
-// RIT/XIT values are changed. My Kenwood TS590 does, but some popular
-// other SDR software does not.
-// So although I do not feel too well if the actual TX frequency is not
-// that on the display, I deactivate the code but leave it here so it
-// can quickly be re-activated if one wants.
-// 
-        //
-        // If RIT or XIT is active, add this to displayed VFO frequency
-        //
-        // Adjust VFO_A frequency
-        //
-        if (isTransmitting() && txvfo == 0) {
-          if (transmitter->xit_enabled) af += transmitter->xit;
-        } else {
-          if (vfo[0].rit_enabled) af += vfo[0].rit;
-        }
-        //
-        // Adjust VFO_B frequency
-        //
-        if (isTransmitting() && txvfo == 1) {
-          if (transmitter->xit_enabled) bf += transmitter->xit;
-        } else {
-          if (vfo[1].rit_enabled) bf += vfo[0].rit;
-        }
-#endif
-
         int oob=0;
         if (can_transmit) oob=transmitter->out_of_band;
 
@@ -1190,7 +1042,7 @@ void vfo_update() {
         } else {
             if(vfo[1].entering_frequency) {
               cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
-            } else if(id==1) {
+	    } else if(id==1) {
               cairo_set_source_rgb(cr, 0.0, 1.0, 0.0);
             } else {
               cairo_set_source_rgb(cr, 0.0, 0.65, 0.0);
@@ -1320,26 +1172,16 @@ void vfo_update() {
         if(can_transmit) {
           cairo_move_to(cr, 330, 50);  
   	  if (transmitter->compressor) {
-              sprintf(temp_text,"CMPR %d",(int) transmitter->compressor_level);
-              cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
-              cairo_show_text(cr, temp_text);
+  	    sprintf(temp_text,"CMPR %ddB",(int) transmitter->compressor_level);
+            cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
+            cairo_show_text(cr, temp_text);
 	  } else {
-              cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
-              cairo_show_text(cr, "CMPR OFF");
+            cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
+            cairo_show_text(cr, "CMPR");
 	  }
         }
-        //
-        // Indicate whether an equalizer is active
-        //
-        cairo_move_to(cr, 400, 50);  
-        if ((isTransmitting() && enable_tx_equalizer) || (!isTransmitting() && enable_rx_equalizer)) {
-          cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
-        } else {
-          cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
-        }
-        cairo_show_text(cr, "EQ");
 
-        cairo_move_to(cr, 500, 50);  
+        cairo_move_to(cr, 505, 50);  
         if(diversity_enabled) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         } else {
@@ -1349,8 +1191,8 @@ void vfo_update() {
 
 	int s;
 	for(s=0;s<STEPS;s++) {
-	  if(steps[s]==step) break;
-	}
+          if(steps[s]==step) break;
+        }
 	if(s>=STEPS) s=0;
 
         sprintf(temp_text,"Step %s",step_labels[s]);
@@ -1358,7 +1200,7 @@ void vfo_update() {
         cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         cairo_show_text(cr, temp_text);
 
-        cairo_move_to(cr, 430, 50);  
+        cairo_move_to(cr, 405, 50);  
         if(vfo[id].ctun) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         } else {
@@ -1366,7 +1208,17 @@ void vfo_update() {
         }
         cairo_show_text(cr, "CTUN");
 
-        cairo_move_to(cr, 470, 50);  
+#ifdef MIDI
+        cairo_move_to(cr, 445, 50);  
+        if(midi_enabled) {
+          cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
+        } else {
+          cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
+        }
+        cairo_show_text(cr, "MIDI");
+#endif
+
+        cairo_move_to(cr, 475, 50);  
         if(cat_control>0) {
           cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
         } else {
@@ -1375,7 +1227,7 @@ void vfo_update() {
         cairo_show_text(cr, "CAT");
 
         if(can_transmit) {
-          cairo_move_to(cr, 500, 15);  
+          cairo_move_to(cr, 505, 15);  
           if(vox_enabled) {
             cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
           } else {
@@ -1398,7 +1250,7 @@ void vfo_update() {
         } else {
           cairo_set_source_rgb(cr, 0.7, 0.7, 0.7);
         }
-        cairo_show_text(cr, "Split");
+        cairo_show_text(cr, "SPLIT");
 
         cairo_move_to(cr, 260, 28);
         if(sat_mode!=SAT_NONE) {

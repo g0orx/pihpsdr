@@ -49,35 +49,64 @@
 #endif
 #include "ext.h"
 #include "zoompan.h"
-#include "equalizer_menu.h"
-#include "store.h"
 
 
-//
-// Re-structuring of the rigctl, MIDI, and gpio code
-// eliminates the need for many "ext" functions
-// defined here.
-//
+// The following calls functions can be called usig g_idle_add
 
-//
-// Some "helper" functions defined in this file
-// are moved to the top of the file, since they
-// eventually are moved elsewhere.
-//
+int ext_menu_filter(void *data) {
+  start_filter();
+  return 0;
+}
 
-//
-// 'Helper' functions:
-// -------------------
-//
-// - set_frequency(int id, long long f)   // Set the frequency of VFO #v
-// - band_plus(int id)                    // Move VFO #id to next higher band
-// - band_minus(int id)                   // Move VFO #id to next lower band
-// - ctun_update(int id, int state)       // set CTUN state of VFO #id
-// - set_split(int state)                 // Set split mode to state
-// - num_pad(int val)                     // enter VFO frequency
-//
+int ext_menu_mode(void *data) {
+  start_mode();
+  return 0;
+}
 
-void set_frequency(int v,long long f) {
+int ext_num_pad(void *data) {
+  gint val=GPOINTER_TO_INT(data);
+  RECEIVER *rx=active_receiver;
+  if(!vfo[rx->id].entering_frequency) {
+    vfo[rx->id].entered_frequency=0;
+    vfo[rx->id].entering_frequency=TRUE;
+  }
+  switch(val) {
+    case -1: // clear
+      vfo[rx->id].entered_frequency=0;
+      vfo[rx->id].entering_frequency=FALSE;
+      break;
+    case -2: // enter
+      if(vfo[rx->id].entered_frequency!=0) {
+        vfo[rx->id].frequency=vfo[rx->id].entered_frequency;
+	if(vfo[rx->id].ctun) {
+          vfo[rx->id].ctun=FALSE;
+          vfo[rx->id].offset=0;
+          vfo[rx->id].ctun_frequency=vfo[rx->id].frequency;
+	}
+      }
+      vfo[rx->id].entering_frequency=FALSE;
+      break;
+    default:
+      vfo[rx->id].entered_frequency=(vfo[rx->id].entered_frequency*10)+val;
+      break;
+  }
+  vfo_update(rx);
+  return 0;
+}
+
+int ext_vfo_mode_changed(void * data)
+{
+  int mode=GPOINTER_TO_INT(data);
+  vfo_mode_changed(mode);
+  return 0;
+}
+
+int ext_discovery(void *data) {
+  discovery();
+  return 0;
+}
+
+void local_set_frequency(int v,long long f) {
   int b=get_band_from_frequency(f);
   if(active_receiver->id==v) {
     if (b != vfo[v].band) {
@@ -94,141 +123,15 @@ void set_frequency(int v,long long f) {
   }
 }
 
-void band_plus(int id) {
-  long long frequency_min=radio->frequency_min;
-  long long frequency_max=radio->frequency_max;
-  int b=vfo[id].band;
-  BAND *band;
-  int found=0;
-  while(!found) {
-    b++;
-    if(b>=BANDS+XVTRS) b=0;
-    band=(BAND*)band_get_band(b);
-    if(strlen(band->title)>0) {
-      if(b<BANDS) {
-        if(!(band->frequencyMin==0.0 && band->frequencyMax==0.0)) {
-          if(band->frequencyMin<frequency_min || band->frequencyMax>frequency_max) {
-            continue;
-          }
-        }
-      }
-      vfo_band_changed(id,b);
-      found=1;
-    }
-  }
-}
-
-void band_minus(int id) {
-  long long frequency_min=radio->frequency_min;
-  long long frequency_max=radio->frequency_max;
-  int b=vfo[id].band;
-  BAND *band;
-  int found=0;
-  while(!found) {
-    b--;
-    if(b<0) b=BANDS+XVTRS-1;
-    band=(BAND*)band_get_band(b);
-    if(strlen(band->title)>0) {
-      if(b<BANDS) {
-        if(band->frequencyMin<frequency_min || band->frequencyMax>frequency_max) {
-          continue;
-        }
-      }
-      vfo_band_changed(id,b);
-      found=1;
-    }
-  }
-}
-
-void ctun_update(int id,int state) {
-  vfo[id].ctun=state;
-  if(!vfo[id].ctun) {
-    vfo[id].offset=0;
-  }
-  vfo[id].ctun_frequency=vfo[id].frequency;
-  set_offset(receiver[id],vfo[id].offset);
-}
-
-void set_split(int val) {
-  if (can_transmit) {
-    split=val;
-    tx_set_mode(transmitter,get_tx_mode());
-    set_alex_tx_antenna();
-    calcDriveLevel();
-    g_idle_add(ext_vfo_update, NULL);
-  }
-}
-
-void num_pad(int val) {
-  RECEIVER *rx=active_receiver;
-  if(!vfo[rx->id].entering_frequency) {
-    vfo[rx->id].entered_frequency=0;
-    vfo[rx->id].entering_frequency=TRUE;
-  }
-  switch(val) {
-    case -1: // clear
-      vfo[rx->id].entered_frequency=0;
-      vfo[rx->id].entering_frequency=FALSE;
-      break;
-    case -2: // enter
-      if(vfo[rx->id].entered_frequency!=0) {
-        vfo[rx->id].frequency=vfo[rx->id].entered_frequency;
-        if(vfo[rx->id].ctun) {
-          vfo[rx->id].ctun=FALSE;
-          vfo[rx->id].offset=0;
-          vfo[rx->id].ctun_frequency=vfo[rx->id].frequency;
-        }
-      }
-      vfo[rx->id].entering_frequency=FALSE;
-      break;
-    default:
-      vfo[rx->id].entered_frequency=(vfo[rx->id].entered_frequency*10)+val;
-      break;
-  }
-  vfo_update();
-}
-
-//
-// Functions to be invoked through the GTK idle queue,
-//
-
-int ext_menu_filter(void *data) {
-  start_filter();
-  return 0;
-}
-
-int ext_menu_mode(void *data) {
-  start_mode();
-  return 0;
-}
-
-int ext_num_pad(void *data) {
-  gint val=GPOINTER_TO_INT(data);
-  num_pad(val);
-  return 0;
-}
-
-int ext_vfo_mode_changed(void * data)
-{
-  int mode=GPOINTER_TO_INT(data);
-  vfo_mode_changed(mode);
-  return 0;
-}
-
-int ext_discovery(void *data) {
-  discovery();
-  return 0;
-}
-
 int ext_set_frequency(void *data) {
   //
   // If new frequency is outside of current band,
   // behave as if the user had chosen the new band
   // via the menu prior to changing the frequency
   //
-  SET_FREQUENCY *SetFreq=(SET_FREQUENCY *)data;
-g_print("ext_set_frequency: vfo=%d freq=%lld\n",SetFreq->vfo,SetFreq->frequency);
-  set_frequency(SetFreq->vfo,SetFreq->frequency);
+  SET_FREQUENCY *set_frequency=(SET_FREQUENCY *)data;
+g_print("ext_set_frequency: vfo=%d freq=%lld\n",set_frequency->vfo,set_frequency->frequency);
+  local_set_frequency(set_frequency->vfo,set_frequency->frequency);
   free(data);
   return 0;
 }
@@ -340,10 +243,7 @@ int ext_radio_change_sample_rate(void *data) {
 }
 
 int ext_update_squelch(void *data) {
-  int id=GPOINTER_TO_INT(data);
-  if (id == 0 || id == 1) {
-    set_squelch(receiver[id]);
-  }
+  set_squelch();
   return 0;
 }
 
@@ -532,6 +432,30 @@ int ext_snb_update(void *data) {
   return 0;
 }
 
+void band_plus(int id) {
+  long long frequency_min=radio->frequency_min;
+  long long frequency_max=radio->frequency_max;
+  int b=vfo[id].band;
+  BAND *band;
+  int found=0;
+  while(!found) {
+    b++;
+    if(b>=BANDS+XVTRS) b=0;
+    band=(BAND*)band_get_band(b);
+    if(strlen(band->title)>0) {
+      if(b<BANDS) {
+        if(!(band->frequencyMin==0.0 && band->frequencyMax==0.0)) {
+          if(band->frequencyMin<frequency_min || band->frequencyMax>frequency_max) {
+            continue;
+          }
+        }
+      }
+      vfo_band_changed(id,b);
+      found=1;
+    }
+  }
+}
+
 int ext_band_select(void *data) {
   int b=GPOINTER_TO_INT(data);
   g_print("%s: %d\n",__FUNCTION__,b);
@@ -542,6 +466,29 @@ int ext_band_select(void *data) {
 int ext_band_plus(void *data) {
   band_plus(active_receiver->id);
   return 0;
+}
+
+
+void band_minus(int id) {
+  long long frequency_min=radio->frequency_min;
+  long long frequency_max=radio->frequency_max;
+  int b=vfo[id].band;
+  BAND *band;
+  int found=0;
+  while(!found) {
+    b--;
+    if(b<0) b=BANDS+XVTRS-1;
+    band=(BAND*)band_get_band(b);
+    if(strlen(band->title)>0) {
+      if(b<BANDS) {
+        if(band->frequencyMin<frequency_min || band->frequencyMax>frequency_max) {
+          continue;
+        }
+      }
+      vfo_band_changed(id,b);
+      found=1;
+    }
+  }
 }
 
 int ext_band_minus(void *data) {
@@ -640,6 +587,15 @@ int ext_mode_minus(void *data) {
   return 0;
 }
 
+void ctun_update(int id,int state) {
+  vfo[id].ctun=state;
+  if(!vfo[id].ctun) {
+    vfo[id].offset=0;
+  }
+  vfo[id].ctun_frequency=vfo[id].frequency;
+  set_offset(receiver[id],vfo[id].offset);
+}
+
 int ext_ctun_update(void *data) {
   ctun_update(active_receiver->id,vfo[active_receiver->id].ctun==1?0:1);
   g_idle_add(ext_vfo_update, NULL);
@@ -651,14 +607,15 @@ int ext_agc_update(void *data) {
   if(active_receiver->agc>+AGC_LAST) {
     active_receiver->agc=0;
   }
-  set_agc(active_receiver);
+  set_agc(active_receiver, active_receiver->agc);
   g_idle_add(ext_vfo_update, NULL);
   return 0;
 }
 
 int ext_split_toggle(void *data) {
   if(can_transmit) {
-    set_split(!split);
+    split=split==1?0:1;
+    tx_set_mode(transmitter,get_tx_mode());
     g_idle_add(ext_vfo_update, NULL);
   }
   return 0;
@@ -754,11 +711,6 @@ int ext_update_noise(void *data) {
   return 0;
 }
 
-int ext_update_eq(void *data) {
-  update_eq();
-  return 0;
-}
-
 int ext_set_duplex(void *data) {
   setDuplex();
   return 0;
@@ -776,7 +728,7 @@ int ext_remote_command(void *data) {
       temp=active_receiver->pan;
       int vfo=freq_command->id;
       long long f=ntohll(freq_command->hz);
-      set_frequency(vfo,f);
+      local_set_frequency(vfo,f);
       vfo_update();
       send_vfo_data(client,VFO_A);
       send_vfo_data(client,VFO_B);

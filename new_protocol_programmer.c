@@ -38,7 +38,7 @@
 #include <errno.h>
 #ifdef __APPLE__
 #include "MacOS.h"  // emulate clock_gettime on old MacOS systems
-#endif
+#endif 
 
 #include <gtk/gtk.h>
 

@@ -17,6 +17,7 @@
 *
 */
 
+extern gchar *midi_device_name;
 extern void midi_menu(GtkWidget *parent);
 extern void NewMidiConfigureEvent(enum MIDIevent event, int channel, int note, int val);
 extern void midi_save_state();

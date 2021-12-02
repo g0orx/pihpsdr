@@ -45,19 +45,6 @@ void DoTheMidi(int action, enum ACTIONtype type, int val) {
 #else
           g_print("MIDI CW key but compiled without LOCALCW\n");
 #endif
-        } else if (action == CW_KEYER) {
-          //
-	  // hard "key-up/down" action WITHOUT break-in
-	  // intended for MIDI keyers which take care of PTT themselves
-          //
-          if (val != 0 && cw_keyer_internal == 0) {
-            cw_key_down=960000;  // max. 20 sec to protect hardware
-            cw_key_up=0;
-            cw_key_hit=1;
-          } else {
-            cw_key_down=0;
-            cw_key_up=0;
-          }
         } else {
           a=g_new(PROCESS_ACTION,1);
           a->action=action;
@@ -78,9 +65,6 @@ void DoTheMidi(int action, enum ACTIONtype type, int val) {
         a->mode=RELATIVE;
         a->val=val;
         g_idle_add(process_action,a);
-        break;
-      default:
-        // other types cannot happen for MIDI
         break;
     }
 }

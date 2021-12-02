@@ -80,11 +80,12 @@ static void squelch_enable_cb(GtkWidget *widget, gpointer data) {
 static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
   char *str = (char *) data;
   const char *labelText;
-  char output[BUF_SIZE+12], buffer[BUF_SIZE];
+  char output[BUF_SIZE], buffer[BUF_SIZE];
   int  len;
   double  mult;
   long long f;
   static int set = 0;
+  SET_FREQUENCY *fp;
 
   // Instead of messing with LOCALE settings,
   // we print a "0.0" and look what the decimal
@@ -155,12 +156,10 @@ static gboolean freqent_select_cb (GtkWidget *widget, gpointer data) {
         send_vfo_frequency(client_socket,active_receiver->id,f);
       } else {
 #endif
-        //This is inside a callback so we do not need g_idle_add
-        //fp=g_new(SET_FREQUENCY,1);
-        //fp->vfo=v;
-        //fp->frequency = f;
-        //g_idle_add(ext_set_frequency, fp);
-        set_frequency(v, f);
+        fp=g_new(SET_FREQUENCY,1);
+        fp->vfo=v;
+        fp->frequency = f;
+        g_idle_add(ext_set_frequency, fp);
 #ifdef CLIENT_SERVER
       }
 #endif
@@ -211,6 +210,8 @@ static void lock_cb(GtkWidget *widget, gpointer data) {
   g_idle_add(ext_vfo_update,NULL);
 }
 
+static GtkWidget *last_mode;
+
 void vfo_menu(GtkWidget *parent,int vfo) {
   int i;
 
@@ -255,6 +256,7 @@ void vfo_menu(GtkWidget *parent,int vfo) {
   gtk_misc_set_alignment (GTK_MISC (label), 1, .5);
   gtk_grid_attach(GTK_GRID(grid),label,0,1,3,1);
 
+  GtkWidget *step_rb=NULL;
   for (i=0; i<16; i++) {
     btn[i]=gtk_button_new_with_label(btn_labels[i]);
     set_button_text_color(btn[i],"black");
@@ -290,7 +292,7 @@ void vfo_menu(GtkWidget *parent,int vfo) {
 
   GtkWidget *vfo_b=gtk_combo_box_text_new();
   int index=vfo_get_stepindex();
-  for (i=0; i<STEPS; i++) {
+  for(i=0;i<15;i++) {
     gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(vfo_b),NULL,step_labels[i]);
     if(i == index) {
       gtk_combo_box_set_active (GTK_COMBO_BOX(vfo_b), i);
@@ -300,16 +302,10 @@ void vfo_menu(GtkWidget *parent,int vfo) {
   gtk_grid_attach(GTK_GRID(grid),vfo_b,4,3,1,1);
 
 
-  if (!display_sliders) {
-    //
-    // If the sliders are "on display", then we also have a squelch-enable checkbox
-    // in the display area.
-    // 
-    GtkWidget *enable_squelch=gtk_check_button_new_with_label("Enable Squelch");
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (enable_squelch), active_receiver->squelch_enable);
-    gtk_grid_attach(GTK_GRID(grid),enable_squelch,3,5,1,1);
-    g_signal_connect(enable_squelch,"toggled",G_CALLBACK(squelch_enable_cb),NULL);
-  }
+  GtkWidget *enable_squelch=gtk_check_button_new_with_label("Enable Squelch");
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (enable_squelch), active_receiver->squelch_enable);
+  gtk_grid_attach(GTK_GRID(grid),enable_squelch,3,5,1,1);
+  g_signal_connect(enable_squelch,"toggled",G_CALLBACK(squelch_enable_cb),NULL);
 
 #ifdef PURESIGNAL
   if(can_transmit && (protocol==ORIGINAL_PROTOCOL || protocol==NEW_PROTOCOL)) {

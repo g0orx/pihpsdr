@@ -94,17 +94,30 @@ extern int region;
 extern int RECEIVERS;
 extern int MAX_RECEIVERS;
 extern int MAX_DDC;
-
-
 #ifdef PURESIGNAL
 extern int PS_TX_FEEDBACK;
 extern int PS_RX_FEEDBACK;
 #endif
 
+// specify how many receivers: for PURESIGNAL need two extra
+//#define RECEIVERS 2
+//#ifdef PURESIGNAL
+//#define MAX_RECEIVERS (RECEIVERS+2)
+//#define PS_TX_FEEDBACK (RECEIVERS)
+//#define PS_RX_FEEDBACK (RECEIVERS+1)
+//#else
+//#define MAX_RECEIVERS RECEIVERS
+//#endif
+//#define MAX_DDC (RECEIVERS+2)
+
 extern RECEIVER *receiver[];
 extern RECEIVER *active_receiver;
 
 extern TRANSMITTER *transmitter;
+
+#ifdef MIDI
+extern gboolean midi_enabled;
+#endif
 
 #define PA_DISABLED 0
 #define PA_ENABLED 1
@@ -244,12 +257,8 @@ extern unsigned int n_temperature;
 extern unsigned int current;
 extern unsigned int average_current;
 extern unsigned int n_current;
-extern unsigned int tx_fifo_underrun;
-extern unsigned int tx_fifo_overrun;
 extern unsigned int alex_forward_power;
 extern unsigned int alex_reverse_power;
-extern unsigned int alex_forward_power_average;
-extern unsigned int alex_reverse_power_average;
 extern unsigned int IO1;
 extern unsigned int IO2;
 extern unsigned int IO3;
@@ -322,7 +331,6 @@ extern int rx_gain_calibration;  // position of the RX gain slider that
 extern double drive_max;
 
 extern gboolean display_sequence_errors;
-extern gboolean display_swr_protection;
 extern gint sequence_errors;
 extern GMutex property_mutex;
 
@@ -353,8 +361,8 @@ extern void setSquelch(RECEIVER *rx);
 extern void radio_set_rf_gain(RECEIVER *rx);
 
 extern void set_attenuation(int value);
-extern void set_alex_rx_antenna(void);
-extern void set_alex_tx_antenna(void);
+extern void set_alex_rx_antenna(int v);
+extern void set_alex_tx_antenna(int v);
 extern void set_alex_attenuation(int v);
 
 extern int isTransmitting();

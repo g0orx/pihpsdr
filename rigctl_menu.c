@@ -33,7 +33,6 @@
 #include "vfo.h"
 
 int  serial_enable;
-static GtkWidget *serial_enable_b;
 char ser_port[64]="/dev/ttyACM0";
 int serial_baud_rate = B9600;
 int serial_parity = 0; // 0=none, 1=even, 2=odd
@@ -81,33 +80,16 @@ static void rigctl_enable_cb(GtkWidget *widget, gpointer data) {
   if(rigctl_enable) {
      launch_rigctl();
   } else {
-     //
-     // If serial server is running, terminate it.
-     // Disable serial and clear check-box
-     //
-     if (serial_enable) {
-       disable_serial();
-     }
-     serial_enable=0;
-     gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON(serial_enable_b),0);
      disable_rigctl();
   }
 }
 
 static void serial_enable_cb(GtkWidget *widget, gpointer data) {
-  //
-  // If rigctl is not running, serial cannot be enabled
-  //
-  if (!rigctl_enable) {
-    serial_enable=0;
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget),0);
-    return;
-  }
   strcpy(ser_port,gtk_entry_get_text(GTK_ENTRY(serial_port_entry)));
   serial_enable=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
   if(serial_enable) {
      if(launch_serial() == 0) {
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget),FALSE)	     ;
+        gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON(widget),FALSE)	     ;
      }	      
   } else {
      disable_serial();
@@ -116,12 +98,8 @@ static void serial_enable_cb(GtkWidget *widget, gpointer data) {
 
 // Set Baud Rate
 static void baud_rate_cb(GtkWidget *widget, gpointer data) {
-   int active=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-   fprintf(stderr,"ACTIVE=%d BAUD=%d\n", active, GPOINTER_TO_INT(data));
-   if (active) {
-     serial_baud_rate = GPOINTER_TO_INT(data);
-     fprintf(stderr,"RIGCTL_MENU: Baud rate changed: %d\n",serial_baud_rate);
-   }
+   serial_baud_rate = GPOINTER_TO_INT(data);
+   fprintf(stderr,"RIGCTL_MENU: Baud rate changed: %d\n",serial_baud_rate);
 }
 
 // Set Parity 0=None, 1=Even, 2=0dd
@@ -185,7 +163,7 @@ void rigctl_menu(GtkWidget *parent) {
   g_signal_connect(rigctl_port_spinner,"value_changed",G_CALLBACK(rigctl_value_changed_cb),NULL);
 
   /* Put the Serial Port stuff here */
-             serial_enable_b=gtk_check_button_new_with_label("Serial Port Enable");
+  GtkWidget *serial_enable_b=gtk_check_button_new_with_label("Serial Port Enable");
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (serial_enable_b), serial_enable);
   gtk_widget_show(serial_enable_b);
   gtk_grid_attach(GTK_GRID(grid),serial_enable_b,0,3,1,1);

@@ -46,8 +46,7 @@
 #include "client_server.h"
 #endif
 
-#define LINE_THIN  0.5
-#define LINE_THICK 1.0
+#define LINE_WIDTH 0.5
 
 //static float panadapter_max=-60.0;
 //static float panadapter_min=-160.0;
@@ -140,7 +139,7 @@ void rx_panadapter_update(RECEIVER *rx) {
   //clear_panadater_surface();
   cairo_t *cr;
   cr = cairo_create (rx->panadapter_surface);
-  cairo_set_line_width(cr, LINE_THIN);
+  cairo_set_line_width(cr, LINE_WIDTH);
   cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
   cairo_rectangle(cr,0,0,display_width,display_height);
   cairo_fill(cr);
@@ -223,7 +222,6 @@ void rx_panadapter_update(RECEIVER *rx) {
     cw_frequency=filter_left+((filter_right-filter_left)/2.0);
     cairo_move_to(cr,cw_frequency,10.0);
     cairo_line_to(cr,cw_frequency,(double)display_height);
-    cairo_set_line_width(cr, LINE_THICK);
     cairo_stroke(cr);
   }
 
@@ -235,7 +233,7 @@ void rx_panadapter_update(RECEIVER *rx) {
   }
 
   double dbm_per_line=(double)display_height/((double)rx->panadapter_high-(double)rx->panadapter_low);
-  cairo_set_line_width(cr, LINE_THIN);
+  cairo_set_line_width(cr, LINE_WIDTH);
   cairo_select_font_face(cr, DISPLAY_FONT, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
   cairo_set_font_size(cr, DISPLAY_FONT_SIZE2);
   char v[32];
@@ -252,7 +250,6 @@ void rx_panadapter_update(RECEIVER *rx) {
       cairo_show_text(cr, v);
     }
   }
-  cairo_set_line_width(cr, LINE_THIN);
   cairo_stroke(cr);
 
   // plot frequency markers
@@ -384,26 +381,23 @@ void rx_panadapter_update(RECEIVER *rx) {
     cairo_show_text(cr, v);
     f+=divisor;
   }
-  cairo_set_line_width(cr, LINE_THIN);
   cairo_stroke(cr);
 
   if(vfoband!=band60) {
     // band edges
     if(band->frequencyMin!=0LL) {
       cairo_set_source_rgb (cr, 1.0, 0.0, 0.0);
-      cairo_set_line_width(cr, LINE_THICK);
+      cairo_set_line_width(cr, LINE_WIDTH);
       if((min_display<band->frequencyMin)&&(max_display>band->frequencyMin)) {
         i=(band->frequencyMin-min_display)/(long long)HzPerPixel;
         cairo_move_to(cr,(double)i,0.0);
         cairo_line_to(cr,(double)i,(double)display_height);
-        cairo_set_line_width(cr, LINE_THICK);
         cairo_stroke(cr);
       }
       if((min_display<band->frequencyMax)&&(max_display>band->frequencyMax)) {
         i=(band->frequencyMax-min_display)/(long long)HzPerPixel;
         cairo_move_to(cr,(double)i,0.0);
         cairo_line_to(cr,(double)i,(double)display_height);
-        cairo_set_line_width(cr, LINE_THICK);
         cairo_stroke(cr);
       }
     }
@@ -426,23 +420,14 @@ void rx_panadapter_update(RECEIVER *rx) {
 
   // agc
   if(rx->agc!=AGC_OFF) {
-    cairo_set_line_width(cr, LINE_THICK);
-    double knee_y=rx->agc_thresh + (double)rx_gain_calibration + (double)adc[rx->adc].attenuation - adc[rx->adc].gain;
+    double knee_y=rx->agc_thresh+(double)adc[rx->adc].attenuation;
     if (filter_board == ALEX && rx->adc == 0) knee_y += (double)(10*rx->alex_attenuation);
-    if (filter_board == CHARLY25) {
-      if (rx->preamp) knee_y -= 18.0;
-      if (rx->dither) knee_y -= 18.0;
-    }
     knee_y = floor((rx->panadapter_high - knee_y)
                         * (double) display_height
                         / (rx->panadapter_high - rx->panadapter_low));
 
-    double hang_y=rx->agc_hang + (double)rx_gain_calibration + (double)adc[rx->adc].attenuation - adc[rx->adc].gain;
+    double hang_y=rx->agc_hang+(double)adc[rx->adc].attenuation;
     if (filter_board == ALEX && rx->adc == 0) hang_y += (double)(10*rx->alex_attenuation);
-    if (filter_board == CHARLY25) {
-      if (rx->preamp) hang_y -= 18.0;
-      if (rx->dither) hang_y -= 18.0;
-    }
     hang_y = floor((rx->panadapter_high - hang_y)
                         * (double) display_height
                         / (rx->panadapter_high - rx->panadapter_low));
@@ -458,7 +443,6 @@ void rx_panadapter_update(RECEIVER *rx) {
       cairo_fill(cr);
       cairo_move_to(cr,40.0,hang_y);
       cairo_line_to(cr,(double)display_width-40.0,hang_y);
-      cairo_set_line_width(cr, LINE_THICK);
       cairo_stroke(cr);
       cairo_move_to(cr,48.0,hang_y);
       cairo_show_text(cr, "-H");
@@ -474,7 +458,6 @@ void rx_panadapter_update(RECEIVER *rx) {
     cairo_fill(cr);
     cairo_move_to(cr,40.0,knee_y);
     cairo_line_to(cr,(double)display_width-40.0,knee_y);
-    cairo_set_line_width(cr, LINE_THICK);
     cairo_stroke(cr);
     cairo_move_to(cr,48.0,knee_y);
     cairo_show_text(cr, "-G");
@@ -487,9 +470,9 @@ void rx_panadapter_update(RECEIVER *rx) {
   } else {
     cairo_set_source_rgb (cr, 0.5, 0.0, 0.0);
   }
+  cairo_set_line_width(cr, LINE_WIDTH);
   cairo_move_to(cr,vfofreq+(offset/HzPerPixel),0.0);
   cairo_line_to(cr,vfofreq+(offset/HzPerPixel),(double)display_height);
-  cairo_set_line_width(cr, LINE_THIN);
   cairo_stroke(cr);
 
   // signal
@@ -504,28 +487,45 @@ void rx_panadapter_update(RECEIVER *rx) {
 
   samples[pan]=-200.0;
   samples[display_width-1+pan]=-200.0;
-  //
-  // most HPSDR only have attenuation (no gain), while HermesLite-II and SOAPY use gain (no attenuation)
-  //
-  s1=(double)samples[pan] + (double)rx_gain_calibration + (double)adc[rx->adc].attenuation - adc[rx->adc].gain;
+  if(have_rx_gain) {
+    s1=(double)samples[pan]+rx_gain_calibration-adc[rx->adc].attenuation;
+  } else {
+    s1=(double)samples[pan]+(double)adc[rx->adc].attenuation;
+  }
   cairo_move_to(cr, 0.0, s1);
   if (filter_board == ALEX && rx->adc == 0) s1 += (double)(10*rx->alex_attenuation);
   if (filter_board == CHARLY25) {
     if (rx->preamp) s1 -= 18.0;
     if (rx->dither) s1 -= 18.0;
   }
+#ifdef SOAPYSDR
+  if(protocol==SOAPYSDR_PROTOCOL) {
+    //s1-=rx->rf_gain;
+    s1-=adc[rx->id].gain;
+  }
+#endif
 
   s1 = floor((rx->panadapter_high - s1)
                         * (double) display_height
                         / (rx->panadapter_high - rx->panadapter_low));
   cairo_move_to(cr, 0.0, s1);
   for(i=1;i<display_width;i++) {
-    s2=(double)samples[i+pan] + (double)rx_gain_calibration + (double)adc[rx->adc].attenuation - adc[rx->adc].gain;
+    if(have_rx_gain) {
+      s2=(double)samples[i+pan]+rx_gain_calibration-adc[rx->adc].attenuation;
+    } else {
+      s2=(double)samples[i+pan]+(double)adc[rx->adc].attenuation;
+    }
     if (filter_board == ALEX && rx->adc == 0) s2 += (double)(10*rx->alex_attenuation);
     if (filter_board == CHARLY25) {
       if (rx->preamp) s2 -= 18.0;
       if (rx->dither) s2 -= 18.0;
     }
+#ifdef SOAPYSDR
+    if(protocol==SOAPYSDR_PROTOCOL) {
+      //s2-=rx->rf_gain;
+      s2-=adc[rx->id].gain;
+    }
+#endif
     s2 = floor((rx->panadapter_high - s2)
                             * (double) display_height
                             / (rx->panadapter_high - rx->panadapter_low));
@@ -533,7 +533,6 @@ void rx_panadapter_update(RECEIVER *rx) {
   }
 
   cairo_pattern_t *gradient;
-  gradient=NULL;
   if(display_gradient) {
     gradient = cairo_pattern_create_linear(0.0, display_height, 0.0, 0.0);
     // calculate where S9 is
@@ -559,29 +558,21 @@ void rx_panadapter_update(RECEIVER *rx) {
     }
     cairo_set_source(cr, gradient);
   } else {
-    //
-    // if filled, use 0.5 (active) and 0.25 (inactive)
-    // if only drawing the line, use 0.75 for active RX
-    //
-    double brightness=0.25;
-    if (active) brightness = 0.50;
-    if (!display_filled && active) brightness =0.75;
-    cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, brightness);
+    if(active) {
+      cairo_set_source_rgba(cr, 1.0, 1.0, 1.0,0.5);
+    } else {
+      cairo_set_source_rgba(cr, 0.5, 0.5, 0.5,0.5);
+    }
   }
 
   if(display_filled) {
     cairo_close_path (cr);
     cairo_fill_preserve (cr);
-    cairo_set_line_width(cr, LINE_THIN);
-  } else {
-    //
-    // if not filling, use thicker line
-    //
-    cairo_set_line_width(cr, LINE_THICK);
   }
+  cairo_set_line_width(cr, LINE_WIDTH);
   cairo_stroke(cr);
 
-  if(gradient) {
+  if(display_gradient) {
     cairo_pattern_destroy(gradient);
   }
 
@@ -590,7 +581,7 @@ void rx_panadapter_update(RECEIVER *rx) {
   if(rx->id==0 && controller==CONTROLLER1) {
 
     cairo_set_source_rgb(cr,1.0,1.0,0.0);
-    cairo_set_font_size(cr,DISPLAY_FONT_SIZE3);
+    cairo_set_font_size(cr, DISPLAY_FONT_SIZE3);
     if(ENABLE_E2_ENCODER) {
       cairo_move_to(cr, display_width-200,70);
       sprintf(text,"%s (%s)",encoder_string[e2_encoder_action],sw_string[e2_sw_action]);
@@ -611,12 +602,11 @@ void rx_panadapter_update(RECEIVER *rx) {
   }
 #endif
 */
-
   if(display_sequence_errors) {
     if(sequence_errors!=0) {
       cairo_move_to(cr,100.0,50.0);
       cairo_set_source_rgb(cr,1.0,0.0,0.0);
-      cairo_set_font_size(cr,DISPLAY_FONT_SIZE2);
+      cairo_set_font_size(cr, DISPLAY_FONT_SIZE2);
       cairo_show_text(cr, "Sequence Error");
       sequence_error_count++;
       // show for 2 second
@@ -629,7 +619,7 @@ void rx_panadapter_update(RECEIVER *rx) {
 
   if(rx->id==0 && protocol==ORIGINAL_PROTOCOL && device==DEVICE_HERMES_LITE2) {
     cairo_set_source_rgb(cr,1.0,1.0,0.0);
-    cairo_set_font_size(cr,DISPLAY_FONT_SIZE3);
+    cairo_set_font_size(cr, DISPLAY_FONT_SIZE3);
 
     double t = (3.26 * ((double)average_temperature / 4096.0) - 0.5) / 0.01;
     sprintf(text,"%0.1fC",t);

@@ -50,7 +50,6 @@
 #endif
 #include "audio.h"
 #include "ext.h"
-#include "sliders.h"
 
 double getNextSideToneSample();
 double getNextInternalSideToneSample();
@@ -62,9 +61,9 @@ static int waterfall_samples=0;
 static int waterfall_resample=8;
 
 //
-// CW pulses are timed by the heart-beat of the mic samples.
-// Other parts of the program may produce CW RF pulses by manipulating
-// these global variables:
+// CW (CAT-CW and LOCALCW) in the "old protocol" is timed by the
+// heart-beat of the mic samples. The communication with rigctl.c
+// and iambic.c is done via some global variables. Their use is:
 //
 // cw_key_up/cw_key_down: set number of samples for next key-down/key-up sequence
 //                        Any of these variable will only be set from outside if
@@ -237,12 +236,6 @@ void transmitter_save_state(TRANSMITTER *tx) {
   sprintf(name,"transmitter.%d.tune_use_drive",tx->id);
   sprintf(value,"%d",tx->tune_use_drive);
   setProperty(name,value);
-  sprintf(name,"transmitter.%d.swr_protection",tx->id);
-  sprintf(value,"%d",tx->swr_protection);
-  setProperty(name,value);
-  sprintf(name,"transmitter.%d.swr_alarm",tx->id);
-  sprintf(value,"%f",tx->swr_alarm);
-  setProperty(name,value);
   sprintf(name,"transmitter.%d.drive_level",tx->id);
   sprintf(value,"%d",tx->drive_level);
   setProperty(name,value);
@@ -344,12 +337,6 @@ void transmitter_restore_state(TRANSMITTER *tx) {
   sprintf(name,"transmitter.%d.tune_use_drive",tx->id);
   value=getProperty(name);
   if(value) tx->tune_use_drive=atoi(value);
-  sprintf(name,"transmitter.%d.swr_protection",tx->id);
-  value=getProperty(name);
-  if(value) tx->swr_protection=atoi(value);
-  sprintf(name,"transmitter.%d.swr_alarm",tx->id);
-  value=getProperty(name);
-  if(value) tx->swr_alarm=atof(value);
   sprintf(name,"transmitter.%d.drive_level",tx->id);
   value=getProperty(name);
   if(value) tx->drive_level=atoi(value);
@@ -450,16 +437,16 @@ static gboolean update_display(gpointer data) {
       // on the attenuation effective in the feedback path.
       // We try to normalize the feeback signal such that is looks like a "normal" TX
       // panadapter if the feedback is optimal for PURESIGNAL (that is, if the attenuation
-      // is optimal). The correction (offset) depends on the protocol (different peak levels in the TX
-      // feedback channel.
+      // is optimal). The correction depends on the protocol (different peak levels in the TX
+      // feedback channel, old=0.407, new=0.2899, difference is 3 dB).
       switch (protocol) {
         case ORIGINAL_PROTOCOL:
-	  // TX dac feedback peak = 0.406, on HermesLite2 0.230
+          // TX dac feedback peak = 0.406, on HermesLite2 0.230
           offset = (device == DEVICE_HERMES_LITE2) ? 17.0 : 12.0;
           break;
         case NEW_PROTOCOL:
           // TX dac feedback peak = 0.2899
-	  offset = 15.0;
+          offset = 15.0;
           break;
         default:
           // we probably never come here
@@ -480,22 +467,18 @@ static gboolean update_display(gpointer data) {
       tx_panadapter_update(tx);
     }
 
-    tx->alc=GetTXAMeter(tx->id, alc);
+    transmitter->alc=GetTXAMeter(tx->id, alc);
     double constant1=3.3;
     double constant2=0.095;
     int fwd_cal_offset=6;
 
     int fwd_power;
     int rev_power;
-    int fwd_average;  // only used for SWR calculation, VOLTAGE value
-    int rev_average;  // only used for SWR calculation, VOLTAGE value
     int ex_power;
     double v1;
 
     fwd_power=alex_forward_power;
     rev_power=alex_reverse_power;
-    fwd_average=alex_forward_power_average;
-    rev_average=alex_reverse_power_average;
     if(device==DEVICE_HERMES_LITE || device==DEVICE_HERMES_LITE2) {
       ex_power=0;
     } else {
@@ -533,8 +516,6 @@ static gboolean update_display(gpointer data) {
             if(rev_power>fwd_power) {
               fwd_power=alex_reverse_power;
               rev_power=alex_forward_power;
-              fwd_average=alex_reverse_power_average;
-              rev_average=alex_forward_power_average;
             }
             constant1=3.3;
             constant2=1.4;
@@ -547,31 +528,21 @@ static gboolean update_display(gpointer data) {
         }
         fwd_power=fwd_power-fwd_cal_offset;
         v1=((double)fwd_power/4095.0)*constant1;
-        tx->fwd=(v1*v1)/constant2;
+        transmitter->fwd=(v1*v1)/constant2;
 
         if(device==DEVICE_HERMES_LITE || device==DEVICE_HERMES_LITE2) {
-          tx->exciter=0.0;
+          transmitter->exciter=0.0;
         } else {
           ex_power=ex_power-fwd_cal_offset;
           v1=((double)ex_power/4095.0)*constant1;
-          tx->exciter=(v1*v1)/constant2;
+          transmitter->exciter=(v1*v1)/constant2;
         }
 
-        tx->rev=0.0;
+        transmitter->rev=0.0;
         if(fwd_power!=0) {
           v1=((double)rev_power/4095.0)*constant1;
-          tx->rev=(v1*v1)/constant2;
+          transmitter->rev=(v1*v1)/constant2;
         }
-
-        //
-        // we apply the offset but no further calculation
-        // since only the ratio of rev_average and fwd_average is needed
-        //
-        fwd_average=fwd_average-fwd_cal_offset;
-        rev_average=rev_average-fwd_cal_offset;
-        if (rev_average < 0) rev_average=0;
-        if (fwd_average < 0) fwd_average=0;
-
         break;
       case NEW_PROTOCOL:
         switch(device) {
@@ -614,93 +585,38 @@ static gboolean update_display(gpointer data) {
         }
         fwd_power=fwd_power-fwd_cal_offset;
         v1=((double)fwd_power/4095.0)*constant1;
-        tx->fwd=(v1*v1)/constant2;
+        transmitter->fwd=(v1*v1)/constant2;
 
         ex_power=exciter_power;
         ex_power=ex_power-fwd_cal_offset;
         v1=((double)ex_power/4095.0)*constant1;
-        tx->exciter=(v1*v1)/constant2;
+        transmitter->exciter=(v1*v1)/constant2;
 
-        tx->rev=0.0;
+        transmitter->rev=0.0;
         if(alex_forward_power!=0) {
           rev_power=alex_reverse_power;
           v1=((double)rev_power/4095.0)*constant1;
-          tx->rev=(v1*v1)/constant2;
+          transmitter->rev=(v1*v1)/constant2;
         }
-
-        //
-        // we apply the offset but no further calculation
-        // since only the ratio of rev_average and fwd_average is needed
-        //
-        fwd_average=fwd_average-fwd_cal_offset;
-        rev_average=rev_average-fwd_cal_offset;
-        if (rev_average < 0) rev_average=0;
-        if (fwd_average < 0) fwd_average=0;
-
         break;
 
-#ifdef SOAPYSDR
-      case SOAPYSDR_PROTOCOL:
-        tx->fwd=0.0;
-        tx->exciter=0.0;
-        tx->rev=0.0;
-        fwd_average=0;
-        rev_average=0;
+#ifdef SOAPY_SDR
+      case SOAPY_PROTOCOL:
+        transmitter->fwd=0.0;
+        transmitter->exciter=0.0;
+        transmitter->rev=0.0;
         break;
 #endif
     }
 
-//g_print("transmitter: meter_update: fwd:%f->%f rev:%f->%f ex_fwd=%d alex_fwd=%d alex_rev=%d\n",tx->fwd,compute_power(tx->fwd),tx->rev,compute_power(tx->rev),exciter_power,alex_forward_power,alex_reverse_power);
+    double fwd=compute_power(transmitter->fwd);
+    double rev=compute_power(transmitter->rev);
+    double ex=compute_power(transmitter->exciter);
 
-    //
-    // compute_power does an interpolation is user-supplied pairs of
-    // data points (measured by radio, measured by external watt meter)
-    // are available.
-    //
-    tx->fwd=compute_power(tx->fwd);
-    tx->rev=compute_power(tx->rev);
-    tx->exciter=compute_power(tx->exciter);
-
-    //
-    // Calculate SWR and store as tx->swr.
-    // tx->swr can be used in other parts of the program to
-    // implement SWR protection etc.
-    // The SWR is calculated from the (time-averaged) forward and reverse voltages.
-    // Take care that no division by zero can happen, since otherwise the moving
-    // exponential average cannot survive from a "nan".
-    //
-    if (tx->fwd > 0.1 && fwd_average > 0.01) {
-        //
-        // SWR means VSWR (voltage based) but we have the forward and
-        // reflected power, so correct for that
-        //
-        double gamma=(double) rev_average / (double) fwd_average;
-        //
-        // this prevents SWR going to infinity, from which the
-        // moving average cannot recover
-        //
-        if (gamma > 0.95) gamma=0.95;
-        tx->swr=0.7*(1+gamma)/(1-gamma) + 0.3*tx->swr;
-    } else {
-        //
-        // During RX, move towards 1.0
-        //
-        tx->swr = 0.7 + 0.3*tx->swr;
-    }
-    if (tx->fwd <= 0.0) tx->fwd = tx->exciter;
-
-
-//
-//  If SWR is above threshold and SWR protection is enabled,
-//  set the drive slider to zero. Do not do this while tuning
-//
-    if (tx->swr_protection && !getTune() && tx->swr >= tx->swr_alarm) {
-      set_drive(0.0);
-      display_swr_protection = TRUE;
-    }
+//g_print("transmitter: meter_update: fwd:%f->%f rev:%f->%f ex_fwd=%d alex_fwd=%d alex_rev=%d\n",transmitter->fwd,fwd,transmitter->rev,rev,exciter_power,alex_forward_power,alex_reverse_power);
 
     if(!duplex) {
-      meter_update(active_receiver,POWER,tx->fwd,tx->rev,tx->exciter,tx->alc,tx->swr);
+      meter_update(active_receiver,POWER,/*transmitter->*/fwd,/*transmitter->*/rev,/*transmitter->exciter*/ex,transmitter->alc);
     }
 
     return TRUE; // keep going
@@ -759,10 +675,9 @@ static void init_analyzer(TRANSMITTER *tx) {
    // This cannot be changed for the TX panel,
    // use peak mode
    //
-   SetDisplayDetectorMode (tx->id,  0, DETECTOR_MODE_PEAK);
-   SetDisplayAverageMode  (tx->id,  0, AVERAGE_MODE_LOG_RECURSIVE);
-   SetDisplayNumAverage   (tx->id,  0, 4);
-   SetDisplayAvBackmult   (tx->id,  0, 0.4000);
+   SetDisplayDetectorMode(tx->id, 0, DETECTOR_MODE_PEAK);
+   SetDisplayAverageMode(tx->id, 0,  AVERAGE_MODE_NONE);
+
 }
 
 void create_dialog(TRANSMITTER *tx) {
@@ -889,9 +804,6 @@ fprintf(stderr,"create_transmitter: id=%d buffer_size=%d mic_sample_rate=%d mic_
 
   tx->dialog_x=-1;
   tx->dialog_y=-1;
-  tx->swr = 1.0;
-  tx->swr_protection = FALSE;
-  tx->swr_alarm=3.0;       // default value for SWR protection
 
   tx->alc=0.0;
 
@@ -906,38 +818,24 @@ fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%d iq_output_buf
   tx->pixel_samples=g_new(float,tx->pixels);
   if (cw_shape_buffer48) g_free(cw_shape_buffer48);
   if (cw_shape_buffer192) g_free(cw_shape_buffer192);
-  switch (protocol) {
-    case ORIGINAL_PROTOCOL:
-      //
-      // We need no buffer for the IQ sample amplitudes because
-      // we make dual use of the buffer for the audio amplitudes
-      // (TX sample rate ==  mic sample rate)
-      //
-      cw_shape_buffer48=g_new(double,tx->buffer_size);
-      break;
-   case NEW_PROTOCOL:
-#ifdef SOAPYSDR
-   case SOAPYSDR_PROTOCOL:
-#endif
-      //
-      // We need two buffers: one for the audio sample amplitudes
-      // and another one for the TX IQ amplitudes
-      // (TX and mic sample rate are usually different).
-      //
-      cw_shape_buffer48=g_new(double,tx->buffer_size);
-      cw_shape_buffer192=g_new(double,tx->output_samples);
-      break;
+  //
+  // We need this one both for old and new protocol, since
+  // is is also used to shape the audio samples
+  cw_shape_buffer48=g_new(double,tx->buffer_size);
+  if (protocol == NEW_PROTOCOL) {
+    // We need this buffer for the new protocol only, where it is only
+    // used to shape the TX envelope
+    cw_shape_buffer192=g_new(double,tx->output_samples);
   }
-  g_print("transmitter: allocate buffers: mic_input_buffer=%p iq_output_buffer=%p pixels=%p\n",
-          tx->mic_input_buffer,tx->iq_output_buffer,tx->pixel_samples);
+fprintf(stderr,"transmitter: allocate buffers: mic_input_buffer=%p iq_output_buffer=%p pixels=%p\n",tx->mic_input_buffer,tx->iq_output_buffer,tx->pixel_samples);
 
-  g_print("create_transmitter: OpenChannel id=%d buffer_size=%d fft_size=%d sample_rate=%d dspRate=%d outputRate=%d\n",
-          tx->id,
-          tx->buffer_size,
-          2048, // tx->fft_size,
-          tx->mic_sample_rate,
-          tx->mic_dsp_rate,
-          tx->iq_output_rate);
+  fprintf(stderr,"create_transmitter: OpenChannel id=%d buffer_size=%d fft_size=%d sample_rate=%d dspRate=%d outputRate=%d\n",
+              tx->id,
+              tx->buffer_size,
+              2048, // tx->fft_size,
+              tx->mic_sample_rate,
+              tx->mic_dsp_rate,
+              tx->iq_output_rate);
 
   OpenChannel(tx->id,
               tx->buffer_size,
@@ -1018,83 +916,58 @@ void tx_set_mode(TRANSMITTER* tx,int mode) {
     int filter_low, filter_high;
     tx->mode=mode;
     SetTXAMode(tx->id, tx->mode);
-    tx_set_filter(tx);
+    if(tx->use_rx_filter) {
+      int m=vfo[active_receiver->id].mode;
+      if(m==modeFMN) {
+        if(active_receiver->deviation==2500) {
+         filter_low=-5500;
+         filter_high=5500;
+        } else {
+         filter_low=-8000;
+         filter_high=8000;
+        }
+      } else {
+        FILTER *mode_filters=filters[m];
+        FILTER *filter=&mode_filters[vfo[active_receiver->id].filter];
+        filter_low=filter->low;
+        filter_high=filter->high;
+      }
+    } else {
+      filter_low=tx_filter_low;
+      filter_high=tx_filter_high;
+    }
+    tx_set_filter(tx,filter_low,filter_high);
   }
 }
 
-void tx_set_filter(TRANSMITTER *tx) {
+void tx_set_filter(TRANSMITTER *tx,int low,int high) {
   int txmode=get_tx_mode();
 
-  // load default values
-  int low  = tx_filter_low;
-  int high = tx_filter_high;  // 0 < low < high
- 
-  if (tx->use_rx_filter) {
-    //
-    // Use only 'compatible' parts of RX filter settings
-    // to change TX values (importrant for split operation)
-    //
-    int id=active_receiver->id;
-    int rxmode=vfo[id].mode;
-    FILTER *mode_filters=filters[rxmode];
-    FILTER *filter=&mode_filters[vfo[id].filter];
-
-    switch (rxmode) {
-      case modeDSB:
-      case modeAM:
-      case modeSAM:
-      case modeSPEC:
-        high =  filter->high;
-        break;
-      case modeLSB:
-      case modeDIGL:
-        high = -filter->low;
-        low  = -filter->high;
-        break;
-      case modeUSB:
-      case modeDIGU:
-        high = filter->high;
-        low  = filter->low;
-        break;
-    }
-  }
-
   switch(txmode) {
-    case modeCWL:
-    case modeCWU:
-      // default filter setting (low=150, high=2850) and "use rx filter" unreasonable here
-      // note currently WDSP is by-passed in CW anyway.
-      tx->filter_low  =-150;
-      tx->filter_high = 150;
-      break;
-    case modeDSB:
-    case modeAM:
-    case modeSAM:
-    case modeSPEC:
-      // disregard the "low" value and use (-high, high)
-      tx->filter_low =-high;
-      tx->filter_high=high;
-      break;
     case modeLSB:
+    case modeCWL:
     case modeDIGL:
-      // in IQ space, the filter edges are (-high, -low)
       tx->filter_low=-high;
       tx->filter_high=-low;
       break;
     case modeUSB:
+    case modeCWU:
     case modeDIGU:
-      // in IQ space, the filter edges are (low, high)
       tx->filter_low=low;
       tx->filter_high=high;
       break;
+    case modeDSB:
+    case modeAM:
+    case modeSAM:
+      tx->filter_low=-high;
+      tx->filter_high=high;
+      break;
     case modeFMN:
-      // calculate filter size from deviation,
-      // assuming that the highest AF frequency is 3000
       if(tx->deviation==2500) {
-        tx->filter_low=-5500;  // Carson's rule: +/-(deviation + max_af_frequency)
-        tx->filter_high=5500;  // deviation=2500, max freq = 3000
+        tx->filter_low=-5500;
+        tx->filter_high=5500;
       } else {
-        tx->filter_low=-8000;  // deviation=5000, max freq = 3000
+        tx->filter_low=-8000;
         tx->filter_high=8000;
       }
       break;
@@ -1141,7 +1014,7 @@ static void full_tx_buffer(TRANSMITTER *tx) {
       break;
 #ifdef SOAPYSDR
     case SOAPYSDR_PROTOCOL:
-      // gain is not used, since samples are floating point
+      gain=32767.0;  // 16 bit
       break;
 #endif
   }
@@ -1176,32 +1049,32 @@ static void full_tx_buffer(TRANSMITTER *tx) {
   } else {
     update_vox(tx);
 
-    //
+    //   
     // DL1YCF:
-    // The FM pre-emphasis filter in WDSP has maximum unit
+    // The FM pre-emphasis filter in WDSP has maximum unit 
     // gain at about 3000 Hz, so that it attenuates at 300 Hz
     // by about 20 dB and at 1000 Hz by about 10 dB.
     // Natural speech has much energy at frequencies below 1000 Hz
-    // which will therefore aquire only little energy, such that
+    // which will therefore aquire only little energy, such that 
     // FM sounds rather "thin".
-    //
+    //   
     // At the expense of having some distortion for the highest
     // frequencies, we amplify the mic samples here by 15 dB
     // when doing FM, such that enough "punch" remains after the
     // FM pre-emphasis filter.
-    // 
+    //   
     // If ALC happens before FM pre-emphasis, this has little effect
     // since the additional gain applied here will most likely be
     // compensated by ALC, so it is important to have FM pre-emphasis
     // before ALC (checkbox in tx_menu checked, that is, pre_emphasis==0).
-    //
+    //   
     // Note that mic sample amplification has to be done after update_vox()
-    //
+    //   
     if (tx->mode == modeFMN && !tune) {
       for (int i=0; i<2*tx->samples; i+=2) {
         tx->mic_input_buffer[i] *= 5.6234;  // 20*Log(5.6234) is 15
-      }
-    }
+      }    
+    }    
 
     fexchange0(tx->id, tx->mic_input_buffer, tx->iq_output_buffer, &error);
     if(error!=0) {
@@ -1215,71 +1088,19 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 
   if (isTransmitting()) {
 
-    if(  (    (protocol == NEW_PROTOCOL && radio->device==NEW_DEVICE_ATLAS) 
-           || (protocol==ORIGINAL_PROTOCOL && radio->device==DEVICE_METIS)
-         ) && atlas_penelope == 1) {
+    if(radio->device==NEW_DEVICE_ATLAS && atlas_penelope) {
       //
-      // Note that the atlas_penelope flag can have three values, namely
-      //   0 "no penelope"  : no scaling
-      //   1 "penelope"     : scale
-      //   2 "unknown"      : no scaling
+      // On these boards, drive level changes are performed by
+      // scaling the TX IQ samples. In the other cases, DriveLevel
+      // as sent in the C&C frames becomes effective and the IQ
+      // samples are sent with full amplitude.
+      // DL1YCF: include factor 0.00392 since DriveLevel == 255 means full amplitude
       //
-      // Note "unknown" will be changed to "penelope" if P1 HPSDR packets are
-      // received and the penelope software version is 1.8. However, if it is a
-      // METIS system with a penelope software version different from 1.8, then
-      // the flag will remain in the "unknown" state.
-      //
-      // Note further, in the moment the radio menu is opened, "unknown" will be
-      // changed to "no penelope".
-      //
-      // This is so because some RedPitaya-based HPSDR servers identify as a
-      // METIS with penelope software version = 1.7
-      //
-      // On Penelope boards, the TX drive level as reported by the P1 protocol has
-      // no effect, and TX drive level changes are instead realized by
-      // scaling the TX IQ samples.
-      //
-      // "The magic factor" 0.00392 is slightly less than 1/255.
-      //
-      if(tune && !tx->tune_use_drive) {
-        double fac=sqrt((double)tx->tune_percent * 0.01);
-        gain=gain*(double)tx->drive_level*fac*0.00392;
+      if(tune && !transmitter->tune_use_drive) {
+        double fac=sqrt((double)transmitter->tune_percent * 0.01);
+        gain=gain*(double)transmitter->drive_level*fac*0.00392;
       } else {
-        gain=gain*(double)tx->drive_level*0.00392;
-      }
-    }
-    if (protocol == ORIGINAL_PROTOCOL && radio->device == DEVICE_HERMES_LITE2 && !transmitter->puresignal) {
-      //
-      // The HermesLite2 is built around the AD9866 modem chip. The TX level can
-      // be adjusted from 0.0 to -7.5 dB in 0.5 db steps, and these settings are
-      // encoded in the top 4 bits of the HPSDR "drive level".
-      //
-      // In old_protocol.c, the TX attenuator is set according to the drive level,
-      // here we only apply a (mostly small) additional damping of the IQ samples
-      // to achieve a smooth drive level adjustment.
-      // However, if the drive level requires an attenuation *much* larger than
-      // 7.5 dB we have to damp significantly at this place, which may affect IMD.
-      //
-      // NOTE: When doing adaptive pre-distortion (PURESIGNAL), IQ scaling cannot
-      //       be used because the the TX ADC samples reported back also never
-      //       reach their "SetPK" amplitude and PURESIGNAL does not jump in
-      //
-      int power;
-      double f,g;
-      if(tune && !tx->tune_use_drive) {
-        f=sqrt((double)tx->tune_percent * 0.01);
-        power=(int)((double)tx->drive_level*f);
-      } else {
-        power=tx->drive_level;
-      }
-      g=-15.0;
-      if (power > 0) {
-        f = 40.0 * log10((double) power / 255.0);   // 2* attenuation in dB
-        g= ceil(f);                                 // 2* attenuation rounded to half-dB steps
-        if (g < -15.0) g=-15.0;                     // nominal TX attenuation
-        gain=gain*pow(10.0,0.05*(f-g));
-      } else {
-        gain=0.0;
+        gain=gain*(double)transmitter->drive_level*0.00392;
       }
     }
 
@@ -1329,7 +1150,7 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 	    break;
 	  case NEW_PROTOCOL:
 	    //
-	    // tx->output_samples is four times tx->buffer_size
+	    // tx->output_samples if four times tx->buffer_size
 	    // Take TX envelope from the 192kHz shape buffer
 	    //
 	    isample=0;
@@ -1339,18 +1160,6 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 	      new_protocol_iq_samples(isample,qsample);
 	    }
 	    break;
-#ifdef SOAPYSDR
-          case SOAPYSDR_PROTOCOL:
-            //
-            // the only difference to the P2 treatment is that we do not
-            // generate audio samples to be sent to the radio
-            //
-            for(j=0;j<tx->output_samples;j++) {
-	      ramp=cw_shape_buffer192[j];	    		// between 0.0 and 1.0
-              soapy_protocol_iq_samples(0.0F,(float)ramp);      // SOAPY: just convert double to float
-	    }
-	    break;
-#endif
 	}
     } else {
 	//
@@ -1371,7 +1180,6 @@ static void full_tx_buffer(TRANSMITTER *tx) {
 		    break;
 #ifdef SOAPYSDR
                 case SOAPYSDR_PROTOCOL:
-                    // SOAPY: just convert the double IQ sampels (is,qs) to float.
                     soapy_protocol_iq_samples((float)is,(float)qs);
                     break;
 #endif
@@ -1478,55 +1286,6 @@ void add_mic_sample(TRANSMITTER *tx,float mic_sample) {
 	      cw_shape_buffer192[i+3]=cwramp192[s+0];
 	   }
 	}
-#ifdef SOAPYSDR
-        if (protocol == SOAPYSDR_PROTOCOL) {
-          //
-          // The ratio between the TX and microphone sample rate can be any value, so
-          // it is difficult to construct a general ramp here. We may at least *assume*
-          // that the ratio is integral. We can extrapolate from the shapes calculated
-          // for 48 and 192 kHz sample rate.
-          //
-          // At any rate, we *must* produce tx->outputsamples IQ samples from an input
-          // buffer of size tx->buffer_size.
-          //
-          int ratio = tx->output_samples / tx->buffer_size;
-          int j;
-          i=ratio*tx->samples;  // current position in TX IQ buffer
-          if (updown) {
-            //
-            // Climb up the ramp
-            //
-            if (ratio % 4 == 0) {
-              // simple adaptation from the 192 kHz ramp
-              ratio = ratio / 4;
-	      s=4*cw_shape;
-	      for (j=0; j<ratio; j++) cw_shape_buffer192[i++]=cwramp192[s+0];
-	      for (j=0; j<ratio; j++) cw_shape_buffer192[i++]=cwramp192[s+1];
-	      for (j=0; j<ratio; j++) cw_shape_buffer192[i++]=cwramp192[s+2];
-	      for (j=0; j<ratio; j++) cw_shape_buffer192[i++]=cwramp192[s+3];
-            } else {
-              // simple adaptation from the 48 kHz ramp
-              for (j=0; j<ratio; j++) cw_shape_buffer192[i++]=cwramp48[cw_shape];
-            }
-          } else {
-            //
-            // Walk down the ramp
-            //
-            if (ratio % 4 == 0) {
-              // simple adaptation from the 192 kHz ramp
-              ratio = ratio / 4;
-	      s=4*cw_shape;
-	      for (j=0; j<ratio; j++) cw_shape_buffer192[i++]=cwramp192[s+3];
-	      for (j=0; j<ratio; j++) cw_shape_buffer192[i++]=cwramp192[s+2];
-	      for (j=0; j<ratio; j++) cw_shape_buffer192[i++]=cwramp192[s+1];
-	      for (j=0; j<ratio; j++) cw_shape_buffer192[i++]=cwramp192[s+0];
-            } else {
-              // simple adaptation from the 48 kHz ramp
-              for (j=0; j<ratio; j++) cw_shape_buffer192[i++]=cwramp48[cw_shape];
-            }
-          }
-        }
-#endif
   } else {
 //
 //	If no longer transmitting, or no longer doing CW: reset pulse shaper.
@@ -1538,7 +1297,6 @@ void add_mic_sample(TRANSMITTER *tx,float mic_sample) {
 	cw_key_up=0;
 	cw_key_down=0;
 	cw_shape=0;
-        // insert "silence" in CW audio and TX IQ buffers
   	cw_shape_buffer48[tx->samples]=0.0;
 	if (protocol == NEW_PROTOCOL) {
 	  cw_shape_buffer192[4*tx->samples+0]=0.0;
@@ -1546,18 +1304,6 @@ void add_mic_sample(TRANSMITTER *tx,float mic_sample) {
 	  cw_shape_buffer192[4*tx->samples+2]=0.0;
 	  cw_shape_buffer192[4*tx->samples+3]=0.0;
 	}
-#ifdef SOAPYSDR
-        if (protocol == SOAPYSDR_PROTOCOL) {
-          //
-          // this essentially the P2 code, where the ratio
-          // is fixed to 4
-          //
-          int ratio = tx->output_samples / tx->buffer_size;
-          int i=ratio*tx->samples;
-          int j;
-          for (j=0; j<ratio; j++) cw_shape_buffer192[i++]=0.0;
-        }
-#endif
   }
   tx->mic_input_buffer[tx->samples*2]=mic_sample_double;
   tx->mic_input_buffer[(tx->samples*2)+1]=0.0; //mic_sample_double;
@@ -1605,8 +1351,8 @@ void add_ps_iq_samples(TRANSMITTER *tx, double i_sample_tx,double q_sample_tx, d
 
   if(rx_feedback->samples>=rx_feedback->buffer_size) {
     if(isTransmitting()) {
-      pscc(tx->id, rx_feedback->buffer_size, tx_feedback->iq_input_buffer, rx_feedback->iq_input_buffer);
-      if(tx->displaying && tx->feedback) {
+      pscc(transmitter->id, rx_feedback->buffer_size, tx_feedback->iq_input_buffer, rx_feedback->iq_input_buffer);
+      if(transmitter->displaying && transmitter->feedback) {
         Spectrum0(1, rx_feedback->id, 0, 0, rx_feedback->iq_input_buffer);
       }
     }
@@ -1676,24 +1422,24 @@ void tx_set_ps(TRANSMITTER *tx,int state) {
 }
 
 void tx_set_twotone(TRANSMITTER *tx,int state) {
-  tx->twotone=state;
+  transmitter->twotone=state;
   if(state) {
     // set frequencies and levels
     switch(tx->mode) {
       case modeCWL:
       case modeLSB:
       case modeDIGL:
-	SetTXAPostGenTTFreq(tx->id, -900.0, -1700.0);
+	SetTXAPostGenTTFreq(transmitter->id, -900.0, -1700.0);
         break;
       default:
-	SetTXAPostGenTTFreq(tx->id, 900.0, 1700.0);
+	SetTXAPostGenTTFreq(transmitter->id, 900.0, 1700.0);
 	break;
     }
-    SetTXAPostGenTTMag (tx->id, 0.49, 0.49);
-    SetTXAPostGenMode(tx->id, 1);
-    SetTXAPostGenRun(tx->id, 1);
+    SetTXAPostGenTTMag (transmitter->id, 0.49, 0.49);
+    SetTXAPostGenMode(transmitter->id, 1);
+    SetTXAPostGenRun(transmitter->id, 1);
   } else {
-    SetTXAPostGenRun(tx->id, 0);
+    SetTXAPostGenRun(transmitter->id, 0);
   }
   g_idle_add(ext_mox_update,GINT_TO_POINTER(state));
 }
@@ -1702,6 +1448,18 @@ void tx_set_ps_sample_rate(TRANSMITTER *tx,int rate) {
 #ifdef PURESIGNAL
   SetPSFeedbackRate (tx->id,rate);
 #endif
+}
+
+//
+// This is the old key-down/key-up interface for iambic.c
+// but now it also smoothes (cw_shape) the signal
+//
+void cw_hold_key(int state) {
+  if (state) {
+    cw_key_down = 960000;    // up to 20 sec
+  } else {
+    cw_key_down = 0;
+  }
 }
 
 // Sine tone generator:

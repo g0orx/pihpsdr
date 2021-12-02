@@ -53,7 +53,9 @@
 #include "rigctl_menu.h"
 #include "noise_menu.h"
 #include "new_protocol.h"
+#ifdef LOCALCW
 #include "iambic.h"              // declare keyer_update()
+#endif
 #include <math.h>
 
 #define NEW_PARSER
@@ -61,7 +63,6 @@
 // IP stuff below
 #include <sys/socket.h>
 #include <arpa/inet.h> //inet_addr
-#include <netinet/tcp.h>
 
 int rigctl_port_base=19090;
 int rigctl_enable=0;
@@ -92,9 +93,13 @@ int cat_control;
 extern int enable_tx_equalizer;
 
 typedef struct {GMutex m; } GT_MUTEX;
+GT_MUTEX * mutex_a;
+GT_MUTEX * mutex_b;
+GT_MUTEX * mutex_c;
+GT_MUTEX * mutex_busy;
 
-GT_MUTEX * mutex_a;       // implements atomic updates of cat_control
-GT_MUTEX * mutex_busy;    // un-necessary lock in serial thread
+int mutex_b_exists = 0;
+
 
 FILE * out;
 int  output;
@@ -125,6 +130,8 @@ typedef struct _command {
   CLIENT *client;
   char *command;
 } COMMAND;
+
+int fd;  // Serial port file descriptor
 
 static CLIENT client[MAX_CLIENTS];
 
@@ -193,10 +200,12 @@ int vfo_sm=0;   // VFO State Machine - this keeps track of
 //  CW sending stuff
 //
 
-static char cw_buf[25];
+static char cw_buf[30];
 static int  cw_busy=0;
 static int  cat_cw_seen=0;
 
+static int dotlen;
+static int dashlen;
 static int dotsamples;
 static int dashsamples;
 
@@ -405,7 +414,6 @@ static gpointer rigctl_cw_thread(gpointer data)
   char *read_buf =ring_buf;
   char *p;
   int  num_buf=0;
-  int  txmode;
   
   while (server_running) {
     // wait for CW data (periodically look every 100 msec)
@@ -415,14 +423,6 @@ static gpointer rigctl_cw_thread(gpointer data)
       continue;
     }
 
-    //
-    // if a message arrives and the TX mode is not CW, silently ignore
-    //
-    txmode=get_tx_mode();
-    if (cw_busy && txmode != modeCWU && txmode != modeCWL) {
-      cw_busy=0;
-      continue;
-    }
     // if new data is available and fits into the buffer, copy-in.
     // If there are several adjacent spaces, take only the first one.
     // This also swallows the "tails" of the KY commands which
@@ -443,16 +443,18 @@ static gpointer rigctl_cw_thread(gpointer data)
     // This may happen if cw_buf was empty or contained only blanks
     if (num_buf == 0) continue;
 
-    // The dot and dash length may have changed, so recompute them here
+    // these values may have changed, so recompute them here
     // This means that we can change the speed (KS command) while
     // the buffer is being sent
 
+    dotlen = 1200000L/(long)cw_keyer_speed;
+    dashlen = (dotlen * 3 * cw_keyer_weight) / 50L;
     dotsamples = 57600 / cw_keyer_speed;
     dashsamples = (3456 * cw_keyer_weight) / cw_keyer_speed;
     CAT_cw_is_active=1;
     if (!mox) {
 	// activate PTT
-        g_idle_add(ext_mox_update ,GINT_TO_POINTER(1));
+        g_idle_add(ext_mox_update ,(gpointer)1);
 	// have to wait until it is really there
 	// Note that if out-of-band, we would wait
 	// forever here, so allow at most 200 msec
@@ -475,7 +477,7 @@ static gpointer rigctl_cw_thread(gpointer data)
        // If a CW key has been hit, we continue in TX mode.
        // Otherwise, switch PTT off.
        if (!cw_key_hit && mox) {
-         g_idle_add(ext_mox_update ,GINT_TO_POINTER(0));
+         g_idle_add(ext_mox_update ,(gpointer)0);
        }
        // Let the CAT system swallow incoming CW commands by setting cw_busy to -1.
        // Do so until no CAT CW message has arrived for 1 second
@@ -500,7 +502,7 @@ static gpointer rigctl_cw_thread(gpointer data)
       if (cw_busy || num_buf > 0) continue;
       CAT_cw_is_active=0;
       if (!cw_key_hit) {
-        g_idle_add(ext_mox_update ,GINT_TO_POINTER(0));
+        g_idle_add(ext_mox_update ,(gpointer)0);
         // wait up to 500 msec for MOX having gone
         // otherwise there might be a race condition when sending
         // the next character really soon
@@ -518,7 +520,7 @@ static gpointer rigctl_cw_thread(gpointer data)
   cw_busy=0;
   if (CAT_cw_is_active) {
     CAT_cw_is_active=0;
-    g_idle_add(ext_mox_update ,GINT_TO_POINTER(0));
+    g_idle_add(ext_mox_update ,(gpointer)0);
   }
   return NULL;
 }
@@ -536,18 +538,18 @@ long long rigctl_getFrequency() {
 // returns the command string
 //
 void send_resp (int fd,char * msg) {
-  if(rigctl_debug) g_print("RIGCTL: fd=%d RESP=%s\n",fd, msg);
+  if(rigctl_debug) g_print("RIGCTL: RESP=%s\n",msg);
   int length=strlen(msg);
   int rc;
   int count=0;
-  
+
 //
 // Possibly, the channel is already closed. In this case
 // give up (rc < 0) or at most try a few times (rc == 0)
 // since we are in the GTK idle loop
 //
   while(length>0) {
-    rc=write(fd,msg,length);   
+    rc=write(fd,msg,length);
     if (rc < 0) return;
     if (rc == 0) {
       count++;
@@ -592,64 +594,45 @@ static gpointer rigctl_server(gpointer data) {
   for(i=0;i<MAX_CLIENTS;i++) {
     client[i].fd=-1;
   }
-  // listen with a max queue of 3
-  if(listen(server_socket,3)<0) {
-    perror("rigctl_server: listen failed");
-    close(server_socket);
-    return NULL;
-  }
   server_running=1;
 
   // must start the thread here in order NOT to inherit a lock
   if (!rigctl_cw_thread_id) rigctl_cw_thread_id = g_thread_new("RIGCTL cw", rigctl_cw_thread, NULL);
 
   while(server_running) {
-    int spare;
+    // listen with a max queue of 3
+    if(listen(server_socket,3)<0) {
+      perror("rigctl_server: listen failed");
+      close(server_socket);
+      return NULL;
+    }
 
-    //
-    // find a spare slot
-    //
-    spare = -1;
+    // find a spare thread
     for(i=0;i<MAX_CLIENTS;i++) {
-      if(client[i].fd == -1) {
-        spare=i;
-        break;
+      if(client[i].fd==-1) {
+
+        g_print("Using client: %d\n",i);
+
+        client[i].fd=accept(server_socket,(struct sockaddr*)&client[i].address,&client[i].address_length);
+        if(client[i].fd<0) {
+          perror("rigctl_server: client accept failed");
+          continue;
+        }
+
+        client[i].thread_id = g_thread_new("rigctl client", rigctl_client, (gpointer)&client[i]);
+        if(client[i].thread_id==NULL) {
+          g_print("g_thread_new failed (n rigctl_client\n");
+          g_print("setting SO_LINGER to 0 for client_socket: %d\n",client[i].fd);
+          struct linger linger = { 0 };
+          linger.l_onoff = 1;
+          linger.l_linger = 0;
+          if(setsockopt(client[i].fd,SOL_SOCKET,SO_LINGER,(const char *)&linger,sizeof(linger))==-1) {
+            perror("setsockopt(...,SO_LINGER,...) failed for client");
+          }
+          close(client[i].fd);
+        }
       }
     }
-    // if all slots are in use, wait and continue
-    if (spare < 0) {
-      usleep(100000L);
-      continue;
-    }
-
-    //
-    // A slot is available, try to get connection via accept()
-    //
-    g_print("rigctl: slot= %d waiting for connection\n",spare);
-    client[spare].fd=accept(server_socket,(struct sockaddr*)&client[spare].address,&client[spare].address_length);
-    if(client[spare].fd<0) {
-      perror("rigctl_server: client accept failed");
-      client[spare].fd = -1;
-      continue;
-    }
-    g_print("rigctl: slot= %d connected with fd=%d\n",spare,client[spare].fd);
-
-    //
-    // Setting TCP_NODELAY may (or may not) improve responsiveness
-    // by *disabling* Nagle's algorithm for clustering small packets
-    //
-#ifdef __APPLE__
-    if(setsockopt(client[spare].fd, IPPROTO_TCP, TCP_NODELAY, (void *)&on, sizeof(on))<0) {
-#else
-    if(setsockopt(client[spare].fd, SOL_TCP, TCP_NODELAY, (void *)&on, sizeof(on))<0) {
-#endif
-      perror("TCP_NODELAY");
-    }
-
-    //
-    // Spawn off a thread for handling this new connection
-    //
-    client[spare].thread_id = g_thread_new("rigctl client", rigctl_client, (gpointer)&client[spare]);
   }
 
   close(server_socket);
@@ -686,7 +669,7 @@ static gpointer rigctl_client (gpointer data) {
          command_index++;
          if(cmd_input[i]==';') {
            command[command_index]='\0';
-           if(rigctl_debug) g_print("RIGCTL: fd=%d command=%s\n",client->fd,command);
+           if(rigctl_debug) g_print("RIGCTL: command=%s\n",command);
            COMMAND *info=g_new(COMMAND,1);
            info->client=client;
            info->command=command;
@@ -696,11 +679,7 @@ static gpointer rigctl_client (gpointer data) {
          }
        }
      }
-  g_print("RIGCTL: Leaving rigctl_client thread\n");
-  //
-  // If rigctl is disabled via the GUI, the connections are closed by close_rigctl_ports()
-  // but even the we should decrement cat_control
-  //
+g_print("RIGCTL: Leaving rigctl_client thread");
   if(client->fd!=-1) {
     g_print("setting SO_LINGER to 0 for client_socket: %d\n",client->fd);
     struct linger linger = { 0 };
@@ -711,13 +690,13 @@ static gpointer rigctl_client (gpointer data) {
     }
     close(client->fd);
     client->fd=-1;
+    // Decrement CAT_CONTROL
+    g_mutex_lock(&mutex_a->m);
+    cat_control--;
+    if(rigctl_debug) g_print("RIGCTL: CTLA DEC - cat_control=%d\n",cat_control);
+    g_mutex_unlock(&mutex_a->m);
+    g_idle_add(ext_vfo_update,NULL);
   }
-  // Decrement CAT_CONTROL
-  g_mutex_lock(&mutex_a->m);
-  cat_control--;
-  if(rigctl_debug) g_print("RIGCTL: CTLA DEC - cat_control=%d\n",cat_control);
-  g_mutex_unlock(&mutex_a->m);
-  g_idle_add(ext_vfo_update,NULL);
   return NULL; 
 }
 
@@ -798,8 +777,8 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           // sets or reads the Step Size
           if(command[4]==';') {
             // read the step size
-            sprintf(reply,"ZZAC%02d;",vfo_get_stepindex());
-            send_resp(client->fd,reply) ;
+           sprintf(reply,"ZZAC%02d;",vfo_get_stepindex());
+           send_resp(client->fd,reply) ;
           } else if(command[6]==';') {
             // set the step size
             int i=atoi(&command[4]) ;
@@ -1085,26 +1064,14 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
       break;
     case 'C': //ZZCx
       switch(command[3]) {
-        case 'B': //ZZCB: VFO A to B
-          if(!locked) {
-            if(command[4]==';') {
-	      vfo_a_to_b();
-            }
-          }
+        case 'B': //ZZCB
+          implemented=FALSE;
           break;
-        case 'D': //ZZCD: VFO B to A
-          if(!locked) {
-            if(command[4]==';') {
-              vfo_b_to_a();
-            }
-          }
+        case 'D': //ZZCD
+          implemented=FALSE;
           break;
-        case 'F': //ZZCF: Swap VFO A and B
-          if(!locked) {
-            if(command[4]==';') {
-              vfo_a_swap_b();
-            }
-          }
+        case 'F': //ZZCF
+          implemented=FALSE;
           break;
         case 'I': //ZZCI
           implemented=FALSE;
@@ -1353,7 +1320,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
             send_resp(client->fd,reply) ;
           } else if(command[15]==';') {
             long long f=atoll(&command[4]);
-            set_frequency(VFO_A,f);
+            local_set_frequency(VFO_A,f);
             vfo_update();
           }
           break;
@@ -1368,7 +1335,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
             send_resp(client->fd,reply) ;
           } else if(command[15]==';') {
             long long f=atoll(&command[4]);
-            set_frequency(VFO_B,f);
+            local_set_frequency(VFO_B,f);
             vfo_update();
           }
           break;
@@ -1415,7 +1382,6 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           } else if(command[6]==';') {
             int filter=atoi(&command[4]);
             // update RX1 filter
-	    vfo_filter_changed(filter);
           }
           break;
         case 'J': //ZZFJ
@@ -1912,7 +1878,6 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
            implemented=FALSE;
            break;
       }
-      break;
     case 'O': //ZZOx
       switch(command[3]) {
         default:
@@ -1990,7 +1955,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
             if(vfo[VFO_A].mode==modeCWL || vfo[VFO_A].mode==modeCWU) {
               vfo[VFO_A].rit-=10;
             } else {
-              vfo[VFO_A].rit-=rit_increment;
+              vfo[VFO_A].rit-=50;
             }
             vfo_update();
           } else if(command[9]==';') {
@@ -2046,7 +2011,7 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
             if(vfo[VFO_A].mode==modeCWL || vfo[VFO_A].mode==modeCWU) {
               vfo[VFO_A].rit+=10;
             } else {
-              vfo[VFO_A].rit+=rit_increment;
+              vfo[VFO_A].rit+=50;
             }
             vfo_update();
           } else if(command[9]==';') {
@@ -2058,7 +2023,6 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
           implemented=FALSE;
           break;
       }
-      break;
     case 'S': //ZZSx
       switch(command[3]) {
         case 'A': //ZZSA
@@ -2113,8 +2077,9 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
             sprintf(reply,"ZZSP%d;",split);
             send_resp(client->fd,reply) ;
           } else if(command[5]==';') {
-	    int val=atoi(&command[4]);
-            set_split(val);
+            split=atoi(&command[4]);
+            tx_set_mode(transmitter,get_tx_mode());
+            vfo_update();
           }
           break;
         case 'R': //ZZSR
@@ -2138,8 +2103,9 @@ gboolean parse_extended_cmd (char *command,CLIENT *client) {
             sprintf(reply,"ZZSW%d;",split);
             send_resp(client->fd,reply) ;
           } else if(command[5]==';') {
-            int val=atoi(&command[4]);
-            set_split(val);
+            split=atoi(&command[4]);
+            tx_set_mode(transmitter,get_tx_mode());
+            vfo_update();
           }
           break;
         case 'Y': //ZZSY
@@ -2591,11 +2557,11 @@ int parse_cmd(void *data) {
           break;
         case 'G': //AG
           // set/read AF Gain
-          if(command[3]==';' && command[2]=='0') { // query, main receiver
+          if(command[2]==';') {
             // send reply back (covert from 0..1 to 0..255)
-            sprintf(reply,"AG0%03d;",(int)(receiver[0]->volume*255.0+0.5));
+            sprintf(reply,"AG0%03d;",(int)(receiver[0]->volume*255.0));
             send_resp(client->fd,reply) ;
-          } else if(command[6]==';' && command[2] == '0') {
+          } else if(command[6]==';') {
             int gain=atoi(&command[3]);
             receiver[0]->volume=(double)gain/255.0;
             update_af_gain();
@@ -2603,15 +2569,7 @@ int parse_cmd(void *data) {
           break;
         case 'I': //AI
           // set/read Auto Information
-          // many clients start the connection with an "AI0" command.
-          // piHPSDR is constantly in an "AI0" state, therefore
-          // silently ignore AI0 commands and flag an error for
-          // all other possiblities
-          if (command[2] == '0' && command[3] == ';') {
-            // do nothing
-          } else {
-            implemented=FALSE;
-          }
+          implemented=FALSE;
           break;
         case 'L': // AL
           // set/read Auto Notch level
@@ -2747,7 +2705,7 @@ int parse_cmd(void *data) {
             send_resp(client->fd,reply) ;
           } else if(command[13]==';') {
             long long f=atoll(&command[2]);
-            set_frequency(VFO_A,f);
+            local_set_frequency(VFO_A,f);
             vfo_update();
           }
           break;
@@ -2762,7 +2720,7 @@ int parse_cmd(void *data) {
             send_resp(client->fd,reply) ;
           } else if(command[13]==';') {
             long long f=atoll(&command[2]);
-            set_frequency(VFO_B,f);
+            local_set_frequency(VFO_B,f);
             vfo_update();
           }
           break;
@@ -2808,8 +2766,9 @@ int parse_cmd(void *data) {
             sprintf(reply,"FT%d;",split);
             send_resp(client->fd,reply) ;
           } else if(command[3]==';') {
-            int val=atoi(&command[2]);
-            set_split(val);
+            split=atoi(&command[2]);
+            tx_set_mode(transmitter,get_tx_mode());
+            vfo_update();
           }
           break;
         case 'W': //FW
@@ -2977,8 +2936,6 @@ int parse_cmd(void *data) {
           } else if(command[27]==';') {
             if(cw_busy==0) {
               strncpy(cw_buf,&command[3],24);
-              // if command is too long, strncpy does not terminate destination
-              cw_buf[24]='\0';
               cw_busy=1;
             }
           } else {
@@ -2996,8 +2953,8 @@ int parse_cmd(void *data) {
           if(command[2]==';') {
             sprintf(reply,"LK%d%d;",locked,locked);
             send_resp(client->fd,reply);
-          } else if(command[4]==';') {
-            locked = atoi(&command[2]);
+          } else if(command[27]==';') {
+            locked=command[2]=='1';
             vfo_update();
           }
           break;
@@ -3670,14 +3627,14 @@ int parse_cmd(void *data) {
           if(command[3]==';') {
             int p1=atoi(&command[2]);
             if(p1==0) { // Main receiver
-              sprintf(reply,"SQ%d%03d;",p1,(int)((double)active_receiver->squelch/100.0*255.0+0.5));
+              sprintf(reply,"SQ%d%03d;",p1,(int)((double)active_receiver->squelch/100.0*255.0));
               send_resp(client->fd,reply);
             }
           } else if(command[6]==';') {
             if(command[2]=='0') {
               int p2=atoi(&command[3]);
-              active_receiver->squelch=(int)((double)p2/255.0*100.0+0.5);
-              set_squelch(active_receiver);
+              active_receiver->squelch=(int)((double)p2/255.0*100.0);
+              set_squelch();
             }
           } else {
           }
@@ -3925,21 +3882,17 @@ static gpointer serial_server(gpointer data) {
      int command_index=0;
      int numbytes;
      int i;
-     g_mutex_lock(&mutex_a->m);
      cat_control++;
-     if(rigctl_debug) g_print("RIGCTL: SER INC cat_contro=%d\n",cat_control);
-     g_mutex_unlock(&mutex_a->m);
-     g_idle_add(ext_vfo_update,NULL);
      serial_running=TRUE;
      while(serial_running) {
-       numbytes = read (client->fd, cmd_input, sizeof cmd_input);
+       numbytes = read (fd, cmd_input, sizeof cmd_input);
        if(numbytes>0) {
          for(i=0;i<numbytes;i++) {
            command[command_index]=cmd_input[i];
            command_index++;
            if(cmd_input[i]==';') { 
              command[command_index]='\0';
-             if(rigctl_debug) g_print("RIGCTL: fd=%d command=%s\n",client->fd,command);
+             if(rigctl_debug) g_print("RIGCTL: command=%s\n",command);
              COMMAND *info=g_new(COMMAND,1);
              info->client=client;
              info->command=command;
@@ -3957,18 +3910,17 @@ static gpointer serial_server(gpointer data) {
        //usleep(100L);
      }
      close(client->fd);
-     g_mutex_lock(&mutex_a->m);
      cat_control--;
-     if(rigctl_debug) g_print("RIGCTL: SER DEC - cat_control=%d\n",cat_control);
-     g_mutex_unlock(&mutex_a->m);
-     g_idle_add(ext_vfo_update,NULL);
-     g_free(client);  // this is the serial_client allocated in launch_serial
      return NULL;
 }
 
 int launch_serial () {
-     int fd;
      g_print("RIGCTL: Launch Serial port %s\n",ser_port);
+     if(mutex_b_exists == 0) {
+        mutex_b = g_new(GT_MUTEX,1);
+        g_mutex_init(&mutex_b->m);
+        mutex_b_exists = 1;
+     }
 
      if(mutex_busy==NULL) {
        mutex_busy = g_new(GT_MUTEX,1);
@@ -3986,12 +3938,18 @@ int launch_serial () {
      g_print("serial port fd=%d\n",fd);
 
      set_interface_attribs (fd, serial_baud_rate, serial_parity); 
-     set_blocking (fd, 0);                   // set no blocking
+     set_blocking (fd, 1);                   // set no blocking
 
      CLIENT *serial_client=g_new(CLIENT,1);
      serial_client->fd=fd;
 
      serial_server_thread_id = g_thread_new( "Serial server", serial_server, serial_client);
+     if(!serial_server_thread_id )
+     {
+       g_free(serial_client);
+       g_print("g_thread_new failed on serial_server\n");
+       return 0;
+     }
      return 1;
 }
 
@@ -3999,11 +3957,6 @@ int launch_serial () {
 void disable_serial () {
      g_print("RIGCTL: Disable Serial port %s\n",ser_port);
      serial_running=FALSE;
-     // wait for the serial server actually terminating
-     if (serial_server_thread_id) {
-       g_thread_join(serial_server_thread_id);
-     }
-     serial_server_thread_id=NULL;
 }
 
 //
@@ -4015,15 +3968,26 @@ void launch_rigctl () {
    g_print( "LAUNCHING RIGCTL!!\n");
 
    rigctl_busy = 1;
-   cat_control = 0;
-   mutex_a = g_new(GT_MUTEX,1);  // memory leak
+   mutex_a = g_new(GT_MUTEX,1);
    g_mutex_init(&mutex_a->m);
 
+   if(mutex_b_exists == 0) {
+      mutex_b = g_new(GT_MUTEX,1);
+      g_mutex_init(&mutex_b->m);
+      mutex_b_exists = 1;
+   }
+   
+   mutex_c = g_new(GT_MUTEX,1);
+   g_mutex_init(&mutex_c->m);
+
+   mutex_busy = g_new(GT_MUTEX,1);
+g_print("launch_rigctl: mutex_busy=%p\n",mutex_busy);
+   g_mutex_init(&mutex_busy->m);
+
    // This routine encapsulates the thread call
-   rigctl_server_thread_id = g_thread_new( "rigctl server", rigctl_server, GINT_TO_POINTER(rigctl_port_base));
+   rigctl_server_thread_id = g_thread_new( "rigctl server", rigctl_server, (gpointer)(long)rigctl_port_base);
    if( ! rigctl_server_thread_id )
    {
-     // NOTREACHED, since program aborts if g_thread_new fails
      g_print("g_thread_new failed on rigctl_server\n");
    }
 }
