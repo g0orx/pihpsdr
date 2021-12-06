@@ -72,12 +72,12 @@ static void comp_cb(GtkWidget *widget, gpointer data) {
 
 static void tx_spin_low_cb (GtkWidget *widget, gpointer data) {
   tx_filter_low=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
-  tx_set_filter(transmitter,tx_filter_low,tx_filter_high);
+  tx_set_filter(transmitter);
 }
 
 static void tx_spin_high_cb (GtkWidget *widget, gpointer data) {
   tx_filter_high=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
-  tx_set_filter(transmitter,tx_filter_low,tx_filter_high);
+  tx_set_filter(transmitter);
 }
 
 static void micboost_cb(GtkWidget *widget, gpointer data) {
@@ -128,30 +128,8 @@ static void tune_percent_cb (GtkWidget *widget, gpointer data) {
 
 static void use_rx_filter_cb(GtkWidget *widget, gpointer data) {
   transmitter->use_rx_filter=gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
-  int filter_low,filter_high;
 
-  if(transmitter->use_rx_filter) {
-    int m=vfo[active_receiver->id].mode;
-    if(m==modeFMN) {
-      if(active_receiver->deviation==2500) {
-        filter_low=-5500;
-        filter_high=5500;
-      } else {
-        filter_low=-8000;
-        filter_high=8000;
-      }
-    } else {
-      FILTER *mode_filters=filters[m];
-      FILTER *filter=&mode_filters[vfo[active_receiver->id].filter];
-      filter_low=filter->low;
-      filter_high=filter->high;
-    }
-  } else {
-    filter_low=tx_filter_low;
-    filter_high=tx_filter_high;
-  }
-
-  tx_set_filter(transmitter,filter_low,filter_high);
+  tx_set_filter(transmitter);
 
   if(transmitter->use_rx_filter) {
     gtk_widget_set_sensitive (tx_spin_low, FALSE);

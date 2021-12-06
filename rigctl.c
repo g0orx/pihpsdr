@@ -2772,15 +2772,11 @@ int parse_cmd(void *data) {
           }
           break;
         case 'W': //FW
-          // set/read filter width
-          // make sure filter is filterVar1
-          if(vfo[active_receiver->id].filter!=filterVar1) {
-            vfo_filter_changed(filterVar1);
-          }
-          FILTER *mode_filters=filters[vfo[active_receiver->id].mode];
-          FILTER *filter=&mode_filters[filterVar1];
-          int val=0;
+          // set/read filter width. Switch to Var1 only when setting
           if(command[2]==';') {
+            int val=0;
+            FILTER *mode_filters=filters[vfo[active_receiver->id].mode];
+            FILTER *filter=&mode_filters[vfo[active_receiver->id].filter];
             switch(vfo[active_receiver->id].mode) {
               case modeCWL:
               case modeCWU:
@@ -2802,8 +2798,13 @@ int parse_cmd(void *data) {
               send_resp(client->fd,reply) ;
             }
           } else if(command[6]==';') {
+            // make sure filter is filterVar1
+            if(vfo[active_receiver->id].filter!=filterVar1) {
+              vfo_filter_changed(filterVar1);
+            }
+            FILTER *mode_filters=filters[vfo[active_receiver->id].mode];
+            FILTER *filter=&mode_filters[filterVar1];
             int fw=atoi(&command[2]);
-            int val=
             filter->low=fw;
             switch(vfo[active_receiver->id].mode) {
               case modeCWL:
@@ -3366,15 +3367,10 @@ int parse_cmd(void *data) {
           }
           break;
         case 'H': //SH
-          {
-          // set/read filter high
-          // make sure filter is filterVar1
-          if(vfo[active_receiver->id].filter!=filterVar1) {
-            vfo_filter_changed(filterVar1);
-          }
-          FILTER *mode_filters=filters[vfo[active_receiver->id].mode];
-          FILTER *filter=&mode_filters[filterVar1];
+          // set/read filter high, switch to Var1 only when setting
 	  if(command[2]==';') {
+            FILTER *mode_filters=filters[vfo[active_receiver->id].mode];
+            FILTER *filter=&mode_filters[vfo[active_receiver->id].filter];
             int fh=5;
             int high=filter->high;
             if(vfo[active_receiver->id].mode==modeLSB) {
@@ -3408,6 +3404,12 @@ int parse_cmd(void *data) {
             sprintf(reply,"SH%02d;",fh);
             send_resp(client->fd,reply) ;
           } else if(command[4]==';') {
+            // make sure filter is filterVar1
+            if(vfo[active_receiver->id].filter!=filterVar1) {
+              vfo_filter_changed(filterVar1);
+            }
+            FILTER *mode_filters=filters[vfo[active_receiver->id].mode];
+            FILTER *filter=&mode_filters[filterVar1];
             int i=atoi(&command[2]);
             int fh=100;
             switch(vfo[active_receiver->id].mode) {
@@ -3484,22 +3486,16 @@ int parse_cmd(void *data) {
             }
             vfo_filter_changed(filterVar1);
           }
-          }
           break;
         case 'I': //SI
           // enter satellite memory name
           implemented=FALSE;
           break;
         case 'L': //SL
-          {
-          // set/read filter low
-          // make sure filter is filterVar1
-          if(vfo[active_receiver->id].filter!=filterVar1) {
-            vfo_filter_changed(filterVar1);
-          }
-          FILTER *mode_filters=filters[vfo[active_receiver->id].mode];
-          FILTER *filter=&mode_filters[filterVar1];
+          // set/read filter low, switch to Var1 only when setting
 	  if(command[2]==';') {
+            FILTER *mode_filters=filters[vfo[active_receiver->id].mode];
+            FILTER *filter=&mode_filters[vfo[active_receiver->id].filter];
             int fl=2;
             int low=filter->low;
             if(vfo[active_receiver->id].mode==modeLSB) {
@@ -3534,6 +3530,12 @@ int parse_cmd(void *data) {
             sprintf(reply,"SL%02d;",fl);
             send_resp(client->fd,reply) ;
           } else if(command[4]==';') {
+            // make sure filter is filterVar1
+            if(vfo[active_receiver->id].filter!=filterVar1) {
+              vfo_filter_changed(filterVar1);
+            }
+            FILTER *mode_filters=filters[vfo[active_receiver->id].mode];
+            FILTER *filter=&mode_filters[filterVar1];
             int i=atoi(&command[2]);
             int fl=100;
             switch(vfo[active_receiver->id].mode) {
@@ -3610,7 +3612,6 @@ int parse_cmd(void *data) {
             }
             vfo_filter_changed(filterVar1);
           }
-          }
           break;
         case 'M': //SM
           // read the S meter
@@ -3634,7 +3635,7 @@ int parse_cmd(void *data) {
             if(command[2]=='0') {
               int p2=atoi(&command[3]);
               active_receiver->squelch=(int)((double)p2/255.0*100.0);
-              set_squelch();
+              set_squelch(active_receiver);
             }
           } else {
           }
