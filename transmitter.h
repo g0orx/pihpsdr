@@ -127,7 +127,7 @@ extern int cw_key_down;
 extern int cw_not_ready;
 
 extern void tx_set_mode(TRANSMITTER* tx,int m);
-extern void tx_set_filter(TRANSMITTER *tx,int low,int high);
+extern void tx_set_filter(TRANSMITTER *tx);
 extern void transmitter_set_deviation(TRANSMITTER *tx);
 extern void transmitter_set_am_carrier_level(TRANSMITTER *tx);
 extern void tx_set_pre_emphasize(TRANSMITTER *tx,int state);

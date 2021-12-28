@@ -665,16 +665,38 @@ void set_mode(RECEIVER *rx,int m) {
   SetRXAMode(rx->id, vfo[rx->id].mode);
 }
 
-void set_filter(RECEIVER *rx,int low,int high) {
-  if(vfo[rx->id].mode==modeCWL) {
-    rx->filter_low=-cw_keyer_sidetone_frequency-low;
-    rx->filter_high=-cw_keyer_sidetone_frequency+high;
-  } else if(vfo[rx->id].mode==modeCWU) {
-    rx->filter_low=cw_keyer_sidetone_frequency-low;
-    rx->filter_high=cw_keyer_sidetone_frequency+high;
-  } else {
-    rx->filter_low=low;
-    rx->filter_high=high;
+void set_filter(RECEIVER *rx) {
+  int m=vfo[rx->id].mode;
+  FILTER *mode_filters=filters[m];
+  FILTER *filter=&mode_filters[vfo[rx->id].filter]; // ignored in FMN
+
+  switch (m) {
+    case modeCWL:
+      rx->filter_low=-cw_keyer_sidetone_frequency-filter->low;
+      rx->filter_high=-cw_keyer_sidetone_frequency+filter->high;
+      break;
+    case modeCWU:
+      rx->filter_low=cw_keyer_sidetone_frequency-filter->low;
+      rx->filter_high=cw_keyer_sidetone_frequency+filter->high;
+      break;
+    case  modeFMN:
+      //
+      // FM filter settings are ignored, instead, the filter
+      // size is calculated from the deviation
+      //
+      if(rx->deviation==2500) {
+        rx->filter_low=-5500;
+        rx->filter_high=5500;
+      } else {
+        rx->filter_low=-8000;
+        rx->filter_high=8000;
+      }
+      set_deviation(rx);
+      break;
+    default:
+      rx->filter_low=filter->low;
+      rx->filter_high=filter->high;
+      break;
   }
 
   RXASetPassband(rx->id,(double)rx->filter_low,(double)rx->filter_high);
@@ -1280,31 +1302,10 @@ void receiver_frequency_changed(RECEIVER *rx) {
 }
 
 void receiver_filter_changed(RECEIVER *rx) {
-  int filter_low, filter_high;
-  int m=vfo[rx->id].mode;
-  if(m==modeFMN) {
-    if(rx->deviation==2500) {
-      filter_low=-5500;
-      filter_high=5500;
-    } else {
-      filter_low=-8000;
-      filter_high=8000;
-    }
-    set_filter(rx,filter_low,filter_high);
-    set_deviation(rx);
-  } else {
-    FILTER *mode_filters=filters[m];
-    FILTER *filter=&mode_filters[vfo[rx->id].filter];
-    filter_low=filter->low;
-    filter_high=filter->high;
-    set_filter(rx,filter_low,filter_high);
-  }
-
+  set_filter(rx);
   if(can_transmit && transmitter!=NULL) {
-    if(transmitter->use_rx_filter) {
-      if(rx==active_receiver) {
-        tx_set_filter(transmitter,filter_low,filter_high);
-      }
+    if(transmitter->use_rx_filter && rx==active_receiver) {
+      tx_set_filter(transmitter);
     }
   }
 }
