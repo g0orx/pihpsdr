@@ -2655,8 +2655,17 @@ int remote_start(void *data) {
   display_sliders=1;
   display_toolbar=1;
 #endif
+  RECEIVERS=2;
   radioRestoreState();
   create_visual();
+  if (can_transmit) {
+    if(transmitter->local_microphone) {
+      if(audio_open_input()!=0) {
+        g_print("audio_open_input failed\n");
+        transmitter->local_microphone=0;
+      }
+    }
+  }
   for(int i=0;i<receivers;i++) {
     receiver_restore_state(receiver[i]);
     if(receiver[i]->local_audio) {
