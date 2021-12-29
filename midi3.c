@@ -29,10 +29,6 @@
 
 void DoTheMidi(int action, enum ACTIONtype type, int val) {
 
-    int new;
-    double dnew;
-    double *dp;
-    int    *ip;
     PROCESS_ACTION *a;
 
     //g_print("%s: action=%d type=%d val=%d\n",__FUNCTION__,action,type,val);

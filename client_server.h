@@ -25,6 +25,14 @@
 #define ntohll be64toh
 #endif
 
+//
+// Conversion of host(double) to/from network(unsigned int)
+// Assume that double data is between -200 and 200,
+// convert to uint16 via uint16 = 100.0*(double+200.0) (result in the range 0 to 40000)
+//
+#define htond(X) htons((uint16_t) ((X+200.0)*100.0) )
+#define ntohd(X) 0.01*ntohs(X)-200.0
+
 typedef enum {
     RECEIVER_DETACHED, RECEIVER_ATTACHED
 } CLIENT_STATE;
@@ -61,6 +69,7 @@ enum {
   CMD_RESP_RX_VOLUME,
   CMD_RESP_RX_AGC_GAIN,
   CMD_RESP_RX_ATTENUATION,
+  CMD_RESP_RX_GAIN,
   CMD_RESP_RX_SQUELCH,
   CMD_RESP_RX_FPS,
   CMD_RESP_RX_SELECT,
@@ -112,7 +121,7 @@ typedef struct _remote_client {
   CLIENT_STATE state;
   gint receivers;
   gint spectrum_update_timer_id;
-  REMOTE_RX receiver[MAX_RECEIVERS];
+  REMOTE_RX receiver[8];
   void *next;
 } REMOTE_CLIENT;
 
@@ -159,7 +168,9 @@ typedef struct __attribute__((__packed__)) _adc_data {
   uint8_t random;
   uint8_t preamp;
   uint16_t attenuation;
-  uint16_t adc_attenuation;
+  uint16_t gain;
+  uint16_t min_gain;
+  uint16_t max_gain;
 } ADC_DATA;
 
 typedef struct __attribute__((__packed__)) _receiver_data {
@@ -196,7 +207,6 @@ typedef struct __attribute__((__packed__)) _receiver_data {
   uint16_t x;
   uint16_t y;
   uint16_t volume;
-  uint16_t rf_gain;
   uint16_t agc_gain;
 } RECEIVER_DATA;
 
@@ -336,6 +346,12 @@ typedef struct __attribute__((__packed__)) _attenuation_command {
   uint8_t id;
   uint16_t attenuation;
 } ATTENUATION_COMMAND;
+
+typedef struct __attribute__((__packed__)) _rfgain_command {
+  HEADER header;
+  uint8_t id;
+  uint16_t gain;
+} RFGAIN_COMMAND;
 
 typedef struct __attribute__((__packed__)) _squelch_command {
   HEADER header;
@@ -486,6 +502,7 @@ extern void send_volume(int s,int rx,int volume);
 extern void send_agc(int s,int rx,int agc);
 extern void send_agc_gain(int s,int rx,int gain,int hang,int thresh);
 extern void send_attenuation(int s,int rx,int attenuation);
+extern void send_rfgain(int s,int rx, double gain);
 extern void send_squelch(int s,int rx,int enable,int squelch);
 extern void send_noise(int s,int rx,int nb,int nb2,int nr,int nr2,int anf,int snb);
 extern void send_band(int s,int rx,int band);

@@ -166,13 +166,13 @@ STEMLAB_OBJS=stemlab_discovery.o
 endif
 
 ifeq ($(SERVER_INCLUDE), SERVER)
-SERVER_OPTIONS=-D SERVER
+SERVER_OPTIONS=-D CLIENT_SERVER
 SERVER_SOURCES= \
-hpsdr_server.c
+client_server.c server_menu.c
 SERVER_HEADERS= \
-hpsdr_server.h
+client_server.h server_menu.h
 SERVER_OBJS= \
-hpsdr_server.o
+client_server.o server_menu.o
 endif
 
 GTKINCLUDES=`pkg-config --cflags gtk+-3.0`
@@ -184,8 +184,8 @@ AUDIO_SOURCES=pulseaudio.c
 AUDIO_OBJS=pulseaudio.o
 endif
 ifeq ($(UNAME_S), Darwin)
-AUDIO_OPTIONS=-DPORTAUDIO
-AUDIO_LIBS=-lportaudio
+AUDIO_OPTIONS=-DPORTAUDIO `pkg-config --cflags portaudio-2.0`
+AUDIO_LIBS=`pkg-config --libs portaudio-2.0`
 AUDIO_SOURCES=portaudio.c
 AUDIO_OBJS=portaudio.o
 endif
@@ -479,6 +479,9 @@ prebuild:
 # in the variable CPPOPTIONS
 #
 CPPOPTIONS= --enable=all --suppress=shadowVariable --suppress=variableScope
+ifeq ($(UNAME_S), Darwin)
+CPPOPTIONS += -D__APPLE__
+endif
 CPPINCLUDES:=$(shell echo $(INCLUDES) | sed -e "s/-pthread / /" )
 
 .PHONY:	cppcheck
@@ -493,9 +496,14 @@ clean:
 	-rm -f *.o
 	-rm -f $(PROGRAM) $(PROGRAM).app hpsdrsim
 
+#
+# If $DESTDIR is set, copy to that directory, otherwise use /usr/local/bin
+#
+DESTDIR?= /usr/local/bin
+
 .PHONY:	install
 install: $(PROGRAM)
-	cp $(PROGRAM) /usr/local/bin
+	cp $(PROGRAM) $(DESTDIR)
 
 .PHONY:	release
 release: $(PROGRAM)
@@ -534,13 +542,13 @@ controller2v2: clean $(PROGRAM)
 #############################################################################
 
 hpsdrsim.o:	hpsdrsim.c hpsdrsim.h
-	$(CC) -c -O -DALSASOUND hpsdrsim.c
+	$(CC) -c -O hpsdrsim.c
 
 newhpsdrsim.o:	newhpsdrsim.c hpsdrsim.h
 	$(CC) -c -O newhpsdrsim.c
 
 hpsdrsim:	hpsdrsim.o newhpsdrsim.o
-	$(LINK) -o hpsdrsim hpsdrsim.o newhpsdrsim.o -lasound -lm -lpthread
+	$(LINK) -o hpsdrsim hpsdrsim.o newhpsdrsim.o -lm -lpthread
 
 
 debian:

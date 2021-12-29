@@ -195,7 +195,6 @@ void close_midi_device() {
 
 int register_midi_device(char *myname) {
     int i;
-    CFStringRef pname;
     char name[100];
     int FoundMIDIref=-1;
     int mylen=strlen(myname);
@@ -241,7 +240,6 @@ void get_midi_devices() {
     int i;
     CFStringRef pname;
     char name[100];
-    int FoundMIDIref=-1;
 
     n=MIDIGetNumberOfSources();
     n_midi_devices=0;

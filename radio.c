@@ -73,10 +73,6 @@
 #ifdef MIDI
 #include "alsa_midi.h"
 #include "midi_menu.h"
-// rather than including MIDI.h with all its internal stuff
-// (e.g. enum components) we just declare the single bit thereof
-// we need here to make a strict compiler happy.
-//extern void MIDIstartup();
 #endif
 #ifdef CLIENT_SERVER
 #include "client_server.h"
@@ -1312,7 +1308,7 @@ void start_radio() {
   gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_ARROW));
 
   //
-  // MIDIstartup must not be called before the radio is completely set up, since
+  // MIDI must not be started before the radio is completely set up, since
   // then MIDI can asynchronously trigger actions which require the radio already
   // running. So this is the last thing we do when starting the radio.
   //
@@ -2638,7 +2634,7 @@ void radio_change_region(int r) {
 #ifdef CLIENT_SERVER
 int remote_start(void *data) {
   char *server=(char *)data;
-  sprintf(property_path,"%s@%s.props",name,server);
+  sprintf(property_path,"%s@%s.props",radio->name,server);
   radio_is_remote=TRUE;
 #ifdef GPIO
   switch(controller) {
@@ -2672,9 +2668,6 @@ int remote_start(void *data) {
   reconfigure_radio();
   g_idle_add(ext_vfo_update,(gpointer)NULL);
   gdk_window_set_cursor(gtk_widget_get_window(top_window),gdk_cursor_new(GDK_ARROW));
-#ifdef MIDI
-  MIDIstartup();
-#endif
   for(int i=0;i<receivers;i++) {
     gint timer_id=gdk_threads_add_timeout_full(G_PRIORITY_DEFAULT_IDLE,100, start_spectrum, receiver[i], NULL);
   }
