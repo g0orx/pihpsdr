@@ -71,7 +71,7 @@ GtkWidget *host_addr_entry;
 static char host_addr_buffer[128]="g0orx.ddns.net";
 char *host_addr = &host_addr_buffer[0];
 GtkWidget *host_port_spinner;
-gint host_port=45000;
+gint host_port=50000;  // default listening port
 #endif
 
 //
