@@ -179,7 +179,7 @@ static gboolean action_cb(GtkWidget *widget,gpointer data) {
     selection=MIDI_WHEEL | MIDI_KNOB;
   }
 g_print("%s: type=%s selection=%02X thisAction=%d\n",__FUNCTION__,type,selection,thisAction);
-  int action=action_dialog(top_window,selection,thisAction);
+  int action=action_dialog(dialog,selection,thisAction);
   thisAction=action;
   gtk_button_set_label(GTK_BUTTON(newAction),ActionTable[action].str);
   return TRUE;
