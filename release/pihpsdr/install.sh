@@ -1,7 +1,7 @@
 echo "installing fftw"
 sudo apt-get -y install libfftw3-3
 echo "installing gppiod"
-sudo apt-get -y install libgpuiod2
+sudo apt-get -y install libgpiod2
 echo "installing pulseaudio"
 sudo apt-get -y install libpulse0
 sudo apt-get -y install libpulse-mainloop-glib0
