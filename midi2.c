@@ -47,9 +47,7 @@ g_print("%s: EVENT=%d CHAN=%d NOTE=%d VAL=%d\n",__FUNCTION__,event,channel,note,
 	    // Found matching entry
 	    switch (desc->event) {
 		case MIDI_NOTE:
-		    if ((val == 1 || (desc->onoff == 1)) && desc->type == MIDI_KEY) {
-			DoTheMidi(desc->action, desc->type, val);
-		    }
+		    DoTheMidi(desc->action, desc->type, val);
 		    break;
 		case MIDI_CTRL:
 		    if (desc->type == MIDI_KNOB) {
@@ -239,7 +237,7 @@ int MIDIstop() {
  * data structure
  */
 
-int MIDIstartup(char *filename) {
+int ReadLegacyMidiFile(char *filename) {
     FILE *fpin;
     char zeile[255];
     char *cp,*cq;
@@ -247,7 +245,7 @@ int MIDIstartup(char *filename) {
     int action;
     int chan;
     int t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12;
-    int onoff, delay;
+    int delay;
     struct desc *desc,*dp;
     enum ACTIONtype type;
     enum MIDIevent event;
@@ -291,21 +289,9 @@ int MIDIstartup(char *filename) {
       
 g_print("\n%s:INP:%s\n",__FUNCTION__,zeile);
 
-      if ((cp = strstr(zeile, "DEVICE="))) {
-        // Delete comments and trailing blanks
-	cq=cp+7;
-	while (*cq != 0 && *cq != '#') cq++;
-	*cq--=0;
-	while (cq > cp+7 && (*cq == ' ' || *cq == '\t')) cq--;
-	*(cq+1)=0;
-//fprintf(stderr,"MIDI:REG:>>>%s<<<\n",cp+7);
-	int result=register_midi_device(cp+7);
-        continue; // nothing more in this line
-      }
       chan=-1;  // default: any channel
       t1=t3=t5=t7= t9=t11=128;  // range that never occurs
       t2=t4=t6=t8=t10=t12=-1;   // range that never occurs
-      onoff=0;
       event=EVENT_NONE;
       type=TYPE_NONE;
       key=0;
@@ -358,10 +344,6 @@ g_print("%s:CHAN:%d\n",__FUNCTION__,chan);
         type=MIDI_WHEEL;
 g_print("%s:WHEEL\n",__FUNCTION__);
       }
-      if ((cp = strstr(zeile, "ONOFF"))) {
-        onoff=1;
-g_print("%s:ONOFF\n",__FUNCTION__);
-      }
       if ((cp = strstr(zeile, "DELAY="))) {
         sscanf(cp+6, "%d", &delay);
 g_print("%s:DELAY:%d\n",__FUNCTION__,delay);
@@ -387,7 +369,6 @@ g_print("%s: MIDI:ACTION:%s (%d)\n",__FUNCTION__,cp+7, action);
       desc->action = action;
       desc->type = type;
       desc->event = event;
-      desc->onoff = onoff;
       desc->delay = delay;
       desc->vfl1  = t1;
       desc->vfl2  = t2;

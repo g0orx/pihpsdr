@@ -85,8 +85,8 @@ enum MIDIaction {
   COMPRESS,		// COMPRESS:		TX compressor value
   MIDI_CTUN,		// CTUN:		toggle CTUN on/off
   VFO,			// CURRVFO:		change VFO frequency
-  CWLEFT,		// CWL:			Left paddle pressed (use with ONOFF)
-  CWRIGHT,		// CWR:			Right paddle pressed (use with ONOFF)
+  CWLEFT,		// CWL:			Left paddle pressed
+  CWRIGHT,		// CWR:			Right paddle pressed
   CWSPEED,		// CWSPEED:		Set speed of (iambic) CW keyer
   DIV_COARSEGAIN,	// DIVCOARSEGAIN:	change DIVERSITY gain in large increments
   DIV_COARSEPHASE,	// DIVPHASE:		change DIVERSITY phase in large increments
@@ -225,19 +225,10 @@ extern ACTION_TABLE ActionTable[];
 // then MOX is toggled each time the key is pressed. This behaves
 // very much like point-and-clicking the MOX buttion in the GUI.
 //
-// If an action is generated both on NOTE_ON and NOTE_OFF,
-// then MOX is engaged when pressing the key and disengaged
-// when releasing it. For MOX this makes little send but you
-// might want to configure the TUNE button this way.
-// The latter behaviour is triggered when the line assigning the key
-// or "NOTE OFF". The table speficying the behaviour of layer-2 thus
-// contains the key word "ONOFF". This is stored in the field "onoff"
-// in struct desc.
 
 struct desc {
    int               channel;     // -1 for ANY channel
    enum MIDIevent    event;	  // type of event (NOTE on/off, Controller change, Pitch value)
-   int               onoff;       // 1: generate upstream event both for Note-on and Note-off
    enum ACTIONtype   type;        // Key, Knob, or Wheel
    int               vfl1,vfl2;   // Wheel only: range of controller values for "very fast left"
    int               fl1,fl2;     // Wheel only: range of controller values for "fast left"
@@ -261,8 +252,7 @@ extern int midi_debug;
 
 //
 // Layer-1 entry point, called once for all the MIDI devices
-// that have been defined. This is called upon startup by
-// Layer-2 through the function MIDIstartup.
+// that have been defined.
 //
 int register_midi_device(char *name);
 void close_midi_device();
@@ -274,12 +264,9 @@ void configure_midi_device(gboolean state);
 // When Layer-1 has received a MIDI message, it calls
 // NewMidiEvent.
 //
-// MIDIstartup looks for files containing descriptions for MIDI
-// devices and calls the Layer-1 function register_midi_device
-// for each device description that was successfully read.
 
 void NewMidiEvent(enum MIDIevent event, int channel, int note, int val);
-int MIDIstartup(char *filename);
+int ReadLegacyMidiFile(char *filename);
 int MIDIstop();
 
 //

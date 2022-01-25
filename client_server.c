@@ -193,7 +193,6 @@ void remote_audio(RECEIVER *rx,short left_sample,short right_sample) {
 static gint send_spectrum(void *arg) {
   REMOTE_CLIENT *client=(REMOTE_CLIENT *)arg;
   float *samples;
-  double sample;
   short s;
   SPECTRUM_DATA spectrum_data;
   gint result;
@@ -221,8 +220,7 @@ g_print("send_spectrum: no more receivers\n");
         spectrum_data.vfo_b_ctun_freq=htonll(vfo[VFO_B].ctun_frequency);
         spectrum_data.vfo_a_offset=htonll(vfo[VFO_A].offset);
         spectrum_data.vfo_b_offset=htonll(vfo[VFO_B].offset);
-        s=(short)receiver[r]->meter;
-        spectrum_data.meter=htons(s);
+        spectrum_data.meter=htond(receiver[r]->meter);
         spectrum_data.samples=htons(rx->width);
         samples=rx->pixel_samples;
         for(int i=0;i<rx->width;i++) {
@@ -291,7 +289,9 @@ void send_adc_data(REMOTE_CLIENT *client,int i) {
   adc_data.random=adc[i].random;
   adc_data.preamp=adc[i].preamp;
   adc_data.attenuation=htons(adc[i].attenuation);
-  adc_data.adc_attenuation=htons(adc_attenuation[i]);
+  adc_data.gain=htond(adc[i].gain);
+  adc_data.min_gain=htond(adc[i].min_gain);
+  adc_data.max_gain=htond(adc[i].max_gain);
   int bytes_sent=send_bytes(client->socket,(char *)&adc_data,sizeof(adc_data));
   if(bytes_sent<0) {
     perror("send_adc_data");
@@ -339,12 +339,8 @@ void send_receiver_data(REMOTE_CLIENT *client,int rx) {
   receiver_data.height=htons(receiver[rx]->height);
   receiver_data.x=htons(receiver[rx]->x);
   receiver_data.y=htons(receiver[rx]->y);
-  s=(short)(receiver[rx]->volume*100.0);
-  receiver_data.volume=htons(s);
-  s=(short)receiver[rx]->rf_gain;
-  receiver_data.rf_gain=htons(s);
-  s=(short)receiver[rx]->agc_gain;
-  receiver_data.agc_gain=htons(s);
+  receiver_data.volume=htond(receiver[rx]->volume);
+  receiver_data.agc_gain=htond(receiver[rx]->agc_gain);
 
   int bytes_sent=send_bytes(client->socket,(char *)&receiver_data,sizeof(receiver_data));
   if(bytes_sent<0) {
@@ -623,6 +619,23 @@ g_print("server_client_thread: CMD_RESP_RX_AGC_GAIN\n");
            return NULL;
          }
          g_idle_add(ext_remote_command,agc_gain_command);
+         }
+         break;
+      case CMD_RESP_RX_GAIN:
+g_print("server_client_thread: CMD_RESP_RX_GAIN\n");
+         {
+         RFGAIN_COMMAND *command=g_new(RFGAIN_COMMAND,1);
+         command->header.data_type=header.data_type;
+         command->header.version=header.version;
+         command->header.context.client=client;
+         bytes_read=recv_bytes(client->socket,(char *)&command->id,sizeof(RFGAIN_COMMAND)-sizeof(header));
+         if(bytes_read<0) {
+           g_print("server_client_thread: read %d bytes for RFGAIN_COMMAND\n",bytes_read);
+           perror("server_client_thread");
+           // dialog box?
+           return NULL;
+         }
+         g_idle_add(ext_remote_command,command);
          }
          break;
       case CMD_RESP_RX_ATTENUATION:
@@ -1271,6 +1284,22 @@ g_print("send_agc_gain rx=%d gain=%d\n",rx,gain);
   }
 }
 
+void send_rfgain(int s, int id, double gain) {
+  RFGAIN_COMMAND command;
+g_print("send_rfgain rx=%d gain=%f\n",id,gain);
+  command.header.sync=REMOTE_SYNC;
+  command.header.data_type=htons(CMD_RESP_RX_GAIN);
+  command.header.version=htonl(CLIENT_SERVER_VERSION);
+  command.id=id;
+  command.gain=htond(gain);
+  int bytes_sent=send_bytes(s,(char *)&command,sizeof(command));
+  if(bytes_sent<0) {
+    perror("send_command");
+  } else {
+    g_print("send_command RFGAIN: %d\n",bytes_sent);
+  }
+}
+
 void send_attenuation(int s,int rx,int attenuation) {
   ATTENUATION_COMMAND command;
   short a=(short)attenuation;
@@ -1709,10 +1738,7 @@ g_print("send_mute_rx mute=%d\n",mute);
 
 
 static void *listen_thread(void *arg) {
-  int address_length;
   struct sockaddr_in address;
-  REMOTE_CLIENT* client;
-  int rc;
   int on=1;
 
 g_print("hpsdr_server: listening on port %d\n",listen_port);
@@ -1825,9 +1851,6 @@ g_print("check_vfo_timer_id %d\n",check_vfo_timer_id);
 
 static void *client_thread(void* arg) {
   gint bytes_read;
-#define MAX_BUFFER 2400
-  char buffer[MAX_BUFFER];
-  char *token;
   HEADER header;
   char *server=(char *)arg;
 
@@ -1876,8 +1899,9 @@ g_print("INFO_RADIO: %d\n",bytes_read);
         locked=radio_data.locked;
         receivers=ntohs(radio_data.receivers);
         can_transmit=radio_data.can_transmit;
-//TEMP
-can_transmit=0;
+
+	can_transmit=0;  // forced temporarily until Client/Server supports transmitters
+
         step=ntohll(radio_data.step);
         split=radio_data.split;
         sat_mode=radio_data.sat_mode;
@@ -1918,7 +1942,9 @@ g_print("INFO_ADC: %d\n",bytes_read);
         adc[i].random=adc_data.random;
         adc[i].preamp=adc_data.preamp;
         adc[i].attenuation=ntohs(adc_data.attenuation);
-        adc_attenuation[i]=ntohs(adc_data.adc_attenuation);
+        adc[i].gain=ntohd(adc_data.gain);
+        adc[i].min_gain=ntohd(adc_data.min_gain);
+        adc[i].max_gain=ntohd(adc_data.max_gain);
         }
         break;
       case INFO_RECEIVER:
@@ -1976,18 +2002,14 @@ g_print("INFO_RECEIVER: %d\n",bytes_read);
         receiver[rx]->height=ntohs(receiver_data.height);
         receiver[rx]->x=ntohs(receiver_data.x);
         receiver[rx]->y=ntohs(receiver_data.y);
-        s=ntohs(receiver_data.volume);
-        receiver[rx]->volume=(double)s/100.0;
-        s=ntohs(receiver_data.rf_gain);
-        receiver[rx]->rf_gain=(double)s;
-        s=ntohs(receiver_data.agc_gain);
-        receiver[rx]->agc_gain=(double)s;
+        receiver[rx]->volume=ntohd(receiver_data.volume);
+        receiver[rx]->agc_gain=ntohd(receiver_data.agc_gain);
 //
         receiver[rx]->pixel_samples=NULL;
         g_mutex_init(&receiver[rx]->display_mutex);
         receiver[rx]->hz_per_pixel=(double)receiver[rx]->sample_rate/(double)receiver[rx]->pixels;
 
-        receiver[rx]->playback_handle=NULL;
+        //receiver[rx]->playback_handle=NULL;
         receiver[rx]->local_audio_buffer=NULL;
         receiver[rx]->local_audio_buffer_size=2048;
         receiver[rx]->local_audio=0;
@@ -2059,8 +2081,7 @@ g_print("g_idle_add: ext_vfo_update\n");
         long long ctun_frequency_b=ntohll(spectrum_data.vfo_b_ctun_freq);
         long long offset_a=ntohll(spectrum_data.vfo_a_offset);
         long long offset_b=ntohll(spectrum_data.vfo_b_offset);
-        short meter=ntohs(spectrum_data.meter);
-        receiver[r]->meter=(double)meter;
+        receiver[r]->meter=ntohd(spectrum_data.meter);
         short samples=ntohs(spectrum_data.samples);
         if(receiver[r]->pixel_samples==NULL) {
           receiver[r]->pixel_samples=g_new(float,(int)samples);
@@ -2194,6 +2215,22 @@ g_print("AGC_COMMAND: rx=%d agc=%d\n",rx,a);
         receiver[rx]->agc_thresh=(double)thresh;
         }
         break;
+      case CMD_RESP_RX_GAIN:
+        {
+	RFGAIN_COMMAND command;
+        bytes_read=recv_bytes(client_socket,(char *)&command.id,sizeof(command)-sizeof(header));
+        if(bytes_read<0) {
+          g_print("client_thread: read %d bytes for RFGAIN_CMD\n",bytes_read);
+          perror("client_thread");
+          // dialog box?
+          return NULL;
+        }
+        int rx=command.id;
+        double gain=ntohd(command.gain);
+g_print("CMD_RESP_RX_GAIN: new=%f rx=%d old=%f\n",gain,rx,adc[receiver[rx]->adc].gain);
+        adc[receiver[rx]->adc].gain=gain;
+        }
+        break;
       case CMD_RESP_RX_ATTENUATION:
         {
         ATTENUATION_COMMAND attenuation_cmd;
@@ -2206,8 +2243,8 @@ g_print("AGC_COMMAND: rx=%d agc=%d\n",rx,a);
         }
         int rx=attenuation_cmd.id;
         short attenuation=ntohs(attenuation_cmd.attenuation);
-g_print("CMD_RESP_RX_ATTENUATION: attenuation=%d adc_attenuation[rx[%d]->adc]=%d\n",attenuation,rx,adc_attenuation[receiver[rx]->adc]);
-        adc_attenuation[receiver[rx]->adc]=attenuation;
+g_print("CMD_RESP_RX_ATTENUATION: attenuation=%d attenuation[rx[%d]->adc]=%d\n",attenuation,rx,adc[receiver[rx]->adc].attenuation);
+        adc[receiver[rx]->adc].attenuation=attenuation;
         }
         break;
       case CMD_RESP_RX_NOISE:

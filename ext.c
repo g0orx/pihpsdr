@@ -816,6 +816,13 @@ int ext_remote_command(void *data) {
       send_agc_gain(client->socket,rx->id,(int)rx->agc_gain,(int)rx->agc_hang,(int)rx->agc_thresh);
       }
       break;
+    case CMD_RESP_RX_GAIN:
+      {
+      RFGAIN_COMMAND *command=(RFGAIN_COMMAND *) data;
+      double td=ntohd(command->gain);
+      set_rf_gain(command->id, td);
+      }
+      break;
     case CMD_RESP_RX_ATTENUATION:
       {
       ATTENUATION_COMMAND *attenuation_command=(ATTENUATION_COMMAND *)data;

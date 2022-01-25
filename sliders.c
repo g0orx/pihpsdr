@@ -387,6 +387,12 @@ void set_af_gain(int rx,double value) {
 
 static void rf_gain_value_changed_cb(GtkWidget *widget, gpointer data) {
     adc[active_receiver->adc].gain=gtk_range_get_value(GTK_RANGE(rf_gain_scale));
+#ifdef CLIENT_SERVER
+    if (radio_is_remote) {
+      send_rfgain(client_socket, active_receiver->id, adc[active_receiver->adc].gain);
+    }
+    return;
+#endif
     switch(protocol) {
 #ifdef SOAPYSDR
       case SOAPYSDR_PROTOCOL:

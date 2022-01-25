@@ -179,7 +179,7 @@ static gboolean action_cb(GtkWidget *widget,gpointer data) {
     selection=MIDI_WHEEL | MIDI_KNOB;
   }
 g_print("%s: type=%s selection=%02X thisAction=%d\n",__FUNCTION__,type,selection,thisAction);
-  int action=action_dialog(top_window,selection,thisAction);
+  int action=action_dialog(dialog,selection,thisAction);
   thisAction=action;
   gtk_button_set_label(GTK_BUTTON(newAction),ActionTable[action].str);
   return TRUE;
@@ -277,7 +277,6 @@ static void save_cb(GtkWidget *widget,gpointer user_data) {
   GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_SAVE;
   gchar *filename;
   gint res;
-  struct desc *cmd;
 
   save_dialog = gtk_file_chooser_dialog_new ("Save File",
                                       GTK_WINDOW(dialog),
@@ -313,27 +312,17 @@ static void load_cb(GtkWidget *widget,gpointer user_data) {
   GtkWidget *load_dialog;
   GtkFileChooser *chooser;
   GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_OPEN;
-  gchar *filename;
   gint res;
-  struct desc *cmd;
 
   load_dialog = gtk_file_chooser_dialog_new ("Open MIDI File",
                                       GTK_WINDOW(dialog),
                                       action,
                                       "_Cancel",
                                       GTK_RESPONSE_CANCEL,
-                                      "_Save",
+                                      "_Load",
                                       GTK_RESPONSE_ACCEPT,
                                       NULL);
   chooser = GTK_FILE_CHOOSER (load_dialog);
-  if(midi_device_name==NULL) {
-    filename=g_new(gchar,10);
-    sprintf(filename,"midi.midi");
-  } else {
-    filename=g_new(gchar,strlen(midi_device_name)+6);
-    sprintf(filename,"%s.midi",midi_device_name);
-  }
-  gtk_file_chooser_set_current_name(chooser,filename);
   res = gtk_dialog_run (GTK_DIALOG (load_dialog));
   if(res==GTK_RESPONSE_ACCEPT) {
     char *loadfilename=gtk_file_chooser_get_filename(chooser);
@@ -345,34 +334,28 @@ static void load_cb(GtkWidget *widget,gpointer user_data) {
     g_free(loadfilename);
   }
   gtk_widget_destroy(load_dialog);
-  g_free(filename);
 }
 
 static void load_original_cb(GtkWidget *widget,gpointer user_data) {
   GtkWidget *load_dialog;
   GtkFileChooser *chooser;
   GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_OPEN;
-  gchar *filename;
   gint res;
-  struct desc *cmd;
 
   load_dialog = gtk_file_chooser_dialog_new ("Open ORIGINAL MIDI File",
                                       GTK_WINDOW(dialog),
                                       action,
                                       "_Cancel",
                                       GTK_RESPONSE_CANCEL,
-                                      "_Save",
+                                      "_Load",
                                       GTK_RESPONSE_ACCEPT,
                                       NULL);
   chooser = GTK_FILE_CHOOSER (load_dialog);
-  filename=g_new(gchar,strlen(midi_device_name)+6);
-  sprintf(filename,"%s.midi",midi_device_name);
-  gtk_file_chooser_set_current_name(chooser,filename);
   res = gtk_dialog_run (GTK_DIALOG (load_dialog));
   if(res==GTK_RESPONSE_ACCEPT) {
     char *loadfilename=gtk_file_chooser_get_filename(chooser);
     clear_cb(NULL,NULL);
-    MIDIstartup(loadfilename);
+    ReadLegacyMidiFile(loadfilename);
     load_store();
     g_free(loadfilename);
   }
@@ -490,7 +473,6 @@ static void add_cb(GtkButton *widget,gpointer user_data) {
   desc->action = action; // MIDIaction
   desc->type = type; // MIDItype
   desc->event = thisEvent; // MIDevent
-  desc->onoff = action==CW_LEFT || action==CW_RIGHT || action==PTT;
   desc->delay = 0;
   desc->vfl1  = -1;
   desc->vfl2  = -1;
@@ -1058,7 +1040,7 @@ void midi_save_state() {
       entry=-1;
       while(cmd!=NULL) {
 	entry++;
-        g_print("%s:  channel=%d key=%d entry=%d event=%s onoff=%d type=%s action=%s\n",__FUNCTION__,cmd->channel,i,entry,midi_events[cmd->event],cmd->onoff,midi_types[cmd->type],ActionTable[cmd->action].str);
+        g_print("%s:  channel=%d key=%d entry=%d event=%s type=%s action=%s\n",__FUNCTION__,cmd->channel,i,entry,midi_events[cmd->event],midi_types[cmd->type],ActionTable[cmd->action].str);
 
         sprintf(name,"midi[%d].entry[%d].channel",i,entry);
         sprintf(value,"%d",cmd->channel);
@@ -1072,9 +1054,6 @@ void midi_save_state() {
         setProperty(name,value);
         sprintf(name,"midi[%d].entry[%d].channel[%d].type",i,entry,cmd->channel);
 	sprintf(value,"%s",midi_types[cmd->type]);
-        setProperty(name,value);
-        sprintf(name,"midi[%d].entry[%d].channel[%d].onoff",i,entry,cmd->channel);
-        sprintf(value,"%d",cmd->onoff);
         setProperty(name,value);
         cmd=cmd->next;
       }
@@ -1093,7 +1072,6 @@ void midi_restore_state() {
   gint entries;
   gint channel;
   gint event;
-  gint onoff;
   gint type;
   gint action;
   int i, j;
@@ -1140,9 +1118,6 @@ void midi_restore_state() {
               }
 	    }
 	  }
-          sprintf(name,"midi[%d].entry[%d].channel[%d].onoff",i,entry,channel);
-          value=getProperty(name);
-          if(value) onoff=atoi(value);
           sprintf(name,"midi[%d].entry[%d].channel[%d].type",i,entry,channel);
           value=getProperty(name);
 	  type=TYPE_NONE;
@@ -1173,7 +1148,6 @@ void midi_restore_state() {
           desc->action = action; // MIDIaction
           desc->type = type; // MIDItype
           desc->event = event; // MIDevent
-          desc->onoff = onoff;
           desc->delay = 0;
           desc->vfl1  = -1;
           desc->vfl2  = -1;

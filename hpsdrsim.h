@@ -37,6 +37,7 @@
 
 EXTERN int OLDDEVICE;
 EXTERN int NEWDEVICE;
+EXTERN int MAC5;
 
 //
 // A table of (random) noise with about -90 dBm on the whole spectrum
@@ -55,8 +56,10 @@ EXTERN double noiseQtab[LENNOISE];
 // using DIVERSITY
 //
 EXTERN int diversity;
+EXTERN int noiseblank;
+EXTERN int nb_pulse, nb_width;
 
-#define LENDIV 16000
+#define LENDIV 48000
 EXTERN double divtab[LENDIV];
 //
 // An 800-Hz tone with 0 dBm
@@ -95,13 +98,6 @@ EXTERN struct sockaddr_in addr_old;
 // Constants for conversion of TX power
 //
 EXTERN double c1,c2;
-
-//
-// Forward declarations for the audio functions
-//
-void audio_get_cards(void);
-void audio_open_output();
-void audio_write(int16_t, int16_t);
 
 //
 // Forward declarations for new protocol stuff

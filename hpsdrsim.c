@@ -64,17 +64,11 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-
-#define NEED_DUMMY_AUDIO 1
-
-#ifdef PORTAUDIO
-#include "portaudio.h"
-#undef NEED_DUMMY_AUDIO
+#ifdef __APPLE__
+#include "MacOS.h"  // emulate clock_gettime on old MacOS systems
 #endif
-#ifdef ALSASOUND
-#include <alsa/asoundlib.h>
-#undef NEED_DUMMY_AUDIO
-#endif
+
+//#define PACKETLIST  // indicate incoming packets with time-stamp
 
 #define EXTERN 
 #include "hpsdrsim.h"
@@ -102,6 +96,14 @@ static int		txdrive = 0;
 static int		txatt = 0;
 static int		sidetone_volume = -1;
 static int		cw_internal = -1;
+static int		envgain = 0;
+static int              pwmmin = 0;
+static int              pwmmax = 0;
+static int		adc2bpf = 0;
+static int		anan7kps = 0;
+static int		anan7kxvtr = 0;
+static int              dash = 0;
+static int              dot  = 0;
 static int		rx_att[2] = {-1,-1};
 static int		rx1_attE = -1;
 static int              rx_preamp[4] = {-1,-1,-1,-1};
@@ -141,6 +143,13 @@ static int		CommonMercuryFreq = -1;
 static int              freq=-1;
 
 
+struct hl2word {
+   unsigned char c1;
+   unsigned char c2;
+   unsigned char c3;
+   unsigned char c4;
+} hl2addr[64];
+
 // floating-point represeners of TX att, RX att, and RX preamp settings
 
 static double txdrv_dbl = 0.99;
@@ -167,7 +176,6 @@ static void *handler_ep6(void *arg);
 static double  last_i_sample=0.0;
 static double  last_q_sample=0.0;
 static int  txptr=0;
-static int  do_audio=0;  // 0: no audio, 1: audio
 static int  oldnew=3;    // 1: only P1, 2: only P2, 3: P1 and P2, 
 
 static double txlevel;
@@ -178,8 +186,6 @@ int main(int argc, char *argv[])
 	struct sched_param param;
 	pthread_attr_t attr;
 	pthread_t thread;
-
-	uint8_t reply[11] = { 0xef, 0xfe, 2, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0, 1 };
 
 	uint8_t id[4] = { 0xef, 0xfe, 1, 6 };
 	uint32_t code;
@@ -196,6 +202,7 @@ int main(int argc, char *argv[])
         struct sockaddr_in addr_from;
         unsigned int seed;
 
+        memset(hl2addr, 0, sizeof(hl2addr));
 	uint32_t last_seqnum = 0xffffffff, seqnum;  // sequence number of received packet
 
 	int udp_retries=0;
@@ -218,23 +225,33 @@ int main(int argc, char *argv[])
 	// seed value for random number generator
 	seed = ((uintptr_t) &seed) & 0xffffff;
         diversity=0;
+        noiseblank=0;
+        nb_pulse=0;
+        nb_width=0;
+        MAC5=0x66;
         OLDDEVICE=DEVICE_ORION2;
         NEWDEVICE=NEW_DEVICE_ORION2;
 
         for (i=1; i<argc; i++) {
-            if (!strncmp(argv[i],"-atlas"  ,      6))  {OLDDEVICE=DEVICE_METIS;       NEWDEVICE=NEW_DEVICE_ATLAS;}
-            if (!strncmp(argv[i],"-hermes" ,      7))  {OLDDEVICE=DEVICE_HERMES;      NEWDEVICE=NEW_DEVICE_HERMES;}
-            if (!strncmp(argv[i],"-griffin" ,     8))  {OLDDEVICE=DEVICE_GRIFFIN;     NEWDEVICE=NEW_DEVICE_HERMES2;}
-            if (!strncmp(argv[i],"-angelia" ,     8))  {OLDDEVICE=DEVICE_ANGELIA;     NEWDEVICE=NEW_DEVICE_ANGELIA;}
-            if (!strncmp(argv[i],"-orion" ,       6))  {OLDDEVICE=DEVICE_ORION;       NEWDEVICE=NEW_DEVICE_ORION;}
-            if (!strncmp(argv[i],"-orion2" ,      7))  {OLDDEVICE=DEVICE_ORION2;      NEWDEVICE=NEW_DEVICE_ORION2;}
-            if (!strncmp(argv[i],"-hermeslite" , 11))  {OLDDEVICE=DEVICE_HERMES_LITE; NEWDEVICE=NEW_DEVICE_HERMES_LITE;}
-            if (!strncmp(argv[i],"-hermeslite2", 12))  {OLDDEVICE=DEVICE_HERMES_LITE2;NEWDEVICE=NEW_DEVICE_HERMES_LITE2;}
-            if (!strncmp(argv[i],"-c25"    ,      4))  {OLDDEVICE=DEVICE_C25;         NEWDEVICE=NEW_DEVICE_HERMES;}
+            if (!strncmp(argv[i],"-atlas"  ,      6))  {OLDDEVICE=DEVICE_METIS;       NEWDEVICE=NEW_DEVICE_ATLAS;         MAC5=0x11;}
+            if (!strncmp(argv[i],"-hermes" ,      7))  {OLDDEVICE=DEVICE_HERMES;      NEWDEVICE=NEW_DEVICE_HERMES;        MAC5=0x22;}
+            if (!strncmp(argv[i],"-griffin" ,     8))  {OLDDEVICE=DEVICE_GRIFFIN;     NEWDEVICE=NEW_DEVICE_HERMES2;       MAC5=0x33;}
+            if (!strncmp(argv[i],"-angelia" ,     8))  {OLDDEVICE=DEVICE_ANGELIA;     NEWDEVICE=NEW_DEVICE_ANGELIA;       MAC5=0x44;}
+            if (!strncmp(argv[i],"-orion" ,       6))  {OLDDEVICE=DEVICE_ORION;       NEWDEVICE=NEW_DEVICE_ORION;         MAC5=0x55;}
+            if (!strncmp(argv[i],"-orion2" ,      7))  {OLDDEVICE=DEVICE_ORION2;      NEWDEVICE=NEW_DEVICE_ORION2;        MAC5=0x66;}
+            if (!strncmp(argv[i],"-hermeslite" , 11))  {OLDDEVICE=DEVICE_HERMES_LITE; NEWDEVICE=NEW_DEVICE_HERMES_LITE;   MAC5=0x77;}
+            if (!strncmp(argv[i],"-hermeslite2", 12))  {OLDDEVICE=DEVICE_HERMES_LITE2;NEWDEVICE=NEW_DEVICE_HERMES_LITE2;  MAC5=0x88;}
+            if (!strncmp(argv[i],"-c25"    ,      4))  {OLDDEVICE=DEVICE_C25;         NEWDEVICE=NEW_DEVICE_HERMES;        MAC5=0x99;}
             if (!strncmp(argv[i],"-diversity",   10))  {diversity=1;}
-            if (!strncmp(argv[i],"-audio",        6))  {do_audio=1;}
             if (!strncmp(argv[i],"-P1",           3))  {oldnew=1;}
             if (!strncmp(argv[i],"-P2",           3))  {oldnew=2;}
+            if (!strncmp(argv[i],"-nb",           3))  {
+		noiseblank=1;
+                if (i < argc-1) sscanf(argv[++i],"%d",&nb_pulse);
+                if (i < argc-1) sscanf(argv[++i],"%d",&nb_width);
+                if (nb_pulse < 1 || nb_pulse > 200) nb_pulse=5;
+                if (nb_width < 1 || nb_width > 200) nb_width=100;
+            }
         }
 
         switch (OLDDEVICE) {
@@ -271,7 +288,20 @@ int main(int argc, char *argv[])
 	  off += 0.016362461737446839783659600954581;
 	}
 
-	if (diversity) {
+        //
+        // Use only one buffer, so diversity and
+        // noise blanker testing are mutually exclusive
+        // so diversity==0 means "no man-made noise",
+        //    diversity==1 && noiseblank == 0 means "noise for testing diversity"
+        //    diversity==1 && noiseblank == 1 means "noise for testing noise blanker"
+        //
+        if (noiseblank) diversity=1;
+
+	if (diversity && !noiseblank) {
+          //
+          // The diversity signal is a "comb" with a lot
+          // of equally spaces cosines
+          //
 	  fprintf(stderr,"DIVERSITY testing activated!\n");
 	  fprintf(stderr,".... producing some man-made noise\n");
           memset(divtab, 0, LENDIV*sizeof(double));
@@ -296,17 +326,28 @@ int main(int argc, char *argv[])
 	    divtab[i]=divtab[i]*off;
 	  }
 	}
+
+        if (diversity && noiseblank) {
+           //
+           // Create impulse noise as a real-time signal
+           // n impulses per second
+           // m samples wide
+           // about -80 dBm in 1000 Hz
+           //
+           off=sqrt(0.05 / (nb_pulse*nb_width));
+           memset(divtab, 0, LENDIV*sizeof(double));
+           fprintf(stderr,"NOISE BLANKER test activated: %d pulses of width %d within %d samples\n",
+				nb_pulse, nb_width, LENDIV);
+           for (i=0; i<nb_pulse; i++) {
+             for (j=(i*LENDIV)/nb_pulse; j< (i*LENDIV)/nb_pulse+nb_width; j++) divtab[j]=off;
+           }
+        }
 	
 //
 //      clear TX fifo
 //
 	memset (isample, 0, OLDRTXLEN*sizeof(double));
 	memset (qsample, 0, OLDRTXLEN*sizeof(double));
-
-	if (do_audio) {
-	  audio_get_cards();
-          audio_open_output();
-	}
 
 	if ((sock_udp = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
 	{
@@ -367,9 +408,6 @@ int main(int argc, char *argv[])
 	{
 		memcpy(buffer, id, 4);
 
-		ts.tv_sec = 0;
-		ts.tv_nsec = 1000000;
-
 		if (sock_TCP_Client > -1)
 		{
 			// Using recvmmsg with a time-out should be used for a byte-stream protocol like TCP
@@ -389,6 +427,10 @@ int main(int argc, char *argv[])
 				bytes_left -= size;
 
 			}
+#ifdef PACKETLIST
+			clock_gettime(CLOCK_MONOTONIC, &ts);
+                        fprintf(stderr,"TCP:%d.%03d\n", (int) (ts.tv_sec % 1000), (int) (ts.tv_nsec/1000000L));
+#endif
 
 			bytes_read=size;
 			if (size >= 0)
@@ -427,6 +469,10 @@ int main(int argc, char *argv[])
 			if (bytes_read > 0)
 			{
 				udp_retries=0;
+#ifdef PACKETLIST
+			clock_gettime(CLOCK_MONOTONIC, &ts);
+                        fprintf(stderr,"UDP:%d.%03d\n", (int) (ts.tv_sec % 1000), (int) (ts.tv_nsec/1000000L));
+#endif
 			}
 			else
 			{
@@ -494,16 +540,7 @@ int main(int argc, char *argv[])
                                   bp=buffer+16;  // skip 8 header and 8 SYNC/C&C bytes
 				  sum=0.0;
                                   for (j=0; j<126; j++) {
-					if (do_audio) {
-					  // write audio samples
-					  r  = (int)((signed char) *bp++)<<8;
-					  r |= (int)((signed char) *bp++ & 0xFF);
-					  l  = (int)((signed char) *bp++)<<8;
-					  l |= (int)((signed char) *bp++ & 0xFF);
-                                          audio_write(r,l);
-					} else {
-					  bp +=4;
-					}
+					bp +=4;  // skip audio samples
 					sample  = (int)((signed char) *bp++)<<8;
 					sample |= (int) ((signed char) *bp++ & 0xFF);
 					disample=(double) sample * 0.000030517578125;  // division by 32768
@@ -584,19 +621,28 @@ int main(int argc, char *argv[])
 					fprintf(stderr,"InvalidLength: RvcMsg Code=0x%08x Len=%d\n", code, (int)bytes_read);
 					break;
 				}
-				reply[ 2] = 2;
+				memset(buffer, 0, 60);
+                                buffer[0]=0xEF;
+                                buffer[1]=0xFE;
+                                buffer[2]=0x02;
+                                buffer[3]=0xAA;  // buffer[3:8] is MAC address
+                                buffer[4]=0xBB;
+                                buffer[5]=0xCC;
+                                buffer[6]=0xDD;
+                                buffer[7]=MAC5; // specifies type of radio
+                                buffer[8]=0xFF; // encodes old protocol
+				buffer[ 2] = 2;
 				if (active_thread || new_protocol_running()) {
-				    reply[2] = 3;
+				    buffer[2] = 3;
 				}
-				reply[9]=31; // software version
-				reply[10] = OLDDEVICE;
+				buffer[9]=31; // software version
+				buffer[10] = OLDDEVICE;
 				if (OLDDEVICE == DEVICE_HERMES_LITE2) {
 				    // use HL1 device ID and new software version
-				    reply[9]=41;
-				    reply[10]=DEVICE_HERMES_LITE;
+				    buffer[9]=71;
+				    buffer[10]=DEVICE_HERMES_LITE;
+                                    buffer[19]=4;  // number of receivers
 				}
-				memset(buffer, 0, 60);
-				memcpy(buffer, reply, 11);
 
 				if (sock_TCP_Client > -1)
 				{
@@ -709,8 +755,8 @@ int main(int argc, char *argv[])
 				  buffer[4]=0xBB;
 				  buffer[5]=0xCC;
 				  buffer[6]=0xDD;
-				  buffer[7]=0xEE;
-				  buffer[8]=0xFF;
+				  buffer[7]=MAC5; // specifies type of radio
+				  buffer[8]=0xFF; // encodes old protocol
 				  sendto(sock_udp, buffer, 60, 0, (struct sockaddr *)&addr_from, sizeof(addr_from));
 				  if (blks == cnt) fprintf(stderr,"\n\n Programming Done!\n");
 				  break;
@@ -727,8 +773,8 @@ int main(int argc, char *argv[])
 				  buffer[4]=0xBB;
 				  buffer[5]=0xCC;
 				  buffer[6]=0xDD;
-				  buffer[7]=0xEE;
-				  buffer[8]=0xFF;
+				  buffer[7]=MAC5; // specifies type of radio
+				  buffer[8]=0xFF; // encodes old protocol
 				  sendto(sock_udp, buffer, 60, 0, (struct sockaddr *)&addr_from, sizeof(addr_from));
 				  break;
 				
@@ -755,8 +801,8 @@ int main(int argc, char *argv[])
 				  buffer[ 6]=0xBB;
 				  buffer[ 7]=0xCC;
 				  buffer[ 8]=0xDD;
-				  buffer[ 9]=0xEE;
-				  buffer[10]=0xFF;
+				  buffer[ 9]=MAC5; // specifies type of radio
+				  buffer[10]=0xFE; // encodes new protocol
 				  buffer[11]=NEWDEVICE;
 				  buffer[12]=38;
 				  buffer[13]=19;
@@ -782,8 +828,8 @@ int main(int argc, char *argv[])
                                   buffer[ 6]=0xBB;
                                   buffer[ 7]=0xCC;
                                   buffer[ 8]=0xDD;
-                                  buffer[ 9]=0xEE;
-                                  buffer[10]=0xFF;
+                                  buffer[ 9]=MAC5; // specifies type of radio
+                                  buffer[10]=0xFE; // encodes new protocol
                                   buffer[11]=NEWDEVICE;
                                   buffer[12]=38;
                                   buffer[13]=103;
@@ -812,8 +858,8 @@ int main(int argc, char *argv[])
                                   buffer[ 6]=0xBB;
                                   buffer[ 7]=0xCC;
                                   buffer[ 8]=0xDD;
-                                  buffer[ 9]=0xEE;
-                                  buffer[10]=0xFF;
+                                  buffer[ 9]=MAC5; // specifies type of radio
+                                  buffer[10]=0xFE; // encodes new protocol
 				  buffer[11]=103;
 				  buffer[12]=NEWDEVICE;
 				  buffer[13]=(checksum >> 8) & 0xFF;
@@ -835,16 +881,16 @@ int main(int argc, char *argv[])
 				  if (buffer[ 6] != 0xBB) break;
 				  if (buffer[ 7] != 0xCC) break;
 				  if (buffer[ 8] != 0xDD) break;
-				  if (buffer[ 9] != 0xEE) break;
-				  if (buffer[10] != 0xFF) break;
+				  if (buffer[ 9] != MAC5) break; // specifies type of radio
+				  if (buffer[10] != 0xFE) break; // encodes new protocol
                                   memset(buffer, 0, 60);
                                   buffer [4]=0x02+active_thread;
                                   buffer [5]=0xAA;
                                   buffer[ 6]=0xBB;
                                   buffer[ 7]=0xCC;
                                   buffer[ 8]=0xDD;
-                                  buffer[ 9]=0xEE;
-                                  buffer[10]=0xFF;
+                                  buffer[ 9]=MAC5; // specifies type of radio
+                                  buffer[10]=0xFE; // encodes new protocol
                                   buffer[11]=NEWDEVICE;
                                   buffer[12]=38;
                                   buffer[13]=103;
@@ -902,7 +948,6 @@ void process_ep2(uint8_t *frame)
         int mod_ptt;
         int mod;
 
-        
 	chk_data(frame[0] & 1, ptt, "PTT");
 	switch (frame[0])
 	{
@@ -1022,7 +1067,11 @@ void process_ep2(uint8_t *frame)
 
 	case 18:
 	case 19:
-	   chk_data(frame[1],txdrive,"TX DRIVE");
+           if (OLDDEVICE == DEVICE_METIS) {
+             txdrive=255;   // penelope's cannnot adjust TX amplitude 
+           } else {
+	     chk_data(frame[1],txdrive,"TX DRIVE");
+           }
 	   chk_data(frame[2] & 0x3F,hermes_config,"HERMES CONFIG");
 	   chk_data((frame[2] >> 6) & 0x01, alex_manual,"ALEX manual HPF/LPF");
 	   chk_data((frame[2] >> 7) & 0x01, vna     ,"VNA mode");
@@ -1058,9 +1107,10 @@ void process_ep2(uint8_t *frame)
 	     // for a combined attenuator/preamplifier with the AD9866 chip.
 	     // The value is between 0 and 60 and formally correspondes to
 	     // to an RX gain of -12 to +48 dB. However, we set here that
-             // a value of +16 (that is, 28 on the 0-60 scale) corresponds to
+             // a value of +14 (that is, 26 on the 0-60 scale) corresponds to
              // "zero attenuation"
-	     chk_data(37 -(frame[4] & 0x3F) , rx_att[0], "RX1 HL ATT/GAIN");
+	     // This means that the nominal value of "RX gain calibration" is 14.
+	     chk_data(26 -(frame[4] & 0x3F) , rx_att[0], "RX1 HL ATT/GAIN");
            } else {
              chk_data((frame[4] & 0x1F) >> 0, rx_att[0], "RX1 ATT");
              chk_data((frame[4] & 0x20) >> 5, rx1_attE, "RX1 ATT enable");
@@ -1130,6 +1180,37 @@ void process_ep2(uint8_t *frame)
             chk_data((frame[1] << 2) | (frame[2] & 3), cw_hang, "CW HANG");
             chk_data((frame[3] << 4) | (frame[4] & 255), freq, "SIDE TONE FREQ");
 	    break;
+
+	case 34:
+	case 35:
+	    chk_data(frame[1] << 2 | (frame[2] & 3), pwmmin,"PWM MIN");
+	    chk_data(frame[3] << 2 | (frame[4] & 3), pwmmax,"PWM MAX");
+	    break;
+        
+	case 36:
+	case 37:
+	    chk_data(frame[1], adc2bpf,"ADC2 BPF settings");
+            chk_data(frame[2] & 0x02, anan7kxvtr, "Anan7k/8k XVTR enable");  
+	    chk_data(frame[2] & 0x40, anan7kps,  "Anan7k PureSignal flag");
+	    chk_data(frame[3] << 8 | frame[4], envgain, "Firmware EnvGain");
+	    break;
+        default:
+            //
+            // The HermesLite2 has an extended address range so we just
+            // report if anything has changed. So if one address has not
+	    // been handled before explicitly, its changes will be reported
+            // here in a generic form.
+            //
+            rc=frame[0] >> 1;
+            if (hl2addr[rc].c1 != frame[1] || hl2addr[rc].c2 != frame[2] ||
+                hl2addr[rc].c3 != frame[3] || hl2addr[rc].c4 != frame[4]) {
+              printf("ADDR=0x%2x C1=0x%2x C2=0x%2x C3=0x%2x C4=0x%2x\n",
+                rc, frame[1], frame[2], frame[3], frame[4]);
+              hl2addr[rc].c1=frame[1];
+              hl2addr[rc].c2=frame[2];
+              hl2addr[rc].c3=frame[3];
+              hl2addr[rc].c4=frame[4];
+            }
 	}
 }
 
@@ -1144,7 +1225,7 @@ void *handler_ep6(void *arg)
 	uint8_t header[40] =
 	{
 //                             C0  C1  C2  C3  C4
-		127, 127, 127,  0,  0, 33, 17, 21,
+		127, 127, 127,  0,  0, 33, 18, 21,
 		127, 127, 127,  8,  0,  0,  0,  0,
 		127, 127, 127, 16,  0,  0,  0,  0,
 		127, 127, 127, 24,  0,  0,  0,  0,
@@ -1158,9 +1239,6 @@ void *handler_ep6(void *arg)
         int16_t ssample;
 
         struct timespec delay;
-#ifdef __APPLE__
-	struct timespec now;
-#endif
         long wait;
         int noiseIQpt,toneIQpt,divpt,rxptr;
         double i1,q1,fac1,fac2,fac3,fac4;
@@ -1264,11 +1342,15 @@ void *handler_ep6(void *arg)
 		    pointer += 8;
 		    memset(pointer, 0, 504);
 		    fac1=rxatt_dbl[0]*0.0002239;	// Amplitude of 800-Hz-signal to ADC1
-		    if (diversity) {
+		    if (diversity && !noiseblank) {
 			fac2=0.0001*rxatt_dbl[0];	// Amplitude of broad "man-made" noise to ADC1
 			fac4=0.0002*rxatt_dbl[1];	// Amplitude of broad "man-made" noise to ADC2
 							// (phase shifted 90 deg., 6 dB stronger)
 		    }
+                    if (diversity && noiseblank) {
+			fac2=0.1;
+			fac4=0.0;
+                    }
 		    for (j=0; j<n; j++) {
 			// ADC1: noise + weak tone on RX, feedback sig. on TX (except STEMlab)
 		        if (ptt && (OLDDEVICE != DEVICE_C25)) {
@@ -1278,7 +1360,7 @@ void *handler_ep6(void *arg)
 			  adc1isample= (txatt_dbl*i1*fac3+noiseItab[noiseIQpt]) * 8388607.0;
 			  adc1qsample= (txatt_dbl*q1*fac3+noiseItab[noiseIQpt]) * 8388607.0;
 			} else if (diversity) {
-			  // man made noise only to I samples
+			  // man made noise to ADC1 samples
 			  adc1isample= (noiseItab[noiseIQpt]+toneItab[toneIQpt]*fac1+divtab[divpt]*fac2) * 8388607.0;
 			  adc1qsample= (noiseQtab[noiseIQpt]+toneQtab[toneIQpt]*fac1                   ) * 8388607.0;
 			} else {
@@ -1366,24 +1448,7 @@ void *handler_ep6(void *arg)
                   delay.tv_nsec -= 1000000000;
                   delay.tv_sec++;
                 }
-#ifdef __APPLE__
-		//
-		// The (so-called) operating system for Mac does not have clock_nanosleep(),
-		// but is has clock_gettime as well as nanosleep.
-		// So, to circumvent this problem, we look at the watch and determine
-		// how long we should sleep now.
-		//
-		clock_gettime(CLOCK_MONOTONIC, &now);
-		now.tv_sec =delay.tv_sec  - now.tv_sec;
-		now.tv_nsec=delay.tv_nsec - now.tv_nsec;
-		while (now.tv_nsec < 0) {
-		    now.tv_nsec += 1000000000;
-		    now.tv_sec--;
-		}
-		nanosleep(&now, NULL);
-#else
 		clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &delay, NULL);
-#endif
 
 		if (sock_TCP_Client > -1)
 		{
@@ -1401,321 +1466,3 @@ void *handler_ep6(void *arg)
 	active_thread = 0;
 	return NULL;
 }
-
-#ifdef PORTAUDIO
-// PORTAUDIO output function
-
-static int padev = -1;
-static float playback_buffer[256];
-static PaStream  *playback_handle=NULL;
-int playback_offset;
-
-
-void audio_get_cards()
-{
-  int i, numDevices;
-  const PaDeviceInfo *deviceInfo;
-  PaStreamParameters inputParameters, outputParameters;
-
-  PaError err;
-
-  err = Pa_Initialize();
-  if( err != paNoError )
-  {
-        fprintf(stderr, "PORTAUDIO ERROR: Pa_Initialize: %s\n", Pa_GetErrorText(err));
-        return;
-  }
-  numDevices = Pa_GetDeviceCount();
-  if( numDevices < 0 ) return;
-
-  for( i=0; i<numDevices; i++ )
-  {
-        deviceInfo = Pa_GetDeviceInfo( i );
-
-        outputParameters.device = i;
-        outputParameters.channelCount = 1;
-        outputParameters.sampleFormat = paFloat32;
-        outputParameters.suggestedLatency = 0; /* ignored by Pa_IsFormatSupported() */
-        outputParameters.hostApiSpecificStreamInfo = NULL;
-        if (Pa_IsFormatSupported(NULL, &outputParameters, 48000.0) == paFormatIsSupported) {
-          padev=i;
-          fprintf(stderr,"PORTAUDIO OUTPUT DEVICE, No=%d, Name=%s\n", i, deviceInfo->name);
-	  return;
-        }
-  }
-}
-
-void audio_open_output()
-{
-  PaError err;
-  PaStreamParameters outputParameters;
-  long framesPerBuffer=256;
-
-  bzero( &outputParameters, sizeof( outputParameters ) ); //not necessary if you are filling in all the fields
-  outputParameters.channelCount = 1;   // Always MONO
-  outputParameters.device = padev;
-  outputParameters.hostApiSpecificStreamInfo = NULL;
-  outputParameters.sampleFormat = paFloat32;
-  outputParameters.suggestedLatency = Pa_GetDeviceInfo(padev)->defaultLowOutputLatency ;
-  outputParameters.hostApiSpecificStreamInfo = NULL; //See you specific host's API docs for info on using this field
-
-  // Try using AudioWrite without a call-back function
-
-  playback_offset=0;
-  err = Pa_OpenStream(&(playback_handle), NULL, &outputParameters, 48000.0, framesPerBuffer, paNoFlag, NULL, NULL);
-  if (err != paNoError) {
-    fprintf(stderr,"PORTAUDIO ERROR: AOO open stream: %s\n",Pa_GetErrorText(err));
-    playback_handle = NULL;
-    return;
-  }
-
-  err = Pa_StartStream(playback_handle);
-  if (err != paNoError) {
-    fprintf(stderr,"PORTAUDIO ERROR: AOO start stream:%s\n",Pa_GetErrorText(err));
-    playback_handle=NULL;
-    return;
-  }
-  // Write one buffer to avoid under-flow errors
-  // (this gives us 5 msec to pass before we have to call audio_write the first time)
-  bzero(playback_buffer, (size_t) (256*sizeof(float)));
-  err=Pa_WriteStream(playback_handle, (void *) playback_buffer, (unsigned long) 256);
-
-  return;
-}
-
-void audio_write (int16_t l, int16_t r)
-{
-  PaError err;
-  if (playback_handle != NULL) {
-    playback_buffer[playback_offset++] = (r + l) *0.000015259;  //   65536 --> 1.0
-    if (playback_offset == 256) {
-      playback_offset=0;
-      err=Pa_WriteStream(playback_handle, (void *) playback_buffer, (unsigned long) 256);
-    }
-  }
-}
-#endif
-#ifdef ALSASOUND
-//
-// Audio functions based on LINUX ALSA
-//
-
-static snd_pcm_t *playback_handle = NULL;
-static unsigned char playback_buffer[1024]; // 256 samples, left-and-right, two bytes per sample
-static int playback_offset;
-
-static char *device_id = NULL;
-
-void audio_get_cards() {
-  snd_ctl_card_info_t *info;
-  snd_pcm_info_t *pcminfo;
-  snd_ctl_card_info_alloca(&info);
-  snd_pcm_info_alloca(&pcminfo);
-  int i;
-  int card = -1;
-
-
-  while (snd_card_next(&card) >= 0 && card >= 0) {
-    int err = 0;
-    snd_ctl_t *handle;
-    char name[20];
-    snprintf(name, sizeof(name), "hw:%d", card);
-    if ((err = snd_ctl_open(&handle, name, 0)) < 0) {
-      continue;
-    }
-
-    if ((err = snd_ctl_card_info(handle, info)) < 0) {
-      snd_ctl_close(handle);
-      continue;
-    }
-
-    int dev = -1;
-
-    while (snd_ctl_pcm_next_device(handle, &dev) >= 0 && dev >= 0 && device_id == NULL) {
-      snd_pcm_info_set_device(pcminfo, dev);
-      snd_pcm_info_set_subdevice(pcminfo, 0);
-
-      // ouput devices
-      snd_pcm_info_set_stream(pcminfo, SND_PCM_STREAM_PLAYBACK);
-      if ((err = snd_ctl_pcm_info(handle, pcminfo)) == 0) {
-        device_id=malloc(64);
-        snprintf(device_id, 64, "plughw:%d,%d %s", card, dev, snd_ctl_card_info_get_name(info));
-        fprintf(stderr,"ALSA output_device: %s\n",device_id);
-      }
-    }
-
-    snd_ctl_close(handle);
-   
-  }
-
-  if (device_id != NULL) return; // found one
-
-  // look for dmix
-  void **hints, **n;
-  char *name, *descr, *io;
-
-  if (snd_device_name_hint(-1, "pcm", &hints) < 0)
-    return;
-  n = hints;
-  while (*n != NULL && device_id == NULL) {
-    name = snd_device_name_get_hint(*n, "NAME");
-    descr = snd_device_name_get_hint(*n, "DESC");
-    io = snd_device_name_get_hint(*n, "IOID");
-    
-    if(strncmp("dmix:", name, 5)==0) {
-      fprintf(stderr,"name=%s descr=%s io=%s\n",name, descr, io);
-      device_id=malloc(64);
-      
-      snprintf(device_id, 64, "%s", name);
-      fprintf(stderr,"ALSA output_device: %s\n",device_id);
-    }
-
-    if (name != NULL)
-      free(name);
-    if (descr != NULL)
-      free(descr);
-    if (io != NULL)
-      free(io);
-    n++;
-  }
-  snd_device_name_free_hint(hints);
-}
-
-
-void audio_open_output() {
-  int err;
-  snd_pcm_hw_params_t *hw_params;
-  int rate=48000;
-  int dir=0;
-
-  int i;
-  char hw[64];
-  char *selected=device_id;
- 
-  i=0;
-  while(selected[i]!=' ') {
-    hw[i]=selected[i];
-    i++;
-  }
-  hw[i]='\0';
-  
-  if ((err = snd_pcm_open (&playback_handle, hw, SND_PCM_STREAM_PLAYBACK, 0)) < 0) {
-    fprintf (stderr, "audio_open_output: cannot open audio device %s (%s)\n", 
-            hw,
-            snd_strerror (err));
-    playback_handle = NULL;
-    return;
-  }
-
-  if ((err = snd_pcm_hw_params_malloc (&hw_params)) < 0) {
-    fprintf (stderr, "audio_open_output: cannot allocate hardware parameter structure (%s)\n",
-            snd_strerror (err));
-    playback_handle=NULL;
-    return;
-  }
-
-  if ((err = snd_pcm_hw_params_any (playback_handle, hw_params)) < 0) {
-    fprintf (stderr, "audio_open_output: cannot initialize hardware parameter structure (%s)\n",
-            snd_strerror (err));
-    playback_handle=NULL;
-    return;
-  }
-
-  if ((err = snd_pcm_hw_params_set_access (playback_handle, hw_params, SND_PCM_ACCESS_RW_INTERLEAVED)) < 0) {
-    fprintf (stderr, "audio_open_output: cannot set access type (%s)\n",
-            snd_strerror (err));
-    playback_handle=NULL;
-    return;
-  }
-	
-  if ((err = snd_pcm_hw_params_set_format (playback_handle, hw_params, SND_PCM_FORMAT_S16_LE)) < 0) {
-    fprintf (stderr, "audio_open_output: cannot set sample format (%s)\n",
-            snd_strerror (err));
-    playback_handle=NULL;
-    return;
-  }
-	
-
-  if ((err = snd_pcm_hw_params_set_rate_near (playback_handle, hw_params, &rate, &dir)) < 0) {
-    fprintf (stderr, "audio_open_output: cannot set sample rate (%s)\n",
-            snd_strerror (err));
-    playback_handle=NULL;
-    return;
-  }
-	
-  if ((err = snd_pcm_hw_params_set_channels (playback_handle, hw_params, 2)) < 0) {
-    fprintf (stderr, "audio_open_output: cannot set channel count (%s)\n",
-            snd_strerror (err));
-    playback_handle=NULL;
-    return;
-  }
-	
-  if ((err = snd_pcm_hw_params (playback_handle, hw_params)) < 0) {
-    fprintf (stderr, "audio_open_output: cannot set parameters (%s)\n",
-            snd_strerror (err));
-    playback_handle=NULL;
-    return;
-  }
-	
-  snd_pcm_hw_params_free (hw_params);
-
-  playback_offset=0;
-  
-  return;
-}
-
-void audio_write(int16_t left_sample,int16_t right_sample) {
-  snd_pcm_sframes_t delay;
-  int error;
-  long trim;
-
-  if(playback_handle!=NULL) {
-    playback_buffer[playback_offset++]=right_sample;
-    playback_buffer[playback_offset++]=right_sample>>8;
-    playback_buffer[playback_offset++]=left_sample;
-    playback_buffer[playback_offset++]=left_sample>>8;
-
-    if(playback_offset==1024) {
-      trim=0;
-
-      if(snd_pcm_delay(playback_handle,&delay)==0) {
-        if(delay>2048) {
-          trim=delay-2048;
-        }
-      }
-
-      if ((error = snd_pcm_writei (playback_handle, playback_buffer, 256-trim)) != 256-trim) {
-        if(error==-EPIPE) {
-          if ((error = snd_pcm_prepare (playback_handle)) < 0) {
-            fprintf (stderr, "audio_write: cannot prepare audio interface for use (%s)\n",
-                    snd_strerror (error));
-            return;
-          }
-          if ((error = snd_pcm_writei (playback_handle, playback_buffer, 256-trim)) != 256) {
-            fprintf (stderr, "audio_write: write to audio interface failed (%s)\n",
-                    snd_strerror (error));
-            return;
-          }
-        }
-      }
-      playback_offset=0;
-    }
-  }
-}
-#endif
-
-//
-// Dummy audio functions if this is compiled without audio support
-//
-#ifdef NEED_DUMMY_AUDIO
-void audio_get_cards()
-{
-}
-void audio_open_output()
-{
-}
-void audio_write (int16_t l, int16_t r)
-{
-}
-#endif
-
