@@ -198,7 +198,6 @@ void vfo_restore_state() {
   char *value;
 
   for(i=0;i<MAX_VFOS;i++) {
-g_print("vfo_restore_state: %d\n",i);
 
     vfo[i].band=band20;
     vfo[i].bandstack=0;
@@ -218,7 +217,6 @@ g_print("vfo_restore_state: %d\n",i);
     vfo[i].rit=0;
     vfo[i].ctun=0;
 
-g_print("vfo_restore_state: band=%d frequency=%lld\n",vfo[i].band,vfo[i].frequency);
 
     sprintf(name,"vfo.%d.band",i);
     value=getProperty(name);
@@ -271,7 +269,6 @@ void vfo_xvtr_changed() {
 void vfo_band_changed(int id,int b) {
   BANDSTACK *bandstack;
 
-  //fprintf(stderr,"%s: %d\n",__FUNCTION__,b);
 #ifdef CLIENT_SERVER
   if(radio_is_remote) {
     send_band(client_socket,id,b);
@@ -1278,7 +1275,7 @@ void vfo_update() {
         cairo_destroy (cr);
         gtk_widget_queue_draw (vfo_panel);
     } else {
-fprintf(stderr,"vfo_update: no surface!\n");
+fprintf(stderr,"%s: no surface!\n",__FUNCTION__);
     }
 }
 
@@ -1292,8 +1289,6 @@ vfo_press_event_cb (GtkWidget *widget,
 }
 
 GtkWidget* vfo_init(int width,int height,GtkWidget *parent) {
-
-fprintf(stderr,"vfo_init: width=%d height=%d\n", width, height);
 
   parent_window=parent;
   my_width=width;
