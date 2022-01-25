@@ -77,45 +77,22 @@ static void frequencyStep(int pos) {
   vfo_step(pos);
 }
 
-static uint64_t epochMilli;
-
-static void initialiseEpoch() {
-  struct timespec ts ;
-
-  clock_gettime (CLOCK_MONOTONIC_RAW, &ts) ;
-  epochMilli = (uint64_t)ts.tv_sec * (uint64_t)1000    + (uint64_t)(ts.tv_nsec / 1000000L) ;
-}
-
-static uint32_t millis () {
-  uint64_t now ;
-  struct  timespec ts ;
-  clock_gettime (CLOCK_MONOTONIC_RAW, &ts) ;
-  now  = (uint64_t)ts.tv_sec * (uint64_t)1000 + (uint64_t)(ts.tv_nsec / 1000000L) ;
-  return (uint32_t)(now - epochMilli) ;
-}
-
-static uint32_t debounce_time=50; // 50ms
-static uint32_t t;
-static uint32_t debounce=0;
-
 void i2c_interrupt() {
   unsigned int flags;
   unsigned int ints;
 
-  t=millis();
   do {
     flags=read_word_data(0x0E);
     if(flags) {
       ints=read_word_data(0x10);
-g_print("%s: flags=%04X ints=%04X\n",__FUNCTION__,flags,ints);
-      if(t<debounce) return;
+//g_print("%s: flags=%04X ints=%04X\n",__FUNCTION__,flags,ints);
       if(ints) {
         int i;
         for(i=0;i<16;i++) {
           if(i2c_sw[i]==ints) break;
         }
         if(i<16) {
-g_print("%s: switches=%p sw=%d action=%d\n",__FUNCTION__,switches,i,switches[i].switch_function);
+//g_print("%s: switches=%p sw=%d action=%d\n",__FUNCTION__,switches,i,switches[i].switch_function);
           PROCESS_ACTION *a=g_new(PROCESS_ACTION,1);
           a->action=switches[i].switch_function;
           a->mode=PRESSED;
@@ -124,7 +101,6 @@ g_print("%s: switches=%p sw=%d action=%d\n",__FUNCTION__,switches,i,switches[i].
       }
     }
   } while(flags!=0);
-  debounce=t+debounce_time;
 }
 
 void i2c_init() {
@@ -186,7 +162,6 @@ void i2c_init() {
     flags=read_word_data(0x0E);
     if(flags) {
       ints=read_word_data(0x10);
-      fprintf(stderr,"flush interrupt: flags=%04X ints=%04X\n",flags,ints);
       count++;
       if(count==10) {
         return;
@@ -194,7 +169,5 @@ void i2c_init() {
     }
   } while(flags!=0);
 
-  initialiseEpoch();
-  
 }
 #endif
