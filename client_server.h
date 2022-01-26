@@ -471,7 +471,7 @@ extern gboolean hpsdr_server;
 extern gboolean hpsdr_server;
 extern gint client_socket;
 extern gint start_spectrum(void *data);
-extern void start_vfo_timer();
+extern void start_vfo_timer(void);
 extern gboolean remote_started;
 
 
@@ -479,8 +479,8 @@ extern REMOTE_CLIENT *clients;
 
 extern gint listen_port;
 
-extern int create_hpsdr_server();
-extern int destroy_hpsdr_server();
+extern int create_hpsdr_server(void);
+extern int destroy_hpsdr_server(void);
 
 extern int radio_connect_remote(char *host, int port);
 

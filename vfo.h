@@ -75,7 +75,7 @@ typedef struct _set_frequency {
 extern char *step_labels[];
 
 extern GtkWidget* vfo_init(int width,int height,GtkWidget *parent);
-extern int  vfo_get_stepindex();
+extern int  vfo_get_stepindex(void);
 extern void vfo_set_step_from_index(int index);
 extern void vfo_set_stepsize(int newstep);
 extern int  vfo_get_step_from_index(int index);
@@ -84,27 +84,27 @@ extern void vfo_id_step(int id, int steps);
 extern void vfo_move(long long hz,int round);
 extern void vfo_id_move(int id,long long hz,int round);
 extern void vfo_move_to(long long hz);
-extern void vfo_update();
-extern void set_frequency();
+extern void vfo_update(void);
+extern void set_frequency(void);
 
-extern void vfo_save_state();
-extern void vfo_restore_state();
-extern void modesettings_save_state();
-extern void modesettings_restore_state();
+extern void vfo_save_state(void);
+extern void vfo_restore_state(void);
+extern void modesettings_save_state(void);
+extern void modesettings_restore_state(void);
 
 extern void vfo_band_changed(int id,int b);
 extern void vfo_bandstack_changed(int b);
 extern void vfo_mode_changed(int m);
 extern void vfo_filter_changed(int f);
-extern void vfo_a_to_b();
-extern void vfo_b_to_a();
-extern void vfo_a_swap_b();
+extern void vfo_a_to_b(void);
+extern void vfo_b_to_a(void);
+extern void vfo_a_swap_b(void);
 
-extern int get_tx_vfo();
-extern int get_tx_mode();
-extern long long get_tx_freq();
+extern int get_tx_vfo(void);
+extern int get_tx_mode(void);
+extern long long get_tx_freq(void);
 
-extern void vfo_xvtr_changed();
+extern void vfo_xvtr_changed(void);
 
 extern void vfo_rit_update(int rx);
 extern void vfo_rit_clear(int rx);

@@ -34,7 +34,7 @@ struct _PROPERTY {
     PROPERTY* next_property;
 };
 
-extern void clearProperties();
+extern void clearProperties(void);
 extern void loadProperties(char* filename);
 extern char* getProperty(char* name);
 extern void setProperty(char* name,char* value);

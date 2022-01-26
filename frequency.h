@@ -42,6 +42,6 @@ struct frequency_info {
 
 extern char* getFrequencyInfo(long long frequency,int filter_low,int filter_high);
 extern int getBand(long long frequency);
-extern int canTransmit();
+extern int canTransmit(void);
 
 #endif

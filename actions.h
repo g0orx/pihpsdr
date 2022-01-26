@@ -145,6 +145,12 @@ enum ACTION {
   ZOOM,
   ZOOM_MINUS,
   ZOOM_PLUS,
+//
+// Support for external CW keyers
+//
+  CW_KEYER_KEYDOWN,
+  CW_KEYER_SPEED,
+  CW_KEYER_SIDETONE,
   ACTIONS
 };
 
@@ -180,4 +186,5 @@ typedef struct process_action {
 extern ACTION_TABLE ActionTable[ACTIONS+1];
 
 extern int process_action(void *data);
+extern void schedule_action(enum ACTION action, enum ACTION_MODE mode, gint val);
 

@@ -2,8 +2,8 @@
  *  Some functions are possibly missing on MacOS and in this case
  *  are replaced with "static inline" functions:
  *
- *  clock_gettime()
- *  clock_nanosleep()
+ *  clock_gettime(void)
+ *  clock_nanosleep(void)
  */
 
 #ifdef __APPLE__
@@ -14,11 +14,12 @@
 //
 // MacOS < 10.12 does not have clock_gettime
 //
-// Contribution from github user "ra1nb0w"
+// Contributed initially by Davide "ra1nb0w"
 //
 
 #define CLOCK_REALTIME  0
 #define CLOCK_MONOTONIC 6
+#define CLOCK_MONOTONIC_RAW 4
 typedef int clockid_t;
 
 #include <sys/time.h>
@@ -37,8 +38,12 @@ static inline int clock_gettime( clockid_t clk_id, struct timespec *ts )
       ts->tv_sec  = tv.tv_sec;
       ts->tv_nsec = tv.tv_usec * 1000;
     }
-    else if ( CLOCK_MONOTONIC == clk_id )
+    else if ( CLOCK_MONOTONIC == clk_id  || CLOCK_MONOTONIC_RAW == clk_id )
     {
+      //
+      // For the time being, accept CLOCK_MONOTONIC_RAW but treat it
+      // the same way as CLOCK_MONOTONIC.
+      //
       const uint64_t t = mach_absolute_time();
       mach_timebase_info_data_t timebase;
       mach_timebase_info(&timebase);

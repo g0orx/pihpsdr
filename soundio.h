@@ -30,10 +30,10 @@ extern char *output_devices[];
 extern int n_output_devices;
 //extern int n_selected_output_device;
 
-extern int audio_open_input();
-extern void audio_close_input();
+extern int audio_open_input(void);
+extern void audio_close_input(void);
 extern int audio_open_output(RECEIVER *rx);
 extern void audio_close_output(RECEIVER *rx);
 extern int audio_write(RECEIVER *rx,short left_sample,short right_sample);
-extern void audio_get_cards();
+extern void audio_get_cards(void);
 #endif

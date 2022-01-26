@@ -12,8 +12,8 @@ enum {
 };
 
 void keyer_event(int left, int state);
-void keyer_update();
-void keyer_close();
-int  keyer_init();
+void keyer_update(void);
+void keyer_close(void);
+int  keyer_init(void);
 
 #endif

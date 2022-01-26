@@ -19,5 +19,5 @@
 
 extern void noise_menu(GtkWidget *parent);
 
-extern void update_noise();
-extern void set_noise();
+extern void update_noise(void);
+extern void set_noise(void);

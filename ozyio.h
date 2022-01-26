@@ -49,17 +49,17 @@ extern unsigned short penny_fp, penny_rp, penny_alc;
 extern int adc_overflow;
 
 int ozy_open(void);
-int ozy_close();
+int ozy_close(void);
 int ozy_get_firmware_string(unsigned char* buffer,int buffer_size);
 int ozy_write(int ep,unsigned char* buffer,int buffer_size);
 int ozy_read(int ep,unsigned char* buffer,int buffer_size);
 
-void ozy_load_fw();
+void ozy_load_fw(void);
 int ozy_load_fpga(char *rbf_fnamep);
 int ozy_set_led(int which, int on);
 int ozy_reset_cpu(int reset);
 int ozy_load_firmware(char *fnamep);
-int ozy_initialise();
+int ozy_initialise(void);
 int ozy_discover(void);		// returns 1 if a device found on USB
 void ozy_i2c_readpwr(int addr); // sets local variables
 

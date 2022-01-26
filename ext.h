@@ -83,9 +83,6 @@ extern int ext_agc_update(void *data);
 extern int ext_split_toggle(void *data);
 
 
-extern int ext_cw_setup();
-extern int ext_cw_key(void *data);
-
 extern int ext_update_squelch(void *data);
 
 extern int ext_sliders_update(void *data);

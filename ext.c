@@ -90,7 +90,7 @@ int ext_num_pad(void *data) {
       vfo[rx->id].entered_frequency=(vfo[rx->id].entered_frequency*10)+val;
       break;
   }
-  vfo_update(rx);
+  vfo_update();
   return 0;
 }
 
@@ -241,7 +241,7 @@ int ext_radio_change_sample_rate(void *data) {
 }
 
 int ext_update_squelch(void *data) {
-  set_squelch();
+  set_squelch(active_receiver);
   return 0;
 }
 

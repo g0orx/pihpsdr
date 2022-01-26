@@ -59,8 +59,8 @@ extern FILTER *filters[MODES];
 
 extern gint filter_step;
 
-extern void filterSaveState();
-extern void filterRestoreState();
+extern void filterSaveState(void);
+extern void filterRestoreState(void);
 extern void filter_width_changed(int rx,int increment);
 extern void filter_shift_changed(int rx,int increment);
 #endif

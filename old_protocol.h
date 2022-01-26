@@ -20,8 +20,8 @@
 #ifndef _OLD_PROTOCOL_H
 #define _OLD_PROTOCOL_H
 
-extern void old_protocol_stop();
-extern void old_protocol_run();
+extern void old_protocol_stop(void);
+extern void old_protocol_run(void);
 
 extern void old_protocol_init(int rx,int pixels,int rate);
 extern void old_protocol_set_mic_sample_rate(int rate);

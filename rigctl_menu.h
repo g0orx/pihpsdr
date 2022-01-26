@@ -23,8 +23,8 @@
 
 extern void rigctl_menu(GtkWidget *parent);
 extern char ser_port[];
-extern void disable_rigctl();
-extern void disable_serial();
+extern void disable_rigctl(void);
+extern void disable_serial(void);
 
 extern int serial_baud_rate;
 extern int serial_parity;

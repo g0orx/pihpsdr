@@ -27,7 +27,7 @@ extern int function;
 
 extern SWITCH *toolbar_switches;
 
-void update_toolbar_labels();
+void update_toolbar_labels(void);
 void ptt_update(int state);
 void mox_update(int state);
 void tune_update(int state);

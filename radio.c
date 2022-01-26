@@ -71,6 +71,7 @@
 #include "iambic.h"
 #endif
 #ifdef MIDI
+#include "midi.h"
 #include "alsa_midi.h"
 #include "midi_menu.h"
 #endif

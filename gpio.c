@@ -79,12 +79,6 @@ int ENABLE_CW_BUTTONS=1;
 int CW_ACTIVE_LOW=1;
 #endif
 
-#ifdef PTT
-int ENABLE_PTT_GPIO=1;
-int PTT_GPIO=14;
-int PTT_ACTIVE_LOW=1;
-#endif
-
 enum {
   TOP_ENCODER,
   BOTTOM_ENCODER
@@ -347,6 +341,7 @@ static GThread *rotary_encoder_thread_id;
 
 static uint64_t epochMilli;
 
+#ifdef GPIO
 static void initialiseEpoch() {
   struct timespec ts ;
 
@@ -361,10 +356,13 @@ static unsigned int millis () {
   now  = (uint64_t)ts.tv_sec * (uint64_t)1000 + (uint64_t)(ts.tv_nsec / 1000000L) ;
   return (uint32_t)(now - epochMilli) ;
 }
+#endif
 
 static gpointer rotary_encoder_thread(gpointer data) {
-  PROCESS_ACTION *a;
   int i;
+  enum ACTION action;
+  enum ACTION_MODE mode;
+  gint val;
 
   usleep(250000);
   g_print("%s\n",__FUNCTION__);
@@ -373,31 +371,29 @@ static gpointer rotary_encoder_thread(gpointer data) {
     for(i=0;i<MAX_ENCODERS;i++) {
       if(encoders[i].bottom_encoder_enabled && encoders[i].bottom_encoder_pos!=0) {
         //g_print("%s: BOTTOM encoder %d pos=%d\n",__FUNCTION__,i,encoders[i].bottom_encoder_pos);
-        a=g_new(PROCESS_ACTION,1);
-        a->action=encoders[i].bottom_encoder_function;
-        a->mode=RELATIVE;
-	if(a->action==VFO && vfo_encoder_divisor>1) {
-          a->val=encoders[i].bottom_encoder_pos/vfo_encoder_divisor;
-          encoders[i].bottom_encoder_pos=encoders[i].bottom_encoder_pos-(a->val*vfo_encoder_divisor);
+        action=encoders[i].bottom_encoder_function;
+        mode=RELATIVE;
+	if(action==VFO && vfo_encoder_divisor>1) {
+          val=encoders[i].bottom_encoder_pos/vfo_encoder_divisor;
+          encoders[i].bottom_encoder_pos=encoders[i].bottom_encoder_pos-(val*vfo_encoder_divisor);
         } else {
-          a->val=encoders[i].bottom_encoder_pos;
+          val=encoders[i].bottom_encoder_pos;
           encoders[i].bottom_encoder_pos=0;
 	}
-	if(a->val!=0) g_idle_add(process_action,a); else g_free(a);
+	if(val!=0) schedule_action(action, mode, val);
       }
       if(encoders[i].top_encoder_enabled && encoders[i].top_encoder_pos!=0) {
         //g_print("%s: TOP encoder %d pos=%d\n",__FUNCTION__,i,encoders[i].top_encoder_pos);
-        a=g_new(PROCESS_ACTION,1);
-        a->action=encoders[i].top_encoder_function;
-        a->mode=RELATIVE;
-	if(a->action==VFO && vfo_encoder_divisor>1) {
-          a->val=encoders[i].top_encoder_pos/vfo_encoder_divisor;
-          encoders[i].top_encoder_pos=encoders[i].top_encoder_pos-(a->val*vfo_encoder_divisor);
+        action=encoders[i].top_encoder_function;
+        mode=RELATIVE;
+	if(action==VFO && vfo_encoder_divisor>1) {
+          val=encoders[i].top_encoder_pos/vfo_encoder_divisor;
+          encoders[i].top_encoder_pos=encoders[i].top_encoder_pos-(val*vfo_encoder_divisor);
         } else {
-          a->val=encoders[i].top_encoder_pos;
+          val=encoders[i].top_encoder_pos;
           encoders[i].top_encoder_pos=0;
 	}
-	if(a->val!=0) g_idle_add(process_action,a); else g_free(a);
+	if(val!=0) schedule_action(action, mode, val);
       }
     }
     g_mutex_unlock(&encoder_mutex);
@@ -563,10 +559,7 @@ static void process_edge(int offset,int value) {
         return;
       }
       encoders[i].switch_debounce=t+settle_time;
-      PROCESS_ACTION *a=g_new(PROCESS_ACTION,1);
-      a->action=encoders[i].switch_function;
-      a->mode=value;
-      g_idle_add(process_action,a);
+      schedule_action(encoders[i].switch_function, value, 0);
       found=TRUE;
       break;
     }
@@ -592,10 +585,7 @@ static void process_edge(int offset,int value) {
         }
 //g_print("%s: switches=%p function=%d (%s)\n",__FUNCTION__,switches,switches[i].switch_function,sw_string[switches[i].switch_function]);
         switches[i].switch_debounce=t+settle_time;
-        PROCESS_ACTION *a=g_new(PROCESS_ACTION,1);
-        a->action=switches[i].switch_function;
-        a->mode=value;
-        g_idle_add(process_action,a);
+        schedule_action(switches[i].switch_function, value, 0);
         break;
       }
     }
@@ -628,7 +618,6 @@ static int interrupt_cb(int event_type, unsigned int line, const struct timespec
 #endif
 
 void gpio_set_defaults(int ctrlr) {
-  int i;
   g_print("%s: %d\n",__FUNCTION__,ctrlr);
   switch(ctrlr) {
     case NO_CONTROLLER:
@@ -683,8 +672,6 @@ void gpio_restore_state() {
     sprintf(name,"encoders[%d].bottom_encoder_address_b",i);
     value=getProperty(name);
     if(value) encoders[i].bottom_encoder_address_b=atoi(value);
-    sprintf(name,"encoders[%d].bottom_encoder_address_b",i);
-    value=getProperty(name);
     sprintf(name,"encoders[%d].top_encoder_enabled",i);
     value=getProperty(name);
     if(value) encoders[i].top_encoder_enabled=atoi(value);
@@ -982,9 +969,9 @@ static int setup_output_line(struct gpiod_chip *chip, int offset, int _initial_v
 #endif
 
 int gpio_init() {
-  int ret=0;
 
 #ifdef GPIO
+  int ret=0;
   initialiseEpoch();
 
   g_mutex_init(&encoder_mutex);
@@ -1091,15 +1078,15 @@ int gpio_init() {
 #endif
   return 0;
 
+#ifdef GPIO
 err:
 g_print("%s: err\n",__FUNCTION__);
-#ifdef GPIO
   if(chip!=NULL) {
     gpiod_chip_close(chip);
     chip=NULL;
   }
-#endif
   return ret;
+#endif
 }
 
 void gpio_close() {
@@ -1110,9 +1097,9 @@ void gpio_close() {
 
 #ifdef LOCALCW
 void gpio_cw_sidetone_set(int level) {
+#ifdef GPIO
   int rc;
   if (ENABLE_GPIO_SIDETONE) {
-#ifdef GPIO
 #ifdef OLD_GPIOD
     if((rc=gpiod_ctxless_set_value(gpio_device,SIDETONE_GPIO,level,FALSE,consumer,NULL,NULL))<0) {
 #else
@@ -1120,8 +1107,8 @@ void gpio_cw_sidetone_set(int level) {
 #endif
       g_print("%s: err=%d\n",__FUNCTION__,rc);
     }
-#endif
   }
+#endif
 }
 
 int  gpio_cw_sidetone_enabled() {

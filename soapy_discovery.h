@@ -20,6 +20,6 @@
 #ifndef _SOAPY_DISCOVERY_H
 #define _SOAPY_DISCOVERY_H
 
-void soapy_discovery();
+void soapy_discovery(void);
 
 #endif

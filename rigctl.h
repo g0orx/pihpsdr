@@ -1,14 +1,14 @@
 #ifndef RIGCTL_H
 #define RIGCTL_H
 
-void launch_rigctl ();
-int launch_serial ();
-void disable_sreial ();
+void launch_rigctl (void);
+int launch_serial (void);
+void disable_sreial (void);
 
-void  close_rigctl_ports ();
-int   rigctlGetMode();
+void  close_rigctl_ports (void);
+int   rigctlGetMode(void);
 int   lookup_band(int);
-char * rigctlGetFilter();
+char * rigctlGetFilter(void);
 void set_freqB(long long);
 extern int cat_control;
 int set_alc(gpointer);

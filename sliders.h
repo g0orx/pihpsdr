@@ -22,25 +22,6 @@
 #include "receiver.h"
 #include "transmitter.h"
 
-enum {
-  NO_FUNCTION=0,
-  SLIDER_AF_GAIN,
-  SLIDER_RF_GAIN,
-  SLIDER_MIC_GAIN,
-  SLIDER_LINEIN_GAIN,
-  SLIDER_AGC_GAIN,
-  SLIDER_DRIVE,
-  SLIDER_ATTENUATION,
-  SLIDER_SQUELCH,
-  SLIDER_COMP,
-  SLIDER_FILTER_WIDTH,
-  SLIDER_FILTER_SHIFT,
-  SLIDER_DIVERSITY_GAIN,
-  SLIDER_DIVERSITY_PHASE,
-  SLIDER_ZOOM,
-  SLIDER_PAN
-};
-
 extern gint scale_timer;
 extern gint scale_status;
 extern gint scale_rx;
@@ -52,7 +33,7 @@ extern void update_att_preamp(void);
 
 extern int sliders_active_receiver_changed(void *data);
 extern void update_agc_gain(double gain);
-extern void update_af_gain();
+extern void update_af_gain(void);
 extern int update_mic_gain(void *);
 extern int update_drive(void *);
 extern int update_tune_drive(void *);
@@ -68,12 +49,12 @@ extern void set_filter_width(int rx,int width);
 extern void set_filter_shift(int rx,int width);
 extern GtkWidget *sliders_init(int my_width, int my_height);
 
-extern void sliders_update();
+extern void sliders_update(void);
 
-extern void set_squelch();
+extern void set_squelch(RECEIVER *rx);
 extern void set_compression(TRANSMITTER *tx);
 
-extern void show_diversity_gain();
-extern void show_diversity_phase();
+extern void show_diversity_gain(void);
+extern void show_diversity_phase(void);
 
 #endif

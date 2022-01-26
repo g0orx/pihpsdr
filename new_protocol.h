@@ -73,27 +73,27 @@ extern int send_high_priority;
 extern int send_general;
 */
 
-extern void schedule_high_priority();
-extern void schedule_general();
-extern void schedule_receive_specific();
-extern void schedule_transmit_specific();
+extern void schedule_high_priority(void);
+extern void schedule_general(void);
+extern void schedule_receive_specific(void);
+extern void schedule_transmit_specific(void);
 
 extern void new_protocol_init(int pixels);
-extern void new_protocol_stop();
+extern void new_protocol_stop(void);
 
-extern void filter_board_changed();
-extern void pa_changed();
-extern void tuner_changed();
+extern void filter_board_changed(void);
+extern void pa_changed(void);
+extern void tuner_changed(void);
 
 extern void setMox(int state);
-extern int getMox();
+extern int getMox(void);
 extern void setTune(int state);
-extern int getTune();
+extern int getTune(void);
 
 extern void new_protocol_audio_samples(RECEIVER *rx,short left_audio_sample,short right_audio_sample);
 extern void new_protocol_iq_samples(int isample,int qsample);
-extern void new_protocol_flush_iq_samples();
+extern void new_protocol_flush_iq_samples(void);
 extern void new_protocol_cw_audio_samples(short l, short r);
 
-extern void new_protocol_restart();
+extern void new_protocol_restart(void);
 #endif

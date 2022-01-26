@@ -87,9 +87,6 @@ typedef struct _CHANNEL CHANNEL;
 
 
 
-extern int band;
-extern gboolean displayHF;
-
 #define UK_CHANNEL_ENTRIES 11
 #define OTHER_CHANNEL_ENTRIES 5
 #define WRC15_CHANNEL_ENTRIES 1
@@ -106,8 +103,8 @@ extern BANDSTACK_ENTRY bandstack_entries60_OTHER[];
 extern BANDSTACK_ENTRY bandstack_entries60_WRC15[];
 extern BANDSTACK_ENTRY bandstack_entries60_UK[];
 
-extern int band_get_current();
-extern BAND *band_get_current_band();
+extern int band_get_current(void);
+extern BAND *band_get_current_band(void);
 extern BAND *band_get_band(int b);
 extern BAND *band_set_current(int b);
 extern int get_band_from_frequency(long long f);
@@ -115,14 +112,14 @@ extern int get_band_from_frequency(long long f);
 extern BANDSTACK *bandstack_get_bandstack(int band);
 extern BANDSTACK_ENTRY *bandstack_get_bandstack_entry(int band,int entry);
 
-extern BANDSTACK_ENTRY *bandstack_entry_next();
-extern BANDSTACK_ENTRY *bandstack_entry_previous();
-extern BANDSTACK_ENTRY *bandstack_entry_get_current();
+extern BANDSTACK_ENTRY *bandstack_entry_next(void);
+extern BANDSTACK_ENTRY *bandstack_entry_previous(void);
+extern BANDSTACK_ENTRY *bandstack_entry_get_current(void);
 
-extern void bandSaveState();
-extern void bandRestoreState();
+extern void bandSaveState(void);
+extern void bandRestoreState(void);
 
 char* getFrequencyInfo(long long frequency,int filter_low,int filter_high);
-int canTransmit();
+int canTransmit(void);
 
 #endif

@@ -180,6 +180,17 @@ ACTION_TABLE ActionTable[] = {
   {ZOOM,		"ZOOM",			NULL,		MIDI_WHEEL | CONTROLLER_ENCODER},
   {ZOOM_MINUS,		"ZOOM -",		"ZOOM-",	MIDI_KEY | CONTROLLER_SWITCH},
   {ZOOM_PLUS,		"ZOOM +",		"ZOOM+",	MIDI_KEY | CONTROLLER_SWITCH},
+//
+// The following actions support external CW keyers generating
+// the following messages:
+//
+// CW Keydown (MIDI and GPIO)
+// CW speed   (only MIDI)
+// CW side tone frequency (only MIDI)
+//
+  {CW_KEYER_KEYDOWN,    "CW Key\n(keyer)",     NULL,           MIDI_KEY | CONTROLLER_SWITCH},
+  {CW_KEYER_SPEED,      "CW Speed\n(keyer)",       NULL,           MIDI_KNOB},
+  {CW_KEYER_SIDETONE,   "CW pitch\n(keyer)",     NULL,           MIDI_KNOB},
   {ACTIONS,		"",			NULL,		TYPE_NONE}
 };
 
@@ -226,15 +237,52 @@ static inline double KnobOrWheel(PROCESS_ACTION *a, double oldval, double minval
   return oldval;
 }
 
+//
+// This interface puts an "action" into the GTK idle queue,
+// but CW actions are processed immediately
+//
+void schedule_action(enum ACTION action, enum ACTION_MODE mode, gint val) {
+  PROCESS_ACTION *a;
+  switch (action) {
+    case CW_LEFT:
+    case CW_RIGHT:
+#ifdef LOCALCW
+      keyer_event(action==CW_LEFT,val);
+#else
+      g_print("CW_Left/Right but compiled without LOCALCW\n");
+#endif
+      break;
+    case CW_KEYER_KEYDOWN:
+      //
+      // hard "key-up/down" action WITHOUT break-in
+      // intended for external keyers (MIDI or GPIO connected)
+      // which take care of PTT themselves
+      //
+      if (val != 0 && cw_keyer_internal == 0) {
+        cw_key_down=960000;  // max. 20 sec to protect hardware
+        cw_key_up=0;
+        cw_key_hit=1;
+      } else {
+        cw_key_down=0;
+        cw_key_up=0;
+      }
+      break;
+    default:
+      //
+      // schedule action through GTK idle queue
+      //
+      a=g_new(PROCESS_ACTION, 1);
+      a->action=action;
+      a->mode=mode;
+      a->val=val;
+      g_idle_add(process_action, a);
+      break;
+  }
+}
+
 int process_action(void *data) {
   PROCESS_ACTION *a=(PROCESS_ACTION *)data;
   double value;
-  int mode;
-  int id;
-  FILTER * band_filters=filters[vfo[active_receiver->id].mode];
-  FILTER *band_filter;
-  FILTER *filter;
-  int new_val;
   int i;
   gboolean free_action=TRUE;
 
@@ -520,26 +568,14 @@ int process_action(void *data) {
       }
       break;
     case CW_FREQUENCY:
-#ifdef LOCALCW
       value=KnobOrWheel(a, (double)cw_keyer_sidetone_frequency, 300.0, 1000.0, 10.0);
       cw_keyer_sidetone_frequency=(int)value;
       g_idle_add(ext_vfo_update,NULL);
-#endif
-      break;
-    case CW_LEFT:
-    case CW_RIGHT:
-      if(a->mode==PRESSED || a->mode==RELEASED) {
-#ifdef LOCALCW
-        keyer_event(a->action==CW_LEFT,a->mode==PRESSED);
-#endif
-      }
       break;
     case CW_SPEED:
-#ifdef LOCALCW
       value=KnobOrWheel(a, (double)cw_keyer_speed, 1.0, 60.0, 1.0);
       cw_keyer_speed=(int)value;
       g_idle_add(ext_vfo_update,NULL);
-#endif
       break;
     case DIV:
       if(a->mode==PRESSED) {
@@ -725,19 +761,8 @@ int process_action(void *data) {
       break;
     case MOX:
       if(a->mode==PRESSED) {
-        if(getTune()==1) {
-          setTune(0);
-        }
-        if(getMox()==0) {
-          if(canTransmit() || tx_out_of_band) {
-            setMox(1);
-          } else {
-            transmitter_set_out_of_band(transmitter);
-          }
-        } else {
-          setMox(0);
-        }
-        g_idle_add(ext_vfo_update,NULL);
+        int state=getMox();
+        mox_update(!state);
       }
       break;
     case MUTE:
@@ -1035,19 +1060,8 @@ int process_action(void *data) {
       break;
     case TUNE:
       if(a->mode==PRESSED) {
-        if(getMox()==1) {
-          setMox(0);
-        }
-        if(getTune()==0) {
-          if(canTransmit() || tx_out_of_band) {
-            setTune(1);
-          } else {
-            transmitter_set_out_of_band(transmitter);
-          }
-        } else {
-          setTune(0);
-        }
-        g_idle_add(ext_vfo_update,NULL);
+        int state=getTune();
+        tune_update(!state);
       }
       break;
     case TUNE_DRIVE:
@@ -1161,7 +1175,7 @@ int process_action(void *data) {
     case XIT_MINUS:
       if(a->mode==PRESSED) {
         if(can_transmit) {
-          double value=(double)transmitter->xit;
+          value=(double)transmitter->xit;
           value-=(double)rit_increment;
           if(value<-10000.0) {
             value=-10000.0;
@@ -1169,7 +1183,7 @@ int process_action(void *data) {
             value=10000.0;
           }
           transmitter->xit=(int)value;
-	  transmitter->xit_enabled=(value!=0);
+	  transmitter->xit_enabled=(transmitter->xit!=0);
           if(protocol==NEW_PROTOCOL) {
             schedule_high_priority();
           }
@@ -1180,7 +1194,7 @@ int process_action(void *data) {
     case XIT_PLUS:
       if(a->mode==PRESSED) {
         if(can_transmit) {
-          double value=(double)transmitter->xit;
+          value=(double)transmitter->xit;
           value+=(double)rit_increment;
           if(value<-10000.0) {
             value=-10000.0;
@@ -1188,7 +1202,7 @@ int process_action(void *data) {
             value=10000.0;
           }
           transmitter->xit=(int)value;
-	  transmitter->xit_enabled=(value!=0);
+	  transmitter->xit_enabled=(transmitter->xit!=0);
           if(protocol==NEW_PROTOCOL) {
             schedule_high_priority();
           }
@@ -1207,6 +1221,31 @@ int process_action(void *data) {
     case ZOOM_PLUS:
       if(a->mode==PRESSED) {
         update_zoom(+1);
+      }
+      break;
+
+    case CW_KEYER_SPEED:
+      if (a->mode==ABSOLUTE) {
+        //
+        // The MIDI keyer reports the speed as a value between 1 and 127,
+        // however the range 0-127 is internally converted to 0-100 upstream
+        //
+        cw_keyer_speed=(127*a->val + 50)/100;
+        if (cw_keyer_speed <  1) cw_keyer_speed=1;
+        if (cw_keyer_speed > 99) cw_keyer_speed=99;
+        g_idle_add(ext_vfo_update,NULL);
+      }
+      break;
+
+    case CW_KEYER_SIDETONE:
+      if (a->mode==ABSOLUTE) {
+        //
+        // The MIDI keyer encodes the frequency as a value between 0 and 127,
+        // freq = 250 + 8*val
+        // however the range 0-127 is internally converted to 0-100 upstream
+        //
+        cw_keyer_sidetone_frequency=250 + (254*a->val + 12)/25;
+        g_idle_add(ext_vfo_update,NULL);
       }
       break;
 

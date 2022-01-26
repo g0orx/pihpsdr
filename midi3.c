@@ -29,38 +29,20 @@
 
 void DoTheMidi(int action, enum ACTIONtype type, int val) {
 
-    PROCESS_ACTION *a;
-
     //g_print("%s: action=%d type=%d val=%d\n",__FUNCTION__,action,type,val);
 
     switch(type) {
       case MIDI_KEY:
-	if(action==CW_LEFT || action==CW_RIGHT) {
-#ifdef LOCALCW
-          keyer_event(action==CW_LEFT,val);
-#else
-          g_print("MIDI CW key but compiled without LOCALCW\n");
-#endif
-        } else {
-          a=g_new(PROCESS_ACTION,1);
-          a->action=action;
-          a->mode=val?PRESSED:RELEASED;
-          g_idle_add(process_action,a);
-	}
+        schedule_action(action, val?PRESSED:RELEASED, val);
 	break;
       case MIDI_KNOB:
-        a=g_new(PROCESS_ACTION,1);
-        a->action=action;
-        a->mode=ABSOLUTE;
-        a->val=val;
-        g_idle_add(process_action,a);
+        schedule_action(action, ABSOLUTE, val);
         break;
       case MIDI_WHEEL:
-        a=g_new(PROCESS_ACTION,1);
-        a->action=action;
-        a->mode=RELATIVE;
-        a->val=val;
-        g_idle_add(process_action,a);
+        schedule_action(action, RELATIVE, val);
+        break;
+      default:
+        // other types cannot happen for MIDI
         break;
     }
 }

@@ -255,7 +255,7 @@ extern int midi_debug;
 // that have been defined.
 //
 int register_midi_device(char *name);
-void close_midi_device();
+void close_midi_device(void);
 void configure_midi_device(gboolean state);
 
 //
@@ -267,7 +267,7 @@ void configure_midi_device(gboolean state);
 
 void NewMidiEvent(enum MIDIevent event, int channel, int note, int val);
 int ReadLegacyMidiFile(char *filename);
-int MIDIstop();
+int MIDIstop(void);
 
 //
 // Layer-3 entry point (called by Layer2). In Layer-3, all the pihpsdr

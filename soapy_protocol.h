@@ -22,13 +22,13 @@
 
 #define BUFFER_SIZE 1024
 
-SoapySDRDevice *get_soapy_device();
+SoapySDRDevice *get_soapy_device(void);
 
 void soapy_protocol_create_receiver(RECEIVER *rx);
 void soapy_protocol_start_receiver(RECEIVER *rx);
 
 void soapy_protocol_init(gboolean hf);
-void soapy_protocol_stop();
+void soapy_protocol_stop(void);
 void soapy_protocol_set_rx_frequency(RECEIVER *rx,int v);
 void soapy_protocol_set_rx_antenna(RECEIVER *rx,int ant);
 void soapy_protocol_set_lna_gain(RECEIVER *rx,int gain);
