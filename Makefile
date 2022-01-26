@@ -44,8 +44,6 @@ PURESIGNAL_INCLUDE=PURESIGNAL
 # uncomment the line below for various debug facilities
 #DEBUG_OPTION=-D DEBUG
 
-#PTT_INCLUDE=PTT
-
 # very early code not included yet
 #SERVER_INCLUDE=SERVER
 
