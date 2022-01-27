@@ -84,24 +84,6 @@ static gint xit_minus_timer=-1;
 
 SWITCH *toolbar_switches=switches_controller1[0];
 
-static gboolean rit_timer_cb(gpointer data) {
-  int i=GPOINTER_TO_INT(data);
-  vfo_rit(active_receiver->id,i);
-  return TRUE;
-}
-
-static gboolean xit_timer_cb(gpointer data) {
-  int i=GPOINTER_TO_INT(data);
-  transmitter->xit+=(i*rit_increment);
-  if(transmitter->xit>10000) transmitter->xit=10000;
-  if(transmitter->xit<-10000) transmitter->xit=-10000;
-  if(protocol==NEW_PROTOCOL) {
-    schedule_high_priority();
-  }
-  g_idle_add(ext_vfo_update,NULL);
-  return TRUE;
-}
-
 void update_toolbar_labels() {
   gtk_button_set_label(GTK_BUTTON(sim_mox),ActionTable[toolbar_switches[0].switch_function].button_str);
   gtk_button_set_label(GTK_BUTTON(sim_s1),ActionTable[toolbar_switches[1].switch_function].button_str);
@@ -113,8 +95,12 @@ void update_toolbar_labels() {
   gtk_button_set_label(GTK_BUTTON(sim_function),ActionTable[toolbar_switches[7].switch_function].button_str);
 }
 
+//
+// move mox_update and tune_update to actions.c on the long run
+//
 void mox_update(int state) {
 //fprintf(stderr,"mox_update: state=%d\n",state);
+  if (!can_transmit) return;
   if(getTune()==1) {
     setTune(0);
   }
@@ -131,6 +117,7 @@ void mox_update(int state) {
 }
 
 void tune_update(int state) {
+  if (!can_transmit) return;
   if(getMox()==1) {
     setMox(0);
   }
@@ -150,19 +137,13 @@ void tune_update(int state) {
 void switch_pressed_cb(GtkWidget *widget, gpointer data) {
   gint i=GPOINTER_TO_INT(data);
 fprintf(stderr,"%s: %d action=%d\n",__FUNCTION__,i,toolbar_switches[i].switch_function);
-  PROCESS_ACTION *a=g_new(PROCESS_ACTION,1);
-  a->action=toolbar_switches[i].switch_function;
-  a->mode=PRESSED;
-  g_idle_add(process_action,a);
+  schedule_action(toolbar_switches[i].switch_function, PRESSED, 0);
 }
 
 void switch_released_cb(GtkWidget *widget, gpointer data) {
   gint i=GPOINTER_TO_INT(data);
 fprintf(stderr,"%s: %d action=%d\n",__FUNCTION__,i,toolbar_switches[i].switch_function);
-  PROCESS_ACTION *a=g_new(PROCESS_ACTION,1);
-  a->action=toolbar_switches[i].switch_function;
-  a->mode=RELEASED;
-  g_idle_add(process_action,a);
+  schedule_action(toolbar_switches[i].switch_function, RELEASED, 0);
 }
 
 GtkWidget *toolbar_init(int my_width, int my_height, GtkWidget* parent) {
