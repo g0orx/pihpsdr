@@ -1066,6 +1066,8 @@ void midi_save_state() {
         sprintf(name,"midi[%d].entry[%d].channel[%d].event",i,entry,cmd->channel);
         sprintf(value,"%s",midi_events[cmd->event]);
         setProperty(name,value);
+        sprintf(name,"midi[%d].entry[%d].channel[%d].action",i,entry,cmd->channel);
+	sprintf(value,"%s",ActionTable[cmd->action].str);
         //
         // ActionTable strings may contain '\n', convert this to '$'
         //
@@ -1074,8 +1076,6 @@ void midi_save_state() {
           if (*cp == '\n') *cp='$';
           cp++;
         }
-        sprintf(name,"midi[%d].entry[%d].channel[%d].action",i,entry,cmd->channel);
-	sprintf(value,"%s",ActionTable[cmd->action].str);
         setProperty(name,value);
         sprintf(name,"midi[%d].entry[%d].channel[%d].type",i,entry,cmd->channel);
 	sprintf(value,"%s",midi_types[cmd->type]);
