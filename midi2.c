@@ -34,7 +34,7 @@ void NewMidiEvent(enum MIDIevent event, int channel, int note, int val) {
     static struct timespec tp, last_wheel_tp={0,0};
     long delta;
 
-g_print("%s: EVENT=%d CHAN=%d NOTE=%d VAL=%d\n",__FUNCTION__,event,channel,note,val);
+//g_print("%s: EVENT=%d CHAN=%d NOTE=%d VAL=%d\n",__FUNCTION__,event,channel,note,val);
     if (event == MIDI_PITCH) {
 	desc=MidiCommandsTable.pitch;
     } else {
