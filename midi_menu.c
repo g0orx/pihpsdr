@@ -277,6 +277,7 @@ static void save_cb(GtkWidget *widget,gpointer user_data) {
   GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_SAVE;
   gchar *filename;
   gint res;
+  char *cp;
 
   save_dialog = gtk_file_chooser_dialog_new ("Save File",
                                       GTK_WINDOW(dialog),
@@ -294,6 +295,17 @@ static void save_cb(GtkWidget *widget,gpointer user_data) {
   } else {
     filename=g_new(gchar,strlen(midi_device_name)+6);
     sprintf(filename,"%s.midi",midi_device_name);
+    //
+    // MIDI device names may contain '/' which not allowed
+    // in file names (convert to ':'). Likewise, substitue
+    // spaces by underscores
+    //
+    cp=filename;
+    while (*cp) {
+      if (*cp == '/') *cp=':';
+      if (*cp == ' ') *cp='_';
+      cp++;
+    }
   }
   gtk_file_chooser_set_current_name(chooser,filename);
   res = gtk_dialog_run (GTK_DIALOG (save_dialog));
@@ -399,6 +411,10 @@ static void add_store(int key,struct desc *cmd) {
       break;
     case MIDI_WHEEL:
       strcpy(str_type,"WHEEL");
+      break;
+    default:
+      // This cannot happen, but the default clause
+      // makes the compiler happy.
       break;
   }
   strcpy(str_action,ActionTable[cmd->action].str);
@@ -1031,6 +1047,7 @@ void midi_save_state() {
   struct desc *cmd;
   gint channels;
   gint entry;
+  char *cp;
 
   if(device_index!=-1) {
     setProperty("midi_device",midi_devices[device_index].name);
@@ -1049,6 +1066,14 @@ void midi_save_state() {
         sprintf(name,"midi[%d].entry[%d].channel[%d].event",i,entry,cmd->channel);
         sprintf(value,"%s",midi_events[cmd->event]);
         setProperty(name,value);
+        //
+        // ActionTable strings may contain '\n', convert this to '$'
+        //
+        cp=value;
+        while (*cp ) {
+          if (*cp == '\n') *cp='$';
+          cp++;
+        }
         sprintf(name,"midi[%d].entry[%d].channel[%d].action",i,entry,cmd->channel);
 	sprintf(value,"%s",ActionTable[cmd->action].str);
         setProperty(name,value);
@@ -1075,6 +1100,7 @@ void midi_restore_state() {
   gint type;
   gint action;
   int i, j;
+  char *cp;
 
   struct desc *cmd;
 
@@ -1131,6 +1157,12 @@ void midi_restore_state() {
 	  }
           sprintf(name,"midi[%d].entry[%d].channel[%d].action",i,entry,channel);
           value=getProperty(name);
+          // convert '$' back to '\n' in action name before comparing
+          cp=value;
+          while (*cp) {
+            if (*cp == '$') *cp='\n';
+            cp++;
+          }
 	  action=NO_ACTION;
           if(value) {
 	    for(j=0;j<ACTIONS;j++) {

@@ -188,9 +188,9 @@ ACTION_TABLE ActionTable[] = {
 // CW speed   (only MIDI)
 // CW side tone frequency (only MIDI)
 //
-  {CW_KEYER_KEYDOWN,    "CW Key\n(keyer)",     NULL,           MIDI_KEY | CONTROLLER_SWITCH},
-  {CW_KEYER_SPEED,      "CW Speed\n(keyer)",       NULL,           MIDI_KNOB},
-  {CW_KEYER_SIDETONE,   "CW pitch\n(keyer)",     NULL,           MIDI_KNOB},
+  {CW_KEYER_KEYDOWN,    "CW Key\n(keyer)",      NULL,           MIDI_KEY | CONTROLLER_SWITCH},
+  {CW_KEYER_SPEED,      "CW Speed\n(keyer)",    NULL,           MIDI_KNOB},
+  {CW_KEYER_SIDETONE,   "CW pitch\n(keyer)",    NULL,           MIDI_KNOB},
   {ACTIONS,		"",			NULL,		TYPE_NONE}
 };
 
