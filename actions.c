@@ -247,7 +247,7 @@ void schedule_action(enum ACTION action, enum ACTION_MODE mode, gint val) {
     case CW_LEFT:
     case CW_RIGHT:
 #ifdef LOCALCW
-      keyer_event(action==CW_LEFT,val);
+      keyer_event(action==CW_LEFT,mode==PRESSED);
 #else
       g_print("CW_Left/Right but compiled without LOCALCW\n");
 #endif
@@ -258,7 +258,7 @@ void schedule_action(enum ACTION action, enum ACTION_MODE mode, gint val) {
       // intended for external keyers (MIDI or GPIO connected)
       // which take care of PTT themselves
       //
-      if (val != 0 && cw_keyer_internal == 0) {
+      if (mode==PRESSED && cw_keyer_internal==0) {
         cw_key_down=960000;  // max. 20 sec to protect hardware
         cw_key_up=0;
         cw_key_hit=1;
