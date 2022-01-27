@@ -576,7 +576,7 @@ int process_action(void *data) {
       value=KnobOrWheel(a, (double)cw_keyer_speed, 1.0, 60.0, 1.0);
       cw_keyer_speed=(int)value;
 #ifdef LOCALCW
-      keyer_udpate();
+      keyer_update();
 #endif
       g_idle_add(ext_vfo_update,NULL);
       break;
@@ -1237,7 +1237,7 @@ int process_action(void *data) {
         if (cw_keyer_speed <  1) cw_keyer_speed=1;
         if (cw_keyer_speed > 99) cw_keyer_speed=99;
 #ifdef LOCALCW
-        keyer_udpate();
+        keyer_update();
 #endif
         g_idle_add(ext_vfo_update,NULL);
       }
