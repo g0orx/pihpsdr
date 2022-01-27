@@ -684,13 +684,6 @@ static void compressor_enable_cb(GtkWidget *widget, gpointer data) {
 
 void set_squelch(RECEIVER *rx) {
   g_print("%s\n",__FUNCTION__);
-  //
-  // automatically enable/disable squelch if squelch value changed
-  // you can still enable/disable squelch via the check-box, but
-  // as soon the slider is moved squelch is enabled/disabled
-  // depending on the "new" squelch value
-  //
-  rx->squelch_enable = (rx->squelch > 0.5);
   setSquelch(rx);
 #ifndef COMPRESSION_SLIDER_INSTEAD_OF_SQUELCH
   if(display_sliders) {
