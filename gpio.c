@@ -527,7 +527,7 @@ static void process_edge(int offset,int value) {
       keyer_event(1, CW_ACTIVE_LOW ? (value==PRESSED) : value);
       found=TRUE;
     } else if(offset==CWR_BUTTON) {
-      keyer_event(1, CW_ACTIVE_LOW ? (value==PRESSED) : value);
+      keyer_event(0, CW_ACTIVE_LOW ? (value==PRESSED) : value);
       found=TRUE;
     }
   }
@@ -1000,6 +1000,20 @@ int gpio_init() {
     ret=-1;
     goto err;
   }
+  
+#ifdef LOCALCW  
+	if(controller == NO_CONTROLLER) {
+		// radioberry plugged into the RPI
+		// GPIO is on only for LOCALCW.
+		// Users do have to choose for no controller; 
+		// for local CW the following pins are set.
+		CWL_BUTTON=17;
+		CWR_BUTTON=21;
+		g_print("LOCALCW is on ; NO controller selected; CW Buttons reconfigured\n");
+	}
+	// Radioberry device driver uses GPIO ports.
+	if(controller != NO_CONTROLLER) {
+#endif
 
   // setup encoders
   g_print("%s: setup encoders\n",__FUNCTION__);
@@ -1038,6 +1052,9 @@ int gpio_init() {
       }
     }
   }
+#ifdef LOCALCW 
+}
+#endif
 
   if(controller==CONTROLLER2_V1 || controller==CONTROLLER2_V2) {
     i2c_init();
