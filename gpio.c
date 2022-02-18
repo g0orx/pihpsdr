@@ -527,7 +527,7 @@ static void process_edge(int offset,int value) {
       keyer_event(1, CW_ACTIVE_LOW ? (value==PRESSED) : value);
       found=TRUE;
     } else if(offset==CWR_BUTTON) {
-      keyer_event(1, CW_ACTIVE_LOW ? (value==PRESSED) : value);
+      keyer_event(0, CW_ACTIVE_LOW ? (value==PRESSED) : value);
       found=TRUE;
     }
   }
