@@ -192,12 +192,17 @@ void diversity_menu(GtkWidget *parent) {
   gain_fine=div_gain-gain_coarse;
   phase_coarse=4.0*round(div_phase*0.25);
   phase_fine=div_phase-phase_coarse;
+#ifdef BKGND
+  extern GdkRGBA bkgnd_color;
+  gtk_widget_override_background_color(dialog,GTK_STATE_FLAG_NORMAL,&bkgnd_color);
+#else
   GdkRGBA color;
   color.red = 1.0;
   color.green = 1.0;
   color.blue = 1.0;
   color.alpha = 1.0;
   gtk_widget_override_background_color(dialog,GTK_STATE_FLAG_NORMAL,&color);
+#endif
 
   GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
 

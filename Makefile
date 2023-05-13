@@ -14,7 +14,7 @@ GIT_VERSION := $(shell git describe --abbrev=0 --tags)
 #    CONTROLLER2_V1 single encoders with MCP23017 switches
 #    CONTROLLER2_V2 dual encoders with MCP23017 switches
 #
-GPIO_INCLUDE=GPIO
+#GPIO_INCLUDE=GPIO
 
 # uncomment the line below to include Pure Signal support
 PURESIGNAL_INCLUDE=PURESIGNAL
@@ -45,6 +45,9 @@ PURESIGNAL_INCLUDE=PURESIGNAL
 #DEBUG_OPTION=-D DEBUG
 
 #PTT_INCLUDE=PTT
+
+# dark mode compatibility (otherwise we get white text on white background)
+BKGND_OPTION=-D BKGND
 
 # very early code not included yet
 #SERVER_INCLUDE=SERVER
@@ -198,6 +201,7 @@ OPTIONS=$(SMALL_SCREEN_OPTIONS) $(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_O
         $(PTT_OPTIONS) \
 	$(SERVER_OPTIONS) \
 	$(AUDIO_OPTIONS) \
+	$(BKGND_OPTION) \
 	-D GIT_DATE='"$(GIT_DATE)"' -D GIT_VERSION='"$(GIT_VERSION)"' $(DEBUG_OPTION)
 
 

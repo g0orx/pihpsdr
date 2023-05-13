@@ -46,3 +46,8 @@ enum {
 };
 
 extern int active_menu;
+
+#ifdef BKGND
+#include "bkgnd.h"
+#endif
+

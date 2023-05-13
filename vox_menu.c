@@ -155,7 +155,12 @@ void vox_menu(GtkWidget *parent) {
   gtk_window_set_title(GTK_WINDOW(dialog),"piHPSDR - VOX");
   g_signal_connect (dialog, "delete_event", G_CALLBACK (delete_event), NULL);
 
+#ifdef BKGND
+  extern GdkRGBA bkgnd_color;
+  gtk_widget_override_background_color(dialog,GTK_STATE_FLAG_NORMAL,&bkgnd_color);
+#else
   gtk_widget_override_background_color(dialog,GTK_STATE_FLAG_NORMAL,&white);
+#endif
 
   GtkWidget *content=gtk_dialog_get_content_area(GTK_DIALOG(dialog));
 
