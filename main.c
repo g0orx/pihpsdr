@@ -280,8 +280,12 @@ fprintf(stderr,"display_width=%d display_height=%d\n", display_width, display_he
   gtk_window_set_position(GTK_WINDOW(top_window),GTK_WIN_POS_CENTER_ALWAYS);
   gtk_window_set_resizable(GTK_WINDOW(top_window), FALSE);
   fprintf(stderr,"setting top window icon\n");
+  gchar *icon_file = "hpsdr.png";
   GError *error;
-  if(!gtk_window_set_icon_from_file (GTK_WINDOW(top_window), "hpsdr.png", &error)) {
+  if (access(icon_file, R_OK)) {
+    icon_file = "/usr/share/pihpsdr/hpsdr.png";
+  }
+  if(!gtk_window_set_icon_from_file (GTK_WINDOW(top_window), icon_file, &error)) {
     fprintf(stderr,"Warning: failed to set icon for top_window\n");
     if(error!=NULL) {
       fprintf(stderr,"%s\n",error->message);
