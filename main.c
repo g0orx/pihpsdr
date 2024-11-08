@@ -191,12 +191,19 @@ static int init(void *data) {
   gdk_window_set_cursor(gtk_widget_get_window(top_window),cursor_watch);
 
   //
-  // Let WDSP (via FFTW) check for wisdom file in current dir
+  // Let WDSP (via FFTW) check for wisdom file in home dir
   // If there is one, the "wisdom thread" takes no time
   // Depending on the WDSP version, the file is wdspWisdom or wdspWisdom00.
   // sem_trywait() is not elegant, replaced this with wisdom_running variable.
   //
-  char *c=getcwd(wisdom_directory, sizeof(wisdom_directory));
+  char *c=getenv("HOME");
+  if (c) {
+      strncpy(wisdom_directory, c, sizeof(wisdom_directory) - 1);
+  }
+  else {
+      getcwd(wisdom_directory, sizeof(wisdom_directory));
+  }
+  wisdom_directory[sizeof(wisdom_directory) - 1]=0;
   strcpy(&wisdom_directory[strlen(wisdom_directory)],"/");
   fprintf(stderr,"Securing wisdom file in directory: %s\n", wisdom_directory);
   status_text("Checking FFTW Wisdom file ...");
