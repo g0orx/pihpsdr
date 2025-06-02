@@ -3635,7 +3635,7 @@ int parse_cmd(void *data) {
             if(command[2]=='0') {
               int p2=atoi(&command[3]);
               active_receiver->squelch=(int)((double)p2/255.0*100.0);
-              set_squelch(active_receiver);
+              set_squelch();
             }
           } else {
           }

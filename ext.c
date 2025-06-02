@@ -90,7 +90,7 @@ int ext_num_pad(void *data) {
       vfo[rx->id].entered_frequency=(vfo[rx->id].entered_frequency*10)+val;
       break;
   }
-  vfo_update(rx);
+  vfo_update();
   return 0;
 }
 
@@ -836,7 +836,7 @@ int ext_remote_command(void *data) {
       receiver[squelch_command->id]->squelch_enable=squelch_command->enable;
       temp=ntohs(squelch_command->squelch);
       receiver[squelch_command->id]->squelch=(double)temp;
-      set_squelch(receiver[squelch_command->id]);
+      set_squelch();
       }
       break;
     case CMD_RESP_RX_NOISE:
