@@ -373,7 +373,7 @@ extern long long getFrequency();
 extern void radioRestoreState();
 extern void radioSaveState();
 
-extern void calculate_display_average();
+extern void calculate_display_average(RECEIVER *rx);
 
 extern void set_filter_type(int filter_type);
 extern void set_filter_size(int filter_size);

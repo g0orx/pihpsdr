@@ -1011,17 +1011,17 @@ int process_action(void *data) {
     case SQUELCH:
       value=KnobOrWheel(a, active_receiver->squelch, 0.0, 100.0, 1.0);
       active_receiver->squelch=value;
-      set_squelch(active_receiver);
+      set_squelch();
       break;
     case SQUELCH_RX1:
       value=KnobOrWheel(a, receiver[0]->squelch, 0.0, 100.0, 1.0);
       receiver[0]->squelch=value;
-      set_squelch(receiver[0]);
+      set_squelch();
       break;
     case SQUELCH_RX2:
       value=KnobOrWheel(a, receiver[1]->squelch, 0.0, 100.0, 1.0);
       receiver[1]->squelch=value;
-      set_squelch(receiver[1]);
+      set_squelch();
       break;
     case SWAP_RX:
       if(a->mode==PRESSED) {

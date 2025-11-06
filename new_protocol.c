@@ -241,7 +241,7 @@ static void  process_iq_data(unsigned char *buffer, RECEIVER *rx);
 static void  process_ps_iq_data(unsigned char *buffer);
 static void process_div_iq_data(unsigned char *buffer);
 static void  process_command_response();
-static void  process_high_priority();
+static void process_high_priority(unsigned char *buffer);
 static void  process_mic_data(int bytes);
 
 #ifdef INCLUDED
@@ -1565,7 +1565,7 @@ g_print("high_priority_thread\n");
     sem_post(&high_priority_sem_ready);
     sem_wait(&high_priority_sem_buffer);
 #endif
-    process_high_priority();
+    process_high_priority(data);
     free(high_priority_buffer);
   }
 }
