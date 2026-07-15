@@ -103,7 +103,10 @@ void mode_menu(GtkWidget *parent) {
 
   int mode=vfo[active_receiver->id].mode;
 
+  int col=0;
+  int row=1;
   for(i=0;i<MODES;i++) {
+    if(!mode_enabled[i]) continue;
     GtkWidget *b=gtk_button_new_with_label(mode_string[i]);
     if(i==mode) {
       set_button_text_color(b,"orange");
@@ -112,7 +115,8 @@ void mode_menu(GtkWidget *parent) {
       set_button_text_color(b,"black");
     }
     gtk_widget_show(b);
-    gtk_grid_attach(GTK_GRID(grid),b,i%5,1+(i/5),1,1);
+    gtk_grid_attach(GTK_GRID(grid),b,col%5,row+(col/5),1,1);
+    col++;
     g_signal_connect(b,"pressed",G_CALLBACK(mode_select_cb),(gpointer)(long)i);
   }
   gtk_container_add(GTK_CONTAINER(content),grid);

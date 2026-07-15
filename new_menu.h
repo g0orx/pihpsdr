@@ -18,6 +18,7 @@ extern void start_agc();
 extern void start_store();
 extern void start_rx();
 extern void start_tx();
+extern void start_modes_filter();
 extern void start_diversity();
 #ifdef PURESIGNAL
 extern void start_ps();
@@ -39,6 +40,7 @@ enum {
   BAND_MENU,
   BANDSTACK_MENU,
   MODE_MENU,
+  MODES_FILTER_MENU,
   FILTER_MENU,
   NOISE_MENU,
   AGC_MENU,

@@ -44,6 +44,7 @@
 #include "band_menu.h"
 #include "bandstack_menu.h"
 #include "mode_menu.h"
+#include "modes_filter_menu.h"
 #include "filter_menu.h"
 #include "noise_menu.h"
 #include "agc_menu.h"
@@ -138,6 +139,20 @@ static gboolean restart_cb (GtkWidget *widget, GdkEventButton *event, gpointer d
 static gboolean about_b_cb (GtkWidget *widget, GdkEventButton *event, gpointer data) {
   cleanup();
   about_menu(top_window);
+  return TRUE;
+}
+
+void start_modes_filter() {
+  int old_menu=active_menu;
+  cleanup();
+  if(old_menu!=MODES_FILTER_MENU) {
+    modes_filter_menu(top_window);
+    active_menu=MODES_FILTER_MENU;
+  }
+}
+
+static gboolean modes_filter_cb(GtkWidget *widget, GdkEventButton *event, gpointer data) {
+  start_modes_filter();
   return TRUE;
 }
 
@@ -668,6 +683,11 @@ void new_menu()
     gtk_grid_attach(GTK_GRID(grid),server_b,(i%5),i/5,1,1);
     i++;
 #endif
+
+    GtkWidget *modes_filter_b=gtk_button_new_with_label("Modes");
+    g_signal_connect(modes_filter_b,"button-press-event",G_CALLBACK(modes_filter_cb),NULL);
+    gtk_grid_attach(GTK_GRID(grid),modes_filter_b,(i%5),i/5,1,1);
+    i++;
 
     GtkWidget *about_b=gtk_button_new_with_label("About");
     g_signal_connect (about_b, "button-press-event", G_CALLBACK(about_b_cb), NULL);

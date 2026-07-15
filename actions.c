@@ -710,17 +710,25 @@ int process_action(void *data) {
     case MODE_MINUS:
       if(a->mode==PRESSED) {
         int mode=vfo[active_receiver->id].mode;
-        mode--;
-        if(mode<0) mode=MODES-1;
-        vfo_mode_changed(mode);
+        int count=0;
+        do {
+          mode--;
+          if(mode<0) mode=MODES-1;
+          count++;
+        } while(!mode_enabled[mode] && count<MODES);
+        if(mode_enabled[mode]) vfo_mode_changed(mode);
       }
       break;
     case MODE_PLUS:
       if(a->mode==PRESSED) {
         int mode=vfo[active_receiver->id].mode;
-        mode++;
-        if(mode>=MODES) mode=0;
-        vfo_mode_changed(mode);
+        int count=0;
+        do {
+          mode++;
+          if(mode>=MODES) mode=0;
+          count++;
+        } while(!mode_enabled[mode] && count<MODES);
+        if(mode_enabled[mode]) vfo_mode_changed(mode);
       }
       break;
     case MOX:

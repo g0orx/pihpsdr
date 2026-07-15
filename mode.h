@@ -35,5 +35,6 @@
 #define MODES 12
 
 extern char *mode_string[MODES];
+extern int mode_enabled[MODES];
 
 #endif

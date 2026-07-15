@@ -245,6 +245,7 @@ meter_menu.c \
 band_menu.c \
 bandstack_menu.c \
 mode_menu.c \
+modes_filter_menu.c \
 filter_menu.c \
 noise_menu.c \
 agc_menu.c \
@@ -326,6 +327,7 @@ meter_menu.h \
 band_menu.h \
 bandstack_menu.h \
 mode_menu.h \
+modes_filter_menu.h \
 filter_menu.h \
 noise_menu.h \
 agc_menu.h \
@@ -403,6 +405,7 @@ meter_menu.o \
 band_menu.o \
 bandstack_menu.o \
 mode_menu.o \
+modes_filter_menu.o \
 filter_menu.o \
 noise_menu.o \
 agc_menu.o \

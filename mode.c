@@ -32,3 +32,5 @@ char *mode_string[]={
   ,"DRM"
 };
 
+int mode_enabled[12]={1,1,1,1,1,1,1,1,1,1,1,1};
+

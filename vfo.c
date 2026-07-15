@@ -108,6 +108,9 @@ void modesettings_save_state() {
     sprintf(name,"modeset.%d.snb", i);
     sprintf(value,"%d", mode_settings[i].snb);
     setProperty(name,value);
+    sprintf(name,"modeset.%d.enabled", i);
+    sprintf(value,"%d", mode_enabled[i]);
+    setProperty(name,value);
   }
 }
 
@@ -148,6 +151,10 @@ void modesettings_restore_state() {
     sprintf(name,"modeset.%d.snb",i);
     value=getProperty(name);
     if(value) mode_settings[i].snb=atoi(value);
+    mode_enabled[i]=1;
+    sprintf(name,"modeset.%d.enabled",i);
+    value=getProperty(name);
+    if(value) mode_enabled[i]=atoi(value);
   }
 }
 
