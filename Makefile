@@ -1,6 +1,9 @@
 # get the OS Name
 UNAME_S := $(shell uname -s)
-
+# Support for Out-of-source build
+BLDDIR_PATH := $(realpath $(BUILDDIR))
+# Ensuring non-empty path ends with a slash
+BLDDIR := $(BLDDIR_PATH:=/)
 # Get git commit version and date
 GIT_DATE := $(firstword $(shell git --no-pager show --date=short --format="%ai" --name-only))
 GIT_VERSION := $(shell git describe --abbrev=0 --tags)
@@ -190,7 +193,7 @@ AUDIO_SOURCES=portaudio.c
 AUDIO_OBJS=portaudio.o
 endif
 
-//CFLAGS=	-g -Wno-deprecated-declarations -O3
+#CFLAGS=	-g -Wno-deprecated-declarations -O3
 CFLAGS=	-g -Wno-deprecated-declarations
 OPTIONS=$(SMALL_SCREEN_OPTIONS) $(MIDI_OPTIONS) $(PURESIGNAL_OPTIONS) $(REMOTE_OPTIONS) $(USBOZY_OPTIONS) \
 	$(GPIO_OPTIONS) $(SOAPYSDR_OPTIONS) $(LOCALCW_OPTIONS) \
@@ -211,14 +214,14 @@ endif
 
 
 LIBS= -lm -lwdsp -lpthread $(AUDIO_LIBS) $(USBOZY_LIBS) $(GTKLIBS) $(GPIO_LIBS) $(SOAPYSDRLIBS) $(STEMLAB_LIBS) $(MIDI_LIBS) $(SYSLIBS)
-INCLUDES=$(GTKINCLUDES)
+INCLUDES+=$(GTKINCLUDES)
 
 COMPILE=$(CC) $(CFLAGS) $(OPTIONS) $(INCLUDES)
 
-.c.o:
-	$(COMPILE) -c -o $@ $<
+$(BLDDIR)%.o: %.c
+	$(COMPILE) -c -o $@ -MMD -MP -MF$(@:.o=.d) -MT$@ $<
 
-PROGRAM=pihpsdr
+PROGRAM = $(BLDDIR)pihpsdr
 
 SOURCES= \
 MacOS.c \
@@ -453,12 +456,12 @@ encoder_menu.o \
 switch_menu.o \
 toolbar_menu.o
 
-$(PROGRAM):  $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) \
+PROGRAM_OBJS = $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) $(SOAPYSDR_OBJS) \
 		$(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
 		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS)
-	$(LINK) -o $(PROGRAM) $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS) \
-		$(SOAPYSDR_OBJS) $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
-		$(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS) $(LIBS)
+
+$(PROGRAM):  $(PROGRAM_OBJS:%.o=$(BLDDIR)%.o)
+	$(LINK) -o $@ $^ $(LIBS)
 
 .PHONY:	all
 all:	prebuild  $(PROGRAM) $(HEADERS) $(AUDIO_HEADERS) $(USBOZY_HEADERS) $(SOAPYSDR_HEADERS) \
@@ -470,7 +473,7 @@ all:	prebuild  $(PROGRAM) $(HEADERS) $(AUDIO_HEADERS) $(USBOZY_HEADERS) $(SOAPYS
 
 .PHONY:	prebuild
 prebuild:
-	rm -f version.o
+	rm -f $(BLDDIR)version.o
 
 #
 # On some platforms, INCLUDES contains "-pthread"  (from a pkg-config output)
@@ -493,8 +496,8 @@ cppcheck:
 
 .PHONY:	clean
 clean:
-	-rm -f *.o
-	-rm -f $(PROGRAM) $(PROGRAM).app hpsdrsim
+	-rm -f $(BLDDIR)*.o $(BLDDIR)*.d
+	-rm -rf $(PROGRAM) $(PROGRAM).app $(BLDDIR)hpsdrsim
 
 #
 # If $DESTDIR is set, copy to that directory, otherwise use /usr/local/bin
@@ -541,15 +544,8 @@ controller2v2: clean $(PROGRAM)
 #
 #############################################################################
 
-hpsdrsim.o:	hpsdrsim.c hpsdrsim.h
-	$(CC) -c -O hpsdrsim.c
-
-newhpsdrsim.o:	newhpsdrsim.c hpsdrsim.h
-	$(CC) -c -O newhpsdrsim.c
-
-hpsdrsim:	hpsdrsim.o newhpsdrsim.o
-	$(LINK) -o hpsdrsim hpsdrsim.o newhpsdrsim.o -lm -lpthread
-
+$(BLDDIR)hpsdrsim:	$(BLDDIR)hpsdrsim.o $(BLDDIR)newhpsdrsim.o
+	$(LINK) -o $@ $^ -lm -lpthread
 
 debian:
 	cp $(PROGRAM) pkg/pihpsdr/usr/local/bin
@@ -577,21 +573,23 @@ debian:
 #
 #############################################################################
 
-.PHONY: app
-app:    $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS)  $(SOAPYSDR_OBJS) \
+APP_OBJS=$(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS) $(USBOZY_OBJS)  $(SOAPYSDR_OBJS) \
                 $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
                 $(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS)
-	$(LINK) -headerpad_max_install_names -o $(PROGRAM) $(OBJS) $(AUDIO_OBJS) $(REMOTE_OBJS)  $(USBOZY_OBJS)  \
-                $(SOAPYSDR_OBJS) $(LOCALCW_OBJS) $(PURESIGNAL_OBJS) \
-                $(MIDI_OBJS) $(STEMLAB_OBJS) $(SERVER_OBJS) $(LIBS) $(LDFLAGS)
-	@rm -rf pihpsdr.app
-	@mkdir -p pihpsdr.app/Contents/MacOS
-	@mkdir -p pihpsdr.app/Contents/Frameworks
-	@mkdir -p pihpsdr.app/Contents/Resources
-	@cp pihpsdr pihpsdr.app/Contents/MacOS/pihpsdr
-	@cp MacOS/PkgInfo pihpsdr.app/Contents
-	@cp MacOS/Info.plist pihpsdr.app/Contents
-	@cp MacOS/hpsdr.icns pihpsdr.app/Contents/Resources/hpsdr.icns
-	@cp MacOS/hpsdr.png pihpsdr.app/Contents/Resources
+.PHONY: app
+app: $(PROGRAM).app/Contents/MacOS/pihpsdr MacOS/PkgInfo MacOS/Info.plist MacOS/hpsdr.icns MacOS/hpsdr.png
+	@cp MacOS/PkgInfo $(PROGRAM).app/Contents
+	@cp MacOS/Info.plist $(PROGRAM).app/Contents
+	@cp MacOS/hpsdr.icns $(PROGRAM).app/Contents/Resources/hpsdr.icns
+	@cp MacOS/hpsdr.png $(PROGRAM).app/Contents/Resources
+
+$(PROGRAM).app/Contents/MacOS/pihpsdr: $(APP_OBJS:%.o=$(BLDDIR)%.o)
+	@rm -rf $(PROGRAM).app
+	@mkdir -p $(PROGRAM).app/Contents/MacOS
+	@mkdir -p $(PROGRAM).app/Contents/Frameworks
+	@mkdir -p $(PROGRAM).app/Contents/Resources
+	$(LINK) -headerpad_max_install_names -o $@ $^ $(LIBS) $(LDFLAGS)
 #############################################################################
 
+# Auto generated dependencies
+-include $(shell find $(BLDDIR) -name '*.d')
