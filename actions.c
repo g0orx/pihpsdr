@@ -309,7 +309,7 @@ int process_action(void *data) {
       break;
     case BAND_10:
       if(a->mode==PRESSED) {
-        vfo_band_changed(active_receiver->id,band160);
+        vfo_band_changed(active_receiver->id,band10);
       }
       break;
     case BAND_12:
